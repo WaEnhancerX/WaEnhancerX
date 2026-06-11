@@ -33,4 +33,7 @@ google-services.json
 # Android Profiling
 *.hprof
 */build/
+
+# References & Docs
 references/
+docs/
