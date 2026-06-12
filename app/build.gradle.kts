@@ -51,6 +51,8 @@ dependencies {
     // Shared modules
     implementation(project(":core"))
     implementation(project(":core-ui"))
+    implementation(project(":core-database"))
+    implementation(project(":core-network"))
     implementation(project(":domain"))
     implementation(project(":data"))
     
@@ -91,6 +93,14 @@ dependencies {
     // Hilt
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
+    
+    // Serialization
+    implementation(libs.kotlinx.serialization.json)
+
+    // External dependencies needed on app classpath for Hilt annotation processing
+    implementation(libs.retrofit.core)
+    implementation(libs.okhttp.core)
+    implementation(libs.room.runtime)
 
     // Testing
     testImplementation(libs.junit)
@@ -100,3 +110,11 @@ dependencies {
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.espresso.core)
 }
+
+kapt {
+    correctErrorTypes = true
+    arguments {
+        arg("dagger.hilt.android.internal.disableAndroidSuperclassValidation", "true")
+    }
+}
+

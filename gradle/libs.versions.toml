@@ -13,7 +13,7 @@ junit = "4.13.2"
 kotlin = "2.0.20"
 nav3Core = "1.0.1"
 lifecycleViewmodelNav3 = "2.10.0"
-hilt = "2.55"
+hilt = "2.59.2"
 room = "2.7.0"
 retrofit = "2.11.0"
 okhttp = "4.12.0"
@@ -25,6 +25,7 @@ androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidx
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivity" }
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "androidxComposeBom" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3"}
+androidx-compose-icons-core = { group = "androidx.compose.material", name = "material-icons-core" }
 androidx-compose-ui = { group = "androidx.compose.ui", name = "ui"}
 androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview"}
 androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4"}

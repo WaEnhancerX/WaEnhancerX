@@ -3,52 +3,62 @@
 # 1. General Optimization & Obfuscation settings
 -repackageclasses 'a'
 -allowaccessmodification
+-overloadaggressively
 
 # Keep source file names and line numbers for stack trace reporting
 -keepattributes SourceFile,LineNumberTable
 -keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
 
-# 2. Kotlinx Serialization Rules
-# Keep serializers and serializable class structures
--keep class * {
-    @kotlinx.serialization.Serializable *;
+# 2. Coroutines Shrinking & Optimization
+# Strip coroutine assertions and debug trace recovery in production builds
+-assumevalues class kotlinx.coroutines.internal.DiagnosticsKt {
+    boolean getASSERTIONS_ENABLED() return false;
 }
+-dontwarn kotlinx.coroutines.**
+
+# 3. Kotlinx Serialization
+# Keep Companion and serializers. We allow obfuscation of the companion and serialization helper classes
 -keepclassmembers class * {
     *** Companion;
     *** $serializer;
 }
+# Keep the fields of classes marked with @Serializable to allow JSON mapping/reflection
+-keepclassmembers class * {
+    @kotlinx.serialization.Serializable <fields>;
+}
 -dontwarn kotlinx.serialization.compat.bridge.**
 
-# 3. Retrofit & OkHttp Rules
--dontwarn retrofit2.**
--keep class retrofit2.** { *; }
--keepclassmembers class * {
+# 4. Room Database Optimization
+# Room database implementations are loaded by reflection. We keep the database class constructors.
+-keep class * extends androidx.room.RoomDatabase {
+    <init>();
+}
+-dontwarn androidx.room.paging.**
+
+# 5. Retrofit & OkHttp (R8 strips unused library code, keeping only reflections)
+# Retrofit AAR bundles its own consumer rules. We only need to keep HTTP method annotations on interfaces.
+-keepclassmembers,allowobfuscation interface * {
     @retrofit2.http.** <methods>;
 }
+-dontwarn retrofit2.**
 -dontwarn okhttp3.**
 -dontwarn okio.**
--keep class okhttp3.** { *; }
 -dontwarn javax.annotation.**
 -dontwarn org.conscrypt.**
 
-# 4. Room Database Rules
--keep class * extends androidx.room.RoomDatabase
--keep class * extends androidx.room.RoomDatabase$Callback
--dontwarn androidx.room.paging.**
+# 6. Hilt & Jetpack Compose
+# ViewModels are instantiated via reflection. Keep only their constructors.
+-keepclassmembers class * extends androidx.lifecycle.ViewModel {
+    <init>(...);
+}
+# Hilt, Activity, Fragment, Service, and BroadcastReceiver classes are automatically kept 
+# by Android Gradle Plugin's default proguard-android-optimize.txt via AndroidManifest analysis.
 
-# 5. Hilt / Dagger DI Rules
--keep class dagger.hilt.internal.GeneratedComponentManager { *; }
--keep class * implements dagger.hilt.internal.GeneratedComponent { *; }
--keep class * extends android.app.Application
--keep class * extends android.app.Service
--keep class * extends android.content.ContentProvider
--keep class * extends android.content.BroadcastReceiver
--keep class * extends android.app.Activity
--keep class * extends androidx.fragment.app.Fragment
--keep class * extends androidx.viewmodel.ViewModel
--keep class * extends androidx.lifecycle.ViewModel
+# 7. Plugin Class Loading System (CRITICAL)
+# Interfaces used by plugins loaded dynamically at runtime MUST not be obfuscated or stripped.
+-keep interface com.waenhancer.plugin.api.** { *; }
 
-# 6. Keep domain models and network DTO classes to prevent serialization issues
+# 8. Keep Data Transfer Objects (DTOs) & Domain Models (prevent serialization / DB schema mismatch)
 -keep class com.waenhancer.domain.model.** { *; }
 -keep class com.waenhancer.data.remote.dto.** { *; }
 -keep class com.waenhancer.core.database.entity.** { *; }

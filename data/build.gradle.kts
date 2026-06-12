@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kotlin.kapt)
     alias(libs.plugins.dagger.hilt.android)
 }
@@ -31,6 +32,7 @@ dependencies {
     
     // Retrofit + Room (runtime only, compiler in core modules or needed here too for kapt if any local DB code uses it)
     implementation(libs.retrofit.core)
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     kapt(libs.room.compiler)
