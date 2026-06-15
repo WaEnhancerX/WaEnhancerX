@@ -48,24 +48,6 @@ kotlin {
 }
 
 dependencies {
-    // Shared modules
-    implementation(project(":core"))
-    implementation(project(":core-ui"))
-    implementation(project(":core-database"))
-    implementation(project(":core-network"))
-    implementation(project(":domain"))
-    implementation(project(":data"))
-    
-    // Feature modules
-    implementation(project(":feature-home"))
-    implementation(project(":feature-settings"))
-    implementation(project(":feature-tools"))
-    implementation(project(":feature-auth"))
-    
-    // Plugin system
-    implementation(project(":plugin-api"))
-    implementation(project(":plugin-host"))
-
     // Android/Compose standard dependencies
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)
@@ -117,4 +99,120 @@ kapt {
         arg("dagger.hilt.android.internal.disableAndroidSuperclassValidation", "true")
     }
 }
+
+tasks.register("architectureCheck") {
+    group = "verification"
+    description = "Enforces package-level modular architecture rules for Wa Enhancer X"
+
+    val srcDir = layout.projectDirectory.dir("src/main/java/com/waenhancer").asFile
+
+    doLast {
+        if (!srcDir.exists()) {
+            println("Source directory com/waenhancer does not exist, skipping architecture check.")
+            return@doLast
+        }
+
+        var violationCount = 0
+        val violations = mutableListOf<String>()
+
+        srcDir.walkTopDown().forEach { file ->
+            if (file.isFile && (file.name.endsWith(".kt") || file.name.endsWith(".java"))) {
+                val relativePath = file.relativeTo(srcDir).path
+                
+                // Determine which layer the file belongs to based on relative path
+                val layer = when {
+                    relativePath.startsWith("core/") -> "core"
+                    relativePath.startsWith("hooks/") -> "hooks"
+                    relativePath.startsWith("features/") -> "features"
+                    relativePath.startsWith("api/") -> "api"
+                    relativePath.startsWith("ui/") -> "ui"
+                    relativePath.startsWith("plugins/") -> "plugins"
+                    relativePath.startsWith("app/") -> "app"
+                    else -> "other"
+                }
+
+                if (layer == "other") return@forEach
+
+                val lines = file.readLines()
+                lines.forEachIndexed { index, line ->
+                    val trimmed = line.trim()
+                    if (trimmed.startsWith("import ")) {
+                        val importedPackage = trimmed
+                            .substringAfter("import ")
+                            .substringBefore(";")
+                            .trim()
+
+                        // Check import restrictions
+                        val isViolating = when (layer) {
+                            "core" -> {
+                                importedPackage.startsWith("com.waenhancer.features") ||
+                                        importedPackage.startsWith("com.waenhancer.ui") ||
+                                        importedPackage.startsWith("com.waenhancer.hooks") ||
+                                        importedPackage.startsWith("com.waenhancer.plugins")
+                            }
+                            "features" -> {
+                                importedPackage.startsWith("com.waenhancer.core") ||
+                                        importedPackage.startsWith("com.waenhancer.hooks") ||
+                                        importedPackage.startsWith("com.waenhancer.ui") ||
+                                        importedPackage.startsWith("com.waenhancer.plugins")
+                            }
+                            "ui" -> {
+                                importedPackage.startsWith("com.waenhancer.core") ||
+                                        importedPackage.startsWith("com.waenhancer.hooks") ||
+                                        importedPackage.startsWith("com.waenhancer.plugins")
+                            }
+                            "hooks" -> {
+                                importedPackage.startsWith("com.waenhancer.features") ||
+                                        importedPackage.startsWith("com.waenhancer.ui") ||
+                                        importedPackage.startsWith("com.waenhancer.plugins")
+                            }
+                            "api" -> {
+                                importedPackage.startsWith("com.waenhancer.core") ||
+                                        importedPackage.startsWith("com.waenhancer.hooks") ||
+                                        importedPackage.startsWith("com.waenhancer.features") ||
+                                        importedPackage.startsWith("com.waenhancer.ui") ||
+                                        importedPackage.startsWith("com.waenhancer.plugins")
+                            }
+                            "plugins" -> {
+                                importedPackage.startsWith("com.waenhancer.core") ||
+                                        importedPackage.startsWith("com.waenhancer.hooks") ||
+                                        importedPackage.startsWith("com.waenhancer.features") ||
+                                        importedPackage.startsWith("com.waenhancer.ui")
+                            }
+                            "app" -> {
+                                // App is the composition root: can use features, api, ui
+                                // Must NOT directly access core internals, hooks, or plugins
+                                importedPackage.startsWith("com.waenhancer.core") ||
+                                        importedPackage.startsWith("com.waenhancer.hooks") ||
+                                        importedPackage.startsWith("com.waenhancer.plugins")
+                            }
+                            else -> false
+                        }
+
+                        if (isViolating) {
+                            violationCount++
+                            violations.add("Violation in file://${file.absolutePath} at line ${index + 1}: Forbidden import '$importedPackage' in '$layer' layer.")
+                        }
+                    }
+                }
+            }
+        }
+
+        if (violationCount > 0) {
+            println("----------------------------------------------------------------------")
+            println("🚨 ARCHITECTURE VERIFICATION FAILED: $violationCount violations found")
+            println("----------------------------------------------------------------------")
+            violations.forEach { println(it) }
+            println("----------------------------------------------------------------------")
+            throw GradleException("Architecture rules validation failed. Please fix the imports listed above.")
+        } else {
+            println("✅ Architecture verification successful: 0 violations found.")
+        }
+    }
+}
+
+tasks.named("check") {
+    dependsOn("architectureCheck")
+}
+
 

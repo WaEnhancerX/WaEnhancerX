@@ -55,10 +55,11 @@
 # by Android Gradle Plugin's default proguard-android-optimize.txt via AndroidManifest analysis.
 
 # 7. Plugin Class Loading System (CRITICAL)
-# Interfaces used by plugins loaded dynamically at runtime MUST not be obfuscated or stripped.
--keep interface com.waenhancer.plugin.api.** { *; }
+# API contract interfaces used by dynamically loaded plugins MUST not be obfuscated or stripped.
+-keep interface com.waenhancer.api.contracts.** { *; }
 
-# 8. Keep Data Transfer Objects (DTOs) & Domain Models (prevent serialization / DB schema mismatch)
--keep class com.waenhancer.domain.model.** { *; }
--keep class com.waenhancer.data.remote.dto.** { *; }
--keep class com.waenhancer.core.database.entity.** { *; }
+# 8. Keep Data Transfer Objects (DTOs) & Models (prevent serialization / DB schema mismatch)
+# These rules target the new package-level modular structure.
+-keep class com.waenhancer.api.contracts.** { *; }
+-keep class com.waenhancer.features.**.model.** { *; }
+-keep class com.waenhancer.core.**.entity.** { *; }

@@ -31,15 +31,4 @@ plugins {
 
 rootProject.name = "Wa Enhancer X"
 include(":app")
-include(":core")
-include(":core-ui")
-include(":core-network")
-include(":core-database")
-include(":domain")
-include(":data")
-include(":feature-home")
-include(":feature-settings")
-include(":feature-tools")
-include(":feature-auth")
-include(":plugin-api")
-include(":plugin-host")
+
