@@ -12,6 +12,7 @@
         android:theme="@style/Theme.Waex">
         <activity
             android:name="com.waenhancer.app.MainActivity"
+            android:screenOrientation="portrait"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
