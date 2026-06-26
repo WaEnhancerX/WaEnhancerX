@@ -6,7 +6,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.isSystemInDarkTheme
 import com.waenhancer.ui.designsystem.WaexTheme
+import com.waenhancer.ui.designsystem.LocalThemeMode
+import com.waenhancer.ui.designsystem.LocalThemeModeUpdater
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.MainContainerScreen
 import com.waenhancer.ui.navigation.WaexNavController
@@ -18,10 +25,21 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            WaexTheme {
-                val navController = remember { WaexNavController() }
-                CompositionLocalProvider(LocalWaexNavController provides navController) {
-                    MainContainerScreen()
+            var themeMode by rememberSaveable { mutableStateOf("System") }
+            val isDark = when (themeMode) {
+                "Light" -> false
+                "Dark" -> true
+                else -> isSystemInDarkTheme()
+            }
+            CompositionLocalProvider(
+                LocalThemeMode provides themeMode,
+                LocalThemeModeUpdater provides { mode -> themeMode = mode }
+            ) {
+                WaexTheme(darkTheme = isDark) {
+                    val navController = remember { WaexNavController() }
+                    CompositionLocalProvider(LocalWaexNavController provides navController) {
+                        MainContainerScreen()
+                    }
                 }
             }
         }

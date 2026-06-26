@@ -1,8 +1,12 @@
 package com.waenhancer.ui.navigation
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,6 +30,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -122,6 +128,10 @@ fun MainContainerScreen() {
     var licenseState by remember { mutableStateOf("free") } // "free" | "pro" | "trial"
     var activeModal by remember { mutableStateOf<String?>(null) } // "license" | "file-spoofer" | "message-bomber" | "status-splitter" | "per-contact" | null
 
+    val themeMode = com.waenhancer.ui.designsystem.LocalThemeMode.current
+    val updateThemeMode = com.waenhancer.ui.designsystem.LocalThemeModeUpdater.current
+    var showThemeMenu by remember { mutableStateOf(false) }
+
     val currentScreen = navController.currentScreen
     val isRoot = when (currentScreen) {
         Screen.MainDashboard,
@@ -135,22 +145,24 @@ fun MainContainerScreen() {
     val pagerState = rememberPagerState { 5 }
     val coroutineScope = rememberCoroutineScope()
 
-    // Sync from pager scroll to navController
-    LaunchedEffect(pagerState.currentPage) {
-        val targetScreen = when (pagerState.currentPage) {
-            0 -> Screen.MainDashboard
-            1 -> Screen.GlobalPrivacySettings
-            2 -> Screen.MediaStatusHub
-            3 -> Screen.AutomationTasker
-            4 -> Screen.ProUpgradePaywall
-            else -> Screen.MainDashboard
-        }
-        if (navController.currentScreen != targetScreen && isRoot) {
-            navController.navigateTo(targetScreen, clearStack = true)
+    // Sync from pager scroll to navController (only when scroll has settled to avoid feedback loops)
+    LaunchedEffect(pagerState.currentPage, pagerState.isScrollInProgress) {
+        if (!pagerState.isScrollInProgress) {
+            val targetScreen = when (pagerState.currentPage) {
+                0 -> Screen.MainDashboard
+                1 -> Screen.GlobalPrivacySettings
+                2 -> Screen.MediaStatusHub
+                3 -> Screen.AutomationTasker
+                4 -> Screen.ProUpgradePaywall
+                else -> Screen.MainDashboard
+            }
+            if (navController.currentScreen != targetScreen && isRoot) {
+                navController.navigateTo(targetScreen, clearStack = true)
+            }
         }
     }
 
-    // Sync from navController to pager
+    // Sync from navController to pager programmatically
     LaunchedEffect(currentScreen) {
         val targetPage = when (currentScreen) {
             Screen.MainDashboard -> 0
@@ -161,7 +173,7 @@ fun MainContainerScreen() {
             else -> -1
         }
         if (targetPage != -1 && pagerState.currentPage != targetPage) {
-            pagerState.scrollToPage(targetPage)
+            pagerState.animateScrollToPage(targetPage)
         }
     }
 
@@ -182,7 +194,9 @@ fun MainContainerScreen() {
                     modifier = Modifier.fillMaxWidth(),
                     color = colors.surface
                 ) {
-                    Column {
+                    Column(
+                        modifier = Modifier.statusBarsPadding()
+                    ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -223,48 +237,42 @@ fun MainContainerScreen() {
                                 IconButton(
                                     onClick = { activeModal = "file-spoofer" },
                                     modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(CircleShape)
-                                        .background(colors.primaryContainer)
+                                        .size(32.dp)
                                         .align(Alignment.CenterVertically)
                                 ) {
                                     Icon(
                                         imageVector = WaexIcons.Lock,
                                         contentDescription = "File Spoofer",
-                                        tint = colors.primary,
-                                        modifier = Modifier.size(16.dp)
+                                        tint = colors.onBackground,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(4.dp))
                                 IconButton(
                                     onClick = { activeModal = "message-bomber" },
                                     modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(CircleShape)
-                                        .background(colors.primaryContainer)
+                                        .size(32.dp)
                                         .align(Alignment.CenterVertically)
                                 ) {
                                     Icon(
                                         imageVector = WaexIcons.Mic,
                                         contentDescription = "Message Bomber",
-                                        tint = colors.primary,
-                                        modifier = Modifier.size(16.dp)
+                                        tint = colors.onBackground,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(4.dp))
                                 IconButton(
                                     onClick = { activeModal = "status-splitter" },
                                     modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(CircleShape)
-                                        .background(colors.primaryContainer)
+                                        .size(32.dp)
                                         .align(Alignment.CenterVertically)
                                 ) {
                                     Icon(
                                         imageVector = WaexIcons.SystemUpdate,
                                         contentDescription = "Status Splitter",
-                                        tint = colors.primary,
-                                        modifier = Modifier.size(16.dp)
+                                        tint = colors.onBackground,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -303,6 +311,96 @@ fun MainContainerScreen() {
                                     fontWeight = FontWeight.Medium,
                                     color = chipText
                                 )
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            IconButton(
+                                onClick = { /* Search action to be implemented later */ },
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .align(Alignment.CenterVertically)
+                            ) {
+                                Icon(
+                                    imageVector = WaexIcons.Search,
+                                    contentDescription = "Search",
+                                    tint = colors.onBackground,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            Box(
+                                modifier = Modifier.align(Alignment.CenterVertically)
+                            ) {
+                                val themeIcon = when (themeMode) {
+                                    "Light" -> WaexIcons.LightMode
+                                    "Dark" -> WaexIcons.DarkMode
+                                    else -> WaexIcons.AutoMode
+                                }
+                                IconButton(
+                                    onClick = { showThemeMenu = true },
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = themeIcon,
+                                        contentDescription = "Theme Mode",
+                                        tint = colors.onBackground,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                DropdownMenu(
+                                    expanded = showThemeMenu,
+                                    onDismissRequest = { showThemeMenu = false },
+                                    modifier = Modifier.background(colors.surface)
+                                ) {
+                                    val modes = listOf("Light", "Dark", "System")
+                                    modes.forEach { mode ->
+                                        val active = themeMode == mode
+                                        DropdownMenuItem(
+                                            text = {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    val modeIcon = when (mode) {
+                                                        "Light" -> WaexIcons.LightMode
+                                                        "Dark" -> WaexIcons.DarkMode
+                                                        else -> WaexIcons.AutoMode
+                                                    }
+                                                    Icon(
+                                                        imageVector = modeIcon,
+                                                        contentDescription = null,
+                                                        tint = if (active) colors.primary else colors.onSurfaceVariant,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                    Text(
+                                                        text = mode,
+                                                        style = typography.bodyMd,
+                                                        fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+                                                        color = if (active) colors.primary else colors.onSurface
+                                                    )
+                                                    if (active) {
+                                                        Spacer(modifier = Modifier.weight(1f))
+                                                        Icon(
+                                                            imageVector = WaexIcons.Check,
+                                                            contentDescription = "Active",
+                                                            tint = colors.primary,
+                                                            modifier = Modifier.size(16.dp)
+                                                        )
+                                                    }
+                                                }
+                                            },
+                                            onClick = {
+                                                updateThemeMode(mode)
+                                                showThemeMenu = false
+                                            }
+                                        )
+                                    }
+                                }
                             }
                         }
                         HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
@@ -433,17 +531,40 @@ fun MainContainerScreen() {
             }
         }
 
-        // Overlay Modals
-        if (activeModal != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.3f))
-                    .clickable { activeModal = null }
+        // Animated Overlay Modals
+        Box(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            // Animated overlay background
+            AnimatedVisibility(
+                visible = activeModal != null,
+                enter = fadeIn(animationSpec = tween(durationMillis = 300)),
+                exit = fadeOut(animationSpec = tween(durationMillis = 250)),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.4f))
+                        .clickable { activeModal = null }
+                )
+            }
+
+            // Animated bottom sheet content
+            AnimatedVisibility(
+                visible = activeModal != null,
+                enter = slideInVertically(
+                    initialOffsetY = { it },
+                    animationSpec = tween(durationMillis = 350)
+                ) + fadeIn(animationSpec = tween(durationMillis = 300)),
+                exit = slideOutVertically(
+                    targetOffsetY = { it },
+                    animationSpec = tween(durationMillis = 300)
+                ) + fadeOut(animationSpec = tween(durationMillis = 250)),
+                modifier = Modifier.align(Alignment.BottomCenter)
             ) {
                 Surface(
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
                         .fillMaxWidth()
                         .clickable(enabled = false) { }
                         .clip(radius.bottomSheetShape),

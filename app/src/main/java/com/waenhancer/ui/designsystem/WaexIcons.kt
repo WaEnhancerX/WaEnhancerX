@@ -24,6 +24,10 @@ import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.automirrored.rounded.ContactSupport
 import androidx.compose.material.icons.rounded.SystemUpdate
+import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.BrightnessAuto
+import androidx.compose.material.icons.rounded.Check
 
 object WaexIcons {
     val Back = Icons.AutoMirrored.Rounded.ArrowBack
@@ -52,4 +56,8 @@ object WaexIcons {
     val Extension = Icons.Rounded.Extension
     val ContactSupport = Icons.AutoMirrored.Rounded.ContactSupport
     val SystemUpdate = Icons.Rounded.SystemUpdate
+    val LightMode = Icons.Rounded.LightMode
+    val DarkMode = Icons.Rounded.DarkMode
+    val AutoMode = Icons.Rounded.BrightnessAuto
+    val Check = Icons.Rounded.Check
 }

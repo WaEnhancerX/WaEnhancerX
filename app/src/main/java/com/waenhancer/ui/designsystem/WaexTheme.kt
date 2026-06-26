@@ -4,6 +4,10 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.staticCompositionLocalOf
+
+val LocalThemeMode = staticCompositionLocalOf { "System" }
+val LocalThemeModeUpdater = staticCompositionLocalOf<(String) -> Unit> { {} }
 
 @Composable
 fun WaexTheme(
