@@ -211,12 +211,12 @@ fun PerContactPrivacyModal(
                                 fontSize = 13.sp
                             )
                             // Custom circular indicator
-                            Box(
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isChecked) colors.primary else Color.Transparent)
-                                    .border(2.dp, if (isChecked) colors.primary else Color(0xFFCBCED4), CircleShape),
+                                    Box(
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                            .clip(CircleShape)
+                                            .background(if (isChecked) colors.primary else Color.Transparent)
+                                            .border(2.dp, if (isChecked) colors.primary else colors.outline, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (isChecked) {
@@ -272,7 +272,7 @@ fun PerContactPrivacyModal(
                             modifier = Modifier
                                 .size(20.dp)
                                 .clip(CircleShape)
-                                .border(2.dp, if (isSelected) colors.primary else Color(0xFFCBCED4), CircleShape)
+                                .border(2.dp, if (isSelected) colors.primary else colors.outline, CircleShape)
                                 .padding(3.dp),
                             contentAlignment = Alignment.Center
                         ) {

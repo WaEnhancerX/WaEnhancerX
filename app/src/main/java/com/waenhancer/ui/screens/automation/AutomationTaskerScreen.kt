@@ -120,7 +120,7 @@ fun AutomationTaskerScreen() {
                             .fillMaxHeight()
                             .weight(1f)
                             .clip(radius.defaultShape)
-                            .background(if (isSelected) Color.White else Color.Transparent)
+                            .background(if (isSelected) colors.surface else Color.Transparent)
                             .border(
                                 width = if (isSelected) 1.dp else 0.dp,
                                 color = if (isSelected) colors.outlineVariant else Color.Transparent,
@@ -261,7 +261,7 @@ fun AutomationTaskerScreen() {
                                         .fillMaxWidth()
                                         .height(44.dp)
                                         .clip(radius.mdShape)
-                                        .background(Color.White)
+                                        .background(colors.surface)
                                         .border(1.dp, colors.outlineVariant, radius.mdShape)
                                         .padding(horizontal = 12.dp),
                                     contentAlignment = Alignment.CenterStart
@@ -392,7 +392,7 @@ fun AutomationTaskerScreen() {
                                     .fillMaxWidth()
                                     .height(44.dp)
                                     .clip(radius.mdShape)
-                                    .background(Color.White)
+                                    .background(colors.surface)
                                     .border(1.dp, colors.outlineVariant, radius.mdShape)
                                     .padding(horizontal = 12.dp),
                                 contentAlignment = Alignment.CenterStart
@@ -490,7 +490,7 @@ fun AutomationTaskerScreen() {
                                     .fillMaxWidth()
                                     .height(44.dp)
                                     .clip(radius.mdShape)
-                                    .background(Color.White)
+                                    .background(colors.surface)
                                     .border(1.dp, colors.outlineVariant, radius.mdShape)
                                     .padding(horizontal = 12.dp),
                                 contentAlignment = Alignment.CenterStart
@@ -520,7 +520,7 @@ fun AutomationTaskerScreen() {
                                         .fillMaxWidth()
                                         .height(44.dp)
                                         .clip(radius.mdShape)
-                                        .background(Color.White)
+                                        .background(colors.surface)
                                         .border(1.dp, colors.outlineVariant, radius.mdShape)
                                         .clickable { showModelDropdown = true }
                                         .padding(horizontal = 12.dp),

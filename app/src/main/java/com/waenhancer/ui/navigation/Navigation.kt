@@ -418,7 +418,7 @@ fun MainContainerScreen() {
                     ) {
                         Surface(
                             shape = CircleShape,
-                            color = Color.White,
+                            color = colors.surface,
                             border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
                             shadowElevation = 8.dp,
                             modifier = Modifier
@@ -568,7 +568,7 @@ fun MainContainerScreen() {
                         .fillMaxWidth()
                         .clickable(enabled = false) { }
                         .clip(radius.bottomSheetShape),
-                    color = Color.White,
+                    color = colors.surface,
                     border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant)
                 ) {
                     Column(

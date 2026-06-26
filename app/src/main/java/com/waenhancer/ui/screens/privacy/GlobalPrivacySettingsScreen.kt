@@ -178,7 +178,7 @@ fun GlobalPrivacySettingsScreen(
                             .fillMaxHeight()
                             .weight(1f)
                             .clip(radius.defaultShape)
-                            .background(if (isSelected) Color.White else Color.Transparent)
+                            .background(if (isSelected) colors.surface else Color.Transparent)
                             .border(
                                 width = if (isSelected) 1.dp else 0.dp,
                                 color = if (isSelected) colors.outlineVariant else Color.Transparent,
