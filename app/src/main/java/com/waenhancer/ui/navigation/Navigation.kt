@@ -1,5 +1,7 @@
 package com.waenhancer.ui.navigation
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.togetherWith
@@ -10,6 +12,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -85,6 +92,9 @@ class WaexNavController(initialScreen: Screen = Screen.MainDashboard) {
 
     var isLastTransitionForward by mutableStateOf(true)
         private set
+
+    val canPop: Boolean
+        get() = backstack.size > 1
 
     var targetPageIndex by mutableStateOf(-1)
     var targetSubTabId by mutableStateOf<String?>(null)
@@ -167,6 +177,29 @@ fun MainContainerScreen() {
 
     val pagerState = rememberPagerState { 5 }
     val coroutineScope = rememberCoroutineScope()
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var lastBackPressTime by remember { mutableStateOf(0L) }
+
+    BackHandler(enabled = true) {
+        if (activeModal != null) {
+            activeModal = null
+        } else if (!isRoot) {
+            navController.popBack()
+        } else if (pagerState.currentPage != 0) {
+            coroutineScope.launch {
+                pagerState.scrollToPage(0)
+            }
+        } else {
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastBackPressTime < 2000) {
+                (context as? android.app.Activity)?.finish()
+            } else {
+                lastBackPressTime = currentTime
+                android.widget.Toast.makeText(context, "Press back again to exit", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     LaunchedEffect(navController.targetPageIndex) {
         val target = navController.targetPageIndex
@@ -441,23 +474,57 @@ fun MainContainerScreen() {
             }
         },
         bottomBar = {
-                if (isRoot) {
-                    Box(
+            if (isRoot) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.Transparent)
+                        .navigationBarsPadding()
+                        .padding(start = 24.dp, end = 24.dp, bottom = 24.dp, top = 8.dp)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = colors.surface,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
+                        shadowElevation = 8.dp,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color.Transparent)
-                            .navigationBarsPadding()
-                            .padding(start = 24.dp, end = 24.dp, bottom = 24.dp, top = 8.dp)
+                            .height(64.dp)
                     ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = colors.surface,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
-                            shadowElevation = 8.dp,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(64.dp)
-                        ) {
+                        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                            val totalWidth = maxWidth
+                            val columnWidth = totalWidth / 5
+                            val pillWidth = 40.dp
+
+                            val activeIndex = when (currentScreen) {
+                                Screen.MainDashboard -> 0
+                                Screen.GlobalPrivacySettings -> 1
+                                Screen.MediaStatusHub -> 2
+                                Screen.AutomationTasker -> 3
+                                Screen.ProUpgradePaywall -> 4
+                                else -> 0
+                            }
+
+                            val targetOffset = (columnWidth * activeIndex) + (columnWidth - pillWidth) / 2
+                            val animatedOffset by animateDpAsState(
+                                targetValue = targetOffset,
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioLowBouncy,
+                                    stiffness = Spring.StiffnessLow
+                                ),
+                                label = "tab_highlighter_offset"
+                            )
+
+                            // Sliding highlighter pill
+                            Box(
+                                modifier = Modifier
+                                    .padding(top = 12.dp)
+                                    .offset(x = animatedOffset)
+                                    .size(width = pillWidth, height = 24.dp)
+                                    .clip(CircleShape)
+                                    .background(colors.primaryContainer)
+                            )
+
                             Row(
                                 modifier = Modifier.fillMaxSize(),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -472,6 +539,12 @@ fun MainContainerScreen() {
                                         Screen.ProUpgradePaywall -> tab == BottomTab.PRO
                                         else -> tab == BottomTab.HOME
                                     }
+
+                                    val contentColor by animateColorAsState(
+                                        targetValue = if (active) colors.primary else colors.onSurfaceVariant,
+                                        animationSpec = tween(durationMillis = 200),
+                                        label = "tab_content_color"
+                                    )
 
                                     Column(
                                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -494,15 +567,13 @@ fun MainContainerScreen() {
                                     ) {
                                         Box(
                                             modifier = Modifier
-                                                .size(width = 40.dp, height = 24.dp)
-                                                .clip(CircleShape)
-                                                .background(if (active) colors.primaryContainer else Color.Transparent),
+                                                .size(width = 40.dp, height = 24.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
                                                 imageVector = tab.icon,
                                                 contentDescription = tab.label,
-                                                tint = if (active) colors.primary else colors.onSurfaceVariant,
+                                                tint = contentColor,
                                                 modifier = Modifier.size(20.dp)
                                             )
                                         }
@@ -511,7 +582,7 @@ fun MainContainerScreen() {
                                             text = tab.label,
                                             style = typography.labelSm,
                                             fontWeight = FontWeight.Medium,
-                                            color = if (active) colors.primary else colors.onSurfaceVariant,
+                                            color = contentColor,
                                             fontSize = 10.sp
                                         )
                                     }
@@ -520,7 +591,8 @@ fun MainContainerScreen() {
                         }
                     }
                 }
-            },
+            }
+        },
             containerColor = colors.background
         ) { paddingValues ->
             Box(
