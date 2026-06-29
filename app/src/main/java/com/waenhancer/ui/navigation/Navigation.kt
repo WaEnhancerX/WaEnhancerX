@@ -1,6 +1,10 @@
 package com.waenhancer.ui.navigation
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -79,7 +83,24 @@ class WaexNavController(initialScreen: Screen = Screen.MainDashboard) {
     var currentScreen by mutableStateOf<Screen>(initialScreen)
         private set
 
+    var isLastTransitionForward by mutableStateOf(true)
+        private set
+
+    var targetPageIndex by mutableStateOf(-1)
+    var targetSubTabId by mutableStateOf<String?>(null)
+    var scrollToTargetKey by mutableStateOf<String?>(null)
+    var highlightTargetKey by mutableStateOf<String?>(null)
+
+    fun navigateToPreference(tabIndex: Int, subTabId: String?, preferenceKey: String) {
+        navigateTo(Screen.MainDashboard, clearStack = true)
+        targetPageIndex = tabIndex
+        targetSubTabId = subTabId
+        scrollToTargetKey = preferenceKey
+        highlightTargetKey = preferenceKey
+    }
+
     fun navigateTo(screen: Screen, clearStack: Boolean = false) {
+        isLastTransitionForward = !(screen.isRootScreen || clearStack)
         if (clearStack) {
             backstack.clear()
             backstack.add(Screen.MainDashboard)
@@ -94,6 +115,7 @@ class WaexNavController(initialScreen: Screen = Screen.MainDashboard) {
 
     fun popBack(): Boolean {
         if (backstack.size > 1) {
+            isLastTransitionForward = false
             backstack.removeAt(backstack.size - 1)
             currentScreen = backstack.last()
             return true
@@ -141,9 +163,18 @@ fun MainContainerScreen() {
         Screen.ProUpgradePaywall -> true
         else -> false
     }
+    val showParentTopBar = isRoot || currentScreen == Screen.SystemHealth
 
     val pagerState = rememberPagerState { 5 }
     val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(navController.targetPageIndex) {
+        val target = navController.targetPageIndex
+        if (target in 0..4) {
+            pagerState.animateScrollToPage(target)
+            navController.targetPageIndex = -1
+        }
+    }
 
     // Sync from pager scroll to navController (only when scroll has settled to avoid feedback loops)
     LaunchedEffect(pagerState.currentPage, pagerState.isScrollInProgress) {
@@ -173,7 +204,7 @@ fun MainContainerScreen() {
             else -> -1
         }
         if (targetPage != -1 && pagerState.currentPage != targetPage) {
-            pagerState.animateScrollToPage(targetPage)
+            pagerState.scrollToPage(targetPage)
         }
     }
 
@@ -190,13 +221,14 @@ fun MainContainerScreen() {
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             topBar = {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = colors.surface
-                ) {
-                    Column(
-                        modifier = Modifier.statusBarsPadding()
+                if (showParentTopBar) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = colors.surface
                     ) {
+                        Column(
+                            modifier = Modifier.statusBarsPadding()
+                        ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -316,7 +348,7 @@ fun MainContainerScreen() {
                             Spacer(modifier = Modifier.width(8.dp))
 
                             IconButton(
-                                onClick = { /* Search action to be implemented later */ },
+                                onClick = { navController.navigateTo(Screen.Search) },
                                 modifier = Modifier
                                     .size(32.dp)
                                     .align(Alignment.CenterVertically)
@@ -406,8 +438,9 @@ fun MainContainerScreen() {
                         HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
                     }
                 }
-            },
-            bottomBar = {
+            }
+        },
+        bottomBar = {
                 if (isRoot) {
                     Box(
                         modifier = Modifier
@@ -498,35 +531,63 @@ fun MainContainerScreen() {
                         bottom = if (isRoot) 0.dp else paddingValues.calculateBottomPadding()
                     )
             ) {
-                if (isRoot) {
-                    HorizontalPager(
-                        state = pagerState,
-                        modifier = Modifier.fillMaxSize()
-                    ) { pageIndex ->
-                        val pageScreen = when (pageIndex) {
-                            0 -> Screen.MainDashboard
-                            1 -> Screen.GlobalPrivacySettings
-                            2 -> Screen.MediaStatusHub
-                            3 -> Screen.AutomationTasker
-                            4 -> Screen.ProUpgradePaywall
-                            else -> Screen.MainDashboard
+                val isForward = navController.isLastTransitionForward
+                AnimatedContent(
+                    targetState = if (currentScreen.isRootScreen) Screen.MainDashboard else currentScreen,
+                    transitionSpec = {
+                        if (isForward) {
+                            slideInHorizontally(
+                                initialOffsetX = { it },
+                                animationSpec = tween(durationMillis = 350)
+                            ) togetherWith slideOutHorizontally(
+                                targetOffsetX = { -it / 3 },
+                                animationSpec = tween(durationMillis = 350)
+                            ) + fadeOut(animationSpec = tween(durationMillis = 200))
+                        } else {
+                            slideInHorizontally(
+                                initialOffsetX = { -it / 3 },
+                                animationSpec = tween(durationMillis = 350)
+                            ) togetherWith slideOutHorizontally(
+                                targetOffsetX = { it },
+                                animationSpec = tween(durationMillis = 350)
+                            ) + fadeOut(animationSpec = tween(durationMillis = 200))
                         }
-                        Box(modifier = Modifier.fillMaxSize()) {
-                            WaexAppNavigation(
-                                currentScreen = pageScreen,
-                                licenseState = licenseState,
-                                onOpenModal = { activeModal = it },
-                                onActivatePro = { licenseState = "pro" }
-                            )
+                    },
+                    label = "screen_transition",
+                    modifier = Modifier.fillMaxSize()
+                ) { targetNavigationState ->
+                    val screenToShow = if (targetNavigationState == Screen.MainDashboard) currentScreen else targetNavigationState
+                    
+                    if (screenToShow.isRootScreen) {
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier.fillMaxSize()
+                        ) { pageIndex ->
+                            val pageScreen = when (pageIndex) {
+                                0 -> Screen.MainDashboard
+                                1 -> Screen.GlobalPrivacySettings
+                                2 -> Screen.MediaStatusHub
+                                3 -> Screen.AutomationTasker
+                                4 -> Screen.ProUpgradePaywall
+                                else -> Screen.MainDashboard
+                            }
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                WaexAppNavigation(
+                                    currentScreen = pageScreen,
+                                    licenseState = licenseState,
+                                    onOpenModal = { activeModal = it },
+                                    onActivatePro = { licenseState = "pro" }
+                                )
+                            }
                         }
+                    } else {
+                        WaexAppNavigation(
+                            currentScreen = screenToShow,
+                            licenseState = licenseState,
+                            onOpenModal = { activeModal = it },
+                            onActivatePro = { licenseState = "pro" }
+                        )
                     }
-                } else {
-                    WaexAppNavigation(
-                        currentScreen = currentScreen,
-                        licenseState = licenseState,
-                        onOpenModal = { activeModal = it },
-                        onActivatePro = { licenseState = "pro" }
-                    )
                 }
             }
         }
@@ -627,5 +688,6 @@ fun WaexAppNavigation(
         Screen.MessageBomberPro -> MessageBomberProScreen()
         Screen.FileSizeSpooferPro -> FileSizeSpooferProScreen()
         Screen.StatusVideoSplitterPro -> StatusVideoSplitterProScreen()
+        Screen.Search -> com.waenhancer.ui.screens.search.SearchScreen()
     }
 }

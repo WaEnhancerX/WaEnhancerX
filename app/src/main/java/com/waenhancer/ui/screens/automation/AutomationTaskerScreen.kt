@@ -55,6 +55,14 @@ import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateMapOf
+import com.waenhancer.ui.navigation.LocalWaexNavController
+
 
 @Composable
 fun AutomationTaskerScreen() {
@@ -65,6 +73,41 @@ fun AutomationTaskerScreen() {
     val coroutineScope = rememberCoroutineScope()
 
     var selectedTab by remember { mutableStateOf("automation") } // "automation" | "ai"
+
+    val navController = LocalWaexNavController.current
+    val scrollState = rememberScrollState()
+    val itemCoordinates = remember { mutableStateMapOf<String, Float>() }
+    var containerY by remember { mutableStateOf(0f) }
+
+    LaunchedEffect(navController.targetSubTabId) {
+        val target = navController.targetSubTabId
+        if (target == "automation" || target == "ai") {
+            selectedTab = target
+            navController.targetSubTabId = null
+        }
+    }
+
+    LaunchedEffect(navController.scrollToTargetKey, itemCoordinates.keys.toList()) {
+        val target = navController.scrollToTargetKey
+        if (target != null) {
+            delay(100)
+            if (itemCoordinates.containsKey(target)) {
+                val yOffset = itemCoordinates[target] ?: 0f
+                scrollState.animateScrollTo(yOffset.toInt())
+                navController.scrollToTargetKey = null
+            }
+        }
+    }
+
+    LaunchedEffect(navController.highlightTargetKey) {
+        val target = navController.highlightTargetKey
+        if (target != null) {
+            delay(2000)
+            if (navController.highlightTargetKey == target) {
+                navController.highlightTargetKey = null
+            }
+        }
+    }
 
     // Automation states
     var autoReplyEnabled by remember { mutableStateOf(false) }
@@ -93,7 +136,10 @@ fun AutomationTaskerScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
+            .onGloballyPositioned { containerCoordinates ->
+                containerY = containerCoordinates.positionInRoot().y
+            }
             .padding(vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -156,11 +202,22 @@ fun AutomationTaskerScreen() {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 cards.forEach { card ->
+                    val isHighlighted = navController.highlightTargetKey == card.key
+                    val highlightBgColor by animateColorAsState(
+                        targetValue = if (isHighlighted) colors.primary.copy(alpha = 0.15f) else colors.surfaceDim,
+                        animationSpec = tween(durationMillis = 300),
+                        label = "highlight_bg"
+                    )
                     Surface(
                         shape = radius.bentoCardShape,
-                        color = colors.surfaceDim,
+                        color = highlightBgColor,
                         border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onGloballyPositioned { coordinates ->
+                                val y = coordinates.positionInRoot().y - containerY + scrollState.value
+                                itemCoordinates[card.key] = y
+                            }
                     ) {
                         Row(
                             modifier = Modifier.padding(16.dp),
@@ -247,14 +304,28 @@ fun AutomationTaskerScreen() {
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         val fields = listOf(
-                            TaskerFieldData("Intent Action", intentAction) { intentAction = it },
-                            TaskerFieldData("Intent Data", intentData) { intentData = it },
-                            TaskerFieldData("Intent Package", intentPackage) { intentPackage = it },
-                            TaskerFieldData("Intent Category", intentCategory) { intentCategory = it }
+                            TaskerFieldData("Intent Action", intentAction, "intent_action") { intentAction = it },
+                            TaskerFieldData("Intent Data", intentData, "intent_data") { intentData = it },
+                            TaskerFieldData("Intent Package", intentPackage, "intent_package") { intentPackage = it },
+                            TaskerFieldData("Intent Category", intentCategory, "intent_category") { intentCategory = it }
                         )
 
-                        fields.forEach { (label, value, onValChange) ->
-                            Column {
+                        fields.forEach { (label, value, key, onValChange) ->
+                            val isHighlighted = navController.highlightTargetKey == key
+                            val highlightBgColor by animateColorAsState(
+                                targetValue = if (isHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent,
+                                animationSpec = tween(durationMillis = 300),
+                                label = "highlight_bg"
+                            )
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(highlightBgColor)
+                                    .onGloballyPositioned { coordinates ->
+                                        val y = coordinates.positionInRoot().y - containerY + scrollState.value
+                                        itemCoordinates[key] = y
+                                    }
+                            ) {
                                 Text(text = label, style = typography.labelSm, color = colors.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
                                 Box(
                                     modifier = Modifier
@@ -385,8 +456,25 @@ fun AutomationTaskerScreen() {
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Column {
-                            Text(text = "API Key", style = typography.labelSm, color = colors.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
+                        Column(
+                            modifier = Modifier
+                                .onGloballyPositioned { coordinates ->
+                                    val y = coordinates.positionInRoot().y - containerY + scrollState.value
+                                    itemCoordinates["assembly_key"] = y
+                                }
+                        ) {
+                            val isHighlighted = navController.highlightTargetKey == "assembly_key"
+                            val highlightBgColor by animateColorAsState(
+                                targetValue = if (isHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent,
+                                animationSpec = tween(300),
+                                label = "highlight_bg"
+                            )
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(highlightBgColor)
+                            ) {
+                                Text(text = "API Key", style = typography.labelSm, color = colors.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -415,6 +503,7 @@ fun AutomationTaskerScreen() {
                                 )
                             }
                         }
+                    }
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -483,8 +572,25 @@ fun AutomationTaskerScreen() {
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Column {
-                            Text(text = "API Key", style = typography.labelSm, color = colors.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
+                        Column(
+                            modifier = Modifier
+                                .onGloballyPositioned { coordinates ->
+                                    val y = coordinates.positionInRoot().y - containerY + scrollState.value
+                                    itemCoordinates["groq_key"] = y
+                                }
+                        ) {
+                            val isHighlighted = navController.highlightTargetKey == "groq_key"
+                            val highlightBgColor by animateColorAsState(
+                                targetValue = if (isHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent,
+                                animationSpec = tween(300),
+                                label = "highlight_bg"
+                            )
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(highlightBgColor)
+                            ) {
+                                Text(text = "API Key", style = typography.labelSm, color = colors.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -510,6 +616,7 @@ fun AutomationTaskerScreen() {
                                 )
                             }
                         }
+                    }
 
                         // Model select dropdown
                         Column {
@@ -593,15 +700,26 @@ fun AutomationTaskerScreen() {
                 ) {
                     Column {
                         val voiceFeatures = listOf(
-                            VoiceFeatureData("Audio Transcription", "Convert voice messages to text", transcriptionEnabled) { transcriptionEnabled = it },
-                            VoiceFeatureData("Speech To Text", "Live voice input for messages", sttEnabled) { sttEnabled = it },
-                            VoiceFeatureData("Offline Models", "Use on-device processing", offlineModelsEnabled) { offlineModelsEnabled = it }
+                            VoiceFeatureData("Audio Transcription", "Convert voice messages to text", "transcription", transcriptionEnabled) { transcriptionEnabled = it },
+                            VoiceFeatureData("Speech To Text", "Live voice input for messages", "stt", sttEnabled) { sttEnabled = it },
+                            VoiceFeatureData("Offline Models", "Use on-device processing", "offline", offlineModelsEnabled) { offlineModelsEnabled = it }
                         )
 
-                        voiceFeatures.forEachIndexed { idx, (label, sub, enabled, onChecked) ->
+                        voiceFeatures.forEachIndexed { idx, (label, sub, key, enabled, onChecked) ->
+                            val isHighlighted = navController.highlightTargetKey == key
+                            val highlightBgColor by animateColorAsState(
+                                targetValue = if (isHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent,
+                                animationSpec = tween(300),
+                                label = "highlight_bg"
+                            )
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .background(highlightBgColor)
+                                    .onGloballyPositioned { coordinates ->
+                                        val y = coordinates.positionInRoot().y - containerY + scrollState.value
+                                        itemCoordinates[key] = y
+                                    }
                                     .clickable { onChecked(!enabled) }
                                     .padding(horizontal = 16.dp, vertical = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -710,6 +828,7 @@ private data class AutomationCardData(
 private data class VoiceFeatureData(
     val label: String,
     val sub: String,
+    val key: String,
     val enabled: Boolean,
     val onChecked: (Boolean) -> Unit
 )
@@ -717,6 +836,7 @@ private data class VoiceFeatureData(
 private data class TaskerFieldData(
     val label: String,
     val value: String,
+    val key: String,
     val onValueChange: (String) -> Unit
 )
 
@@ -726,4 +846,5 @@ fun AutomationTaskerScreenPreview() {
     WaexTheme {
         AutomationTaskerScreen()
     }
+
 }

@@ -14,4 +14,13 @@ sealed class Screen(val route: String) {
     object MessageBomberPro : Screen("message_bomber_pro")
     object FileSizeSpooferPro : Screen("file_size_spoofer_pro")
     object StatusVideoSplitterPro : Screen("status_video_splitter_pro")
+    object Search : Screen("search")
 }
+
+val Screen.isRootScreen: Boolean
+    get() = this is Screen.MainDashboard ||
+            this is Screen.GlobalPrivacySettings ||
+            this is Screen.MediaStatusHub ||
+            this is Screen.AutomationTasker ||
+            this is Screen.ProUpgradePaywall
+

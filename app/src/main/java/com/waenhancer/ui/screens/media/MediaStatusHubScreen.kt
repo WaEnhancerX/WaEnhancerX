@@ -36,6 +36,17 @@ import androidx.compose.ui.unit.sp
 import com.waenhancer.ui.components.StitchSwitch
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
+import com.waenhancer.ui.navigation.LocalWaexNavController
+import kotlinx.coroutines.delay
+
 
 @Composable
 fun MediaStatusHubScreen() {
@@ -43,6 +54,30 @@ fun MediaStatusHubScreen() {
     val spacing = WaexTheme.spacing
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
+
+    val navController = LocalWaexNavController.current
+    val scrollState = rememberScrollState()
+    val itemCoordinates = remember { mutableStateMapOf<String, Float>() }
+    var containerY by remember { mutableStateOf(0f) }
+
+    LaunchedEffect(navController.scrollToTargetKey, itemCoordinates.keys.toList()) {
+        val target = navController.scrollToTargetKey
+        if (target != null && itemCoordinates.containsKey(target)) {
+            val yOffset = itemCoordinates[target] ?: 0f
+            scrollState.animateScrollTo(yOffset.toInt())
+            navController.scrollToTargetKey = null
+        }
+    }
+
+    LaunchedEffect(navController.highlightTargetKey) {
+        val target = navController.highlightTargetKey
+        if (target != null) {
+            delay(2000)
+            if (navController.highlightTargetKey == target) {
+                navController.highlightTargetKey = null
+            }
+        }
+    }
 
     val settingsState = remember {
         mutableStateMapOf(
@@ -107,7 +142,10 @@ fun MediaStatusHubScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
+            .onGloballyPositioned { containerCoordinates ->
+                containerY = containerCoordinates.positionInRoot().y
+            }
             .padding(vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -147,9 +185,20 @@ fun MediaStatusHubScreen() {
                 ) {
                     Column {
                         group.items.forEachIndexed { index, item ->
+                            val isHighlighted = navController.highlightTargetKey == item.key
+                            val highlightBgColor by animateColorAsState(
+                                targetValue = if (isHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent,
+                                animationSpec = tween(durationMillis = 300),
+                                label = "highlight_bg"
+                            )
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .background(highlightBgColor)
+                                    .onGloballyPositioned { coordinates ->
+                                        val y = coordinates.positionInRoot().y - containerY + scrollState.value
+                                        itemCoordinates[item.key] = y
+                                    }
                                     .clickable {
                                         val currentVal = settingsState[item.key] ?: false
                                         settingsState[item.key] = !currentVal
