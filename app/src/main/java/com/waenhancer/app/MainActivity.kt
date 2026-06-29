@@ -11,6 +11,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.activity.SystemBarStyle
+import androidx.compose.runtime.LaunchedEffect
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.designsystem.LocalThemeMode
 import com.waenhancer.ui.designsystem.LocalThemeModeUpdater
@@ -31,6 +33,28 @@ class MainActivity : ComponentActivity() {
                 "Dark" -> true
                 else -> isSystemInDarkTheme()
             }
+
+            LaunchedEffect(isDark) {
+                enableEdgeToEdge(
+                    statusBarStyle = if (isDark) {
+                        SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                    } else {
+                        SystemBarStyle.light(
+                            android.graphics.Color.TRANSPARENT,
+                            android.graphics.Color.TRANSPARENT
+                        )
+                    },
+                    navigationBarStyle = if (isDark) {
+                        SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                    } else {
+                        SystemBarStyle.light(
+                            android.graphics.Color.TRANSPARENT,
+                            android.graphics.Color.TRANSPARENT
+                        )
+                    }
+                )
+            }
+
             CompositionLocalProvider(
                 LocalThemeMode provides themeMode,
                 LocalThemeModeUpdater provides { mode -> themeMode = mode }

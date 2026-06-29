@@ -10,6 +10,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.Color
 
+
 val LocalThemeMode = staticCompositionLocalOf { "System" }
 val LocalThemeModeUpdater = staticCompositionLocalOf<(String) -> Unit> { {} }
 
@@ -55,6 +56,7 @@ fun WaexTheme(
     val spacing = WaexSpacing()
     val radius = WaexRadius()
     val elevation = WaexElevation()
+
 
     CompositionLocalProvider(
         LocalWaexColors provides colors,
