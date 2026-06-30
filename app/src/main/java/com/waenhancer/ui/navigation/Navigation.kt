@@ -620,19 +620,19 @@ fun MainContainerScreen() {
                         if (isForward) {
                             slideInHorizontally(
                                 initialOffsetX = { it },
-                                animationSpec = tween(durationMillis = 350)
+                                animationSpec = tween(durationMillis = 300)
                             ) togetherWith slideOutHorizontally(
-                                targetOffsetX = { -it / 3 },
-                                animationSpec = tween(durationMillis = 350)
-                            ) + fadeOut(animationSpec = tween(durationMillis = 200))
+                                targetOffsetX = { -it },
+                                animationSpec = tween(durationMillis = 300)
+                            )
                         } else {
                             slideInHorizontally(
-                                initialOffsetX = { -it / 3 },
-                                animationSpec = tween(durationMillis = 350)
+                                initialOffsetX = { -it },
+                                animationSpec = tween(durationMillis = 300)
                             ) togetherWith slideOutHorizontally(
                                 targetOffsetX = { it },
-                                animationSpec = tween(durationMillis = 350)
-                            ) + fadeOut(animationSpec = tween(durationMillis = 200))
+                                animationSpec = tween(durationMillis = 300)
+                            )
                         }
                     },
                     label = "screen_transition",
@@ -807,6 +807,8 @@ data class ContactPrivacy(
     val hideRecording: Boolean = false,
     val antiRevoke: Boolean = false,
     val freezeLastSeen: Boolean = false,
-    val scope: String = "always" // "always" | "scheduled" | "temporary"
+    val scope: String = "always", // "always" | "scheduled" | "temporary"
+    val startHour: Int = 9,
+    val endHour: Int = 18
 )
 

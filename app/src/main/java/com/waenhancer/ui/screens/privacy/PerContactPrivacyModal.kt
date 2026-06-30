@@ -35,15 +35,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.waenhancer.ui.designsystem.WaexIcons
+import com.waenhancer.ui.components.WaexSwitchPreference
 import com.waenhancer.ui.designsystem.WaexTheme
-
 import com.waenhancer.ui.navigation.ContactPrivacy
 
 @Composable
@@ -59,6 +59,18 @@ fun PerContactPrivacyModal(
     val radius = WaexTheme.radius
 
     var selectedScope by remember { mutableStateOf(contact?.scope ?: "always") } // "always" | "scheduled" | "temporary"
+    var startHour by remember { mutableStateOf(contact?.startHour ?: 9) }
+    var endHour by remember { mutableStateOf(contact?.endHour ?: 18) }
+
+    fun formatTime(hour: Int): String {
+        val amPm = if (hour >= 12) "PM" else "AM"
+        val displayHour = when {
+            hour == 0 -> 12
+            hour > 12 -> hour - 12
+            else -> hour
+        }
+        return String.format("%02d:00 %s", displayHour, amPm)
+    }
 
     val rulesState = remember {
         mutableStateMapOf(
@@ -74,13 +86,15 @@ fun PerContactPrivacyModal(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = spacing.pageMargin)
-            .verticalScroll(rememberScrollState())
+            .background(colors.surface)
     ) {
-        // Drag handle
+        // ── STATIC HEADER SECTION ─────────────────────────────────────────────
+        
+        // Statically positioned grabber thumb
+        Spacer(modifier = Modifier.height(12.dp))
         Box(
             modifier = Modifier
-                .width(40.dp)
+                .width(36.dp)
                 .height(4.dp)
                 .clip(CircleShape)
                 .background(colors.outlineVariant)
@@ -88,32 +102,35 @@ fun PerContactPrivacyModal(
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Header
+        // Title and close button row
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = spacing.pageMargin),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
                 Text(
-                    text = "Per Contact Privacy",
-                    style = typography.headlineMd,
+                    text = "Custom Privacy Rules",
+                    style = typography.bodyLg,
                     fontWeight = FontWeight.Bold,
-                    color = colors.onSurface
+                    color = colors.onSurface,
+                    fontSize = 18.sp
                 )
                 Text(
-                    text = "Set privacy rules per contact",
+                    text = "Configure rules for this specific contact",
                     style = typography.bodyMd,
-                    color = colors.onSurfaceVariant
+                    color = colors.onSurfaceVariant,
+                    fontSize = 13.sp
                 )
             }
             IconButton(
                 onClick = onDismiss,
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(30.dp)
                     .clip(CircleShape)
                     .background(colors.surfaceDim)
-                    .border(1.dp, colors.outlineVariant, CircleShape)
             ) {
                 Icon(
                     imageVector = WaexIcons.Clear,
@@ -123,210 +140,208 @@ fun PerContactPrivacyModal(
                 )
             }
         }
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
-        // Contact Info Card
+        // Profile details row (avatar + name + phone)
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = spacing.pageMargin),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val avatarGradient = Brush.linearGradient(
+                colors = listOf(colors.primary, colors.secondary)
+            )
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(44.dp)
                     .clip(CircleShape)
-                    .background(colors.primaryContainer),
+                    .background(avatarGradient),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = WaexIcons.Security, // User icon analogue
-                    contentDescription = null,
-                    tint = colors.primary,
-                    modifier = Modifier.size(22.dp)
+                Text(
+                    text = contact?.name?.firstOrNull()?.uppercase() ?: "?",
+                    style = typography.bodyLg,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    fontSize = 18.sp
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
                     text = contact?.name ?: "Unknown Contact",
-                    style = typography.bodyLg,
-                    fontWeight = FontWeight.Bold,
+                    style = typography.bodyLg.copy(fontWeight = FontWeight.SemiBold),
                     color = colors.onSurface
                 )
+                val phoneDisplay = contact?.jid?.substringBefore("@") ?: ""
                 Text(
-                    text = contact?.jid ?: "",
+                    text = phoneDisplay,
                     style = typography.bodyMd,
                     color = colors.onSurfaceVariant,
                     fontSize = 12.sp
                 )
             }
         }
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(14.dp))
+        
+        HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant.copy(alpha = 0.6f))
 
-        // Privacy Rules Section
-        Text(
-            text = "PRIVACY RULES",
-            style = typography.labelSm,
-            fontWeight = FontWeight.Bold,
-            color = colors.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        val rulesList = listOf(
-            "ghost" to "Ghost Mode",
-            "hide_seen" to "Hide Seen",
-            "hide_typing" to "Hide Typing",
-            "hide_recording" to "Hide Recording",
-            "anti_revoke" to "Anti Revoke",
-            "freeze_lastseen" to "Freeze Last Seen"
-        )
-
+        // ── SCROLLABLE SETTINGS CONTENT ──────────────────────────────────────────
         Column(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = spacing.pageMargin, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            rulesList.chunked(2).forEach { rowItems ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    rowItems.forEach { (key, label) ->
-                        val isChecked = rulesState[key] ?: false
-                        val cardBg = if (isChecked) colors.primaryContainer else colors.surfaceDim
-                        val cardBorderColor = if (isChecked) colors.primary.copy(alpha = 0.3f) else colors.outlineVariant
-                        val textColor = if (isChecked) colors.primary else colors.onSurfaceVariant
+            // Section: Privacy Rules
+            Text(
+                text = "PRIVACY RULES",
+                style = typography.labelSm,
+                fontWeight = FontWeight.Bold,
+                color = colors.onSurfaceVariant
+            )
 
+            Surface(
+                shape = radius.bentoCardShape,
+                color = colors.surfaceDim,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column {
+                    val ruleItems = listOf(
+                        Triple("ghost", "Ghost Mode", "Appear completely offline"),
+                        Triple("hide_seen", "Hide Seen Tick", "Hide read confirmation"),
+                        Triple("hide_typing", "Hide Typing Status", "Hide typing indicator"),
+                        Triple("hide_recording", "Hide Recording Status", "Hide audio recording state"),
+                        Triple("anti_revoke", "Anti-Revoke Messages", "Keep deleted messages visible"),
+                        Triple("freeze_lastseen", "Freeze Last Seen", "Lock your online timestamp")
+                    )
+
+                    ruleItems.forEachIndexed { index, (key, label, desc) ->
+                        val isChecked = rulesState[key] ?: false
+                        WaexSwitchPreference(
+                            title = label,
+                            description = desc,
+                            checked = isChecked,
+                            onCheckedChange = { rulesState[key] = it },
+                            showDivider = index < ruleItems.lastIndex
+                        )
+                    }
+                }
+            }
+
+            // Section: Rule Scope
+            Text(
+                text = "RULE SCOPE",
+                style = typography.labelSm,
+                fontWeight = FontWeight.Bold,
+                color = colors.onSurfaceVariant
+            )
+
+            Surface(
+                shape = radius.bentoCardShape,
+                color = colors.surfaceDim,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column {
+                    val scopes = listOf(
+                        "always" to "Always Active",
+                        "scheduled" to "Scheduled Rules",
+                        "temporary" to "Temporary Lockout"
+                    )
+                    scopes.forEachIndexed { idx, (scopeId, label) ->
+                        val isSelected = selectedScope == scopeId
                         Row(
                             modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp)
-                                .clip(radius.mdShape)
-                                .background(cardBg)
-                                .border(1.dp, cardBorderColor, radius.mdShape)
-                                .clickable { rulesState[key] = !isChecked }
-                                .padding(horizontal = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                                .fillMaxWidth()
+                                .clickable { selectedScope = scopeId }
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(
-                                text = label,
-                                style = typography.bodyMd,
-                                fontWeight = FontWeight.Bold,
-                                color = textColor,
-                                fontSize = 13.sp
-                            )
-                            // Custom circular indicator
-                                    Box(
-                                        modifier = Modifier
-                                            .size(16.dp)
-                                            .clip(CircleShape)
-                                            .background(if (isChecked) colors.primary else Color.Transparent)
-                                            .border(2.dp, if (isChecked) colors.primary else colors.outline, CircleShape),
+                            Column {
+                                Text(
+                                    text = label,
+                                    style = typography.bodyLg.copy(fontWeight = FontWeight.Medium),
+                                    color = colors.onSurface
+                                )
+                                val desc = when (scopeId) {
+                                    "always" -> "Rules apply at all times"
+                                    "scheduled" -> "Apply during set hours"
+                                    else -> "Reset automatically after 24 hours"
+                                }
+                                Text(
+                                    text = desc,
+                                    style = typography.bodyMd,
+                                    color = colors.onSurfaceVariant,
+                                    fontSize = 12.sp
+                                )
+                            }
+                            
+                            // Scope radio circle indicator
+                            Box(
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .clip(CircleShape)
+                                    .border(2.dp, if (isSelected) colors.primary else colors.outlineVariant, CircleShape)
+                                    .padding(3.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                if (isChecked) {
+                                if (isSelected) {
                                     Box(
                                         modifier = Modifier
-                                            .size(6.dp)
+                                            .fillMaxSize()
                                             .clip(CircleShape)
-                                            .background(Color.White)
+                                            .background(colors.primary)
                                     )
                                 }
                             }
                         }
-                    }
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Rule Scope Section
-        Text(
-            text = "RULE SCOPE",
-            style = typography.labelSm,
-            fontWeight = FontWeight.Bold,
-            color = colors.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        Surface(
-            shape = radius.lgShape,
-            color = colors.surfaceDim,
-            border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column {
-                val scopes = listOf("always" to "Always", "scheduled" to "Scheduled", "temporary" to "Temporary")
-                scopes.forEachIndexed { idx, (scopeId, label) ->
-                    val isSelected = selectedScope == scopeId
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { selectedScope = scopeId }
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = label,
-                            style = typography.bodyLg,
-                            color = colors.onSurface
-                        )
-                        // Custom scope radio circle
-                        Box(
-                            modifier = Modifier
-                                .size(20.dp)
-                                .clip(CircleShape)
-                                .border(2.dp, if (isSelected) colors.primary else colors.outline, CircleShape)
-                                .padding(3.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (isSelected) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(CircleShape)
-                                        .background(colors.primary)
-                                )
-                            }
+                        if (idx < scopes.lastIndex) {
+                            HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant.copy(alpha = 0.6f))
                         }
                     }
-                    if (idx < scopes.lastIndex) {
-                        HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
-                    }
                 }
             }
         }
-        Spacer(modifier = Modifier.height(24.dp))
 
-        // Save Rules Button
-        Button(
-            onClick = {
-                if (contact != null && onSave != null) {
-                    onSave(
-                        contact.copy(
-                            ghost = rulesState["ghost"] ?: contact.ghost,
-                            hideSeen = rulesState["hide_seen"] ?: contact.hideSeen,
-                            hideTyping = rulesState["hide_typing"] ?: contact.hideTyping,
-                            hideRecording = rulesState["hide_recording"] ?: contact.hideRecording,
-                            antiRevoke = rulesState["anti_revoke"] ?: contact.antiRevoke,
-                            freezeLastSeen = rulesState["freeze_lastseen"] ?: contact.freezeLastSeen,
-                            scope = selectedScope
-                        )
-                    )
-                }
-                onDismiss()
-            },
-            shape = radius.lgShape,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = colors.primary,
-                contentColor = colors.onPrimary
-            ),
+        // ── STATIC ACTION FOOTER ──────────────────────────────────────────────
+        HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant.copy(alpha = 0.6f))
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp)
-                .padding(bottom = 4.dp)
+                .padding(horizontal = spacing.pageMargin, vertical = 12.dp)
         ) {
-            Text(text = "Save Rules", style = typography.bodyLg, fontWeight = FontWeight.Bold)
+            Button(
+                onClick = {
+                    if (contact != null && onSave != null) {
+                        onSave(
+                            contact.copy(
+                                ghost = rulesState["ghost"] ?: contact.ghost,
+                                hideSeen = rulesState["hide_seen"] ?: contact.hideSeen,
+                                hideTyping = rulesState["hide_typing"] ?: contact.hideTyping,
+                                hideRecording = rulesState["hide_recording"] ?: contact.hideRecording,
+                                antiRevoke = rulesState["anti_revoke"] ?: contact.antiRevoke,
+                                freezeLastSeen = rulesState["freeze_lastseen"] ?: contact.freezeLastSeen,
+                                scope = selectedScope
+                            )
+                        )
+                    }
+                    onDismiss()
+                },
+                shape = radius.lgShape,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = colors.primary,
+                    contentColor = colors.onPrimary
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+            ) {
+                Text(text = "Save Rules", style = typography.bodyLg, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }

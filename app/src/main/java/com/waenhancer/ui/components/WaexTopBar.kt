@@ -25,6 +25,7 @@ fun WaexTopBar(
     title: String,
     modifier: Modifier = Modifier,
     onBackClick: (() -> Unit)? = null,
+    titleStyle: androidx.compose.ui.text.TextStyle? = null,
     actions: (@Composable RowScope.() -> Unit)? = null
 ) {
     val colors = WaexTheme.colors
@@ -60,7 +61,7 @@ fun WaexTopBar(
                 }
                 Text(
                     text = title,
-                    style = typography.headlineMd,
+                    style = titleStyle ?: typography.headlineMd,
                     color = colors.onSurface,
                     modifier = Modifier
                         .weight(1f)
