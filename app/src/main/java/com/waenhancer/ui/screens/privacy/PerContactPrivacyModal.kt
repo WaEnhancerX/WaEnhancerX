@@ -44,9 +44,13 @@ import androidx.compose.ui.unit.sp
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 
+import com.waenhancer.ui.navigation.ContactPrivacy
+
 @Composable
 fun PerContactPrivacyModal(
     onDismiss: () -> Unit,
+    contact: ContactPrivacy? = null,
+    onSave: ((ContactPrivacy) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val colors = WaexTheme.colors
@@ -54,16 +58,16 @@ fun PerContactPrivacyModal(
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
 
-    var selectedScope by remember { mutableStateOf("always") } // "always" | "scheduled" | "temporary"
+    var selectedScope by remember { mutableStateOf(contact?.scope ?: "always") } // "always" | "scheduled" | "temporary"
 
     val rulesState = remember {
         mutableStateMapOf(
-            "ghost" to true,
-            "hide_seen" to false,
-            "hide_typing" to true,
-            "hide_recording" to false,
-            "anti_revoke" to true,
-            "freeze_lastseen" to false
+            "ghost" to (contact?.ghost ?: true),
+            "hide_seen" to (contact?.hideSeen ?: false),
+            "hide_typing" to (contact?.hideTyping ?: true),
+            "hide_recording" to (contact?.hideRecording ?: false),
+            "anti_revoke" to (contact?.antiRevoke ?: true),
+            "freeze_lastseen" to (contact?.freezeLastSeen ?: false)
         )
     }
 
@@ -143,13 +147,13 @@ fun PerContactPrivacyModal(
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    text = "Alex Johnson",
+                    text = contact?.name ?: "Unknown Contact",
                     style = typography.bodyLg,
                     fontWeight = FontWeight.Bold,
                     color = colors.onSurface
                 )
                 Text(
-                    text = "+1 555-0192@s.whatsapp.net",
+                    text = contact?.jid ?: "",
                     style = typography.bodyMd,
                     color = colors.onSurfaceVariant,
                     fontSize = 12.sp
@@ -296,7 +300,22 @@ fun PerContactPrivacyModal(
 
         // Save Rules Button
         Button(
-            onClick = onDismiss,
+            onClick = {
+                if (contact != null && onSave != null) {
+                    onSave(
+                        contact.copy(
+                            ghost = rulesState["ghost"] ?: contact.ghost,
+                            hideSeen = rulesState["hide_seen"] ?: contact.hideSeen,
+                            hideTyping = rulesState["hide_typing"] ?: contact.hideTyping,
+                            hideRecording = rulesState["hide_recording"] ?: contact.hideRecording,
+                            antiRevoke = rulesState["anti_revoke"] ?: contact.antiRevoke,
+                            freezeLastSeen = rulesState["freeze_lastseen"] ?: contact.freezeLastSeen,
+                            scope = selectedScope
+                        )
+                    )
+                }
+                onDismiss()
+            },
             shape = radius.lgShape,
             colors = ButtonDefaults.buttonColors(
                 containerColor = colors.primary,

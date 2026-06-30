@@ -81,6 +81,7 @@ import com.waenhancer.ui.screens.media.MediaStatusHubScreen
 import com.waenhancer.ui.screens.media.StatusVideoSplitterProScreen
 import com.waenhancer.ui.screens.privacy.GlobalPrivacySettingsScreen
 import com.waenhancer.ui.screens.privacy.PerContactPrivacyModal
+import com.waenhancer.ui.screens.privacy.PerContactPrivacyListScreen
 import com.waenhancer.ui.screens.pro.ProUpgradePaywallScreen
 import com.waenhancer.ui.screens.settings.SystemHealthScreen
 
@@ -158,7 +159,15 @@ fun MainContainerScreen() {
     val radius = WaexTheme.radius
 
     var licenseState by remember { mutableStateOf("free") } // "free" | "pro" | "trial"
-    var activeModal by remember { mutableStateOf<String?>(null) } // "license" | "file-spoofer" | "message-bomber" | "status-splitter" | "per-contact" | null
+    var activeModal by remember { mutableStateOf<String?>(null) } // "license" | "file-spoofer" | "message-bomber" | "status-splitter" | null
+
+    val contactPrivacyList = remember {
+        mutableStateListOf(
+            ContactPrivacy("1", "Alex Johnson", "+1 555-0192@s.whatsapp.net", ghost = true, hideSeen = true, hideTyping = true, scope = "always"),
+            ContactPrivacy("2", "Fatima Al-Rashid", "+971 50-0001@s.whatsapp.net", hideTyping = true, antiRevoke = true, scope = "scheduled"),
+            ContactPrivacy("3", "James Okafor", "+234 80-2020@s.whatsapp.net", freezeLastSeen = true, hideRecording = true, scope = "temporary")
+        )
+    }
 
     val themeMode = com.waenhancer.ui.designsystem.LocalThemeMode.current
     val updateThemeMode = com.waenhancer.ui.designsystem.LocalThemeModeUpdater.current
@@ -248,6 +257,7 @@ fun MainContainerScreen() {
         Screen.GlobalPrivacySettings -> "Privacy"
         Screen.MediaStatusHub -> "Media & Status"
         Screen.AutomationTasker -> "Automation"
+        Screen.PerContactPrivacyList -> "Per Contact Rules"
         else -> "WaEnhancerX"
     }
 
@@ -648,7 +658,14 @@ fun MainContainerScreen() {
                                     currentScreen = pageScreen,
                                     licenseState = licenseState,
                                     onOpenModal = { activeModal = it },
-                                    onActivatePro = { licenseState = "pro" }
+                                    onActivatePro = { licenseState = "pro" },
+                                    contactPrivacyList = contactPrivacyList,
+                                    onClearContact = { c -> contactPrivacyList.removeIf { it.id == c.id } },
+                                    onClearAllContacts = { contactPrivacyList.clear() },
+                                    onUpdateContact = { updated ->
+                                        val idx = contactPrivacyList.indexOfFirst { it.id == updated.id }
+                                        if (idx >= 0) contactPrivacyList[idx] = updated
+                                    }
                                 )
                             }
                         }
@@ -657,7 +674,14 @@ fun MainContainerScreen() {
                             currentScreen = screenToShow,
                             licenseState = licenseState,
                             onOpenModal = { activeModal = it },
-                            onActivatePro = { licenseState = "pro" }
+                            onActivatePro = { licenseState = "pro" },
+                            contactPrivacyList = contactPrivacyList,
+                            onClearContact = { c -> contactPrivacyList.removeIf { it.id == c.id } },
+                            onClearAllContacts = { contactPrivacyList.clear() },
+                            onUpdateContact = { updated ->
+                                val idx = contactPrivacyList.indexOfFirst { it.id == updated.id }
+                                if (idx >= 0) contactPrivacyList[idx] = updated
+                            }
                         )
                     }
                 }
@@ -719,7 +743,6 @@ fun MainContainerScreen() {
                             "file-spoofer" -> FileSizeSpooferModal(onDismiss = { activeModal = null })
                             "message-bomber" -> MessageBomberModal(onDismiss = { activeModal = null })
                             "status-splitter" -> StatusVideoSplitterModal(onDismiss = { activeModal = null })
-                            "per-contact" -> PerContactPrivacyModal(onDismiss = { activeModal = null })
                         }
                     }
                 }
@@ -733,7 +756,11 @@ fun WaexAppNavigation(
     currentScreen: Screen,
     licenseState: String,
     onOpenModal: (String) -> Unit,
-    onActivatePro: () -> Unit
+    onActivatePro: () -> Unit,
+    contactPrivacyList: List<ContactPrivacy> = emptyList(),
+    onClearContact: (ContactPrivacy) -> Unit = {},
+    onClearAllContacts: () -> Unit = {},
+    onUpdateContact: (ContactPrivacy) -> Unit = {}
 ) {
     when (currentScreen) {
         Screen.MainDashboard -> MainDashboardScreen(
@@ -761,5 +788,25 @@ fun WaexAppNavigation(
         Screen.FileSizeSpooferPro -> FileSizeSpooferProScreen()
         Screen.StatusVideoSplitterPro -> StatusVideoSplitterProScreen()
         Screen.Search -> com.waenhancer.ui.screens.search.SearchScreen()
+        Screen.PerContactPrivacyList -> PerContactPrivacyListScreen(
+            contacts = contactPrivacyList,
+            onClearContact = onClearContact,
+            onClearAll = onClearAllContacts,
+            onUpdateContact = onUpdateContact
+        )
     }
 }
+
+data class ContactPrivacy(
+    val id: String,
+    val name: String,
+    val jid: String,
+    val ghost: Boolean = false,
+    val hideSeen: Boolean = false,
+    val hideTyping: Boolean = false,
+    val hideRecording: Boolean = false,
+    val antiRevoke: Boolean = false,
+    val freezeLastSeen: Boolean = false,
+    val scope: String = "always" // "always" | "scheduled" | "temporary"
+)
+

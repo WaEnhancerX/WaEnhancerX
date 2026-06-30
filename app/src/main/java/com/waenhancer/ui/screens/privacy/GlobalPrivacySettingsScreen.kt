@@ -42,6 +42,11 @@ import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.runtime.LaunchedEffect
@@ -212,34 +217,65 @@ fun GlobalPrivacySettingsScreen(
                 .padding(horizontal = spacing.pageMargin)
                 .height(48.dp)
         ) {
-            Row(
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.SpaceAround
+                    .padding(4.dp)
             ) {
-                listOf("privacy" to "Privacy", "conversation" to "Conversation").forEach { (tabId, label) ->
-                    val isSelected = selectedTab == tabId
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .weight(1f)
-                            .clip(radius.defaultShape)
-                            .background(if (isSelected) colors.surface else Color.Transparent)
-                            .border(
-                                width = if (isSelected) 1.dp else 0.dp,
-                                color = if (isSelected) colors.outlineVariant else Color.Transparent,
-                                shape = radius.defaultShape
-                            )
-                            .clickable { selectedTab = tabId },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = label,
-                            style = typography.bodyMd,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) colors.primary else colors.onSurfaceVariant
+                val totalWidth = maxWidth
+                val tabWidth = totalWidth / 2
+
+                val activeIndex = if (selectedTab == "privacy") 0 else 1
+                val targetOffset = tabWidth * activeIndex
+                val animatedOffset by animateDpAsState(
+                    targetValue = targetOffset,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessLow
+                    ),
+                    label = "sub_tab_offset"
+                )
+
+                // Sliding highlight box
+                Box(
+                    modifier = Modifier
+                        .offset(x = animatedOffset)
+                        .width(tabWidth)
+                        .fillMaxHeight()
+                        .clip(radius.defaultShape)
+                        .background(colors.surface)
+                        .border(1.dp, colors.outlineVariant, radius.defaultShape)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.SpaceAround
+                ) {
+                    listOf("privacy" to "Privacy", "conversation" to "Conversation").forEach { (tabId, label) ->
+                        val isSelected = selectedTab == tabId
+                        val textColor by animateColorAsState(
+                            targetValue = if (isSelected) colors.primary else colors.onSurfaceVariant,
+                            animationSpec = tween(150),
+                            label = "sub_tab_text_color"
                         )
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .weight(1f)
+                                .clickable(
+                                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                    indication = null
+                                ) { selectedTab = tabId },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = label,
+                                style = typography.bodyMd,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = textColor
+                            )
+                        }
                     }
                 }
             }
@@ -254,7 +290,7 @@ fun GlobalPrivacySettingsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = spacing.pageMargin)
-                    .clickable { onOpenModal("per-contact") }
+                    .clickable { navController.navigateTo(com.waenhancer.ui.navigation.Screen.PerContactPrivacyList) }
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp),

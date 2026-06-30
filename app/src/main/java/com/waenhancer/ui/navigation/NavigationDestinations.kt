@@ -15,6 +15,7 @@ sealed class Screen(val route: String) {
     object FileSizeSpooferPro : Screen("file_size_spoofer_pro")
     object StatusVideoSplitterPro : Screen("status_video_splitter_pro")
     object Search : Screen("search")
+    object PerContactPrivacyList : Screen("per_contact_privacy_list")
 }
 
 val Screen.isRootScreen: Boolean
