@@ -222,7 +222,10 @@ fun SearchScreen() {
                                         .padding(16.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Column(modifier = Modifier.weight(1f)) {
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -248,14 +251,12 @@ fun SearchScreen() {
                                                 )
                                             }
                                         }
-                                        Spacer(modifier = Modifier.height(2.dp))
                                         Text(
                                             text = pref.description,
                                             style = typography.bodyMd,
                                             color = colors.onSurfaceVariant,
                                             fontSize = 12.sp
                                         )
-                                        Spacer(modifier = Modifier.height(4.dp))
                                         Text(
                                             text = "Section: ${pref.section}",
                                             style = typography.labelSm,

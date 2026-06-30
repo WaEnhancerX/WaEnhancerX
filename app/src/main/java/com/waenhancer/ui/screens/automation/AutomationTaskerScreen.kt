@@ -727,7 +727,10 @@ fun AutomationTaskerScreen() {
                                     .padding(horizontal = 16.dp, vertical = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
                                     Text(text = label, style = typography.bodyLg, fontWeight = FontWeight.Medium, color = colors.onSurface)
                                     Text(text = sub, style = typography.bodyMd, color = colors.onSurfaceVariant, fontSize = 12.sp)
                                 }
