@@ -343,12 +343,47 @@ private fun ContactPrivacyRow(
                 color = colors.onSurface
             )
             
-            Text(
-                text = phoneDisplay,
-                style = typography.bodyMd,
-                color = colors.onSurfaceVariant,
-                fontSize = 12.sp
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = phoneDisplay,
+                    style = typography.bodyMd,
+                    color = colors.onSurfaceVariant,
+                    fontSize = 12.sp
+                )
+                Text(
+                    text = "•",
+                    style = typography.bodyMd,
+                    color = colors.onSurfaceVariant.copy(alpha = 0.5f),
+                    fontSize = 12.sp
+                )
+                val scopeDisplay = if (contact.scope == "scheduled") {
+                    val startAmPm = if (contact.startHour >= 12) "PM" else "AM"
+                    val startDisplay = when {
+                        contact.startHour == 0 -> 12
+                        contact.startHour > 12 -> contact.startHour - 12
+                        else -> contact.startHour
+                    }
+                    val endAmPm = if (contact.endHour >= 12) "PM" else "AM"
+                    val endDisplay = when {
+                        contact.endHour == 0 -> 12
+                        contact.endHour > 12 -> contact.endHour - 12
+                        else -> contact.endHour
+                    }
+                    String.format("Scheduled (%02d:00 %s - %02d:00 %s)", startDisplay, startAmPm, endDisplay, endAmPm)
+                } else {
+                    contact.scope.replaceFirstChar { it.uppercase() }
+                }
+                Text(
+                    text = scopeDisplay,
+                    style = typography.bodyMd,
+                    color = colors.primary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
 
             if (activeRulesList.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(2.dp))

@@ -253,49 +253,146 @@ fun PerContactPrivacyModal(
                     )
                     scopes.forEachIndexed { idx, (scopeId, label) ->
                         val isSelected = selectedScope == scopeId
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { selectedScope = scopeId }
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column {
-                                Text(
-                                    text = label,
-                                    style = typography.bodyLg.copy(fontWeight = FontWeight.Medium),
-                                    color = colors.onSurface
-                                )
-                                val desc = when (scopeId) {
-                                    "always" -> "Rules apply at all times"
-                                    "scheduled" -> "Apply during set hours"
-                                    else -> "Reset automatically after 24 hours"
+                        Column {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { selectedScope = scopeId }
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column {
+                                    Text(
+                                        text = label,
+                                        style = typography.bodyLg.copy(fontWeight = FontWeight.Medium),
+                                        color = colors.onSurface
+                                    )
+                                    val desc = when (scopeId) {
+                                        "always" -> "Rules apply at all times"
+                                        "scheduled" -> "Apply during set hours"
+                                        else -> "Reset automatically after 24 hours"
+                                    }
+                                    Text(
+                                        text = desc,
+                                        style = typography.bodyMd,
+                                        color = colors.onSurfaceVariant,
+                                        fontSize = 12.sp
+                                    )
                                 }
-                                Text(
-                                    text = desc,
-                                    style = typography.bodyMd,
-                                    color = colors.onSurfaceVariant,
-                                    fontSize = 12.sp
-                                )
+                                
+                                // Scope radio circle indicator
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(CircleShape)
+                                        .border(2.dp, if (isSelected) colors.primary else colors.outlineVariant, CircleShape)
+                                        .padding(3.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (isSelected) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .clip(CircleShape)
+                                                .background(colors.primary)
+                                        )
+                                    }
+                                }
                             }
                             
-                            // Scope radio circle indicator
-                            Box(
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .clip(CircleShape)
-                                    .border(2.dp, if (isSelected) colors.primary else colors.outlineVariant, CircleShape)
-                                    .padding(3.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (isSelected) {
-                                    Box(
+                            // Active hours selector for Scheduled Rules
+                            if (scopeId == "scheduled") {
+                                androidx.compose.animation.AnimatedVisibility(
+                                    visible = isSelected
+                                ) {
+                                    Column(
                                         modifier = Modifier
-                                            .fillMaxSize()
-                                            .clip(CircleShape)
-                                            .background(colors.primary)
-                                    )
+                                            .fillMaxWidth()
+                                            .background(colors.surfaceContainerLow)
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant.copy(alpha = 0.4f))
+                                        Text(
+                                            text = "Active Hours Range",
+                                            style = typography.labelSm,
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.primary
+                                        )
+                                        
+                                        // Start Hour Select
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(text = "Start Hour", style = typography.bodyMd, color = colors.onSurface)
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                androidx.compose.material3.TextButton(
+                                                    onClick = {
+                                                        startHour = (startHour - 1 + 24) % 24
+                                                    },
+                                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(4.dp),
+                                                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = colors.onSurfaceVariant)
+                                                ) {
+                                                    Text("-", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                                }
+                                                Text(
+                                                    text = formatTime(startHour),
+                                                    style = typography.bodyLg,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = colors.primary,
+                                                    modifier = Modifier.padding(horizontal = 8.dp)
+                                                )
+                                                androidx.compose.material3.TextButton(
+                                                    onClick = {
+                                                        startHour = (startHour + 1) % 24
+                                                    },
+                                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(4.dp),
+                                                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = colors.onSurfaceVariant)
+                                                ) {
+                                                    Text("+", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                                }
+                                            }
+                                        }
+
+                                        // End Hour Select
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(text = "End Hour", style = typography.bodyMd, color = colors.onSurface)
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                androidx.compose.material3.TextButton(
+                                                    onClick = {
+                                                        endHour = (endHour - 1 + 24) % 24
+                                                    },
+                                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(4.dp),
+                                                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = colors.onSurfaceVariant)
+                                                ) {
+                                                    Text("-", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                                }
+                                                Text(
+                                                    text = formatTime(endHour),
+                                                    style = typography.bodyLg,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = colors.primary,
+                                                    modifier = Modifier.padding(horizontal = 8.dp)
+                                                )
+                                                androidx.compose.material3.TextButton(
+                                                    onClick = {
+                                                        endHour = (endHour + 1) % 24
+                                                    },
+                                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(4.dp),
+                                                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = colors.onSurfaceVariant)
+                                                ) {
+                                                    Text("+", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -325,7 +422,9 @@ fun PerContactPrivacyModal(
                                 hideRecording = rulesState["hide_recording"] ?: contact.hideRecording,
                                 antiRevoke = rulesState["anti_revoke"] ?: contact.antiRevoke,
                                 freezeLastSeen = rulesState["freeze_lastseen"] ?: contact.freezeLastSeen,
-                                scope = selectedScope
+                                scope = selectedScope,
+                                startHour = startHour,
+                                endHour = endHour
                             )
                         )
                     }
