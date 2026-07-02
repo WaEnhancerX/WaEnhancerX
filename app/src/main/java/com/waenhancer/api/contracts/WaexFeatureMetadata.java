@@ -1,5 +1,7 @@
 package com.waenhancer.api.contracts;
 
+import java.util.List;
+
 public final class WaexFeatureMetadata {
     private final String id;
     private final String title;
@@ -10,6 +12,7 @@ public final class WaexFeatureMetadata {
     private final boolean isExperimental;
     private final long minimumVersion;
     private final String visibility;
+    private final List<WaexCapability> requiredCapabilities;
 
     public WaexFeatureMetadata(
             String id,
@@ -20,7 +23,8 @@ public final class WaexFeatureMetadata {
             boolean isPro,
             boolean isExperimental,
             long minimumVersion,
-            String visibility) {
+            String visibility,
+            List<WaexCapability> requiredCapabilities) {
         this.id = id;
         this.title = title;
         this.description = description;
@@ -30,6 +34,7 @@ public final class WaexFeatureMetadata {
         this.isExperimental = isExperimental;
         this.minimumVersion = minimumVersion;
         this.visibility = visibility;
+        this.requiredCapabilities = requiredCapabilities;
     }
 
     public String getId() {
@@ -66,5 +71,9 @@ public final class WaexFeatureMetadata {
 
     public String getVisibility() {
         return visibility;
+    }
+
+    public List<WaexCapability> getRequiredCapabilities() {
+        return requiredCapabilities;
     }
 }

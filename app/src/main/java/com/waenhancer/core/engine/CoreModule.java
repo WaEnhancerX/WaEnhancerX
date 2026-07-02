@@ -3,6 +3,7 @@ package com.waenhancer.core.engine;
 import android.content.Context;
 import android.content.SharedPreferences;
 import com.waenhancer.api.contracts.*;
+import com.waenhancer.core.compatibility.*;
 import com.waenhancer.core.dashboard.WaexDashboardProviderImpl;
 import com.waenhancer.core.feature.WaexFeatureRegistryImpl;
 import com.waenhancer.core.preferences.WaexPreferenceManagerImpl;
@@ -13,6 +14,7 @@ import dagger.Provides;
 import dagger.hilt.InstallIn;
 import dagger.hilt.android.qualifiers.ApplicationContext;
 import dagger.hilt.components.SingletonComponent;
+import java.util.Set;
 import javax.inject.Singleton;
 
 @Module
@@ -33,12 +35,55 @@ public final class CoreModule {
 
     @Provides
     @Singleton
-    public static WaexFeatureRegistry provideFeatureRegistry(java.util.Set<WaexFeature> featuresSet) {
+    public static WaexClientDetector provideClientDetector(@ApplicationContext Context context) {
+        return new WaexClientDetectorImpl(context);
+    }
+
+    @Provides
+    @Singleton
+    public static WaexClientVersionDetector provideClientVersionDetector(
+            @ApplicationContext Context context,
+            WaexClientDetector clientDetector) {
+        return new WaexClientVersionDetectorImpl(context, clientDetector);
+    }
+
+    @Provides
+    @Singleton
+    public static WaexVersionRegistry provideVersionRegistry() {
+        return new WaexVersionRegistryImpl();
+    }
+
+    @Provides
+    @Singleton
+    public static WaexVersionGate provideVersionGate(
+            WaexClientDetector clientDetector,
+            WaexClientVersionDetector versionDetector,
+            WaexVersionRegistry versionRegistry) {
+        return new WaexVersionGateImpl(clientDetector, versionDetector, versionRegistry);
+    }
+
+    @Provides
+    @Singleton
+    public static WaexFeatureRegistry provideFeatureRegistry(
+            Set<WaexFeature> featuresSet,
+            WaexVersionGate versionGate) {
         WaexFeatureRegistry registry = new WaexFeatureRegistryImpl();
-        for (WaexFeature feature : featuresSet) {
-            registry.registerFeature(feature);
+        if (versionGate.evaluate() == GateResult.ALLOWED) {
+            for (WaexFeature feature : featuresSet) {
+                registry.registerFeature(feature);
+            }
         }
         return registry;
+    }
+
+    @Provides
+    @Singleton
+    public static WaexCompatibilityProvider provideCompatibilityProvider(
+            WaexClientDetector clientDetector,
+            WaexVersionGate versionGate,
+            Set<WaexHookAdapter> adapters,
+            WaexFeatureRegistry featureRegistry) {
+        return new WaexCompatibilityProviderImpl(clientDetector, versionGate, adapters, featureRegistry);
     }
 
     @Provides
