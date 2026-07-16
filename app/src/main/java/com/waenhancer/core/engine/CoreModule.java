@@ -1,9 +1,7 @@
 package com.waenhancer.core.engine;
 
-import android.content.Context;
-import android.content.SharedPreferences;
 import com.waenhancer.api.contracts.*;
-import com.waenhancer.core.compatibility.*;
+import com.waenhancer.compatibility.*;
 import com.waenhancer.core.dashboard.WaexDashboardProviderImpl;
 import com.waenhancer.core.feature.WaexFeatureRegistryImpl;
 import com.waenhancer.core.preferences.WaexPreferenceManagerImpl;
@@ -12,9 +10,7 @@ import com.waenhancer.core.search.WaexSearchEngineImpl;
 import dagger.Module;
 import dagger.Provides;
 import dagger.hilt.InstallIn;
-import dagger.hilt.android.qualifiers.ApplicationContext;
 import dagger.hilt.components.SingletonComponent;
-import java.util.Set;
 import javax.inject.Singleton;
 
 @Module
@@ -23,84 +19,55 @@ public final class CoreModule {
 
     @Provides
     @Singleton
-    public static SharedPreferences provideSharedPreferences(@ApplicationContext Context context) {
-        return context.getSharedPreferences("waex_preferences", Context.MODE_PRIVATE);
+    public static WaexPreferenceManager providePreferenceManager() {
+        return new WaexPreferenceManagerImpl();
     }
 
     @Provides
     @Singleton
-    public static WaexPreferenceManager providePreferenceManager(SharedPreferences sharedPreferences) {
-        return new WaexPreferenceManagerImpl(sharedPreferences);
+    public static WaexClientDetector provideClientDetector() {
+        return new WaexClientDetectorImpl();
     }
 
     @Provides
     @Singleton
-    public static WaexClientDetector provideClientDetector(@ApplicationContext Context context) {
-        return new WaexClientDetectorImpl(context);
+    public static WaexCapabilityRegistry provideCapabilityRegistry() {
+        return new WaexCapabilityRegistryImpl();
     }
 
     @Provides
     @Singleton
-    public static WaexClientVersionDetector provideClientVersionDetector(
-            @ApplicationContext Context context,
-            WaexClientDetector clientDetector) {
-        return new WaexClientVersionDetectorImpl(context, clientDetector);
+    public static WaexVersionManager provideVersionManager() {
+        return new WaexVersionManagerImpl();
     }
 
     @Provides
     @Singleton
-    public static WaexVersionRegistry provideVersionRegistry() {
-        return new WaexVersionRegistryImpl();
+    public static WaexFeatureRegistry provideFeatureRegistry() {
+        return new WaexFeatureRegistryImpl();
     }
 
     @Provides
     @Singleton
-    public static WaexVersionGate provideVersionGate(
-            WaexClientDetector clientDetector,
-            WaexClientVersionDetector versionDetector,
-            WaexVersionRegistry versionRegistry) {
-        return new WaexVersionGateImpl(clientDetector, versionDetector, versionRegistry);
+    public static WaexCompatibilityProvider provideCompatibilityProvider() {
+        return new WaexCompatibilityProviderImpl();
     }
 
     @Provides
     @Singleton
-    public static WaexFeatureRegistry provideFeatureRegistry(
-            Set<WaexFeature> featuresSet,
-            WaexVersionGate versionGate) {
-        WaexFeatureRegistry registry = new WaexFeatureRegistryImpl();
-        if (versionGate.evaluate() == GateResult.ALLOWED) {
-            for (WaexFeature feature : featuresSet) {
-                registry.registerFeature(feature);
-            }
-        }
-        return registry;
+    public static WaexLicenseManager provideLicenseManager() {
+        return new WaexLicenseManagerImpl();
     }
 
     @Provides
     @Singleton
-    public static WaexCompatibilityProvider provideCompatibilityProvider(
-            WaexClientDetector clientDetector,
-            WaexVersionGate versionGate,
-            Set<WaexHookAdapter> adapters,
-            WaexFeatureRegistry featureRegistry) {
-        return new WaexCompatibilityProviderImpl(clientDetector, versionGate, adapters, featureRegistry);
+    public static WaexDashboardProvider provideDashboardProvider() {
+        return new WaexDashboardProviderImpl();
     }
 
     @Provides
     @Singleton
-    public static WaexLicenseManager provideLicenseManager(WaexPreferenceManager preferenceManager) {
-        return new WaexLicenseManagerImpl(preferenceManager);
-    }
-
-    @Provides
-    @Singleton
-    public static WaexDashboardProvider provideDashboardProvider(WaexFeatureRegistry featureRegistry) {
-        return new WaexDashboardProviderImpl(featureRegistry);
-    }
-
-    @Provides
-    @Singleton
-    public static WaexSearchEngine provideSearchEngine(WaexFeatureRegistry featureRegistry) {
-        return new WaexSearchEngineImpl(featureRegistry);
+    public static WaexSearchEngine provideSearchEngine() {
+        return new WaexSearchEngineImpl();
     }
 }

@@ -1,6 +1,6 @@
 package com.waenhancer.api.contracts;
 
 public interface WaexClientDetector {
-    ClientType detectActiveClient();
+    WaexClientType detectActiveClient();
     String getActiveClientPackageName();
 }

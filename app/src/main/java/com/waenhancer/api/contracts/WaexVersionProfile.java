@@ -1,11 +1,9 @@
 package com.waenhancer.api.contracts;
 
-import java.util.Set;
+import java.util.List;
 
 public interface WaexVersionProfile {
-    ClientType getClientType();
-    long getMinVersionCode();
-    long getMaxVersionCode();
-    Set<Long> getAllowedVersions();
-    boolean isExplicitListMode();
+    WaexClientType getClientType();
+    List<String> getSupportedVersions();
+    List<String> getOverrideRules();
 }

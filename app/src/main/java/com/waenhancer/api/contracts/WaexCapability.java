@@ -5,7 +5,6 @@ public enum WaexCapability {
     STATUS,
     MEDIA,
     CALLS,
-    CHANNELS,
-    COMMUNITIES,
-    BUSINESS_TOOLS
+    BUSINESS_TOOLS,
+    COMMUNITIES
 }

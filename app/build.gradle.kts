@@ -131,6 +131,7 @@ tasks.register("architectureCheck") {
                     relativePath.startsWith("ui/") -> "ui"
                     relativePath.startsWith("plugins/") -> "plugins"
                     relativePath.startsWith("app/") -> "app"
+                    relativePath.startsWith("compatibility/") -> "compatibility"
                     else -> "other"
                 }
 
@@ -157,37 +158,51 @@ tasks.register("architectureCheck") {
                                 importedPackage.startsWith("com.waenhancer.core") ||
                                         importedPackage.startsWith("com.waenhancer.hooks") ||
                                         importedPackage.startsWith("com.waenhancer.ui") ||
-                                        importedPackage.startsWith("com.waenhancer.plugins")
+                                        importedPackage.startsWith("com.waenhancer.plugins") ||
+                                        importedPackage.startsWith("com.waenhancer.compatibility")
                             }
                             "ui" -> {
                                 importedPackage.startsWith("com.waenhancer.core") ||
                                         importedPackage.startsWith("com.waenhancer.hooks") ||
-                                        importedPackage.startsWith("com.waenhancer.plugins")
+                                        importedPackage.startsWith("com.waenhancer.plugins") ||
+                                        importedPackage.startsWith("com.waenhancer.compatibility")
                             }
                             "hooks" -> {
                                 importedPackage.startsWith("com.waenhancer.features") ||
                                         importedPackage.startsWith("com.waenhancer.ui") ||
-                                        importedPackage.startsWith("com.waenhancer.plugins")
+                                        importedPackage.startsWith("com.waenhancer.plugins") ||
+                                        importedPackage.startsWith("com.waenhancer.compatibility")
                             }
                             "api" -> {
                                 importedPackage.startsWith("com.waenhancer.core") ||
                                         importedPackage.startsWith("com.waenhancer.hooks") ||
                                         importedPackage.startsWith("com.waenhancer.features") ||
                                         importedPackage.startsWith("com.waenhancer.ui") ||
-                                        importedPackage.startsWith("com.waenhancer.plugins")
+                                        importedPackage.startsWith("com.waenhancer.plugins") ||
+                                        importedPackage.startsWith("com.waenhancer.compatibility")
                             }
                             "plugins" -> {
                                 importedPackage.startsWith("com.waenhancer.core") ||
                                         importedPackage.startsWith("com.waenhancer.hooks") ||
                                         importedPackage.startsWith("com.waenhancer.features") ||
-                                        importedPackage.startsWith("com.waenhancer.ui")
+                                        importedPackage.startsWith("com.waenhancer.ui") ||
+                                        importedPackage.startsWith("com.waenhancer.compatibility")
                             }
                             "app" -> {
                                 // App is the composition root: can use features, api, ui
-                                // Must NOT directly access core internals, hooks, or plugins
+                                // Must NOT directly access core internals, hooks, plugins, or compatibility
                                 importedPackage.startsWith("com.waenhancer.core") ||
                                         importedPackage.startsWith("com.waenhancer.hooks") ||
-                                        importedPackage.startsWith("com.waenhancer.plugins")
+                                        importedPackage.startsWith("com.waenhancer.plugins") ||
+                                        importedPackage.startsWith("com.waenhancer.compatibility")
+                            }
+                            "compatibility" -> {
+                                importedPackage.startsWith("com.waenhancer.core") ||
+                                        importedPackage.startsWith("com.waenhancer.features") ||
+                                        importedPackage.startsWith("com.waenhancer.hooks") ||
+                                        importedPackage.startsWith("com.waenhancer.ui") ||
+                                        importedPackage.startsWith("com.waenhancer.plugins") ||
+                                        importedPackage.startsWith("com.waenhancer.app")
                             }
                             else -> false
                         }

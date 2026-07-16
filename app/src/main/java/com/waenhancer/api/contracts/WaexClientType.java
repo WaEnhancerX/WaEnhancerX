@@ -1,8 +1,8 @@
 package com.waenhancer.api.contracts;
 
-public enum ClientType {
+public enum WaexClientType {
     WHATSAPP,
     WHATSAPP_BUSINESS,
-    FUTURE_CLIENT,
-    UNKNOWN
+    UNKNOWN,
+    FUTURE_CLIENT
 }
