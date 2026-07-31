@@ -238,14 +238,14 @@ fun MainDashboardScreen(
                     BentoCard(
                         title = "Privacy",
                         icon = WaexIcons.Security,
-                        items = listOf("Ghost Mode", "Anti Revoke", "Hide Seen", "Hide View Status"),
+                        items = listOf("Anti-Revoke", "Stealth Status View", "Hide Read Receipts", "Freeze Last Seen"),
                         modifier = Modifier.weight(1f),
                         onClick = { navController.navigateTo(Screen.GlobalPrivacySettings, clearStack = true) }
                     )
                     BentoCard(
                         title = "Media",
                         icon = WaexIcons.Image,
-                        items = listOf("HD Upload", "Status Download", "Unlimited View Once", "Voice Status"),
+                        items = listOf("File Size Spoofer", "Status Downloader", "Download Profile", "Media Quality"),
                         modifier = Modifier.weight(1f),
                         onClick = { navController.navigateTo(Screen.MediaStatusHub, clearStack = true) }
                     )
@@ -258,14 +258,14 @@ fun MainDashboardScreen(
                     BentoCard(
                         title = "Customization",
                         icon = WaexIcons.Palette,
-                        items = listOf("Pill Design", "Custom Status Layout", "Menu Icons", "Animated Emojis"),
+                        items = listOf("Custom Theme", "Bubble Colors", "Seen Tick Style", "Floating Bar"),
                         modifier = Modifier.weight(1f),
-                        onClick = { showCustomizationSoon = true }
+                        onClick = { navController.navigateTo(Screen.StylesSettings, clearStack = true) }
                     )
                     BentoCard(
                         title = "Automation",
                         icon = WaexIcons.AutoAwesome,
-                        items = listOf("Always Typing", "Auto Reply", "Status Forward", "Tasker"),
+                        items = listOf("Always Typing", "Status Splitter", "Message Bomber", "Tasker"),
                         modifier = Modifier.weight(1f),
                         onClick = { navController.navigateTo(Screen.AutomationTasker, clearStack = true) }
                     )
@@ -323,6 +323,92 @@ fun MainDashboardScreen(
                 }
             }
 
+            // Backup & Restore Card
+            Surface(
+                shape = radius.bentoCardShape,
+                color = colors.surfaceDim,
+                border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.pageMargin)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(colors.primary.copy(alpha = 0.1f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = WaexIcons.Folder,
+                                contentDescription = null,
+                                tint = colors.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = "Backup & Restore Preferences",
+                                style = typography.bodyLg,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.onSurface
+                            )
+                            Text(
+                                text = "Backup and restore preference configurations locally",
+                                style = typography.bodyMd,
+                                color = colors.onSurfaceVariant,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                                .clip(radius.defaultShape)
+                                .border(1.dp, colors.outlineVariant, radius.defaultShape)
+                                .clickable { /* Backup Trigger */ }
+                                .padding(horizontal = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Backup Settings",
+                                style = typography.bodyMd,
+                                fontWeight = FontWeight.SemiBold,
+                                color = colors.onSurface
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                                .clip(radius.defaultShape)
+                                .border(1.dp, colors.outlineVariant, radius.defaultShape)
+                                .clickable { /* Restore Trigger */ }
+                                .padding(horizontal = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Restore Settings",
+                                style = typography.bodyMd,
+                                fontWeight = FontWeight.SemiBold,
+                                color = colors.onSurface
+                            )
+                        }
+                    }
+                }
+            }
+
 
             // Pro Paywall Banner
             if (licenseState == "free") {
@@ -332,7 +418,7 @@ fun MainDashboardScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = spacing.pageMargin)
-                        .clickable { navController.navigateTo(Screen.ProUpgradePaywall, clearStack = true) }
+                        .clickable { navController.navigateTo(Screen.ProUpgradePaywall) }
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text(

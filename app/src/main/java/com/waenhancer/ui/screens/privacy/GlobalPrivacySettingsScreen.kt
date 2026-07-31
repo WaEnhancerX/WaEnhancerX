@@ -104,33 +104,35 @@ fun GlobalPrivacySettingsScreen(
     // Settings local state tracking
     val settingsState = remember {
         mutableStateMapOf(
-            "ghost" to true,
-            "seen_tick" to true,
-            "blue_tick" to false,
-            "second_tick" to false,
-            "typing" to true,
-            "recording" to false,
-            "anti_revoke_msg" to true,
-            "anti_revoke_status" to true,
-            "anti_disappear" to false,
-            "del_history" to true,
-            "del_media" to false,
-            "hide_view_status" to true,
-            "freeze_lastseen" to false,
-            "custom_online" to false,
-            "read_receipts" to true,
-            "selectable" to true,
-            "copy_nolimit" to true,
-            "doubletap_like" to false,
-            "device_source" to false,
-            "msg_history" to true,
-            "translator" to false,
-            "auto_translate" to false,
-            "pref_lang" to false,
-            "quick_reactions" to true,
-            "ctx_icons" to true,
-            "ext_menu" to false,
-            "internal_dialer" to false
+            // Privacy
+            "typing_privacy" to false,
+            "hide_forwarded_tag" to false,
+            "online_status_indicator" to false,
+            "anti_view_once" to false,
+            "stealth_status_view" to false,
+            "call_privacy" to false,
+            "freeze_last_seen" to false,
+            "hide_chats" to false,
+            "custom_privacy" to false,
+            "anti_revoke" to false,
+            "hide_seen_receipts" to false,
+            "locked_chats_enhancer" to false,
+            "dnd_mode" to false,
+
+            // Conversation
+            "anti_edit_messages" to false,
+            "call_type_controller" to false,
+            "chat_limits_bypass" to false,
+            "copy_status_text" to false,
+            "custom_filter_groups" to false,
+            "direct_chat_dialer" to false,
+            "group_admin_tools" to false,
+            "inline_translation" to false,
+            "quick_scroll_buttons" to false,
+            "recover_deleted_messages" to false,
+            "status_text_composer" to false,
+            "sticker_confirm_alert" to false,
+            "unlimited_pinned_chats" to false
         )
     }
 
@@ -138,31 +140,29 @@ fun GlobalPrivacySettingsScreen(
         SettingGroup(
             "Privacy Core",
             listOf(
-                SettingItem("Ghost Mode", "Appear completely offline", "ghost"),
-                SettingItem("Hide Seen Tick", "Remove seen confirmation", "seen_tick"),
-                SettingItem("Hide Blue Tick", "Prevent read receipts", "blue_tick"),
-                SettingItem("Hide Second Tick", "Delivered state remains hidden", "second_tick"),
-                SettingItem("Hide Typing", "Typing indicator suppressed", "typing"),
-                SettingItem("Hide Recording", "Voice recording indicator hidden", "recording")
+                SettingItem("Hide Typing & Recording Indicators", "Hides typing and recording status from others", "typing_privacy"),
+                SettingItem("Hide Forwarded Tag", "Prevent forwarded tag from appearing on shared messages", "hide_forwarded_tag"),
+                SettingItem("Online Status Indicator Control", "Hide your green online status indicator", "online_status_indicator"),
+                SettingItem("Anti-View Once", "Bypass view-once constraints on incoming media", "anti_view_once"),
+                SettingItem("Stealth Status Viewing", "View status updates without sending view receipts", "stealth_status_view"),
+                SettingItem("Freeze Last Seen", "Lock your last seen timestamp in place", "freeze_last_seen")
             )
         ),
         SettingGroup(
             "Message Protection",
             listOf(
-                SettingItem("Anti Revoke Messages", "Keep deleted messages visible", "anti_revoke_msg"),
-                SettingItem("Anti Revoke Status", "Preserve deleted statuses", "anti_revoke_status"),
-                SettingItem("Anti Disappearing Messages", "Block self-destruct timers", "anti_disappear"),
-                SettingItem("Deleted Message History", "View message deletion log", "del_history"),
-                SettingItem("Deleted Media Recovery", "Recover deleted attachments", "del_media")
+                SettingItem("Anti-Revoke Messages & Statuses", "Keep deleted messages and statuses visible to you", "anti_revoke"),
+                SettingItem("Hide Read & Delivery Receipts", "Read messages without sending blue read or delivery ticks", "hide_seen_receipts"),
+                SettingItem("Locked Chats Enhancer", "Customize and bypass locks for specific chat vaults", "locked_chats_enhancer"),
+                SettingItem("Do Not Disturb (DND) Mode", "Temporarily block incoming messages dynamically", "dnd_mode")
             )
         ),
         SettingGroup(
-            "Status Privacy",
+            "Advanced Rules",
             listOf(
-                SettingItem("Hide View Status", "View statuses anonymously", "hide_view_status"),
-                SettingItem("Freeze Last Seen", "Lock your last seen timestamp", "freeze_lastseen"),
-                SettingItem("Custom Online State", "Control your online visibility", "custom_online"),
-                SettingItem("Disable Read Receipts", "Global read receipt disable", "read_receipts")
+                SettingItem("Hide Chats / Vault", "Hide and lock private chats from the main chat list", "hide_chats"),
+                SettingItem("Per-Contact Custom Privacy", "Set separate rules for specific contacts", "custom_privacy"),
+                SettingItem("Call Privacy & Filtering", "Block calls from unwanted contacts", "call_privacy")
             )
         )
     )
@@ -171,31 +171,34 @@ fun GlobalPrivacySettingsScreen(
         SettingGroup(
             "Message Controls",
             listOf(
-                SettingItem("Selectable Messages", "Tap to select any message", "selectable"),
-                SettingItem("Copy Without Limits", "Copy protected messages", "copy_nolimit"),
-                SettingItem("Double Tap To Like", "Quick heart reaction", "doubletap_like"),
-                SettingItem("Message Device Source", "Show sender device type", "device_source"),
-                SettingItem("Message History", "Edit history visibility", "msg_history")
+                SettingItem("Anti-Edit Messages", "Keep original version of edited messages in chat", "anti_edit_messages"),
+                SettingItem("Sticker Confirmation Alert", "Ask before sending clicked stickers", "sticker_confirm_alert"),
+                SettingItem("Quick Scroll Buttons", "Add buttons to jump directly to top or bottom of chat", "quick_scroll_buttons"),
+                SettingItem("Recover Deleted Messages", "Instantly restore deleted messages in chat", "recover_deleted_messages"),
+                SettingItem("Copy Status Text", "Allow copying text from status updates", "copy_status_text")
             )
         ),
         SettingGroup(
             "Translation",
             listOf(
-                SettingItem("Enable Translator", "In-chat message translation", "translator"),
-                SettingItem("Auto Translate", "Translate on receive", "auto_translate"),
-                SettingItem("Preferred Language", "English (US)", "pref_lang")
+                SettingItem("Inline Message Translation", "Tap-to-translate messages directly inline", "inline_translation")
             )
         ),
         SettingGroup(
-            "Chat Utilities",
+            "Chat & Group Utilities",
             listOf(
-                SettingItem("Quick Reactions", "Custom reaction set", "quick_reactions"),
-                SettingItem("Context Menu Icons", "Icons in long-press menu", "ctx_icons"),
-                SettingItem("Extended Menu Actions", "Additional action options", "ext_menu"),
-                SettingItem("Internal Dialer", "Use built-in call interface", "internal_dialer")
+                SettingItem("Call Type Controller", "Force voice-only or video-only incoming calls", "call_type_controller"),
+                SettingItem("Chat Limits Bypass", "Bypass group sharing and forwarding constraints", "chat_limits_bypass"),
+                SettingItem("Custom Filter Groups", "Group chats by custom categories", "custom_filter_groups"),
+                SettingItem("Direct Chat Dialer", "Message someone without saving their contact info", "direct_chat_dialer"),
+                SettingItem("Group Admin Tools", "Unlock hidden moderation controls", "group_admin_tools"),
+                SettingItem("Status Text Composer Enhancements", "Format text status updates beautifully", "status_text_composer"),
+                SettingItem("Unlimited Pinned Chats", "Pin more than 3 chats to the top", "unlimited_pinned_chats")
             )
         )
     )
+
+
 
     Column(
         modifier = Modifier

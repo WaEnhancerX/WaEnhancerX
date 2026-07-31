@@ -48,68 +48,81 @@ fun SearchScreen() {
     val preferenceRegistry = remember {
         listOf(
             // --- PRIVACY TAB (Tab 1), Sub-tab "privacy" ---
-            SearchablePreference("ghost", "Ghost Mode", "Appear completely offline", "Privacy Core", 1, "privacy", "Privacy"),
-            SearchablePreference("seen_tick", "Hide Seen Tick", "Remove seen confirmation", "Privacy Core", 1, "privacy", "Privacy"),
-            SearchablePreference("blue_tick", "Hide Blue Tick", "Prevent read receipts", "Privacy Core", 1, "privacy", "Privacy"),
-            SearchablePreference("second_tick", "Hide Second Tick", "Delivered state remains hidden", "Privacy Core", 1, "privacy", "Privacy"),
-            SearchablePreference("typing", "Hide Typing", "Typing indicator suppressed", "Privacy Core", 1, "privacy", "Privacy"),
-            SearchablePreference("recording", "Hide Recording", "Voice recording indicator hidden", "Privacy Core", 1, "privacy", "Privacy"),
-            SearchablePreference("anti_revoke_msg", "Anti Revoke Messages", "Keep deleted messages visible", "Message Protection", 1, "privacy", "Privacy"),
-            SearchablePreference("anti_revoke_status", "Anti Revoke Status", "Preserve deleted statuses", "Message Protection", 1, "privacy", "Privacy"),
-            SearchablePreference("anti_disappear", "Anti Disappearing Messages", "Block self-destruct timers", "Message Protection", 1, "privacy", "Privacy"),
-            SearchablePreference("del_history", "Deleted Message History", "View message deletion log", "Message Protection", 1, "privacy", "Privacy"),
-            SearchablePreference("del_media", "Deleted Media Recovery", "Recover deleted attachments", "Message Protection", 1, "privacy", "Privacy"),
-            SearchablePreference("hide_view_status", "Hide View Status", "View statuses anonymously", "Status Privacy", 1, "privacy", "Privacy"),
-            SearchablePreference("freeze_lastseen", "Freeze Last Seen", "Lock your last seen timestamp", "Status Privacy", 1, "privacy", "Privacy"),
-            SearchablePreference("custom_online", "Custom Online State", "Control your online visibility", "Status Privacy", 1, "privacy", "Privacy"),
-            SearchablePreference("read_receipts", "Disable Read Receipts", "Global read receipt disable", "Status Privacy", 1, "privacy", "Privacy"),
+            SearchablePreference("typing_privacy", "Hide Typing & Recording Indicators", "Hides typing and recording status from others", "Privacy Core", 1, "privacy", "Privacy"),
+            SearchablePreference("hide_forwarded_tag", "Hide Forwarded Tag", "Prevent forwarded tag from appearing on shared messages", "Privacy Core", 1, "privacy", "Privacy"),
+            SearchablePreference("online_status_indicator", "Online Status Indicator Control", "Hide your green online status indicator", "Privacy Core", 1, "privacy", "Privacy"),
+            SearchablePreference("anti_view_once", "Anti-View Once", "Bypass view-once constraints on incoming media", "Privacy Core", 1, "privacy", "Privacy"),
+            SearchablePreference("stealth_status_view", "Stealth Status Viewing", "View status updates without sending view receipts", "Privacy Core", 1, "privacy", "Privacy"),
+            SearchablePreference("freeze_last_seen", "Freeze Last Seen", "Lock your last seen timestamp in place", "Privacy Core", 1, "privacy", "Privacy"),
+            SearchablePreference("anti_revoke", "Anti-Revoke Messages & Statuses", "Keep deleted messages and statuses visible to you", "Message Protection", 1, "privacy", "Privacy"),
+            SearchablePreference("hide_seen_receipts", "Hide Read & Delivery Receipts", "Read messages without sending blue read or delivery ticks", "Message Protection", 1, "privacy", "Privacy"),
+            SearchablePreference("locked_chats_enhancer", "Locked Chats Enhancer", "Customize and bypass locks for specific chat vaults", "Message Protection", 1, "privacy", "Privacy"),
+            SearchablePreference("dnd_mode", "Do Not Disturb (DND) Mode", "Temporarily block incoming messages dynamically", "Message Protection", 1, "privacy", "Privacy"),
+            SearchablePreference("hide_chats", "Hide Chats / Vault", "Hide and lock private chats from the main chat list", "Advanced Rules", 1, "privacy", "Privacy"),
+            SearchablePreference("custom_privacy", "Per-Contact Custom Privacy", "Set separate rules for specific contacts", "Advanced Rules", 1, "privacy", "Privacy"),
+            SearchablePreference("call_privacy", "Call Privacy & Filtering", "Block calls from unwanted contacts", "Advanced Rules", 1, "privacy", "Privacy"),
 
             // --- PRIVACY TAB (Tab 1), Sub-tab "conversation" ---
-            SearchablePreference("selectable", "Selectable Messages", "Tap to select any message", "Message Controls", 1, "conversation", "Privacy"),
-            SearchablePreference("copy_nolimit", "Copy Without Limits", "Copy protected messages", "Message Controls", 1, "conversation", "Privacy"),
-            SearchablePreference("doubletap_like", "Double Tap To Like", "Quick heart reaction", "Message Controls", 1, "conversation", "Privacy"),
-            SearchablePreference("device_source", "Message Device Source", "Show sender device type", "Message Controls", 1, "conversation", "Privacy"),
-            SearchablePreference("msg_history", "Message History", "Edit history visibility", "Message Controls", 1, "conversation", "Privacy"),
-            SearchablePreference("translator", "Enable Translator", "In-chat message translation", "Translation", 1, "conversation", "Privacy"),
-            SearchablePreference("auto_translate", "Auto Translate", "Translate on receive", "Translation", 1, "conversation", "Privacy"),
-            SearchablePreference("pref_lang", "Preferred Language", "Configure translation target language", "Translation", 1, "conversation", "Privacy"),
-            SearchablePreference("quick_reactions", "Quick Reactions", "Custom reaction set", "Chat Utilities", 1, "conversation", "Privacy"),
-            SearchablePreference("ctx_icons", "Context Menu Icons", "Icons in long-press menu", "Chat Utilities", 1, "conversation", "Privacy"),
-            SearchablePreference("ext_menu", "Extended Menu Actions", "Additional action options", "Chat Utilities", 1, "conversation", "Privacy"),
-            SearchablePreference("internal_dialer", "Internal Dialer", "Use built-in call interface", "Chat Utilities", 1, "conversation", "Privacy"),
+            SearchablePreference("anti_edit_messages", "Anti-Edit Messages", "Keep original version of edited messages in chat", "Message Controls", 1, "conversation", "Privacy"),
+            SearchablePreference("sticker_confirm_alert", "Sticker Confirmation Alert", "Ask before sending clicked stickers", "Message Controls", 1, "conversation", "Privacy"),
+            SearchablePreference("quick_scroll_buttons", "Quick Scroll Buttons", "Add buttons to jump directly to top or bottom of chat", "Message Controls", 1, "conversation", "Privacy"),
+            SearchablePreference("recover_deleted_messages", "Recover Deleted Messages", "Instantly restore deleted messages in chat", "Message Controls", 1, "conversation", "Privacy"),
+            SearchablePreference("copy_status_text", "Copy Status Text", "Allow copying text from status updates", "Message Controls", 1, "conversation", "Privacy"),
+            SearchablePreference("inline_translation", "Inline Message Translation", "Tap-to-translate messages directly inline", "Translation", 1, "conversation", "Privacy"),
+            SearchablePreference("call_type_controller", "Call Type Controller", "Force voice-only or video-only incoming calls", "Chat & Group Utilities", 1, "conversation", "Privacy"),
+            SearchablePreference("chat_limits_bypass", "Chat Limits Bypass", "Bypass group sharing and forwarding constraints", "Chat & Group Utilities", 1, "conversation", "Privacy"),
+            SearchablePreference("custom_filter_groups", "Custom Filter Groups", "Group chats by custom categories", "Chat & Group Utilities", 1, "conversation", "Privacy"),
+            SearchablePreference("direct_chat_dialer", "Direct Chat Dialer", "Message someone without saving their contact info", "Chat & Group Utilities", 1, "conversation", "Privacy"),
+            SearchablePreference("group_admin_tools", "Group Admin Tools", "Unlock hidden moderation controls", "Chat & Group Utilities", 1, "conversation", "Privacy"),
+            SearchablePreference("status_text_composer", "Status Text Composer Enhancements", "Format text status updates beautifully", "Chat & Group Utilities", 1, "conversation", "Privacy"),
+            SearchablePreference("unlimited_pinned_chats", "Unlimited Pinned Chats", "Pin more than 3 chats to the top", "Chat & Group Utilities", 1, "conversation", "Privacy"),
 
             // --- MEDIA TAB (Tab 2) ---
-            SearchablePreference("hd_images", "HD Images", "Upload images without compression", "Media Quality", 2, null, "Media & Status"),
-            SearchablePreference("hd_videos", "HD Videos", "Full quality video uploads", "Media Quality", 2, null, "Media & Status"),
-            SearchablePreference("no_compression", "Disable Compression", "Force original quality", "Media Quality", 2, null, "Media & Status"),
-            SearchablePreference("quality_selector", "Quality Selector", "Per-send quality control", "Media Quality", 2, null, "Media & Status"),
-            SearchablePreference("status_download", "Status Download", "Save any status to gallery", "Status Tools", 2, null, "Media & Status"),
-            SearchablePreference("status_categories", "Status Categories", "Organize status by contact group", "Status Tools", 2, null, "Media & Status"),
-            SearchablePreference("chron_status", "Chronological Status Feed", "Time-ordered status view", "Status Tools", 2, null, "Media & Status"),
-            SearchablePreference("status_music", "Status Music", "Add music to video statuses", "Status Tools", 2, null, "Media & Status"),
-            SearchablePreference("unlimited_view", "Unlimited View Once", "View protected media freely", "View Once Controls", 2, null, "Media & Status"),
-            SearchablePreference("counter_overlay", "Counter Overlay", "Show view count on media", "View Once Controls", 2, null, "Media & Status"),
-            SearchablePreference("save_view_once", "Save View Once Media", "Persist view-once content", "View Once Controls", 2, null, "Media & Status"),
-            SearchablePreference("disable_ads", "Disable Ads", "Remove all in-app advertising", "Ads & AI Removal", 2, null, "Media & Status"),
-            SearchablePreference("disable_ai_search", "Disable Meta AI Search", "Remove AI search integration", "Ads & AI Removal", 2, null, "Media & Status"),
-            SearchablePreference("disable_ai_fab", "Disable Meta AI FAB", "Hide the floating AI button", "Ads & AI Removal", 2, null, "Media & Status"),
+            SearchablePreference("call_recording", "Call Recording", "Enable automatic call recording for voice/video", "Media Utility & Downloader", 2, null, "Media"),
+            SearchablePreference("download_profile", "Download Profile Photo", "Download full-res profile pictures directly", "Media Utility & Downloader", 2, null, "Media"),
+            SearchablePreference("download_video_note", "Download Video Notes", "Save circular video notes to device", "Media Utility & Downloader", 2, null, "Media"),
+            SearchablePreference("download_view_once", "Download View-Once Media", "Save view-once media items directly to gallery", "Media Utility & Downloader", 2, null, "Media"),
+            SearchablePreference("file_size_spoofer", "File Size Spoofer", "Bypass large file limits when sending media", "Media Utility & Downloader", 2, null, "Media"),
+            SearchablePreference("media_preview", "Direct Media Preview", "View media files directly from notification or chat list", "Media Utility & Downloader", 2, null, "Media"),
+            SearchablePreference("media_upload_quality", "Media Upload Quality Enhancer", "Advanced control over upload compression algorithms", "Media Quality", 2, null, "Media"),
+            SearchablePreference("status_downloader", "Status Downloader", "Adds a direct download button to save statuses", "Media Quality", 2, null, "Media"),
+            SearchablePreference("video_note_converter", "Video Note Converter", "Convert standard videos into circular video notes", "Media Utility & Downloader", 2, null, "Media"),
 
             // --- AUTOMATION TAB (Tab 3), Sub-tab "automation" ---
-            SearchablePreference("auto_reply", "Auto Reply", "Respond automatically to incoming messages", "Automation", 3, "automation", "Automation"),
-            SearchablePreference("status_forward", "Status Forward", "Auto-forward received statuses to contacts", "Automation", 3, "automation", "Automation"),
-            SearchablePreference("always_typing", "Always Typing", "Maintain typing indicator at all times", "Automation", 3, "automation", "Automation"),
-            SearchablePreference("scheduled_actions", "Scheduled Actions", "Trigger tasks at specific times or intervals", "Automation", 3, "automation", "Automation"),
-            SearchablePreference("intent_action", "Intent Action", "Configure background Tasker Action", "Tasker Integration", 3, "automation", "Automation"),
-            SearchablePreference("intent_data", "Intent Data", "Configure background Tasker Data URI", "Tasker Integration", 3, "automation", "Automation"),
-            SearchablePreference("intent_package", "Intent Package", "Configure background Tasker Package target", "Tasker Integration", 3, "automation", "Automation"),
-            SearchablePreference("intent_category", "Intent Category", "Configure background Tasker Category", "Tasker Integration", 3, "automation", "Automation"),
+            SearchablePreference("always_typing", "Always Typing Mode", "Maintain typing indicator at all times", "Automation", 3, "automation", "Automation"),
+            SearchablePreference("auto_status_forward", "Auto Status Forwarding", "Auto-forward received statuses to contacts", "Automation", 3, "automation", "Automation"),
+            SearchablePreference("message_bomber", "Message Bomber", "Send automated message bursts", "Automation", 3, "automation", "Automation"),
+            SearchablePreference("status_video_splitter", "Status Video Splitter", "Auto-split long videos for status updates", "Automation", 3, "automation", "Automation"),
+            SearchablePreference("tasker_integration", "Tasker Integration", "Exposes WAEX triggers and actions to Tasker", "Automation", 3, "automation", "Automation"),
 
             // --- AUTOMATION TAB (Tab 3), Sub-tab "ai" ---
-            SearchablePreference("assembly_key", "AssemblyAI API Key", "AssemblyAI connection API configuration", "AssemblyAI", 3, "ai", "Automation"),
-            SearchablePreference("groq_key", "Groq API Key", "Groq connection API configuration", "Groq", 3, "ai", "Automation"),
-            SearchablePreference("transcription", "Audio Transcription", "Convert voice messages to text", "Voice Features", 3, "ai", "Automation"),
-            SearchablePreference("stt", "Speech To Text", "Live voice input for messages", "Voice Features", 3, "ai", "Automation"),
-            SearchablePreference("offline", "Offline Models", "Use on-device processing", "Voice Features", 3, "ai", "Automation")
+            SearchablePreference("voice_transcription", "AI Voice-to-Text Transcription", "Transcribes voice messages into text bubbles using AI", "Audio & AI", 3, "ai", "Automation"),
+
+            // --- STYLES TAB (Tab 4), Sub-tab "appearance" ---
+            SearchablePreference("bubble_colors", "Chat Bubble Custom Colors", "Customize background colors of bubbles", "Appearance", 4, "appearance", "Styles"),
+            SearchablePreference("custom_theme", "Dynamic Theme Customization", "Apply fully custom app-wide styling theme", "Appearance", 4, "appearance", "Styles"),
+            SearchablePreference("custom_time_format", "Custom Time Format", "Set 24h or relative time display", "Appearance", 4, "appearance", "Styles"),
+            SearchablePreference("custom_toolbar", "Custom Toolbar Layout", "Customize quick actions in main header toolbar", "Appearance", 4, "appearance", "Styles"),
+            SearchablePreference("custom_view_dpi", "Custom View & DPI Settings", "Adjust UI scale and density overrides", "Appearance", 4, "appearance", "Styles"),
+            SearchablePreference("seen_tick_customization", "Seen Tick Style Customization", "Change WhatsApp seen tick icons", "Appearance", 4, "appearance", "Styles"),
+            SearchablePreference("floating_bottom_bar", "Floating Bottom Navigation Bar", "Convert main bottom bar to floating capsule", "Appearance", 4, "appearance", "Styles"),
+
+            // --- STYLES TAB (Tab 4), Sub-tab "layout" ---
+            SearchablePreference("channels_enhancements", "Channels Enhancements", "Clean feed, disable channel recommendations", "Home & Feed", 4, "layout", "Styles"),
+            SearchablePreference("chat_filters", "Chat Filter Visibility Control", "Show or hide standard filter chips", "Home & Feed", 4, "layout", "Styles"),
+            SearchablePreference("hide_ui_tabs", "Hide Home UI Elements", "Remove communities, call or status tabs", "Home & Feed", 4, "layout", "Styles"),
+            SearchablePreference("instagram_status_layout", "Instagram-style Status Layout", "Render statuses as story circles at top", "Home & Feed", 4, "layout", "Styles"),
+            SearchablePreference("separate_groups_tabs", "Separate Groups & Personal Chats", "Split chats into two distinct home tabs", "Home & Feed", 4, "layout", "Styles"),
+            SearchablePreference("quick_home_menu", "Quick Action Home Menu", "Add quick actions to home long-press", "Home & Feed", 4, "layout", "Styles"),
+            SearchablePreference("backup_restore", "Backup & Restore Preferences", "Import or export WAEX configurations", "Utilities & Data", 4, "layout", "Styles"),
+            SearchablePreference("contact_blocked_verify", "Contact Blocked Verifier", "Verify if a contact has blocked you", "Utilities & Data", 4, "layout", "Styles"),
+            SearchablePreference("typing_online_toasts", "Typing & Online Toasts", "Get notified when someone gets online or types", "Utilities & Data", 4, "layout", "Styles"),
+            SearchablePreference("voice_status_enhancement", "Voice Status Enhancement", "Upload high-quality voice status updates", "Utilities & Data", 4, "layout", "Styles"),
+            SearchablePreference("miscellaneous_enhancements", "Miscellaneous Enhancements", "Miscellaneous minor feature options", "Utilities & Data", 4, "layout", "Styles"),
+
+            // --- PREMIUM (Paywall) ---
+            SearchablePreference("license_verification", "License Verification & Activation", "Manages license key entry and validation", "Premium", -1, null, "Premium"),
+            SearchablePreference("pro_features_unlock", "Pro Feature Management", "Dynamic locking/unlocking of premium features", "Premium", -1, null, "Premium")
         )
     }
 
@@ -213,11 +226,15 @@ fun SearchScreen() {
                                 Row(
                                     modifier = Modifier
                                         .clickable {
-                                            navController.navigateToPreference(
-                                                tabIndex = pref.tabIndex,
-                                                subTabId = pref.subTabId,
-                                                preferenceKey = pref.key
-                                            )
+                                            if (pref.key == "pro_features_unlock" || pref.key == "license_verification") {
+                                                navController.navigateTo(com.waenhancer.ui.navigation.Screen.ProUpgradePaywall)
+                                            } else {
+                                                navController.navigateToPreference(
+                                                    tabIndex = pref.tabIndex,
+                                                    subTabId = pref.subTabId,
+                                                    preferenceKey = pref.key
+                                                )
+                                            }
                                         }
                                         .padding(16.dp),
                                     verticalAlignment = Alignment.CenterVertically

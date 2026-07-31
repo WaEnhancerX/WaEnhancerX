@@ -81,63 +81,44 @@ fun MediaStatusHubScreen() {
 
     val settingsState = remember {
         mutableStateMapOf(
-            "hd_images" to true,
-            "hd_videos" to true,
-            "no_compression" to false,
-            "quality_selector" to true,
-            "status_download" to true,
-            "status_categories" to false,
-            "chron_status" to true,
-            "status_music" to false,
-            "unlimited_view" to true,
-            "counter_overlay" to false,
-            "save_view_once" to true,
-            "disable_ads" to true,
-            "disable_ai_search" to true,
-            "disable_ai_fab" to false
+            "call_recording" to false,
+            "download_profile" to false,
+            "download_video_note" to false,
+            "download_view_once" to false,
+            "file_size_spoofer" to false,
+            "media_preview" to false,
+            "media_upload_quality" to false,
+            "status_downloader" to false,
+            "video_note_converter" to false,
+            "voice_status_enhancement" to false
         )
     }
 
     val mediaGroups = listOf(
         MediaGroup(
-            "Media Quality",
+            "Media Quality & Status Enhancements",
             WaexIcons.Image,
             listOf(
-                MediaItem("HD Images", "Upload images without compression", "hd_images"),
-                MediaItem("HD Videos", "Full quality video uploads", "hd_videos"),
-                MediaItem("Disable Compression", "Force original quality", "no_compression"),
-                MediaItem("Quality Selector", "Per-send quality control", "quality_selector")
+                MediaItem("Media Upload Quality Enhancer", "Advanced control over upload compression algorithms", "media_upload_quality"),
+                MediaItem("Status Downloader", "Adds a direct download button to save statuses", "status_downloader"),
+                MediaItem("Voice Status Enhancement", "Upload high-quality voice status updates", "voice_status_enhancement")
             )
         ),
         MediaGroup(
-            "Status Tools",
-            WaexIcons.Refresh, // Status / Telemetry icon analogue
+            "Media Utility & Downloader",
+            WaexIcons.Folder,
             listOf(
-                MediaItem("Status Download", "Save any status to gallery", "status_download"),
-                MediaItem("Status Categories", "Organize status by contact group", "status_categories"),
-                MediaItem("Chronological Status Feed", "Time-ordered status view", "chron_status"),
-                MediaItem("Status Music", "Add music to video statuses", "status_music")
-            )
-        ),
-        MediaGroup(
-            "View Once Controls",
-            WaexIcons.Security, // Shield / Eye icon representation
-            listOf(
-                MediaItem("Unlimited View Once", "View protected media freely", "unlimited_view"),
-                MediaItem("Counter Overlay", "Show view count on media", "counter_overlay"),
-                MediaItem("Save View Once Media", "Persist view-once content", "save_view_once")
-            )
-        ),
-        MediaGroup(
-            "Ads & AI Removal",
-            WaexIcons.Settings, // Bot / Settings icon representation
-            listOf(
-                MediaItem("Disable Ads", "Remove all in-app advertising", "disable_ads"),
-                MediaItem("Disable Meta AI Search", "Remove AI search integration", "disable_ai_search"),
-                MediaItem("Disable Meta AI FAB", "Hide the floating AI button", "disable_ai_fab")
+                MediaItem("Call Recording", "Enable automatic call recording for voice/video", "call_recording"),
+                MediaItem("Download Profile Photo", "Download full-res profile pictures directly", "download_profile"),
+                MediaItem("Download Video Notes", "Save circular video notes to device", "download_video_note"),
+                MediaItem("Download View-Once Media", "Save view-once media items directly to gallery", "download_view_once"),
+                MediaItem("File Size Spoofer", "Bypass large file limits when sending media", "file_size_spoofer"),
+                MediaItem("Direct Media Preview", "View media files directly from notification or chat list", "media_preview"),
+                MediaItem("Video Note Converter", "Convert standard videos into circular video notes", "video_note_converter")
             )
         )
     )
+
 
     Column(
         modifier = Modifier

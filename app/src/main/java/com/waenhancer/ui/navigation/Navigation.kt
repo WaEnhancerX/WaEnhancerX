@@ -166,7 +166,7 @@ enum class BottomTab(
     PRIVACY("privacy", "Privacy", WaexIcons.Security, Screen.GlobalPrivacySettings),
     MEDIA("media", "Media", WaexIcons.Image, Screen.MediaStatusHub),
     AUTOMATION("automation", "Automation", WaexIcons.AutoAwesome, Screen.AutomationTasker),
-    PRO("pro", "Pro", WaexIcons.Premium, Screen.ProUpgradePaywall)
+    STYLES("styles", "Styles", WaexIcons.Palette, Screen.StylesSettings)
 }
 
 @Composable
@@ -183,7 +183,7 @@ fun MainContainerScreen() {
 
     val contactPrivacyList = remember {
         mutableStateListOf(
-            ContactPrivacy("1", "Alex Johnson", "+1 555-0192@s.whatsapp.net", ghost = true, hideSeen = true, hideTyping = true, scope = "always"),
+            ContactPrivacy("1", "Alex Johnson", "+1 555-0192@s.whatsapp.net", hideSeen = true, hideTyping = true, scope = "always"),
             ContactPrivacy("2", "Fatima Al-Rashid", "+971 50-0001@s.whatsapp.net", hideTyping = true, antiRevoke = true, scope = "scheduled"),
             ContactPrivacy("3", "James Okafor", "+234 80-2020@s.whatsapp.net", freezeLastSeen = true, hideRecording = true, scope = "temporary")
         )
@@ -199,7 +199,7 @@ fun MainContainerScreen() {
         Screen.GlobalPrivacySettings,
         Screen.MediaStatusHub,
         Screen.AutomationTasker,
-        Screen.ProUpgradePaywall -> true
+        Screen.StylesSettings -> true
         else -> false
     }
     val showParentTopBar = isRoot || currentScreen == Screen.SystemHealth
@@ -246,7 +246,7 @@ fun MainContainerScreen() {
                 1 -> Screen.GlobalPrivacySettings
                 2 -> Screen.MediaStatusHub
                 3 -> Screen.AutomationTasker
-                4 -> Screen.ProUpgradePaywall
+                4 -> Screen.StylesSettings
                 else -> Screen.MainDashboard
             }
             if (navController.currentScreen != targetScreen && isRoot) {
@@ -262,7 +262,7 @@ fun MainContainerScreen() {
             Screen.GlobalPrivacySettings -> 1
             Screen.MediaStatusHub -> 2
             Screen.AutomationTasker -> 3
-            Screen.ProUpgradePaywall -> 4
+            Screen.StylesSettings -> 4
             else -> -1
         }
         if (targetPage != -1 && pagerState.currentPage != targetPage) {
@@ -277,6 +277,7 @@ fun MainContainerScreen() {
         Screen.GlobalPrivacySettings -> "Privacy"
         Screen.MediaStatusHub -> "Media & Status"
         Screen.AutomationTasker -> "Automation"
+        Screen.StylesSettings -> "Styles & Customization"
         Screen.PerContactPrivacyList -> "Per Contact Rules"
         else -> "WaEnhancerX"
     }
@@ -531,7 +532,7 @@ fun MainContainerScreen() {
                                 Screen.GlobalPrivacySettings -> 1
                                 Screen.MediaStatusHub -> 2
                                 Screen.AutomationTasker -> 3
-                                Screen.ProUpgradePaywall -> 4
+                                Screen.StylesSettings -> 4
                                 else -> 0
                             }
 
@@ -566,7 +567,7 @@ fun MainContainerScreen() {
                                         Screen.GlobalPrivacySettings -> tab == BottomTab.PRIVACY
                                         Screen.MediaStatusHub -> tab == BottomTab.MEDIA
                                         Screen.AutomationTasker -> tab == BottomTab.AUTOMATION
-                                        Screen.ProUpgradePaywall -> tab == BottomTab.PRO
+                                        Screen.StylesSettings -> tab == BottomTab.STYLES
                                         else -> tab == BottomTab.HOME
                                     }
 
@@ -588,7 +589,7 @@ fun MainContainerScreen() {
                                                     BottomTab.PRIVACY -> 1
                                                     BottomTab.MEDIA -> 2
                                                     BottomTab.AUTOMATION -> 3
-                                                    BottomTab.PRO -> 4
+                                                    BottomTab.STYLES -> 4
                                                 }
                                                 coroutineScope.launch {
                                                     pagerState.animateScrollToPage(pageIndex)
@@ -670,7 +671,7 @@ fun MainContainerScreen() {
                                 1 -> Screen.GlobalPrivacySettings
                                 2 -> Screen.MediaStatusHub
                                 3 -> Screen.AutomationTasker
-                                4 -> Screen.ProUpgradePaywall
+                                4 -> Screen.StylesSettings
                                 else -> Screen.MainDashboard
                             }
                             Box(modifier = Modifier.fillMaxSize()) {
@@ -815,6 +816,7 @@ fun WaexAppNavigation(
         Screen.FileSizeSpooferPro -> FileSizeSpooferProScreen()
         Screen.StatusVideoSplitterPro -> StatusVideoSplitterProScreen()
         Screen.Search -> com.waenhancer.ui.screens.search.SearchScreen()
+        Screen.StylesSettings -> com.waenhancer.ui.screens.settings.StylesSettingsScreen()
         Screen.PerContactPrivacyList -> PerContactPrivacyListScreen(
             contacts = contactPrivacyList,
             onClearContact = onClearContact,
@@ -828,7 +830,6 @@ data class ContactPrivacy(
     val id: String,
     val name: String,
     val jid: String,
-    val ghost: Boolean = false,
     val hideSeen: Boolean = false,
     val hideTyping: Boolean = false,
     val hideRecording: Boolean = false,

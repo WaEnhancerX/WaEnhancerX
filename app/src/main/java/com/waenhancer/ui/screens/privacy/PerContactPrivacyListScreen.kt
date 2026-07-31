@@ -290,7 +290,6 @@ private fun ContactPrivacyRow(
     // Define color codes for each active rule to show beautiful chips
     val activeRulesList = remember(contact) {
         val list = mutableListOf<Pair<String, Color>>()
-        if (contact.ghost) list.add("Ghost" to Color(0xFF8E24AA)) // Purple
         if (contact.hideSeen) list.add("Seen" to Color(0xFF1E88E5)) // Blue
         if (contact.hideTyping) list.add("Typing" to Color(0xFF43A047)) // Green
         if (contact.hideRecording) list.add("Rec" to Color(0xFFFB8C00)) // Orange

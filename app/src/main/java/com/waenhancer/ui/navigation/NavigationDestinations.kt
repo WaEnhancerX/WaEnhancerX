@@ -16,6 +16,7 @@ sealed class Screen(val route: String) {
     object StatusVideoSplitterPro : Screen("status_video_splitter_pro")
     object Search : Screen("search")
     object PerContactPrivacyList : Screen("per_contact_privacy_list")
+    object StylesSettings : Screen("styles_settings")
 }
 
 val Screen.isRootScreen: Boolean
@@ -23,5 +24,5 @@ val Screen.isRootScreen: Boolean
             this is Screen.GlobalPrivacySettings ||
             this is Screen.MediaStatusHub ||
             this is Screen.AutomationTasker ||
-            this is Screen.ProUpgradePaywall
+            this is Screen.StylesSettings
 

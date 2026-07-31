@@ -115,28 +115,19 @@ fun AutomationTaskerScreen() {
     }
 
     // Automation states
-    var autoReplyEnabled by remember { mutableStateOf(false) }
-    var statusForwardEnabled by remember { mutableStateOf(false) }
     var alwaysTypingEnabled by remember { mutableStateOf(true) }
-    var scheduledActionsEnabled by remember { mutableStateOf(false) }
-
-    var intentAction by remember { mutableStateOf("com.waenhancerx.ACTION_SEND") }
-    var intentData by remember { mutableStateOf("content://media/external") }
-    var intentPackage by remember { mutableStateOf("com.whatsapp") }
-    var intentCategory by remember { mutableStateOf("android.intent.category.DEFAULT") }
+    var autoStatusForwardEnabled by remember { mutableStateOf(false) }
+    var messageBomberEnabled by remember { mutableStateOf(false) }
+    var statusVideoSplitterEnabled by remember { mutableStateOf(false) }
+    var taskerIntegrationEnabled by remember { mutableStateOf(false) }
 
     // Audio & AI states
+    var voiceTranscriptionEnabled by remember { mutableStateOf(true) }
+    var transcriptionProvider by remember { mutableStateOf("Groq") } // "Groq" | "AssemblyAI"
+    var showProviderDropdown by remember { mutableStateOf(false) }
     var assemblyKey by remember { mutableStateOf("") }
     var assemblyStatus by remember { mutableStateOf("idle") } // "idle" | "verifying" | "ok" | "fail"
     var groqKey by remember { mutableStateOf("") }
-    var groqModel by remember { mutableStateOf("Llama 3 8B") }
-    var showModelDropdown by remember { mutableStateOf(false) }
-    var temperature by remember { mutableStateOf(0.7f) }
-    var playbackSpeed by remember { mutableStateOf(1.0f) }
-
-    var transcriptionEnabled by remember { mutableStateOf(true) }
-    var sttEnabled by remember { mutableStateOf(false) }
-    var offlineModelsEnabled by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -225,10 +216,11 @@ fun AutomationTaskerScreen() {
         if (selectedTab == "automation") {
             // Automation Cards
             val cards = listOf(
-                AutomationCardData("auto_reply", WaexIcons.Settings, "Auto Reply", "Respond automatically to incoming messages", autoReplyEnabled, false) { autoReplyEnabled = it },
-                AutomationCardData("status_forward", WaexIcons.Share, "Status Forward", "Auto-forward received statuses to contacts", statusForwardEnabled, false) { statusForwardEnabled = it },
-                AutomationCardData("always_typing", WaexIcons.Lock, "Always Typing", "Maintain typing indicator at all times", alwaysTypingEnabled, true) { alwaysTypingEnabled = it },
-                AutomationCardData("scheduled_actions", WaexIcons.Refresh, "Scheduled Actions", "Trigger tasks at specific times or intervals", scheduledActionsEnabled, true) { scheduledActionsEnabled = it }
+                AutomationCardData("always_typing", WaexIcons.Lock, "Always Typing Mode", "Maintain typing indicator at all times", alwaysTypingEnabled, true) { alwaysTypingEnabled = it },
+                AutomationCardData("auto_status_forward", WaexIcons.Share, "Auto Status Forwarding", "Auto-forward received statuses to contacts", autoStatusForwardEnabled, false) { autoStatusForwardEnabled = it },
+                AutomationCardData("message_bomber", WaexIcons.Mic, "Message Bomber", "Send automated message bursts", messageBomberEnabled, true) { messageBomberEnabled = it },
+                AutomationCardData("status_video_splitter", WaexIcons.SystemUpdate, "Status Video Splitter", "Auto-split long videos for status updates", statusVideoSplitterEnabled, true) { statusVideoSplitterEnabled = it },
+                AutomationCardData("tasker_integration", WaexIcons.AutoAwesome, "Tasker Integration", "Exposes WAEX triggers and actions to Tasker", taskerIntegrationEnabled, false) { taskerIntegrationEnabled = it }
             )
 
             Column(
@@ -318,540 +310,274 @@ fun AutomationTaskerScreen() {
                 }
             }
 
-            // Tasker Integration
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = spacing.pageMargin)
-            ) {
-                Text(
-                    text = "Tasker Integration",
-                    style = typography.labelSm,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
-                )
-
+            if (taskerIntegrationEnabled) {
                 Surface(
                     shape = radius.bentoCardShape,
                     color = colors.surfaceDim,
                     border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = spacing.pageMargin)
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        val fields = listOf(
-                            TaskerFieldData("Intent Action", intentAction, "intent_action") { intentAction = it },
-                            TaskerFieldData("Intent Data", intentData, "intent_data") { intentData = it },
-                            TaskerFieldData("Intent Package", intentPackage, "intent_package") { intentPackage = it },
-                            TaskerFieldData("Intent Category", intentCategory, "intent_category") { intentCategory = it }
+                        Text(
+                            text = "Tasker Integration Setup Guide",
+                            style = typography.bodyLg,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.primary
                         )
-
-                        fields.forEach { (label, value, key, onValChange) ->
-                            val isHighlighted = navController.highlightTargetKey == key
-                            val highlightBgColor by animateColorAsState(
-                                targetValue = if (isHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent,
-                                animationSpec = tween(durationMillis = 300),
-                                label = "highlight_bg"
-                            )
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(highlightBgColor)
-                                    .onGloballyPositioned { coordinates ->
-                                        val y = coordinates.positionInRoot().y - containerY + scrollState.value
-                                        itemCoordinates[key] = y
-                                    }
-                            ) {
-                                Text(text = label, style = typography.labelSm, color = colors.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(44.dp)
-                                        .clip(radius.mdShape)
-                                        .background(colors.surface)
-                                        .border(1.dp, colors.outlineVariant, radius.mdShape)
-                                        .padding(horizontal = 12.dp),
-                                    contentAlignment = Alignment.CenterStart
-                                ) {
-                                    BasicTextField(
-                                        value = value,
-                                        onValueChange = onValChange,
-                                        singleLine = true,
-                                        textStyle = typography.bodyMd.copy(
-                                            fontFamily = FontFamily.Monospace,
-                                            fontSize = 13.sp,
-                                            color = colors.onSurface
-                                        ),
-                                        cursorBrush = SolidColor(colors.primary),
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Execution History
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = spacing.pageMargin)
-            ) {
-                Text(
-                    text = "Execution History",
-                    style = typography.labelSm,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
-                )
-
-                Surface(
-                    shape = radius.bentoCardShape,
-                    color = colors.surfaceDim,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column {
-                        // Table Header
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color(0xFFF0F0F2))
-                                .padding(horizontal = 16.dp, vertical = 10.dp)
-                        ) {
-                            Text(text = "Time", style = typography.labelSm, fontWeight = FontWeight.Bold, color = colors.onSurfaceVariant, modifier = Modifier.weight(0.8f))
-                            Text(text = "Trigger", style = typography.labelSm, fontWeight = FontWeight.Bold, color = colors.onSurfaceVariant, modifier = Modifier.weight(1.2f))
-                            Text(text = "Result", style = typography.labelSm, fontWeight = FontWeight.Bold, color = colors.onSurfaceVariant, modifier = Modifier.weight(1.2f))
-                        }
-                        HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
-
-                        val history = listOf(
-                            Triple("14:32", "Auto Reply", Pair("Sent to Alex J.", true)),
-                            Triple("13:58", "Status Forward", Pair("3 contacts updated", true)),
-                            Triple("12:15", "Always Typing", Pair("Session resumed", true)),
-                            Triple("11:40", "Scheduled Action", Pair("Rate limit hit", false)),
-                            Triple("09:07", "Auto Reply", Pair("Message delivered", true))
+                        Text(
+                            text = "WAEX exposes local Broadcast Receivers. You can send intents with the action 'com.waenhancerx.ACTION_TRIGGER' from Tasker to automate features.",
+                            style = typography.bodyMd,
+                            color = colors.onSurfaceVariant,
+                            fontSize = 12.sp
                         )
-
-                        history.forEachIndexed { idx, (time, trigger, res) ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(text = time, style = typography.bodyMd.copy(fontFamily = FontFamily.Monospace), color = colors.onSurface, modifier = Modifier.weight(0.8f))
-                                Text(text = trigger, style = typography.bodyMd, color = colors.onSurface, modifier = Modifier.weight(1.2f))
-                                Row(
-                                    modifier = Modifier.weight(1.2f),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(if (res.second) Color(0xFF22C55E) else Color(0xFFF44336))
-                                    )
-                                    Text(text = res.first, style = typography.labelSm, color = colors.onSurfaceVariant, maxLines = 1)
-                                }
-                            }
-                            if (idx < history.lastIndex) {
-                                HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
-                            }
-                        }
                     }
                 }
             }
 
         } else {
             // Audio & AI Tab Content
-
-            // AssemblyAI Card
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = spacing.pageMargin)
+                    .padding(horizontal = spacing.pageMargin),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    text = "AssemblyAI",
-                    style = typography.labelSm,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+                val isHighlighted = navController.highlightTargetKey == "voice_transcription"
+                val highlightBgColor by animateColorAsState(
+                    targetValue = if (isHighlighted) colors.primary.copy(alpha = 0.15f) else colors.surfaceDim,
+                    animationSpec = tween(durationMillis = 300),
+                    label = "highlight_bg"
                 )
 
+                // Voice Transcription Master Toggle Card
                 Surface(
                     shape = radius.bentoCardShape,
-                    color = colors.surfaceDim,
+                    color = highlightBgColor,
                     border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onGloballyPositioned { coordinates ->
+                            val y = coordinates.positionInRoot().y - containerY + scrollState.value
+                            itemCoordinates["voice_transcription"] = y
+                        }
                 ) {
-                    Column(
+                    Row(
                         modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(
+                        Box(
                             modifier = Modifier
-                                .onGloballyPositioned { coordinates ->
-                                    val y = coordinates.positionInRoot().y - containerY + scrollState.value
-                                    itemCoordinates["assembly_key"] = y
-                                }
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (voiceTranscriptionEnabled) colors.primaryContainer else Color(0xFFF0F0F2)),
+                            contentAlignment = Alignment.Center
                         ) {
-                            val isHighlighted = navController.highlightTargetKey == "assembly_key"
-                            val highlightBgColor by animateColorAsState(
-                                targetValue = if (isHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent,
-                                animationSpec = tween(300),
-                                label = "highlight_bg"
+                            Icon(
+                                imageVector = WaexIcons.Mic,
+                                contentDescription = null,
+                                tint = if (voiceTranscriptionEnabled) colors.primary else colors.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
                             )
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(highlightBgColor)
-                            ) {
-                                Text(text = "API Key", style = typography.labelSm, color = colors.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(44.dp)
-                                    .clip(radius.mdShape)
-                                    .background(colors.surface)
-                                    .border(1.dp, colors.outlineVariant, radius.mdShape)
-                                    .padding(horizontal = 12.dp),
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                BasicTextField(
-                                    value = assemblyKey,
-                                    onValueChange = {
-                                        assemblyKey = it
-                                        assemblyStatus = "idle"
-                                    },
-                                    singleLine = true,
-                                    visualTransformation = PasswordVisualTransformation(),
-                                    textStyle = typography.bodyMd.copy(
-                                        fontFamily = FontFamily.Monospace,
-                                        fontSize = 13.sp,
-                                        color = colors.onSurface
-                                    ),
-                                    cursorBrush = SolidColor(colors.primary),
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
                         }
-                    }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text(text = "Connection Status", style = typography.bodyMd, color = colors.onSurfaceVariant)
-                                if (assemblyStatus == "ok") {
-                                    Icon(
-                                        imageVector = WaexIcons.Success,
-                                        contentDescription = null,
-                                        tint = Color(0xFF22C55E),
-                                        modifier = Modifier.size(13.dp)
-                                    )
-                                    Text(text = "Connected", style = typography.labelSm, color = Color(0xFF22C55E), fontWeight = FontWeight.Bold)
-                                } else if (assemblyStatus == "verifying") {
-                                    CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 1.5.dp, color = colors.primary)
-                                }
-                            }
-                            Button(
-                                onClick = {
-                                    if (assemblyKey.isEmpty()) return@Button
-                                    assemblyStatus = "verifying"
-                                    coroutineScope.launch {
-                                        delay(800)
-                                        assemblyStatus = "ok"
-                                    }
-                                },
-                                enabled = assemblyKey.isNotEmpty() && assemblyStatus != "verifying",
-                                shape = radius.mdShape,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = colors.primary,
-                                    contentColor = colors.onPrimary
-                                ),
-                                modifier = Modifier.height(36.dp)
-                            ) {
-                                Text(text = "Test", style = typography.bodyMd)
-                            }
+                            Text(
+                                text = "AI Voice-to-Text Transcription",
+                                style = typography.bodyLg,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.onSurface
+                            )
+                            Text(
+                                text = "Transcribes voice messages into text bubbles using AI",
+                                style = typography.bodyMd,
+                                color = colors.onSurfaceVariant,
+                                fontSize = 12.sp
+                            )
                         }
+                        StitchSwitch(
+                            checked = voiceTranscriptionEnabled,
+                            onCheckedChange = { voiceTranscriptionEnabled = it }
+                        )
                     }
                 }
-            }
 
-            // Groq Card
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = spacing.pageMargin)
-            ) {
-                Text(
-                    text = "Groq",
-                    style = typography.labelSm,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
-                )
-
-                Surface(
-                    shape = radius.bentoCardShape,
-                    color = colors.surfaceDim,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                // AI Setup Parameters
+                if (voiceTranscriptionEnabled) {
+                    Surface(
+                        shape = radius.bentoCardShape,
+                        color = colors.surfaceDim,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
-                            modifier = Modifier
-                                .onGloballyPositioned { coordinates ->
-                                    val y = coordinates.positionInRoot().y - containerY + scrollState.value
-                                    itemCoordinates["groq_key"] = y
-                                }
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            val isHighlighted = navController.highlightTargetKey == "groq_key"
-                            val highlightBgColor by animateColorAsState(
-                                targetValue = if (isHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent,
-                                animationSpec = tween(300),
-                                label = "highlight_bg"
-                            )
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(highlightBgColor)
-                            ) {
-                                Text(text = "API Key", style = typography.labelSm, color = colors.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(44.dp)
-                                    .clip(radius.mdShape)
-                                    .background(colors.surface)
-                                    .border(1.dp, colors.outlineVariant, radius.mdShape)
-                                    .padding(horizontal = 12.dp),
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                BasicTextField(
-                                    value = groqKey,
-                                    onValueChange = { groqKey = it },
-                                    singleLine = true,
-                                    visualTransformation = PasswordVisualTransformation(),
-                                    textStyle = typography.bodyMd.copy(
-                                        fontFamily = FontFamily.Monospace,
-                                        fontSize = 13.sp,
-                                        color = colors.onSurface
-                                    ),
-                                    cursorBrush = SolidColor(colors.primary),
-                                    modifier = Modifier.fillMaxWidth()
+                            // Provider Dropdown selection
+                            Column {
+                                Text(
+                                    text = "AI Transcription Provider",
+                                    style = typography.labelSm,
+                                    color = colors.onSurfaceVariant,
+                                    modifier = Modifier.padding(bottom = 6.dp)
                                 )
-                            }
-                        }
-                    }
-
-                        // Model select dropdown
-                        Column {
-                            Text(text = "Model", style = typography.labelSm, color = colors.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
-                            Box {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(44.dp)
-                                        .clip(radius.mdShape)
-                                        .background(colors.surface)
-                                        .border(1.dp, colors.outlineVariant, radius.mdShape)
-                                        .clickable { showModelDropdown = true }
-                                        .padding(horizontal = 12.dp),
-                                    contentAlignment = Alignment.CenterStart
-                                ) {
-                                    Text(text = groqModel, style = typography.bodyMd, color = colors.onSurface)
+                                Box {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(44.dp)
+                                            .clip(radius.mdShape)
+                                            .background(colors.surface)
+                                            .border(1.dp, colors.outlineVariant, radius.mdShape)
+                                            .clickable { showProviderDropdown = true }
+                                            .padding(horizontal = 12.dp),
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        Text(text = transcriptionProvider, style = typography.bodyMd, color = colors.onSurface)
+                                    }
+                                    DropdownMenu(
+                                        expanded = showProviderDropdown,
+                                        onDismissRequest = { showProviderDropdown = false }
+                                    ) {
+                                        listOf("Groq", "AssemblyAI").forEach { provider ->
+                                            DropdownMenuItem(
+                                                text = { Text(text = provider, style = typography.bodyMd) },
+                                                onClick = {
+                                                    transcriptionProvider = provider
+                                                    showProviderDropdown = false
+                                                }
+                                            )
+                                        }
+                                    }
                                 }
-                                DropdownMenu(
-                                    expanded = showModelDropdown,
-                                    onDismissRequest = { showModelDropdown = false }
-                                ) {
-                                    listOf("Llama 3 8B", "Llama 3 70B", "Mixtral 8x7B", "Gemma 7B").forEach { model ->
-                                        DropdownMenuItem(
-                                            text = { Text(text = model, style = typography.bodyMd) },
-                                            onClick = {
-                                                groqModel = model
-                                                showModelDropdown = false
-                                            }
+                            }
+
+                            // Dynamic API Key entry based on selected provider
+                            if (transcriptionProvider == "Groq") {
+                                Column {
+                                    Text(
+                                        text = "Groq API Key",
+                                        style = typography.labelSm,
+                                        color = colors.onSurfaceVariant,
+                                        modifier = Modifier.padding(bottom = 6.dp)
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(44.dp)
+                                            .clip(radius.mdShape)
+                                            .background(colors.surface)
+                                            .border(1.dp, colors.outlineVariant, radius.mdShape)
+                                            .padding(horizontal = 12.dp),
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        BasicTextField(
+                                            value = groqKey,
+                                            onValueChange = { groqKey = it },
+                                            singleLine = true,
+                                            visualTransformation = PasswordVisualTransformation(),
+                                            textStyle = typography.bodyMd.copy(
+                                                fontFamily = FontFamily.Monospace,
+                                                fontSize = 13.sp,
+                                                color = colors.onSurface
+                                            ),
+                                            cursorBrush = SolidColor(colors.primary),
+                                            modifier = Modifier.fillMaxWidth()
                                         )
                                     }
                                 }
-                            }
-                        }
-
-                        // Temperature Slider
-                        Column {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(text = "Temperature", style = typography.labelSm, color = colors.onSurfaceVariant)
-                                Text(text = String.format("%.1f", temperature), style = typography.bodyMd, fontWeight = FontWeight.Bold, color = colors.onSurface)
-                            }
-                            Slider(
-                                value = temperature,
-                                onValueChange = { temperature = it },
-                                valueRange = 0f..1f,
-                                colors = SliderDefaults.colors(
-                                    thumbColor = colors.primary,
-                                    activeTrackColor = colors.primary,
-                                    inactiveTrackColor = colors.outlineVariant
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Voice Feature Toggles
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = spacing.pageMargin)
-            ) {
-                Text(
-                    text = "Voice Features",
-                    style = typography.labelSm,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
-                )
-
-                Surface(
-                    shape = radius.bentoCardShape,
-                    color = colors.surfaceDim,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column {
-                        val voiceFeatures = listOf(
-                            VoiceFeatureData("Audio Transcription", "Convert voice messages to text", "transcription", transcriptionEnabled) { transcriptionEnabled = it },
-                            VoiceFeatureData("Speech To Text", "Live voice input for messages", "stt", sttEnabled) { sttEnabled = it },
-                            VoiceFeatureData("Offline Models", "Use on-device processing", "offline", offlineModelsEnabled) { offlineModelsEnabled = it }
-                        )
-
-                        voiceFeatures.forEachIndexed { idx, (label, sub, key, enabled, onChecked) ->
-                            val isHighlighted = navController.highlightTargetKey == key
-                            val highlightBgColor by animateColorAsState(
-                                targetValue = if (isHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent,
-                                animationSpec = tween(300),
-                                label = "highlight_bg"
-                            )
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(highlightBgColor)
-                                    .onGloballyPositioned { coordinates ->
-                                        val y = coordinates.positionInRoot().y - containerY + scrollState.value
-                                        itemCoordinates[key] = y
+                            } else {
+                                Column {
+                                    Text(
+                                        text = "AssemblyAI API Key",
+                                        style = typography.labelSm,
+                                        color = colors.onSurfaceVariant,
+                                        modifier = Modifier.padding(bottom = 6.dp)
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(44.dp)
+                                            .clip(radius.mdShape)
+                                            .background(colors.surface)
+                                            .border(1.dp, colors.outlineVariant, radius.mdShape)
+                                            .padding(horizontal = 12.dp),
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        BasicTextField(
+                                            value = assemblyKey,
+                                            onValueChange = {
+                                                assemblyKey = it
+                                                assemblyStatus = "idle"
+                                            },
+                                            singleLine = true,
+                                            visualTransformation = PasswordVisualTransformation(),
+                                            textStyle = typography.bodyMd.copy(
+                                                fontFamily = FontFamily.Monospace,
+                                                fontSize = 13.sp,
+                                                color = colors.onSurface
+                                            ),
+                                            cursorBrush = SolidColor(colors.primary),
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
                                     }
-                                    .clickable { onChecked(!enabled) }
-                                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Text(text = label, style = typography.bodyLg, fontWeight = FontWeight.Medium, color = colors.onSurface)
-                                    Text(text = sub, style = typography.bodyMd, color = colors.onSurfaceVariant, fontSize = 12.sp)
                                 }
-                                StitchSwitch(
-                                    checked = enabled,
-                                    onCheckedChange = onChecked
-                                )
-                            }
-                            if (idx < voiceFeatures.lastIndex) {
-                                HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
-                            }
-                        }
-                    }
-                }
-            }
 
-            // Playback Speed Slider
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = spacing.pageMargin)
-            ) {
-                Text(
-                    text = "Voice Playback Speed",
-                    style = typography.labelSm,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
-                )
-
-                Surface(
-                    shape = radius.bentoCardShape,
-                    color = colors.surfaceDim,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(imageVector = WaexIcons.Mic, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(16.dp))
-                            // Format to nearest speed label (0.5x, 1x, 1.5x, 2x, 3x)
-                            val speedLabels = listOf("0.5x", "1x", "1.5x", "2x", "3x")
-                            val speedValues = listOf(0.5f, 1.0f, 1.5f, 2.0f, 3.0f)
-                            val nearestSpeedIdx = speedValues.indices.minByOrNull { Math.abs(speedValues[it] - playbackSpeed) } ?: 1
-                            val nearestSpeedLabel = speedLabels[nearestSpeedIdx]
-
-                            Text(
-                                text = nearestSpeedLabel,
-                                style = typography.headlineMd,
-                                fontWeight = FontWeight.Bold,
-                                color = colors.primary
-                            )
-                            Icon(imageVector = WaexIcons.Mic, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(20.dp))
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Slider(
-                            value = playbackSpeed,
-                            onValueChange = {
-                                // Snap to nearest 0.5 step
-                                val stepValue = Math.round(it / 0.5f) * 0.5f
-                                playbackSpeed = stepValue.coerceIn(0.5f, 3.0f)
-                            },
-                            valueRange = 0.5f..3.0f,
-                            colors = SliderDefaults.colors(
-                                thumbColor = colors.primary,
-                                activeTrackColor = colors.primary,
-                                inactiveTrackColor = colors.outlineVariant
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            listOf("0.5x", "1x", "1.5x", "2x", "3x").forEach { label ->
-                                Text(text = label, style = typography.labelSm, color = colors.onSurfaceVariant)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(text = "Connection Status", style = typography.bodyMd, color = colors.onSurfaceVariant)
+                                        if (assemblyStatus == "ok") {
+                                            Icon(
+                                                imageVector = WaexIcons.Success,
+                                                contentDescription = null,
+                                                tint = Color(0xFF22C55E),
+                                                modifier = Modifier.size(13.dp)
+                                            )
+                                            Text(text = "Connected", style = typography.labelSm, color = Color(0xFF22C55E), fontWeight = FontWeight.Bold)
+                                        } else if (assemblyStatus == "verifying") {
+                                            CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 1.5.dp, color = colors.primary)
+                                        }
+                                    }
+                                    Button(
+                                        onClick = {
+                                            if (assemblyKey.isEmpty()) return@Button
+                                            assemblyStatus = "verifying"
+                                            coroutineScope.launch {
+                                                delay(800)
+                                                assemblyStatus = "ok"
+                                            }
+                                        },
+                                        enabled = assemblyKey.isNotEmpty() && assemblyStatus != "verifying",
+                                        shape = radius.mdShape,
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = colors.primary,
+                                            contentColor = colors.onPrimary
+                                        ),
+                                        modifier = Modifier.height(36.dp)
+                                    ) {
+                                        Text(text = "Test", style = typography.bodyMd)
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
-
         }
         Spacer(modifier = Modifier.height(100.dp))
     }

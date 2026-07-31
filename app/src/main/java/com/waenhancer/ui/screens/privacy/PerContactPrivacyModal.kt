@@ -74,7 +74,6 @@ fun PerContactPrivacyModal(
 
     val rulesState = remember {
         mutableStateMapOf(
-            "ghost" to (contact?.ghost ?: true),
             "hide_seen" to (contact?.hideSeen ?: false),
             "hide_typing" to (contact?.hideTyping ?: true),
             "hide_recording" to (contact?.hideRecording ?: false),
@@ -211,7 +210,6 @@ fun PerContactPrivacyModal(
             ) {
                 Column {
                     val ruleItems = listOf(
-                        Triple("ghost", "Ghost Mode", "Appear completely offline"),
                         Triple("hide_seen", "Hide Seen Tick", "Hide read confirmation"),
                         Triple("hide_typing", "Hide Typing Status", "Hide typing indicator"),
                         Triple("hide_recording", "Hide Recording Status", "Hide audio recording state"),
@@ -416,7 +414,6 @@ fun PerContactPrivacyModal(
                     if (contact != null && onSave != null) {
                         onSave(
                             contact.copy(
-                                ghost = rulesState["ghost"] ?: contact.ghost,
                                 hideSeen = rulesState["hide_seen"] ?: contact.hideSeen,
                                 hideTyping = rulesState["hide_typing"] ?: contact.hideTyping,
                                 hideRecording = rulesState["hide_recording"] ?: contact.hideRecording,

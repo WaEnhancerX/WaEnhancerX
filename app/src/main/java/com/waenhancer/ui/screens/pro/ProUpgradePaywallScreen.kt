@@ -23,6 +23,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,14 +40,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.waenhancer.ui.components.WaexTopBar
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
+import com.waenhancer.ui.navigation.LocalWaexNavController
 
 @Composable
 fun ProUpgradePaywallScreen(
     onOpenModal: (String) -> Unit,
     onActivatePro: () -> Unit
 ) {
+    val navController = LocalWaexNavController.current
     val colors = WaexTheme.colors
     val spacing = WaexTheme.spacing
     val typography = WaexTheme.typography
@@ -54,13 +58,23 @@ fun ProUpgradePaywallScreen(
 
     var selectedPlan by remember { mutableStateOf("yearly") } // "monthly" | "yearly" | "lifetime"
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+    Scaffold(
+        topBar = {
+            WaexTopBar(
+                title = "Pro Upgrade",
+                onBackClick = { navController.popBack() }
+            )
+        },
+        containerColor = colors.background
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
+                .padding(vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
 
 
         // Featured Pro Tiles (Pitch Blue Cards)
@@ -355,6 +369,7 @@ fun ProUpgradePaywallScreen(
         }
         Spacer(modifier = Modifier.height(100.dp))
     }
+}
 }
 
 @Preview(showBackground = true)
