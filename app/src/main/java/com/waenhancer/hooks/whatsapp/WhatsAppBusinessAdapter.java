@@ -1,5 +1,10 @@
 package com.waenhancer.hooks.whatsapp;
 
-public final class WhatsAppBusinessAdapter {
-    // Empty hook adapter scaffold
+import com.waenhancer.api.contracts.WaexHookAdapter;
+
+public final class WhatsAppBusinessAdapter implements WaexHookAdapter {
+
+    @Override
+    public void initialize() {
+    }
 }
