@@ -152,6 +152,9 @@ val LocalWaexLicenseManager = staticCompositionLocalOf<com.waenhancer.api.contra
 val LocalWaexClientDetector = staticCompositionLocalOf<com.waenhancer.api.contracts.WaexClientDetector> {
     error("No WaexClientDetector provided")
 }
+val LocalWaexFeatureExecutor = staticCompositionLocalOf<com.waenhancer.api.contracts.WaexFeatureExecutor> {
+    error("No WaexFeatureExecutor provided")
+}
 
 enum class BottomTab(
     val id: String,

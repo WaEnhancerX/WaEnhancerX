@@ -15,6 +15,12 @@ import javax.inject.Inject
 import com.waenhancer.api.contracts.*
 import com.waenhancer.ui.navigation.*
 import dagger.hilt.android.AndroidEntryPoint
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import com.waenhancer.ui.designsystem.LocalThemeMode
+import com.waenhancer.ui.designsystem.LocalThemeModeUpdater
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -24,26 +30,39 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var preferenceManager: WaexPreferenceManager
     @Inject lateinit var licenseManager: WaexLicenseManager
     @Inject lateinit var clientDetector: WaexClientDetector
+    @Inject lateinit var featureExecutor: WaexFeatureExecutor
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            WaexTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    val navController = remember { WaexNavController() }
-                    CompositionLocalProvider(
-                        LocalWaexNavController provides navController,
-                        LocalWaexCompatibilityProvider provides compatibilityProvider,
-                        LocalWaexVersionManager provides versionManager,
-                        LocalWaexPreferenceManager provides preferenceManager,
-                        LocalWaexLicenseManager provides licenseManager,
-                        LocalWaexClientDetector provides clientDetector
+            var themeMode by remember { mutableStateOf("System") }
+            val isDark = when (themeMode) {
+                "Dark" -> true
+                "Light" -> false
+                else -> isSystemInDarkTheme()
+            }
+            CompositionLocalProvider(
+                LocalThemeMode provides themeMode,
+                LocalThemeModeUpdater provides { themeMode = it }
+            ) {
+                WaexTheme(darkTheme = isDark) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
                     ) {
-                        MainContainerScreen()
+                        val navController = remember { WaexNavController() }
+                        CompositionLocalProvider(
+                            LocalWaexNavController provides navController,
+                            LocalWaexCompatibilityProvider provides compatibilityProvider,
+                            LocalWaexVersionManager provides versionManager,
+                            LocalWaexPreferenceManager provides preferenceManager,
+                            LocalWaexLicenseManager provides licenseManager,
+                            LocalWaexClientDetector provides clientDetector,
+                            LocalWaexFeatureExecutor provides featureExecutor
+                        ) {
+                            MainContainerScreen()
+                        }
                     }
                 }
             }

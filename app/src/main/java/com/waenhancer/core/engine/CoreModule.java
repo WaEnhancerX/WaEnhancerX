@@ -4,6 +4,7 @@ import com.waenhancer.api.contracts.*;
 import com.waenhancer.compatibility.*;
 import com.waenhancer.core.dashboard.WaexDashboardProviderImpl;
 import com.waenhancer.core.feature.WaexFeatureRegistryImpl;
+import com.waenhancer.core.feature.WaexFeatureExecutorImpl;
 import com.waenhancer.core.preferences.WaexPreferenceManagerImpl;
 import com.waenhancer.core.licensing.WaexLicenseManagerImpl;
 import com.waenhancer.core.search.WaexSearchEngineImpl;
@@ -69,5 +70,11 @@ public final class CoreModule {
     @Singleton
     public static WaexSearchEngine provideSearchEngine() {
         return new WaexSearchEngineImpl();
+    }
+
+    @Provides
+    @Singleton
+    public static WaexFeatureExecutor provideFeatureExecutor() {
+        return new WaexFeatureExecutorImpl();
     }
 }
