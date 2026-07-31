@@ -7,11 +7,11 @@ public final class WaexCompatibilityProviderImpl implements WaexCompatibilityPro
 
     @Override
     public WaexClientType getActiveClient() {
-        return WaexClientType.UNKNOWN;
+        return WaexClientType.WHATSAPP;
     }
 
     @Override
     public boolean isCompatible() {
-        return false;
+        return true;
     }
 }

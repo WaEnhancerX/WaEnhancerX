@@ -7,11 +7,11 @@ public final class WaexClientDetectorImpl implements WaexClientDetector {
 
     @Override
     public WaexClientType detectActiveClient() {
-        return WaexClientType.UNKNOWN;
+        return WaexClientType.WHATSAPP;
     }
 
     @Override
     public String getActiveClientPackageName() {
-        return "";
+        return "com.whatsapp";
     }
 }

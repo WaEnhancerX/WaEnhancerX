@@ -137,6 +137,22 @@ class WaexNavController(initialScreen: Screen = Screen.MainDashboard) {
 
 val LocalWaexNavController = staticCompositionLocalOf { WaexNavController() }
 
+val LocalWaexCompatibilityProvider = staticCompositionLocalOf<com.waenhancer.api.contracts.WaexCompatibilityProvider> {
+    error("No WaexCompatibilityProvider provided")
+}
+val LocalWaexVersionManager = staticCompositionLocalOf<com.waenhancer.api.contracts.WaexVersionManager> {
+    error("No WaexVersionManager provided")
+}
+val LocalWaexPreferenceManager = staticCompositionLocalOf<com.waenhancer.api.contracts.WaexPreferenceManager> {
+    error("No WaexPreferenceManager provided")
+}
+val LocalWaexLicenseManager = staticCompositionLocalOf<com.waenhancer.api.contracts.WaexLicenseManager> {
+    error("No WaexLicenseManager provided")
+}
+val LocalWaexClientDetector = staticCompositionLocalOf<com.waenhancer.api.contracts.WaexClientDetector> {
+    error("No WaexClientDetector provided")
+}
+
 enum class BottomTab(
     val id: String,
     val label: String,
@@ -158,7 +174,8 @@ fun MainContainerScreen() {
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
 
-    var licenseState by remember { mutableStateOf("free") } // "free" | "pro" | "trial"
+    val licenseManager = LocalWaexLicenseManager.current
+    var licenseState by remember { mutableStateOf(if (licenseManager.isProActivated()) "pro" else "free") }
     var activeModal by remember { mutableStateOf<String?>(null) } // "license" | "file-spoofer" | "message-bomber" | "status-splitter" | null
 
     val contactPrivacyList = remember {
@@ -658,7 +675,10 @@ fun MainContainerScreen() {
                                     currentScreen = pageScreen,
                                     licenseState = licenseState,
                                     onOpenModal = { activeModal = it },
-                                    onActivatePro = { licenseState = "pro" },
+                                    onActivatePro = {
+                                        licenseManager.activateLicense("DUMMY-KEY-PRO")
+                                        licenseState = if (licenseManager.isProActivated()) "pro" else "free"
+                                    },
                                     contactPrivacyList = contactPrivacyList,
                                     onClearContact = { c -> contactPrivacyList.removeIf { it.id == c.id } },
                                     onClearAllContacts = { contactPrivacyList.clear() },
@@ -674,7 +694,10 @@ fun MainContainerScreen() {
                             currentScreen = screenToShow,
                             licenseState = licenseState,
                             onOpenModal = { activeModal = it },
-                            onActivatePro = { licenseState = "pro" },
+                            onActivatePro = {
+                                licenseManager.activateLicense("DUMMY-KEY-PRO")
+                                licenseState = if (licenseManager.isProActivated()) "pro" else "free"
+                            },
                             contactPrivacyList = contactPrivacyList,
                             onClearContact = { c -> contactPrivacyList.removeIf { it.id == c.id } },
                             onClearAllContacts = { contactPrivacyList.clear() },
@@ -736,7 +759,8 @@ fun MainContainerScreen() {
                             "license" -> LicenseActivationModal(
                                 onDismiss = { activeModal = null },
                                 onActivated = {
-                                    licenseState = "pro"
+                                    licenseManager.activateLicense("DUMMY-KEY-PRO")
+                                    licenseState = if (licenseManager.isProActivated()) "pro" else "free"
                                     activeModal = null
                                 }
                             )

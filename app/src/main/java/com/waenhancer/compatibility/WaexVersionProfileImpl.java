@@ -3,23 +3,34 @@ package com.waenhancer.compatibility;
 import com.waenhancer.api.contracts.WaexClientType;
 import com.waenhancer.api.contracts.WaexVersionProfile;
 
-import java.util.Collections;
 import java.util.List;
 
 public final class WaexVersionProfileImpl implements WaexVersionProfile {
+    private final WaexClientType clientType;
+    private final List<String> supportedVersions;
+    private final List<String> overrideRules;
+
+    public WaexVersionProfileImpl(
+            WaexClientType clientType,
+            List<String> supportedVersions,
+            List<String> overrideRules) {
+        this.clientType = clientType;
+        this.supportedVersions = supportedVersions;
+        this.overrideRules = overrideRules;
+    }
 
     @Override
     public WaexClientType getClientType() {
-        return WaexClientType.UNKNOWN;
+        return clientType;
     }
 
     @Override
     public List<String> getSupportedVersions() {
-        return Collections.emptyList();
+        return supportedVersions;
     }
 
     @Override
     public List<String> getOverrideRules() {
-        return Collections.emptyList();
+        return overrideRules;
     }
 }
