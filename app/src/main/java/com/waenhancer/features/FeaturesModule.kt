@@ -1,11 +1,14 @@
 package com.waenhancer.features
 
+import com.waenhancer.api.contracts.WaexFeature
 import dagger.Module
+import dagger.multibindings.Multibinds
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 
 @Module
 @InstallIn(SingletonComponent::class)
-object FeaturesModule {
-    // Empty features module scaffold, no features registered yet
+interface FeaturesModule {
+    @Multibinds
+    fun bindFeatures(): Set<WaexFeature>
 }

@@ -20,11 +20,11 @@ public class GenericWaexFeature implements WaexFeature {
 
     @Override
     public boolean isEnabled() {
-        return preferenceManager.getBoolean(metadata.getId(), false);
+        return preferenceManager.getBoolean(metadata.getFeatureId(), false);
     }
 
     @Override
     public void setEnabled(boolean enabled) {
-        preferenceManager.putBoolean(metadata.getId(), enabled);
+        preferenceManager.putBoolean(metadata.getFeatureId(), enabled);
     }
 }

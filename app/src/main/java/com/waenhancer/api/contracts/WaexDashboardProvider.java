@@ -5,5 +5,5 @@ import java.util.Map;
 
 public interface WaexDashboardProvider {
     List<WaexFeature> getVisibleFeatures();
-    Map<String, List<WaexFeature>> getFeaturesByCategory();
+    Map<WaexFeatureCategory, List<WaexFeature>> getFeaturesByCategory();
 }

@@ -6,25 +6,25 @@ public final class WaexFeatureMetadata {
     private final String id;
     private final String title;
     private final String description;
-    private final String category;
+    private final WaexFeatureCategory category;
     private final String icon;
     private final boolean isPro;
     private final boolean isExperimental;
     private final long minimumVersion;
     private final String visibility;
-    private final List<WaexCapability> requiredCapabilities;
+    private final List<WaexFeatureCapability> requiredCapabilities;
 
     public WaexFeatureMetadata(
             String id,
             String title,
             String description,
-            String category,
+            WaexFeatureCategory category,
             String icon,
             boolean isPro,
             boolean isExperimental,
             long minimumVersion,
             String visibility,
-            List<WaexCapability> requiredCapabilities) {
+            List<WaexFeatureCapability> requiredCapabilities) {
         this.id = id;
         this.title = title;
         this.description = description;
@@ -41,6 +41,10 @@ public final class WaexFeatureMetadata {
         return id;
     }
 
+    public String getFeatureId() {
+        return id;
+    }
+
     public String getTitle() {
         return title;
     }
@@ -49,7 +53,7 @@ public final class WaexFeatureMetadata {
         return description;
     }
 
-    public String getCategory() {
+    public WaexFeatureCategory getCategory() {
         return category;
     }
 
@@ -58,6 +62,10 @@ public final class WaexFeatureMetadata {
     }
 
     public boolean isPro() {
+        return isPro;
+    }
+
+    public boolean isPremium() {
         return isPro;
     }
 
@@ -73,7 +81,11 @@ public final class WaexFeatureMetadata {
         return visibility;
     }
 
-    public List<WaexCapability> getRequiredCapabilities() {
+    public boolean isHidden() {
+        return visibility != null && visibility.equalsIgnoreCase("HIDDEN");
+    }
+
+    public List<WaexFeatureCapability> getRequiredCapabilities() {
         return requiredCapabilities;
     }
 }

@@ -8,11 +8,13 @@ import com.waenhancer.core.feature.WaexFeatureExecutorImpl;
 import com.waenhancer.core.preferences.WaexPreferenceManagerImpl;
 import com.waenhancer.core.licensing.WaexLicenseManagerImpl;
 import com.waenhancer.core.search.WaexSearchEngineImpl;
+import com.waenhancer.core.loader.WaexFeatureLoaderImpl;
 import dagger.Module;
 import dagger.Provides;
 import dagger.hilt.InstallIn;
 import dagger.hilt.components.SingletonComponent;
 import javax.inject.Singleton;
+import java.util.Set;
 
 @Module
 @InstallIn(SingletonComponent.class)
@@ -44,8 +46,16 @@ public final class CoreModule {
 
     @Provides
     @Singleton
-    public static WaexFeatureRegistry provideFeatureRegistry() {
-        return new WaexFeatureRegistryImpl();
+    public static WaexFeatureLoader provideFeatureLoader(Set<WaexFeature> features) {
+        return new WaexFeatureLoaderImpl(features);
+    }
+
+    @Provides
+    @Singleton
+    public static WaexFeatureRegistry provideFeatureRegistry(WaexFeatureLoader featureLoader) {
+        WaexFeatureRegistryImpl registry = new WaexFeatureRegistryImpl();
+        featureLoader.loadFeatures(registry);
+        return registry;
     }
 
     @Provides
@@ -62,14 +72,14 @@ public final class CoreModule {
 
     @Provides
     @Singleton
-    public static WaexDashboardProvider provideDashboardProvider() {
-        return new WaexDashboardProviderImpl();
+    public static WaexDashboardProvider provideDashboardProvider(WaexFeatureRegistry registry) {
+        return new WaexDashboardProviderImpl(registry);
     }
 
     @Provides
     @Singleton
-    public static WaexSearchEngine provideSearchEngine() {
-        return new WaexSearchEngineImpl();
+    public static WaexSearchEngine provideSearchEngine(WaexFeatureRegistry registry) {
+        return new WaexSearchEngineImpl(registry);
     }
 
     @Provides
