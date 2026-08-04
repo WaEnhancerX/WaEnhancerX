@@ -82,6 +82,9 @@ dependencies {
     // Serialization
     implementation(libs.kotlinx.serialization.json)
 
+    // DataStore Preferences
+    implementation(libs.androidx.datastore.preferences)
+
     // External dependencies needed on app classpath for Hilt annotation processing
     implementation(libs.retrofit.core)
     implementation(libs.okhttp.core)

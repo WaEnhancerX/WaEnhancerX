@@ -28,6 +28,12 @@ public final class CoreModule {
 
     @Provides
     @Singleton
+    public static WaexPreferenceRepository providePreferenceRepository(com.waenhancer.core.preferences.WaexPreferenceRepositoryImpl impl) {
+        return impl;
+    }
+
+    @Provides
+    @Singleton
     public static WaexClientDetector provideClientDetector() {
         return new WaexClientDetectorImpl();
     }

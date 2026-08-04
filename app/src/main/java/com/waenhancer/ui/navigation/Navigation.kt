@@ -146,6 +146,9 @@ val LocalWaexVersionManager = staticCompositionLocalOf<com.waenhancer.api.contra
 val LocalWaexPreferenceManager = staticCompositionLocalOf<com.waenhancer.api.contracts.WaexPreferenceManager> {
     error("No WaexPreferenceManager provided")
 }
+val LocalWaexPreferenceRepository = staticCompositionLocalOf<com.waenhancer.api.contracts.WaexPreferenceRepository> {
+    error("No WaexPreferenceRepository provided")
+}
 val LocalWaexLicenseManager = staticCompositionLocalOf<com.waenhancer.api.contracts.WaexLicenseManager> {
     error("No WaexLicenseManager provided")
 }

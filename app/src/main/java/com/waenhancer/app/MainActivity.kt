@@ -28,6 +28,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var compatibilityProvider: WaexCompatibilityProvider
     @Inject lateinit var versionManager: WaexVersionManager
     @Inject lateinit var preferenceManager: WaexPreferenceManager
+    @Inject lateinit var preferenceRepository: WaexPreferenceRepository
     @Inject lateinit var licenseManager: WaexLicenseManager
     @Inject lateinit var clientDetector: WaexClientDetector
     @Inject lateinit var featureExecutor: WaexFeatureExecutor
@@ -57,6 +58,7 @@ class MainActivity : ComponentActivity() {
                             LocalWaexCompatibilityProvider provides compatibilityProvider,
                             LocalWaexVersionManager provides versionManager,
                             LocalWaexPreferenceManager provides preferenceManager,
+                            LocalWaexPreferenceRepository provides preferenceRepository,
                             LocalWaexLicenseManager provides licenseManager,
                             LocalWaexClientDetector provides clientDetector,
                             LocalWaexFeatureExecutor provides featureExecutor
