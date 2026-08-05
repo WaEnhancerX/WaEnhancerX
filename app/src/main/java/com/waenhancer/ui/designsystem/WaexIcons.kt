@@ -27,6 +27,11 @@ import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.BrightnessAuto
+import androidx.compose.material.icons.rounded.Contacts
+import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.BatteryChargingFull
+import androidx.compose.material.icons.rounded.Layers
+import androidx.compose.material.icons.rounded.InstallMobile
 import androidx.compose.material.icons.rounded.Check
 
 object WaexIcons {
@@ -60,4 +65,10 @@ object WaexIcons {
     val DarkMode = Icons.Rounded.DarkMode
     val AutoMode = Icons.Rounded.BrightnessAuto
     val Check = Icons.Rounded.Check
+    val Contacts = Icons.Rounded.Contacts
+    val Notifications = Icons.Rounded.Notifications
+    val Battery = Icons.Rounded.BatteryChargingFull
+    val Layers = Icons.Rounded.Layers
+    val Install = Icons.Rounded.InstallMobile
 }
+
