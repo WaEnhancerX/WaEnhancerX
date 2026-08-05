@@ -137,12 +137,6 @@ class WaexNavController(initialScreen: Screen = Screen.MainDashboard) {
 
 val LocalWaexNavController = staticCompositionLocalOf { WaexNavController() }
 
-val LocalWaexCompatibilityProvider = staticCompositionLocalOf<com.waenhancer.api.contracts.WaexCompatibilityProvider> {
-    error("No WaexCompatibilityProvider provided")
-}
-val LocalWaexVersionManager = staticCompositionLocalOf<com.waenhancer.api.contracts.WaexVersionManager> {
-    error("No WaexVersionManager provided")
-}
 val LocalWaexPreferenceManager = staticCompositionLocalOf<com.waenhancer.api.contracts.WaexPreferenceManager> {
     error("No WaexPreferenceManager provided")
 }
@@ -152,12 +146,7 @@ val LocalWaexPreferenceRepository = staticCompositionLocalOf<com.waenhancer.api.
 val LocalWaexLicenseManager = staticCompositionLocalOf<com.waenhancer.api.contracts.WaexLicenseManager> {
     error("No WaexLicenseManager provided")
 }
-val LocalWaexClientDetector = staticCompositionLocalOf<com.waenhancer.api.contracts.WaexClientDetector> {
-    error("No WaexClientDetector provided")
-}
-val LocalWaexFeatureExecutor = staticCompositionLocalOf<com.waenhancer.api.contracts.WaexFeatureExecutor> {
-    error("No WaexFeatureExecutor provided")
-}
+
 
 enum class BottomTab(
     val id: String,
