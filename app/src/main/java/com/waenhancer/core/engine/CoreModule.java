@@ -15,9 +15,10 @@ public final class CoreModule {
 
     @Provides
     @Singleton
-    public static WaexPreferenceManager providePreferenceManager() {
-        return new WaexPreferenceManagerImpl();
+    public static WaexPreferenceManager providePreferenceManager(com.waenhancer.core.preferences.WaexPreferenceManagerImpl impl) {
+        return impl;
     }
+
 
     @Provides
     @Singleton

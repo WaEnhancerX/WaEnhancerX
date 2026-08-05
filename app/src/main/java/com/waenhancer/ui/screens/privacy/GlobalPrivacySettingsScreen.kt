@@ -101,40 +101,32 @@ fun GlobalPrivacySettingsScreen(
         }
     }
 
-    // Settings local state tracking
-    val settingsState = remember {
-        mutableStateMapOf(
-            // Privacy
-            "typing_privacy" to false,
-            "hide_forwarded_tag" to false,
-            "online_status_indicator" to false,
-            "anti_view_once" to false,
-            "stealth_status_view" to false,
-            "call_privacy" to false,
-            "freeze_last_seen" to false,
-            "hide_chats" to false,
-            "custom_privacy" to false,
-            "anti_revoke" to false,
-            "hide_seen_receipts" to false,
-            "locked_chats_enhancer" to false,
-            "dnd_mode" to false,
-
-            // Conversation
-            "anti_edit_messages" to false,
-            "call_type_controller" to false,
-            "chat_limits_bypass" to false,
-            "copy_status_text" to false,
-            "custom_filter_groups" to false,
-            "direct_chat_dialer" to false,
-            "group_admin_tools" to false,
-            "inline_translation" to false,
-            "quick_scroll_buttons" to false,
-            "recover_deleted_messages" to false,
-            "status_text_composer" to false,
-            "sticker_confirm_alert" to false,
-            "unlimited_pinned_chats" to false
+    val preferenceManager = com.waenhancer.ui.navigation.LocalWaexPreferenceManager.current
+    val privacyKeys = remember {
+        listOf(
+            "typing_privacy", "hide_forwarded_tag", "online_status_indicator", "anti_view_once",
+            "stealth_status_view", "call_privacy", "freeze_last_seen", "hide_chats",
+            "custom_privacy", "anti_revoke", "hide_seen_receipts", "locked_chats_enhancer",
+            "dnd_mode", "anti_edit_messages", "call_type_controller", "chat_limits_bypass",
+            "copy_status_text", "custom_filter_groups", "direct_chat_dialer", "group_admin_tools",
+            "inline_translation", "quick_scroll_buttons", "recover_deleted_messages",
+            "status_text_composer", "sticker_confirm_alert", "unlimited_pinned_chats"
         )
     }
+
+    val settingsState = remember {
+        mutableStateMapOf<String, Boolean>().apply {
+            privacyKeys.forEach { key ->
+                put(key, preferenceManager.getBoolean(key, false))
+            }
+        }
+    }
+
+    val updatePreference: (String, Boolean) -> Unit = { key, value ->
+        settingsState[key] = value
+        preferenceManager.putBoolean(key, value)
+    }
+
 
     val privacyGroups = listOf(
         SettingGroup(
@@ -380,7 +372,7 @@ fun GlobalPrivacySettingsScreen(
                                     }
                                     .clickable {
                                         val currentVal = settingsState[item.key] ?: false
-                                        settingsState[item.key] = !currentVal
+                                        updatePreference(item.key, !currentVal)
                                     }
                                     .padding(horizontal = 16.dp, vertical = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -404,7 +396,7 @@ fun GlobalPrivacySettingsScreen(
                                 }
                                 StitchSwitch(
                                     checked = settingsState[item.key] ?: false,
-                                    onCheckedChange = { settingsState[item.key] = it }
+                                    onCheckedChange = { updatePreference(item.key, it) }
                                 )
                             }
                             if (index < group.items.lastIndex) {

@@ -114,20 +114,23 @@ fun AutomationTaskerScreen() {
         }
     }
 
+    val preferenceManager = com.waenhancer.ui.navigation.LocalWaexPreferenceManager.current
+
     // Automation states
-    var alwaysTypingEnabled by remember { mutableStateOf(true) }
-    var autoStatusForwardEnabled by remember { mutableStateOf(false) }
-    var messageBomberEnabled by remember { mutableStateOf(false) }
-    var statusVideoSplitterEnabled by remember { mutableStateOf(false) }
-    var taskerIntegrationEnabled by remember { mutableStateOf(false) }
+    var alwaysTypingEnabled by remember { mutableStateOf(preferenceManager.getBoolean("always_typing", true)) }
+    var autoStatusForwardEnabled by remember { mutableStateOf(preferenceManager.getBoolean("auto_status_forward", false)) }
+    var messageBomberEnabled by remember { mutableStateOf(preferenceManager.getBoolean("message_bomber", false)) }
+    var statusVideoSplitterEnabled by remember { mutableStateOf(preferenceManager.getBoolean("status_video_splitter", false)) }
+    var taskerIntegrationEnabled by remember { mutableStateOf(preferenceManager.getBoolean("tasker_integration", false)) }
 
     // Audio & AI states
-    var voiceTranscriptionEnabled by remember { mutableStateOf(true) }
-    var transcriptionProvider by remember { mutableStateOf("Groq") } // "Groq" | "AssemblyAI"
+    var voiceTranscriptionEnabled by remember { mutableStateOf(preferenceManager.getBoolean("voice_transcription", true)) }
+    var transcriptionProvider by remember { mutableStateOf(preferenceManager.getString("transcription_provider", "Groq")) } // "Groq" | "AssemblyAI"
     var showProviderDropdown by remember { mutableStateOf(false) }
-    var assemblyKey by remember { mutableStateOf("") }
+    var assemblyKey by remember { mutableStateOf(preferenceManager.getString("assembly_key", "")) }
     var assemblyStatus by remember { mutableStateOf("idle") } // "idle" | "verifying" | "ok" | "fail"
-    var groqKey by remember { mutableStateOf("") }
+    var groqKey by remember { mutableStateOf(preferenceManager.getString("groq_key", "")) }
+
 
     Column(
         modifier = Modifier
@@ -216,12 +219,28 @@ fun AutomationTaskerScreen() {
         if (selectedTab == "automation") {
             // Automation Cards
             val cards = listOf(
-                AutomationCardData("always_typing", WaexIcons.Lock, "Always Typing Mode", "Maintain typing indicator at all times", alwaysTypingEnabled, true) { alwaysTypingEnabled = it },
-                AutomationCardData("auto_status_forward", WaexIcons.Share, "Auto Status Forwarding", "Auto-forward received statuses to contacts", autoStatusForwardEnabled, false) { autoStatusForwardEnabled = it },
-                AutomationCardData("message_bomber", WaexIcons.Mic, "Message Bomber", "Send automated message bursts", messageBomberEnabled, true) { messageBomberEnabled = it },
-                AutomationCardData("status_video_splitter", WaexIcons.SystemUpdate, "Status Video Splitter", "Auto-split long videos for status updates", statusVideoSplitterEnabled, true) { statusVideoSplitterEnabled = it },
-                AutomationCardData("tasker_integration", WaexIcons.AutoAwesome, "Tasker Integration", "Exposes WAEX triggers and actions to Tasker", taskerIntegrationEnabled, false) { taskerIntegrationEnabled = it }
+                AutomationCardData("always_typing", WaexIcons.Lock, "Always Typing Mode", "Maintain typing indicator at all times", alwaysTypingEnabled, true) {
+                    alwaysTypingEnabled = it
+                    preferenceManager.putBoolean("always_typing", it)
+                },
+                AutomationCardData("auto_status_forward", WaexIcons.Share, "Auto Status Forwarding", "Auto-forward received statuses to contacts", autoStatusForwardEnabled, false) {
+                    autoStatusForwardEnabled = it
+                    preferenceManager.putBoolean("auto_status_forward", it)
+                },
+                AutomationCardData("message_bomber", WaexIcons.Mic, "Message Bomber", "Send automated message bursts", messageBomberEnabled, true) {
+                    messageBomberEnabled = it
+                    preferenceManager.putBoolean("message_bomber", it)
+                },
+                AutomationCardData("status_video_splitter", WaexIcons.SystemUpdate, "Status Video Splitter", "Auto-split long videos for status updates", statusVideoSplitterEnabled, true) {
+                    statusVideoSplitterEnabled = it
+                    preferenceManager.putBoolean("status_video_splitter", it)
+                },
+                AutomationCardData("tasker_integration", WaexIcons.AutoAwesome, "Tasker Integration", "Exposes WAEX triggers and actions to Tasker", taskerIntegrationEnabled, false) {
+                    taskerIntegrationEnabled = it
+                    preferenceManager.putBoolean("tasker_integration", it)
+                }
             )
+
 
             Column(
                 modifier = Modifier
@@ -404,7 +423,10 @@ fun AutomationTaskerScreen() {
                         }
                         StitchSwitch(
                             checked = voiceTranscriptionEnabled,
-                            onCheckedChange = { voiceTranscriptionEnabled = it }
+                            onCheckedChange = {
+                                voiceTranscriptionEnabled = it
+                                preferenceManager.putBoolean("voice_transcription", it)
+                            }
                         )
                     }
                 }
@@ -452,6 +474,7 @@ fun AutomationTaskerScreen() {
                                                 text = { Text(text = provider, style = typography.bodyMd) },
                                                 onClick = {
                                                     transcriptionProvider = provider
+                                                    preferenceManager.putString("transcription_provider", provider)
                                                     showProviderDropdown = false
                                                 }
                                             )
@@ -481,7 +504,10 @@ fun AutomationTaskerScreen() {
                                     ) {
                                         BasicTextField(
                                             value = groqKey,
-                                            onValueChange = { groqKey = it },
+                                            onValueChange = {
+                                                groqKey = it
+                                                preferenceManager.putString("groq_key", it)
+                                            },
                                             singleLine = true,
                                             visualTransformation = PasswordVisualTransformation(),
                                             textStyle = typography.bodyMd.copy(
@@ -517,6 +543,7 @@ fun AutomationTaskerScreen() {
                                             onValueChange = {
                                                 assemblyKey = it
                                                 assemblyStatus = "idle"
+                                                preferenceManager.putString("assembly_key", it)
                                             },
                                             singleLine = true,
                                             visualTransformation = PasswordVisualTransformation(),
@@ -530,6 +557,7 @@ fun AutomationTaskerScreen() {
                                         )
                                     }
                                 }
+
 
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),

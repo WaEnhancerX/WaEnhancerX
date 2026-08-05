@@ -79,20 +79,29 @@ fun MediaStatusHubScreen() {
         }
     }
 
-    val settingsState = remember {
-        mutableStateMapOf(
-            "call_recording" to false,
-            "download_profile" to false,
-            "download_video_note" to false,
-            "download_view_once" to false,
-            "file_size_spoofer" to false,
-            "media_preview" to false,
-            "media_upload_quality" to false,
-            "status_downloader" to false,
-            "video_note_converter" to false,
-            "voice_status_enhancement" to false
+    val preferenceManager = com.waenhancer.ui.navigation.LocalWaexPreferenceManager.current
+    val mediaKeys = remember {
+        listOf(
+            "call_recording", "download_profile", "download_video_note",
+            "download_view_once", "file_size_spoofer", "media_preview",
+            "media_upload_quality", "status_downloader", "video_note_converter",
+            "voice_status_enhancement"
         )
     }
+
+    val settingsState = remember {
+        mutableStateMapOf<String, Boolean>().apply {
+            mediaKeys.forEach { key ->
+                put(key, preferenceManager.getBoolean(key, false))
+            }
+        }
+    }
+
+    val updatePreference: (String, Boolean) -> Unit = { key, value ->
+        settingsState[key] = value
+        preferenceManager.putBoolean(key, value)
+    }
+
 
     val mediaGroups = listOf(
         MediaGroup(
@@ -182,7 +191,7 @@ fun MediaStatusHubScreen() {
                                     }
                                     .clickable {
                                         val currentVal = settingsState[item.key] ?: false
-                                        settingsState[item.key] = !currentVal
+                                        updatePreference(item.key, !currentVal)
                                     }
                                     .padding(horizontal = 16.dp, vertical = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -206,7 +215,7 @@ fun MediaStatusHubScreen() {
                                 }
                                 StitchSwitch(
                                     checked = settingsState[item.key] ?: false,
-                                    onCheckedChange = { settingsState[item.key] = it }
+                                    onCheckedChange = { updatePreference(item.key, it) }
                                 )
                             }
                             if (index < group.items.lastIndex) {

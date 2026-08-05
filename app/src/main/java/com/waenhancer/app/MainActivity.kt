@@ -40,7 +40,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            var themeMode by remember { mutableStateOf("System") }
+            val initialTheme = remember { preferenceManager.getString("app_theme_mode", "System") }
+            var themeMode by remember { mutableStateOf(initialTheme) }
             val isDark = when (themeMode) {
                 "Dark" -> true
                 "Light" -> false
@@ -48,8 +49,12 @@ class MainActivity : ComponentActivity() {
             }
             CompositionLocalProvider(
                 LocalThemeMode provides themeMode,
-                LocalThemeModeUpdater provides { themeMode = it }
+                LocalThemeModeUpdater provides {
+                    themeMode = it
+                    preferenceManager.putString("app_theme_mode", it)
+                }
             ) {
+
                 WaexTheme(darkTheme = isDark) {
                     Surface(
                         modifier = Modifier.fillMaxSize(),

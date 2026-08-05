@@ -76,34 +76,31 @@ fun StylesSettingsScreen() {
         }
     }
 
-    // Styles & Customization local settings state
-    val settingsState = remember {
-        mutableStateMapOf(
-            // Appearance
-            "bubble_colors" to false,
-            "custom_theme" to false,
-            "custom_time_format" to false,
-            "custom_toolbar" to false,
-            "custom_view_dpi" to false,
-            "seen_tick_customization" to false,
-            "floating_bottom_bar" to false,
-
-            // Home & Feed Layout
-            "channels_enhancements" to false,
-            "chat_filters" to false,
-            "hide_ui_tabs" to false,
-            "instagram_status_layout" to false,
-            "separate_groups_tabs" to false,
-            "quick_home_menu" to false,
-
-            // Utilities & Data
-            "backup_restore" to false,
-            "contact_blocked_verify" to false,
-            "typing_online_toasts" to false,
-            "voice_status_enhancement" to false,
-            "miscellaneous_enhancements" to false
+    val preferenceManager = com.waenhancer.ui.navigation.LocalWaexPreferenceManager.current
+    val stylesKeys = remember {
+        listOf(
+            "bubble_colors", "custom_theme", "custom_time_format", "custom_toolbar",
+            "custom_view_dpi", "seen_tick_customization", "floating_bottom_bar",
+            "channels_enhancements", "chat_filters", "hide_ui_tabs",
+            "instagram_status_layout", "separate_groups_tabs", "quick_home_menu",
+            "backup_restore", "contact_blocked_verify", "typing_online_toasts",
+            "voice_status_enhancement", "miscellaneous_enhancements"
         )
     }
+
+    val settingsState = remember {
+        mutableStateMapOf<String, Boolean>().apply {
+            stylesKeys.forEach { key ->
+                put(key, preferenceManager.getBoolean(key, false))
+            }
+        }
+    }
+
+    val updatePreference: (String, Boolean) -> Unit = { key, value ->
+        settingsState[key] = value
+        preferenceManager.putBoolean(key, value)
+    }
+
 
     val appearanceGroups = listOf(
         StyleGroup(
@@ -282,7 +279,7 @@ fun StylesSettingsScreen() {
                                     }
                                     .clickable {
                                         val currentVal = settingsState[item.key] ?: false
-                                        settingsState[item.key] = !currentVal
+                                        updatePreference(item.key, !currentVal)
                                     }
                                     .padding(horizontal = 16.dp, vertical = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -306,7 +303,7 @@ fun StylesSettingsScreen() {
                                 }
                                 StitchSwitch(
                                     checked = settingsState[item.key] ?: false,
-                                    onCheckedChange = { settingsState[item.key] = it }
+                                    onCheckedChange = { updatePreference(item.key, it) }
                                 )
                             }
                             if (index < group.items.lastIndex) {
