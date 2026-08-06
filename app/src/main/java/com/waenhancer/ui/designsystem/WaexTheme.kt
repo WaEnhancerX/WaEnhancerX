@@ -58,6 +58,20 @@ fun WaexTheme(
     val elevation = WaexElevation()
 
 
+    val view = androidx.compose.ui.platform.LocalView.current
+    if (!view.isInEditMode) {
+        androidx.compose.runtime.SideEffect {
+            val window = (view.context as? android.app.Activity)?.window
+            if (window != null) {
+                val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, view)
+                // In light mode (light background), system bars icons should be dark (isAppearanceLightStatusBars = true).
+                // In dark mode (dark background), system bars icons should be light/white (isAppearanceLightStatusBars = false).
+                insetsController.isAppearanceLightStatusBars = !darkTheme
+                insetsController.isAppearanceLightNavigationBars = !darkTheme
+            }
+        }
+    }
+
     CompositionLocalProvider(
         LocalWaexColors provides colors,
         LocalWaexTypography provides typography,
@@ -68,6 +82,7 @@ fun WaexTheme(
         content()
     }
 }
+
 
 object WaexTheme {
     val colors: WaexColors

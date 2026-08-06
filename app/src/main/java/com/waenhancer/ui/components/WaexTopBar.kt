@@ -17,10 +17,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.statusBarsPadding
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 
+
 @Composable
+
 fun WaexTopBar(
     title: String,
     modifier: Modifier = Modifier,
@@ -36,7 +39,7 @@ fun WaexTopBar(
         modifier = modifier.fillMaxWidth(),
         color = colors.surface
     ) {
-        Column {
+        Column(modifier = Modifier.statusBarsPadding()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -44,6 +47,7 @@ fun WaexTopBar(
                     .padding(horizontal = spacing.stackSm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+
                 if (onBackClick != null) {
                     IconButton(
                         onClick = onBackClick,
