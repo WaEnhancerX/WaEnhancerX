@@ -81,11 +81,15 @@ import com.waenhancer.ui.screens.media.MediaStatusHubScreen
 import com.waenhancer.ui.screens.media.StatusVideoSplitterProScreen
 import com.waenhancer.ui.screens.privacy.GlobalPrivacySettingsScreen
 import com.waenhancer.ui.screens.privacy.PerContactPrivacyModal
-import com.waenhancer.ui.screens.privacy.PerContactPrivacyListScreen
 import com.waenhancer.ui.screens.pro.ProUpgradePaywallScreen
 import com.waenhancer.ui.screens.settings.SystemHealthScreen
+import com.waenhancer.ui.screens.settings.ChangelogScreen
+import com.waenhancer.ui.screens.settings.AboutScreen
+import com.waenhancer.ui.screens.settings.UpdateSettingsScreen
+import com.waenhancer.ui.screens.settings.SupportedVersionsScreen
 
 class WaexNavController(initialScreen: Screen = Screen.MainDashboard) {
+
     private val backstack = mutableStateListOf<Screen>(initialScreen)
     
     var currentScreen by mutableStateOf<Screen>(initialScreen)

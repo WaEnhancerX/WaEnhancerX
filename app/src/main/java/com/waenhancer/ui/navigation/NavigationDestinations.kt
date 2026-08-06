@@ -17,7 +17,12 @@ sealed class Screen(val route: String) {
     object Search : Screen("search")
     object PerContactPrivacyList : Screen("per_contact_privacy_list")
     object StylesSettings : Screen("styles_settings")
+    object Changelog : Screen("changelog")
+    object About : Screen("about")
+    object UpdateSettings : Screen("update_settings")
+    object SupportedVersions : Screen("supported_versions")
 }
+
 
 val Screen.isRootScreen: Boolean
     get() = this is Screen.MainDashboard ||
