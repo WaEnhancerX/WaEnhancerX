@@ -624,10 +624,11 @@ fun MainContainerScreen() {
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(
-                        top = paddingValues.calculateTopPadding(),
-                        bottom = if (isRoot) 0.dp else paddingValues.calculateBottomPadding()
+                        top = if (isRoot) paddingValues.calculateTopPadding() else 0.dp,
+                        bottom = if (isRoot) 0.dp else 0.dp
                     )
             ) {
+
                 val isForward = navController.isLastTransitionForward
                 AnimatedContent(
                     targetState = if (currentScreen.isRootScreen) Screen.MainDashboard else currentScreen,

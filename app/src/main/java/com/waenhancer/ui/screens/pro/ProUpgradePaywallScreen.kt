@@ -367,10 +367,11 @@ fun ProUpgradePaywallScreen(
                 fontSize = 11.sp
             )
         }
-        Spacer(modifier = Modifier.height(100.dp))
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 }
+
 
 @Preview(showBackground = true)
 @Composable
