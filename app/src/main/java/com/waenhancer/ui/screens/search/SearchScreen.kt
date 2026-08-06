@@ -63,19 +63,19 @@ fun SearchScreen() {
             SearchablePreference("call_privacy", "Call Privacy & Filtering", "Block calls from unwanted contacts", "Advanced Rules", 1, "privacy", "Privacy"),
 
             // --- PRIVACY TAB (Tab 1), Sub-tab "conversation" ---
-            SearchablePreference("anti_edit_messages", "Anti-Edit Messages", "Keep original version of edited messages in chat", "Message Controls", 1, "conversation", "Privacy"),
-            SearchablePreference("sticker_confirm_alert", "Sticker Confirmation Alert", "Ask before sending clicked stickers", "Message Controls", 1, "conversation", "Privacy"),
-            SearchablePreference("quick_scroll_buttons", "Quick Scroll Buttons", "Add buttons to jump directly to top or bottom of chat", "Message Controls", 1, "conversation", "Privacy"),
-            SearchablePreference("recover_deleted_messages", "Recover Deleted Messages", "Instantly restore deleted messages in chat", "Message Controls", 1, "conversation", "Privacy"),
-            SearchablePreference("copy_status_text", "Copy Status Text", "Allow copying text from status updates", "Message Controls", 1, "conversation", "Privacy"),
-            SearchablePreference("inline_translation", "Inline Message Translation", "Tap-to-translate messages directly inline", "Translation", 1, "conversation", "Privacy"),
-            SearchablePreference("call_type_controller", "Call Type Controller", "Force voice-only or video-only incoming calls", "Chat & Group Utilities", 1, "conversation", "Privacy"),
-            SearchablePreference("chat_limits_bypass", "Chat Limits Bypass", "Bypass group sharing and forwarding constraints", "Chat & Group Utilities", 1, "conversation", "Privacy"),
-            SearchablePreference("custom_filter_groups", "Custom Filter Groups", "Group chats by custom categories", "Chat & Group Utilities", 1, "conversation", "Privacy"),
-            SearchablePreference("direct_chat_dialer", "Direct Chat Dialer", "Message someone without saving their contact info", "Chat & Group Utilities", 1, "conversation", "Privacy"),
-            SearchablePreference("group_admin_tools", "Group Admin Tools", "Unlock hidden moderation controls", "Chat & Group Utilities", 1, "conversation", "Privacy"),
-            SearchablePreference("status_text_composer", "Status Text Composer Enhancements", "Format text status updates beautifully", "Chat & Group Utilities", 1, "conversation", "Privacy"),
-            SearchablePreference("unlimited_pinned_chats", "Unlimited Pinned Chats", "Pin more than 3 chats to the top", "Chat & Group Utilities", 1, "conversation", "Privacy"),
+            SearchablePreference("anti_edit_messages", "Anti-Edit Messages", "Keep original version of edited messages in chat", "Message Controls", 1, "conversation", "Conversation"),
+            SearchablePreference("sticker_confirm_alert", "Sticker Confirmation Alert", "Ask before sending clicked stickers", "Message Controls", 1, "conversation", "Conversation"),
+            SearchablePreference("quick_scroll_buttons", "Quick Scroll Buttons", "Add buttons to jump directly to top or bottom of chat", "Message Controls", 1, "conversation", "Conversation"),
+            SearchablePreference("recover_deleted_messages", "Recover Deleted Messages", "Instantly restore deleted messages in chat", "Message Controls", 1, "conversation", "Conversation"),
+            SearchablePreference("copy_status_text", "Copy Status Text", "Allow copying text from status updates", "Message Controls", 1, "conversation", "Conversation"),
+            SearchablePreference("inline_translation", "Inline Message Translation", "Tap-to-translate messages directly inline", "Translation", 1, "conversation", "Conversation"),
+            SearchablePreference("call_type_controller", "Call Type Controller", "Force voice-only or video-only incoming calls", "Chat & Group Utilities", 1, "conversation", "Conversation"),
+            SearchablePreference("chat_limits_bypass", "Chat Limits Bypass", "Bypass group sharing and forwarding constraints", "Chat & Group Utilities", 1, "conversation", "Conversation"),
+            SearchablePreference("custom_filter_groups", "Custom Filter Groups", "Group chats by custom categories", "Chat & Group Utilities", 1, "conversation", "Conversation"),
+            SearchablePreference("direct_chat_dialer", "Direct Chat Dialer", "Message someone without saving their contact info", "Chat & Group Utilities", 1, "conversation", "Conversation"),
+            SearchablePreference("group_admin_tools", "Group Admin Tools", "Unlock hidden moderation controls", "Chat & Group Utilities", 1, "conversation", "Conversation"),
+            SearchablePreference("status_text_composer", "Status Text Composer Enhancements", "Format text status updates beautifully", "Chat & Group Utilities", 1, "conversation", "Conversation"),
+            SearchablePreference("unlimited_pinned_chats", "Unlimited Pinned Chats", "Pin more than 3 chats to the top", "Chat & Group Utilities", 1, "conversation", "Conversation"),
 
             // --- MEDIA TAB (Tab 2) ---
             SearchablePreference("call_recording", "Call Recording", "Enable automatic call recording for voice/video", "Media Utility & Downloader", 2, null, "Media"),
@@ -147,8 +147,7 @@ fun SearchScreen() {
         topBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = colors.surface,
-                shadowElevation = 4.dp
+                color = colors.surface
             ) {
                 Column(
                     modifier = Modifier.statusBarsPadding()
@@ -156,16 +155,15 @@ fun SearchScreen() {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(72.dp)
+                            .height(68.dp)
                             .padding(horizontal = spacing.pageMargin),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(
                             onClick = { navController.popBack() },
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(40.dp)
                                 .clip(CircleShape)
-                                .align(Alignment.CenterVertically)
                         ) {
                             Icon(
                                 imageVector = WaexIcons.Back,
@@ -174,7 +172,7 @@ fun SearchScreen() {
                                 modifier = Modifier.size(20.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
                         WaexSearchBar(
                             query = query,
                             onQueryChange = { query = it },
@@ -182,7 +180,7 @@ fun SearchScreen() {
                             modifier = Modifier.weight(1f)
                         )
                     }
-                    HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
+                    HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant.copy(alpha = 0.6f))
                 }
             }
         },
@@ -213,18 +211,30 @@ fun SearchScreen() {
                                 style = typography.bodyLg,
                                 fontWeight = FontWeight.Bold,
                                 color = colors.primary,
-                                modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
+                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                             )
                         }
                         items(preferences, key = { it.key }) { pref ->
+                            // Custom badge color per tab category
+                            val (badgeBg, badgeTextColor) = when (pref.tabLabel) {
+                                "Privacy" -> Color(0xFF1E88E5).copy(alpha = 0.12f) to Color(0xFF1E88E5)
+                                "Conversation" -> Color(0xFF8E24AA).copy(alpha = 0.12f) to Color(0xFF8E24AA)
+                                "Media" -> Color(0xFFFB8C00).copy(alpha = 0.12f) to Color(0xFFFB8C00)
+                                "Automation" -> Color(0xFF43A047).copy(alpha = 0.12f) to Color(0xFF43A047)
+                                "Styles" -> Color(0xFF00ACC1).copy(alpha = 0.12f) to Color(0xFF00ACC1)
+                                "Premium" -> Color(0xFFE53935).copy(alpha = 0.12f) to Color(0xFFE53935)
+                                else -> colors.primaryContainer to colors.primary
+                            }
+
                             Surface(
                                 shape = radius.bentoCardShape,
                                 color = colors.surfaceDim,
                                 border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Row(
+                                Box(
                                     modifier = Modifier
+                                        .fillMaxWidth()
                                         .clickable {
                                             if (pref.key == "pro_features_unlock" || pref.key == "license_verification") {
                                                 navController.navigateTo(com.waenhancer.ui.navigation.Screen.ProUpgradePaywall)
@@ -236,58 +246,64 @@ fun SearchScreen() {
                                                 )
                                             }
                                         }
-                                        .padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                        .padding(16.dp)
                                 ) {
-                                    Column(
-                                        modifier = Modifier.weight(1f),
-                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    // Floating Tag Badge on top-right of the card
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(badgeBg)
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)
                                     ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        Text(
+                                            text = pref.tabLabel,
+                                            style = typography.labelSm,
+                                            fontWeight = FontWeight.Bold,
+                                            color = badgeTextColor,
+                                            fontSize = 10.sp
+                                        )
+                                    }
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .padding(end = 64.dp), // Prevent text overlapping the top-right badge
+                                            verticalArrangement = Arrangement.spacedBy(4.dp)
                                         ) {
                                             Text(
                                                 text = pref.title,
                                                 style = typography.bodyLg,
-                                                fontWeight = FontWeight.Bold,
+                                                fontWeight = FontWeight.SemiBold,
                                                 color = colors.onSurface
                                             )
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(RoundedCornerShape(6.dp))
-                                                    .background(colors.primaryContainer)
-                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                                            ) {
-                                                Text(
-                                                    text = pref.tabLabel,
-                                                    style = typography.labelSm,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = colors.primary,
-                                                    fontSize = 9.sp
-                                                )
-                                            }
+                                            Text(
+                                                text = pref.description,
+                                                style = typography.bodyMd,
+                                                color = colors.onSurfaceVariant,
+                                                fontSize = 12.sp,
+                                                lineHeight = 17.sp
+                                            )
+                                            Text(
+                                                text = "Section: ${pref.section}",
+                                                style = typography.labelSm,
+                                                color = colors.primary,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
                                         }
-                                        Text(
-                                            text = pref.description,
-                                            style = typography.bodyMd,
-                                            color = colors.onSurfaceVariant,
-                                            fontSize = 12.sp
-                                        )
-                                        Text(
-                                            text = "Section: ${pref.section}",
-                                            style = typography.labelSm,
-                                            color = colors.primary.copy(alpha = 0.8f),
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Medium
+
+                                        Icon(
+                                            imageVector = WaexIcons.ChevronRight,
+                                            contentDescription = null,
+                                            tint = colors.onSurfaceVariant.copy(alpha = 0.5f),
+                                            modifier = Modifier.size(16.dp)
                                         )
                                     }
-                                    Icon(
-                                        imageVector = WaexIcons.ChevronRight,
-                                        contentDescription = null,
-                                        tint = colors.onSurfaceVariant,
-                                        modifier = Modifier.size(16.dp)
-                                    )
                                 }
                             }
                         }
@@ -297,3 +313,4 @@ fun SearchScreen() {
         }
     }
 }
+
