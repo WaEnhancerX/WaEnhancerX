@@ -149,13 +149,11 @@ fun SearchScreen() {
                 modifier = Modifier.fillMaxWidth(),
                 color = colors.surface
             ) {
-                Column(
-                    modifier = Modifier.statusBarsPadding()
-                ) {
+                Column {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(68.dp)
+                            .height(60.dp)
                             .padding(horizontal = spacing.pageMargin),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -184,6 +182,7 @@ fun SearchScreen() {
                 }
             }
         },
+
         containerColor = colors.background
     ) { paddingValues ->
         Box(

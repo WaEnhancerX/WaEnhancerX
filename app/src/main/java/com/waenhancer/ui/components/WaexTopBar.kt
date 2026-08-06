@@ -23,7 +23,6 @@ import com.waenhancer.ui.designsystem.WaexTheme
 
 
 @Composable
-
 fun WaexTopBar(
     title: String,
     modifier: Modifier = Modifier,
@@ -39,14 +38,15 @@ fun WaexTopBar(
         modifier = modifier.fillMaxWidth(),
         color = colors.surface
     ) {
-        Column(modifier = Modifier.statusBarsPadding()) {
+        Column {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(64.dp)
+                    .height(56.dp)
                     .padding(horizontal = spacing.stackSm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+
 
                 if (onBackClick != null) {
                     IconButton(

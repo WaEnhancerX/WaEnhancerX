@@ -20,10 +20,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.Text
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -61,17 +64,26 @@ fun SystemHealthScreen() {
         animationSpec = tween(durationMillis = 1200),
         label = "success_rate_anim"
     )
-    LaunchedEffect(Unit) {
-        animationTriggered = true
-    }
+    val navController = com.waenhancer.ui.navigation.LocalWaexNavController.current
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+    Scaffold(
+        topBar = {
+            com.waenhancer.ui.components.WaexTopBar(
+                title = "System Health",
+                onBackClick = { navController.popBack() }
+            )
+        },
+        containerColor = colors.background
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
+                .padding(vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+
 
 
         // Compatibility Overview Card
@@ -349,6 +361,7 @@ fun SystemHealthScreen() {
         }
     }
 }
+}
 
 @Preview(showBackground = true)
 @Composable
@@ -357,3 +370,4 @@ fun SystemHealthScreenPreview() {
         SystemHealthScreen()
     }
 }
+

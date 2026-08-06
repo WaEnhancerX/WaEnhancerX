@@ -194,7 +194,9 @@ fun MainContainerScreen() {
         Screen.StylesSettings -> true
         else -> false
     }
-    val showParentTopBar = isRoot || currentScreen == Screen.SystemHealth
+    val showParentTopBar = isRoot
+
+
 
     val pagerState = rememberPagerState { 5 }
     val coroutineScope = rememberCoroutineScope()
