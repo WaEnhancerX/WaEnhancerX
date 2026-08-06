@@ -38,7 +38,7 @@ fun WaexTopBar(
         modifier = modifier.fillMaxWidth(),
         color = colors.surface
     ) {
-        Column {
+        Column(modifier = Modifier.statusBarsPadding()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -46,6 +46,7 @@ fun WaexTopBar(
                     .padding(horizontal = spacing.stackSm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+
 
 
                 if (onBackClick != null) {

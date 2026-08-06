@@ -149,14 +149,15 @@ fun SearchScreen() {
                 modifier = Modifier.fillMaxWidth(),
                 color = colors.surface
             ) {
-                Column {
+                Column(modifier = Modifier.statusBarsPadding()) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(60.dp)
+                            .height(56.dp)
                             .padding(horizontal = spacing.pageMargin),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+
                         IconButton(
                             onClick = { navController.popBack() },
                             modifier = Modifier
