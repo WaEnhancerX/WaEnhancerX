@@ -498,6 +498,114 @@ fun MainContainerScreen() {
                                     }
                                 }
                             }
+
+                            Spacer(modifier = Modifier.width(4.dp))
+
+                            var showMoreMenu by remember { mutableStateOf(false) }
+                            Box(
+                                modifier = Modifier.align(Alignment.CenterVertically)
+                            ) {
+                                IconButton(
+                                    onClick = { showMoreMenu = true },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = WaexIcons.Settings,
+                                        contentDescription = "More Options",
+                                        tint = colors.onBackground,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                DropdownMenu(
+                                    expanded = showMoreMenu,
+                                    onDismissRequest = { showMoreMenu = false },
+                                    modifier = Modifier.background(colors.surface)
+                                ) {
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = WaexIcons.SystemUpdate,
+                                                    contentDescription = null,
+                                                    tint = colors.primary,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Text(text = "Changelog & Releases", style = typography.bodyMd, color = colors.onSurface)
+                                            }
+                                        },
+                                        onClick = {
+                                            showMoreMenu = false
+                                            navController.navigateTo(Screen.Changelog)
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = WaexIcons.Settings,
+                                                    contentDescription = null,
+                                                    tint = colors.primary,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Text(text = "Update Settings", style = typography.bodyMd, color = colors.onSurface)
+                                            }
+                                        },
+                                        onClick = {
+                                            showMoreMenu = false
+                                            navController.navigateTo(Screen.UpdateSettings)
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = WaexIcons.Layers,
+                                                    contentDescription = null,
+                                                    tint = colors.primary,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Text(text = "Supported Versions", style = typography.bodyMd, color = colors.onSurface)
+                                            }
+                                        },
+                                        onClick = {
+                                            showMoreMenu = false
+                                            navController.navigateTo(Screen.SupportedVersions)
+                                        }
+                                    )
+                                    HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant.copy(alpha = 0.5f))
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = WaexIcons.Info,
+                                                    contentDescription = null,
+                                                    tint = colors.primary,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Text(text = "About & Credits", style = typography.bodyMd, color = colors.onSurface)
+                                            }
+                                        },
+                                        onClick = {
+                                            showMoreMenu = false
+                                            navController.navigateTo(Screen.About)
+                                        }
+                                    )
+                                }
+                            }
+
                         }
                         HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
                     }
