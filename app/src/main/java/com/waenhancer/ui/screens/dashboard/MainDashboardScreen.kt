@@ -84,7 +84,7 @@ fun MainDashboardScreen(
                 .padding(vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Hero Status Card
+            // Hero Glow Status Card
             Surface(
                 shape = radius.bentoCardShape,
                 color = colors.surfaceDim,
@@ -93,15 +93,20 @@ fun MainDashboardScreen(
                     .fillMaxWidth()
                     .padding(horizontal = spacing.pageMargin)
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    // Active Status Header
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF22C55E).copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(10.dp)
+                                .size(24.dp)
                                 .clip(CircleShape)
                                 .background(Color(0xFF22C55E))
                         ) {
@@ -110,49 +115,50 @@ fun MainDashboardScreen(
                                     .fillMaxSize()
                                     .alpha(alphaAnim)
                                     .background(Color(0xFF22C55E), CircleShape)
-                                    .border(1.5.dp, Color.White, CircleShape)
+                                    .border(2.dp, Color.White, CircleShape)
                             )
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Module Active",
-                            style = typography.bodyLg,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.onSurface
-                        )
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
 
-                    // Checks Checklist Grid
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        val items = listOf(
-                            "Xposed Framework Connected",
-                            "WhatsApp: v2.24.25.17 (Hooked)",
-                            "WhatsApp Business: v2.24.25.12 (Hooked)",
-                            "Engine Running",
-                            "Compatibility OK"
-                        )
-                        items.forEach { item ->
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = WaexIcons.Success,
-                                    contentDescription = null,
-                                    tint = Color(0xFF22C55E),
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = item,
-                                    style = typography.bodyMd,
-                                    color = colors.onSurfaceVariant
-                                )
-                            }
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = "Module Active & Injected",
+                        style = typography.headlineMd,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.onSurface
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Clickable Version Pill -> Changelog
+                    Box(
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(colors.primary.copy(alpha = 0.1f))
+                            .clickable { navController.navigateTo(Screen.Changelog) }
+                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "v3.2.0 • Stable",
+                                style = typography.labelSm,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.primary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = WaexIcons.ChevronRight,
+                                contentDescription = null,
+                                tint = colors.primary,
+                                modifier = Modifier.size(14.dp)
+                            )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
-                    HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
                     Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant.copy(alpha = 0.5f))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     // Stats row
                     Row(
@@ -160,257 +166,135 @@ fun MainDashboardScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(
-                                text = "98.6%",
-                                style = typography.headlineMd,
-                                fontWeight = FontWeight.Bold,
-                                color = colors.primary
-                            )
-                            Text(
-                                text = "Hook Success",
-                                style = typography.labelSm,
-                                color = colors.onSurfaceVariant,
-                                fontSize = 11.sp
-                            )
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                            Text(text = "98.6%", style = typography.headlineMd, fontWeight = FontWeight.Bold, color = colors.primary)
+                            Text(text = "Hook Success", style = typography.labelSm, color = colors.onSurfaceVariant, fontSize = 11.sp)
                         }
-                        Box(modifier = Modifier
-                            .width(1.dp)
-                            .height(40.dp)
-                            .background(colors.outlineVariant))
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(
-                                text = "247",
-                                style = typography.headlineMd,
-                                fontWeight = FontWeight.Bold,
-                                color = colors.onSurface
-                            )
-                            Text(
-                                text = "Loaded Hooks",
-                                style = typography.labelSm,
-                                color = colors.onSurfaceVariant,
-                                fontSize = 11.sp
-                            )
+                        Box(modifier = Modifier.width(1.dp).height(36.dp).background(colors.outlineVariant.copy(alpha = 0.6f)))
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                            Text(text = "247", style = typography.headlineMd, fontWeight = FontWeight.Bold, color = colors.onSurface)
+                            Text(text = "Loaded Hooks", style = typography.labelSm, color = colors.onSurfaceVariant, fontSize = 11.sp)
                         }
-                        Box(modifier = Modifier
-                            .width(1.dp)
-                            .height(40.dp)
-                            .background(colors.outlineVariant))
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(
-                                text = "38",
-                                style = typography.headlineMd,
-                                fontWeight = FontWeight.Bold,
-                                color = colors.onSurface
-                            )
-                            Text(
-                                text = "Active Features",
-                                style = typography.labelSm,
-                                color = colors.onSurfaceVariant,
-                                fontSize = 11.sp
-                            )
+                        Box(modifier = Modifier.width(1.dp).height(36.dp).background(colors.outlineVariant.copy(alpha = 0.6f)))
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                            Text(text = "38", style = typography.headlineMd, fontWeight = FontWeight.Bold, color = colors.onSurface)
+                            Text(text = "Active Features", style = typography.labelSm, color = colors.onSurfaceVariant, fontSize = 11.sp)
                         }
                     }
                 }
             }
 
-            // 2x2 Bento Grid
-            Column(
+            // Dual WhatsApp & WhatsApp Business Connection Strip
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = spacing.pageMargin),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Privacy & Media
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                // WhatsApp Card
+                Surface(
+                    shape = radius.bentoCardShape,
+                    color = colors.surfaceDim,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
+                    modifier = Modifier.weight(1f)
                 ) {
-                    BentoCard(
-                        title = "Privacy",
-                        icon = WaexIcons.Security,
-                        items = listOf("Anti-Revoke", "Stealth Status View", "Hide Read Receipts", "Freeze Last Seen"),
-                        modifier = Modifier.weight(1f),
-                        onClick = { navController.navigateTo(Screen.GlobalPrivacySettings, clearStack = true) }
-                    )
-                    BentoCard(
-                        title = "Media",
-                        icon = WaexIcons.Image,
-                        items = listOf("File Size Spoofer", "Status Downloader", "Download Profile", "Media Quality"),
-                        modifier = Modifier.weight(1f),
-                        onClick = { navController.navigateTo(Screen.MediaStatusHub, clearStack = true) }
-                    )
-                }
-                // Customization & Automation
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    BentoCard(
-                        title = "Customization",
-                        icon = WaexIcons.Palette,
-                        items = listOf("Custom Theme", "Bubble Colors", "Seen Tick Style", "Floating Bar"),
-                        modifier = Modifier.weight(1f),
-                        onClick = { navController.navigateTo(Screen.StylesSettings, clearStack = true) }
-                    )
-                    BentoCard(
-                        title = "Automation",
-                        icon = WaexIcons.AutoAwesome,
-                        items = listOf("Always Typing", "Status Splitter", "Message Bomber", "Tasker"),
-                        modifier = Modifier.weight(1f),
-                        onClick = { navController.navigateTo(Screen.AutomationTasker, clearStack = true) }
-                    )
-                }
-            }
-
-            // System Health Quick Link
-            Surface(
-                shape = radius.bentoCardShape,
-                color = colors.surfaceDim,
-                border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = spacing.pageMargin)
-                    .clickable { navController.navigateTo(Screen.SystemHealth) }
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(colors.onSurface.copy(alpha = 0.05f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = WaexIcons.Refresh, // Activity / refresh telemetry icon representation
-                            contentDescription = null,
-                            tint = colors.onSurface,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF22C55E))
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(colors.surface)
+                                    .clickable { /* Reload/Restart Action */ },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = WaexIcons.Refresh,
+                                    contentDescription = "Restart",
+                                    tint = colors.onSurfaceVariant,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "System Health",
+                            text = "WhatsApp",
                             style = typography.bodyLg,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Bold,
                             color = colors.onSurface
                         )
                         Text(
-                            text = "Diagnostics & compatibility",
-                            style = typography.bodyMd,
-                            color = colors.onSurfaceVariant
+                            text = "v2.24.25.17 (Active)",
+                            style = typography.labelSm,
+                            color = Color(0xFF22C55E),
+                            fontSize = 11.sp
                         )
                     }
-                    Icon(
-                        imageVector = WaexIcons.ChevronRight,
-                        contentDescription = null,
-                        tint = colors.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp)
-                    )
                 }
-            }
 
-            // Backup & Restore Card
-            Surface(
-                shape = radius.bentoCardShape,
-                color = colors.surfaceDim,
-                border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = spacing.pageMargin)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(colors.primary.copy(alpha = 0.1f)),
-                            contentAlignment = Alignment.Center
+                // WhatsApp Business Card
+                Surface(
+                    shape = radius.bentoCardShape,
+                    color = colors.surfaceDim,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(
-                                imageVector = WaexIcons.Folder,
-                                contentDescription = null,
-                                tint = colors.primary,
-                                modifier = Modifier.size(18.dp)
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF22C55E))
                             )
+                            Spacer(modifier = Modifier.weight(1f))
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(colors.surface)
+                                    .clickable { /* Reload/Restart Action */ },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = WaexIcons.Refresh,
+                                    contentDescription = "Restart",
+                                    tint = colors.onSurfaceVariant,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
                         }
-                        Column {
-                            Text(
-                                text = "Backup & Restore Preferences",
-                                style = typography.bodyLg,
-                                fontWeight = FontWeight.Bold,
-                                color = colors.onSurface
-                            )
-                            Text(
-                                text = "Backup and restore preference configurations locally",
-                                style = typography.bodyMd,
-                                color = colors.onSurfaceVariant,
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp)
-                                .clip(radius.defaultShape)
-                                .border(1.dp, colors.outlineVariant, radius.defaultShape)
-                                .clickable { /* Backup Trigger */ }
-                                .padding(horizontal = 12.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Backup Settings",
-                                style = typography.bodyMd,
-                                fontWeight = FontWeight.SemiBold,
-                                color = colors.onSurface
-                            )
-                        }
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp)
-                                .clip(radius.defaultShape)
-                                .border(1.dp, colors.outlineVariant, radius.defaultShape)
-                                .clickable { /* Restore Trigger */ }
-                                .padding(horizontal = 12.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Restore Settings",
-                                style = typography.bodyMd,
-                                fontWeight = FontWeight.SemiBold,
-                                color = colors.onSurface
-                            )
-                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "WA Business",
+                            style = typography.bodyLg,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.onSurface
+                        )
+                        Text(
+                            text = "v2.24.25.12 (Active)",
+                            style = typography.labelSm,
+                            color = Color(0xFF22C55E),
+                            fontSize = 11.sp
+                        )
                     }
                 }
             }
 
-
-            // Pro Paywall Banner
+            // Quick Pro Banner
             if (licenseState == "free") {
                 Surface(
                     shape = radius.bentoCardShape,
@@ -420,46 +304,161 @@ fun MainDashboardScreen(
                         .padding(horizontal = spacing.pageMargin)
                         .clickable { navController.navigateTo(Screen.ProUpgradePaywall) }
                 ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Text(
-                            text = "Unlock Pro Features",
-                            style = typography.headlineMd,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.onPrimary
-                        )
-                        Text(
-                            text = "Always Typing, Status Splitter, Message Bomber & more",
-                            style = typography.bodyMd,
-                            color = colors.onPrimary.copy(alpha = 0.7f),
-                            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
-                        )
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Unlock Pro Enhancements",
+                                style = typography.bodyLg,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.onPrimary
+                            )
+                            Text(
+                                text = "Always Typing, Splitter, Bomber & more",
+                                style = typography.bodyMd,
+                                color = colors.onPrimary.copy(alpha = 0.8f),
+                                fontSize = 12.sp
+                            )
+                        }
                         Box(
                             modifier = Modifier
                                 .clip(CircleShape)
                                 .background(colors.onPrimary.copy(alpha = 0.2f))
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(
-                                    text = "View Plans",
-                                    style = typography.bodyMd,
-                                    fontWeight = FontWeight.Medium,
-                                    color = colors.onPrimary
-                                )
-                                Icon(
-                                    imageVector = WaexIcons.ChevronRight,
-                                    contentDescription = null,
-                                    tint = colors.onPrimary,
-                                    modifier = Modifier.size(12.dp)
-                                )
+                            Text(
+                                text = "Upgrade",
+                                style = typography.labelSm,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.onPrimary
+                            )
+                        }
+                    }
+                }
+            }
+
+            // System Information & Diagnostics Card
+            Surface(
+                shape = radius.bentoCardShape,
+                color = colors.surfaceDim,
+                border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.pageMargin)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        text = "SYSTEM & DIAGNOSTICS",
+                        style = typography.labelSm,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.primary,
+                        letterSpacing = 0.5.sp
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    val specs = listOf(
+                        "Device" to (android.os.Build.MANUFACTURER.replaceFirstChar { it.uppercase() } + " " + android.os.Build.MODEL),
+                        "Android OS" to ("Android " + android.os.Build.VERSION.RELEASE + " (API " + android.os.Build.VERSION.SDK_INT + ")"),
+                        "Xposed Framework" to "LSPosed / DexKit v2.0",
+                        "DexKit Signature DB" to "Up to date (v2.24.25.xx)"
+                    )
+
+                    specs.forEachIndexed { index, (label, value) ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(text = label, style = typography.bodyMd, color = colors.onSurfaceVariant, modifier = Modifier.weight(1f))
+                            Text(text = value, style = typography.bodyMd, fontWeight = FontWeight.SemiBold, color = colors.onSurface)
+                        }
+                        if (index < specs.lastIndex) {
+                            HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant.copy(alpha = 0.4f), modifier = Modifier.padding(vertical = 10.dp))
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(radius.defaultShape)
+                            .background(colors.primary.copy(alpha = 0.08f))
+                            .clickable { navController.navigateTo(Screen.SupportedVersions) }
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "View Supported Versions Catalog →",
+                            style = typography.bodyMd,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.primary
+                        )
+                    }
+                }
+            }
+
+            // Backup & Configuration Card
+            Surface(
+                shape = radius.bentoCardShape,
+                color = colors.surfaceDim,
+                border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.pageMargin)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "CONFIGURATION & DATA",
+                        style = typography.labelSm,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.primary,
+                        letterSpacing = 0.5.sp
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                                .clip(radius.defaultShape)
+                                .border(1.dp, colors.outlineVariant, radius.defaultShape)
+                                .clickable { /* Backup Action */ }
+                                .padding(horizontal = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(imageVector = WaexIcons.Folder, contentDescription = null, tint = colors.primary, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(text = "Backup", style = typography.bodyMd, fontWeight = FontWeight.SemiBold, color = colors.onSurface)
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                                .clip(radius.defaultShape)
+                                .border(1.dp, colors.outlineVariant, radius.defaultShape)
+                                .clickable { /* Restore Action */ }
+                                .padding(horizontal = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(imageVector = WaexIcons.Refresh, contentDescription = null, tint = colors.primary, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(text = "Restore", style = typography.bodyMd, fontWeight = FontWeight.SemiBold, color = colors.onSurface)
                             }
                         }
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(100.dp))
+
             Spacer(modifier = Modifier.height(100.dp))
         }
 
