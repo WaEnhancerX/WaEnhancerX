@@ -936,8 +936,13 @@ fun WaexAppNavigation(
         Screen.About -> AboutScreen()
         Screen.UpdateSettings -> UpdateSettingsScreen()
         Screen.SupportedVersions -> SupportedVersionsScreen()
+        Screen.DeletedMessages -> com.waenhancer.ui.screens.privacy.DeletedMessagesVaultScreen()
+        Screen.CallRecordingSettings -> com.waenhancer.ui.screens.settings.CallRecordingSettingsScreen()
+        Screen.TaskerGuide -> com.waenhancer.ui.screens.automation.TaskerGuideScreen()
+        Screen.TaskerHistory -> com.waenhancer.ui.screens.automation.TaskerHistoryScreen()
     }
 }
+
 
 
 data class ContactPrivacy(

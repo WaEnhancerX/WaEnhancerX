@@ -21,7 +21,12 @@ sealed class Screen(val route: String) {
     object About : Screen("about")
     object UpdateSettings : Screen("update_settings")
     object SupportedVersions : Screen("supported_versions")
+    object DeletedMessages : Screen("deleted_messages")
+    object CallRecordingSettings : Screen("call_recording_settings")
+    object TaskerGuide : Screen("tasker_guide")
+    object TaskerHistory : Screen("tasker_history")
 }
+
 
 
 val Screen.isRootScreen: Boolean
