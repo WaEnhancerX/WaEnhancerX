@@ -8,16 +8,17 @@ import androidx.compose.ui.unit.dp
 
 @Immutable
 data class WaexRadius(
-    val sm: Dp = 4.dp,
-    val default: Dp = 8.dp,
-    val button: Dp = 8.dp,
+    val sm: Dp = 6.dp,
+    val default: Dp = 10.dp,
+    val button: Dp = 10.dp,
     val md: Dp = 12.dp,
     val lg: Dp = 16.dp,
-    val card: Dp = 12.dp,
-    val bentoCard: Dp = 20.dp,
-    val bottomSheet: Dp = 28.dp,
+    val card: Dp = 14.dp,
+    val bentoCard: Dp = 16.dp,
+    val bottomSheet: Dp = 24.dp,
     val full: Dp = 9999.dp
 ) {
+
     val smShape: RoundedCornerShape get() = RoundedCornerShape(sm)
     val defaultShape: RoundedCornerShape get() = RoundedCornerShape(default)
     val buttonShape: RoundedCornerShape get() = RoundedCornerShape(button)

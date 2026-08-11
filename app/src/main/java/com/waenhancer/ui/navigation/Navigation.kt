@@ -296,10 +296,11 @@ fun MainContainerScreen() {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(72.dp)
+                                .height(56.dp)
                                 .padding(horizontal = spacing.pageMargin),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+
                             if (!isRoot) {
                                 IconButton(
                                     onClick = { navController.popBack() },
