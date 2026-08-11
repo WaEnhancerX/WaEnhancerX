@@ -340,23 +340,65 @@ fun AutomationTaskerScreen() {
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
-                            text = "Tasker Integration Setup Guide",
+                            text = "Tasker & Automation Integrations",
                             style = typography.bodyLg,
                             fontWeight = FontWeight.Bold,
                             color = colors.primary
                         )
                         Text(
-                            text = "WAEX exposes local Broadcast Receivers. You can send intents with the action 'com.waenhancerx.ACTION_TRIGGER' from Tasker to automate features.",
+                            text = "Automate WhatsApp features, auto-replies, and message logging using Broadcast intents in Tasker, MacroDroid, or Automate.",
                             style = typography.bodyMd,
                             color = colors.onSurfaceVariant,
                             fontSize = 12.sp
                         )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(radius.defaultShape)
+                                    .background(colors.primary.copy(alpha = 0.1f))
+                                    .clickable { navController.navigateTo(com.waenhancer.ui.navigation.Screen.TaskerGuide) }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "View Setup Guide →",
+                                    style = typography.labelSm,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.primary
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(radius.defaultShape)
+                                    .background(colors.surface)
+                                    .border(1.dp, colors.outlineVariant, radius.defaultShape)
+                                    .clickable { navController.navigateTo(com.waenhancer.ui.navigation.Screen.TaskerHistory) }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Execution History",
+                                    style = typography.labelSm,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = colors.onSurface
+                                )
+                            }
+                        }
                     }
                 }
             }
+
 
         } else {
             // Audio & AI Tab Content

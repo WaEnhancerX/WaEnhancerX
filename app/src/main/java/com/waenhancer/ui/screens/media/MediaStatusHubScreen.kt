@@ -4,7 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -139,6 +141,60 @@ fun MediaStatusHubScreen() {
             .padding(vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Quick Card for Advanced Call Recording
+        Surface(
+            shape = radius.bentoCardShape,
+            color = colors.surfaceDim,
+            border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = spacing.pageMargin)
+                .clickable { navController.navigateTo(com.waenhancer.ui.navigation.Screen.CallRecordingSettings) }
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(colors.primary.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = WaexIcons.Mic,
+                        contentDescription = null,
+                        tint = colors.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "Call Recording Configuration",
+                        style = typography.bodyLg,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.onSurface
+                    )
+                    Text(
+                        text = "Configure root direct audio pipeline, formats & bitrate",
+                        style = typography.bodyMd,
+                        color = colors.onSurfaceVariant
+                    )
+                }
+                Icon(
+                    imageVector = WaexIcons.ChevronRight,
+                    contentDescription = null,
+                    tint = colors.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+
 
 
         // Media setting cards

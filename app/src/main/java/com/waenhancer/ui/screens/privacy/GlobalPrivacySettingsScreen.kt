@@ -299,7 +299,7 @@ fun GlobalPrivacySettingsScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = WaexIcons.Security, // User icon analogue
+                            imageVector = WaexIcons.Security,
                             contentDescription = null,
                             tint = colors.primary,
                             modifier = Modifier.size(18.dp)
@@ -317,7 +317,60 @@ fun GlobalPrivacySettingsScreen(
                             color = colors.onSurface
                         )
                         Text(
-                            text = "Set privacy rules per contact",
+                            text = "Configure granular privacy rules per contact",
+                            style = typography.bodyMd,
+                            color = colors.onSurfaceVariant
+                        )
+                    }
+                    Icon(
+                        imageVector = WaexIcons.ChevronRight,
+                        contentDescription = null,
+                        tint = colors.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
+            Surface(
+                shape = radius.bentoCardShape,
+                color = colors.surfaceDim,
+                border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.pageMargin)
+                    .clickable { navController.navigateTo(com.waenhancer.ui.navigation.Screen.DeletedMessages) }
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFFEF4444).copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = WaexIcons.Folder,
+                            contentDescription = null,
+                            tint = Color(0xFFEF4444),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "Deleted Messages Vault",
+                            style = typography.bodyLg,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.onSurface
+                        )
+                        Text(
+                            text = "View preserved anti-revoke chats & group logs",
                             style = typography.bodyMd,
                             color = colors.onSurfaceVariant
                         )
@@ -331,6 +384,7 @@ fun GlobalPrivacySettingsScreen(
                 }
             }
         }
+
 
         // Setting Groups
         val activeGroups = if (selectedTab == "privacy") privacyGroups else conversationGroups
