@@ -101,7 +101,7 @@ fun MainDashboardScreen(
                             modifier = Modifier
                                 .size(10.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF22C55E))
+                                .background(colors.primary)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
@@ -157,16 +157,36 @@ fun MainDashboardScreen(
                                 Text(
                                     text = "v2.24.25.17",
                                     style = typography.labelSm,
-                                    color = Color(0xFF22C55E),
+                                    color = colors.primary,
                                     fontSize = 11.sp
                                 )
                             }
-                            Icon(
-                                imageVector = WaexIcons.Success,
-                                contentDescription = "Active",
-                                tint = Color(0xFF22C55E),
-                                modifier = Modifier.size(16.dp)
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = WaexIcons.Success,
+                                    contentDescription = "Active",
+                                    tint = colors.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(colors.surface)
+                                        .clickable { /* Restart WhatsApp Action */ },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = WaexIcons.Refresh,
+                                        contentDescription = "Restart App",
+                                        tint = colors.onSurfaceVariant,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                }
+                            }
                         }
 
                         // WhatsApp Business
@@ -189,63 +209,41 @@ fun MainDashboardScreen(
                                 Text(
                                     text = "v2.24.25.12",
                                     style = typography.labelSm,
-                                    color = Color(0xFF22C55E),
+                                    color = colors.primary,
                                     fontSize = 11.sp
                                 )
                             }
-                            Icon(
-                                imageVector = WaexIcons.Success,
-                                contentDescription = "Active",
-                                tint = Color(0xFF22C55E),
-                                modifier = Modifier.size(16.dp)
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = WaexIcons.Success,
+                                    contentDescription = "Active",
+                                    tint = colors.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(colors.surface)
+                                        .clickable { /* Restart WA Business Action */ },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = WaexIcons.Refresh,
+                                        contentDescription = "Restart App",
+                                        tint = colors.onSurfaceVariant,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
 
-            // Clean 2x2 Feature Navigation Grid
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    StandardNavCard(
-                        title = "Privacy & Security",
-                        desc = "Anti-Revoke, Stealth & Per-Contact Rules",
-                        icon = WaexIcons.Security,
-                        modifier = Modifier.weight(1f),
-                        onClick = { navController.navigateTo(Screen.GlobalPrivacySettings, clearStack = true) }
-                    )
-                    StandardNavCard(
-                        title = "Media & Status",
-                        desc = "Status Downloader & Spoofer",
-                        icon = WaexIcons.Image,
-                        modifier = Modifier.weight(1f),
-                        onClick = { navController.navigateTo(Screen.MediaStatusHub, clearStack = true) }
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    StandardNavCard(
-                        title = "Automation",
-                        desc = "Tasker & Auto Transcription",
-                        icon = WaexIcons.AutoAwesome,
-                        modifier = Modifier.weight(1f),
-                        onClick = { navController.navigateTo(Screen.AutomationTasker, clearStack = true) }
-                    )
-                    StandardNavCard(
-                        title = "Customization",
-                        desc = "Colors, Themes & Bubbles",
-                        icon = WaexIcons.Palette,
-                        modifier = Modifier.weight(1f),
-                        onClick = { navController.navigateTo(Screen.StylesSettings, clearStack = true) }
-                    )
-                }
-            }
 
             // System Information List Card
             Surface(

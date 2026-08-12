@@ -389,8 +389,9 @@ fun MainContainerScreen() {
                             val chipLabel = when (licenseState) {
                                 "pro" -> "Pro Active"
                                 "trial" -> "Trial Active"
-                                else -> "Free Plan"
+                                else -> "Free"
                             }
+
 
                             Box(
                                 modifier = Modifier
