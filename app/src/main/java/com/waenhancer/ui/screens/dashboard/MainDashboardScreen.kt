@@ -132,22 +132,50 @@ fun MainDashboardScreen(
                     HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Target Apps Row: WhatsApp & WhatsApp Business
+                    // Target Apps Row: WhatsApp & WhatsApp Business (WaEnhancer inspired)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // WhatsApp
-                        Row(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(radius.defaultShape)
-                                .background(colors.surfaceDim)
-                                .border(1.dp, colors.outlineVariant, radius.defaultShape)
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        // WhatsApp Card
+                        Surface(
+                            shape = radius.defaultShape,
+                            color = colors.surfaceDim,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
+                            modifier = Modifier.weight(1f)
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                // Top row: Dot + Restart Button
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(colors.primary)
+                                    )
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    Box(
+                                        modifier = Modifier
+                                            .size(26.dp)
+                                            .clip(CircleShape)
+                                            .background(colors.surface)
+                                            .clickable { /* Restart WhatsApp Action */ },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = WaexIcons.Refresh,
+                                            contentDescription = "Restart App",
+                                            tint = colors.onSurfaceVariant,
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
                                 Text(
                                     text = "WhatsApp",
                                     style = typography.bodyMd,
@@ -161,45 +189,47 @@ fun MainDashboardScreen(
                                     fontSize = 11.sp
                                 )
                             }
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = WaexIcons.Success,
-                                    contentDescription = "Active",
-                                    tint = colors.primary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(colors.surface)
-                                        .clickable { /* Restart WhatsApp Action */ },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = WaexIcons.Refresh,
-                                        contentDescription = "Restart App",
-                                        tint = colors.onSurfaceVariant,
-                                        modifier = Modifier.size(13.dp)
-                                    )
-                                }
-                            }
                         }
 
-                        // WhatsApp Business
-                        Row(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(radius.defaultShape)
-                                .background(colors.surfaceDim)
-                                .border(1.dp, colors.outlineVariant, radius.defaultShape)
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        // WhatsApp Business Card
+                        Surface(
+                            shape = radius.defaultShape,
+                            color = colors.surfaceDim,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
+                            modifier = Modifier.weight(1f)
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                // Top row: Dot + Restart Button
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(colors.primary)
+                                    )
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    Box(
+                                        modifier = Modifier
+                                            .size(26.dp)
+                                            .clip(CircleShape)
+                                            .background(colors.surface)
+                                            .clickable { /* Restart WA Business Action */ },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = WaexIcons.Refresh,
+                                            contentDescription = "Restart App",
+                                            tint = colors.onSurfaceVariant,
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
                                 Text(
                                     text = "WA Business",
                                     style = typography.bodyMd,
@@ -213,36 +243,11 @@ fun MainDashboardScreen(
                                     fontSize = 11.sp
                                 )
                             }
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = WaexIcons.Success,
-                                    contentDescription = "Active",
-                                    tint = colors.primary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(colors.surface)
-                                        .clickable { /* Restart WA Business Action */ },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = WaexIcons.Refresh,
-                                        contentDescription = "Restart App",
-                                        tint = colors.onSurfaceVariant,
-                                        modifier = Modifier.size(13.dp)
-                                    )
-                                }
-                            }
                         }
                     }
                 }
             }
+
 
 
             // System Information List Card
