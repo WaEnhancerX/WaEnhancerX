@@ -319,15 +319,57 @@ fun MainContainerScreen() {
                                 Spacer(modifier = Modifier.width(12.dp))
                             }
 
-                            Text(
-                                text = title,
-                                style = typography.headlineMd,
-                                fontWeight = FontWeight.Bold,
-                                color = colors.onBackground,
+                            // Title + License Chip grouped together
+                            Row(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .align(Alignment.CenterVertically)
-                            )
+                                    .align(Alignment.CenterVertically),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = title,
+                                    style = typography.headlineMd,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.onBackground
+                                )
+
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                // License Chip directly attached to title
+                                val chipBg = when (licenseState) {
+                                    "pro" -> colors.primaryContainer
+                                    "trial" -> Color(0xFFFFF8E1)
+                                    else -> colors.surfaceDim
+                                }
+                                val chipText = when (licenseState) {
+                                    "pro" -> colors.primary
+                                    "trial" -> Color(0xFFFFB300)
+                                    else -> colors.onSurfaceVariant
+                                }
+                                val chipLabel = when (licenseState) {
+                                    "pro" -> "Pro"
+                                    "trial" -> "Trial"
+                                    else -> "Free"
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .background(chipBg)
+                                        .border(1.dp, chipText.copy(alpha = 0.2f), CircleShape)
+                                        .clickable { activeModal = "license" }
+                                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = chipLabel,
+                                        style = typography.labelSm,
+                                        fontWeight = FontWeight.Medium,
+                                        color = chipText,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
 
                             // Quick Pro Tools in top bar on Pro screen when Pro is Active
                             if (currentScreen == Screen.ProUpgradePaywall && licenseState == "pro") {
@@ -375,44 +417,6 @@ fun MainContainerScreen() {
                                 Spacer(modifier = Modifier.width(8.dp))
                             }
 
-                            // License Chip
-                            val chipBg = when (licenseState) {
-                                "pro" -> colors.primaryContainer
-                                "trial" -> Color(0xFFFFF8E1)
-                                else -> colors.surfaceDim
-                            }
-                            val chipText = when (licenseState) {
-                                "pro" -> colors.primary
-                                "trial" -> Color(0xFFFFB300)
-                                else -> colors.onSurfaceVariant
-                            }
-                            val chipLabel = when (licenseState) {
-                                "pro" -> "Pro Active"
-                                "trial" -> "Trial Active"
-                                else -> "Free"
-                            }
-
-
-                            Box(
-                                modifier = Modifier
-                                    .clip(CircleShape)
-                                    .background(chipBg)
-                                    .border(1.dp, chipText.copy(alpha = 0.2f), CircleShape)
-                                    .clickable { activeModal = "license" }
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
-                                    .align(Alignment.CenterVertically),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = chipLabel,
-                                    style = typography.labelSm,
-                                    fontWeight = FontWeight.Medium,
-                                    color = chipText
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
                             IconButton(
                                 onClick = { navController.navigateTo(Screen.Search) },
                                 modifier = Modifier
@@ -426,6 +430,7 @@ fun MainContainerScreen() {
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
+
 
                             Spacer(modifier = Modifier.width(8.dp))
 
@@ -512,11 +517,12 @@ fun MainContainerScreen() {
                                     modifier = Modifier.size(32.dp)
                                 ) {
                                     Icon(
-                                        imageVector = WaexIcons.Settings,
+                                        imageVector = WaexIcons.MoreVert,
                                         contentDescription = "More Options",
                                         tint = colors.onBackground,
                                         modifier = Modifier.size(20.dp)
                                     )
+
                                 }
 
                                 DropdownMenu(

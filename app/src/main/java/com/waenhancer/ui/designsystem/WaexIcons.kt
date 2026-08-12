@@ -33,6 +33,7 @@ import androidx.compose.material.icons.rounded.BatteryChargingFull
 import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.InstallMobile
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.MoreVert
 
 object WaexIcons {
     val Back = Icons.AutoMirrored.Rounded.ArrowBack
@@ -41,6 +42,8 @@ object WaexIcons {
     val Warning = Icons.Rounded.Warning
     val Success = Icons.Rounded.CheckCircle
     val Settings = Icons.Rounded.Settings
+    val MoreVert = Icons.Rounded.MoreVert
+
     val Lock = Icons.Rounded.Lock
     val Play = Icons.Rounded.PlayArrow
     val Folder = Icons.Rounded.Folder
