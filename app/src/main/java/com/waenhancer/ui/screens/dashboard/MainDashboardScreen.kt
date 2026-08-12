@@ -61,8 +61,32 @@ fun MainDashboardScreen(
     val spacing = WaexTheme.spacing
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val isModuleActive = remember { com.waenhancer.xposed.utils.ModuleStatus.isModuleActive() }
+
+
+    // Dynamic WhatsApp Package Info
+    val (wppInstalled, wppVersion) = remember {
+        try {
+            val pInfo = context.packageManager.getPackageInfo("com.whatsapp", 0)
+            true to "v${pInfo.versionName}"
+        } catch (e: Exception) {
+            false to "Not Installed"
+        }
+    }
+
+    // Dynamic WhatsApp Business Package Info
+    val (businessInstalled, businessVersion) = remember {
+        try {
+            val pInfo = context.packageManager.getPackageInfo("com.whatsapp.w4b", 0)
+            true to "v${pInfo.versionName}"
+        } catch (e: Exception) {
+            false to "Not Installed"
+        }
+    }
 
     var showCustomizationSoon by remember { mutableStateOf(false) }
+
 
     // Pulsing green dot animation for active status indicator
     val infiniteTransition = rememberInfiniteTransition(label = "green_dot")
@@ -101,11 +125,11 @@ fun MainDashboardScreen(
                             modifier = Modifier
                                 .size(10.dp)
                                 .clip(CircleShape)
-                                .background(colors.primary)
+                                .background(if (isModuleActive) colors.primary else colors.error)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "Module Active",
+                            text = if (isModuleActive) "Module Active" else "Module Inactive",
                             style = typography.bodyLg,
                             fontWeight = FontWeight.SemiBold,
                             color = colors.onSurface,
@@ -154,7 +178,7 @@ fun MainDashboardScreen(
                                         modifier = Modifier
                                             .size(8.dp)
                                             .clip(CircleShape)
-                                            .background(colors.primary)
+                                            .background(if (wppInstalled) colors.primary else colors.onSurfaceVariant.copy(alpha = 0.4f))
                                     )
                                     Spacer(modifier = Modifier.weight(1f))
                                     Box(
@@ -162,7 +186,12 @@ fun MainDashboardScreen(
                                             .size(26.dp)
                                             .clip(CircleShape)
                                             .background(colors.surface)
-                                            .clickable { /* Restart WhatsApp Action */ },
+                                            .clickable {
+                                                try {
+                                                    val intent = context.packageManager.getLaunchIntentForPackage("com.whatsapp")
+                                                    if (intent != null) context.startActivity(intent)
+                                                } catch (ignored: Exception) {}
+                                            },
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
@@ -183,9 +212,9 @@ fun MainDashboardScreen(
                                     color = colors.onSurface
                                 )
                                 Text(
-                                    text = "v2.24.25.17",
+                                    text = wppVersion,
                                     style = typography.labelSm,
-                                    color = colors.primary,
+                                    color = if (wppInstalled) colors.primary else colors.onSurfaceVariant,
                                     fontSize = 11.sp
                                 )
                             }
@@ -208,7 +237,7 @@ fun MainDashboardScreen(
                                         modifier = Modifier
                                             .size(8.dp)
                                             .clip(CircleShape)
-                                            .background(colors.primary)
+                                            .background(if (businessInstalled) colors.primary else colors.onSurfaceVariant.copy(alpha = 0.4f))
                                     )
                                     Spacer(modifier = Modifier.weight(1f))
                                     Box(
@@ -216,7 +245,12 @@ fun MainDashboardScreen(
                                             .size(26.dp)
                                             .clip(CircleShape)
                                             .background(colors.surface)
-                                            .clickable { /* Restart WA Business Action */ },
+                                            .clickable {
+                                                try {
+                                                    val intent = context.packageManager.getLaunchIntentForPackage("com.whatsapp.w4b")
+                                                    if (intent != null) context.startActivity(intent)
+                                                } catch (ignored: Exception) {}
+                                            },
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
@@ -237,14 +271,15 @@ fun MainDashboardScreen(
                                     color = colors.onSurface
                                 )
                                 Text(
-                                    text = "v2.24.25.12",
+                                    text = businessVersion,
                                     style = typography.labelSm,
-                                    color = colors.primary,
+                                    color = if (businessInstalled) colors.primary else colors.onSurfaceVariant,
                                     fontSize = 11.sp
                                 )
                             }
                         }
                     }
+
                 }
             }
 

@@ -22,8 +22,11 @@ dependencyResolutionManagement {
             }
         }
         mavenCentral()
+        maven { url = java.net.URI("https://jitpack.io") }
+        maven { url = java.net.URI("https://api.xposed.info/") }
     }
 }
+
 
 plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"

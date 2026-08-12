@@ -25,6 +25,14 @@
     <uses-permission
         android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 
+    <queries>
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
+        <package android:name="org.lsposed.manager" />
+        <package android:name="io.github.lsposed.manager" />
+        <package android:name="de.robv.android.xposed.installer" />
+    </queries>
+
     <application
         android:name="com.waenhancer.app.WaexApp"
         android:allowBackup="true"
@@ -34,6 +42,30 @@
         android:supportsRtl="true"
         android:windowSoftInputMode="adjustResize"
         android:theme="@style/Theme.Waex">
+
+        <!-- Xposed Module Metadata -->
+        <meta-data
+            android:name="xposedmodule"
+            android:value="true" />
+        <meta-data
+            android:name="xposeddescription"
+            android:value="@string/xposed_description" />
+        <meta-data
+            android:name="xposedminversion"
+            android:value="93" />
+        <meta-data
+            android:name="xposedscope"
+            android:resource="@array/xposed_scope" />
+        <meta-data
+            android:name="xposedsharedprefs"
+            android:value="true" />
+
+        <provider
+            android:name="com.waenhancer.xposed.bridge.HookProvider"
+            android:authorities="${applicationId}.hookprovider"
+            android:enabled="true"
+            android:exported="true" />
+
         <activity
             android:name="com.waenhancer.app.PermissionsActivity"
             android:screenOrientation="portrait"
@@ -48,6 +80,7 @@
             android:screenOrientation="portrait"
             android:exported="false" />
     </application>
-
 </manifest>
+
+
 

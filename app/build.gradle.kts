@@ -90,6 +90,11 @@ dependencies {
     implementation(libs.okhttp.core)
     implementation(libs.room.runtime)
 
+    // Xposed Framework & DexKit Hooking Engine
+    compileOnly(libs.libxposed.legacy)
+    implementation(libs.dexkit)
+
+
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
