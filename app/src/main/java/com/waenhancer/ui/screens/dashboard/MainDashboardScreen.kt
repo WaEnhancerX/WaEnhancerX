@@ -46,10 +46,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
+
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.Screen
+import com.waenhancer.xposed.utils.AppRestartHelper
+import com.waenhancer.xposed.utils.ModuleStatus
 
 @Composable
 fun MainDashboardScreen(
@@ -61,8 +65,9 @@ fun MainDashboardScreen(
     val spacing = WaexTheme.spacing
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val isModuleActive = remember { com.waenhancer.xposed.utils.ModuleStatus.isModuleActive() }
+    val context = LocalContext.current
+    val isModuleActive = remember { ModuleStatus.isModuleActive() }
+
 
 
     // Dynamic WhatsApp Package Info
@@ -187,7 +192,7 @@ fun MainDashboardScreen(
                                             .clip(CircleShape)
                                             .background(colors.surface)
                                             .clickable {
-                                                com.waenhancer.xposed.utils.AppRestartHelper.restartPackage(
+                                                AppRestartHelper.restartPackage(
                                                     context,
                                                     "com.whatsapp",
                                                     "WhatsApp"
@@ -247,7 +252,7 @@ fun MainDashboardScreen(
                                             .clip(CircleShape)
                                             .background(colors.surface)
                                             .clickable {
-                                                com.waenhancer.xposed.utils.AppRestartHelper.restartPackage(
+                                                AppRestartHelper.restartPackage(
                                                     context,
                                                     "com.whatsapp.w4b",
                                                     "WA Business"
@@ -262,6 +267,7 @@ fun MainDashboardScreen(
                                             modifier = Modifier.size(13.dp)
                                         )
                                     }
+
 
                                 }
 

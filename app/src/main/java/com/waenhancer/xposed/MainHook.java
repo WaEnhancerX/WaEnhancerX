@@ -1,7 +1,9 @@
 package com.waenhancer.xposed;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.content.ContextWrapper;
+import com.waenhancer.xposed.core.FeatureRegistry;
 import com.waenhancer.xposed.utils.ModuleStatus;
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.IXposedHookZygoteInit;
@@ -11,6 +13,7 @@ import de.robv.android.xposed.XSharedPreferences;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
+
 
 /**
  * Main Xposed Entry point for Wa Enhancer X.
@@ -83,9 +86,8 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
         if (isWhatsApp || isBusiness) {
             XposedBridge.log("[WAEX] Injected into target: " + packageName + " (process: " + lpparam.processName + ")");
 
-            // Initial basic hooks to verify runtime execution
+            // Initialize features on target Application creation
             try {
-                // Hook Application.onCreate to log activation inside target
                 XposedHelpers.findAndHookMethod(
                         "android.app.Application",
                         lpparam.classLoader,
@@ -93,7 +95,14 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                         new XC_MethodHook() {
                             @Override
                             protected void afterHookedMethod(MethodHookParam param) {
-                                XposedBridge.log("[WAEX] WhatsApp Application.onCreate hooked successfully!");
+                                Context appContext = (Context) param.thisObject;
+                                XposedBridge.log("[WAEX] Target Application created. Initializing features...");
+                                try {
+                                    FeatureRegistry registry = new FeatureRegistry(appContext, lpparam.classLoader, getPrefs());
+                                    registry.initializeAll();
+                                } catch (Throwable t) {
+                                    XposedBridge.log("[WAEX] Error initializing FeatureRegistry: " + t.getMessage());
+                                }
                             }
                         }
                 );
