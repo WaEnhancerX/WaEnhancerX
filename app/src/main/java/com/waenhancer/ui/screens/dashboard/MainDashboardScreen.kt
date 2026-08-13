@@ -187,10 +187,11 @@ fun MainDashboardScreen(
                                             .clip(CircleShape)
                                             .background(colors.surface)
                                             .clickable {
-                                                try {
-                                                    val intent = context.packageManager.getLaunchIntentForPackage("com.whatsapp")
-                                                    if (intent != null) context.startActivity(intent)
-                                                } catch (ignored: Exception) {}
+                                                com.waenhancer.xposed.utils.AppRestartHelper.restartPackage(
+                                                    context,
+                                                    "com.whatsapp",
+                                                    "WhatsApp"
+                                                )
                                             },
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -246,10 +247,11 @@ fun MainDashboardScreen(
                                             .clip(CircleShape)
                                             .background(colors.surface)
                                             .clickable {
-                                                try {
-                                                    val intent = context.packageManager.getLaunchIntentForPackage("com.whatsapp.w4b")
-                                                    if (intent != null) context.startActivity(intent)
-                                                } catch (ignored: Exception) {}
+                                                com.waenhancer.xposed.utils.AppRestartHelper.restartPackage(
+                                                    context,
+                                                    "com.whatsapp.w4b",
+                                                    "WA Business"
+                                                )
                                             },
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -260,6 +262,7 @@ fun MainDashboardScreen(
                                             modifier = Modifier.size(13.dp)
                                         )
                                     }
+
                                 }
 
                                 Spacer(modifier = Modifier.height(6.dp))
