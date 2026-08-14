@@ -3,6 +3,7 @@ package com.waenhancer.xposed;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.ContextWrapper;
+import com.waenhancer.xposed.bridge.client.PreferenceBridgeClient;
 import com.waenhancer.xposed.core.FeatureRegistry;
 import com.waenhancer.xposed.utils.ModuleStatus;
 import de.robv.android.xposed.IXposedHookLoadPackage;
@@ -13,6 +14,7 @@ import de.robv.android.xposed.XSharedPreferences;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
+
 
 
 /**
@@ -98,7 +100,9 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                 Context appContext = (Context) param.thisObject;
                                 XposedBridge.log("[WAEX] Target Application created. Initializing features...");
                                 try {
-                                    FeatureRegistry registry = new FeatureRegistry(appContext, lpparam.classLoader, getPrefs());
+                                    PreferenceBridgeClient bridgeClient =
+                                            new PreferenceBridgeClient(appContext, getPrefs());
+                                    FeatureRegistry registry = new FeatureRegistry(appContext, lpparam.classLoader, bridgeClient);
                                     registry.initializeAll();
                                 } catch (Throwable t) {
                                     XposedBridge.log("[WAEX] Error initializing FeatureRegistry: " + t.getMessage());

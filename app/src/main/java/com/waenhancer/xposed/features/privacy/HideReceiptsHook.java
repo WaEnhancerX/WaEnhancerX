@@ -1,14 +1,13 @@
 package com.waenhancer.xposed.features.privacy;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XSharedPreferences;
 import de.robv.android.xposed.XposedBridge;
 import org.luckypray.dexkit.query.FindMethod;
-import org.luckypray.dexkit.query.enums.StringMatchType;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.MethodData;
 import java.lang.reflect.Method;
@@ -19,9 +18,10 @@ import java.lang.reflect.Modifier;
  */
 public class HideReceiptsHook extends BaseFeature {
 
-    public HideReceiptsHook(@NonNull Context context, @NonNull ClassLoader classLoader, @NonNull XSharedPreferences prefs) {
+    public HideReceiptsHook(@NonNull Context context, @NonNull ClassLoader classLoader, @NonNull SharedPreferences prefs) {
         super(context, classLoader, prefs);
     }
+
 
     @Override
     public void hook() throws Throwable {
@@ -31,14 +31,16 @@ public class HideReceiptsHook extends BaseFeature {
                 classLoader,
                 "wpp_send_read_receipt_job",
                 (bridge, loader) -> {
-                    MethodData data = bridge.findMethod(FindMethod.create()
+                    for (MethodData data : bridge.findMethod(FindMethod.create()
                             .matcher(MethodMatcher.create()
                                     .modifiers(Modifier.PUBLIC)
-                                    .returnType(void.class)
                                     .usingStrings("SendReadReceiptJob")
-                            )
-                    ).firstOrNull();
-                    return data != null ? data.getMethodInstance(loader) : null;
+                            ))) {
+                        if (data.isMethod()) {
+                            return data.getMethodInstance(loader);
+                        }
+                    }
+                    return null;
                 }
         );
 

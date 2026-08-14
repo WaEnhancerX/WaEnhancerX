@@ -19,10 +19,11 @@ import java.util.HashSet;
  */
 public class HookProvider extends ContentProvider {
 
-    public static final String AUTHORITY = "com.waenhancer.app.hookprovider";
+    public static final String AUTHORITY = "com.waenhancer.hookprovider";
 
     @Override
     public boolean onCreate() {
+
         return getContext() != null;
     }
 

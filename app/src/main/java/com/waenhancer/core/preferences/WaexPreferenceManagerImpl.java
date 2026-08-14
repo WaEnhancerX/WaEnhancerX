@@ -10,12 +10,15 @@ import javax.inject.Singleton;
 @Singleton
 public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
 
+    private final Context context;
     private final SharedPreferences prefs;
 
     @Inject
     public WaexPreferenceManagerImpl(@ApplicationContext Context context) {
+        this.context = context;
         this.prefs = context.getSharedPreferences("waex_prefs", Context.MODE_PRIVATE);
     }
+
 
     @Override
     public boolean getBoolean(String key, boolean defaultValue) {
@@ -24,7 +27,8 @@ public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
 
     @Override
     public void putBoolean(String key, boolean value) {
-        prefs.edit().putBoolean(key, value).apply();
+        prefs.edit().putBoolean(key, value).commit();
+        fixFilePermissions();
     }
 
     @Override
@@ -34,7 +38,8 @@ public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
 
     @Override
     public void putString(String key, String value) {
-        prefs.edit().putString(key, value).apply();
+        prefs.edit().putString(key, value).commit();
+        fixFilePermissions();
     }
 
     @Override
@@ -44,7 +49,8 @@ public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
 
     @Override
     public void putInt(String key, int value) {
-        prefs.edit().putInt(key, value).apply();
+        prefs.edit().putInt(key, value).commit();
+        fixFilePermissions();
     }
 
     @Override
@@ -54,7 +60,25 @@ public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
 
     @Override
     public void putFloat(String key, float value) {
-        prefs.edit().putFloat(key, value).apply();
+        prefs.edit().putFloat(key, value).commit();
+        fixFilePermissions();
     }
+
+    private void fixFilePermissions() {
+        try {
+            java.io.File dataDir = new java.io.File(context.getApplicationInfo().dataDir);
+            java.io.File prefsDir = new java.io.File(dataDir, "shared_prefs");
+            java.io.File prefsFile = new java.io.File(prefsDir, "waex_prefs.xml");
+
+            dataDir.setExecutable(true, false);
+            dataDir.setReadable(true, false);
+
+            prefsDir.setExecutable(true, false);
+            prefsDir.setReadable(true, false);
+
+            prefsFile.setReadable(true, false);
+        } catch (Throwable ignored) {}
+    }
+
 }
 

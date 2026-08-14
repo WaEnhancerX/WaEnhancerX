@@ -1,6 +1,8 @@
 package com.waenhancer.xposed.core
 
 import android.content.Context
+import android.content.SharedPreferences
+import com.waenhancer.xposed.bridge.client.PreferenceBridgeClient
 import de.robv.android.xposed.XSharedPreferences
 
 /**
@@ -9,7 +11,7 @@ import de.robv.android.xposed.XSharedPreferences
 abstract class BaseFeature(
     @JvmField protected val context: Context,
     @JvmField protected val classLoader: ClassLoader,
-    @JvmField protected val prefs: XSharedPreferences
+    @JvmField protected val prefs: SharedPreferences
 ) {
     /**
      * Initializes and registers the bytecode hooks for this feature.
@@ -19,9 +21,13 @@ abstract class BaseFeature(
 
     abstract val name: String
 
-
     protected fun isEnabled(key: String, def: Boolean = false): Boolean {
-        prefs.reload()
+        if (prefs is XSharedPreferences) {
+            prefs.reload()
+        } else if (prefs is PreferenceBridgeClient) {
+            prefs.syncPreferences()
+        }
         return prefs.getBoolean(key, def)
     }
 }
+

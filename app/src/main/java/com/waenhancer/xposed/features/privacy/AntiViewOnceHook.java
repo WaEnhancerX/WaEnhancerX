@@ -1,15 +1,13 @@
 package com.waenhancer.xposed.features.privacy;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XSharedPreferences;
 import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
 import org.luckypray.dexkit.query.FindMethod;
-import org.luckypray.dexkit.query.enums.StringMatchType;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.MethodData;
 import java.lang.reflect.Method;
@@ -20,9 +18,10 @@ import java.lang.reflect.Modifier;
  */
 public class AntiViewOnceHook extends BaseFeature {
 
-    public AntiViewOnceHook(@NonNull Context context, @NonNull ClassLoader classLoader, @NonNull XSharedPreferences prefs) {
+    public AntiViewOnceHook(@NonNull Context context, @NonNull ClassLoader classLoader, @NonNull SharedPreferences prefs) {
         super(context, classLoader, prefs);
     }
+
 
     @Override
     public void hook() throws Throwable {
