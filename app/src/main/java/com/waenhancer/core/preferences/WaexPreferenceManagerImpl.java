@@ -2,10 +2,12 @@ package com.waenhancer.core.preferences;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import com.waenhancer.api.contracts.WaexPreferenceManager;
 import dagger.hilt.android.qualifiers.ApplicationContext;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+
 
 @Singleton
 public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
@@ -25,10 +27,14 @@ public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
         return prefs.getBoolean(key, defaultValue);
     }
 
+    private static final Uri PREFS_URI = Uri.parse("content://com.waenhancer.hookprovider/preferences");
+
+
     @Override
     public void putBoolean(String key, boolean value) {
         prefs.edit().putBoolean(key, value).commit();
         fixFilePermissions();
+        notifyChange();
     }
 
     @Override
@@ -40,6 +46,7 @@ public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
     public void putString(String key, String value) {
         prefs.edit().putString(key, value).commit();
         fixFilePermissions();
+        notifyChange();
     }
 
     @Override
@@ -51,6 +58,7 @@ public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
     public void putInt(String key, int value) {
         prefs.edit().putInt(key, value).commit();
         fixFilePermissions();
+        notifyChange();
     }
 
     @Override
@@ -62,7 +70,15 @@ public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
     public void putFloat(String key, float value) {
         prefs.edit().putFloat(key, value).commit();
         fixFilePermissions();
+        notifyChange();
     }
+
+    private void notifyChange() {
+        try {
+            context.getContentResolver().notifyChange(PREFS_URI, null);
+        } catch (Throwable ignored) {}
+    }
+
 
     private void fixFilePermissions() {
         try {

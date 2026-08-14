@@ -453,6 +453,49 @@ fun GlobalPrivacySettingsScreen(
                                     onCheckedChange = { updatePreference(item.key, it) }
                                 )
                             }
+
+                            // If this is anti_revoke and it is enabled, show indicator choice chips
+                            if (item.key == "anti_revoke" && (settingsState["anti_revoke"] == true)) {
+                                val currentIndicator = preferenceManager.getString("anti_revoke_indicator", "2")
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Indicator Style:",
+                                        style = typography.bodyMd,
+                                        color = colors.onSurfaceVariant,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    listOf("2" to "Deleted Icon", "1" to "Text \"Deleted\"").forEach { (valKey, title) ->
+                                        val isSelected = currentIndicator == valKey
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = if (isSelected) colors.primary.copy(alpha = 0.15f) else colors.surface,
+                                            border = androidx.compose.foundation.BorderStroke(
+                                                1.dp,
+                                                if (isSelected) colors.primary else colors.outlineVariant
+                                            ),
+                                            modifier = Modifier.clickable {
+                                                preferenceManager.putString("anti_revoke_indicator", valKey)
+                                                settingsState["anti_revoke_indicator_dummy"] = !(settingsState["anti_revoke_indicator_dummy"] ?: false)
+                                            }
+                                        ) {
+                                            Text(
+                                                text = title,
+                                                style = typography.labelSm,
+                                                color = if (isSelected) colors.primary else colors.onSurface,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
                             if (index < group.items.lastIndex) {
                                 HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
                             }
@@ -469,6 +512,7 @@ private data class SettingGroup(
     val title: String,
     val items: List<SettingItem>
 )
+
 
 private data class SettingItem(
     val label: String,

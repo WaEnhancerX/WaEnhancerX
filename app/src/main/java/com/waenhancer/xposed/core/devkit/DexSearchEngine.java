@@ -5,15 +5,11 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import de.robv.android.xposed.XposedBridge;
 import org.luckypray.dexkit.DexKitBridge;
-import org.luckypray.dexkit.query.FindMethod;
-import org.luckypray.dexkit.query.matchers.MethodMatcher;
-import org.luckypray.dexkit.result.MethodData;
 import java.io.File;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 
 /**
- * Modern DexKit Search Helper with automated batch processing, cache acceleration, and safe fallbacks.
+ * Singleton wrapper around DexKitBridge for runtime signature-based class and method unobfuscation.
  */
 public final class DexSearchEngine {
 
@@ -23,9 +19,7 @@ public final class DexSearchEngine {
     static {
         try {
             System.loadLibrary("dexkit");
-        } catch (Throwable t) {
-            XposedBridge.log("[WAEX] Warning: DexKit native library load: " + t.getMessage());
-        }
+        } catch (Throwable ignored) {}
     }
 
     private DexSearchEngine() {}
@@ -41,12 +35,29 @@ public final class DexSearchEngine {
         return sInstance;
     }
 
-    public synchronized void initialize(@NonNull String apkPath) {
+    public static void loadLibrary(@NonNull Context context) {
+        try {
+            String nativeLibraryDir = context.getPackageManager()
+                    .getApplicationInfo("com.waenhancer", 0).nativeLibraryDir;
+            File libFile = new File(nativeLibraryDir, "libdexkit.so");
+            if (libFile.exists()) {
+                System.load(libFile.getAbsolutePath());
+            }
+        } catch (Throwable t) {
+            try {
+                System.loadLibrary("dexkit");
+            } catch (Throwable ignored) {}
+        }
+    }
+
+    public synchronized void initialize(@NonNull Context context) {
         if (mBridge == null) {
             try {
+                loadLibrary(context);
+                String apkPath = context.getApplicationInfo().sourceDir;
                 mBridge = DexKitBridge.create(apkPath);
             } catch (Throwable t) {
-                XposedBridge.log("[WAEX] Failed to initialize DexKitBridge for " + apkPath + ": " + t.getMessage());
+                XposedBridge.log("[WAEX] Failed to initialize DexKitBridge: " + t.getMessage());
             }
         }
     }
@@ -69,7 +80,27 @@ public final class DexSearchEngine {
         DexCacheManager cache = DexCacheManager.getInstance(context);
         return cache.getMethod(loader, cacheKey, () -> {
             if (mBridge == null) {
-                initialize(context.getApplicationInfo().sourceDir);
+                initialize(context);
+            }
+            if (mBridge == null) return null;
+            return query.execute(mBridge, loader);
+        });
+    }
+
+    /**
+     * Resolves a Class using DexCacheManager Tier 1 cache, falling back to DexKit scanning Tier 2.
+     */
+    @Nullable
+    public Class<?> findClassWithCache(
+            @NonNull Context context,
+            @NonNull ClassLoader loader,
+            @NonNull String cacheKey,
+            @NonNull DexKitClassQuery query
+    ) {
+        DexCacheManager cache = DexCacheManager.getInstance(context);
+        return cache.getClass(loader, cacheKey, () -> {
+            if (mBridge == null) {
+                initialize(context);
             }
             if (mBridge == null) return null;
             return query.execute(mBridge, loader);
@@ -88,5 +119,10 @@ public final class DexSearchEngine {
     @FunctionalInterface
     public interface DexKitQuery {
         Method execute(@NonNull DexKitBridge bridge, @NonNull ClassLoader loader) throws Throwable;
+    }
+
+    @FunctionalInterface
+    public interface DexKitClassQuery {
+        Class<?> execute(@NonNull DexKitBridge bridge, @NonNull ClassLoader loader) throws Throwable;
     }
 }
