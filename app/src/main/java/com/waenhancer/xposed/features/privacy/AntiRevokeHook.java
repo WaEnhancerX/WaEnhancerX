@@ -500,12 +500,22 @@ public class AntiRevokeHook extends BaseFeature {
             }
 
             int indicatorType = getIndicatorType();
-            XposedBridge.log(TAG + " decorateRevokedRow: indicatorType=" + indicatorType);
+            boolean colorEnabled = isColorDeletedMessagesEnabled();
+            int customColor = getDeletedMessageColor();
+            XposedBridge.log(TAG + " decorateRevokedRow: indicatorType=" + indicatorType + " colorEnabled=" + colorEnabled + " color=" + customColor);
 
-            // Set red color accent
-            dateTextView.setTextColor(Color.parseColor("#EF4444"));
-            if (messageTextView != null) {
-                messageTextView.setTextColor(Color.parseColor("#EF4444"));
+            if (colorEnabled) {
+                dateTextView.setTextColor(customColor);
+                if (messageTextView != null) {
+                    messageTextView.setTextColor(customColor);
+                }
+            } else {
+                Integer origDateColor = (Integer) XposedHelpers.getAdditionalInstanceField(dateTextView, "waex_original_color");
+                if (origDateColor != null) dateTextView.setTextColor(origDateColor);
+                if (messageTextView != null) {
+                    Integer origMsgColor = (Integer) XposedHelpers.getAdditionalInstanceField(messageTextView, "waex_original_color");
+                    if (origMsgColor != null) messageTextView.setTextColor(origMsgColor);
+                }
             }
 
             if (indicatorType == 1) { // Show "Deleted" text
@@ -524,6 +534,10 @@ public class AntiRevokeHook extends BaseFeature {
                     // Use module context directly — context is injected at construction time
                     Drawable deleteDrawable = ContextCompat.getDrawable(context, R.drawable.ic_deleted);
                     if (deleteDrawable != null) {
+                        deleteDrawable = deleteDrawable.mutate();
+                        if (colorEnabled) {
+                            deleteDrawable.setTint(customColor);
+                        }
                         int size = (int) (dateTextView.getTextSize() * 1.4f);
                         deleteDrawable.setBounds(0, 0, size, size);
                         dateTextView.setCompoundDrawables(null, null, deleteDrawable, null);
@@ -720,6 +734,24 @@ public class AntiRevokeHook extends BaseFeature {
         return isEnabled("anti_revoke", false);
     }
 
+    private boolean isColorDeletedMessagesEnabled() {
+        return isEnabled("anti_revoke_color_enabled", true);
+    }
+
+    private int getDeletedMessageColor() {
+        try {
+            String colorStr = prefs.getString("deleted_message_color", "#EF4444");
+            if (colorStr != null && !colorStr.isEmpty()) {
+                return Color.parseColor(colorStr);
+            }
+        } catch (Throwable ignored) {
+            try {
+                return prefs.getInt("deleted_message_color", Color.parseColor("#EF4444"));
+            } catch (Throwable ignored2) {}
+        }
+        return Color.parseColor("#EF4444");
+    }
+
     private int getIndicatorType() {
         try {
             String strVal = prefs.getString("anti_revoke_indicator", "2");
@@ -735,4 +767,5 @@ public class AntiRevokeHook extends BaseFeature {
         return "Anti-Revoke";
     }
 }
+
 
