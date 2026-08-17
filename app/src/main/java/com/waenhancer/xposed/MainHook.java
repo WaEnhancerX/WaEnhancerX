@@ -98,6 +98,9 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                             @Override
                             protected void afterHookedMethod(MethodHookParam param) {
                                 Context appContext = (Context) param.thisObject;
+                                if (appContext instanceof android.app.Application) {
+                                    com.waenhancer.xposed.utils.ActivityTracker.install((android.app.Application) appContext);
+                                }
                                 XposedBridge.log("[WAEX] Target Application created. Initializing features...");
                                 try {
                                     PreferenceBridgeClient bridgeClient =
