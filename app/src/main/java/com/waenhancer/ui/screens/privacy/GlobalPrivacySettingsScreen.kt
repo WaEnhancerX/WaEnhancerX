@@ -106,11 +106,12 @@ fun GlobalPrivacySettingsScreen(
         listOf(
             "typing_privacy", "hide_forwarded_tag", "online_status_indicator", "anti_view_once",
             "stealth_status_view", "call_privacy", "freeze_last_seen", "hide_chats",
-            "custom_privacy", "anti_revoke", "hide_seen_receipts", "locked_chats_enhancer",
-            "dnd_mode", "anti_edit_messages", "call_type_controller", "chat_limits_bypass",
-            "copy_status_text", "custom_filter_groups", "direct_chat_dialer", "group_admin_tools",
-            "inline_translation", "quick_scroll_buttons", "recover_deleted_messages",
-            "status_text_composer", "sticker_confirm_alert", "unlimited_pinned_chats"
+            "custom_privacy", "anti_revoke", "hide_read_receipts", "hide_delivery_receipts",
+            "hide_seen_receipts", "locked_chats_enhancer", "dnd_mode", "anti_edit_messages",
+            "call_type_controller", "chat_limits_bypass", "copy_status_text", "custom_filter_groups",
+            "direct_chat_dialer", "group_admin_tools", "inline_translation", "quick_scroll_buttons",
+            "recover_deleted_messages", "status_text_composer", "sticker_confirm_alert",
+            "unlimited_pinned_chats"
         )
     }
 
@@ -149,7 +150,8 @@ fun GlobalPrivacySettingsScreen(
             "Message Protection",
             listOf(
                 SettingItem("Anti-Revoke Messages & Statuses", "Keep deleted messages and statuses visible to you", "anti_revoke"),
-                SettingItem("Hide Read & Delivery Receipts", "Read messages without sending blue read or delivery ticks", "hide_seen_receipts"),
+                SettingItem("Hide Read Receipts (Blue Ticks)", "Read messages without sending blue read checkmarks", "hide_read_receipts"),
+                SettingItem("Hide Delivery Receipts (Second Tick)", "Receive messages without sending second delivery checkmark", "hide_delivery_receipts"),
                 SettingItem("Locked Chats Enhancer", "Customize and bypass locks for specific chat vaults", "locked_chats_enhancer"),
                 SettingItem("Do Not Disturb (DND) Mode", "Temporarily block incoming messages dynamically", "dnd_mode")
             )
