@@ -67,7 +67,7 @@ fun SearchScreen() {
             SearchablePreference("anti_edit_messages", "Anti-Edit Messages", "Keep original version of edited messages in chat", "Message Controls", 1, "conversation", "Conversation"),
             SearchablePreference("sticker_confirm_alert", "Sticker Confirmation Alert", "Ask before sending clicked stickers", "Message Controls", 1, "conversation", "Conversation"),
             SearchablePreference("quick_scroll_buttons", "Quick Scroll Buttons", "Add buttons to jump directly to top or bottom of chat", "Message Controls", 1, "conversation", "Conversation"),
-            SearchablePreference("recover_deleted_messages", "Recover Deleted Messages", "Instantly restore deleted messages in chat", "Message Controls", 1, "conversation", "Conversation"),
+            SearchablePreference("preserve_delete_for_me", "Preserve \"Delete For Me\" Messages", "Keep local copy when messages are deleted for me", "Message Controls", 1, "conversation", "Conversation"),
             SearchablePreference("copy_status_text", "Copy Status Text", "Allow copying text from status updates", "Message Controls", 1, "conversation", "Conversation"),
             SearchablePreference("inline_translation", "Inline Message Translation", "Tap-to-translate messages directly inline", "Translation", 1, "conversation", "Conversation"),
             SearchablePreference("call_type_controller", "Call Type Controller", "Force voice-only or video-only incoming calls", "Chat & Group Utilities", 1, "conversation", "Conversation"),
