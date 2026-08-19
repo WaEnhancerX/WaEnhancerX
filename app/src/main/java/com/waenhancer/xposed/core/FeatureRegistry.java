@@ -3,6 +3,11 @@ package com.waenhancer.xposed.core;
 import android.content.Context;
 import android.content.SharedPreferences;
 import androidx.annotation.NonNull;
+import com.waenhancer.xposed.features.conversation.AntiEditMessagesHook;
+import com.waenhancer.xposed.features.conversation.CopyStatusTextHook;
+import com.waenhancer.xposed.features.conversation.JumpFirstMessageHook;
+import com.waenhancer.xposed.features.conversation.PreserveDeleteForMeHook;
+import com.waenhancer.xposed.features.conversation.StickerConfirmHook;
 import com.waenhancer.xposed.features.privacy.AntiRevokeHook;
 import com.waenhancer.xposed.features.privacy.AntiViewOnceHook;
 import com.waenhancer.xposed.features.privacy.FreezeLastSeenHook;
@@ -26,6 +31,13 @@ public final class FeatureRegistry {
         features.add(new FreezeLastSeenHook(context, classLoader, prefs));
         features.add(new HideReceiptsHook(context, classLoader, prefs));
         features.add(new AntiRevokeHook(context, classLoader, prefs));
+
+        // Conversation & Message Controls Features
+        features.add(new AntiEditMessagesHook(context, classLoader, prefs));
+        features.add(new StickerConfirmHook(context, classLoader, prefs));
+        features.add(new JumpFirstMessageHook(context, classLoader, prefs));
+        features.add(new PreserveDeleteForMeHook(context, classLoader, prefs));
+        features.add(new CopyStatusTextHook(context, classLoader, prefs));
     }
 
 

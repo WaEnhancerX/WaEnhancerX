@@ -109,7 +109,7 @@ fun GlobalPrivacySettingsScreen(
             "custom_privacy", "anti_revoke", "hide_read_receipts", "hide_delivery_receipts",
             "hide_seen_receipts", "locked_chats_enhancer", "dnd_mode", "anti_edit_messages",
             "call_type_controller", "chat_limits_bypass", "copy_status_text", "custom_filter_groups",
-            "direct_chat_dialer", "group_admin_tools", "inline_translation", "quick_scroll_buttons",
+            "direct_chat_dialer", "group_admin_tools", "inline_translation", "jump_to_first_message",
             "preserve_delete_for_me", "status_text_composer", "sticker_confirm_alert",
             "unlimited_pinned_chats"
         )
@@ -172,7 +172,7 @@ fun GlobalPrivacySettingsScreen(
             listOf(
                 SettingItem("Anti-Edit Messages", "Keep original version of edited messages in chat", "anti_edit_messages"),
                 SettingItem("Sticker Confirmation Alert", "Ask before sending clicked stickers", "sticker_confirm_alert"),
-                SettingItem("Quick Scroll Buttons", "Add buttons to jump directly to top or bottom of chat", "quick_scroll_buttons"),
+                SettingItem("Jump to First Message", "Add an option to jump directly to the beginning of any chat", "jump_to_first_message"),
                 SettingItem("Preserve \"Delete For Me\" Messages", "Keep local copy when messages are deleted for me", "preserve_delete_for_me"),
                 SettingItem("Copy Status Text", "Allow copying text from status updates", "copy_status_text")
             )
