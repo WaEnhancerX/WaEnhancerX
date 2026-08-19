@@ -421,7 +421,7 @@ fun DashboardBentoScreen() {
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
-                                text = "Privacy",
+                                text = "Controls",
                                 style = typography.bodyLg,
                                 fontWeight = FontWeight.Bold,
                                 color = colors.onSurface

@@ -161,7 +161,7 @@ enum class BottomTab(
     val screen: Screen
 ) {
     HOME("home", "Home", WaexIcons.GridView, Screen.MainDashboard),
-    PRIVACY("privacy", "Privacy", WaexIcons.Security, Screen.GlobalPrivacySettings),
+    PRIVACY("privacy", "Controls", WaexIcons.Security, Screen.GlobalPrivacySettings),
     MEDIA("media", "Media", WaexIcons.Image, Screen.MediaStatusHub),
     AUTOMATION("automation", "Automation", WaexIcons.AutoAwesome, Screen.AutomationTasker),
     STYLES("styles", "Styles", WaexIcons.Palette, Screen.StylesSettings)
@@ -274,7 +274,7 @@ fun MainContainerScreen() {
         Screen.MainDashboard -> "WaEnhancerX"
         Screen.SystemHealth -> "System Health"
         Screen.ProUpgradePaywall -> "Pro Upgrade"
-        Screen.GlobalPrivacySettings -> "Privacy"
+        Screen.GlobalPrivacySettings -> "Controls"
         Screen.MediaStatusHub -> "Media & Status"
         Screen.AutomationTasker -> "Automation"
         Screen.StylesSettings -> "Styles & Customization"
