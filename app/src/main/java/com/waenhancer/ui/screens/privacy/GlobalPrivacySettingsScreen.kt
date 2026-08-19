@@ -466,121 +466,136 @@ fun GlobalPrivacySettingsScreen(
                                 val currentIndicator = preferenceManager.getString("anti_revoke_indicator", "2")
                                 val isColorEnabled = preferenceManager.getBoolean("anti_revoke_color_enabled", true)
 
-                                Column(
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = colors.surfaceDim.copy(alpha = 0.6f),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                        .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 12.dp)
                                 ) {
-                                    // Row 1: Indicator Style
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(14.dp)
                                     ) {
-                                        Text(
-                                            text = "Indicator Style:",
-                                            style = typography.bodyMd,
-                                            color = colors.onSurfaceVariant,
-                                            fontWeight = FontWeight.Medium
-                                        )
-                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            listOf("2" to "Deleted Icon", "1" to "Text \"Deleted\"").forEach { (valKey, title) ->
-                                                val isSelected = currentIndicator == valKey
-                                                Surface(
-                                                    shape = RoundedCornerShape(8.dp),
-                                                    color = if (isSelected) colors.primary.copy(alpha = 0.15f) else colors.surface,
-                                                    border = androidx.compose.foundation.BorderStroke(
-                                                        1.dp,
-                                                        if (isSelected) colors.primary else colors.outlineVariant
-                                                    ),
-                                                    modifier = Modifier.clickable {
-                                                        preferenceManager.putString("anti_revoke_indicator", valKey)
-                                                        settingsState["anti_revoke_indicator_dummy"] = !(settingsState["anti_revoke_indicator_dummy"] ?: false)
+                                        // Section 1: Indicator Style with Segmented Control
+                                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            Text(
+                                                text = "INDICATOR STYLE",
+                                                style = typography.labelSm,
+                                                fontWeight = FontWeight.Bold,
+                                                color = colors.primary
+                                            )
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(10.dp))
+                                                    .background(colors.surface)
+                                                    .padding(4.dp),
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                listOf("2" to "Deleted Icon 🚫", "1" to "Text \"Deleted\"").forEach { (valKey, title) ->
+                                                    val isSelected = currentIndicator == valKey
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                            .clip(RoundedCornerShape(8.dp))
+                                                            .background(if (isSelected) colors.primary else Color.Transparent)
+                                                            .clickable {
+                                                                preferenceManager.putString("anti_revoke_indicator", valKey)
+                                                                settingsState["anti_revoke_indicator_dummy"] = !(settingsState["anti_revoke_indicator_dummy"] ?: false)
+                                                            }
+                                                            .padding(vertical = 8.dp),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Text(
+                                                            text = title,
+                                                            style = typography.labelSm,
+                                                            color = if (isSelected) colors.onPrimary else colors.onSurfaceVariant,
+                                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                                        )
                                                     }
-                                                ) {
-                                                    Text(
-                                                        text = title,
-                                                        style = typography.labelSm,
-                                                        color = if (isSelected) colors.primary else colors.onSurface,
-                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                                                    )
                                                 }
                                             }
                                         }
-                                    }
 
-                                    // Row 2: Color Deleted Messages Switch
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = "Color Deleted Message Text",
-                                                style = typography.bodyMd,
-                                                color = colors.onSurface,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                            Text(
-                                                text = "Apply custom color to deleted message and time",
-                                                style = typography.labelSm,
-                                                color = colors.onSurfaceVariant
-                                            )
-                                        }
-                                        StitchSwitch(
-                                            checked = isColorEnabled,
-                                            onCheckedChange = { checked ->
-                                                preferenceManager.putBoolean("anti_revoke_color_enabled", checked)
-                                                settingsState["anti_revoke_color_enabled"] = checked
-                                                settingsState["anti_revoke_indicator_dummy"] = !(settingsState["anti_revoke_indicator_dummy"] ?: false)
-                                            }
+                                        HorizontalDivider(
+                                            color = colors.outlineVariant.copy(alpha = 0.5f),
+                                            thickness = 0.5.dp
                                         )
-                                    }
 
-                                    // Row 3: Color Picker Trigger (only when Color Deleted Messages is ON)
-                                    if (isColorEnabled) {
+                                        // Section 2: Color Deleted Messages Switch
                                         Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clip(RoundedCornerShape(10.dp))
-                                                .background(colors.surfaceContainerHigh)
-                                                .clickable { showColorPickerDialog = true }
-                                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                            modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                            ) {
-                                                val parsedCurrentColor = try {
-                                                    Color(android.graphics.Color.parseColor(deletedMessageColor))
-                                                } catch (_: Throwable) {
-                                                    Color(0xFFEF4444)
-                                                }
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(24.dp)
-                                                        .clip(CircleShape)
-                                                        .background(parsedCurrentColor)
-                                                        .border(1.5.dp, colors.outline, CircleShape)
-                                                )
+                                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                                 Text(
-                                                    text = "Message Text Color",
+                                                    text = "Color Deleted Message Text",
                                                     style = typography.bodyMd,
                                                     color = colors.onSurface,
                                                     fontWeight = FontWeight.Medium
                                                 )
+                                                Text(
+                                                    text = "Apply custom color to deleted message and time",
+                                                    style = typography.labelSm,
+                                                    color = colors.onSurfaceVariant
+                                                )
                                             }
-                                            Text(
-                                                text = deletedMessageColor.uppercase(),
-                                                style = typography.labelSm,
-                                                color = colors.primary,
-                                                fontWeight = FontWeight.Bold
+                                            StitchSwitch(
+                                                checked = isColorEnabled,
+                                                onCheckedChange = { checked ->
+                                                    preferenceManager.putBoolean("anti_revoke_color_enabled", checked)
+                                                    settingsState["anti_revoke_color_enabled"] = checked
+                                                    settingsState["anti_revoke_indicator_dummy"] = !(settingsState["anti_revoke_indicator_dummy"] ?: false)
+                                                }
                                             )
+                                        }
+
+                                        // Section 3: Color Picker Trigger (only when Color Deleted Messages is ON)
+                                        if (isColorEnabled) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(10.dp))
+                                                    .background(colors.surface)
+                                                    .clickable { showColorPickerDialog = true }
+                                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                                ) {
+                                                    val parsedCurrentColor = try {
+                                                        Color(android.graphics.Color.parseColor(deletedMessageColor))
+                                                    } catch (_: Throwable) {
+                                                        Color(0xFFEF4444)
+                                                    }
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(24.dp)
+                                                            .clip(CircleShape)
+                                                            .background(parsedCurrentColor)
+                                                            .border(1.5.dp, colors.outline, CircleShape)
+                                                    )
+                                                    Text(
+                                                        text = "Message Text Color",
+                                                        style = typography.bodyMd,
+                                                        color = colors.onSurface,
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                }
+                                                Text(
+                                                    text = deletedMessageColor.uppercase(),
+                                                    style = typography.labelSm,
+                                                    color = colors.primary,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
                                         }
                                     }
                                 }

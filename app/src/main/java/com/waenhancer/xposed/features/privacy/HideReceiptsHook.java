@@ -453,7 +453,7 @@ public class HideReceiptsHook extends BaseFeature {
     }
 
     private boolean isHideReadReceiptsEnabled() {
-        return isEnabled("hide_read_receipts", isEnabled("hide_seen_receipts", false));
+        return isEnabled("hide_read_receipts", false);
     }
 
     private boolean isHideDeliveryReceiptsEnabled() {

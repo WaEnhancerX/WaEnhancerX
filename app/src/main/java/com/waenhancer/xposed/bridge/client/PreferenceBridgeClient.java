@@ -42,17 +42,8 @@ public class PreferenceBridgeClient implements SharedPreferences {
     }
 
     public synchronized void syncPreferences() {
-        // Disk read
-        if (diskPrefs != null) {
-            try {
-                Map<String, ?> all = diskPrefs.getAll();
-                if (all != null && !all.isEmpty()) {
-                    memoryCache.putAll(all);
-                }
-            } catch (Throwable ignored) {}
-        }
-
         // Provider IPC read (bypasses SELinux file restrictions on modern Android)
+        boolean syncedFromProvider = false;
         try {
             Bundle bundle = context.getContentResolver().call(
                     Uri.parse("content://" + AUTHORITY),
@@ -63,12 +54,25 @@ public class PreferenceBridgeClient implements SharedPreferences {
             if (bundle != null) {
                 @SuppressWarnings("unchecked")
                 HashMap<String, Object> map = (HashMap<String, Object>) bundle.getSerializable("prefs");
-                if (map != null && !map.isEmpty()) {
+                if (map != null) {
+                    memoryCache.clear();
                     memoryCache.putAll(map);
+                    syncedFromProvider = true;
                 }
             }
         } catch (Throwable t) {
             XposedBridge.log("[WAEX] PreferenceBridgeClient: Provider IPC query failed: " + t.getMessage());
+        }
+
+        // Disk read fallback if provider query was unavailable
+        if (!syncedFromProvider && diskPrefs != null) {
+            try {
+                Map<String, ?> all = diskPrefs.getAll();
+                if (all != null) {
+                    memoryCache.clear();
+                    memoryCache.putAll(all);
+                }
+            } catch (Throwable ignored) {}
         }
     }
 
