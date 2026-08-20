@@ -13,14 +13,11 @@ import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
 import android.util.AttributeSet
-import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
-import android.view.ViewParent
-import android.view.Window
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
 import android.widget.CompoundButton
@@ -32,14 +29,13 @@ import android.widget.TextView
 import androidx.core.widget.NestedScrollView
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
-import java.lang.reflect.Method
 
 /**
- * Clean, idiomatic Kotlin implementation of WhatsApp's Native WDS Bottom Sheet.
- * Integrates WDSTextView, WDSButton, and WDSSwitch components with native
+ * Modern Native WhatsApp WDS (WhatsApp Design System) bottom sheet component for WAEX.
+ * Integrates WhatsApp's internal WDSTextView, WDSButton, and WDSSwitch components with
  * physics-based slide animations and gesture dismissal.
  */
-class AlertDialogWpp(private val context: Context) {
+class WaexBottomSheet(private val context: Context) {
 
     private var titleText: CharSequence? = null
     private var messageText: CharSequence? = null
@@ -58,54 +54,54 @@ class AlertDialogWpp(private val context: Context) {
 
     private var createdDialog: Dialog? = null
 
-    fun setTitle(title: CharSequence?): AlertDialogWpp {
+    fun setTitle(title: CharSequence?): WaexBottomSheet {
         this.titleText = title
         return this
     }
 
-    fun setMessage(message: CharSequence?): AlertDialogWpp {
+    fun setMessage(message: CharSequence?): WaexBottomSheet {
         this.messageText = message
         return this
     }
 
-    fun setPositiveButton(text: CharSequence?, listener: DialogInterface.OnClickListener?): AlertDialogWpp {
+    fun setPositiveButton(text: CharSequence?, listener: DialogInterface.OnClickListener?): WaexBottomSheet {
         this.positiveButtonText = text
         this.positiveListener = listener
         return this
     }
 
-    fun setNegativeButton(text: CharSequence?, listener: DialogInterface.OnClickListener?): AlertDialogWpp {
+    fun setNegativeButton(text: CharSequence?, listener: DialogInterface.OnClickListener?): WaexBottomSheet {
         this.negativeButtonText = text
         this.negativeListener = listener
         return this
     }
 
-    fun setView(view: View?): AlertDialogWpp {
+    fun setView(view: View?): WaexBottomSheet {
         this.customView = view
         return this
     }
 
-    fun setItems(items: Array<CharSequence>?, listener: DialogInterface.OnClickListener?): AlertDialogWpp {
+    fun setItems(items: Array<CharSequence>?, listener: DialogInterface.OnClickListener?): WaexBottomSheet {
         this.items = items
         this.itemsListener = listener
         return this
     }
 
-    fun setSingleChoiceItems(items: Array<CharSequence>?, checkedItem: Int, listener: DialogInterface.OnClickListener?): AlertDialogWpp {
+    fun setSingleChoiceItems(items: Array<CharSequence>?, checkedItem: Int, listener: DialogInterface.OnClickListener?): WaexBottomSheet {
         this.items = items
         this.selectedIndex = checkedItem
         this.itemsListener = listener
         return this
     }
 
-    fun setMultiChoiceItems(items: Array<CharSequence>?, checkedItems: BooleanArray?, listener: DialogInterface.OnMultiChoiceClickListener?): AlertDialogWpp {
+    fun setMultiChoiceItems(items: Array<CharSequence>?, checkedItems: BooleanArray?, listener: DialogInterface.OnMultiChoiceClickListener?): WaexBottomSheet {
         this.multiChoiceItems = items
         this.checkedItems = checkedItems
         this.multiChoiceListener = listener
         return this
     }
 
-    fun asBottomSheet(): AlertDialogWpp {
+    fun asBottomSheet(): WaexBottomSheet {
         this.isBottomSheet = true
         return this
     }
@@ -466,7 +462,7 @@ class AlertDialogWpp(private val context: Context) {
         try {
             d.show()
         } catch (t: Throwable) {
-            XposedBridge.log("[WAEX] AlertDialogWpp.show() failed: ${t.message}")
+            XposedBridge.log("[WAEX] WaexBottomSheet.show() failed: ${t.message}")
         }
         return d
     }

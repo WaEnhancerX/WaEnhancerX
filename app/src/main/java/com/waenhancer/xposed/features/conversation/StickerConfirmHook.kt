@@ -8,7 +8,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import com.waenhancer.xposed.core.BaseFeature
-import com.waenhancer.xposed.core.components.AlertDialogWpp
+import com.waenhancer.xposed.core.components.WaexBottomSheet
 import com.waenhancer.xposed.utils.ActivityTracker
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
@@ -69,7 +69,7 @@ class StickerConfirmHook(
         val stickerImageView = findStickerImageView(view)
         val drawable = stickerImageView?.drawable
 
-        val bottomSheet = AlertDialogWpp(currentActivity).asBottomSheet()
+        val bottomSheet = WaexBottomSheet(currentActivity).asBottomSheet()
         bottomSheet.setTitle("Send Sticker?")
         bottomSheet.setMessage("Do you want to send this sticker to the chat?")
 
