@@ -3,6 +3,7 @@ package com.waenhancer.xposed.core;
 import android.content.Context;
 import android.content.SharedPreferences;
 import androidx.annotation.NonNull;
+import com.waenhancer.xposed.core.components.NativeWhatsAppDialog;
 import com.waenhancer.xposed.features.conversation.AntiEditMessagesHook;
 import com.waenhancer.xposed.features.conversation.CopyStatusTextHook;
 import com.waenhancer.xposed.features.conversation.JumpFirstMessageHook;
@@ -25,6 +26,9 @@ public final class FeatureRegistry {
     private final List<BaseFeature> features = new ArrayList<>();
 
     public FeatureRegistry(@NonNull Context context, @NonNull ClassLoader classLoader, @NonNull SharedPreferences prefs) {
+        // Initialize Native WhatsApp WDS / Material Dialog engine
+        NativeWhatsAppDialog.Companion.initialize(context, classLoader);
+
         // Privacy Core Features
         features.add(new AntiViewOnceHook(context, classLoader, prefs));
         features.add(new TypingPrivacyHook(context, classLoader, prefs));

@@ -1,6 +1,5 @@
 package com.waenhancer.xposed.features.conversation
 
-import android.app.AlertDialog
 import android.content.Context
 import android.content.SharedPreferences
 import android.view.Gravity
@@ -9,6 +8,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import com.waenhancer.xposed.core.BaseFeature
+import com.waenhancer.xposed.core.components.AlertDialogWpp
 import com.waenhancer.xposed.utils.ActivityTracker
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
@@ -16,7 +16,7 @@ import de.robv.android.xposed.XposedHelpers
 
 /**
  * Intercepts sticker taps in the sticker picker tray and displays
- * a confirmation dialog before sending the sticker.
+ * a native WhatsApp bottom sheet confirmation before sending the sticker.
  */
 class StickerConfirmHook(
     context: Context,
@@ -69,35 +69,32 @@ class StickerConfirmHook(
         val stickerImageView = findStickerImageView(view)
         val drawable = stickerImageView?.drawable
 
-        val builder = AlertDialog.Builder(currentActivity)
-        builder.setTitle("Send Sticker?")
-        builder.setMessage("Are you sure you want to send this sticker?")
+        val bottomSheet = AlertDialogWpp(currentActivity).asBottomSheet()
+        bottomSheet.setTitle("Send Sticker?")
+        bottomSheet.setMessage("Do you want to send this sticker to the chat?")
 
         if (drawable != null) {
             val previewContainer = LinearLayout(currentActivity).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER_HORIZONTAL
-                setPadding(0, 32, 0, 16)
+                setPadding(0, 16, 0, 8)
             }
             val previewImage = ImageView(currentActivity).apply {
                 setImageDrawable(drawable.constantState?.newDrawable() ?: drawable)
-                val size = (120 * currentActivity.resources.displayMetrics.density).toInt()
+                val size = (110 * currentActivity.resources.displayMetrics.density).toInt()
                 layoutParams = LinearLayout.LayoutParams(size, size)
                 scaleType = ImageView.ScaleType.FIT_CENTER
             }
             previewContainer.addView(previewImage)
-            builder.setView(previewContainer)
+            bottomSheet.setView(previewContainer)
         }
 
-        builder.setPositiveButton("Send") { dialog, _ ->
-            dialog.dismiss()
+        bottomSheet.setPositiveButton("Send") { _, _ ->
             onConfirmListener?.onClick(view)
         }
-        builder.setNegativeButton("Cancel") { dialog, _ ->
-            dialog.dismiss()
-        }
+        bottomSheet.setNegativeButton("Cancel", null)
 
-        builder.create().show()
+        bottomSheet.show()
     }
 
     private fun findStickerImageView(parent: View): ImageView? {
