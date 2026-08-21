@@ -3,24 +3,30 @@ package com.waenhancer.xposed.features.conversation
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.content.ContentValues
 import android.content.Context
 import android.content.SharedPreferences
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.graphics.Color
 import android.graphics.Typeface
+import android.text.Spannable
 import android.text.SpannableString
+import android.text.SpannableStringBuilder
+import android.text.style.BackgroundColorSpan
+import android.text.style.ForegroundColorSpan
+import android.text.style.StrikethroughSpan
 import android.text.style.UnderlineSpan
+import android.util.AttributeSet
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.widget.CompoundButton
 import android.widget.HeaderViewListAdapter
 import android.widget.ListAdapter
 import android.widget.ListView
 import android.widget.LinearLayout
+import android.widget.Switch
 import android.widget.TextView
-import android.widget.Toast
 import com.waenhancer.xposed.core.BaseFeature
 import com.waenhancer.xposed.core.components.WaexBottomSheet
 import com.waenhancer.xposed.core.db.EditMessageStore
@@ -33,20 +39,19 @@ import org.luckypray.dexkit.query.FindMethod
 import org.luckypray.dexkit.query.enums.StringMatchType
 import org.luckypray.dexkit.query.matchers.MethodMatcher
 import java.io.File
+import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.text.DateFormat
 import java.util.Date
 import java.util.concurrent.ConcurrentHashMap
+import java.util.regex.Pattern
 
 /**
  * Anti-Edit Messages Feature for WhatsApp.
  *
- * 1. Captures pre-edited message content directly from the active SQLite database
- *    before WhatsApp executes the overwrite update statement.
- * 2. Persists original pre-edited message content, edit timestamps, and revisions in EditMessageStore.
- * 3. Decorates WhatsApp's message bubble "(edited)" label with interactive visual cues (📝).
- * 4. Tapping "(edited)" opens WhatsApp's native WDS Bottom Sheet displaying previous versions
- *    and the edited version with timestamps and one-tap clipboard copy.
+ * - Renders all distinct versions in descending chronological order (Latest at top).
+ * - Selectable text on all cards.
+ * - Top-Right WDSSwitch "Show changes" to dynamically highlight text diffs (Green for added, Red for removed).
  */
 class AntiEditMessagesHook(
     context: Context,
@@ -60,174 +65,58 @@ class AntiEditMessagesHook(
     companion object {
         private const val TAG = "[WAEX:AntiEdit]"
         private const val PREF_KEY = "anti_edit_messages"
-        private const val FIELD_EDIT_MSG_ID = "waex_bound_edit_msg_id"
-        private const val FIELD_EDIT_MSG_TEXT = "waex_bound_edit_msg_text"
+        private const val FIELD_ROW_ID = "waex_row_id"
+        private const val FIELD_MSG_ID = "waex_msg_id"
+        private const val FIELD_MSG_TEXT = "waex_msg_text"
         private val messageTextCache = ConcurrentHashMap<String, String>()
         private val timeFormatter = DateFormat.getTimeInstance(DateFormat.SHORT)
+        private val KEY_ID_REGEX = Pattern.compile("id=([A-Za-z0-9]+)")
     }
 
     private val editStore: EditMessageStore by lazy { EditMessageStore.getInstance(context) }
 
     override fun hook() {
-        hookDatabaseMessageEdit()
-        hookBytecodeMessageEdit()
+        hookMessageEditMethod()
+        hookDatabaseEditInsert()
         hookListViewAdapter()
         hookViewAttachmentFallback()
         XposedBridge.log("$TAG All AntiEdit hooks initialized.")
     }
 
-    // ─── 1. SQLite Database Edit Interception (Guaranteed Pre-Edit Capture) ──────
+    // ─── 1. Bytecode Edit Interception ──────────────────────────────────────────
 
-    private fun hookDatabaseMessageEdit() {
+    private fun hookMessageEditMethod() {
         try {
-            // Hook SQLite updates on 'message' table: query existing text BEFORE update overwrites it
-            XposedHelpers.findAndHookMethod(
-                SQLiteDatabase::class.java,
-                "updateWithOnConflict",
-                String::class.java,
-                ContentValues::class.java,
-                String::class.java,
-                Array<String>::class.java,
-                Int::class.javaPrimitiveType,
-                object : XC_MethodHook() {
-                    override fun beforeHookedMethod(param: MethodHookParam) {
-                        if (!isEnabled(PREF_KEY, false)) return
-                        val table = param.args.getOrNull(0) as? String ?: return
-                        if (table != "message") return
-
-                        val values = param.args.getOrNull(1) as? ContentValues ?: return
-                        val newText = values.getAsString("text_data")
-                        val keyId = values.getAsString("key_id")
-                        val whereClause = param.args.getOrNull(2) as? String
-                        val whereArgs = param.args.getOrNull(3) as? Array<String>
-                        val db = param.thisObject as? SQLiteDatabase ?: return
-
-                        try {
-                            var targetKeyId = keyId
-                            var originalText: String? = null
-                            var originalTimestamp: Long = 0L
-
-                            // If key_id is not in ContentValues, extract key_id from where clause or db query
-                            if (targetKeyId.isNullOrEmpty() && whereClause != null && whereArgs != null) {
-                                val queryCursor: Cursor? = db.query("message", arrayOf("key_id", "text_data", "timestamp"), whereClause, whereArgs, null, null, null)
-                                queryCursor?.use { cursor ->
-                                    if (cursor.moveToFirst()) {
-                                        targetKeyId = cursor.getString(0)
-                                        originalText = cursor.getString(1)
-                                        originalTimestamp = cursor.getLong(2)
-                                    }
-                                }
-                            } else if (!targetKeyId.isNullOrEmpty()) {
-                                val queryCursor: Cursor? = db.query("message", arrayOf("text_data", "timestamp"), "key_id=?", arrayOf(targetKeyId), null, null, null)
-                                queryCursor?.use { cursor ->
-                                    if (cursor.moveToFirst()) {
-                                        originalText = cursor.getString(0)
-                                        originalTimestamp = cursor.getLong(1)
-                                    }
-                                }
-                            }
-
-                            if (!targetKeyId.isNullOrEmpty()) {
-                                val preEditText = originalText ?: messageTextCache[targetKeyId]
-                                if (!preEditText.isNullOrEmpty() && !newText.isNullOrEmpty() && preEditText != newText) {
-                                    val now = System.currentTimeMillis()
-                                    editStore.recordEdit(targetKeyId, "", preEditText, newText, if (originalTimestamp > 0) originalTimestamp else now)
-                                    XposedBridge.log("$TAG Captured pre-edit text before DB update for: $targetKeyId")
-                                }
-                                if (!newText.isNullOrEmpty()) {
-                                    messageTextCache[targetKeyId!!] = newText
-                                }
-                            }
-                        } catch (t: Throwable) {
-                            XposedBridge.log("$TAG Error querying pre-edit text in DB update: ${t.message}")
-                        }
-                    }
-                }
-            )
-
-            // Hook SQLite insert on 'message_edit_info' or 'message_add_on'
-            XposedHelpers.findAndHookMethod(
-                SQLiteDatabase::class.java,
-                "insertWithOnConflict",
-                String::class.java,
-                String::class.java,
-                ContentValues::class.java,
-                Int::class.javaPrimitiveType,
-                object : XC_MethodHook() {
-                    override fun beforeHookedMethod(param: MethodHookParam) {
-                        if (!isEnabled(PREF_KEY, false)) return
-                        val table = param.args.getOrNull(0) as? String ?: return
-                        if (table == "message_edit_info" || table == "message_add_on") {
-                            val values = param.args.getOrNull(2) as? ContentValues ?: return
-                            handleDbEditInsert(values)
-                        }
-                    }
-                }
-            )
-        } catch (t: Throwable) {
-            XposedBridge.log("$TAG Database hook error: ${t.message}")
-        }
-    }
-
-    private fun handleDbEditInsert(values: ContentValues) {
-        try {
-            val keyId = values.getAsString("original_key_id")
-                ?: values.getAsString("key_id")
-                ?: values.getAsString("message_id")
-            val originalText = values.getAsString("original_text")
-                ?: values.getAsString("old_text")
-            val newText = values.getAsString("edited_text")
-                ?: values.getAsString("new_text")
-            val timestamp = values.getAsLong("edit_timestamp") ?: System.currentTimeMillis()
-
-            if (!keyId.isNullOrEmpty()) {
-                val orig = originalText ?: messageTextCache[keyId] ?: ""
-                val edited = newText ?: ""
-                if (orig.isNotEmpty() || edited.isNotEmpty()) {
-                    editStore.recordEdit(keyId, "", orig, edited, timestamp)
-                    XposedBridge.log("$TAG Recorded edit insert for key: $keyId")
-                }
-            }
-        } catch (t: Throwable) {
-            XposedBridge.log("$TAG DB edit insert parsing error: ${t.message}")
-        }
-    }
-
-    // ─── 2. Bytecode Edit Interception ──────────────────────────────────────────
-
-    private fun hookBytecodeMessageEdit() {
-        try {
-            val editMethod = resolveMessageEditMethod()
-            if (editMethod != null) {
+            val onMessageEdit = resolveMessageEditMethod()
+            if (onMessageEdit != null) {
                 XposedBridge.hookMethod(
-                    editMethod,
+                    onMessageEdit,
                     object : XC_MethodHook() {
                         override fun beforeHookedMethod(param: MethodHookParam) {
                             if (!isEnabled(PREF_KEY, false)) return
 
                             try {
-                                val messageObj = param.args.getOrNull(0) ?: return
-                                val msgId = extractMessageId(messageObj) ?: return
-                                val currentText = extractMessageText(messageObj)
+                                val fMessage = param.args.getOrNull(0) ?: return
+                                val keyId = extractKeyId(fMessage)
+                                val rowId = extractRowId(fMessage)
+                                val newMessage = extractMessageText(fMessage)
 
-                                val previousText = messageTextCache[msgId]
-                                if (!previousText.isNullOrEmpty() && !currentText.isNullOrEmpty() && previousText != currentText) {
-                                    editStore.recordEdit(msgId, "", previousText, currentText, System.currentTimeMillis())
-                                    XposedBridge.log("$TAG Recorded bytecode edit for msgId: $msgId")
-                                }
-
-                                if (!currentText.isNullOrEmpty()) {
-                                    messageTextCache[msgId] = currentText
+                                if (!newMessage.isNullOrBlank() && (!keyId.isNullOrEmpty() || rowId > 0)) {
+                                    val ts = System.currentTimeMillis()
+                                    editStore.recordEdit(rowId, keyId, newMessage, ts)
+                                    if (!keyId.isNullOrEmpty()) {
+                                        messageTextCache[keyId] = newMessage
+                                    }
                                 }
                             } catch (t: Throwable) {
-                                XposedBridge.log("$TAG Error in bytecode edit hook: ${t.message}")
+                                XposedBridge.log("$TAG Error in onMessageEdit: ${t.message}")
                             }
                         }
                     }
                 )
             }
         } catch (t: Throwable) {
-            XposedBridge.log("$TAG Failed to hook bytecode edit: ${t.message}")
+            XposedBridge.log("$TAG Failed to hook onMessageEdit: ${t.message}")
         }
     }
 
@@ -236,7 +125,7 @@ class AntiEditMessagesHook(
             DexSearchEngine.getInstance().findMethodWithCache(
                 context,
                 classLoader,
-                "wpp_message_edit_insert_v4",
+                "wpp_anti_edit_method_v14",
                 { bridge, loader ->
                     val data = bridge.findMethod(
                         FindMethod.create().matcher(
@@ -258,6 +147,44 @@ class AntiEditMessagesHook(
             )
         } catch (t: Throwable) {
             null
+        }
+    }
+
+    // ─── 2. SQLite Database Interception Fallback ──────────────────────────────
+
+    private fun hookDatabaseEditInsert() {
+        try {
+            XposedHelpers.findAndHookMethod(
+                SQLiteDatabase::class.java,
+                "insertWithOnConflict",
+                String::class.java,
+                String::class.java,
+                android.content.ContentValues::class.java,
+                Int::class.javaPrimitiveType,
+                object : XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam) {
+                        if (!isEnabled(PREF_KEY, false)) return
+                        val table = param.args.getOrNull(0) as? String ?: return
+                        if (table == "message_edit_info" || table == "message_add_on" || table == "message_add_on_edit_info") {
+                            val values = param.args.getOrNull(2) as? android.content.ContentValues ?: return
+                            val keyId = values.getAsString("original_key_id") ?: values.getAsString("key_id")
+                            val rowId = values.getAsLong("message_row_id") ?: 0L
+                            val editedText = values.getAsString("edited_text")
+                                ?: values.getAsString("new_text")
+                                ?: values.getAsString("text_data")
+                            val ts = values.getAsLong("edit_timestamp")
+                                ?: values.getAsLong("sender_timestamp")
+                                ?: System.currentTimeMillis()
+
+                            if (!editedText.isNullOrBlank() && (!keyId.isNullOrEmpty() || rowId > 0)) {
+                                editStore.recordEdit(rowId, keyId, editedText, ts)
+                            }
+                        }
+                    }
+                }
+            )
+        } catch (t: Throwable) {
+            XposedBridge.log("$TAG Database insert hook error: ${t.message}")
         }
     }
 
@@ -300,27 +227,32 @@ class AntiEditMessagesHook(
                                         val row = p.result as? ViewGroup ?: return
 
                                         val item = try { adapter.getItem(pos) } catch (t: Throwable) { null } ?: return
-                                        val msgId = extractMessageId(item)
+                                        val keyId = extractKeyId(item)
+                                        val rowId = extractRowId(item)
                                         val msgText = extractMessageText(item)
 
-                                        if (!msgId.isNullOrEmpty()) {
-                                            XposedHelpers.setAdditionalInstanceField(row, FIELD_EDIT_MSG_ID, msgId)
+                                        if (rowId > 0) {
+                                            XposedHelpers.setAdditionalInstanceField(row, FIELD_ROW_ID, rowId)
+                                        }
+                                        if (!keyId.isNullOrEmpty()) {
+                                            XposedHelpers.setAdditionalInstanceField(row, FIELD_MSG_ID, keyId)
+                                            XposedHelpers.setAdditionalInstanceField(row, "waex_key_id", keyId)
                                             if (!msgText.isNullOrEmpty()) {
-                                                messageTextCache[msgId] = msgText
-                                                XposedHelpers.setAdditionalInstanceField(row, FIELD_EDIT_MSG_TEXT, msgText)
+                                                messageTextCache[keyId] = msgText
+                                                XposedHelpers.setAdditionalInstanceField(row, FIELD_MSG_TEXT, msgText)
                                             }
+                                        }
 
-                                            val editLabel = findChildByResourceName(row, "edit_label")
-                                                ?: findChildByResourceName(row, "edited_label")
-                                            if (editLabel != null) {
-                                                bindEditLabel(editLabel, row, msgId, msgText)
-                                            }
+                                        val editLabel = findChildByResourceName(row, "edit_label")
+                                            ?: findChildByResourceName(row, "edited_label")
+                                        if (editLabel != null) {
+                                            bindEditLabel(editLabel, row, rowId, keyId, msgText)
                                         }
                                     }
                                 }
                             )
                         } catch (t: Throwable) {
-                            XposedBridge.log("$TAG Error hooking getView for AntiEdit: ${t.message}")
+                            XposedBridge.log("$TAG Error hooking getView: ${t.message}")
                         }
                     }
                 }
@@ -345,12 +277,12 @@ class AntiEditMessagesHook(
                         val resName = getResourceEntryName(view)
 
                         if (resName == "edit_label" || resName == "edited_label") {
-                            bindEditLabel(view, null, null, null)
+                            bindEditLabel(view, null, 0L, null, null)
                         } else if (view is ViewGroup) {
                             val editLabel = findChildByResourceName(view, "edit_label")
                                 ?: findChildByResourceName(view, "edited_label")
                             if (editLabel != null) {
-                                bindEditLabel(editLabel, view, null, null)
+                                bindEditLabel(editLabel, view, 0L, null, null)
                             }
                         }
                     }
@@ -361,7 +293,7 @@ class AntiEditMessagesHook(
         }
     }
 
-    private fun bindEditLabel(labelView: View, parentRow: View?, boundMsgId: String?, boundText: String?) {
+    private fun bindEditLabel(labelView: View, parentRow: View?, boundRowId: Long, boundKeyId: String?, boundText: String?) {
         if (labelView is TextView) {
             val originalText = labelView.text.toString()
             if (!originalText.contains("📝")) {
@@ -371,38 +303,40 @@ class AntiEditMessagesHook(
             }
         }
 
-        if (boundMsgId != null) {
-            XposedHelpers.setAdditionalInstanceField(labelView, FIELD_EDIT_MSG_ID, boundMsgId)
+        if (boundRowId > 0) {
+            XposedHelpers.setAdditionalInstanceField(labelView, FIELD_ROW_ID, boundRowId)
+        }
+        if (boundKeyId != null) {
+            XposedHelpers.setAdditionalInstanceField(labelView, FIELD_MSG_ID, boundKeyId)
         }
         if (boundText != null) {
-            XposedHelpers.setAdditionalInstanceField(labelView, FIELD_EDIT_MSG_TEXT, boundText)
+            XposedHelpers.setAdditionalInstanceField(labelView, FIELD_MSG_TEXT, boundText)
         }
 
         labelView.isClickable = true
         labelView.setOnClickListener { clickedView ->
             val row = parentRow ?: findParentMessageRow(clickedView)
-            val msgId = (XposedHelpers.getAdditionalInstanceField(clickedView, FIELD_EDIT_MSG_ID) as? String)
-                ?: (row?.let { XposedHelpers.getAdditionalInstanceField(it, FIELD_EDIT_MSG_ID) as? String })
+            val rowId = (XposedHelpers.getAdditionalInstanceField(clickedView, FIELD_ROW_ID) as? Long)
+                ?: (row?.let { XposedHelpers.getAdditionalInstanceField(it, FIELD_ROW_ID) as? Long })
+                ?: 0L
+
+            val keyId = (XposedHelpers.getAdditionalInstanceField(clickedView, FIELD_MSG_ID) as? String)
+                ?: (row?.let { XposedHelpers.getAdditionalInstanceField(it, FIELD_MSG_ID) as? String })
                 ?: (row?.let { XposedHelpers.getAdditionalInstanceField(it, "waex_key_id") as? String })
 
-            val visibleBubbleText = (XposedHelpers.getAdditionalInstanceField(clickedView, FIELD_EDIT_MSG_TEXT) as? String)
-                ?: (row?.let { XposedHelpers.getAdditionalInstanceField(it, FIELD_EDIT_MSG_TEXT) as? String })
+            val visibleBubbleText = (XposedHelpers.getAdditionalInstanceField(clickedView, FIELD_MSG_TEXT) as? String)
+                ?: (row?.let { XposedHelpers.getAdditionalInstanceField(it, FIELD_MSG_TEXT) as? String })
                 ?: extractTextFromMessageBubble(row)
 
-            showEditHistoryBottomSheet(clickedView.context, msgId, visibleBubbleText)
+            showEditHistoryBottomSheet(clickedView.context, rowId, keyId, visibleBubbleText)
         }
     }
 
-    // ─── 5. WDS Bottom Sheet Display ───────────────────────────────────────────
+    // ─── 5. WDS Bottom Sheet Display (Descending Order with Diff Highlighting) ──
 
-    private fun showEditHistoryBottomSheet(context: Context, messageId: String?, currentText: String?) {
+    private fun showEditHistoryBottomSheet(context: Context, rowId: Long, keyId: String?, currentText: String?) {
         val currentActivity = ActivityTracker.getCurrentActivity() ?: context
-        var history = if (!messageId.isNullOrEmpty()) editStore.getHistoryByMessageId(messageId) else emptyList()
-
-        // If history is empty, try querying WhatsApp's internal database for historical edit records
-        if (history.isEmpty() && !messageId.isNullOrEmpty()) {
-            history = queryWhatsappInternalEditHistory(context, messageId)
-        }
+        val allVersions = loadAllChronologicalVersions(context, rowId, keyId, currentText)
 
         val bottomSheet = WaexBottomSheet(currentActivity).asBottomSheet()
         bottomSheet.setTitle("Edited Message History")
@@ -410,34 +344,77 @@ class AntiEditMessagesHook(
         val density = currentActivity.resources.displayMetrics.density
         val dp = { v: Int -> (v * density).toInt() }
 
+        // Map each version number to its exact text for preceding diff lookups
+        val versionTextMap = mutableMapOf<Int, String>()
+        for (item in allVersions) {
+            versionTextMap[item.versionNumber] = item.textData
+        }
+
+        val cardTextViews = mutableListOf<Pair<TextView, EditMessageStore.MessageItem>>()
+
+        // Top-Right "Show changes" Switch
+        val switchRow = LinearLayout(currentActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        val switchLabel = TextView(currentActivity).apply {
+            text = "Show changes"
+            textSize = 13f
+            setTextColor(0xFF8696A0.toInt())
+            setPadding(0, 0, dp(6), 0)
+        }
+        switchRow.addView(switchLabel)
+
+        val wdsSwitch = createWdsSwitch(currentActivity).apply {
+            isChecked = false
+            setOnCheckedChangeListener { _, isChecked ->
+                for ((textView, item) in cardTextViews) {
+                    if (isChecked) {
+                        val prevText = versionTextMap[item.versionNumber - 1]
+                        if (!prevText.isNullOrEmpty() && item.versionNumber > 1) {
+                            textView.text = buildDiffSpannable(prevText, item.textData)
+                        } else {
+                            textView.text = item.textData
+                        }
+                    } else {
+                        textView.text = item.textData
+                    }
+                }
+            }
+        }
+        switchRow.addView(wdsSwitch)
+        bottomSheet.setTopRightView(switchRow)
+
         val contentLayout = LinearLayout(currentActivity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(4), dp(4), dp(4), dp(12))
         }
 
-        if (history.isNotEmpty()) {
-            for ((idx, item) in history.withIndex()) {
-                val formattedTime = if (item.timestamp > 0) timeFormatter.format(Date(item.timestamp)) else "Original"
-                val versionTitle = if (idx == 0) "Original (Pre-Edit) • $formattedTime" else "Revision $idx • $formattedTime"
-                val displayText = if (item.originalText.isNotEmpty()) item.originalText else item.editedText
+        if (allVersions.isNotEmpty()) {
+            // Render in descending order: latest version on top
+            val descendingList = allVersions.reversed()
+            val totalVersions = allVersions.size
 
-                val itemBox = createHistoryCard(currentActivity, versionTitle, displayText, 0xFF00A884.toInt(), dp)
-                contentLayout.addView(itemBox)
-            }
+            for (item in descendingList) {
+                val isFirst = (item.versionNumber == 1)
+                val isLatest = (item.versionNumber == totalVersions && totalVersions > 1)
+                val timeStr = if (item.timestamp > 0) timeFormatter.format(Date(item.timestamp)) else ""
 
-            // Also show the latest edited text card
-            val latestItem = history.last()
-            val latestText = if (latestItem.editedText.isNotEmpty()) latestItem.editedText else currentText
-            if (!latestText.isNullOrEmpty() && latestText != history.first().originalText) {
-                val latestTime = if (latestItem.timestamp > 0) timeFormatter.format(Date(latestItem.timestamp)) else "Latest"
-                val latestTitle = "Current Edited Message • $latestTime"
-                val currentBox = createHistoryCard(currentActivity, latestTitle, latestText, 0xFF21C063.toInt(), dp)
-                contentLayout.addView(currentBox)
+                val title = when {
+                    isLatest -> "Version ${item.versionNumber} (Latest) • $timeStr"
+                    isFirst -> "Version 1 (Original) • $timeStr"
+                    else -> "Version ${item.versionNumber} • $timeStr"
+                }
+                val color = if (isLatest) 0xFF21C063.toInt() else 0xFF00A884.toInt()
+
+                val cardView = createHistoryCard(currentActivity, title, item.textData, color, dp)
+                val bodyTextView = cardView.findViewById<TextView>(android.R.id.text1)
+                if (bodyTextView != null) {
+                    cardTextViews.add(bodyTextView to item)
+                }
+                contentLayout.addView(cardView)
             }
-        } else if (!currentText.isNullOrEmpty()) {
-            // Display captured current text
-            val currentBox = createHistoryCard(currentActivity, "Current Edited Message", currentText, 0xFF00A884.toInt(), dp)
-            contentLayout.addView(currentBox)
         } else {
             val emptyNotice = TextView(currentActivity).apply {
                 text = "Message was edited by sender."
@@ -453,32 +430,39 @@ class AntiEditMessagesHook(
         bottomSheet.show()
     }
 
-    private fun queryWhatsappInternalEditHistory(ctx: Context, keyId: String): List<EditMessageStore.EditHistoryItem> {
-        val result = mutableListOf<EditMessageStore.EditHistoryItem>()
-        try {
-            val dbFile = File(ctx.filesDir.parentFile, "databases/msgstore.db")
-            if (!dbFile.exists()) return emptyList()
+    private fun loadAllChronologicalVersions(
+        ctx: Context,
+        rowId: Long,
+        keyId: String?,
+        currentText: String?
+    ): List<EditMessageStore.MessageItem> {
+        val result = mutableListOf<EditMessageStore.MessageItem>()
+        val seenTexts = mutableSetOf<String>()
 
-            SQLiteDatabase.openDatabase(dbFile.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { db ->
-                // Check if message_edit_info table exists
-                val cursor = db.rawQuery(
-                    "SELECT original_text, edited_text, edit_timestamp FROM message_edit_info WHERE original_key_id=? OR key_id=?",
-                    arrayOf(keyId, keyId)
-                )
-                cursor?.use {
-                    while (it.moveToNext()) {
-                        val orig = it.getString(0) ?: ""
-                        val edited = it.getString(1) ?: ""
-                        val ts = it.getLong(2)
-                        if (orig.isNotEmpty() || edited.isNotEmpty()) {
-                            result.add(EditMessageStore.EditHistoryItem(keyId, "", orig, edited, ts))
-                            editStore.recordEdit(keyId, "", orig, edited, ts)
-                        }
-                    }
-                }
+        // 1. Pull from EditMessageStore
+        val stored = editStore.getMessages(rowId, keyId)
+        for (item in stored) {
+            if (item.textData.isNotBlank() && seenTexts.add(item.textData.trim())) {
+                result.add(item)
             }
-        } catch (ignored: Throwable) {}
-        return result
+        }
+
+        // 2. If current visible bubble text is not in the list, append it
+        if (!currentText.isNullOrBlank() && seenTexts.add(currentText.trim())) {
+            result.add(
+                EditMessageStore.MessageItem(
+                    rowId = rowId,
+                    keyId = keyId ?: "",
+                    textData = currentText.trim(),
+                    timestamp = System.currentTimeMillis(),
+                    versionNumber = result.size + 1
+                )
+            )
+        }
+
+        return result.mapIndexed { index, item ->
+            item.copy(versionNumber = index + 1)
+        }
     }
 
     private fun createHistoryCard(
@@ -510,60 +494,250 @@ class AntiEditMessagesHook(
         itemBox.addView(headerView)
 
         val bodyView = TextView(activity).apply {
+            id = android.R.id.text1
             text = body
             textSize = 15f
-            setPadding(0, dp(6), 0, dp(8))
+            setTextIsSelectable(true)
+            setPadding(0, dp(6), 0, dp(2))
         }
         itemBox.addView(bodyView)
-
-        val copyHint = TextView(activity).apply {
-            text = "Tap card to copy"
-            textSize = 11.5f
-            setTextColor(0xFF8696A0.toInt())
-        }
-        itemBox.addView(copyHint)
-
-        itemBox.setOnClickListener {
-            val clip = ClipData.newPlainText("Edited Message", body)
-            val cm = activity.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-            cm?.setPrimaryClip(clip)
-            Toast.makeText(activity, "Copied to clipboard", Toast.LENGTH_SHORT).show()
-        }
 
         return itemBox
     }
 
-    // ─── Extraction Utilities ──────────────────────────────────────────────────
+    // ─── Text Diff Highlighting Logic ──────────────────────────────────────────
 
-    private fun extractMessageId(messageObj: Any): String? {
+    private enum class DiffType { UNCHANGED, ADDED, REMOVED }
+    private data class DiffChunk(val type: DiffType, val text: String)
+
+    private fun buildDiffSpannable(oldStr: String, newStr: String): CharSequence {
+        val chunks = computeDiff(oldStr, newStr)
+        val ssb = SpannableStringBuilder()
+        for (c in chunks) {
+            val start = ssb.length
+            ssb.append(c.text)
+            val end = ssb.length
+            when (c.type) {
+                DiffType.UNCHANGED -> {}
+                DiffType.ADDED -> {
+                    ssb.setSpan(ForegroundColorSpan(0xFF21C063.toInt()), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    ssb.setSpan(BackgroundColorSpan(0x3321C063.toInt()), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                }
+                DiffType.REMOVED -> {
+                    ssb.setSpan(ForegroundColorSpan(0xFFEF4444.toInt()), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    ssb.setSpan(BackgroundColorSpan(0x33EF4444.toInt()), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    ssb.setSpan(StrikethroughSpan(), start, end, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                }
+            }
+        }
+        return ssb
+    }
+
+    private fun computeDiff(oldStr: String, newStr: String): List<DiffChunk> {
+        val oldChars = oldStr.toCharArray()
+        val newChars = newStr.toCharArray()
+        val n = oldChars.size
+        val m = newChars.size
+
+        if (n > 300 || m > 300) {
+            return computeWordDiff(oldStr, newStr)
+        }
+
+        val dp = Array(n + 1) { IntArray(m + 1) }
+        for (i in 0 until n) {
+            for (j in 0 until m) {
+                if (oldChars[i] == newChars[j]) {
+                    dp[i + 1][j + 1] = dp[i][j] + 1
+                } else {
+                    dp[i + 1][j + 1] = maxOf(dp[i + 1][j], dp[i][j + 1])
+                }
+            }
+        }
+
+        var i = n
+        var j = m
+        val resultReversed = mutableListOf<DiffChunk>()
+        while (i > 0 || j > 0) {
+            if (i > 0 && j > 0 && oldChars[i - 1] == newChars[j - 1]) {
+                resultReversed.add(DiffChunk(DiffType.UNCHANGED, oldChars[i - 1].toString()))
+                i--
+                j--
+            } else if (j > 0 && (i == 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+                resultReversed.add(DiffChunk(DiffType.ADDED, newChars[j - 1].toString()))
+                j--
+            } else if (i > 0 && (j == 0 || dp[i][j - 1] < dp[i - 1][j])) {
+                resultReversed.add(DiffChunk(DiffType.REMOVED, oldChars[i - 1].toString()))
+                i--
+            }
+        }
+        val reversed = resultReversed.reversed()
+        val merged = mutableListOf<DiffChunk>()
+        for (chunk in reversed) {
+            if (merged.isNotEmpty() && merged.last().type == chunk.type) {
+                val last = merged.removeAt(merged.size - 1)
+                merged.add(DiffChunk(last.type, last.text + chunk.text))
+            } else {
+                merged.add(chunk)
+            }
+        }
+        return merged
+    }
+
+    private fun computeWordDiff(oldStr: String, newStr: String): List<DiffChunk> {
+        val oldWords = oldStr.split(Regex("(?<=\\s)|(?=\\s)"))
+        val newWords = newStr.split(Regex("(?<=\\s)|(?=\\s)"))
+        val n = oldWords.size
+        val m = newWords.size
+        val dp = Array(n + 1) { IntArray(m + 1) }
+        for (i in 0 until n) {
+            for (j in 0 until m) {
+                if (oldWords[i] == newWords[j]) {
+                    dp[i + 1][j + 1] = dp[i][j] + 1
+                } else {
+                    dp[i + 1][j + 1] = maxOf(dp[i + 1][j], dp[i][j + 1])
+                }
+            }
+        }
+        var i = n
+        var j = m
+        val resultReversed = mutableListOf<DiffChunk>()
+        while (i > 0 || j > 0) {
+            if (i > 0 && j > 0 && oldWords[i - 1] == newWords[j - 1]) {
+                resultReversed.add(DiffChunk(DiffType.UNCHANGED, oldWords[i - 1]))
+                i--
+                j--
+            } else if (j > 0 && (i == 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+                resultReversed.add(DiffChunk(DiffType.ADDED, newWords[j - 1]))
+                j--
+            } else if (i > 0 && (j == 0 || dp[i][j - 1] < dp[i - 1][j])) {
+                resultReversed.add(DiffChunk(DiffType.REMOVED, oldWords[i - 1]))
+                i--
+            }
+        }
+        val reversed = resultReversed.reversed()
+        val merged = mutableListOf<DiffChunk>()
+        for (chunk in reversed) {
+            if (merged.isNotEmpty() && merged.last().type == chunk.type) {
+                val last = merged.removeAt(merged.size - 1)
+                merged.add(DiffChunk(last.type, last.text + chunk.text))
+            } else {
+                merged.add(chunk)
+            }
+        }
+        return merged
+    }
+
+    private fun createWdsSwitch(ctx: Context): CompoundButton {
         return try {
-            val keyField = messageObj.javaClass.fields.firstOrNull { it.name == "A1J" || it.name == "key" }
-                ?: messageObj.javaClass.declaredFields.firstOrNull { it.type.name.contains("Key") }
-            keyField?.isAccessible = true
-            val keyObj = keyField?.get(messageObj) ?: return null
-            val idField = keyObj.javaClass.fields.firstOrNull { it.name == "A01" || it.name == "id" }
-                ?: keyObj.javaClass.declaredFields.firstOrNull { it.type == String::class.java }
-            idField?.isAccessible = true
-            idField?.get(keyObj) as? String
+            val clazz = ctx.classLoader.loadClass("com.whatsapp.ui.wds.components.toggle.WDSSwitch")
+            clazz.getConstructor(Context::class.java, AttributeSet::class.java).newInstance(ctx, null) as CompoundButton
         } catch (t: Throwable) {
-            null
+            try {
+                val materialSwitchClass = ctx.classLoader.loadClass("com.google.android.material.materialswitch.MaterialSwitch")
+                materialSwitchClass.getConstructor(Context::class.java).newInstance(ctx) as CompoundButton
+            } catch (t2: Throwable) {
+                Switch(ctx)
+            }
         }
     }
 
+    // ─── Multi-Level Key & Row ID Extraction ───────────────────────────────────
+
+    private fun extractKeyId(messageObj: Any): String? {
+        try {
+            var curr: Class<*>? = messageObj.javaClass
+            while (curr != null && curr != Any::class.java) {
+                for (field in curr.declaredFields) {
+                    field.isAccessible = true
+                    val valObj = field.get(messageObj) ?: continue
+                    val valClass = valObj.javaClass
+
+                    val str = valObj.toString()
+                    if (str.startsWith("Key(") || str.contains("id=") || valClass.name.contains("Key") || valClass.simpleName.contains("Key")) {
+                        val matcher = KEY_ID_REGEX.matcher(str)
+                        if (matcher.find()) {
+                            val id = matcher.group(1)
+                            if (!id.isNullOrEmpty()) return id
+                        }
+                        val id = extractMessageIdFromKey(valObj)
+                        if (id != null) return id
+                    }
+                }
+                curr = curr.superclass
+            }
+
+            val objStr = messageObj.toString()
+            val matcher = KEY_ID_REGEX.matcher(objStr)
+            if (matcher.find()) {
+                val id = matcher.group(1)
+                if (!id.isNullOrEmpty()) return id
+            }
+        } catch (ignored: Throwable) {}
+        return null
+    }
+
+    private fun extractMessageIdFromKey(keyObj: Any): String? {
+        try {
+            var bestCandidate: String? = null
+            var curr: Class<*>? = keyObj.javaClass
+            while (curr != null && curr != Any::class.java) {
+                for (field in curr.declaredFields) {
+                    if (field.type != String::class.java) continue
+                    field.isAccessible = true
+                    val str = field.get(keyObj) as? String ?: continue
+                    if (str.isEmpty() || str.contains("@")) continue
+                    if (str.length >= 12) return str
+                    if (str.length >= 6 && bestCandidate == null) bestCandidate = str
+                }
+                curr = curr.superclass
+            }
+            return bestCandidate
+        } catch (ignored: Throwable) {}
+        return null
+    }
+
+    private fun extractRowId(messageObj: Any): Long {
+        try {
+            var curr: Class<*>? = messageObj.javaClass
+            while (curr != null && curr != Any::class.java) {
+                for (field in curr.declaredFields) {
+                    field.isAccessible = true
+                    if (field.name == "A0j" || field.name == "A0k" || field.name == "rowId" || field.name == "A00" || field.name == "A01" || field.name == "_id") {
+                        val v = field.get(messageObj)
+                        if (v is Long && v > 0) return v
+                        if (v is Int && v > 0) return v.toLong()
+                    }
+                }
+                curr = curr.superclass
+            }
+        } catch (ignored: Throwable) {}
+        return 0L
+    }
+
     private fun extractMessageText(messageObj: Any): String? {
-        return try {
+        try {
+            var curr: Class<*>? = messageObj.javaClass
+            while (curr != null && curr != Any::class.java) {
+                for (field in curr.declaredFields) {
+                    if (field.name == "A0Q" || field.name == "textData" || field.name == "A02" || field.name == "message") {
+                        field.isAccessible = true
+                        val str = field.get(messageObj) as? String
+                        if (!str.isNullOrEmpty()) return str
+                    }
+                }
+                curr = curr.superclass
+            }
+
             for (m in messageObj.javaClass.methods) {
-                if (m.returnType == String::class.java && m.parameterTypes.isEmpty() && m.name != "toString" && m.name != "hashCode") {
+                if (m.returnType == String::class.java && m.parameterCount == 0 &&
+                    m.name != "toString" && m.name != "hashCode" && m.name != "name"
+                ) {
                     val str = m.invoke(messageObj) as? String
                     if (!str.isNullOrEmpty() && !str.contains("@") && str.length < 5000) return str
                 }
             }
-            val textDataField = messageObj.javaClass.fields.firstOrNull { it.name == "textData" || it.name == "A02" }
-            textDataField?.isAccessible = true
-            textDataField?.get(messageObj) as? String
-        } catch (t: Throwable) {
-            null
-        }
+        } catch (ignored: Throwable) {}
+        return null
     }
 
     private fun extractTextFromMessageBubble(row: View?): String? {

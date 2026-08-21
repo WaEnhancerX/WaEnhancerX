@@ -32,12 +32,13 @@ import de.robv.android.xposed.XposedHelpers
 
 /**
  * Modern Native WhatsApp WDS (WhatsApp Design System) bottom sheet component for WAEX.
- * Integrates WhatsApp's internal WDSTextView, WDSButton, and WDSSwitch components with
- * physics-based slide animations and gesture dismissal.
+ * Supports title, optional top-right action/toggle view, scrollable content area,
+ * WDS buttons, WDSSwitch, and physics-based slide gestures and animations.
  */
 class WaexBottomSheet(private val context: Context) {
 
     private var titleText: CharSequence? = null
+    private var topRightView: View? = null
     private var messageText: CharSequence? = null
     private var positiveButtonText: CharSequence? = null
     private var positiveListener: DialogInterface.OnClickListener? = null
@@ -56,6 +57,11 @@ class WaexBottomSheet(private val context: Context) {
 
     fun setTitle(title: CharSequence?): WaexBottomSheet {
         this.titleText = title
+        return this
+    }
+
+    fun setTopRightView(view: View?): WaexBottomSheet {
+        this.topRightView = view
         return this
     }
 
@@ -123,6 +129,7 @@ class WaexBottomSheet(private val context: Context) {
         val density = context.resources.displayMetrics.density
         val dp = { v: Int -> (v * density).toInt() }
         val screenHeight = context.resources.displayMetrics.heightPixels
+        val maxScrollHeight = (screenHeight * 0.58f).toInt()
 
         val isDark = isDarkTheme()
         val bgSurfaceColor = if (isDark) 0xFF12181C.toInt() else 0xFFFFFFFF.toInt()
@@ -222,22 +229,44 @@ class WaexBottomSheet(private val context: Context) {
         }
         dragHandle.setOnTouchListener(dragListener)
 
-        // 2. Title (WDSTextView)
-        if (!titleText.isNullOrEmpty()) {
-            val titleView = createWdsTextView(context).apply {
-                text = titleText
-                textSize = 19f
-                typeface = Typeface.DEFAULT_BOLD
-                setTextColor(primaryTextColor)
-                gravity = Gravity.CENTER
-                setPadding(0, 0, 0, dp(8))
+        // 2. Header Area (Title + Optional Top-Right View)
+        if (!titleText.isNullOrEmpty() || topRightView != null) {
+            val headerLayout = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    bottomMargin = dp(10)
+                }
             }
-            mainLayout.addView(titleView)
+
+            if (!titleText.isNullOrEmpty()) {
+                val titleView = createWdsTextView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f)
+                    text = titleText
+                    textSize = 19f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setTextColor(primaryTextColor)
+                    gravity = if (topRightView != null) Gravity.START or Gravity.CENTER_VERTICAL else Gravity.CENTER
+                }
+                headerLayout.addView(titleView)
+            }
+
+            topRightView?.let { rView ->
+                (rView.parent as? ViewGroup)?.removeView(rView)
+                headerLayout.addView(rView)
+            }
+
+            mainLayout.addView(headerLayout)
         }
 
-        // 3. Scrollable Content Area
+        // 3. Scrollable Content Area with max height constraint
         val scrollView = NestedScrollView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f)
+            isFillViewport = true
+            overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
         }
         val scrollContent = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
@@ -256,12 +285,12 @@ class WaexBottomSheet(private val context: Context) {
             scrollContent.addView(msgView)
         }
 
-        // Custom View (Sticker Preview, etc.)
+        // Custom View (Sticker Preview, Edit History list, etc.)
         customView?.let { view ->
             (view.parent as? ViewGroup)?.removeView(view)
             val customParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                 topMargin = dp(4)
-                bottomMargin = dp(12)
+                bottomMargin = dp(8)
             }
             view.layoutParams = customParams
             scrollContent.addView(view)
@@ -440,8 +469,16 @@ class WaexBottomSheet(private val context: Context) {
             window.setDimAmount(0.6f)
         }
 
-        // Native WhatsApp Bottom Sheet Entrance Slide-Up Animation
+        // Native WhatsApp Bottom Sheet Entrance Slide-Up Animation & max height check
         dialog.setOnShowListener {
+            mainLayout.post {
+                val measuredH = mainLayout.height
+                if (measuredH > maxScrollHeight) {
+                    val lp = scrollView.layoutParams
+                    lp.height = maxScrollHeight - dp(110)
+                    scrollView.layoutParams = lp
+                }
+            }
             mainLayout.translationY = screenHeight.toFloat()
             mainLayout.animate()
                 .translationY(0f)
