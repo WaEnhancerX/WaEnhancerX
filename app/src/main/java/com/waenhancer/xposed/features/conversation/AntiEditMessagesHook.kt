@@ -6,6 +6,7 @@ import android.content.ClipboardManager
 import android.content.ContentValues
 import android.content.Context
 import android.content.SharedPreferences
+import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.graphics.Color
 import android.graphics.Typeface
@@ -31,7 +32,7 @@ import de.robv.android.xposed.XposedHelpers
 import org.luckypray.dexkit.query.FindMethod
 import org.luckypray.dexkit.query.enums.StringMatchType
 import org.luckypray.dexkit.query.matchers.MethodMatcher
-import java.lang.reflect.Field
+import java.io.File
 import java.lang.reflect.Method
 import java.text.DateFormat
 import java.util.Date
@@ -40,11 +41,12 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * Anti-Edit Messages Feature for WhatsApp.
  *
- * 1. Multi-layer interception of incoming message edits (Bytecode + SQLite DB).
- * 2. Persists original pre-edited message content, edit timestamps, and revisions.
+ * 1. Captures pre-edited message content directly from the active SQLite database
+ *    before WhatsApp executes the overwrite update statement.
+ * 2. Persists original pre-edited message content, edit timestamps, and revisions in EditMessageStore.
  * 3. Decorates WhatsApp's message bubble "(edited)" label with interactive visual cues (📝).
- * 4. Tapping "(edited)" opens WhatsApp's native WDS Bottom Sheet displaying the full edit history
- *    with timestamps and one-tap clipboard copy for any version.
+ * 4. Tapping "(edited)" opens WhatsApp's native WDS Bottom Sheet displaying previous versions
+ *    and the edited version with timestamps and one-tap clipboard copy.
  */
 class AntiEditMessagesHook(
     context: Context,
@@ -65,34 +67,133 @@ class AntiEditMessagesHook(
     }
 
     private val editStore: EditMessageStore by lazy { EditMessageStore.getInstance(context) }
-    private var fMessageClass: Class<*>? = null
 
     override fun hook() {
-        initFMessageClass()
-        hookBytecodeMessageEdit()
         hookDatabaseMessageEdit()
+        hookBytecodeMessageEdit()
         hookListViewAdapter()
         hookViewAttachmentFallback()
         XposedBridge.log("$TAG All AntiEdit hooks initialized.")
     }
 
-    private fun initFMessageClass() {
+    // ─── 1. SQLite Database Edit Interception (Guaranteed Pre-Edit Capture) ──────
+
+    private fun hookDatabaseMessageEdit() {
         try {
-            fMessageClass = DexSearchEngine.getInstance().findClassWithCache(
-                context, classLoader, "wpp_fmessage_class_edit",
-                { bridge, loader ->
-                    val data = bridge.findMethod(
-                        FindMethod.create().matcher(
-                            MethodMatcher.create().addUsingString("FMessageUtil/isEdited", StringMatchType.Contains)
-                        )
-                    ).firstOrNull()
-                    data?.getMethodInstance(loader)?.parameterTypes?.getOrNull(0)
+            // Hook SQLite updates on 'message' table: query existing text BEFORE update overwrites it
+            XposedHelpers.findAndHookMethod(
+                SQLiteDatabase::class.java,
+                "updateWithOnConflict",
+                String::class.java,
+                ContentValues::class.java,
+                String::class.java,
+                Array<String>::class.java,
+                Int::class.javaPrimitiveType,
+                object : XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam) {
+                        if (!isEnabled(PREF_KEY, false)) return
+                        val table = param.args.getOrNull(0) as? String ?: return
+                        if (table != "message") return
+
+                        val values = param.args.getOrNull(1) as? ContentValues ?: return
+                        val newText = values.getAsString("text_data")
+                        val keyId = values.getAsString("key_id")
+                        val whereClause = param.args.getOrNull(2) as? String
+                        val whereArgs = param.args.getOrNull(3) as? Array<String>
+                        val db = param.thisObject as? SQLiteDatabase ?: return
+
+                        try {
+                            var targetKeyId = keyId
+                            var originalText: String? = null
+                            var originalTimestamp: Long = 0L
+
+                            // If key_id is not in ContentValues, extract key_id from where clause or db query
+                            if (targetKeyId.isNullOrEmpty() && whereClause != null && whereArgs != null) {
+                                val queryCursor: Cursor? = db.query("message", arrayOf("key_id", "text_data", "timestamp"), whereClause, whereArgs, null, null, null)
+                                queryCursor?.use { cursor ->
+                                    if (cursor.moveToFirst()) {
+                                        targetKeyId = cursor.getString(0)
+                                        originalText = cursor.getString(1)
+                                        originalTimestamp = cursor.getLong(2)
+                                    }
+                                }
+                            } else if (!targetKeyId.isNullOrEmpty()) {
+                                val queryCursor: Cursor? = db.query("message", arrayOf("text_data", "timestamp"), "key_id=?", arrayOf(targetKeyId), null, null, null)
+                                queryCursor?.use { cursor ->
+                                    if (cursor.moveToFirst()) {
+                                        originalText = cursor.getString(0)
+                                        originalTimestamp = cursor.getLong(1)
+                                    }
+                                }
+                            }
+
+                            if (!targetKeyId.isNullOrEmpty()) {
+                                val preEditText = originalText ?: messageTextCache[targetKeyId]
+                                if (!preEditText.isNullOrEmpty() && !newText.isNullOrEmpty() && preEditText != newText) {
+                                    val now = System.currentTimeMillis()
+                                    editStore.recordEdit(targetKeyId, "", preEditText, newText, if (originalTimestamp > 0) originalTimestamp else now)
+                                    XposedBridge.log("$TAG Captured pre-edit text before DB update for: $targetKeyId")
+                                }
+                                if (!newText.isNullOrEmpty()) {
+                                    messageTextCache[targetKeyId!!] = newText
+                                }
+                            }
+                        } catch (t: Throwable) {
+                            XposedBridge.log("$TAG Error querying pre-edit text in DB update: ${t.message}")
+                        }
+                    }
                 }
             )
-        } catch (ignored: Throwable) {}
+
+            // Hook SQLite insert on 'message_edit_info' or 'message_add_on'
+            XposedHelpers.findAndHookMethod(
+                SQLiteDatabase::class.java,
+                "insertWithOnConflict",
+                String::class.java,
+                String::class.java,
+                ContentValues::class.java,
+                Int::class.javaPrimitiveType,
+                object : XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam) {
+                        if (!isEnabled(PREF_KEY, false)) return
+                        val table = param.args.getOrNull(0) as? String ?: return
+                        if (table == "message_edit_info" || table == "message_add_on") {
+                            val values = param.args.getOrNull(2) as? ContentValues ?: return
+                            handleDbEditInsert(values)
+                        }
+                    }
+                }
+            )
+        } catch (t: Throwable) {
+            XposedBridge.log("$TAG Database hook error: ${t.message}")
+        }
     }
 
-    // ─── 1. Bytecode Edit Interception ──────────────────────────────────────────
+    private fun handleDbEditInsert(values: ContentValues) {
+        try {
+            val keyId = values.getAsString("original_key_id")
+                ?: values.getAsString("key_id")
+                ?: values.getAsString("message_id")
+            val originalText = values.getAsString("original_text")
+                ?: values.getAsString("old_text")
+            val newText = values.getAsString("edited_text")
+                ?: values.getAsString("new_text")
+            val timestamp = values.getAsLong("edit_timestamp") ?: System.currentTimeMillis()
+
+            if (!keyId.isNullOrEmpty()) {
+                val orig = originalText ?: messageTextCache[keyId] ?: ""
+                val edited = newText ?: ""
+                if (orig.isNotEmpty() || edited.isNotEmpty()) {
+                    editStore.recordEdit(keyId, "", orig, edited, timestamp)
+                    XposedBridge.log("$TAG Recorded edit insert for key: $keyId")
+                }
+            }
+        } catch (t: Throwable) {
+            XposedBridge.log("$TAG DB edit insert parsing error: ${t.message}")
+        }
+    }
+
+    // ─── 2. Bytecode Edit Interception ──────────────────────────────────────────
 
     private fun hookBytecodeMessageEdit() {
         try {
@@ -107,12 +208,11 @@ class AntiEditMessagesHook(
                             try {
                                 val messageObj = param.args.getOrNull(0) ?: return
                                 val msgId = extractMessageId(messageObj) ?: return
-                                val jid = extractMessageJid(messageObj)
                                 val currentText = extractMessageText(messageObj)
 
                                 val previousText = messageTextCache[msgId]
                                 if (!previousText.isNullOrEmpty() && !currentText.isNullOrEmpty() && previousText != currentText) {
-                                    editStore.recordEdit(msgId, jid, previousText, currentText, System.currentTimeMillis())
+                                    editStore.recordEdit(msgId, "", previousText, currentText, System.currentTimeMillis())
                                     XposedBridge.log("$TAG Recorded bytecode edit for msgId: $msgId")
                                 }
 
@@ -125,7 +225,6 @@ class AntiEditMessagesHook(
                         }
                     }
                 )
-                XposedBridge.log("$TAG Hooked bytecode edit method: ${editMethod.name}")
             }
         } catch (t: Throwable) {
             XposedBridge.log("$TAG Failed to hook bytecode edit: ${t.message}")
@@ -137,7 +236,7 @@ class AntiEditMessagesHook(
             DexSearchEngine.getInstance().findMethodWithCache(
                 context,
                 classLoader,
-                "wpp_message_edit_insert_v3",
+                "wpp_message_edit_insert_v4",
                 { bridge, loader ->
                     val data = bridge.findMethod(
                         FindMethod.create().matcher(
@@ -159,83 +258,6 @@ class AntiEditMessagesHook(
             )
         } catch (t: Throwable) {
             null
-        }
-    }
-
-    // ─── 2. SQLite Database Edit Interception ───────────────────────────────────
-
-    private fun hookDatabaseMessageEdit() {
-        try {
-            XposedHelpers.findAndHookMethod(
-                SQLiteDatabase::class.java,
-                "insertWithOnConflict",
-                String::class.java,
-                String::class.java,
-                ContentValues::class.java,
-                Int::class.javaPrimitiveType,
-                object : XC_MethodHook() {
-                    override fun beforeHookedMethod(param: MethodHookParam) {
-                        if (!isEnabled(PREF_KEY, false)) return
-                        val table = param.args.getOrNull(0) as? String ?: return
-                        if (table == "message_edit_info" || table == "message_add_on") {
-                            val values = param.args.getOrNull(2) as? ContentValues ?: return
-                            handleDbEditInsert(values)
-                        }
-                    }
-                }
-            )
-
-            XposedHelpers.findAndHookMethod(
-                SQLiteDatabase::class.java,
-                "updateWithOnConflict",
-                String::class.java,
-                ContentValues::class.java,
-                String::class.java,
-                Array<String>::class.java,
-                Int::class.javaPrimitiveType,
-                object : XC_MethodHook() {
-                    override fun beforeHookedMethod(param: MethodHookParam) {
-                        if (!isEnabled(PREF_KEY, false)) return
-                        val table = param.args.getOrNull(0) as? String ?: return
-                        if (table == "message") {
-                            val values = param.args.getOrNull(1) as? ContentValues ?: return
-                            val textData = values.getAsString("text_data")
-                            val keyId = values.getAsString("key_id")
-                            if (!keyId.isNullOrEmpty() && !textData.isNullOrEmpty()) {
-                                val prev = messageTextCache[keyId]
-                                if (!prev.isNullOrEmpty() && prev != textData) {
-                                    editStore.recordEdit(keyId, "", prev, textData, System.currentTimeMillis())
-                                    XposedBridge.log("$TAG Recorded DB update edit for keyId: $keyId")
-                                }
-                                messageTextCache[keyId] = textData
-                            }
-                        }
-                    }
-                }
-            )
-        } catch (t: Throwable) {
-            XposedBridge.log("$TAG Database edit hook error: ${t.message}")
-        }
-    }
-
-    private fun handleDbEditInsert(values: ContentValues) {
-        try {
-            val keyId = values.getAsString("original_key_id")
-                ?: values.getAsString("key_id")
-                ?: values.getAsString("message_id")
-            val originalText = values.getAsString("original_text")
-                ?: values.getAsString("old_text")
-            val newText = values.getAsString("edited_text")
-                ?: values.getAsString("new_text")
-            val timestamp = values.getAsLong("edit_timestamp") ?: System.currentTimeMillis()
-
-            if (!keyId.isNullOrEmpty() && (!originalText.isNullOrEmpty() || !newText.isNullOrEmpty())) {
-                val orig = originalText ?: messageTextCache[keyId] ?: ""
-                editStore.recordEdit(keyId, "", orig, newText ?: "", timestamp)
-                XposedBridge.log("$TAG Recorded DB insert edit for key: $keyId")
-            }
-        } catch (t: Throwable) {
-            XposedBridge.log("$TAG DB edit insert parsing error: ${t.message}")
         }
     }
 
@@ -297,7 +319,6 @@ class AntiEditMessagesHook(
                                     }
                                 }
                             )
-                            XposedBridge.log("$TAG getView adapter hook installed for AntiEdit.")
                         } catch (t: Throwable) {
                             XposedBridge.log("$TAG Error hooking getView for AntiEdit: ${t.message}")
                         }
@@ -372,9 +393,16 @@ class AntiEditMessagesHook(
         }
     }
 
+    // ─── 5. WDS Bottom Sheet Display ───────────────────────────────────────────
+
     private fun showEditHistoryBottomSheet(context: Context, messageId: String?, currentText: String?) {
         val currentActivity = ActivityTracker.getCurrentActivity() ?: context
-        val history = if (!messageId.isNullOrEmpty()) editStore.getHistoryByMessageId(messageId) else emptyList()
+        var history = if (!messageId.isNullOrEmpty()) editStore.getHistoryByMessageId(messageId) else emptyList()
+
+        // If history is empty, try querying WhatsApp's internal database for historical edit records
+        if (history.isEmpty() && !messageId.isNullOrEmpty()) {
+            history = queryWhatsappInternalEditHistory(context, messageId)
+        }
 
         val bottomSheet = WaexBottomSheet(currentActivity).asBottomSheet()
         bottomSheet.setTitle("Edited Message History")
@@ -397,25 +425,19 @@ class AntiEditMessagesHook(
                 contentLayout.addView(itemBox)
             }
 
-            // Also show the latest edited text if available
+            // Also show the latest edited text card
             val latestItem = history.last()
-            if (latestItem.editedText.isNotEmpty()) {
-                val latestTitle = "Current Edited Message • ${timeFormatter.format(Date(latestItem.timestamp))}"
-                val currentBox = createHistoryCard(currentActivity, latestTitle, latestItem.editedText, 0xFF21C063.toInt(), dp)
+            val latestText = if (latestItem.editedText.isNotEmpty()) latestItem.editedText else currentText
+            if (!latestText.isNullOrEmpty() && latestText != history.first().originalText) {
+                val latestTime = if (latestItem.timestamp > 0) timeFormatter.format(Date(latestItem.timestamp)) else "Latest"
+                val latestTitle = "Current Edited Message • $latestTime"
+                val currentBox = createHistoryCard(currentActivity, latestTitle, latestText, 0xFF21C063.toInt(), dp)
                 contentLayout.addView(currentBox)
             }
         } else if (!currentText.isNullOrEmpty()) {
-            // Display captured current text with copy button
+            // Display captured current text
             val currentBox = createHistoryCard(currentActivity, "Current Edited Message", currentText, 0xFF00A884.toInt(), dp)
             contentLayout.addView(currentBox)
-
-            val notice = TextView(currentActivity).apply {
-                text = "Note: This message was edited by sender. Future edits occurring in this chat will record all previous revisions here."
-                textSize = 13f
-                setPadding(dp(8), dp(4), dp(8), dp(8))
-                setTextColor(0xFF8696A0.toInt())
-            }
-            contentLayout.addView(notice)
         } else {
             val emptyNotice = TextView(currentActivity).apply {
                 text = "Message was edited by sender."
@@ -429,6 +451,34 @@ class AntiEditMessagesHook(
         bottomSheet.setView(contentLayout)
         bottomSheet.setPositiveButton("Close", null)
         bottomSheet.show()
+    }
+
+    private fun queryWhatsappInternalEditHistory(ctx: Context, keyId: String): List<EditMessageStore.EditHistoryItem> {
+        val result = mutableListOf<EditMessageStore.EditHistoryItem>()
+        try {
+            val dbFile = File(ctx.filesDir.parentFile, "databases/msgstore.db")
+            if (!dbFile.exists()) return emptyList()
+
+            SQLiteDatabase.openDatabase(dbFile.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { db ->
+                // Check if message_edit_info table exists
+                val cursor = db.rawQuery(
+                    "SELECT original_text, edited_text, edit_timestamp FROM message_edit_info WHERE original_key_id=? OR key_id=?",
+                    arrayOf(keyId, keyId)
+                )
+                cursor?.use {
+                    while (it.moveToNext()) {
+                        val orig = it.getString(0) ?: ""
+                        val edited = it.getString(1) ?: ""
+                        val ts = it.getLong(2)
+                        if (orig.isNotEmpty() || edited.isNotEmpty()) {
+                            result.add(EditMessageStore.EditHistoryItem(keyId, "", orig, edited, ts))
+                            editStore.recordEdit(keyId, "", orig, edited, ts)
+                        }
+                    }
+                }
+            }
+        } catch (ignored: Throwable) {}
+        return result
     }
 
     private fun createHistoryCard(
@@ -495,21 +545,6 @@ class AntiEditMessagesHook(
                 ?: keyObj.javaClass.declaredFields.firstOrNull { it.type == String::class.java }
             idField?.isAccessible = true
             idField?.get(keyObj) as? String
-        } catch (t: Throwable) {
-            null
-        }
-    }
-
-    private fun extractMessageJid(messageObj: Any): String? {
-        return try {
-            val keyField = messageObj.javaClass.fields.firstOrNull { it.name == "A1J" || it.name == "key" }
-                ?: messageObj.javaClass.declaredFields.firstOrNull { it.type.name.contains("Key") }
-            keyField?.isAccessible = true
-            val keyObj = keyField?.get(messageObj) ?: return null
-            val jidField = keyObj.javaClass.fields.firstOrNull { it.name == "A00" || it.name == "jid" }
-                ?: keyObj.javaClass.declaredFields.firstOrNull { it.name.contains("jid", ignoreCase = true) }
-            jidField?.isAccessible = true
-            jidField?.get(keyObj)?.toString()
         } catch (t: Throwable) {
             null
         }

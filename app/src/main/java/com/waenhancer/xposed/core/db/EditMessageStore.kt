@@ -83,6 +83,7 @@ class EditMessageStore private constructor(context: Context) : SQLiteOpenHelper(
         if (msgId.isNullOrEmpty()) return
         val orig = originalText ?: ""
         val edited = editedText ?: ""
+        if (orig.isEmpty() && edited.isEmpty()) return
         val ts = if (timestamp > 0) timestamp else System.currentTimeMillis()
 
         val item = EditHistoryItem(msgId, jid ?: "", orig, edited, ts)
