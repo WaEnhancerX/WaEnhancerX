@@ -1,5 +1,11 @@
 package com.waenhancer.ui.screens.privacy
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,8 +37,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.waenhancer.ui.components.StitchSwitch
@@ -42,16 +50,24 @@ import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
 
-data class DeletedMessageItem(
+data class PreservedMessage(
     val id: String,
-    val senderName: String,
-    val senderJid: String,
-    val messageText: String,
+    val text: String,
     val timestamp: String,
-    val isGroup: Boolean = false,
-    val groupName: String? = null,
-    val mediaType: String? = null // "image" | "audio" | "video" | null
+    val isFromMe: Boolean = false,
+    val senderName: String? = null
 )
+
+data class PreservedChat(
+    val id: String,
+    val jid: String,
+    val name: String,
+    val isGroup: Boolean,
+    val messages: List<PreservedMessage>
+) {
+    val lastMessage: PreservedMessage?
+        get() = messages.lastOrNull()
+}
 
 @Composable
 fun DeletedMessagesVaultScreen() {
@@ -67,246 +83,304 @@ fun DeletedMessagesVaultScreen() {
     }
 
     var selectedTab by remember { mutableStateOf("individuals") } // "individuals" | "groups"
-    var selectedMessageForDetails by remember { mutableStateOf<DeletedMessageItem?>(null) }
+    var activeChatDetails by remember { mutableStateOf<PreservedChat?>(null) }
 
-    // Preserved "Delete for me" messages sample
-    val sampleMessages = remember {
+    // Sample preserved "Delete for me" chats with sent & received messages
+    val sampleChats = remember {
         listOf(
-            DeletedMessageItem(
-                id = "1",
-                senderName = "Alex Rivera",
-                senderJid = "+1 555 019 2834@s.whatsapp.net",
-                messageText = "Hey, did you review the project proposal I sent this morning?",
-                timestamp = "Today, 10:42 AM",
-                isGroup = false
+            PreservedChat(
+                id = "chat_1",
+                jid = "+1 555 019 2834@s.whatsapp.net",
+                name = "Alex Rivera",
+                isGroup = false,
+                messages = listOf(
+                    PreservedMessage("1a", "Can you send the draft files before noon?", "10:15 AM", isFromMe = false),
+                    PreservedMessage("1b", "Sure, I am wrapping up the final review now.", "10:28 AM", isFromMe = true),
+                    PreservedMessage("1c", "Hey, did you review the project proposal I sent this morning?", "10:42 AM", isFromMe = false),
+                    PreservedMessage("1d", "Yes, just checked it out. Looks solid!", "10:48 AM", isFromMe = true)
+                )
             ),
-            DeletedMessageItem(
-                id = "2",
-                senderName = "Sarah Chen",
-                senderJid = "+1 555 018 7392@s.whatsapp.net",
-                messageText = "Let's postpone the call to 4 PM instead.",
-                timestamp = "Today, 9:15 AM",
-                isGroup = false
+            PreservedChat(
+                id = "chat_2",
+                jid = "+1 555 018 7392@s.whatsapp.net",
+                name = "Sarah Chen",
+                isGroup = false,
+                messages = listOf(
+                    PreservedMessage("2a", "Are we still on for the 2 PM design review?", "9:02 AM", isFromMe = true),
+                    PreservedMessage("2b", "Let's postpone the call to 4 PM instead.", "9:15 AM", isFromMe = false),
+                    PreservedMessage("2c", "Perfect, see you at 4 PM then.", "9:18 AM", isFromMe = true)
+                )
             ),
-            DeletedMessageItem(
-                id = "3",
-                senderName = "David Kim",
-                senderJid = "+1 555 014 9921@s.whatsapp.net",
-                messageText = "The deployment is scheduled for 8 PM UTC tonight.",
-                timestamp = "Yesterday, 6:05 PM",
+            PreservedChat(
+                id = "chat_3",
+                jid = "120363024881@g.us",
+                name = "Core Engineering",
                 isGroup = true,
-                groupName = "Core Engineering"
+                messages = listOf(
+                    PreservedMessage("3a", "The staging environment is upgraded to v2.4", "Yesterday, 4:20 PM", isFromMe = false, senderName = "David Kim"),
+                    PreservedMessage("3b", "All CI/CD regression suites passed.", "Yesterday, 4:45 PM", isFromMe = true),
+                    PreservedMessage("3c", "The deployment is scheduled for 8 PM UTC tonight.", "Yesterday, 6:05 PM", isFromMe = false, senderName = "Marcus Vance")
+                )
             ),
-            DeletedMessageItem(
-                id = "4",
-                senderName = "Maria Garcia",
-                senderJid = "+34 600 000 000@s.whatsapp.net",
-                messageText = "The meeting room has been moved to Floor 4.",
-                timestamp = "Yesterday, 3:30 PM",
+            PreservedChat(
+                id = "chat_4",
+                jid = "120363098124@g.us",
+                name = "Marketing Sync",
                 isGroup = true,
-                groupName = "Marketing Sync"
+                messages = listOf(
+                    PreservedMessage("4a", "Please note the meeting room has been moved to Floor 4.", "Yesterday, 3:30 PM", isFromMe = false, senderName = "Maria Garcia"),
+                    PreservedMessage("4b", "Got it, heading over now.", "Yesterday, 3:35 PM", isFromMe = true)
+                )
             )
         )
     }
 
-    val filteredList = if (selectedTab == "individuals") {
-        sampleMessages.filter { !it.isGroup }
+    val filteredChats = if (selectedTab == "individuals") {
+        sampleChats.filter { !it.isGroup }
     } else {
-        sampleMessages.filter { it.isGroup }
+        sampleChats.filter { it.isGroup }
     }
 
-    Scaffold(
-        topBar = {
-            WaexTopBar(
-                title = "\"Delete For Me\" Messages",
-                onBackClick = { navController.popBack() },
-                actions = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(end = spacing.stackSm)
-                    ) {
-                        StitchSwitch(
-                            checked = isFeatureEnabled,
-                            onCheckedChange = { checked ->
-                                isFeatureEnabled = checked
-                                preferenceManager.putBoolean("preserve_delete_for_me", checked)
-                            }
-                        )
-                    }
-                }
-            )
+    AnimatedContent(
+        targetState = activeChatDetails,
+        transitionSpec = {
+            if (targetState != null) {
+                slideInHorizontally { width -> width } + fadeIn() togetherWith
+                    slideOutHorizontally { width -> -width } + fadeOut()
+            } else {
+                slideInHorizontally { width -> -width } + fadeIn() togetherWith
+                    slideOutHorizontally { width -> width } + fadeOut()
+            }
         },
-        containerColor = colors.background
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                horizontal = spacing.pageMargin,
-                vertical = 16.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Filter Selector
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    listOf("individuals" to "Individuals", "groups" to "Groups").forEach { (tabId, label) ->
-                        val active = selectedTab == tabId
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(radius.defaultShape)
-                                .background(if (active) colors.primary.copy(alpha = 0.12f) else colors.surfaceDim)
-                                .border(
-                                    1.dp,
-                                    if (active) colors.primary else colors.outlineVariant,
-                                    radius.defaultShape
+        label = "ChatListToDetailsTransition"
+    ) { currentChat ->
+        if (currentChat != null) {
+            // ─── Chat Messages Conversation Screen ────────────────────────────
+            PreservedChatDetailsScreen(
+                chat = currentChat,
+                onBack = { activeChatDetails = null }
+            )
+        } else {
+            // ─── WhatsApp Style Main Chat List View ───────────────────────────
+            Scaffold(
+                topBar = {
+                    WaexTopBar(
+                        title = "\"Delete For Me\" Messages",
+                        onBackClick = { navController.popBack() },
+                        actions = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(end = spacing.stackSm)
+                            ) {
+                                StitchSwitch(
+                                    checked = isFeatureEnabled,
+                                    onCheckedChange = { checked ->
+                                        isFeatureEnabled = checked
+                                        preferenceManager.putBoolean("preserve_delete_for_me", checked)
+                                    }
                                 )
-                                .clickable { selectedTab = tabId }
-                                .padding(vertical = 12.dp),
-                            contentAlignment = Alignment.Center
+                            }
+                        }
+                    )
+                },
+                containerColor = colors.background
+            ) { paddingValues ->
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                ) {
+                    // Filter Selector (Individuals vs Groups)
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = spacing.pageMargin, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text(
-                                text = label,
-                                style = typography.bodyMd,
-                                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-                                color = if (active) colors.primary else colors.onSurface
+                            listOf("individuals" to "Individuals", "groups" to "Groups").forEach { (tabId, label) ->
+                                val active = selectedTab == tabId
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(radius.defaultShape)
+                                        .background(if (active) colors.primary.copy(alpha = 0.12f) else colors.surfaceDim)
+                                        .border(
+                                            1.dp,
+                                            if (active) colors.primary else colors.outlineVariant,
+                                            radius.defaultShape
+                                        )
+                                        .clickable { selectedTab = tabId }
+                                        .padding(vertical = 11.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = label,
+                                        style = typography.bodyMd,
+                                        fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (active) colors.primary else colors.onSurface
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Main WhatsApp Chat List Items
+                    if (filteredChats.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 64.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No preserved messages found",
+                                    style = typography.bodyLg,
+                                    color = colors.onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else {
+                        items(filteredChats, key = { it.id }) { chat ->
+                            WhatsAppChatListItem(
+                                chat = chat,
+                                onClick = { activeChatDetails = chat }
                             )
                         }
                     }
-                }
-            }
-
-            // Message Cards List
-            if (filteredList.isEmpty()) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 48.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No preserved messages yet",
-                            style = typography.bodyLg,
-                            color = colors.onSurfaceVariant
-                        )
-                    }
-                }
-            } else {
-                items(filteredList, key = { it.id }) { message ->
-                    DeletedMessageCard(
-                        message = message,
-                        onClick = { selectedMessageForDetails = message }
-                    )
                 }
             }
         }
     }
 }
 
+/**
+ * WhatsApp Main Screen Style Chat Row Item
+ */
 @Composable
-private fun DeletedMessageCard(
-    message: DeletedMessageItem,
+private fun WhatsAppChatListItem(
+    chat: PreservedChat,
     onClick: () -> Unit
 ) {
     val colors = WaexTheme.colors
-    val spacing = WaexTheme.spacing
     val typography = WaexTheme.typography
-    val radius = WaexTheme.radius
+    val lastMsg = chat.lastMessage
 
-    Surface(
+    val avatarGradient = Brush.linearGradient(
+        colors = if (chat.isGroup) {
+            listOf(Color(0xFF008069), Color(0xFF21C063))
+        } else {
+            listOf(colors.primary, colors.secondary)
+        }
+    )
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(radius.defaultShape)
-            .clickable(onClick = onClick),
-        color = colors.surface,
-        shape = radius.defaultShape,
-        tonalElevation = 1.dp
+            .clickable(onClick = onClick)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Header Row: Avatar/Icon + Sender + Timestamp
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+            // Circular Avatar (WhatsApp style)
+            Box(
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
+                    .background(avatarGradient),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFEF4444).copy(alpha = 0.12f)),
-                    contentAlignment = Alignment.Center
-                ) {
+                if (chat.isGroup) {
                     Icon(
                         imageVector = WaexIcons.Folder,
                         contentDescription = null,
-                        tint = Color(0xFFEF4444),
-                        modifier = Modifier.size(18.dp)
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                } else {
+                    Text(
+                        text = chat.name.firstOrNull()?.uppercase() ?: "?",
+                        style = typography.headlineMd,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        fontSize = 20.sp
                     )
                 }
+            }
 
-                Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(14.dp))
 
-                Column(modifier = Modifier.weight(1f)) {
+            // Contact Name & Last Message Column
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                // Top Row: Contact Name + Timestamp
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = if (message.isGroup && message.groupName != null) {
-                            "${message.senderName} (${message.groupName})"
-                        } else {
-                            message.senderName
-                        },
+                        text = chat.name,
                         style = typography.bodyLg,
                         fontWeight = FontWeight.SemiBold,
-                        color = colors.onSurface
+                        color = colors.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
                     Text(
-                        text = message.senderJid,
+                        text = lastMsg?.timestamp ?: "",
                         style = typography.labelSm,
                         color = colors.onSurfaceVariant
                     )
                 }
 
-                Text(
-                    text = message.timestamp,
-                    style = typography.labelSm,
-                    color = colors.onSurfaceVariant
-                )
-            }
-
-            HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.5f))
-
-            // Body: Preserved Message Content
-            Text(
-                text = message.messageText,
-                style = typography.bodyMd,
-                color = colors.onSurface
-            )
-
-            // Badge / Tag
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xFFEF4444).copy(alpha = 0.10f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                // Bottom Row: Last Message Snippet + Badge
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val prefix = if (lastMsg?.isFromMe == true) "You: " else ""
                     Text(
-                        text = "Preserved",
-                        style = typography.labelSm,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFEF4444)
+                        text = "$prefix${lastMsg?.text ?: "No messages"}",
+                        style = typography.bodyMd,
+                        color = colors.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
+
+                    if (chat.messages.isNotEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0xFFEF4444).copy(alpha = 0.12f))
+                                .padding(horizontal = 7.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "${chat.messages.size}",
+                                style = typography.labelSm,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFEF4444)
+                            )
+                        }
+                    }
                 }
             }
         }
+
+        // WhatsApp-like Inset Divider
+        HorizontalDivider(
+            modifier = Modifier.padding(start = 78.dp, end = 16.dp),
+            thickness = 0.6.dp,
+            color = colors.outlineVariant.copy(alpha = 0.4f)
+        )
     }
 }
