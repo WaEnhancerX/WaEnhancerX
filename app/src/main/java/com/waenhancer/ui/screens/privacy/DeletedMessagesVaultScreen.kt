@@ -35,10 +35,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.waenhancer.ui.components.StitchSwitch
 import com.waenhancer.ui.components.WaexTopBar
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
+import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
 
 data class DeletedMessageItem(
     val id: String,
@@ -54,38 +56,44 @@ data class DeletedMessageItem(
 @Composable
 fun DeletedMessagesVaultScreen() {
     val navController = LocalWaexNavController.current
+    val preferenceManager = LocalWaexPreferenceManager.current
     val colors = WaexTheme.colors
     val spacing = WaexTheme.spacing
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
 
-    var selectedTab by remember { mutableStateOf("individuals") } // "individuals" | "groups"
+    var isFeatureEnabled by remember {
+        mutableStateOf(preferenceManager.getBoolean("preserve_delete_for_me", false))
+    }
 
+    var selectedTab by remember { mutableStateOf("individuals") } // "individuals" | "groups"
+    var selectedMessageForDetails by remember { mutableStateOf<DeletedMessageItem?>(null) }
+
+    // Preserved "Delete for me" messages sample
     val sampleMessages = remember {
         listOf(
             DeletedMessageItem(
                 id = "1",
-                senderName = "Sarah Connor",
-                senderJid = "+1 555-0199@s.whatsapp.net",
-                messageText = "Hey! Let's meet at 5 PM at the central station instead.",
-                timestamp = "Today, 1:45 PM",
+                senderName = "Alex Rivera",
+                senderJid = "+1 555 019 2834@s.whatsapp.net",
+                messageText = "Hey, did you review the project proposal I sent this morning?",
+                timestamp = "Today, 10:42 AM",
                 isGroup = false
             ),
             DeletedMessageItem(
                 id = "2",
-                senderName = "David Kim",
-                senderJid = "+82 10-1234-5678@s.whatsapp.net",
-                messageText = "Here is the project proposal draft before review.",
-                timestamp = "Today, 11:20 AM",
-                isGroup = false,
-                mediaType = "image"
+                senderName = "Sarah Chen",
+                senderJid = "+1 555 018 7392@s.whatsapp.net",
+                messageText = "Let's postpone the call to 4 PM instead.",
+                timestamp = "Today, 9:15 AM",
+                isGroup = false
             ),
             DeletedMessageItem(
                 id = "3",
-                senderName = "Alex Thorne",
-                senderJid = "+44 7700 900077@s.whatsapp.net",
-                messageText = "Please ignore my previous voice note, it was meant for someone else.",
-                timestamp = "Yesterday, 8:12 PM",
+                senderName = "David Kim",
+                senderJid = "+1 555 014 9921@s.whatsapp.net",
+                messageText = "The deployment is scheduled for 8 PM UTC tonight.",
+                timestamp = "Yesterday, 6:05 PM",
                 isGroup = true,
                 groupName = "Core Engineering"
             ),
@@ -110,8 +118,22 @@ fun DeletedMessagesVaultScreen() {
     Scaffold(
         topBar = {
             WaexTopBar(
-                title = "Deleted Messages Vault",
-                onBackClick = { navController.popBack() }
+                title = "\"Delete For Me\" Messages",
+                onBackClick = { navController.popBack() },
+                actions = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(end = spacing.stackSm)
+                    ) {
+                        StitchSwitch(
+                            checked = isFeatureEnabled,
+                            onCheckedChange = { checked ->
+                                isFeatureEnabled = checked
+                                preferenceManager.putBoolean("preserve_delete_for_me", checked)
+                            }
+                        )
+                    }
+                }
             )
         },
         containerColor = colors.background
@@ -159,148 +181,131 @@ fun DeletedMessagesVaultScreen() {
                 }
             }
 
-            // Anti-Revoke Notice Banner
-            item {
-                Surface(
-                    shape = radius.bentoCardShape,
-                    color = colors.primary.copy(alpha = 0.08f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, colors.primary.copy(alpha = 0.2f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+            // Message Cards List
+            if (filteredList.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 48.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = WaexIcons.Security,
-                            contentDescription = null,
-                            tint = colors.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = "Anti-Revoke intercepts revoked message packets locally and preserves their text, media previews, and timestamps.",
-                            style = typography.bodyMd,
-                            color = colors.onSurface,
-                            fontSize = 13.sp,
-                            lineHeight = 18.sp
+                            text = "No preserved messages yet",
+                            style = typography.bodyLg,
+                            color = colors.onSurfaceVariant
                         )
                     }
                 }
+            } else {
+                items(filteredList, key = { it.id }) { message ->
+                    DeletedMessageCard(
+                        message = message,
+                        onClick = { selectedMessageForDetails = message }
+                    )
+                }
             }
+        }
+    }
+}
 
-            // Message Cards
-            items(filteredList) { item ->
-                Surface(
-                    shape = radius.bentoCardShape,
-                    color = colors.surfaceDim,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
-                    modifier = Modifier.fillMaxWidth()
+@Composable
+private fun DeletedMessageCard(
+    message: DeletedMessageItem,
+    onClick: () -> Unit
+) {
+    val colors = WaexTheme.colors
+    val spacing = WaexTheme.spacing
+    val typography = WaexTheme.typography
+    val radius = WaexTheme.radius
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(radius.defaultShape)
+            .clickable(onClick = onClick),
+        color = colors.surface,
+        shape = radius.defaultShape,
+        tonalElevation = 1.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Header Row: Avatar/Icon + Sender + Timestamp
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFEF4444).copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(colors.primary.copy(alpha = 0.12f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = item.senderName.first().toString(),
-                                    style = typography.bodyMd,
-                                    fontWeight = FontWeight.Bold,
-                                    color = colors.primary
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = item.senderName,
-                                        style = typography.bodyLg,
-                                        fontWeight = FontWeight.Bold,
-                                        color = colors.onSurface
-                                    )
-                                    if (item.isGroup && item.groupName != null) {
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text(
-                                            text = "in ${item.groupName}",
-                                            style = typography.labelSm,
-                                            color = colors.primary,
-                                            fontSize = 11.sp
-                                        )
-                                    }
-                                }
-                                Text(
-                                    text = item.timestamp,
-                                    style = typography.labelSm,
-                                    color = colors.onSurfaceVariant,
-                                    fontSize = 11.sp
-                                )
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .clip(CircleShape)
-                                    .background(Color(0xFFEF4444).copy(alpha = 0.15f))
-                                    .padding(horizontal = 8.dp, vertical = 3.dp)
-                            ) {
-                                Text(
-                                    text = "Revoked",
-                                    style = typography.labelSm,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFEF4444),
-                                    fontSize = 10.sp
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Text(
-                            text = item.messageText,
-                            style = typography.bodyMd,
-                            color = colors.onSurface,
-                            lineHeight = 20.sp
-                        )
-
-                        if (item.mediaType != null) {
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Box(
-                                modifier = Modifier
-                                    .clip(radius.defaultShape)
-                                    .background(colors.surface)
-                                    .border(1.dp, colors.outlineVariant, radius.defaultShape)
-                                    .padding(horizontal = 10.dp, vertical = 6.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = WaexIcons.Image,
-                                        contentDescription = null,
-                                        tint = colors.primary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = "Preserved Media Attachment",
-                                        style = typography.labelSm,
-                                        fontWeight = FontWeight.Medium,
-                                        color = colors.onSurface,
-                                        fontSize = 11.sp
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    Icon(
+                        imageVector = WaexIcons.Folder,
+                        contentDescription = null,
+                        tint = Color(0xFFEF4444),
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (message.isGroup && message.groupName != null) {
+                            "${message.senderName} (${message.groupName})"
+                        } else {
+                            message.senderName
+                        },
+                        style = typography.bodyLg,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.onSurface
+                    )
+                    Text(
+                        text = message.senderJid,
+                        style = typography.labelSm,
+                        color = colors.onSurfaceVariant
+                    )
+                }
+
+                Text(
+                    text = message.timestamp,
+                    style = typography.labelSm,
+                    color = colors.onSurfaceVariant
+                )
             }
 
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
+            HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.5f))
+
+            // Body: Preserved Message Content
+            Text(
+                text = message.messageText,
+                style = typography.bodyMd,
+                color = colors.onSurface
+            )
+
+            // Badge / Tag
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0xFFEF4444).copy(alpha = 0.10f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "Preserved",
+                        style = typography.labelSm,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFEF4444)
+                    )
+                }
             }
         }
     }

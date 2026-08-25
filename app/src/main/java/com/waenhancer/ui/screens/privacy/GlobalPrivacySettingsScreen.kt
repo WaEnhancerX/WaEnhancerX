@@ -371,13 +371,13 @@ fun GlobalPrivacySettingsScreen(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "Deleted Messages Vault",
+                            text = "\"Delete For Me\" Messages",
                             style = typography.bodyLg,
                             fontWeight = FontWeight.SemiBold,
                             color = colors.onSurface
                         )
                         Text(
-                            text = "View preserved anti-revoke chats & group logs",
+                            text = "View preserved delete-for-me chats & group logs",
                             style = typography.bodyMd,
                             color = colors.onSurfaceVariant
                         )
