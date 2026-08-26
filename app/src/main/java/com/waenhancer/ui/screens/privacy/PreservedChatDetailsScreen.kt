@@ -1,6 +1,8 @@
 package com.waenhancer.ui.screens.privacy
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,6 +49,11 @@ fun PreservedChatDetailsScreen(
     val typography = WaexTheme.typography
     val spacing = WaexTheme.spacing
 
+    // Intercept system back button / gesture to return to conversations list
+    BackHandler(enabled = true) {
+        onBack()
+    }
+
     Scaffold(
         topBar = {
             Surface(
@@ -58,8 +65,7 @@ fun PreservedChatDetailsScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp)
-                            .padding(horizontal = 4.dp),
+                            .padding(horizontal = 8.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(onClick = onBack) {
@@ -70,12 +76,12 @@ fun PreservedChatDetailsScreen(
                             )
                         }
 
-                        // TopBar Circular Avatar
+                        // Avatar Circle
                         Box(
                             modifier = Modifier
-                                .size(38.dp)
+                                .size(40.dp)
                                 .clip(CircleShape)
-                                .background(colors.primary),
+                                .background(if (chat.isGroup) Color(0xFF008069) else colors.primary),
                             contentAlignment = Alignment.Center
                         ) {
                             if (chat.isGroup) {
@@ -100,14 +106,14 @@ fun PreservedChatDetailsScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = chat.name,
-                                style = typography.bodyLg,
-                                fontWeight = FontWeight.SemiBold,
+                                style = typography.headlineMd,
+                                fontWeight = FontWeight.Bold,
                                 color = colors.onSurface,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                text = "${chat.messages.size} preserved messages",
+                                text = if (chat.isGroup) "Group • ${chat.messages.size} preserved" else "${chat.messages.size} preserved messages",
                                 style = typography.labelSm,
                                 color = colors.onSurfaceVariant
                             )
@@ -121,23 +127,19 @@ fun PreservedChatDetailsScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                horizontal = spacing.pageMargin,
-                vertical = 16.dp
-            ),
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            items(chat.messages, key = { it.id }) { msg ->
-                PreservedMessageBubble(message = msg, isGroup = chat.isGroup)
+            items(chat.messages, key = { it.id }) { message ->
+                PreservedMessageBubble(message = message, isGroup = chat.isGroup)
             }
         }
     }
 }
 
 /**
- * Message Bubble representing a preserved "Delete For Me" message.
- * Formats sent messages (right-aligned) and received messages (left-aligned).
+ * Chat bubble supporting Sent (Right, Light Green) vs Received (Left, White/Gray).
  */
 @Composable
 private fun PreservedMessageBubble(
@@ -146,63 +148,74 @@ private fun PreservedMessageBubble(
 ) {
     val colors = WaexTheme.colors
     val typography = WaexTheme.typography
-    val isFromMe = message.isFromMe
+    val isDark = isSystemInDarkTheme()
 
-    val outgoingBg = colors.primary.copy(alpha = 0.18f)
-    val incomingBg = colors.surface
+    val isSent = message.isFromMe
 
-    val bubbleShape = if (isFromMe) {
+    // WhatsApp-like bubble colors
+    val bubbleColor = if (isSent) {
+        if (isDark) Color(0xFF005D4B) else Color(0xFFE7FFDB)
+    } else {
+        if (isDark) Color(0xFF1F2C34) else Color(0xFFFFFFFF)
+    }
+
+    val textColor = if (isSent) {
+        if (isDark) Color(0xFFE9EDEF) else Color(0xFF111B21)
+    } else {
+        if (isDark) Color(0xFFE9EDEF) else Color(0xFF111B21)
+    }
+
+    val bubbleShape = if (isSent) {
         RoundedCornerShape(
-            topStart = 16.dp,
-            topEnd = 16.dp,
-            bottomStart = 16.dp,
-            bottomEnd = 3.dp
+            topStart = 14.dp,
+            topEnd = 4.dp,
+            bottomStart = 14.dp,
+            bottomEnd = 14.dp
         )
     } else {
         RoundedCornerShape(
-            topStart = 16.dp,
-            topEnd = 16.dp,
-            bottomStart = 3.dp,
-            bottomEnd = 16.dp
+            topStart = 4.dp,
+            topEnd = 14.dp,
+            bottomStart = 14.dp,
+            bottomEnd = 14.dp
         )
     }
 
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isFromMe) Arrangement.End else Arrangement.Start
+        horizontalAlignment = if (isSent) Alignment.End else Alignment.Start
     ) {
         Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.85f)
-                .clip(bubbleShape),
-            color = if (isFromMe) outgoingBg else incomingBg,
             shape = bubbleShape,
-            tonalElevation = if (isFromMe) 0.dp else 1.dp
+            color = bubbleColor,
+            shadowElevation = 0.8.dp,
+            modifier = Modifier.fillMaxWidth(0.82f)
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Sender name for group received messages
-                if (isGroup && !isFromMe && !message.senderName.isNullOrEmpty()) {
+                // In group received messages, show sender name if available
+                if (isGroup && !isSent && !message.senderName.isNullOrBlank()) {
                     Text(
                         text = message.senderName,
                         style = typography.labelSm,
                         fontWeight = FontWeight.Bold,
-                        color = colors.primary,
+                        color = Color(0xFF25D366),
                         fontSize = 12.sp
                     )
                 }
 
-                // Preserved Message Content
+                // Message Text
                 Text(
                     text = message.text,
                     style = typography.bodyMd,
-                    color = colors.onSurface,
+                    color = textColor,
+                    fontSize = 15.sp,
                     lineHeight = 20.sp
                 )
 
-                // Timestamp (Right Aligned)
+                // Timestamp
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
@@ -211,19 +224,9 @@ private fun PreservedMessageBubble(
                     Text(
                         text = message.timestamp,
                         style = typography.labelSm,
-                        color = colors.onSurfaceVariant,
+                        color = textColor.copy(alpha = 0.55f),
                         fontSize = 11.sp
                     )
-
-                    if (isFromMe) {
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(
-                            imageVector = WaexIcons.Success,
-                            contentDescription = "Delivered",
-                            tint = colors.primary,
-                            modifier = Modifier.size(13.dp)
-                        )
-                    }
                 }
             }
         }

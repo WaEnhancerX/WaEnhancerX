@@ -85,7 +85,8 @@ public final class DelMessageStore extends SQLiteOpenHelper {
     public void insertMessage(@Nullable String jid, @NonNull String msgId, long timestamp) {
         if (msgId == null || msgId.isEmpty()) return;
         timestampCache.put(msgId, timestamp);
-        try (SQLiteDatabase db = getWritableDatabase()) {
+        try {
+            SQLiteDatabase db = getWritableDatabase();
             ContentValues cv = new ContentValues();
             cv.put(COL_JID, jid != null ? jid : "");
             cv.put(COL_MSGID, msgId);
@@ -101,17 +102,19 @@ public final class DelMessageStore extends SQLiteOpenHelper {
             return cached > 0 ? cached : 0L;
         }
 
-        try (SQLiteDatabase db = getReadableDatabase();
-             Cursor cursor = db.query(
-                     TABLE_DEL_MESSAGES,
-                     new String[]{COL_TIMESTAMP},
-                     COL_MSGID + "=?",
-                     new String[]{msgId},
-                     null, null, null)) {
-            if (cursor != null && cursor.moveToFirst()) {
-                long ts = cursor.getLong(0);
-                timestampCache.put(msgId, ts);
-                return ts;
+        try {
+            SQLiteDatabase db = getReadableDatabase();
+            try (Cursor cursor = db.query(
+                    TABLE_DEL_MESSAGES,
+                    new String[]{COL_TIMESTAMP},
+                    COL_MSGID + "=?",
+                    new String[]{msgId},
+                    null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    long ts = cursor.getLong(0);
+                    timestampCache.put(msgId, ts);
+                    return ts;
+                }
             }
         } catch (Throwable ignored) {}
 
@@ -121,20 +124,22 @@ public final class DelMessageStore extends SQLiteOpenHelper {
 
     public List<PreservedRecord> getAllPreservedRecords() {
         List<PreservedRecord> list = new ArrayList<>();
-        try (SQLiteDatabase db = getReadableDatabase();
-             Cursor cursor = db.query(
-                     TABLE_DEL_MESSAGES,
-                     new String[]{COL_JID, COL_MSGID, COL_TIMESTAMP},
-                     null, null, null, null,
-                     COL_TIMESTAMP + " DESC")) {
-            if (cursor != null && cursor.moveToFirst()) {
-                do {
-                    list.add(new PreservedRecord(
-                            cursor.getString(0),
-                            cursor.getString(1),
-                            cursor.getLong(2)
-                    ));
-                } while (cursor.moveToNext());
+        try {
+            SQLiteDatabase db = getReadableDatabase();
+            try (Cursor cursor = db.query(
+                    TABLE_DEL_MESSAGES,
+                    new String[]{COL_JID, COL_MSGID, COL_TIMESTAMP},
+                    null, null, null, null,
+                    COL_TIMESTAMP + " DESC")) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    do {
+                        list.add(new PreservedRecord(
+                                cursor.getString(0),
+                                cursor.getString(1),
+                                cursor.getLong(2)
+                        ));
+                    } while (cursor.moveToNext());
+                }
             }
         } catch (Throwable ignored) {}
         return list;

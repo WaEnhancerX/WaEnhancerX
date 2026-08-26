@@ -84,29 +84,28 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
     ) {
         if (msgId.isBlank()) return
         try {
-            writableDatabase.use { db ->
-                val resolvedName = if (!contactName.isNullOrBlank() && !contactName.all { it.isDigit() }) {
-                    contactName
-                } else {
-                    jid.substringBefore("@")
-                }
-                val cv = ContentValues().apply {
-                    put(COL_JID, jid.ifBlank { "Unknown" })
-                    put(COL_NAME, resolvedName)
-                    put(COL_MSG_ID, msgId)
-                    put(COL_TEXT, text)
-                    put(COL_TIMESTAMP, if (timestamp > 0) timestamp else System.currentTimeMillis())
-                    put(COL_FROM_ME, if (fromMe) 1 else 0)
-                    put(COL_IS_GROUP, if (isGroup) 1 else 0)
-                }
-                db.insertWithOnConflict(TABLE_NAME, null, cv, SQLiteDatabase.CONFLICT_REPLACE)
+            val db = writableDatabase
+            val resolvedName = if (!contactName.isNullOrBlank() && !contactName.all { it.isDigit() }) {
+                contactName
+            } else {
+                jid.substringBefore("@")
+            }
+            val cv = ContentValues().apply {
+                put(COL_JID, jid.ifBlank { "Unknown" })
+                put(COL_NAME, resolvedName)
+                put(COL_MSG_ID, msgId)
+                put(COL_TEXT, text)
+                put(COL_TIMESTAMP, if (timestamp > 0) timestamp else System.currentTimeMillis())
+                put(COL_FROM_ME, if (fromMe) 1 else 0)
+                put(COL_IS_GROUP, if (isGroup) 1 else 0)
+            }
+            db.insertWithOnConflict(TABLE_NAME, null, cv, SQLiteDatabase.CONFLICT_REPLACE)
 
-                if (!contactName.isNullOrBlank() && !contactName.all { it.isDigit() }) {
-                    val updateCv = ContentValues().apply {
-                        put(COL_NAME, contactName)
-                    }
-                    db.update(TABLE_NAME, updateCv, "$COL_JID = ?", arrayOf(jid))
+            if (!contactName.isNullOrBlank() && !contactName.all { it.isDigit() }) {
+                val updateCv = ContentValues().apply {
+                    put(COL_NAME, contactName)
                 }
+                db.update(TABLE_NAME, updateCv, "$COL_JID = ?", arrayOf(jid))
             }
         } catch (ignored: Throwable) {}
     }
@@ -114,27 +113,26 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
     fun getAllPreservedMessages(): List<StoredMessage> {
         val list = mutableListOf<StoredMessage>()
         try {
-            readableDatabase.use { db ->
-                val cursor: Cursor? = db.query(
-                    TABLE_NAME,
-                    arrayOf(COL_MSG_ID, COL_JID, COL_NAME, COL_TEXT, COL_TIMESTAMP, COL_FROM_ME, COL_IS_GROUP),
-                    null, null, null, null,
-                    "$COL_TIMESTAMP ASC"
-                )
-                cursor?.use {
-                    while (it.moveToNext()) {
-                        list.add(
-                            StoredMessage(
-                                id = it.getString(0) ?: "",
-                                jid = it.getString(1) ?: "",
-                                contactName = it.getString(2) ?: "",
-                                text = it.getString(3) ?: "",
-                                timestamp = it.getLong(4),
-                                isFromMe = it.getInt(5) == 1,
-                                isGroup = it.getInt(6) == 1
-                            )
+            val db = readableDatabase
+            val cursor: Cursor? = db.query(
+                TABLE_NAME,
+                arrayOf(COL_MSG_ID, COL_JID, COL_NAME, COL_TEXT, COL_TIMESTAMP, COL_FROM_ME, COL_IS_GROUP),
+                null, null, null, null,
+                "$COL_TIMESTAMP ASC"
+            )
+            cursor?.use {
+                while (it.moveToNext()) {
+                    list.add(
+                        StoredMessage(
+                            id = it.getString(0) ?: "",
+                            jid = it.getString(1) ?: "",
+                            contactName = it.getString(2) ?: "",
+                            text = it.getString(3) ?: "",
+                            timestamp = it.getLong(4),
+                            isFromMe = it.getInt(5) == 1,
+                            isGroup = it.getInt(6) == 1
                         )
-                    }
+                    )
                 }
             }
         } catch (ignored: Throwable) {}
