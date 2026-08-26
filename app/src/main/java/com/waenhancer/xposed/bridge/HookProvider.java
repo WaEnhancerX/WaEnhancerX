@@ -100,6 +100,20 @@ public class HookProvider extends ContentProvider {
                 return Bundle.EMPTY;
             }
 
+            if ("record_preserved_message".equals(method) && extras != null) {
+                String jid = extras.getString("jid", "");
+                String contactName = extras.getString("name", "");
+                String msgId = extras.getString("msgId", "");
+                String text = extras.getString("text", "");
+                long timestamp = extras.getLong("timestamp", System.currentTimeMillis());
+                boolean fromMe = extras.getBoolean("fromMe", false);
+                boolean isGroup = extras.getBoolean("isGroup", false);
+
+                com.waenhancer.xposed.core.db.PreservedMessageStore.getInstance(context)
+                        .insertPreservedMessage(jid, contactName, msgId, text, timestamp, fromMe, isGroup);
+                return Bundle.EMPTY;
+            }
+
             return null;
         } finally {
             Binder.restoreCallingIdentity(token);

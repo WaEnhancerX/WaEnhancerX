@@ -1,0 +1,131 @@
+package com.waenhancer.xposed.core.db
+
+import android.content.ContentValues
+import android.content.Context
+import android.database.Cursor
+import android.database.sqlite.SQLiteDatabase
+import android.database.sqlite.SQLiteOpenHelper
+
+/**
+ * SQLite Store for Preserved "Delete For Me" messages.
+ * Stores full text, contact JID, timestamp, and sender direction (fromMe).
+ */
+class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHelper(
+    if (context.applicationContext != null) context.applicationContext else context,
+    DATABASE_NAME,
+    null,
+    DATABASE_VERSION
+) {
+    companion object {
+        private const val DATABASE_NAME = "waex_preserved_messages.db"
+        private const val DATABASE_VERSION = 1
+        const val TABLE_NAME = "preserved_messages"
+
+        const val COL_ID = "_id"
+        const val COL_JID = "jid"
+        const val COL_NAME = "contact_name"
+        const val COL_MSG_ID = "msg_id"
+        const val COL_TEXT = "text_data"
+        const val COL_TIMESTAMP = "timestamp"
+        const val COL_FROM_ME = "from_me"
+        const val COL_IS_GROUP = "is_group"
+
+        @Volatile
+        private var instance: PreservedMessageStore? = null
+
+        @JvmStatic
+        fun getInstance(context: Context): PreservedMessageStore {
+            return instance ?: synchronized(this) {
+                instance ?: PreservedMessageStore(context).also { instance = it }
+            }
+        }
+    }
+
+    data class StoredMessage(
+        val id: String,
+        val jid: String,
+        val contactName: String,
+        val text: String,
+        val timestamp: Long,
+        val isFromMe: Boolean,
+        val isGroup: Boolean
+    )
+
+    override fun onCreate(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS $TABLE_NAME (
+                $COL_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                $COL_JID TEXT NOT NULL,
+                $COL_NAME TEXT,
+                $COL_MSG_ID TEXT UNIQUE,
+                $COL_TEXT TEXT,
+                $COL_TIMESTAMP INTEGER DEFAULT 0,
+                $COL_FROM_ME INTEGER DEFAULT 0,
+                $COL_IS_GROUP INTEGER DEFAULT 0
+            )
+            """.trimIndent()
+        )
+    }
+
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        db.execSQL("DROP TABLE IF EXISTS $TABLE_NAME")
+        onCreate(db)
+    }
+
+    fun insertPreservedMessage(
+        jid: String,
+        contactName: String?,
+        msgId: String,
+        text: String,
+        timestamp: Long,
+        fromMe: Boolean,
+        isGroup: Boolean
+    ) {
+        if (msgId.isBlank()) return
+        try {
+            writableDatabase.use { db ->
+                val cv = ContentValues().apply {
+                    put(COL_JID, jid.ifBlank { "Unknown" })
+                    put(COL_NAME, contactName ?: jid.substringBefore("@"))
+                    put(COL_MSG_ID, msgId)
+                    put(COL_TEXT, text)
+                    put(COL_TIMESTAMP, if (timestamp > 0) timestamp else System.currentTimeMillis())
+                    put(COL_FROM_ME, if (fromMe) 1 else 0)
+                    put(COL_IS_GROUP, if (isGroup) 1 else 0)
+                }
+                db.insertWithOnConflict(TABLE_NAME, null, cv, SQLiteDatabase.CONFLICT_REPLACE)
+            }
+        } catch (ignored: Throwable) {}
+    }
+
+    fun getAllPreservedMessages(): List<StoredMessage> {
+        val list = mutableListOf<StoredMessage>()
+        try {
+            readableDatabase.use { db ->
+                val cursor: Cursor? = db.query(
+                    TABLE_NAME,
+                    arrayOf(COL_MSG_ID, COL_JID, COL_NAME, COL_TEXT, COL_TIMESTAMP, COL_FROM_ME, COL_IS_GROUP),
+                    null, null, null, null,
+                    "$COL_TIMESTAMP ASC"
+                )
+                cursor?.use {
+                    while (it.moveToNext()) {
+                        list.add(
+                            StoredMessage(
+                                id = it.getString(0) ?: "",
+                                jid = it.getString(1) ?: "",
+                                contactName = it.getString(2) ?: "",
+                                text = it.getString(3) ?: "",
+                                timestamp = it.getLong(4),
+                                isFromMe = it.getInt(5) == 1,
+                                isGroup = it.getInt(6) == 1
+                            )
+                        )
+                    }
+                }
+            }
+        } catch (ignored: Throwable) {}
+        return list
+    }
+}

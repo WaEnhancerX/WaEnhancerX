@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
+import android.net.Uri
+import android.os.Bundle
 import com.waenhancer.xposed.core.BaseFeature
 import com.waenhancer.xposed.core.db.DelMessageStore
 import com.waenhancer.xposed.core.devkit.DexSearchEngine
@@ -19,7 +21,7 @@ import java.lang.reflect.Method
  *
  * Intercepts both bytecode and database-level message deletion requests triggered
  * when the user clicks "Delete For Me". Prevents the row from being wiped from WhatsApp's /
- * WhatsApp Business's own SQLite msgstore database and records the preserved message index.
+ * WhatsApp Business's own SQLite msgstore database and notifies HookProvider for UI sync.
  */
 class PreserveDeleteForMeHook(
     context: Context,
@@ -33,6 +35,7 @@ class PreserveDeleteForMeHook(
     companion object {
         private const val TAG = "[WAEX:PreserveDeleteForMe]"
         private const val PREF_KEY = "preserve_delete_for_me"
+        private const val PROVIDER_URI = "content://com.waenhancer.hookprovider"
     }
 
     override fun hook() {
@@ -81,35 +84,46 @@ class PreserveDeleteForMeHook(
                         if (table != "message") return
 
                         val where = param.args.getOrNull(1) as? String ?: return
-                        val whereArgs = param.args.getOrNull(2) as? Array<*> ?: return
+                        val whereArgs = param.args.getOrNull(2) as? Array<*>
 
-                        if (!where.contains("_id=?") || whereArgs.isEmpty()) return
-
-                        val rowId = whereArgs[0]?.toString() ?: return
                         val db = param.thisObject as? SQLiteDatabase ?: return
 
                         try {
-                            db.rawQuery(
-                                "SELECT key_id, chat_row_id, from_me, message_type FROM message WHERE _id=?",
-                                arrayOf(rowId)
-                            ).use { cursor ->
-                                if (cursor != null && cursor.moveToFirst()) {
-                                    val keyId = cursor.getString(0)
-                                    val chatRowId = cursor.getLong(1)
-                                    val fromMe = cursor.getInt(2)
-                                    val msgType = cursor.getInt(3)
+                            val sqlArgs = whereArgs?.map { it?.toString() ?: "" }?.toTypedArray() ?: emptyArray()
+                            val querySql = "SELECT _id, key_id, chat_row_id, from_me, message_type, text_data, timestamp FROM message WHERE $where"
 
-                                    if (!keyId.isNullOrEmpty() && msgType != 15) {
-                                        val now = System.currentTimeMillis()
-                                        DelMessageStore.getInstance(context).insertMessage(
-                                            chatRowId.toString(),
-                                            keyId,
-                                            now
-                                        )
-                                        XposedBridge.log("$TAG Preserved Delete-For-Me message in db: keyId=$keyId, chatRowId=$chatRowId, fromMe=$fromMe")
-                                        // Block physical deletion
-                                        param.result = 0
-                                    }
+                            db.rawQuery(querySql, sqlArgs).use { cursor ->
+                                if (cursor != null && cursor.moveToFirst()) {
+                                    do {
+                                        val rowId = cursor.getLong(0)
+                                        val keyId = cursor.getString(1)
+                                        val chatRowId = cursor.getLong(2)
+                                        val fromMe = cursor.getInt(3) == 1
+                                        val msgType = cursor.getInt(4)
+                                        val textData = cursor.getString(5) ?: ""
+                                        val msgTs = cursor.getLong(6)
+
+                                        if (!keyId.isNullOrEmpty() && msgType != 15) {
+                                            val now = System.currentTimeMillis()
+                                            val chatJid = resolveChatJid(db, chatRowId)
+                                            val isGroup = chatJid.contains("@g.us")
+
+                                            // 1. Record in WhatsApp's internal DB
+                                            DelMessageStore.getInstance(context).insertMessage(
+                                                chatJid,
+                                                keyId,
+                                                now
+                                            )
+
+                                            // 2. Notify Manager App IPC Bridge
+                                            dispatchToManagerApp(chatJid, keyId, textData, if (msgTs > 0) msgTs else now, fromMe, isGroup)
+
+                                            XposedBridge.log("$TAG Preserved Delete-For-Me: keyId=$keyId, jid=$chatJid, fromMe=$fromMe, text='$textData'")
+                                        }
+                                    } while (cursor.moveToNext())
+
+                                    // Block physical deletion from msgstore.db
+                                    param.result = 0
                                 }
                             }
                         } catch (t: Throwable) {
@@ -118,10 +132,51 @@ class PreserveDeleteForMeHook(
                     }
                 }
             )
-            XposedBridge.log("$TAG Database Delete-For-Me hook installed.")
+            XposedBridge.log("$TAG Database Delete-For-Me hook installed successfully.")
         } catch (t: Throwable) {
             XposedBridge.log("$TAG Error installing DB Delete-For-Me hook: ${t.message}")
         }
+    }
+
+    private fun resolveChatJid(db: SQLiteDatabase, chatRowId: Long): String {
+        if (chatRowId <= 0) return "Unknown"
+        try {
+            val sql = "SELECT raw_string FROM jid WHERE _id = (SELECT jid_row_id FROM chat WHERE _id = ?)"
+            db.rawQuery(sql, arrayOf(chatRowId.toString())).use { cursor ->
+                if (cursor != null && cursor.moveToFirst()) {
+                    val raw = cursor.getString(0)
+                    if (!raw.isNullOrEmpty()) return raw
+                }
+            }
+        } catch (ignored: Throwable) {}
+        return "chat_$chatRowId"
+    }
+
+    private fun dispatchToManagerApp(
+        jid: String,
+        msgId: String,
+        text: String,
+        timestamp: Long,
+        fromMe: Boolean,
+        isGroup: Boolean
+    ) {
+        try {
+            val bundle = Bundle().apply {
+                putString("jid", jid)
+                putString("name", jid.substringBefore("@"))
+                putString("msgId", msgId)
+                putString("text", text)
+                putLong("timestamp", timestamp)
+                putBoolean("fromMe", fromMe)
+                putBoolean("isGroup", isGroup)
+            }
+            context.contentResolver.call(
+                Uri.parse(PROVIDER_URI),
+                "record_preserved_message",
+                null,
+                bundle
+            )
+        } catch (ignored: Throwable) {}
     }
 
     private fun resolveDeleteForMeMethod(): Method? {
@@ -129,7 +184,7 @@ class PreserveDeleteForMeHook(
             DexSearchEngine.getInstance().findMethodWithCache(
                 context,
                 classLoader,
-                "wpp_delete_for_me_method",
+                "wpp_delete_for_me_method_v2",
                 { bridge, loader ->
                     val data = bridge.findMethod(
                         FindMethod.create().matcher(

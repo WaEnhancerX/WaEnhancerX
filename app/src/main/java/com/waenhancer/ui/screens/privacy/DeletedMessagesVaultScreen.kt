@@ -255,28 +255,35 @@ fun DeletedMessagesVaultScreen() {
  * Loads real preserved messages grouped by chat from the SQLite store.
  */
 private fun loadRealPreservedChats(context: Context): List<PreservedChat> {
-    val store = DelMessageStore.getInstance(context)
-    val records = store.allPreservedRecords
+    val store = com.waenhancer.xposed.core.db.PreservedMessageStore.getInstance(context)
+    val records = store.getAllPreservedMessages()
     if (records.isEmpty()) return emptyList()
 
     val timeFormatter = DateFormat.getTimeInstance(DateFormat.SHORT)
     val chatsMap = mutableMapOf<String, MutableList<PreservedMessage>>()
+    val chatNamesMap = mutableMapOf<String, String>()
+    val chatGroupMap = mutableMapOf<String, Boolean>()
 
     for (rec in records) {
         val jid = if (rec.jid.isNullOrEmpty()) "Unknown" else rec.jid
         val timeStr = if (rec.timestamp > 0) timeFormatter.format(Date(rec.timestamp)) else "Preserved"
         val msg = PreservedMessage(
-            id = rec.msgId,
-            text = "Preserved message (${rec.msgId})",
+            id = rec.id,
+            text = rec.text.ifBlank { "Preserved message" },
             timestamp = timeStr,
-            isFromMe = false
+            isFromMe = rec.isFromMe,
+            senderName = rec.contactName
         )
         chatsMap.computeIfAbsent(jid) { mutableListOf() }.add(msg)
+        if (rec.contactName.isNotBlank()) {
+            chatNamesMap[jid] = rec.contactName
+        }
+        chatGroupMap[jid] = rec.isGroup
     }
 
     return chatsMap.map { (jid, msgs) ->
-        val isGroup = jid.contains("@g.us") || jid.contains("-")
-        val displayName = when {
+        val isGroup = chatGroupMap[jid] ?: (jid.contains("@g.us") || jid.contains("-"))
+        val displayName = chatNamesMap[jid] ?: when {
             isGroup -> jid.substringBefore("@")
             jid.contains("@") -> jid.substringBefore("@")
             else -> jid
