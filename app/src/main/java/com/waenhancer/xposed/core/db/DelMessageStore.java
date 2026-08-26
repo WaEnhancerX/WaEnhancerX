@@ -7,8 +7,10 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -36,6 +38,18 @@ public final class DelMessageStore extends SQLiteOpenHelper {
                 }
             }
     );
+
+    public static class PreservedRecord {
+        public final String jid;
+        public final String msgId;
+        public final long timestamp;
+
+        public PreservedRecord(String jid, String msgId, long timestamp) {
+            this.jid = jid != null ? jid : "";
+            this.msgId = msgId != null ? msgId : "";
+            this.timestamp = timestamp;
+        }
+    }
 
     private DelMessageStore(@NonNull Context context) {
         super(context.getApplicationContext() != null ? context.getApplicationContext() : context,
@@ -103,6 +117,27 @@ public final class DelMessageStore extends SQLiteOpenHelper {
 
         timestampCache.put(msgId, -1L);
         return 0L;
+    }
+
+    public List<PreservedRecord> getAllPreservedRecords() {
+        List<PreservedRecord> list = new ArrayList<>();
+        try (SQLiteDatabase db = getReadableDatabase();
+             Cursor cursor = db.query(
+                     TABLE_DEL_MESSAGES,
+                     new String[]{COL_JID, COL_MSGID, COL_TIMESTAMP},
+                     null, null, null, null,
+                     COL_TIMESTAMP + " DESC")) {
+            if (cursor != null && cursor.moveToFirst()) {
+                do {
+                    list.add(new PreservedRecord(
+                            cursor.getString(0),
+                            cursor.getString(1),
+                            cursor.getLong(2)
+                    ));
+                } while (cursor.moveToNext());
+            }
+        } catch (Throwable ignored) {}
+        return list;
     }
 
     public boolean isRevoked(@Nullable String msgId) {

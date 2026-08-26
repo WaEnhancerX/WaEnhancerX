@@ -173,7 +173,6 @@ fun GlobalPrivacySettingsScreen(
                 SettingItem("Anti-Edit Messages", "Keep original version of edited messages in chat", "anti_edit_messages"),
                 SettingItem("Sticker Confirmation Alert", "Ask before sending clicked stickers", "sticker_confirm_alert"),
                 SettingItem("Jump to First Message", "Add an option to jump directly to the beginning of any chat", "jump_to_first_message"),
-                SettingItem("Preserve \"Delete For Me\" Messages", "Keep local copy when messages are deleted for me", "preserve_delete_for_me"),
                 SettingItem("Copy Status Text", "Allow copying text from status updates", "copy_status_text")
             )
         ),

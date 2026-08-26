@@ -1,5 +1,6 @@
 package com.waenhancer.ui.screens.privacy
 
+import android.content.Context
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -30,7 +31,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -39,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -49,6 +53,12 @@ import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
+import com.waenhancer.xposed.core.db.DelMessageStore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.text.DateFormat
+import java.util.Date
 
 data class PreservedMessage(
     val id: String,
@@ -71,6 +81,7 @@ data class PreservedChat(
 
 @Composable
 fun DeletedMessagesVaultScreen() {
+    val context = LocalContext.current
     val navController = LocalWaexNavController.current
     val preferenceManager = LocalWaexPreferenceManager.current
     val colors = WaexTheme.colors
@@ -84,61 +95,25 @@ fun DeletedMessagesVaultScreen() {
 
     var selectedTab by remember { mutableStateOf("individuals") } // "individuals" | "groups"
     var activeChatDetails by remember { mutableStateOf<PreservedChat?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    val preservedChats = remember { mutableStateListOf<PreservedChat>() }
 
-    // Sample preserved "Delete for me" chats with sent & received messages
-    val sampleChats = remember {
-        listOf(
-            PreservedChat(
-                id = "chat_1",
-                jid = "+1 555 019 2834@s.whatsapp.net",
-                name = "Alex Rivera",
-                isGroup = false,
-                messages = listOf(
-                    PreservedMessage("1a", "Can you send the draft files before noon?", "10:15 AM", isFromMe = false),
-                    PreservedMessage("1b", "Sure, I am wrapping up the final review now.", "10:28 AM", isFromMe = true),
-                    PreservedMessage("1c", "Hey, did you review the project proposal I sent this morning?", "10:42 AM", isFromMe = false),
-                    PreservedMessage("1d", "Yes, just checked it out. Looks solid!", "10:48 AM", isFromMe = true)
-                )
-            ),
-            PreservedChat(
-                id = "chat_2",
-                jid = "+1 555 018 7392@s.whatsapp.net",
-                name = "Sarah Chen",
-                isGroup = false,
-                messages = listOf(
-                    PreservedMessage("2a", "Are we still on for the 2 PM design review?", "9:02 AM", isFromMe = true),
-                    PreservedMessage("2b", "Let's postpone the call to 4 PM instead.", "9:15 AM", isFromMe = false),
-                    PreservedMessage("2c", "Perfect, see you at 4 PM then.", "9:18 AM", isFromMe = true)
-                )
-            ),
-            PreservedChat(
-                id = "chat_3",
-                jid = "120363024881@g.us",
-                name = "Core Engineering",
-                isGroup = true,
-                messages = listOf(
-                    PreservedMessage("3a", "The staging environment is upgraded to v2.4", "Yesterday, 4:20 PM", isFromMe = false, senderName = "David Kim"),
-                    PreservedMessage("3b", "All CI/CD regression suites passed.", "Yesterday, 4:45 PM", isFromMe = true),
-                    PreservedMessage("3c", "The deployment is scheduled for 8 PM UTC tonight.", "Yesterday, 6:05 PM", isFromMe = false, senderName = "Marcus Vance")
-                )
-            ),
-            PreservedChat(
-                id = "chat_4",
-                jid = "120363098124@g.us",
-                name = "Marketing Sync",
-                isGroup = true,
-                messages = listOf(
-                    PreservedMessage("4a", "Please note the meeting room has been moved to Floor 4.", "Yesterday, 3:30 PM", isFromMe = false, senderName = "Maria Garcia"),
-                    PreservedMessage("4b", "Got it, heading over now.", "Yesterday, 3:35 PM", isFromMe = true)
-                )
-            )
-        )
+    // Load real preserved chats from database
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            val loadedList = loadRealPreservedChats(context)
+            withContext(Dispatchers.Main) {
+                preservedChats.clear()
+                preservedChats.addAll(loadedList)
+                isLoading = false
+            }
+        }
     }
 
     val filteredChats = if (selectedTab == "individuals") {
-        sampleChats.filter { !it.isGroup }
+        preservedChats.filter { !it.isGroup }
     } else {
-        sampleChats.filter { it.isGroup }
+        preservedChats.filter { it.isGroup }
     }
 
     AnimatedContent(
@@ -226,18 +201,39 @@ fun DeletedMessagesVaultScreen() {
                     }
 
                     // Main WhatsApp Chat List Items
-                    if (filteredChats.isEmpty()) {
+                    if (!isLoading && filteredChats.isEmpty()) {
                         item {
-                            Box(
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 64.dp),
-                                contentAlignment = Alignment.Center
+                                    .padding(vertical = 80.dp, horizontal = 24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .clip(CircleShape)
+                                        .background(colors.surfaceDim),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = WaexIcons.Folder,
+                                        contentDescription = null,
+                                        tint = colors.onSurfaceVariant,
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                }
                                 Text(
-                                    text = "No preserved messages found",
-                                    style = typography.bodyLg,
-                                    color = colors.onSurfaceVariant
+                                    text = if (selectedTab == "individuals") "No preserved individual chats" else "No preserved group chats",
+                                    style = typography.headlineMd,
+                                    color = colors.onSurface
+                                )
+                                Text(
+                                    text = "When messages are deleted via 'Delete For Me', they will be preserved and listed here.",
+                                    style = typography.bodyMd,
+                                    color = colors.onSurfaceVariant,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
                             }
                         }
@@ -252,6 +248,46 @@ fun DeletedMessagesVaultScreen() {
                 }
             }
         }
+    }
+}
+
+/**
+ * Loads real preserved messages grouped by chat from the SQLite store.
+ */
+private fun loadRealPreservedChats(context: Context): List<PreservedChat> {
+    val store = DelMessageStore.getInstance(context)
+    val records = store.allPreservedRecords
+    if (records.isEmpty()) return emptyList()
+
+    val timeFormatter = DateFormat.getTimeInstance(DateFormat.SHORT)
+    val chatsMap = mutableMapOf<String, MutableList<PreservedMessage>>()
+
+    for (rec in records) {
+        val jid = if (rec.jid.isNullOrEmpty()) "Unknown" else rec.jid
+        val timeStr = if (rec.timestamp > 0) timeFormatter.format(Date(rec.timestamp)) else "Preserved"
+        val msg = PreservedMessage(
+            id = rec.msgId,
+            text = "Preserved message (${rec.msgId})",
+            timestamp = timeStr,
+            isFromMe = false
+        )
+        chatsMap.computeIfAbsent(jid) { mutableListOf() }.add(msg)
+    }
+
+    return chatsMap.map { (jid, msgs) ->
+        val isGroup = jid.contains("@g.us") || jid.contains("-")
+        val displayName = when {
+            isGroup -> jid.substringBefore("@")
+            jid.contains("@") -> jid.substringBefore("@")
+            else -> jid
+        }
+        PreservedChat(
+            id = jid,
+            jid = jid,
+            name = displayName,
+            isGroup = isGroup,
+            messages = msgs
+        )
     }
 }
 
