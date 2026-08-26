@@ -8,7 +8,7 @@ import android.database.sqlite.SQLiteOpenHelper
 
 /**
  * SQLite Store for Preserved "Delete For Me" messages.
- * Stores full text, contact JID, timestamp, and sender direction (fromMe).
+ * Stores full text, contact JID, contact display name, timestamp, and sender direction (fromMe).
  */
 class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHelper(
     if (context.applicationContext != null) context.applicationContext else context,
@@ -85,9 +85,14 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
         if (msgId.isBlank()) return
         try {
             writableDatabase.use { db ->
+                val resolvedName = if (!contactName.isNullOrBlank() && !contactName.all { it.isDigit() }) {
+                    contactName
+                } else {
+                    jid.substringBefore("@")
+                }
                 val cv = ContentValues().apply {
                     put(COL_JID, jid.ifBlank { "Unknown" })
-                    put(COL_NAME, contactName ?: jid.substringBefore("@"))
+                    put(COL_NAME, resolvedName)
                     put(COL_MSG_ID, msgId)
                     put(COL_TEXT, text)
                     put(COL_TIMESTAMP, if (timestamp > 0) timestamp else System.currentTimeMillis())
@@ -95,6 +100,13 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
                     put(COL_IS_GROUP, if (isGroup) 1 else 0)
                 }
                 db.insertWithOnConflict(TABLE_NAME, null, cv, SQLiteDatabase.CONFLICT_REPLACE)
+
+                if (!contactName.isNullOrBlank() && !contactName.all { it.isDigit() }) {
+                    val updateCv = ContentValues().apply {
+                        put(COL_NAME, contactName)
+                    }
+                    db.update(TABLE_NAME, updateCv, "$COL_JID = ?", arrayOf(jid))
+                }
             }
         } catch (ignored: Throwable) {}
     }

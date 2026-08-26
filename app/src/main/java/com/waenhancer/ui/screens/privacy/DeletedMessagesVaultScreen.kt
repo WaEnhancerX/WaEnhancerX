@@ -1,6 +1,8 @@
 package com.waenhancer.ui.screens.privacy
 
 import android.content.Context
+import android.net.Uri
+import android.provider.ContactsContract
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -53,10 +55,9 @@ import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
-import com.waenhancer.xposed.core.db.DelMessageStore
+import com.waenhancer.xposed.core.db.PreservedMessageStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.File
 import java.text.DateFormat
 import java.util.Date
 
@@ -255,7 +256,7 @@ fun DeletedMessagesVaultScreen() {
  * Loads real preserved messages grouped by chat from the SQLite store.
  */
 private fun loadRealPreservedChats(context: Context): List<PreservedChat> {
-    val store = com.waenhancer.xposed.core.db.PreservedMessageStore.getInstance(context)
+    val store = PreservedMessageStore.getInstance(context)
     val records = store.getAllPreservedMessages()
     if (records.isEmpty()) return emptyList()
 
@@ -275,7 +276,13 @@ private fun loadRealPreservedChats(context: Context): List<PreservedChat> {
             senderName = rec.contactName
         )
         chatsMap.computeIfAbsent(jid) { mutableListOf() }.add(msg)
-        if (rec.contactName.isNotBlank()) {
+
+        if (rec.contactName.isNotBlank() &&
+            rec.contactName != "Unknown" &&
+            !rec.contactName.endsWith("@s.whatsapp.net") &&
+            !rec.contactName.endsWith("@lid") &&
+            !rec.contactName.all { it.isDigit() }
+        ) {
             chatNamesMap[jid] = rec.contactName
         }
         chatGroupMap[jid] = rec.isGroup
@@ -283,10 +290,23 @@ private fun loadRealPreservedChats(context: Context): List<PreservedChat> {
 
     return chatsMap.map { (jid, msgs) ->
         val isGroup = chatGroupMap[jid] ?: (jid.contains("@g.us") || jid.contains("-"))
-        val displayName = chatNamesMap[jid] ?: when {
+        val storedName = chatNamesMap[jid]
+
+        val displayName = when {
+            !storedName.isNullOrBlank() -> storedName
             isGroup -> jid.substringBefore("@")
-            jid.contains("@") -> jid.substringBefore("@")
-            else -> jid
+            else -> {
+                // Try resolving via system Contacts provider
+                val userPart = jid.substringBefore("@")
+                val contactName = resolveSystemContactName(context, userPart)
+                if (!contactName.isNullOrBlank()) {
+                    contactName
+                } else if (userPart.all { it.isDigit() } && userPart.length in 10..15) {
+                    "+$userPart"
+                } else {
+                    userPart
+                }
+            }
         }
         PreservedChat(
             id = jid,
@@ -296,6 +316,30 @@ private fun loadRealPreservedChats(context: Context): List<PreservedChat> {
             messages = msgs
         )
     }
+}
+
+/**
+ * Resolves contact display name from Android System Contacts provider.
+ */
+private fun resolveSystemContactName(context: Context, number: String): String? {
+    val cleanNumber = number.replace(Regex("[^0-9]"), "")
+    if (cleanNumber.length < 7) return null
+    try {
+        val uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(cleanNumber))
+        context.contentResolver.query(
+            uri,
+            arrayOf(ContactsContract.PhoneLookup.DISPLAY_NAME),
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val name = cursor.getString(0)
+                if (!name.isNullOrBlank()) return name
+            }
+        }
+    } catch (ignored: Throwable) {}
+    return null
 }
 
 /**
