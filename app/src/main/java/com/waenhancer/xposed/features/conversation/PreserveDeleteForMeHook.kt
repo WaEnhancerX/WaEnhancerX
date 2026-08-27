@@ -21,7 +21,7 @@ import java.lang.reflect.Method
  * Feature: Preserve "Delete For Me" Messages.
  *
  * Intercepts message deletion requests when the user clicks "Delete For Me".
- * Resolves contact display names & group subjects from WhatsApp's wa.db & msgstore.db,
+ * Resolves contact display names, sender names, & group subjects from WhatsApp's wa.db & msgstore.db,
  * prevents row deletion in msgstore.db, and sends metadata to the Manager App.
  */
 class PreserveDeleteForMeHook(
@@ -91,7 +91,7 @@ class PreserveDeleteForMeHook(
 
                         try {
                             val sqlArgs = whereArgs?.map { it?.toString() ?: "" }?.toTypedArray() ?: emptyArray()
-                            val querySql = "SELECT _id, key_id, chat_row_id, from_me, message_type, text_data, timestamp FROM message WHERE $where"
+                            val querySql = "SELECT _id, key_id, chat_row_id, from_me, message_type, text_data, timestamp, sender_jid_row_id FROM message WHERE $where"
 
                             db.rawQuery(querySql, sqlArgs).use { cursor ->
                                 if (cursor != null && cursor.moveToFirst()) {
@@ -103,12 +103,19 @@ class PreserveDeleteForMeHook(
                                         val msgType = cursor.getInt(4)
                                         val textData = cursor.getString(5) ?: ""
                                         val msgTs = cursor.getLong(6)
+                                        val senderJidRowId = if (cursor.columnCount > 7) cursor.getLong(7) else 0L
 
                                         if (!keyId.isNullOrEmpty() && msgType != 15) {
                                             val now = System.currentTimeMillis()
                                             val chatJid = resolveChatJid(db, chatRowId)
                                             val isGroup = chatJid.contains("@g.us")
-                                            val displayName = resolveChatDisplayName(context, db, chatRowId, chatJid)
+                                            val chatDisplayName = resolveChatDisplayName(context, db, chatRowId, chatJid)
+
+                                            val senderDisplayName = if (isGroup) {
+                                                if (fromMe) "You" else resolveSenderDisplayName(context, db, senderJidRowId, chatDisplayName)
+                                            } else {
+                                                if (fromMe) "You" else chatDisplayName
+                                            }
 
                                             // 1. Record in WhatsApp's internal DB
                                             DelMessageStore.getInstance(context).insertMessage(
@@ -117,10 +124,19 @@ class PreserveDeleteForMeHook(
                                                 now
                                             )
 
-                                            // 2. Notify Manager App IPC Bridge with resolved contact name
-                                            dispatchToManagerApp(chatJid, displayName, keyId, textData, if (msgTs > 0) msgTs else now, fromMe, isGroup)
+                                            // 2. Notify Manager App IPC Bridge with resolved group/chat name & sender name
+                                            dispatchToManagerApp(
+                                                jid = chatJid,
+                                                chatName = chatDisplayName,
+                                                senderName = senderDisplayName,
+                                                msgId = keyId,
+                                                text = textData,
+                                                timestamp = if (msgTs > 0) msgTs else now,
+                                                fromMe = fromMe,
+                                                isGroup = isGroup
+                                            )
 
-                                            XposedBridge.log("$TAG Preserved Delete-For-Me: name='$displayName', keyId=$keyId, jid=$chatJid, fromMe=$fromMe, text='$textData'")
+                                            XposedBridge.log("$TAG Preserved Delete-For-Me: chat='$chatDisplayName', sender='$senderDisplayName', keyId=$keyId, text='$textData'")
                                         }
                                     } while (cursor.moveToNext())
 
@@ -154,6 +170,30 @@ class PreserveDeleteForMeHook(
         return "chat_$chatRowId"
     }
 
+    private fun resolveSenderDisplayName(
+        ctx: Context,
+        msgstoreDb: SQLiteDatabase,
+        senderJidRowId: Long,
+        fallback: String
+    ): String {
+        if (senderJidRowId <= 0) return fallback
+        try {
+            var rawJid = ""
+            var userPart = ""
+            msgstoreDb.rawQuery("SELECT raw_string, user FROM jid WHERE _id = ?", arrayOf(senderJidRowId.toString())).use { cursor ->
+                if (cursor != null && cursor.moveToFirst()) {
+                    rawJid = cursor.getString(0) ?: ""
+                    userPart = cursor.getString(1) ?: ""
+                }
+            }
+            if (rawJid.isNotBlank()) {
+                val resolved = resolveUserDisplayName(ctx, msgstoreDb, rawJid, userPart)
+                if (resolved.isNotBlank()) return resolved
+            }
+        } catch (ignored: Throwable) {}
+        return fallback
+    }
+
     private fun resolveChatDisplayName(
         ctx: Context,
         msgstoreDb: SQLiteDatabase,
@@ -170,11 +210,21 @@ class PreserveDeleteForMeHook(
             }
         } catch (ignored: Throwable) {}
 
-        // 2. If LID (e.g. 154782148874306@lid or 154782148874306), resolve phone JID via jid_map in msgstore.db
+        val userPart = rawJid.substringBefore("@")
+        return resolveUserDisplayName(ctx, msgstoreDb, rawJid, userPart)
+    }
+
+    private fun resolveUserDisplayName(
+        ctx: Context,
+        msgstoreDb: SQLiteDatabase,
+        rawJid: String,
+        userPart: String
+    ): String {
         var resolvedPhoneJid: String? = null
         var resolvedPhoneUser: String? = null
         val cleanJid = if (rawJid.contains("@")) rawJid else "$rawJid@lid"
 
+        // 1. Check jid_map in msgstore.db (LID -> Phone JID)
         try {
             val resolvePhoneSql = """
                 SELECT j2.raw_string, j2.user 
@@ -183,7 +233,6 @@ class PreserveDeleteForMeHook(
                 JOIN jid j2 ON jm.jid_row_id = j2._id
                 WHERE j1.raw_string = ? OR j1.user = ?
             """.trimIndent()
-            val userPart = rawJid.substringBefore("@")
             msgstoreDb.rawQuery(resolvePhoneSql, arrayOf(cleanJid, userPart)).use { cursor ->
                 if (cursor != null && cursor.moveToFirst()) {
                     resolvedPhoneJid = cursor.getString(0)
@@ -192,19 +241,18 @@ class PreserveDeleteForMeHook(
             }
         } catch (ignored: Throwable) {}
 
-        // 3. Query wa.db (wa_contacts table)
+        // 2. Query wa.db (wa_contacts table)
         try {
             val waDbFile = File(ctx.filesDir.parentFile, "databases/wa.db")
             if (waDbFile.exists()) {
                 SQLiteDatabase.openDatabase(waDbFile.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { waDb ->
-                    val userPart = rawJid.substringBefore("@")
-                    val querySql = "SELECT display_name, wa_name, sort_name, number FROM wa_contacts WHERE jid = ? OR jid = ? OR number = ? OR number = ? OR jid LIKE ?"
+                    val querySql = "SELECT display_name, wa_name, sort_name, number FROM wa_contacts WHERE jid = ? OR jid = ? OR number = ? OR number = ? OR number LIKE ?"
                     val params = arrayOf(
                         rawJid,
                         resolvedPhoneJid ?: "",
                         userPart,
                         resolvedPhoneUser ?: "",
-                        "%$userPart%"
+                        "%${resolvedPhoneUser ?: userPart}%"
                     )
                     waDb.rawQuery(querySql, params).use { cursor ->
                         if (cursor != null && cursor.moveToFirst()) {
@@ -224,7 +272,7 @@ class PreserveDeleteForMeHook(
             }
         } catch (ignored: Throwable) {}
 
-        // 4. Check verified business names in wa.db
+        // 3. Check verified business names in wa.db
         try {
             val waDbFile = File(ctx.filesDir.parentFile, "databases/wa.db")
             if (waDbFile.exists()) {
@@ -239,12 +287,10 @@ class PreserveDeleteForMeHook(
             }
         } catch (ignored: Throwable) {}
 
-        // 5. Fallback formatting with resolved phone number
         if (!resolvedPhoneUser.isNullOrBlank()) {
             return "+$resolvedPhoneUser"
         }
 
-        val userPart = rawJid.substringBefore("@")
         return if (userPart.all { it.isDigit() } && userPart.length in 10..15) {
             "+$userPart"
         } else {
@@ -254,7 +300,8 @@ class PreserveDeleteForMeHook(
 
     private fun dispatchToManagerApp(
         jid: String,
-        displayName: String,
+        chatName: String,
+        senderName: String,
         msgId: String,
         text: String,
         timestamp: Long,
@@ -264,7 +311,8 @@ class PreserveDeleteForMeHook(
         try {
             val bundle = Bundle().apply {
                 putString("jid", jid)
-                putString("name", displayName)
+                putString("name", chatName)
+                putString("senderName", senderName)
                 putString("msgId", msgId)
                 putString("text", text)
                 putLong("timestamp", timestamp)

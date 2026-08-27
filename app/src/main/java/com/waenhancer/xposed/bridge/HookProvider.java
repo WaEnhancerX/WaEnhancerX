@@ -103,6 +103,7 @@ public class HookProvider extends ContentProvider {
             if ("record_preserved_message".equals(method) && extras != null) {
                 String jid = extras.getString("jid", "");
                 String contactName = extras.getString("name", "");
+                String senderName = extras.getString("senderName", "");
                 String msgId = extras.getString("msgId", "");
                 String text = extras.getString("text", "");
                 long timestamp = extras.getLong("timestamp", System.currentTimeMillis());
@@ -110,7 +111,7 @@ public class HookProvider extends ContentProvider {
                 boolean isGroup = extras.getBoolean("isGroup", false);
 
                 com.waenhancer.xposed.core.db.PreservedMessageStore.getInstance(context)
-                        .insertPreservedMessage(jid, contactName, msgId, text, timestamp, fromMe, isGroup);
+                        .insertPreservedMessage(jid, contactName, senderName, msgId, text, timestamp, fromMe, isGroup);
                 return Bundle.EMPTY;
             }
 

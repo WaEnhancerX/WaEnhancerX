@@ -196,9 +196,10 @@ private fun PreservedMessageBubble(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 // In group received messages, show sender name if available
-                if (isGroup && !isSent && !message.senderName.isNullOrBlank()) {
+                if (isGroup && !isSent) {
+                    val authorName = message.senderName?.takeIf { it.isNotBlank() } ?: "Participant"
                     Text(
-                        text = message.senderName,
+                        text = authorName,
                         style = typography.labelSm,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF25D366),

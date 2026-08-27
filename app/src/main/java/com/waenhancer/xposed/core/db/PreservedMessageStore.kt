@@ -8,7 +8,7 @@ import android.database.sqlite.SQLiteOpenHelper
 
 /**
  * SQLite Store for Preserved "Delete For Me" messages.
- * Stores full text, contact JID, contact display name, timestamp, and sender direction (fromMe).
+ * Stores full text, contact/chat JID, chat display name, sender display name, timestamp, and sender direction (fromMe).
  */
 class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHelper(
     if (context.applicationContext != null) context.applicationContext else context,
@@ -18,12 +18,13 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
 ) {
     companion object {
         private const val DATABASE_NAME = "waex_preserved_messages.db"
-        private const val DATABASE_VERSION = 1
+        private const val DATABASE_VERSION = 2
         const val TABLE_NAME = "preserved_messages"
 
         const val COL_ID = "_id"
         const val COL_JID = "jid"
         const val COL_NAME = "contact_name"
+        const val COL_SENDER_NAME = "sender_name"
         const val COL_MSG_ID = "msg_id"
         const val COL_TEXT = "text_data"
         const val COL_TIMESTAMP = "timestamp"
@@ -44,7 +45,8 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
     data class StoredMessage(
         val id: String,
         val jid: String,
-        val contactName: String,
+        val chatName: String,
+        val senderName: String,
         val text: String,
         val timestamp: Long,
         val isFromMe: Boolean,
@@ -58,6 +60,7 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
                 $COL_ID INTEGER PRIMARY KEY AUTOINCREMENT,
                 $COL_JID TEXT NOT NULL,
                 $COL_NAME TEXT,
+                $COL_SENDER_NAME TEXT,
                 $COL_MSG_ID TEXT UNIQUE,
                 $COL_TEXT TEXT,
                 $COL_TIMESTAMP INTEGER DEFAULT 0,
@@ -69,13 +72,20 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_NAME")
-        onCreate(db)
+        if (oldVersion < 2) {
+            try {
+                db.execSQL("ALTER TABLE $TABLE_NAME ADD COLUMN $COL_SENDER_NAME TEXT")
+            } catch (ignored: Throwable) {
+                db.execSQL("DROP TABLE IF EXISTS $TABLE_NAME")
+                onCreate(db)
+            }
+        }
     }
 
     fun insertPreservedMessage(
         jid: String,
-        contactName: String?,
+        chatName: String?,
+        senderName: String?,
         msgId: String,
         text: String,
         timestamp: Long,
@@ -85,14 +95,23 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
         if (msgId.isBlank()) return
         try {
             val db = writableDatabase
-            val resolvedName = if (!contactName.isNullOrBlank() && !contactName.all { it.isDigit() }) {
-                contactName
+            val resolvedChatName = if (!chatName.isNullOrBlank() && !chatName.all { it.isDigit() }) {
+                chatName
             } else {
                 jid.substringBefore("@")
             }
+            val resolvedSenderName = if (!senderName.isNullOrBlank() && !senderName.all { it.isDigit() }) {
+                senderName
+            } else if (fromMe) {
+                "You"
+            } else {
+                resolvedChatName
+            }
+
             val cv = ContentValues().apply {
                 put(COL_JID, jid.ifBlank { "Unknown" })
-                put(COL_NAME, resolvedName)
+                put(COL_NAME, resolvedChatName)
+                put(COL_SENDER_NAME, resolvedSenderName)
                 put(COL_MSG_ID, msgId)
                 put(COL_TEXT, text)
                 put(COL_TIMESTAMP, if (timestamp > 0) timestamp else System.currentTimeMillis())
@@ -101,9 +120,9 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
             }
             db.insertWithOnConflict(TABLE_NAME, null, cv, SQLiteDatabase.CONFLICT_REPLACE)
 
-            if (!contactName.isNullOrBlank() && !contactName.all { it.isDigit() }) {
+            if (!chatName.isNullOrBlank() && !chatName.all { it.isDigit() }) {
                 val updateCv = ContentValues().apply {
-                    put(COL_NAME, contactName)
+                    put(COL_NAME, chatName)
                 }
                 db.update(TABLE_NAME, updateCv, "$COL_JID = ?", arrayOf(jid))
             }
@@ -116,21 +135,32 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
             val db = readableDatabase
             val cursor: Cursor? = db.query(
                 TABLE_NAME,
-                arrayOf(COL_MSG_ID, COL_JID, COL_NAME, COL_TEXT, COL_TIMESTAMP, COL_FROM_ME, COL_IS_GROUP),
+                arrayOf(COL_MSG_ID, COL_JID, COL_NAME, COL_SENDER_NAME, COL_TEXT, COL_TIMESTAMP, COL_FROM_ME, COL_IS_GROUP),
                 null, null, null, null,
                 "$COL_TIMESTAMP ASC"
             )
             cursor?.use {
+                val hasSenderCol = it.columnCount >= 8
                 while (it.moveToNext()) {
+                    val msgId = it.getString(0) ?: ""
+                    val jid = it.getString(1) ?: ""
+                    val chatName = it.getString(2) ?: ""
+                    val senderName = if (hasSenderCol) (it.getString(3) ?: "") else ""
+                    val text = it.getString(4) ?: ""
+                    val timestamp = it.getLong(5)
+                    val isFromMe = it.getInt(6) == 1
+                    val isGroup = it.getInt(7) == 1
+
                     list.add(
                         StoredMessage(
-                            id = it.getString(0) ?: "",
-                            jid = it.getString(1) ?: "",
-                            contactName = it.getString(2) ?: "",
-                            text = it.getString(3) ?: "",
-                            timestamp = it.getLong(4),
-                            isFromMe = it.getInt(5) == 1,
-                            isGroup = it.getInt(6) == 1
+                            id = msgId,
+                            jid = jid,
+                            chatName = chatName,
+                            senderName = senderName,
+                            text = text,
+                            timestamp = timestamp,
+                            isFromMe = isFromMe,
+                            isGroup = isGroup
                         )
                     )
                 }

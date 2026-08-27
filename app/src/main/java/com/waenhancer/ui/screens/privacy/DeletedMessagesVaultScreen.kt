@@ -273,17 +273,17 @@ private fun loadRealPreservedChats(context: Context): List<PreservedChat> {
             text = rec.text.ifBlank { "Preserved message" },
             timestamp = timeStr,
             isFromMe = rec.isFromMe,
-            senderName = rec.contactName
+            senderName = if (rec.isGroup && !rec.isFromMe && rec.senderName.isNotBlank()) rec.senderName else null
         )
         chatsMap.computeIfAbsent(jid) { mutableListOf() }.add(msg)
 
-        if (rec.contactName.isNotBlank() &&
-            rec.contactName != "Unknown" &&
-            !rec.contactName.endsWith("@s.whatsapp.net") &&
-            !rec.contactName.endsWith("@lid") &&
-            !rec.contactName.all { it.isDigit() }
+        if (rec.chatName.isNotBlank() &&
+            rec.chatName != "Unknown" &&
+            !rec.chatName.endsWith("@s.whatsapp.net") &&
+            !rec.chatName.endsWith("@lid") &&
+            !rec.chatName.all { it.isDigit() }
         ) {
-            chatNamesMap[jid] = rec.contactName
+            chatNamesMap[jid] = rec.chatName
         }
         chatGroupMap[jid] = rec.isGroup
     }
