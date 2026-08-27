@@ -71,6 +71,7 @@
         <activity
             android:name="com.waenhancer.app.PermissionsActivity"
             android:screenOrientation="portrait"
+            android:theme="@style/Theme.Waex.Splash"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
