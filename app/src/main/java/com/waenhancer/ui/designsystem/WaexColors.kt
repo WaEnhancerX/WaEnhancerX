@@ -30,61 +30,62 @@ data class WaexColors(
     val secondaryContainer: Color,
     val onSecondaryContainer: Color,
     val isLight: Boolean
-)
+) {
+    val isDark: Boolean get() = !isLight
+}
 
 val lightColors = WaexColors(
-    primary = Color(0xFF008069),
-    primaryContainer = Color(0xFFE8F5E9),
+    primary = Color(0xFF008069), // WhatsApp Teal
+    primaryContainer = Color(0xFFE1F3EF),
     onPrimary = Color(0xFFFFFFFF),
-    background = Color(0xFFF8F9FA),
-    onBackground = Color(0xFF191C1E),
+    background = Color(0xFFFFFFFF), // Pure stark white
+    onBackground = Color(0xFF0F0F0F), // Almost black
     surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF191C1E),
-    surfaceDim = Color(0xFFF1F3F5),
-    surfaceContainerLow = Color(0xFFF8F9FA),
+    onSurface = Color(0xFF0F0F0F),
+    surfaceDim = Color(0xFFF5F5F5),
+    surfaceContainerLow = Color(0xFFFAFAFA),
     surfaceContainer = Color(0xFFFFFFFF),
-    surfaceContainerHigh = Color(0xFFECEEF0),
-    surfaceContainerHighest = Color(0xFFE1E3E5),
-    onSurfaceVariant = Color(0xFF5F6E78),
-    outline = Color(0xFFE2E4E8),
-    outlineVariant = Color(0xFFEBECEF),
+    surfaceContainerHigh = Color(0xFFF5F5F5),
+    surfaceContainerHighest = Color(0xFFEAEAEA),
+    onSurfaceVariant = Color(0xFF49454F),
+    outline = Color(0xFFE0E0E0),
+    outlineVariant = Color(0xFFEAEAEA),
     error = Color(0xFFBA1A1A),
     errorContainer = Color(0xFFFFDAD6),
     onError = Color(0xFFFFFFFF),
     onErrorContainer = Color(0xFF93000A),
-    secondary = Color(0xFF128C7E),
+    secondary = Color(0xFF4A4A4A),
     onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFD2F3E7),
-    onSecondaryContainer = Color(0xFF002118),
+    secondaryContainer = Color(0xFFF0F0F0),
+    onSecondaryContainer = Color(0xFF1A1A1A),
     isLight = true
 )
 
 val darkColors = WaexColors(
-    primary = Color(0xFF25D366),
-    primaryContainer = Color(0xFF005238),
-    onPrimary = Color(0xFF001F12),
-    background = Color(0xFF0F1417),
-    onBackground = Color(0xFFE2E5E8),
-    surface = Color(0xFF171F24),
-    onSurface = Color(0xFFE2E5E8),
-    surfaceDim = Color(0xFF12191D),
-    surfaceContainerLow = Color(0xFF171F24),
-    surfaceContainer = Color(0xFF1D262C),
-    surfaceContainerHigh = Color(0xFF243037),
-    surfaceContainerHighest = Color(0xFF2E3D46),
-    onSurfaceVariant = Color(0xFF8B9BA5),
-    outline = Color(0xFF243037),
-    outlineVariant = Color(0xFF1D262C),
-    error = Color(0xFFCF6679),
-    errorContainer = Color(0xFF8C1D18),
-    onError = Color(0xFF601410),
-    onErrorContainer = Color(0xFFF9DEDC),
-    secondary = Color(0xFF00A884),
-    onSecondary = Color(0xFF111B21),
-    secondaryContainer = Color(0xFF005C4B),
-    onSecondaryContainer = Color(0xFFE9EDEF),
+    primary = Color(0xFF00A884), // WhatsApp Dark Teal
+    primaryContainer = Color(0xFF005140),
+    onPrimary = Color(0xFF00372D),
+    background = Color(0xFF000000), // True pitch black / AMOLED
+    onBackground = Color(0xFFF5F5F5), // High contrast text
+    surface = Color(0xFF000000),
+    onSurface = Color(0xFFF5F5F5),
+    surfaceDim = Color(0xFF111111),
+    surfaceContainerLow = Color(0xFF0A0A0A),
+    surfaceContainer = Color(0xFF141414),
+    surfaceContainerHigh = Color(0xFF1C1C1C),
+    surfaceContainerHighest = Color(0xFF242424),
+    onSurfaceVariant = Color(0xFFCAC4D0),
+    outline = Color(0xFF333333),
+    outlineVariant = Color(0xFF222222),
+    error = Color(0xFFFFB4AB),
+    errorContainer = Color(0xFF690005),
+    onError = Color(0xFF690005),
+    onErrorContainer = Color(0xFFFFDAD6),
+    secondary = Color(0xFFB0B0B0),
+    onSecondary = Color(0xFF000000),
+    secondaryContainer = Color(0xFF222222),
+    onSecondaryContainer = Color(0xFFE0E0E0),
     isLight = false
 )
-
 
 val LocalWaexColors = staticCompositionLocalOf { lightColors }

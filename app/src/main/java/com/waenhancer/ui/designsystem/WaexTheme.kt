@@ -1,22 +1,23 @@
 package com.waenhancer.ui.designsystem
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
-
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.Color
-
 
 val LocalThemeMode = staticCompositionLocalOf { "System" }
 val LocalThemeModeUpdater = staticCompositionLocalOf<(String) -> Unit> { {} }
 
 @Composable
 fun animateWaexColors(targetColors: WaexColors): WaexColors {
-    val animationSpec = tween<Color>(durationMillis = 500)
+    val animationSpec = tween<Color>(durationMillis = 300)
     return WaexColors(
         primary = animateColorAsState(targetColors.primary, animationSpec, label = "primary").value,
         primaryContainer = animateColorAsState(targetColors.primaryContainer, animationSpec, label = "primaryContainer").value,
@@ -57,6 +58,49 @@ fun WaexTheme(
     val radius = WaexRadius()
     val elevation = WaexElevation()
 
+    val m3ColorScheme = if (darkTheme) {
+        darkColorScheme(
+            primary = colors.primary,
+            onPrimary = colors.onPrimary,
+            primaryContainer = colors.primaryContainer,
+            onPrimaryContainer = Color(0xFF36FFCD),
+            secondary = colors.secondary,
+            onSecondary = colors.onSecondary,
+            secondaryContainer = colors.secondaryContainer,
+            onSecondaryContainer = colors.onSecondaryContainer,
+            background = colors.background,
+            onBackground = colors.onBackground,
+            surface = colors.surface,
+            onSurface = colors.onSurface,
+            surfaceVariant = colors.surfaceDim,
+            onSurfaceVariant = colors.onSurfaceVariant,
+            outline = colors.outline,
+            outlineVariant = colors.outlineVariant,
+            error = colors.error,
+            onError = colors.onError
+        )
+    } else {
+        lightColorScheme(
+            primary = colors.primary,
+            onPrimary = colors.onPrimary,
+            primaryContainer = colors.primaryContainer,
+            onPrimaryContainer = Color(0xFF002119),
+            secondary = colors.secondary,
+            onSecondary = colors.onSecondary,
+            secondaryContainer = colors.secondaryContainer,
+            onSecondaryContainer = colors.onSecondaryContainer,
+            background = colors.background,
+            onBackground = colors.onBackground,
+            surface = colors.surface,
+            onSurface = colors.onSurface,
+            surfaceVariant = colors.surfaceDim,
+            onSurfaceVariant = colors.onSurfaceVariant,
+            outline = colors.outline,
+            outlineVariant = colors.outlineVariant,
+            error = colors.error,
+            onError = colors.onError
+        )
+    }
 
     val view = androidx.compose.ui.platform.LocalView.current
     if (!view.isInEditMode) {
@@ -64,8 +108,6 @@ fun WaexTheme(
             val window = (view.context as? android.app.Activity)?.window
             if (window != null) {
                 val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, view)
-                // In light mode (light background), system bars icons should be dark (isAppearanceLightStatusBars = true).
-                // In dark mode (dark background), system bars icons should be light/white (isAppearanceLightStatusBars = false).
                 insetsController.isAppearanceLightStatusBars = !darkTheme
                 insetsController.isAppearanceLightNavigationBars = !darkTheme
             }
@@ -79,10 +121,13 @@ fun WaexTheme(
         LocalWaexRadius provides radius,
         LocalWaexElevation provides elevation
     ) {
-        content()
+        MaterialTheme(
+            colorScheme = m3ColorScheme
+        ) {
+            content()
+        }
     }
 }
-
 
 object WaexTheme {
     val colors: WaexColors

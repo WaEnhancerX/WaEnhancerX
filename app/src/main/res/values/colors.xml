@@ -1,4 +1,66 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="splash_background">#414E5A</color>
+
+    <color name="material_state_yellow">#F59E0B</color>
+    <color name="material_state_green">#10B981</color>
+    <color name="material_state_red">#EF4444</color>
+
+    <!-- Light Theme Colors -->
+    <color name="md_theme_light_primary">#008069</color> <!-- WhatsApp Teal -->
+    <color name="md_theme_light_onPrimary">#FFFFFF</color>
+    <color name="md_theme_light_primaryContainer">#E1F3EF</color>
+    <color name="md_theme_light_onPrimaryContainer">#002119</color>
+    
+    <color name="md_theme_light_secondary">#4A4A4A</color>
+    <color name="md_theme_light_onSecondary">#FFFFFF</color>
+    <color name="md_theme_light_secondaryContainer">#F0F0F0</color>
+    <color name="md_theme_light_onSecondaryContainer">#1A1A1A</color>
+    
+    <color name="md_theme_light_tertiary">#EFEFEF</color>
+    <color name="md_theme_light_onTertiary">#000000</color>
+    
+    <color name="md_theme_light_error">#BA1A1A</color>
+    <color name="md_theme_light_onError">#FFFFFF</color>
+    
+    <color name="md_theme_light_background">#FFFFFF</color> <!-- Pure stark white -->
+    <color name="md_theme_light_onBackground">#0F0F0F</color> <!-- Almost black -->
+    <color name="md_theme_light_surface">#FFFFFF</color>
+    <color name="md_theme_light_onSurface">#0F0F0F</color>
+    <color name="md_theme_light_surfaceVariant">#F5F5F5</color>
+    <color name="md_theme_light_onSurfaceVariant">#49454F</color>
+    <color name="md_theme_light_outline">#E0E0E0</color> <!-- Subtle outline -->
+    <color name="md_theme_light_outlineVariant">#EAEAEA</color>
+
+    <!-- Dark Theme Colors -->
+    <color name="md_theme_dark_primary">#00A884</color> <!-- WhatsApp Dark Teal -->
+    <color name="md_theme_dark_onPrimary">#00372D</color>
+    <color name="md_theme_dark_primaryContainer">#005140</color>
+    <color name="md_theme_dark_onPrimaryContainer">#36FFCD</color>
+    
+    <color name="md_theme_dark_secondary">#B0B0B0</color>
+    <color name="md_theme_dark_onSecondary">#000000</color>
+    <color name="md_theme_dark_secondaryContainer">#222222</color>
+    <color name="md_theme_dark_onSecondaryContainer">#E0E0E0</color>
+    
+    <color name="md_theme_dark_tertiary">#1A1A1A</color>
+    <color name="md_theme_dark_onTertiary">#FFFFFF</color>
+    
+    <color name="md_theme_dark_error">#FFB4AB</color>
+    <color name="md_theme_dark_onError">#690005</color>
+    
+    <color name="md_theme_dark_background">#000000</color> <!-- True pitch black -->
+    <color name="md_theme_dark_onBackground">#F5F5F5</color> <!-- High contrast text -->
+    <color name="md_theme_dark_surface">#000000</color> <!-- True pitch black -->
+    <color name="md_theme_dark_onSurface">#F5F5F5</color>
+    <color name="md_theme_dark_surfaceVariant">#111111</color>
+    <color name="md_theme_dark_onSurfaceVariant">#CAC4D0</color>
+    <color name="md_theme_dark_outline">#333333</color> <!-- Subtle dark outline -->
+    <color name="md_theme_dark_outlineVariant">#222222</color>
+
+    <!-- WhatsApp Specific Colors -->
+    <color name="whatsapp_teal">#008069</color>
+    <color name="whatsapp_green">#25D366</color>
+    <color name="whatsapp_dark_green">#128C7E</color>
+    <color name="primary_dark_light_light_status_bar">#005E4E</color>
 </resources>
