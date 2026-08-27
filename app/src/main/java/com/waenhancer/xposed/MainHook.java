@@ -101,6 +101,26 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                 if (appContext instanceof android.app.Application) {
                                     com.waenhancer.xposed.utils.ActivityTracker.install((android.app.Application) appContext);
                                 }
+
+                                try {
+                                    android.content.IntentFilter filter = new android.content.IntentFilter("com.waenhancer.WHATSAPP.RESTART");
+                                    android.content.BroadcastReceiver receiver = new android.content.BroadcastReceiver() {
+                                        @Override
+                                        public void onReceive(Context context, android.content.Intent intent) {
+                                            String pkg = intent.getStringExtra("PKG");
+                                            if (pkg == null || pkg.equals(packageName)) {
+                                                android.os.Process.killProcess(android.os.Process.myPid());
+                                                System.exit(0);
+                                            }
+                                        }
+                                    };
+                                    if (android.os.Build.VERSION.SDK_INT >= 33) {
+                                        appContext.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED);
+                                    } else {
+                                        appContext.registerReceiver(receiver, filter);
+                                    }
+                                } catch (Throwable ignored) {}
+
                                 XposedBridge.log("[WAEX] Target Application created. Initializing features...");
                                 try {
                                     PreferenceBridgeClient bridgeClient =

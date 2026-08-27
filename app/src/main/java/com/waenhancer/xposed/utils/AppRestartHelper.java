@@ -3,6 +3,8 @@ package com.waenhancer.xposed.utils;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
 import android.widget.Toast;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -13,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 public final class AppRestartHelper {
 
     private static final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private static final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     private AppRestartHelper() {}
 
@@ -44,42 +47,55 @@ public final class AppRestartHelper {
     }
 
     /**
-     * Force stops the given target package via root (or fallback) and then restarts it.
+     * Force stops the given target package via root (or IPC broadcast) and then restarts it.
      */
     public static void restartPackage(Context context, String packageName, String appName) {
+        mainHandler.post(() -> Toast.makeText(context.getApplicationContext(), "Restarting " + appName + "...", Toast.LENGTH_SHORT).show());
+
         executor.execute(() -> {
-            boolean stopped = false;
-            // 1. Try Root force-stop
-            String res = runRootCommand("am force-stop " + packageName);
-            if (res != null) {
-                stopped = true;
+            boolean stoppedWithRoot = false;
+
+            // 1. Send broadcast to self-kill if hooked process is active
+            try {
+                Intent restartBroadcast = new Intent("com.waenhancer.WHATSAPP.RESTART");
+                restartBroadcast.putExtra("PKG", packageName);
+                restartBroadcast.setPackage(packageName);
+                context.sendBroadcast(restartBroadcast);
+            } catch (Throwable ignored) {}
+
+            // 2. Perform root force-stop and launch via monkey
+            String rootRes = runRootCommand("am force-stop " + packageName + " && sleep 0.4 && monkey -p " + packageName + " -c android.intent.category.LAUNCHER 1");
+            if (rootRes != null && !rootRes.isEmpty() && !rootRes.contains("not found")) {
+                stoppedWithRoot = true;
             }
 
-            try {
-                Thread.sleep(400);
-            } catch (InterruptedException ignored) {}
-
-            // 2. Launch the package afresh
-            try {
-                Intent launchIntent = context.getPackageManager().getLaunchIntentForPackage(packageName);
-                if (launchIntent != null) {
-                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                    context.startActivity(launchIntent);
-                } else if (!stopped) {
-                    // Fallback to app details settings if cannot launch or root stop
-                    Intent settingsIntent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                    settingsIntent.setData(Uri.parse("package:" + packageName));
-                    settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    context.startActivity(settingsIntent);
-                }
-            } catch (Exception e) {
-                // Fallback to app settings
+            // 3. If root failed or non-root fallback, launch via PackageManager Intent
+            if (!stoppedWithRoot) {
                 try {
-                    Intent settingsIntent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                    settingsIntent.setData(Uri.parse("package:" + packageName));
-                    settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    context.startActivity(settingsIntent);
-                } catch (Exception ignored) {}
+                    Thread.sleep(400);
+                } catch (InterruptedException ignored) {}
+
+                mainHandler.post(() -> {
+                    try {
+                        Intent launchIntent = context.getPackageManager().getLaunchIntentForPackage(packageName);
+                        if (launchIntent != null) {
+                            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                            context.startActivity(launchIntent);
+                        } else {
+                            Intent settingsIntent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                            settingsIntent.setData(Uri.parse("package:" + packageName));
+                            settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            context.startActivity(settingsIntent);
+                        }
+                    } catch (Throwable t) {
+                        try {
+                            Intent settingsIntent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                            settingsIntent.setData(Uri.parse("package:" + packageName));
+                            settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            context.startActivity(settingsIntent);
+                        } catch (Throwable ignored) {}
+                    }
+                });
             }
         });
     }
