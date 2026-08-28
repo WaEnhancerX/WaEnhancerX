@@ -26,7 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Privacy Receipts Hook inspired by dev4Mod-WaEnhancer:
+ * Privacy Receipts Hook:
  * Strictly separates:
  * 1. Hide Read Receipts (Blue Ticks) - `hide_read_receipts`: Drops SendReadReceiptJob & strips "type=read" on receipt stanzas.
  * 2. Hide Delivery Receipts (Second Tick) - `hide_delivery_receipts`: Suppresses delivery dispatchers, modifies receipt stanza to "type=inactive", and intercepts connection writer dispatch.
