@@ -121,7 +121,7 @@ public class HideReceiptsHook extends BaseFeature {
     }
 
     /**
-     * Hook SendReadReceiptJob to suppress outgoing blue read ticks.
+     * Hook SendReadReceiptJob to suppress outgoing blue read ticks and stealth status view receipts.
      */
     private void hookSendReadReceiptJob() {
         try {
@@ -156,6 +156,32 @@ public class HideReceiptsHook extends BaseFeature {
                 XposedBridge.hookMethod(sendJobMethod, new XC_MethodHook() {
                     @Override
                     protected void beforeHookedMethod(MethodHookParam param) {
+                        Object job = param.thisObject;
+                        if (job == null) return;
+
+                        String jid = null;
+                        try {
+                            Object jidField = de.robv.android.xposed.XposedHelpers.getObjectField(job, "jid");
+                            if (jidField != null) jid = jidField.toString();
+                        } catch (Throwable ignored) {}
+
+                        String participant = null;
+                        try {
+                            Object participantField = de.robv.android.xposed.XposedHelpers.getObjectField(job, "participant");
+                            if (participantField != null) participant = participantField.toString();
+                        } catch (Throwable ignored) {}
+
+                        boolean isStatus = (jid != null && (jid.contains("status") || jid.contains("broadcast")))
+                                || (participant != null && participant.contains("status"));
+
+                        if (isStatus) {
+                            if (isStealthStatusViewEnabled()) {
+                                param.setResult(null); // Suppress status viewed receipt job execution
+                                XposedBridge.log(TAG + " Suppressed Status View Receipt via SendReadReceiptJob for " + (participant != null ? participant : jid));
+                            }
+                            return;
+                        }
+
                         if (isHideReadReceiptsEnabled()) {
                             param.setResult(null); // Drop read receipt job execution (blue tick suppressed)
                             XposedBridge.log(TAG + " Suppressed SendReadReceiptJob (Blue Tick prevented)");
@@ -210,6 +236,21 @@ public class HideReceiptsHook extends BaseFeature {
 
                         boolean hideDelivery = isHideDeliveryReceiptsEnabled();
                         boolean hideRead = isHideReadReceiptsEnabled();
+                        boolean stealthStatus = isStealthStatusViewEnabled();
+
+                        String to = getAttributeValue(node, "to");
+                        String participant = getAttributeValue(node, "participant");
+                        String type = getAttributeValue(node, "type");
+
+                        boolean isStatusStanza = (to != null && (to.contains("status") || to.contains("broadcast")))
+                                || (participant != null && participant.contains("status"))
+                                || "readstatus".equals(type);
+
+                        if (isStatusStanza && stealthStatus) {
+                            param.setResult(null); // Drop status viewed receipt stanza completely
+                            XposedBridge.log(TAG + " Dropped Status Receipt Stanza (Stealth Status View)");
+                            return;
+                        }
 
                         if (hideDelivery) {
                             applyHideDelivery(node);
@@ -411,6 +452,22 @@ public class HideReceiptsHook extends BaseFeature {
                 return (String) fieldValue.get(kv);
             } catch (Throwable ignored) {}
         }
+        return null;
+    }
+
+    private String getAttributeValue(Object node, String targetKey) {
+        if (fieldAttributes == null || node == null) return null;
+        try {
+            Object[] currentAttrs = (Object[]) fieldAttributes.get(node);
+            if (currentAttrs == null) return null;
+            for (Object kv : currentAttrs) {
+                if (kv == null) continue;
+                String key = getKey(kv);
+                if (targetKey.equals(key)) {
+                    return getValue(kv);
+                }
+            }
+        } catch (Throwable ignored) {}
         return null;
     }
 
