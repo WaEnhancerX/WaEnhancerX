@@ -140,7 +140,7 @@ fun GlobalPrivacySettingsScreen(
             listOf(
                 SettingItem("Hide Typing & Recording Indicators", "Hides typing and recording status from others", "typing_privacy"),
                 SettingItem("Hide Forwarded Tag", "Prevent forwarded tag from appearing on shared messages", "hide_forwarded_tag"),
-                SettingItem("Online Status Indicator Control", "Hide your green online status indicator", "online_status_indicator"),
+                SettingItem("Hide Online Status", "Hide your green online dot and online status from others", "online_status_indicator"),
                 SettingItem("Anti-View Once", "Bypass view-once constraints on incoming media", "anti_view_once"),
                 SettingItem("Stealth Status Viewing", "View status updates without sending view receipts", "stealth_status_view"),
                 SettingItem("Freeze Last Seen", "Lock your last seen timestamp in place", "freeze_last_seen")

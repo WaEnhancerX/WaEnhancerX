@@ -201,7 +201,7 @@ fun AboutScreen() {
     // Fetch Contributors
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
-            val prefs = context.getSharedPreferences("github_api_cache", Context.MODE_PRIVATE)
+            val prefs = com.waenhancer.config.PreferenceStores.cacheStore(context, com.waenhancer.config.PreferenceStores.GITHUB_API_CACHE)
             val lastFetch = prefs.getLong("last_fetch", 0)
             val cachedJson = prefs.getString("contributors_json", null)
 
@@ -249,7 +249,7 @@ fun AboutScreen() {
         contributionsStats = null
 
         coroutineScope.launch(Dispatchers.IO) {
-            val prefs = context.getSharedPreferences("github_user_cache", Context.MODE_PRIVATE)
+            val prefs = com.waenhancer.config.PreferenceStores.cacheStore(context, com.waenhancer.config.PreferenceStores.GITHUB_USER_CACHE)
             val lastFetch = prefs.getLong("${contributor.login}_time", 0)
             val cachedJson = prefs.getString("${contributor.login}_json", null)
 
@@ -308,7 +308,7 @@ fun AboutScreen() {
         showContributionsView = true
 
         coroutineScope.launch(Dispatchers.IO) {
-            val prefs = context.getSharedPreferences("github_user_cache", Context.MODE_PRIVATE)
+            val prefs = com.waenhancer.config.PreferenceStores.cacheStore(context, com.waenhancer.config.PreferenceStores.GITHUB_USER_CACHE)
             val lastFetch = prefs.getLong("repo_stats_time", 0)
             val cachedJson = prefs.getString("repo_stats_json", null)
 

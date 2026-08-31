@@ -50,7 +50,7 @@ fun SearchScreen() {
             // --- PRIVACY TAB (Tab 1), Sub-tab "privacy" ---
             SearchablePreference("typing_privacy", "Hide Typing & Recording Indicators", "Hides typing and recording status from others", "Privacy Core", 1, "privacy", "Privacy"),
             SearchablePreference("hide_forwarded_tag", "Hide Forwarded Tag", "Prevent forwarded tag from appearing on shared messages", "Privacy Core", 1, "privacy", "Privacy"),
-            SearchablePreference("online_status_indicator", "Online Status Indicator Control", "Hide your green online status indicator", "Privacy Core", 1, "privacy", "Privacy"),
+            SearchablePreference("online_status_indicator", "Hide Online Status", "Hide your green online dot and online status from others", "Privacy Core", 1, "privacy", "Privacy"),
             SearchablePreference("anti_view_once", "Anti-View Once", "Bypass view-once constraints on incoming media", "Privacy Core", 1, "privacy", "Privacy"),
             SearchablePreference("stealth_status_view", "Stealth Status Viewing", "View status updates without sending view receipts", "Privacy Core", 1, "privacy", "Privacy"),
             SearchablePreference("freeze_last_seen", "Freeze Last Seen", "Lock your last seen timestamp in place", "Privacy Core", 1, "privacy", "Privacy"),

@@ -109,11 +109,19 @@ class WaexNavController(initialScreen: Screen = Screen.MainDashboard) {
     var highlightTargetKey by mutableStateOf<String?>(null)
 
     fun navigateToPreference(tabIndex: Int, subTabId: String?, preferenceKey: String) {
-        navigateTo(Screen.MainDashboard, clearStack = true)
+        val rootScreen = when (tabIndex) {
+            0 -> Screen.MainDashboard
+            1 -> Screen.GlobalPrivacySettings
+            2 -> Screen.MediaStatusHub
+            3 -> Screen.AutomationTasker
+            4 -> Screen.StylesSettings
+            else -> Screen.MainDashboard
+        }
         targetPageIndex = tabIndex
         targetSubTabId = subTabId
         scrollToTargetKey = preferenceKey
         highlightTargetKey = preferenceKey
+        navigateTo(rootScreen, clearStack = true)
     }
 
     fun navigateTo(screen: Screen, clearStack: Boolean = false) {
@@ -233,7 +241,7 @@ fun MainContainerScreen() {
     LaunchedEffect(navController.targetPageIndex) {
         val target = navController.targetPageIndex
         if (target in 0..4) {
-            pagerState.animateScrollToPage(target)
+            pagerState.scrollToPage(target)
             navController.targetPageIndex = -1
         }
     }

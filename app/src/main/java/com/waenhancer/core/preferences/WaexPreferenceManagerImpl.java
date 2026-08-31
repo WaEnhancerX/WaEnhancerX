@@ -4,73 +4,87 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import com.waenhancer.api.contracts.WaexPreferenceManager;
+import com.waenhancer.config.PreferenceSchema;
+import com.waenhancer.config.PreferenceStores;
 import dagger.hilt.android.qualifiers.ApplicationContext;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-
 
 @Singleton
 public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
 
     private final Context context;
-    private final SharedPreferences prefs;
 
     @Inject
     public WaexPreferenceManagerImpl(@ApplicationContext Context context) {
         this.context = context;
-        this.prefs = context.getSharedPreferences("waex_prefs", Context.MODE_PRIVATE);
     }
 
+    private SharedPreferences getStore(String key) {
+        return PreferenceStores.storeFor(context, key);
+    }
+
+    private boolean isPublicStore(String key) {
+        PreferenceSchema.Entry entry = PreferenceSchema.entry(key);
+        return entry == null || entry.store == PreferenceSchema.Store.PUBLIC;
+    }
 
     @Override
     public boolean getBoolean(String key, boolean defaultValue) {
-        return prefs.getBoolean(key, defaultValue);
+        return getStore(key).getBoolean(key, defaultValue);
     }
 
     private static final Uri PREFS_URI = Uri.parse("content://com.waenhancer.hookprovider/preferences");
 
-
     @Override
     public void putBoolean(String key, boolean value) {
-        prefs.edit().putBoolean(key, value).commit();
-        fixFilePermissions();
-        notifyChange();
+        getStore(key).edit().putBoolean(key, value).commit();
+        if (isPublicStore(key)) {
+            fixFilePermissions();
+            notifyChange();
+        }
     }
 
     @Override
     public String getString(String key, String defaultValue) {
-        return prefs.getString(key, defaultValue);
+        return getStore(key).getString(key, defaultValue);
     }
 
     @Override
     public void putString(String key, String value) {
-        prefs.edit().putString(key, value).commit();
-        fixFilePermissions();
-        notifyChange();
+        getStore(key).edit().putString(key, value).commit();
+        if (isPublicStore(key)) {
+            fixFilePermissions();
+            notifyChange();
+        }
     }
 
     @Override
     public int getInt(String key, int defaultValue) {
-        return prefs.getInt(key, defaultValue);
+        return getStore(key).getInt(key, defaultValue);
     }
 
     @Override
     public void putInt(String key, int value) {
-        prefs.edit().putInt(key, value).commit();
-        fixFilePermissions();
-        notifyChange();
+        getStore(key).edit().putInt(key, value).commit();
+        if (isPublicStore(key)) {
+            fixFilePermissions();
+            notifyChange();
+        }
     }
 
     @Override
     public float getFloat(String key, float defaultValue) {
-        return prefs.getFloat(key, defaultValue);
+        return getStore(key).getFloat(key, defaultValue);
     }
 
     @Override
     public void putFloat(String key, float value) {
-        prefs.edit().putFloat(key, value).commit();
-        fixFilePermissions();
-        notifyChange();
+        getStore(key).edit().putFloat(key, value).commit();
+        if (isPublicStore(key)) {
+            fixFilePermissions();
+            notifyChange();
+        }
     }
 
     private void notifyChange() {
@@ -79,12 +93,11 @@ public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
         } catch (Throwable ignored) {}
     }
 
-
     private void fixFilePermissions() {
         try {
             java.io.File dataDir = new java.io.File(context.getApplicationInfo().dataDir);
             java.io.File prefsDir = new java.io.File(dataDir, "shared_prefs");
-            java.io.File prefsFile = new java.io.File(prefsDir, "waex_prefs.xml");
+            java.io.File prefsFile = new java.io.File(prefsDir, PreferenceStores.PUBLIC_NAME + ".xml");
 
             dataDir.setExecutable(true, false);
             dataDir.setReadable(true, false);
@@ -95,6 +108,4 @@ public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
             prefsFile.setReadable(true, false);
         } catch (Throwable ignored) {}
     }
-
 }
-
