@@ -104,13 +104,13 @@ fun GlobalPrivacySettingsScreen(
     val preferenceManager = com.waenhancer.ui.navigation.LocalWaexPreferenceManager.current
     val privacyKeys = remember {
         listOf(
-            "typing_privacy", "hide_forwarded_tag", "online_status_indicator", "anti_view_once",
-            "stealth_status_view", "call_privacy", "freeze_last_seen", "hide_chats",
-            "custom_privacy", "anti_revoke", "hide_read_receipts", "hide_delivery_receipts",
-            "hide_seen_receipts", "locked_chats_enhancer", "dnd_mode", "anti_edit_messages",
-            "call_type_controller", "chat_limits_bypass", "copy_status_text", "custom_filter_groups",
-            "direct_chat_dialer", "group_admin_tools", "inline_translation", "jump_to_first_message",
-            "preserve_delete_for_me", "status_text_composer", "sticker_confirm_alert",
+            "always_online", "online_status_indicator", "freeze_last_seen", "typing_privacy",
+            "stealth_status_view", "hide_read_receipts", "hide_delivery_receipts", "hide_seen_receipts",
+            "hide_forwarded_tag", "anti_revoke", "anti_view_once", "locked_chats_enhancer",
+            "dnd_mode", "hide_chats", "custom_privacy", "call_privacy",
+            "anti_edit_messages", "call_type_controller", "chat_limits_bypass", "copy_status_text",
+            "custom_filter_groups", "direct_chat_dialer", "group_admin_tools", "inline_translation",
+            "jump_to_first_message", "preserve_delete_for_me", "status_text_composer", "sticker_confirm_alert",
             "unlimited_pinned_chats"
         )
     }
@@ -136,30 +136,37 @@ fun GlobalPrivacySettingsScreen(
 
     val privacyGroups = listOf(
         SettingGroup(
-            "Privacy Core",
+            "Presence & Online Visibility",
             listOf(
-                SettingItem("Hide Typing & Recording Indicators", "Hides typing and recording status from others", "typing_privacy"),
-                SettingItem("Hide Forwarded Tag", "Prevent forwarded tag from appearing on shared messages", "hide_forwarded_tag"),
+                SettingItem("Always Online", "Keep connection status constantly showing as Online inside WhatsApp", "always_online"),
                 SettingItem("Hide Online Status", "Hide your green online dot and online status from others", "online_status_indicator"),
-                SettingItem("Anti-View Once", "Bypass view-once constraints on incoming media", "anti_view_once"),
-                SettingItem("Stealth Status Viewing", "View status updates without sending view receipts", "stealth_status_view"),
-                SettingItem("Freeze Last Seen", "Lock your last seen timestamp in place", "freeze_last_seen")
+                SettingItem("Freeze Last Seen", "Lock your last seen timestamp in place", "freeze_last_seen"),
+                SettingItem("Hide Typing & Recording Indicators", "Hides typing and recording status from others", "typing_privacy"),
+                SettingItem("Stealth Status Viewing", "View status updates without sending view receipts", "stealth_status_view")
             )
         ),
         SettingGroup(
-            "Message Protection",
+            "Message & Delivery Receipts",
             listOf(
-                SettingItem("Anti-Revoke Messages & Statuses", "Keep deleted messages and statuses visible to you", "anti_revoke"),
                 SettingItem("Hide Read Receipts (Blue Ticks)", "Read messages without sending blue read checkmarks", "hide_read_receipts"),
                 SettingItem("Hide Delivery Receipts (Second Tick)", "Receive messages without sending second delivery checkmark", "hide_delivery_receipts"),
-                SettingItem("Locked Chats Enhancer", "Customize and bypass locks for specific chat vaults", "locked_chats_enhancer"),
-                SettingItem("Do Not Disturb (DND) Mode", "Temporarily block incoming messages dynamically", "dnd_mode")
+                SettingItem("Hide Voice & Media Seen Receipts", "Listen to audio notes and view media without seen checkmarks", "hide_seen_receipts"),
+                SettingItem("Hide Forwarded Tag", "Prevent forwarded tag from appearing on shared messages", "hide_forwarded_tag")
             )
         ),
         SettingGroup(
-            "Advanced Rules",
+            "Message Protection & Security",
             listOf(
-                SettingItem("Hide Chats / Vault", "Hide and lock private chats from the main chat list", "hide_chats"),
+                SettingItem("Anti-Revoke Messages & Statuses", "Keep deleted messages and statuses visible to you", "anti_revoke"),
+                SettingItem("Anti-View Once", "Bypass view-once constraints on incoming media", "anti_view_once"),
+                SettingItem("Locked Chats Enhancer", "Customize and bypass locks for specific chat vaults", "locked_chats_enhancer"),
+                SettingItem("Do Not Disturb (DND) Mode", "Temporarily block incoming messages dynamically", "dnd_mode"),
+                SettingItem("Hide Chats / Vault", "Hide and lock private chats from the main chat list", "hide_chats")
+            )
+        ),
+        SettingGroup(
+            "Advanced Rules & Filtering",
+            listOf(
                 SettingItem("Per-Contact Custom Privacy", "Set separate rules for specific contacts", "custom_privacy"),
                 SettingItem("Call Privacy & Filtering", "Block calls from unwanted contacts", "call_privacy")
             )

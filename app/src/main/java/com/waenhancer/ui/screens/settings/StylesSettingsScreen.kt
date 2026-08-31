@@ -81,9 +81,10 @@ fun StylesSettingsScreen() {
         listOf(
             "bubble_colors", "custom_theme", "custom_time_format", "custom_toolbar",
             "custom_view_dpi", "seen_tick_customization", "floating_bottom_bar",
+            "dotonline", "showonlinetext", "typing_online_toasts",
             "channels_enhancements", "chat_filters", "hide_ui_tabs",
             "instagram_status_layout", "separate_groups_tabs", "quick_home_menu",
-            "backup_restore", "contact_blocked_verify", "typing_online_toasts",
+            "backup_restore", "contact_blocked_verify",
             "voice_status_enhancement", "miscellaneous_enhancements"
         )
     }
@@ -120,6 +121,15 @@ fun StylesSettingsScreen() {
 
     val layoutGroups = listOf(
         StyleGroup(
+            "Conversation List Activity & Presence",
+            WaexIcons.Security,
+            listOf(
+                StyleItem("Online Dot in Chat List", "Show a green dot indicator on avatars when contacts are online", "dotonline"),
+                StyleItem("Online / Last Seen in Chat List", "Display contact online or last seen text directly in chat rows", "showonlinetext"),
+                StyleItem("Contact Online & Typing Toasts", "Get real-time toast alerts when contacts come online or type", "typing_online_toasts")
+            )
+        ),
+        StyleGroup(
             "Home Layout & Navigation",
             WaexIcons.GridView,
             listOf(
@@ -137,7 +147,6 @@ fun StylesSettingsScreen() {
             listOf(
                 StyleItem("Backup & Restore Preferences", "Import or export WAEX configurations", "backup_restore"),
                 StyleItem("Contact Blocked Verifier", "Verify if a contact has blocked you", "contact_blocked_verify"),
-                StyleItem("Typing & Online Toasts", "Get notified when someone gets online or types", "typing_online_toasts"),
                 StyleItem("Voice Status Enhancement", "Upload high-quality voice status updates", "voice_status_enhancement"),
                 StyleItem("Miscellaneous Enhancements", "Miscellaneous minor feature options", "miscellaneous_enhancements")
             )
