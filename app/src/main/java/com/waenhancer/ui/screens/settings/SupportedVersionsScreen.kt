@@ -84,20 +84,11 @@ fun SupportedVersionsScreen() {
         }
     }
 
-    // Detected installed packages
-    val wppVersion = remember {
-        UniversalVersionValidator.getInstalledPackageVersion(context, UniversalVersionValidator.PACKAGE_WPP)
-    }
-    val bizVersion = remember {
-        UniversalVersionValidator.getInstalledPackageVersion(context, UniversalVersionValidator.PACKAGE_BUSINESS)
-    }
-
     val prefs = remember(context) { com.waenhancer.config.PreferenceStores.publicStore(context) }
-    val isWppSupported = remember(wppVersion, isCustomizeEnabled, isBypassEnabled, customVersionsList.size) {
-        wppVersion != null && UniversalVersionValidator.isSupported(wppVersion, prefs)
-    }
-    val isBizSupported = remember(bizVersion, isCustomizeEnabled, isBypassEnabled, customVersionsList.size) {
-        bizVersion != null && UniversalVersionValidator.isSupported(bizVersion, prefs)
+
+    // Dynamic list of detected WhatsApp packages & clones
+    val detectedApps = remember(customVersionsList.size, isCustomizeEnabled, isBypassEnabled) {
+        com.waenhancer.utils.WhatsAppPackageDetector.detectWhatsAppApps(context)
     }
 
     var showAddDialog by remember { mutableStateOf(false) }
@@ -131,7 +122,7 @@ fun SupportedVersionsScreen() {
             // 1. Installed App Status Banner
             item {
                 Text(
-                    text = "INSTALLED APPS COMPATIBILITY",
+                    text = "TARGET APPLICATIONS COMPATIBILITY",
                     style = typography.labelSm,
                     color = colors.primary,
                     fontWeight = FontWeight.Bold,
@@ -140,35 +131,24 @@ fun SupportedVersionsScreen() {
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    AppVersionStatusCard(
-                        appName = "WhatsApp",
-                        packageName = UniversalVersionValidator.PACKAGE_WPP,
-                        versionName = wppVersion,
-                        isSupported = isWppSupported || isBypassEnabled,
-                        onAddCurrentClick = {
-                            wppVersion?.let { ver ->
-                                UniversalVersionValidator.addCustomVersion(prefs, ver)
-                                prefManager.putBoolean("customize_supported_versions", true)
-                                isCustomizeEnabled = true
-                                refreshCustomList()
+                    detectedApps.forEach { app ->
+                        val cleanVer = app.versionName.removePrefix("v")
+                        val isSupported = app.isInstalled && (isBypassEnabled || UniversalVersionValidator.isSupported(cleanVer, prefs))
+                        AppVersionStatusCard(
+                            appName = app.appName,
+                            packageName = app.packageName,
+                            versionName = if (app.isInstalled) cleanVer else null,
+                            isSupported = isSupported,
+                            onAddCurrentClick = {
+                                if (app.isInstalled) {
+                                    UniversalVersionValidator.addCustomVersion(prefs, cleanVer)
+                                    prefManager.putBoolean("customize_supported_versions", true)
+                                    isCustomizeEnabled = true
+                                    refreshCustomList()
+                                }
                             }
-                        }
-                    )
-
-                    AppVersionStatusCard(
-                        appName = "WhatsApp Business",
-                        packageName = UniversalVersionValidator.PACKAGE_BUSINESS,
-                        versionName = bizVersion,
-                        isSupported = isBizSupported || isBypassEnabled,
-                        onAddCurrentClick = {
-                            bizVersion?.let { ver ->
-                                UniversalVersionValidator.addCustomVersion(prefs, ver)
-                                prefManager.putBoolean("customize_supported_versions", true)
-                                isCustomizeEnabled = true
-                                refreshCustomList()
-                            }
-                        }
-                    )
+                        )
+                    }
                 }
             }
 

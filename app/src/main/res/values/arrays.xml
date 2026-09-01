@@ -1,7 +1,61 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string-array name="xposed_scope">
+        <!-- Official WhatsApp & WhatsApp Business -->
         <item>com.whatsapp</item>
         <item>com.whatsapp.w4b</item>
+
+        <!-- Common Clones & Modded WhatsApp Ecosystems -->
+        <item>com.gbwhatsapp</item>
+        <item>com.fmwhatsapp</item>
+        <item>com.yowhatsapp</item>
+        <item>com.aerowtsapp</item>
+        <item>com.aero</item>
+        <item>com.delta</item>
+        <item>com.ultra</item>
+        <item>com.delight</item>
+        <item>com.universe.messenger</item>
+        <item>com.directchat.app</item>
+        <item>com.sathwbg.easymessager</item>
+
+        <!-- LiteX Variants -->
+        <item>com.whatsapplitex</item>
+        <item>com.whatsapplitex2</item>
+        <item>com.whatsapp.litex</item>
+        <item>com.wa.litex</item>
+
+        <!-- Specialty & Other Variants -->
+        <item>online.whatsticker</item>
+        <item>com.gbwhatsapp.sofid</item>
+        <item>com.yowa</item>
+        <item>com.ymwhatsapp</item>
+        <item>com.nowha</item>
+        <item>com.nowha2</item>
+        <item>com.whatsapp2</item>
+        <item>com.wa</item>
+        <item>com.wago</item>
+
+        <!-- Extended International Forks -->
+        <item>com.whatsapp.plus</item>
+        <item>com.ogwhatsapp</item>
+        <item>com.soula2</item>
+        <item>com.co.whatsapp</item>
+        <item>com.bwhatsapp</item>
+        <item>com.fouadwhatsapp</item>
+        <item>com.samwhatsapp</item>
+        <item>com.hewhatsapp</item>
+        <item>com.mbwhatsapp</item>
+        <item>com.rcwhatsapp</item>
+        <item>com.na4whatsapp</item>
+        <item>com.na7whatsapp</item>
+        <item>com.anwhatsapp</item>
+        <item>com.obwhatsapp</item>
+        <item>com.ob2whatsapp</item>
+        <item>com.ob3whatsapp</item>
+        <item>com.ob4whatsapp</item>
+        <item>com.ob5whatsapp</item>
+        <item>com.ob6whatsapp</item>
+        <item>com.whatsapp.dual</item>
+        <item>com.whatsapp.clone</item>
     </string-array>
 </resources>

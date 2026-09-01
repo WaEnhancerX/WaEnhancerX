@@ -238,6 +238,7 @@ public final class PreferenceSchema {
         add(entries, "hidetabs", Type.STRING_SET, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "hidetag", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "high_res_media", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "hooked_whatsapp_packages", Type.STRING_SET, Sensitivity.RUNTIME, Store.PUBLIC);
         add(entries, "ignored_timestamp", Type.LONG, Sensitivity.RUNTIME, Store.PRIVATE);
         add(entries, "ignored_version", Type.STRING, Sensitivity.RUNTIME, Store.PRIVATE);
         add(entries, "igstatus", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);

@@ -81,11 +81,10 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
             return;
         }
 
-        // 2. Target Hooking: WhatsApp & WhatsApp Business
-        boolean isWhatsApp = packageName.equals(PACKAGE_WPP);
-        boolean isBusiness = packageName.equals(PACKAGE_BUSINESS);
+        // 2. Target Hooking: WhatsApp, WA Business & Clones / Modded variants
+        boolean isWhatsAppTarget = com.waenhancer.utils.WhatsAppPackageDetector.isWhatsAppPackageName(packageName);
 
-        if (isWhatsApp || isBusiness) {
+        if (isWhatsAppTarget) {
             XposedBridge.log("[WAEX] Injected into target: " + packageName + " (process: " + lpparam.processName + ")");
 
             // Initialize features on target Application creation
@@ -101,6 +100,9 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                 if (appContext instanceof android.app.Application) {
                                     com.waenhancer.xposed.utils.ActivityTracker.install((android.app.Application) appContext);
                                 }
+
+                                // Register this package as active hooked package for the dashboard
+                                com.waenhancer.utils.WhatsAppPackageDetector.registerHookedPackage(appContext, packageName);
 
                                 try {
                                     android.content.IntentFilter filter = new android.content.IntentFilter("com.waenhancer.WHATSAPP.RESTART");

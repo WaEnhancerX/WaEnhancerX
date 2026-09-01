@@ -102,28 +102,31 @@ object VersionGuard {
 
                             // Offer quick restart
                             Handler(Looper.getMainLooper()).postDelayed({
-                                AppRestartHelper.restartPackage(activity, activity.packageName, "WhatsApp")
-                            }, 1000)
-                        } catch (t: Throwable) {
-                            XposedBridge.log("$TAG Failed to add custom version: ${t.message}")
-                        }
+                            val appLabel = try {
+                                activity.applicationInfo.loadLabel(activity.packageManager).toString()
+                            } catch (_: Throwable) { "WhatsApp" }
+                            AppRestartHelper.restartPackage(activity, activity.packageName, appLabel)
+                        }, 1000)
+                    } catch (t: Throwable) {
+                        XposedBridge.log("$TAG Failed to add custom version: ${t.message}")
                     }
-                    .setNegativeButton("Open WAEX Settings") { d, _ ->
-                        try {
-                            val intent = Intent().apply {
-                                component = ComponentName(
-                                    "com.waenhancer",
-                                    "com.waenhancer.activities.MainActivity"
-                                )
-                                putExtra("target_screen", "supported_versions")
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                            }
-                            activity.startActivity(intent)
-                        } catch (t: Throwable) {
-                            XposedBridge.log("$TAG Failed to open WAEX settings: ${t.message}")
+                }
+                .setNegativeButton("Open WAEX Settings") { d, _ ->
+                    try {
+                        val intent = Intent().apply {
+                            component = ComponentName(
+                                "com.waenhancer",
+                                "com.waenhancer.app.PermissionsActivity"
+                            )
+                            putExtra("target_screen", "supported_versions")
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         }
-                        d.dismiss()
+                        activity.startActivity(intent)
+                    } catch (t: Throwable) {
+                        XposedBridge.log("$TAG Failed to open WAEX settings: ${t.message}")
                     }
+                    d.dismiss()
+                }
 
                 dialog.show()
             } catch (t: Throwable) {

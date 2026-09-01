@@ -70,24 +70,9 @@ fun MainDashboardScreen(
 
 
 
-    // Dynamic WhatsApp Package Info
-    val (wppInstalled, wppVersion) = remember {
-        try {
-            val pInfo = context.packageManager.getPackageInfo("com.whatsapp", 0)
-            true to "v${pInfo.versionName}"
-        } catch (e: Exception) {
-            false to "Not Installed"
-        }
-    }
-
-    // Dynamic WhatsApp Business Package Info
-    val (businessInstalled, businessVersion) = remember {
-        try {
-            val pInfo = context.packageManager.getPackageInfo("com.whatsapp.w4b", 0)
-            true to "v${pInfo.versionName}"
-        } catch (e: Exception) {
-            false to "Not Installed"
-        }
+    // Dynamic WhatsApp Packages & Clones Detector
+    val detectedApps = remember {
+        com.waenhancer.utils.WhatsAppPackageDetector.detectWhatsAppApps(context)
     }
 
     var showCustomizationSoon by remember { mutableStateOf(false) }
@@ -161,134 +146,84 @@ fun MainDashboardScreen(
                     HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Target Apps Row: WhatsApp & WhatsApp Business (WaEnhancer inspired)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // WhatsApp Card
-                        Surface(
-                            shape = radius.defaultShape,
-                            color = colors.surfaceDim,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                // Top row: Dot + Restart Button
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(8.dp)
-                                            .clip(CircleShape)
-                                            .background(if (wppInstalled) colors.primary else colors.onSurfaceVariant.copy(alpha = 0.4f))
-                                    )
-                                    Spacer(modifier = Modifier.weight(1f))
-                                    Box(
-                                        modifier = Modifier
-                                            .size(26.dp)
-                                            .clip(CircleShape)
-                                            .background(colors.surface)
-                                            .clickable {
-                                                AppRestartHelper.restartPackage(
-                                                    context,
-                                                    "com.whatsapp",
-                                                    "WhatsApp"
-                                                )
-                                            },
-                                        contentAlignment = Alignment.Center
+                    // Target Apps: Dynamic WhatsApp & Clones List
+                    val chunkedApps = detectedApps.chunked(2)
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        chunkedApps.forEach { rowApps ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                rowApps.forEach { app ->
+                                    Surface(
+                                        shape = radius.defaultShape,
+                                        color = colors.surfaceDim,
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
+                                        modifier = Modifier.weight(1f)
                                     ) {
-                                        Icon(
-                                            imageVector = WaexIcons.Refresh,
-                                            contentDescription = "Restart App",
-                                            tint = colors.onSurfaceVariant,
-                                            modifier = Modifier.size(13.dp)
-                                        )
+                                        Column(modifier = Modifier.padding(12.dp)) {
+                                            // Top row: Dot + Restart Button
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(8.dp)
+                                                        .clip(CircleShape)
+                                                        .background(if (app.isInstalled) colors.primary else colors.onSurfaceVariant.copy(alpha = 0.4f))
+                                                )
+                                                Spacer(modifier = Modifier.weight(1f))
+                                                if (app.isInstalled) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(26.dp)
+                                                            .clip(CircleShape)
+                                                            .background(colors.surface)
+                                                            .clickable {
+                                                                com.waenhancer.xposed.utils.AppRestartHelper.restartPackage(
+                                                                    context,
+                                                                    app.packageName,
+                                                                    app.appName
+                                                                )
+                                                            },
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = WaexIcons.Refresh,
+                                                            contentDescription = "Restart App",
+                                                            tint = colors.onSurfaceVariant,
+                                                            modifier = Modifier.size(13.dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
+
+                                            Spacer(modifier = Modifier.height(6.dp))
+
+                                            Text(
+                                                text = app.appName,
+                                                style = typography.bodyMd,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = colors.onSurface,
+                                                maxLines = 1,
+                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                text = app.versionName,
+                                                style = typography.labelSm,
+                                                color = if (app.isInstalled) colors.primary else colors.onSurfaceVariant,
+                                                fontSize = 11.sp
+                                            )
+                                        }
                                     }
                                 }
-
-                                Spacer(modifier = Modifier.height(6.dp))
-
-                                Text(
-                                    text = "WhatsApp",
-                                    style = typography.bodyMd,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = colors.onSurface
-                                )
-                                Text(
-                                    text = wppVersion,
-                                    style = typography.labelSm,
-                                    color = if (wppInstalled) colors.primary else colors.onSurfaceVariant,
-                                    fontSize = 11.sp
-                                )
-                            }
-                        }
-
-                        // WhatsApp Business Card
-                        Surface(
-                            shape = radius.defaultShape,
-                            color = colors.surfaceDim,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                // Top row: Dot + Restart Button
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(8.dp)
-                                            .clip(CircleShape)
-                                            .background(if (businessInstalled) colors.primary else colors.onSurfaceVariant.copy(alpha = 0.4f))
-                                    )
+                                if (rowApps.size == 1) {
                                     Spacer(modifier = Modifier.weight(1f))
-                                    Box(
-                                        modifier = Modifier
-                                            .size(26.dp)
-                                            .clip(CircleShape)
-                                            .background(colors.surface)
-                                            .clickable {
-                                                AppRestartHelper.restartPackage(
-                                                    context,
-                                                    "com.whatsapp.w4b",
-                                                    "WA Business"
-                                                )
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = WaexIcons.Refresh,
-                                            contentDescription = "Restart App",
-                                            tint = colors.onSurfaceVariant,
-                                            modifier = Modifier.size(13.dp)
-                                        )
-                                    }
-
-
                                 }
-
-                                Spacer(modifier = Modifier.height(6.dp))
-
-                                Text(
-                                    text = "WA Business",
-                                    style = typography.bodyMd,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = colors.onSurface
-                                )
-                                Text(
-                                    text = businessVersion,
-                                    style = typography.labelSm,
-                                    color = if (businessInstalled) colors.primary else colors.onSurfaceVariant,
-                                    fontSize = 11.sp
-                                )
                             }
                         }
                     }
-
                 }
             }
 
