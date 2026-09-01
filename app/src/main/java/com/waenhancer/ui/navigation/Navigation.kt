@@ -109,6 +109,14 @@ class WaexNavController(initialScreen: Screen = Screen.MainDashboard) {
     var highlightTargetKey by mutableStateOf<String?>(null)
 
     fun navigateToPreference(tabIndex: Int, subTabId: String?, preferenceKey: String) {
+        if (preferenceKey == "supported_versions" || preferenceKey == "bypass_version_check") {
+            navigateTo(Screen.SupportedVersions)
+            return
+        }
+        if (preferenceKey == "license_verification" || preferenceKey == "pro_features_unlock") {
+            navigateTo(Screen.LicenseActivation)
+            return
+        }
         val rootScreen = when (tabIndex) {
             0 -> Screen.MainDashboard
             1 -> Screen.GlobalPrivacySettings

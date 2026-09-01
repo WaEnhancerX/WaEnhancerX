@@ -150,6 +150,7 @@ public final class PreferenceSchema {
         add(entries, "custom_privacy_type", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "customforwardlimit", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "customize_supported_versions", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "custom_supported_versions", Type.STRING_SET, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "deleted_message_color", Type.INT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "direct_chat_button", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "direct_chat_dialer", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);

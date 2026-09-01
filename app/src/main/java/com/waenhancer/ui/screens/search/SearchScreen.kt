@@ -123,7 +123,9 @@ fun SearchScreen() {
             SearchablePreference("quick_home_menu", "Quick Action Home Menu", "Add quick actions to home long-press", "Home Layout & Navigation", 4, "layout", "Styles"),
             SearchablePreference("backup_restore", "Backup & Restore Preferences", "Import or export WAEX configurations", "Utilities & Data", 4, "layout", "Styles"),
             SearchablePreference("contact_blocked_verify", "Contact Blocked Verifier", "Verify if a contact has blocked you", "Utilities & Data", 4, "layout", "Styles"),
-            SearchablePreference("miscellaneous_enhancements", "Miscellaneous Enhancements", "Miscellaneous minor feature options", "Utilities & Data", 4, "layout", "Styles"),
+            // --- SETTINGS & SYSTEM ---
+            SearchablePreference("supported_versions", "Supported WhatsApp Versions", "Manage verified WhatsApp and WA Business versions & wildcards", "System & Compatibility", -1, null, "Settings"),
+            SearchablePreference("bypass_version_check", "Bypass Version Verification", "Force WAEX hooks to load on any WhatsApp version", "System & Compatibility", -1, null, "Settings"),
 
             // --- PREMIUM (Paywall) ---
             SearchablePreference("license_verification", "License Verification & Activation", "Manages license key entry and validation", "Premium", -1, null, "Premium"),
