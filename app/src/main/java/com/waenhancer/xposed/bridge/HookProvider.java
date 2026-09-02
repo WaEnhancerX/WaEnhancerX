@@ -44,6 +44,23 @@ public class HookProvider extends ContentProvider {
             Context context = getContext();
             if (context == null) return null;
 
+            if ("register_hooked_package".equals(method)) {
+                String pkg = (arg != null) ? arg : (extras != null ? extras.getString("package") : null);
+                if (pkg != null && !pkg.isEmpty()) {
+                    var currentSet = new HashSet<>(prefs.getStringSet("hooked_whatsapp_packages", new HashSet<>()));
+                    currentSet.add(pkg);
+                    var editor = prefs.edit();
+                    editor.putStringSet("hooked_whatsapp_packages", currentSet);
+                    editor.putLong("last_active_" + pkg, System.currentTimeMillis());
+                    editor.commit();
+                    fixPermissions();
+                    context.getContentResolver().notifyChange(Uri.parse("content://" + AUTHORITY + "/preferences"), null);
+                    Bundle result = new Bundle();
+                    result.putBoolean("success", true);
+                    return result;
+                }
+            }
+
             if ("get_all_preferences".equals(method)) {
                 var all = prefs.getAll();
                 Bundle result = new Bundle();

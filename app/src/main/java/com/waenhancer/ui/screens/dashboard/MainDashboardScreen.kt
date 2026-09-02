@@ -1,5 +1,7 @@
 package com.waenhancer.ui.screens.dashboard
 
+import android.content.Context
+import android.content.Intent
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -70,8 +72,40 @@ fun MainDashboardScreen(
 
 
 
+    var refreshTrigger by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+
+    // Re-check target apps on resume and whenever target app sends active broadcast
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                refreshTrigger++
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: Context?, intent: android.content.Intent?) {
+                refreshTrigger++
+            }
+        }
+        val filter = android.content.IntentFilter("com.waenhancer.ACTION_TARGET_APP_ACTIVE")
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+        } else {
+            context.registerReceiver(receiver, filter)
+        }
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            try {
+                context.unregisterReceiver(receiver)
+            } catch (_: Throwable) {}
+        }
+    }
+
     // Dynamic WhatsApp Packages & Clones Detector
-    val detectedApps = remember {
+    val detectedApps = remember(refreshTrigger) {
         com.waenhancer.utils.WhatsAppPackageDetector.detectWhatsAppApps(context)
     }
 
@@ -146,80 +180,134 @@ fun MainDashboardScreen(
                     HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Target Apps: Dynamic WhatsApp & Clones List
-                    val chunkedApps = detectedApps.chunked(2)
+                    // Target Apps: Vertical List of Cards with App Icon, Title, Package Name, True Scope Status Dot, and Restart Action
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        chunkedApps.forEach { rowApps ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        detectedApps.forEach { app ->
+                            val appIcon = remember(app.packageName) {
+                                com.waenhancer.utils.WhatsAppPackageDetector.getAppIcon(context, app.packageName)
+                            }
+                            Surface(
+                                shape = radius.defaultShape,
+                                color = colors.surfaceDim,
+                                border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                rowApps.forEach { app ->
-                                    Surface(
-                                        shape = radius.defaultShape,
-                                        color = colors.surfaceDim,
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
-                                        modifier = Modifier.weight(1f)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // App Icon Container
+                                    Box(
+                                        modifier = Modifier
+                                            .size(44.dp)
+                                            .clip(CircleShape)
+                                            .background(colors.surface),
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        Column(modifier = Modifier.padding(12.dp)) {
-                                            // Top row: Dot + Restart Button
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                modifier = Modifier.fillMaxWidth()
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(8.dp)
-                                                        .clip(CircleShape)
-                                                        .background(if (app.isInstalled) colors.primary else colors.onSurfaceVariant.copy(alpha = 0.4f))
-                                                )
-                                                Spacer(modifier = Modifier.weight(1f))
-                                                if (app.isInstalled) {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(26.dp)
-                                                            .clip(CircleShape)
-                                                            .background(colors.surface)
-                                                            .clickable {
-                                                                com.waenhancer.xposed.utils.AppRestartHelper.restartPackage(
-                                                                    context,
-                                                                    app.packageName,
-                                                                    app.appName
-                                                                )
-                                                            },
-                                                        contentAlignment = Alignment.Center
-                                                    ) {
-                                                        Icon(
-                                                            imageVector = WaexIcons.Refresh,
-                                                            contentDescription = "Restart App",
-                                                            tint = colors.onSurfaceVariant,
-                                                            modifier = Modifier.size(13.dp)
-                                                        )
-                                                    }
-                                                }
-                                            }
-
-                                            Spacer(modifier = Modifier.height(6.dp))
-
-                                            Text(
-                                                text = app.appName,
-                                                style = typography.bodyMd,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = colors.onSurface,
-                                                maxLines = 1,
-                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                        if (appIcon != null) {
+                                            androidx.compose.foundation.Image(
+                                                bitmap = appIcon,
+                                                contentDescription = app.appName,
+                                                modifier = Modifier
+                                                    .size(32.dp)
+                                                    .clip(CircleShape)
                                             )
-                                            Text(
-                                                text = app.versionName,
-                                                style = typography.labelSm,
-                                                color = if (app.isInstalled) colors.primary else colors.onSurfaceVariant,
-                                                fontSize = 11.sp
+                                        } else {
+                                            Icon(
+                                                imageVector = WaexIcons.Security,
+                                                contentDescription = app.appName,
+                                                tint = colors.primary,
+                                                modifier = Modifier.size(24.dp)
                                             )
                                         }
                                     }
-                                }
-                                if (rowApps.size == 1) {
-                                    Spacer(modifier = Modifier.weight(1f))
+
+                                    Spacer(modifier = Modifier.width(12.dp))
+
+                                    // App Info & Status Column
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = app.appName,
+                                            style = typography.bodyMd,
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.onSurface,
+                                            maxLines = 1,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                        )
+
+                                        Text(
+                                            text = "${app.packageName} • ${app.versionName}",
+                                            style = typography.labelSm,
+                                            color = colors.onSurfaceVariant.copy(alpha = 0.85f),
+                                            fontSize = 11.sp,
+                                            maxLines = 1,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                        )
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+
+                                        // Status Dot & Label
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(7.dp)
+                                                    .clip(CircleShape)
+                                                    .background(
+                                                        when {
+                                                            app.isHooked -> colors.primary
+                                                            app.isInstalled -> Color(0xFFF59E0B)
+                                                            else -> colors.onSurfaceVariant.copy(alpha = 0.4f)
+                                                        }
+                                                    )
+                                            )
+                                            Text(
+                                                text = when {
+                                                    app.isHooked -> "Injected & Active"
+                                                    app.isInstalled -> "Scope Pending / Not Injected"
+                                                    else -> "Not Installed"
+                                                },
+                                                style = typography.labelSm,
+                                                color = when {
+                                                    app.isHooked -> colors.primary
+                                                    app.isInstalled -> Color(0xFFF59E0B)
+                                                    else -> colors.onSurfaceVariant
+                                                },
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                    }
+
+                                    // Restart Action Button
+                                    if (app.isInstalled) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(32.dp)
+                                                .clip(CircleShape)
+                                                .background(colors.surface)
+                                                .border(1.dp, colors.outlineVariant, CircleShape)
+                                                .clickable {
+                                                    com.waenhancer.xposed.utils.AppRestartHelper.restartPackage(
+                                                        context,
+                                                        app.packageName,
+                                                        app.appName
+                                                    )
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = WaexIcons.Refresh,
+                                                contentDescription = "Restart App",
+                                                tint = colors.onSurfaceVariant,
+                                                modifier = Modifier.size(15.dp)
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }

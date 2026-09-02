@@ -4,7 +4,14 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import com.waenhancer.config.PreferenceStores
+import com.waenhancer.xposed.utils.ModuleStatus
 
 data class HookedAppInfo(
     val packageName: String,
@@ -114,6 +121,27 @@ object WhatsAppPackageDetector {
      */
     @JvmStatic
     fun registerHookedPackage(context: Context, packageName: String) {
+        // 1. Cross-process IPC to WAEX HookProvider
+        try {
+            val uri = android.net.Uri.parse("content://com.waenhancer.hookprovider")
+            val extras = android.os.Bundle().apply {
+                putString("package", packageName)
+                putLong("timestamp", System.currentTimeMillis())
+            }
+            context.contentResolver.call(uri, "register_hooked_package", packageName, extras)
+        } catch (_: Throwable) {}
+
+        // 2. Broadcast to WAEX process
+        try {
+            val intent = android.content.Intent("com.waenhancer.ACTION_TARGET_APP_ACTIVE").apply {
+                setPackage("com.waenhancer")
+                putExtra("PACKAGE", packageName)
+                putExtra("TIMESTAMP", System.currentTimeMillis())
+            }
+            context.sendBroadcast(intent)
+        } catch (_: Throwable) {}
+
+        // 3. Local fallback
         try {
             val prefs = PreferenceStores.publicStore(context)
             val existing = LinkedHashSet(prefs.getStringSet("hooked_whatsapp_packages", emptySet()) ?: emptySet())
@@ -123,7 +151,30 @@ object WhatsAppPackageDetector {
                     .putStringSet("hooked_whatsapp_packages", existing)
                     .apply()
             }
-        } catch (ignored: Throwable) {}
+        } catch (_: Throwable) {}
+    }
+
+    /**
+     * Loads the App Icon as an ImageBitmap safely for Compose.
+     */
+    @JvmStatic
+    fun getAppIcon(context: Context, packageName: String): ImageBitmap? {
+        return try {
+            val drawable = context.packageManager.getApplicationIcon(packageName)
+            if (drawable is BitmapDrawable && drawable.bitmap != null) {
+                drawable.bitmap.asImageBitmap()
+            } else {
+                val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else 96
+                val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else 96
+                val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(bitmap)
+                drawable.setBounds(0, 0, canvas.width, canvas.height)
+                drawable.draw(canvas)
+                bitmap.asImageBitmap()
+            }
+        } catch (_: Throwable) {
+            null
+        }
     }
 
     /**
@@ -137,10 +188,13 @@ object WhatsAppPackageDetector {
         // 1. Check known WhatsApp package names
         discoveredPackages.addAll(KNOWN_WHATSAPP_PACKAGES)
 
+        val isGlobalModuleActive = ModuleStatus.isModuleActive()
+
         // 2. Read packages that have been hooked by Xposed runtime
+        var hookedSet: Set<String>? = null
         try {
             val prefs = PreferenceStores.publicStore(context)
-            val hookedSet = prefs.getStringSet("hooked_whatsapp_packages", null)
+            hookedSet = prefs.getStringSet("hooked_whatsapp_packages", null)
             if (hookedSet != null) {
                 discoveredPackages.addAll(hookedSet)
             }
@@ -165,7 +219,7 @@ object WhatsAppPackageDetector {
                 val friendlyName = when {
                     label.isNotBlank() && label != pkg -> label
                     pkg == "com.whatsapp" -> "WhatsApp"
-                    pkg == "com.whatsapp.w4b" -> "WA Business"
+                    pkg == "com.whatsapp.w4b" -> "WhatsApp Business"
                     pkg == "com.gbwhatsapp" -> "GBWhatsApp"
                     pkg == "com.fmwhatsapp" -> "FMWhatsApp"
                     pkg == "com.yowhatsapp" || pkg == "com.yowa" -> "YoWhatsApp"
@@ -179,19 +233,21 @@ object WhatsAppPackageDetector {
                     else -> "WhatsApp ($pkg)"
                 }
 
+                val isHooked = isGlobalModuleActive && (hookedSet?.contains(pkg) == true)
+
                 result.add(
                     HookedAppInfo(
                         packageName = pkg,
                         appName = friendlyName,
                         versionName = "v${pInfo.versionName ?: "Unknown"}",
                         isInstalled = true,
-                        isHooked = true
+                        isHooked = isHooked
                     )
                 )
             } catch (e: PackageManager.NameNotFoundException) {
                 // Only list standard WPP / Business if uninstalled as placeholders if no apps are installed
                 if (pkg == "com.whatsapp" || pkg == "com.whatsapp.w4b") {
-                    val name = if (pkg == "com.whatsapp") "WhatsApp" else "WA Business"
+                    val name = if (pkg == "com.whatsapp") "WhatsApp" else "WhatsApp Business"
                     result.add(
                         HookedAppInfo(
                             packageName = pkg,
