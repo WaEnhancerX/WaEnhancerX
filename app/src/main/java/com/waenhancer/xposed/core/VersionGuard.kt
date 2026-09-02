@@ -36,8 +36,7 @@ object VersionGuard {
         try {
             val packageInfo: PackageInfo = appContext.packageManager.getPackageInfo(appContext.packageName, 0)
             val currentVersion = packageInfo.versionName ?: ""
-
-            val isSupported = UniversalVersionValidator.isSupported(currentVersion, prefs)
+            val isSupported = UniversalVersionValidator.isSupported(appContext, currentVersion, prefs)
 
             if (isSupported) {
                 XposedBridge.log("$TAG Version verified and supported: $currentVersion (${appContext.packageName})")

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Supported WhatsApp Packages & Clones (Used by LSPosed & WhatsAppPackageDetector) -->
     <string-array name="xposed_scope">
         <!-- Official WhatsApp & WhatsApp Business -->
         <item>com.whatsapp</item>
@@ -57,5 +58,16 @@
         <item>com.ob6whatsapp</item>
         <item>com.whatsapp.dual</item>
         <item>com.whatsapp.clone</item>
+    </string-array>
+
+    <!-- Universal Supported WhatsApp Versions (Single universal standard across all WhatsApp packages) -->
+    <!-- Formatted strictly as 2.xx.xx.xx (e.g. 2.26.34.xx, 2.26.30.xx, 2.26.28.xx) -->
+    <string-array name="universal_supported_versions">
+        <item>2.26.35.xx</item>
+        <item>2.26.34.xx</item>
+        <item>2.26.33.xx</item>
+        <item>2.26.32.xx</item>
+        <item>2.26.31.xx</item>
+        <item>2.26.30.xx</item>
     </string-array>
 </resources>

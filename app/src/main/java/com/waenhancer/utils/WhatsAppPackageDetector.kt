@@ -10,6 +10,7 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import com.waenhancer.app.R
 import com.waenhancer.config.PreferenceStores
 import com.waenhancer.xposed.utils.ModuleStatus
 
@@ -23,81 +24,51 @@ data class HookedAppInfo(
 
 object WhatsAppPackageDetector {
 
-    /**
-     * Comprehensive database of all known WhatsApp official builds, clones, and variants.
-     */
-    val KNOWN_WHATSAPP_PACKAGES = listOf(
-        // Official Builds
-        "com.whatsapp",
-        "com.whatsapp.w4b",
-
-        // Major Modded Ecosystems & Clones
-        "com.gbwhatsapp",
-        "com.fmwhatsapp",
-        "com.yowhatsapp",
-        "com.aerowtsapp",
-        "com.aero",
-        "com.delta",
-        "com.ultra",
-        "com.delight",
-        "com.universe.messenger",
-        "com.directchat.app",
-        "com.sathwbg.easymessager",
-
-        // LiteX & Lightweight Variants
-        "com.whatsapplitex",
-        "com.whatsapplitex2",
-        "com.whatsapp.litex",
-        "com.wa.litex",
-
-        // Specialty & Regional Clones
-        "online.whatsticker",
-        "com.gbwhatsapp.sofid",
-        "com.yowa",
-        "com.ymwhatsapp",
-        "com.nowha",
-        "com.nowha2",
-        "com.whatsapp2",
-        "com.wa",
-        "com.wago",
-
-        // Additional Recognized Clones Worldwide
-        "com.whatsapp.plus",
-        "com.ogwhatsapp",
-        "com.soula2",
-        "com.co.whatsapp",
-        "com.bwhatsapp",
-        "com.fouadwhatsapp",
-        "com.samwhatsapp",
-        "com.hewhatsapp",
-        "com.mbwhatsapp",
-        "com.rcwhatsapp",
-        "com.na4whatsapp",
-        "com.na7whatsapp",
-        "com.anwhatsapp",
-        "com.obwhatsapp",
-        "com.ob2whatsapp",
-        "com.ob3whatsapp",
-        "com.ob4whatsapp",
-        "com.ob5whatsapp",
-        "com.ob6whatsapp",
-        "com.whatsapp.dual",
-        "com.whatsapp.clone"
-    )
+    private const val MODULE_PACKAGE = "com.waenhancer"
 
     /**
-     * Returns true if a package name matches any known WhatsApp official build or clone variant.
+     * Dynamically reads supported WhatsApp packages & clones from arrays.xml.
      */
     @JvmStatic
-    fun isWhatsAppPackageName(packageName: String?): Boolean {
+    fun getSupportedPackages(context: Context?): Set<String> {
+        val packages = LinkedHashSet<String>()
+        if (context != null) {
+            try {
+                val moduleContext = if (context.packageName == MODULE_PACKAGE) {
+                    context
+                } else {
+                    try {
+                        context.createPackageContext(MODULE_PACKAGE, Context.CONTEXT_IGNORE_SECURITY)
+                    } catch (_: Throwable) {
+                        context
+                    }
+                }
+                val resId = moduleContext.resources.getIdentifier("xposed_scope", "array", MODULE_PACKAGE)
+                if (resId != 0) {
+                    packages.addAll(moduleContext.resources.getStringArray(resId))
+                } else {
+                    packages.addAll(context.resources.getStringArray(R.array.xposed_scope))
+                }
+            } catch (_: Throwable) {}
+        }
+        return packages
+    }
+
+    /**
+     * Returns true if a package name matches any supported WhatsApp package from arrays.xml
+     * or WhatsApp clone pattern.
+     */
+    @JvmStatic
+    fun isWhatsAppPackageName(context: Context?, packageName: String?): Boolean {
         if (packageName.isNullOrBlank()) return false
         val pkg = packageName.lowercase()
-        if (pkg == "com.waenhancer" || pkg.startsWith("android") || pkg.startsWith("com.android") || pkg.startsWith("com.google.android")) {
+        if (pkg == MODULE_PACKAGE || pkg.startsWith("android") || pkg.startsWith("com.android") || pkg.startsWith("com.google.android")) {
             return false
         }
 
-        // 1. Direct match in database
-        if (KNOWN_WHATSAPP_PACKAGES.contains(pkg)) {
+        // 1. Direct match from arrays.xml
+        val supportedPackages = getSupportedPackages(context)
+        if (supportedPackages.contains(pkg)) {
             return true
         }
 
@@ -114,6 +85,11 @@ object WhatsAppPackageDetector {
                 pkg.contains("wago") ||
                 pkg.contains("ymwa") ||
                 pkg.endsWith(".litex")
+    }
+
+    @JvmStatic
+    fun isWhatsAppPackageName(packageName: String?): Boolean {
+        return isWhatsAppPackageName(null, packageName)
     }
 
     /**
@@ -185,8 +161,8 @@ object WhatsAppPackageDetector {
         val pm = context.packageManager
         val discoveredPackages = LinkedHashSet<String>()
 
-        // 1. Check known WhatsApp package names
-        discoveredPackages.addAll(KNOWN_WHATSAPP_PACKAGES)
+        // 1. Read dynamically from arrays.xml
+        discoveredPackages.addAll(getSupportedPackages(context))
 
         val isGlobalModuleActive = ModuleStatus.isModuleActive()
 
@@ -198,17 +174,17 @@ object WhatsAppPackageDetector {
             if (hookedSet != null) {
                 discoveredPackages.addAll(hookedSet)
             }
-        } catch (ignored: Throwable) {}
+        } catch (_: Throwable) {}
 
         // 3. Scan installed apps for any additional WhatsApp clones
         try {
             val installedApps: List<ApplicationInfo> = pm.getInstalledApplications(PackageManager.GET_META_DATA)
             for (app in installedApps) {
-                if (isWhatsAppPackageName(app.packageName)) {
+                if (isWhatsAppPackageName(context, app.packageName)) {
                     discoveredPackages.add(app.packageName)
                 }
             }
-        } catch (ignored: Throwable) {}
+        } catch (_: Throwable) {}
 
         val result = mutableListOf<HookedAppInfo>()
 

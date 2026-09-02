@@ -34,8 +34,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -133,7 +131,7 @@ fun SupportedVersionsScreen() {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     detectedApps.forEach { app ->
                         val cleanVer = app.versionName.removePrefix("v")
-                        val isSupported = app.isInstalled && (isBypassEnabled || UniversalVersionValidator.isSupported(cleanVer, prefs))
+                        val isSupported = app.isInstalled && (isBypassEnabled || UniversalVersionValidator.isSupported(context, cleanVer, prefs))
                         AppVersionStatusCard(
                             appName = app.appName,
                             packageName = app.packageName,
@@ -172,7 +170,13 @@ fun SupportedVersionsScreen() {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         // Customize switch
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val next = !isCustomizeEnabled
+                                    isCustomizeEnabled = next
+                                    prefManager.putBoolean("customize_supported_versions", next)
+                                },
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -189,16 +193,12 @@ fun SupportedVersionsScreen() {
                                     color = colors.onSurfaceVariant
                                 )
                             }
-                            Switch(
+                            com.waenhancer.ui.components.StitchSwitch(
                                 checked = isCustomizeEnabled,
                                 onCheckedChange = { checked ->
                                     isCustomizeEnabled = checked
                                     prefManager.putBoolean("customize_supported_versions", checked)
-                                },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = colors.surface,
-                                    checkedTrackColor = colors.primary
-                                )
+                                }
                             )
                         }
 
@@ -206,7 +206,13 @@ fun SupportedVersionsScreen() {
 
                         // Bypass switch
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val next = !isBypassEnabled
+                                    isBypassEnabled = next
+                                    prefManager.putBoolean("bypass_version_check", next)
+                                },
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -223,16 +229,12 @@ fun SupportedVersionsScreen() {
                                     color = colors.onSurfaceVariant
                                 )
                             }
-                            Switch(
+                            com.waenhancer.ui.components.StitchSwitch(
                                 checked = isBypassEnabled,
                                 onCheckedChange = { checked ->
                                     isBypassEnabled = checked
                                     prefManager.putBoolean("bypass_version_check", checked)
-                                },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = colors.surface,
-                                    checkedTrackColor = colors.error
-                                )
+                                }
                             )
                         }
                     }
@@ -323,7 +325,7 @@ fun SupportedVersionsScreen() {
                 )
             }
 
-            items(UniversalVersionValidator.DEFAULT_UNIVERSAL_VERSIONS) { sysVer ->
+            items(UniversalVersionValidator.getBuiltinSupportedVersions(context)) { sysVer ->
                 VersionRuleItem(
                     version = sysVer,
                     badge = "Universal Base",
@@ -349,7 +351,7 @@ fun SupportedVersionsScreen() {
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Enter a specific build (e.g. 2.26.18.72) or a universal wildcard (e.g. 2.26.xx) to match all builds in that branch.",
+                        text = "Enter a specific build (e.g. 2.26.30.97) or a wildcard (e.g. 2.26.30.xx) to match builds in that branch.",
                         style = typography.labelSm,
                         color = colors.onSurfaceVariant
                     )
@@ -453,7 +455,7 @@ private fun AppVersionStatusCard(
                             .size(36.dp)
                             .clip(CircleShape)
                             .background(
-                                if (packageName == UniversalVersionValidator.PACKAGE_WPP) Color(0xFF25D366).copy(alpha = 0.15f)
+                                if (packageName == "com.whatsapp") Color(0xFF25D366).copy(alpha = 0.15f)
                                 else Color(0xFF3B82F6).copy(alpha = 0.15f)
                             ),
                         contentAlignment = Alignment.Center
@@ -461,7 +463,7 @@ private fun AppVersionStatusCard(
                         Icon(
                             imageVector = Icons.Rounded.Security,
                             contentDescription = appName,
-                            tint = if (packageName == UniversalVersionValidator.PACKAGE_WPP) Color(0xFF25D366) else Color(0xFF3B82F6),
+                            tint = if (packageName == "com.whatsapp") Color(0xFF25D366) else Color(0xFF3B82F6),
                             modifier = Modifier.size(20.dp)
                         )
                     }
