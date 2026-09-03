@@ -122,7 +122,8 @@ fun WaexTheme(
         LocalWaexElevation provides elevation
     ) {
         MaterialTheme(
-            colorScheme = m3ColorScheme
+            colorScheme = m3ColorScheme,
+            typography = MaterialTypography
         ) {
             content()
         }

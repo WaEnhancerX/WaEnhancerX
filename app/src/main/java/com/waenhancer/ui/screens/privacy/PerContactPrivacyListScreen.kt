@@ -84,12 +84,6 @@ fun PerContactPrivacyListScreen(
         topBar = {
             WaexTopBar(
                 title = "Per Contact Rules",
-                titleStyle = androidx.compose.ui.text.TextStyle(
-                    fontFamily = androidx.compose.ui.text.font.FontFamily.SansSerif,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp,
-                    lineHeight = 22.sp
-                ),
                 onBackClick = { navController.popBack() },
                 actions = {
                     if (contacts.isNotEmpty()) {
