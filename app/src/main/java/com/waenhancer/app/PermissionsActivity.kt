@@ -106,6 +106,14 @@ class PermissionsActivity : ComponentActivity() {
 
     @Inject lateinit var preferenceManager: WaexPreferenceManager
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (areAllPermissionsGranted(this)) {
+            navigateToHome()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -136,7 +144,12 @@ class PermissionsActivity : ComponentActivity() {
     }
 
     private fun navigateToHome() {
-        startActivity(Intent(this, MainActivity::class.java))
+        val intent = Intent(this, MainActivity::class.java).apply {
+            if (this@PermissionsActivity.intent.extras != null) {
+                putExtras(this@PermissionsActivity.intent.extras!!)
+            }
+        }
+        startActivity(intent)
         finish()
     }
 

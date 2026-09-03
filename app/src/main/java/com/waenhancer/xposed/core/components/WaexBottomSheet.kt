@@ -424,9 +424,15 @@ class WaexBottomSheet(private val context: Context) {
             val posLp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                 if (!negativeButtonText.isNullOrEmpty()) bottomMargin = dp(8)
             }
-            posBtn.layoutParams = posLp
+            posBtn.isClickable = true
+            posBtn.isFocusable = true
             posBtn.setOnClickListener {
-                positiveListener?.onClick(dialog, DialogInterface.BUTTON_POSITIVE)
+                XposedBridge.log("[WAEX] Positive button onClick triggered!")
+                try {
+                    positiveListener?.onClick(dialog, DialogInterface.BUTTON_POSITIVE)
+                } catch (t: Throwable) {
+                    XposedBridge.log("[WAEX] Error in positiveListener: ${t.message}")
+                }
                 dismissWithAnimation()
             }
             buttonsLayout.addView(posBtn)

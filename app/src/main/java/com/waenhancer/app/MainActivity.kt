@@ -1,5 +1,6 @@
 package com.waenhancer.app
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -36,6 +37,16 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var preferenceRepository: WaexPreferenceRepository
     @Inject lateinit var licenseManager: WaexLicenseManager
 
+    private var currentNavController: WaexNavController? = null
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.getStringExtra("target_screen") == "supported_versions") {
+            currentNavController?.navigateTo(com.waenhancer.ui.navigation.Screen.SupportedVersions)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -54,13 +65,19 @@ class MainActivity : ComponentActivity() {
                     preferenceManager.putString("app_theme_mode", it)
                 }
             ) {
-
                 WaexTheme(darkTheme = isDark) {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
                     ) {
-                        val navController = remember { WaexNavController() }
+                        val navController = remember {
+                            val controller = WaexNavController()
+                            currentNavController = controller
+                            if (intent?.getStringExtra("target_screen") == "supported_versions") {
+                                controller.navigateTo(com.waenhancer.ui.navigation.Screen.SupportedVersions)
+                            }
+                            controller
+                        }
                         CompositionLocalProvider(
                             LocalWaexNavController provides navController,
                             LocalWaexPreferenceManager provides preferenceManager,

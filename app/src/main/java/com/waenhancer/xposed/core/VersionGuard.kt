@@ -136,41 +136,21 @@ object VersionGuard {
                     .setMessage(
                         "Your WhatsApp version ($currentVersion) is not in the verified supported version range.\n\n" +
                         "WAEX features are temporarily paused for safety to prevent app instability.\n\n" +
-                        "You can enable universal support for this version right now with one tap."
+                        "You can manage supported versions in WAEX settings."
                     )
-                    .setPositiveButton("Add & Enable ($wildcard)") { dialog, _ ->
+                    .setPositiveButton("Open WAEX Settings") { dialog, _ ->
                         try {
-                            UniversalVersionValidator.addCustomVersion(prefs, wildcard)
-                            Toast.makeText(
-                                activity,
-                                "Universal rule $wildcard added to supported list!",
-                                Toast.LENGTH_LONG
-                            ).show()
-                            dialog.dismiss()
-
-                            Handler(Looper.getMainLooper()).postDelayed({
-                                val appLabel = try {
-                                    activity.applicationInfo.loadLabel(activity.packageManager).toString()
-                                } catch (_: Throwable) { "WhatsApp" }
-                                AppRestartHelper.restartPackage(activity, activity.packageName, appLabel)
-                            }, 800)
-                        } catch (t: Throwable) {
-                            XposedBridge.log("$TAG Failed to add custom version: ${t.message}")
-                        }
-                    }
-                    .setNegativeButton("Open WAEX Settings") { dialog, _ ->
-                        try {
-                            val intent = Intent().apply {
-                                component = ComponentName(
-                                    "com.waenhancer",
-                                    "com.waenhancer.app.PermissionsActivity"
-                                )
-                                putExtra("target_screen", "supported_versions")
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            XposedBridge.log("$TAG Open WAEX Settings clicked!")
+                            val pm = activity.packageManager
+                            val intent = pm.getLaunchIntentForPackage("com.waenhancer") ?: Intent().apply {
+                                setClassName("com.waenhancer", "com.waenhancer.app.PermissionsActivity")
                             }
+                            intent.putExtra("target_screen", "supported_versions")
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                             activity.startActivity(intent)
                         } catch (t: Throwable) {
                             XposedBridge.log("$TAG Failed to open WAEX settings: ${t.message}")
+                            t.printStackTrace()
                         }
                         dialog.dismiss()
                     }
