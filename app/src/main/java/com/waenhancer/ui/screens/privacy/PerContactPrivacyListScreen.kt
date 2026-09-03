@@ -47,14 +47,28 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.offset
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.RadioButtonChecked
+import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import com.waenhancer.ui.components.WaexTopBar
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.ContactPrivacy
 import com.waenhancer.ui.navigation.LocalWaexNavController
+import com.waenhancer.ui.components.StitchSwitch
 
 @Composable
 fun PerContactPrivacyListScreen(
@@ -64,10 +78,19 @@ fun PerContactPrivacyListScreen(
     onUpdateContact: (ContactPrivacy) -> Unit
 ) {
     val navController = LocalWaexNavController.current
+    val preferenceManager = com.waenhancer.ui.navigation.LocalWaexPreferenceManager.current
     val colors = WaexTheme.colors
     val spacing = WaexTheme.spacing
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
+
+    var selectedTab by remember { mutableStateOf("config") } // "config" | "rules"
+    var isCustomPrivacyEnabled by remember {
+        mutableStateOf(preferenceManager.getBoolean("custom_privacy", true))
+    }
+    var customPrivacyType by remember {
+        mutableStateOf(preferenceManager.getString("custom_privacy_type", "1"))
+    }
 
     var selectedContact by remember { mutableStateOf<ContactPrivacy?>(null) }
     var showEditModal by remember { mutableStateOf(false) }
@@ -86,7 +109,7 @@ fun PerContactPrivacyListScreen(
                 title = "Per Contact Rules",
                 onBackClick = { navController.popBack() },
                 actions = {
-                    if (contacts.isNotEmpty()) {
+                    if (selectedTab == "rules" && contacts.isNotEmpty()) {
                         TextButton(
                             onClick = { showClearAllModal = true },
                             colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFE53935))
@@ -107,87 +130,402 @@ fun PerContactPrivacyListScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-
-            // ── Main content ──────────────────────────────────────────────────────
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier.fillMaxSize()
             ) {
-                if (contacts.isEmpty()) {
-                    // Empty state
+                // ── Segmented Tab Bar ──────────────────────────────────────────
+                BoxWithConstraints(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .height(48.dp)
+                        .clip(radius.defaultShape)
+                        .background(colors.surfaceDim)
+                        .border(1.dp, colors.outlineVariant.copy(alpha = 0.5f), radius.defaultShape)
+                        .padding(4.dp)
+                ) {
+                    val tabWidth = maxWidth / 2
+                    val tabOffset = if (selectedTab == "config") 0.dp else tabWidth
+
+                    val animatedOffset by animateDpAsState(
+                        targetValue = tabOffset,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessLow
+                        ),
+                        label = "tab_offset"
+                    )
+
+                    // Sliding highlight box
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = spacing.pageMargin)
-                            .padding(top = 80.dp),
-                        contentAlignment = Alignment.Center
+                            .offset(x = animatedOffset)
+                            .width(tabWidth)
+                            .fillMaxHeight()
+                            .clip(radius.defaultShape)
+                            .background(colors.surface)
+                            .border(1.dp, colors.outlineVariant, radius.defaultShape)
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.SpaceAround
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
+                        listOf(
+                            "config" to "Configuration",
+                            "rules" to if (contacts.isNotEmpty()) "Contact Rules (${contacts.size})" else "Contact Rules"
+                        ).forEach { (tabId, label) ->
+                            val isSelected = selectedTab == tabId
+                            val textColor by animateColorAsState(
+                                targetValue = if (isSelected) colors.primary else colors.onSurfaceVariant,
+                                animationSpec = tween(150),
+                                label = "tab_text_color"
+                            )
+
                             Box(
                                 modifier = Modifier
-                                    .size(64.dp)
-                                    .clip(CircleShape)
-                                    .background(colors.primaryContainer),
+                                    .fillMaxHeight()
+                                    .weight(1f)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) { selectedTab = tabId },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = WaexIcons.Security,
-                                    contentDescription = null,
-                                    tint = colors.primary,
-                                    modifier = Modifier.size(28.dp)
+                                Text(
+                                    text = label,
+                                    style = typography.bodyMd,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = textColor
                                 )
-                            }
-                            Text(
-                                text = "No custom rules yet",
-                                style = typography.headlineMd,
-                                fontWeight = FontWeight.Bold,
-                                color = colors.onBackground
-                            )
-                            Text(
-                                text = "Contacts with custom privacy rules will appear here. Rules can be set from inside a WhatsApp conversation.",
-                                style = typography.bodyMd,
-                                color = colors.onSurfaceVariant,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                } else {
-                    // Grouped card – all contacts inside one surface with dividers (with compact horizontal margins)
-                    Surface(
-                        shape = radius.bentoCardShape,
-                        color = colors.surface,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp)
-                    ) {
-                        Column {
-                            contacts.forEachIndexed { index, contact ->
-                                ContactPrivacyRow(
-                                    contact = contact,
-                                    onEdit = {
-                                        selectedContact = contact
-                                        showEditModal = true
-                                    },
-                                    onClear = { onClearContact(contact) }
-                                )
-                                if (index < contacts.lastIndex) {
-                                    HorizontalDivider(
-                                        thickness = 1.dp,
-                                        color = colors.outlineVariant.copy(alpha = 0.6f)
-                                    )
-                                }
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                // ── Tab Content ────────────────────────────────────────────────
+                AnimatedContent(
+                    targetState = selectedTab,
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(150))
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    label = "per_contact_tab_content"
+                ) { tab ->
+                    if (tab == "config") {
+                        // ── Tab 1: Configuration ──────────────────────────────
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            // Master Toggle Card
+                            Surface(
+                                shape = radius.bentoCardShape,
+                                color = colors.surface,
+                                border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(colors.primary.copy(alpha = 0.12f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = WaexIcons.Security,
+                                            contentDescription = null,
+                                            tint = colors.primary,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(14.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Enable Per-Contact Privacy",
+                                            style = typography.bodyLg,
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.onSurface
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = "Allow granular privacy overrides for specific contacts or groups",
+                                            style = typography.bodyMd,
+                                            color = colors.onSurfaceVariant
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    StitchSwitch(
+                                        checked = isCustomPrivacyEnabled,
+                                        onCheckedChange = { checked ->
+                                            isCustomPrivacyEnabled = checked
+                                            preferenceManager.putBoolean("custom_privacy", checked)
+                                        }
+                                    )
+                                }
+                            }
+
+                            // Shortcut Placement Options (when enabled)
+                            AnimatedVisibility(
+                                visible = isCustomPrivacyEnabled,
+                                enter = fadeIn(tween(250)) + slideInVertically(tween(250)),
+                                exit = fadeOut(tween(200)) + slideOutVertically(tween(200))
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Column(modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)) {
+                                        Text(
+                                            text = "IN-APP SHORTCUT PLACEMENT",
+                                            style = typography.labelSm,
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.primary,
+                                            letterSpacing = 1.sp
+                                        )
+                                        Text(
+                                            text = "Choose where the Custom Privacy action button appears inside WhatsApp",
+                                            style = typography.bodySm,
+                                            color = colors.onSurfaceVariant
+                                        )
+                                    }
+
+                                    listOf(
+                                        Triple("1", "Contact & Group Info Screen", "Adds a dedicated Custom Privacy tile on the contact information and group details page"),
+                                        Triple("2", "Chat 3-Dot Options Menu", "Adds 'Custom Privacy' directly into the top-right options menu in chats"),
+                                        Triple("3", "Both (Info Screen & 3-Dot Menu)", "Displays the custom privacy shortcut in both the Info screen and the 3-dot menu")
+                                    ).forEach { (typeValue, title, desc) ->
+                                        val isSelected = customPrivacyType == typeValue
+                                        Surface(
+                                            shape = radius.bentoCardShape,
+                                            color = if (isSelected) colors.surface else colors.surfaceDim,
+                                            border = androidx.compose.foundation.BorderStroke(
+                                                width = if (isSelected) 1.5.dp else 1.dp,
+                                                color = if (isSelected) colors.primary else colors.outlineVariant
+                                            ),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    customPrivacyType = typeValue
+                                                    preferenceManager.putString("custom_privacy_type", typeValue)
+                                                }
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(16.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (isSelected) Icons.Rounded.RadioButtonChecked else Icons.Rounded.RadioButtonUnchecked,
+                                                    contentDescription = null,
+                                                    tint = if (isSelected) colors.primary else colors.onSurfaceVariant,
+                                                    modifier = Modifier.size(22.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(14.dp))
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = title,
+                                                        style = typography.bodyLg,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                                        color = if (isSelected) colors.primary else colors.onSurface
+                                                    )
+                                                    Spacer(modifier = Modifier.height(2.dp))
+                                                    Text(
+                                                        text = desc,
+                                                        style = typography.bodyMd,
+                                                        color = colors.onSurfaceVariant
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // How It Works Guide Card
+                            Surface(
+                                shape = radius.bentoCardShape,
+                                color = colors.surfaceDim,
+                                border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.6f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = WaexIcons.Info,
+                                            contentDescription = null,
+                                            tint = colors.primary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "How to Configure Rules",
+                                            style = typography.bodyLg,
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.onSurface
+                                        )
+                                    }
+                                    Text(
+                                        text = "1. Open any chat or contact info page in WhatsApp.\n2. Tap 'Custom Privacy' to set specific overrides (e.g. Hide Read Receipts, Hide Typing, Anti-Revoke).\n3. Saved rules take priority over global privacy settings and appear in the 'Contact Rules' tab.",
+                                        style = typography.bodyMd,
+                                        color = colors.onSurfaceVariant,
+                                        lineHeight = 20.sp
+                                    )
+                                }
+                            }
+
+                            if (contacts.isNotEmpty()) {
+                                Button(
+                                    onClick = { selectedTab = "rules" },
+                                    shape = radius.buttonShape,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = colors.primaryContainer,
+                                        contentColor = colors.onPrimary
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = "View ${contacts.size} Configured Contact(s) →",
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(24.dp))
+                        }
+                    } else {
+                        // ── Tab 2: Contact Rules List ───────────────────────────
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                                .padding(vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            if (!isCustomPrivacyEnabled) {
+                                Surface(
+                                    shape = radius.bentoCardShape,
+                                    color = Color(0xFFFFF3E0),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFB74D)),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(14.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = WaexIcons.Warning,
+                                            contentDescription = null,
+                                            tint = Color(0xFFE65100),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text(
+                                            text = "Per-Contact Privacy is currently disabled in Configuration.",
+                                            style = typography.bodyMd,
+                                            color = Color(0xFFE65100),
+                                            fontWeight = FontWeight.Medium,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        TextButton(
+                                            onClick = {
+                                                isCustomPrivacyEnabled = true
+                                                preferenceManager.putBoolean("custom_privacy", true)
+                                            }
+                                        ) {
+                                            Text(
+                                                text = "Enable",
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFFE65100)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (contacts.isEmpty()) {
+                                // Empty state
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = spacing.pageMargin)
+                                        .padding(top = 60.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(64.dp)
+                                                .clip(CircleShape)
+                                                .background(colors.primaryContainer),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = WaexIcons.Security,
+                                                contentDescription = null,
+                                                tint = colors.primary,
+                                                modifier = Modifier.size(28.dp)
+                                            )
+                                        }
+                                        Text(
+                                            text = "No custom rules yet",
+                                            style = typography.headlineMd,
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.onBackground
+                                        )
+                                        Text(
+                                            text = "Contacts with custom privacy rules will appear here. Rules can be set from inside a WhatsApp conversation.",
+                                            style = typography.bodyMd,
+                                            color = colors.onSurfaceVariant,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
+                            } else {
+                                // Grouped card – all contacts inside one surface with dividers
+                                Surface(
+                                    shape = radius.bentoCardShape,
+                                    color = colors.surface,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp)
+                                ) {
+                                    Column {
+                                        contacts.forEachIndexed { index, contact ->
+                                            ContactPrivacyRow(
+                                                contact = contact,
+                                                onEdit = {
+                                                    selectedContact = contact
+                                                    showEditModal = true
+                                                },
+                                                onClear = { onClearContact(contact) }
+                                            )
+                                            if (index < contacts.lastIndex) {
+                                                HorizontalDivider(
+                                                    thickness = 1.dp,
+                                                    color = colors.outlineVariant.copy(alpha = 0.6f)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(24.dp))
+                        }
+                    }
+                }
             }
 
 

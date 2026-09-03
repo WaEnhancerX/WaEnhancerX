@@ -167,7 +167,6 @@ fun GlobalPrivacySettingsScreen(
         SettingGroup(
             "Advanced Rules & Filtering",
             listOf(
-                SettingItem("Per-Contact Custom Privacy", "Set separate rules for specific contacts", "custom_privacy"),
                 SettingItem("Call Privacy & Filtering", "Block calls from unwanted contacts", "call_privacy")
             )
         )
