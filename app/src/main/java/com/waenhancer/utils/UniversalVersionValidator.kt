@@ -123,6 +123,23 @@ object UniversalVersionValidator {
         return false
     }
 
+    /**
+     * Converts a specific version (e.g. 2.26.36.21) into a branch wildcard (e.g. 2.26.36.xx).
+     */
+    @JvmStatic
+    fun toWildcard(version: String): String {
+        val clean = version.trim().removePrefix("v")
+        if (clean.endsWith(".xx")) return clean
+        val parts = clean.split(".")
+        return if (parts.size >= 3) {
+            "${parts[0]}.${parts[1]}.${parts[2]}.xx"
+        } else if (parts.size == 2) {
+            "${parts[0]}.${parts[1]}.xx"
+        } else {
+            "$clean.xx"
+        }
+    }
+
     @JvmStatic
     fun getCustomVersions(prefs: SharedPreferences): Set<String> {
         val set = prefs.getStringSet("custom_supported_versions", null)

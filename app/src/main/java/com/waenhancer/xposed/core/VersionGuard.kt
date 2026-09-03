@@ -89,12 +89,13 @@ object VersionGuard {
                         "WAEX features are temporarily paused for safety to prevent app instability.\n\n" +
                         "You can enable support for this version right now with one tap."
                     )
-                    .setPositiveButton("Add & Enable ($currentVersion)") { d, _ ->
+                    .setPositiveButton("Add & Enable (${UniversalVersionValidator.toWildcard(currentVersion)})") { d, _ ->
                         try {
-                            UniversalVersionValidator.addCustomVersion(prefs, currentVersion)
+                            val wildcard = UniversalVersionValidator.toWildcard(currentVersion)
+                            UniversalVersionValidator.addCustomVersion(prefs, wildcard)
                             Toast.makeText(
                                 activity,
-                                "Version $currentVersion added to supported list!",
+                                "Version rule $wildcard added to supported list!",
                                 Toast.LENGTH_LONG
                             ).show()
                             d.dismiss()

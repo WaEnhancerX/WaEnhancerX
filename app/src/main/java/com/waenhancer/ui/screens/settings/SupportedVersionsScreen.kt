@@ -1,6 +1,7 @@
 package com.waenhancer.ui.screens.settings
 
 import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,10 +19,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material3.AlertDialog
@@ -30,8 +30,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -48,55 +46,62 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.waenhancer.ui.components.StitchSwitch
 import com.waenhancer.ui.components.WaexTopBar
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
 import com.waenhancer.utils.UniversalVersionValidator
 
+/**
+ * Universal Supported Versions Screen.
+ * Dynamically displays all installed WhatsApp targets and allows 1-tap app selection
+ * to add universal wildcard version rules without manual typing.
+ */
 @Composable
 fun SupportedVersionsScreen() {
+    val context = LocalContext.current
     val navController = LocalWaexNavController.current
     val prefManager = LocalWaexPreferenceManager.current
-    val context = LocalContext.current
     val colors = WaexTheme.colors
-    val spacing = WaexTheme.spacing
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
+    val spacing = WaexTheme.spacing
 
-    // Preference States
+    val prefs = remember(context) { com.waenhancer.config.PreferenceStores.publicStore(context) }
+
     var isCustomizeEnabled by remember {
-        mutableStateOf(prefManager.getBoolean("customize_supported_versions", true))
+        mutableStateOf(prefManager.getBoolean("customize_supported_versions", false))
     }
+
     var isBypassEnabled by remember {
         mutableStateOf(prefManager.getBoolean("bypass_version_check", false))
     }
 
     val customVersionsList = remember {
         mutableStateListOf<String>().apply {
-            val prefs = com.waenhancer.config.PreferenceStores.publicStore(context)
             addAll(UniversalVersionValidator.getCustomVersions(prefs))
         }
     }
 
-    val prefs = remember(context) { com.waenhancer.config.PreferenceStores.publicStore(context) }
+    fun refreshCustomList() {
+        customVersionsList.clear()
+        customVersionsList.addAll(UniversalVersionValidator.getCustomVersions(prefs))
+    }
 
     // Dynamic list of detected WhatsApp packages & clones
     val detectedApps = remember(customVersionsList.size, isCustomizeEnabled, isBypassEnabled) {
         com.waenhancer.utils.WhatsAppPackageDetector.detectWhatsAppApps(context)
     }
 
-    var showAddDialog by remember { mutableStateOf(false) }
-    var inputVersionText by remember { mutableStateOf("") }
-    var inputError by remember { mutableStateOf<String?>(null) }
-
-    fun refreshCustomList() {
-        customVersionsList.clear()
-        customVersionsList.addAll(UniversalVersionValidator.getCustomVersions(prefs))
+    val unsupportedApps = detectedApps.filter { app ->
+        app.isInstalled && !UniversalVersionValidator.isSupported(context, app.versionName.removePrefix("v"), prefs)
     }
+    val isAllSupported = unsupportedApps.isEmpty()
+
+    var showSelectAppDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -139,10 +144,16 @@ fun SupportedVersionsScreen() {
                             isSupported = isSupported,
                             onAddCurrentClick = {
                                 if (app.isInstalled) {
-                                    UniversalVersionValidator.addCustomVersion(prefs, cleanVer)
+                                    val wildcardRule = UniversalVersionValidator.toWildcard(cleanVer)
+                                    UniversalVersionValidator.addCustomVersion(prefs, wildcardRule)
                                     prefManager.putBoolean("customize_supported_versions", true)
                                     isCustomizeEnabled = true
                                     refreshCustomList()
+                                    Toast.makeText(
+                                        context,
+                                        "Added universal rule $wildcardRule",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                 }
                             }
                         )
@@ -193,7 +204,7 @@ fun SupportedVersionsScreen() {
                                     color = colors.onSurfaceVariant
                                 )
                             }
-                            com.waenhancer.ui.components.StitchSwitch(
+                            StitchSwitch(
                                 checked = isCustomizeEnabled,
                                 onCheckedChange = { checked ->
                                     isCustomizeEnabled = checked
@@ -229,7 +240,7 @@ fun SupportedVersionsScreen() {
                                     color = colors.onSurfaceVariant
                                 )
                             }
-                            com.waenhancer.ui.components.StitchSwitch(
+                            StitchSwitch(
                                 checked = isBypassEnabled,
                                 onCheckedChange = { checked ->
                                     isBypassEnabled = checked
@@ -258,9 +269,15 @@ fun SupportedVersionsScreen() {
 
                     Button(
                         onClick = {
-                            inputVersionText = ""
-                            inputError = null
-                            showAddDialog = true
+                            if (isAllSupported) {
+                                Toast.makeText(
+                                    context,
+                                    "All installed WhatsApp apps are already supported!",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            } else {
+                                showSelectAppDialog = true
+                            }
                         },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = colors.primary,
@@ -276,7 +293,11 @@ fun SupportedVersionsScreen() {
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = "Add Rule", style = typography.labelSm, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "Add Rule",
+                            style = typography.labelSm,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
@@ -291,7 +312,7 @@ fun SupportedVersionsScreen() {
                     ) {
                         Box(modifier = Modifier.padding(20.dp), contentAlignment = Alignment.Center) {
                             Text(
-                                text = "No custom version rules added yet.\nTap \"Add Rule\" to add your WhatsApp version or wildcards (e.g. 2.26.xx).",
+                                text = "No custom version rules added yet.\nTap \"Add Rule\" to select an unsupported app and automatically register its version branch.",
                                 style = typography.labelSm,
                                 color = colors.onSurfaceVariant,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -336,84 +357,88 @@ fun SupportedVersionsScreen() {
         }
     }
 
-    // Add Custom Version Dialog
-    if (showAddDialog) {
+    // App Selection Dialog for Adding Version Rule
+    if (showSelectAppDialog) {
         AlertDialog(
-            onDismissRequest = { showAddDialog = false },
+            onDismissRequest = { showSelectAppDialog = false },
             title = {
                 Text(
-                    text = "Add Supported Version",
+                    text = "Select Unsupported App",
                     style = typography.headlineMd,
                     color = colors.onSurface,
                     fontWeight = FontWeight.Bold
                 )
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "Enter a specific build (e.g. 2.26.30.97) or a wildcard (e.g. 2.26.30.xx) to match builds in that branch.",
+                        text = "Select an installed app to automatically generate and register its universal version rule:",
                         style = typography.labelSm,
                         color = colors.onSurfaceVariant
                     )
 
-                    OutlinedTextField(
-                        value = inputVersionText,
-                        onValueChange = {
-                            inputVersionText = it
-                            inputError = null
-                        },
-                        label = { Text("Version or Wildcard") },
-                        placeholder = { Text("e.g. 2.26.xx or 2.26.18.15") },
-                        isError = inputError != null,
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = {
-                            if (inputVersionText.trim().isNotEmpty()) {
-                                UniversalVersionValidator.addCustomVersion(prefs, inputVersionText.trim())
-                                prefManager.putBoolean("customize_supported_versions", true)
-                                isCustomizeEnabled = true
-                                refreshCustomList()
-                                showAddDialog = false
+                    unsupportedApps.forEach { app ->
+                        val cleanVer = app.versionName.removePrefix("v")
+                        val wildcard = UniversalVersionValidator.toWildcard(cleanVer)
+                        Surface(
+                            shape = radius.smShape,
+                            color = colors.surfaceDim,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    UniversalVersionValidator.addCustomVersion(prefs, wildcard)
+                                    prefManager.putBoolean("customize_supported_versions", true)
+                                    isCustomizeEnabled = true
+                                    refreshCustomList()
+                                    showSelectAppDialog = false
+                                    Toast.makeText(
+                                        context,
+                                        "Added universal rule $wildcard",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                    Text(
+                                        text = app.appName,
+                                        style = typography.bodyMd,
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.onSurface
+                                    )
+                                    Text(
+                                        text = "${app.packageName} • v$cleanVer",
+                                        style = typography.labelSm,
+                                        color = colors.onSurfaceVariant
+                                    )
+                                }
+                                Surface(
+                                    shape = radius.smShape,
+                                    color = colors.primary.copy(alpha = 0.15f)
+                                ) {
+                                    Text(
+                                        text = "+ $wildcard",
+                                        style = typography.labelSm,
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.primary,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
                             }
-                        }),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = colors.primary,
-                            unfocusedBorderColor = colors.outlineVariant
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    if (inputError != null) {
-                        Text(text = inputError!!, color = colors.error, style = typography.labelSm)
+                        }
                     }
                 }
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        val clean = inputVersionText.trim()
-                        if (clean.isEmpty()) {
-                            inputError = "Please enter a version number"
-                            return@Button
-                        }
-                        UniversalVersionValidator.addCustomVersion(prefs, clean)
-                        prefManager.putBoolean("customize_supported_versions", true)
-                        isCustomizeEnabled = true
-                        refreshCustomList()
-                        showAddDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.primary)
-                ) {
-                    Text("Add Version")
+                TextButton(onClick = { showSelectAppDialog = false }) {
+                    Text("Cancel", color = colors.primary)
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddDialog = false }) {
-                    Text("Cancel", color = colors.onSurfaceVariant)
-                }
-            },
-            containerColor = colors.surface,
-            shape = radius.mdShape
+            }
         )
     }
 }
@@ -429,7 +454,6 @@ private fun AppVersionStatusCard(
     val colors = WaexTheme.colors
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
-
     val isInstalled = versionName != null
 
     Surface(
@@ -514,6 +538,7 @@ private fun AppVersionStatusCard(
 
             // Quick 1-tap add button if unsupported
             if (isInstalled && !isSupported) {
+                val wildcard = UniversalVersionValidator.toWildcard(versionName)
                 Button(
                     onClick = onAddCurrentClick,
                     colors = ButtonDefaults.buttonColors(
@@ -527,7 +552,7 @@ private fun AppVersionStatusCard(
                     Icon(imageVector = Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Add v$versionName to Supported List",
+                        text = "Add Universal Rule ($wildcard)",
                         style = typography.labelSm,
                         fontWeight = FontWeight.Bold
                     )
@@ -549,15 +574,15 @@ private fun VersionRuleItem(
     val radius = WaexTheme.radius
 
     Surface(
-        shape = radius.mdShape,
+        shape = radius.smShape,
         color = colors.surfaceDim,
-        border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.6f)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -565,15 +590,13 @@ private fun VersionRuleItem(
                 Text(
                     text = version,
                     style = typography.bodyMd,
-                    color = colors.onSurface,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.Bold,
+                    color = colors.onSurface
                 )
-
                 Spacer(modifier = Modifier.width(10.dp))
-
                 Surface(
                     shape = radius.smShape,
-                    color = badgeColor.copy(alpha = 0.12f)
+                    color = badgeColor.copy(alpha = 0.15f)
                 ) {
                     Text(
                         text = badge,
