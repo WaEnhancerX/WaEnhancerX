@@ -54,6 +54,7 @@ import com.waenhancer.ui.designsystem.WaexTheme
 
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.Screen
+import com.waenhancer.utils.UniversalVersionValidator
 import com.waenhancer.xposed.utils.AppRestartHelper
 import com.waenhancer.xposed.utils.ModuleStatus
 
@@ -109,8 +110,12 @@ fun MainDashboardScreen(
         com.waenhancer.utils.WhatsAppPackageDetector.detectWhatsAppApps(context)
     }
 
-    var showCustomizationSoon by remember { mutableStateOf(false) }
+    val prefs = remember(context) { com.waenhancer.config.PreferenceStores.publicStore(context) }
+    val hasUnsupportedActiveApp = detectedApps.any {
+        it.isInstalled && it.isHooked && !UniversalVersionValidator.isSupported(context, it.versionName.removePrefix("v"), prefs)
+    }
 
+    var showCustomizationSoon by remember { mutableStateOf(false) }
 
     // Pulsing green dot animation for active status indicator
     val infiniteTransition = rememberInfiniteTransition(label = "green_dot")
@@ -136,7 +141,10 @@ fun MainDashboardScreen(
             Surface(
                 shape = radius.cardShape,
                 color = colors.surface,
-                border = androidx.compose.foundation.BorderStroke(1.dp, colors.outline),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (hasUnsupportedActiveApp) Color(0xFFEF4444).copy(alpha = 0.5f) else colors.outline
+                ),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -149,14 +157,24 @@ fun MainDashboardScreen(
                             modifier = Modifier
                                 .size(10.dp)
                                 .clip(CircleShape)
-                                .background(if (isModuleActive) colors.primary else colors.error)
+                                .background(
+                                    when {
+                                        !isModuleActive -> colors.error
+                                        hasUnsupportedActiveApp -> Color(0xFFEF4444)
+                                        else -> colors.primary
+                                    }
+                                )
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = if (isModuleActive) "Module Active" else "Module Inactive",
+                            text = when {
+                                !isModuleActive -> "Module Inactive"
+                                hasUnsupportedActiveApp -> "Module Active • Unsupported Version"
+                                else -> "Module Active"
+                            },
                             style = typography.bodyLg,
                             fontWeight = FontWeight.SemiBold,
-                            color = colors.onSurface,
+                            color = if (hasUnsupportedActiveApp) Color(0xFFEF4444) else colors.onSurface,
                             modifier = Modifier.weight(1f)
                         )
                         Box(
@@ -183,14 +201,56 @@ fun MainDashboardScreen(
                     // Target Apps: Vertical List of Cards with App Icon, Title, Package Name, True Scope Status Dot, and Restart Action
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         detectedApps.forEach { app ->
+                            val cleanVer = app.versionName.removePrefix("v")
+                            val isVersionSupported = UniversalVersionValidator.isSupported(context, cleanVer, prefs)
                             val appIcon = remember(app.packageName) {
                                 com.waenhancer.utils.WhatsAppPackageDetector.getAppIcon(context, app.packageName)
                             }
+
+                            val (statusDotColor, statusText, statusTextColor) = when {
+                                !app.isInstalled -> Triple(
+                                    colors.onSurfaceVariant.copy(alpha = 0.4f),
+                                    "Not Installed",
+                                    colors.onSurfaceVariant
+                                )
+                                app.isHooked && isVersionSupported -> Triple(
+                                    colors.primary,
+                                    "Injected & Active",
+                                    colors.primary
+                                )
+                                app.isHooked && !isVersionSupported -> Triple(
+                                    Color(0xFFEF4444),
+                                    "Injected • Unsupported Version (Paused)",
+                                    Color(0xFFEF4444)
+                                )
+                                !app.isHooked && !isVersionSupported -> Triple(
+                                    Color(0xFFF59E0B),
+                                    "Scope Pending • Unsupported Version",
+                                    Color(0xFFF59E0B)
+                                )
+                                else -> Triple(
+                                    Color(0xFFF59E0B),
+                                    "Scope Pending / Not Injected",
+                                    Color(0xFFF59E0B)
+                                )
+                            }
+
                             Surface(
                                 shape = radius.defaultShape,
                                 color = colors.surfaceDim,
-                                border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
-                                modifier = Modifier.fillMaxWidth()
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    if (app.isInstalled && !isVersionSupported) Color(0xFFEF4444).copy(alpha = 0.4f) else colors.outlineVariant
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .then(
+                                        if (app.isInstalled && !isVersionSupported) {
+                                            Modifier.clickable { navController.navigateTo(Screen.SupportedVersions) }
+                                        } else {
+                                            Modifier
+                                        }
+                                    )
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -257,26 +317,12 @@ fun MainDashboardScreen(
                                                 modifier = Modifier
                                                     .size(7.dp)
                                                     .clip(CircleShape)
-                                                    .background(
-                                                        when {
-                                                            app.isHooked -> colors.primary
-                                                            app.isInstalled -> Color(0xFFF59E0B)
-                                                            else -> colors.onSurfaceVariant.copy(alpha = 0.4f)
-                                                        }
-                                                    )
+                                                    .background(statusDotColor)
                                             )
                                             Text(
-                                                text = when {
-                                                    app.isHooked -> "Injected & Active"
-                                                    app.isInstalled -> "Scope Pending / Not Injected"
-                                                    else -> "Not Installed"
-                                                },
+                                                text = statusText,
                                                 style = typography.labelSm,
-                                                color = when {
-                                                    app.isHooked -> colors.primary
-                                                    app.isInstalled -> Color(0xFFF59E0B)
-                                                    else -> colors.onSurfaceVariant
-                                                },
+                                                color = statusTextColor,
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Medium
                                             )
