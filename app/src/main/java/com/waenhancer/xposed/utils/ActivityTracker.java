@@ -54,6 +54,9 @@ public final class ActivityTracker implements Application.ActivityLifecycleCallb
     @Override
     public void onActivityResumed(@NonNull Activity activity) {
         sCurrentActivity = new WeakReference<>(activity);
+        try {
+            com.waenhancer.xposed.core.VersionGuard.onTargetActivityResumed(activity);
+        } catch (Throwable ignored) {}
     }
 
     @Override
