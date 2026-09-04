@@ -191,6 +191,38 @@ public class PreferenceBridgeClient implements SharedPreferences {
         @Override
         public void apply() {
             memoryCache.putAll(values);
+            for (Map.Entry<String, Object> entry : values.entrySet()) {
+                String key = entry.getKey();
+                Object val = entry.getValue();
+                try {
+                    Bundle extras = new Bundle();
+                    extras.putString("key", key);
+                    if (val instanceof String) {
+                        extras.putString("type", "string");
+                        extras.putString("value", (String) val);
+                    } else if (val instanceof Boolean) {
+                        extras.putString("type", "boolean");
+                        extras.putBoolean("value", (Boolean) val);
+                    } else if (val instanceof Integer) {
+                        extras.putString("type", "int");
+                        extras.putInt("value", (Integer) val);
+                    } else if (val instanceof Long) {
+                        extras.putString("type", "long");
+                        extras.putLong("value", (Long) val);
+                    } else if (val instanceof Float) {
+                        extras.putString("type", "float");
+                        extras.putFloat("value", (Float) val);
+                    }
+                    context.getContentResolver().call(
+                            Uri.parse("content://" + AUTHORITY),
+                            "put_preference",
+                            null,
+                            extras
+                    );
+                } catch (Throwable t) {
+                    XposedBridge.log("[WAEX] PreferenceBridgeClient put_preference failed: " + t.getMessage());
+                }
+            }
         }
     }
 }

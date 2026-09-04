@@ -36,6 +36,7 @@ public final class FeatureRegistry {
         features.add(new HideReceiptsHook(context, classLoader, prefs));
         features.add(new AntiRevokeHook(context, classLoader, prefs));
         features.add(new com.waenhancer.xposed.features.privacy.HideForwardedTagHook(context, classLoader, prefs));
+        features.add(new com.waenhancer.xposed.features.privacy.CustomPrivacyHook(context, classLoader, prefs));
 
         // Conversation & Message Controls Features
         features.add(new AntiEditMessagesHook(context, classLoader, prefs));
