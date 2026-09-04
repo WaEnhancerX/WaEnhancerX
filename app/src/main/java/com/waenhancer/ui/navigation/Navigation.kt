@@ -192,15 +192,22 @@ fun MainContainerScreen() {
     val radius = WaexTheme.radius
 
     val licenseManager = LocalWaexLicenseManager.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val preferenceManager = LocalWaexPreferenceManager.current
     var licenseState by remember { mutableStateOf(if (licenseManager.isProActivated()) "pro" else "free") }
     var activeModal by remember { mutableStateOf<String?>(null) } // "license" | "file-spoofer" | "message-bomber" | "status-splitter" | null
 
-    val contactPrivacyList = remember {
-        mutableStateListOf(
-            ContactPrivacy("1", "Alex Johnson", "+1 555-0192@s.whatsapp.net", hideSeen = true, hideTyping = true, scope = "always"),
-            ContactPrivacy("2", "Fatima Al-Rashid", "+971 50-0001@s.whatsapp.net", hideTyping = true, antiRevoke = true, scope = "scheduled"),
-            ContactPrivacy("3", "James Okafor", "+234 80-2020@s.whatsapp.net", freezeLastSeen = true, hideRecording = true, scope = "temporary")
-        )
+    val contactPrivacyList = remember(preferenceManager) {
+        mutableStateListOf<ContactPrivacy>().apply {
+            addAll(loadContactPrivacyList(context, preferenceManager))
+        }
+    }
+
+    androidx.compose.runtime.LaunchedEffect(navController.currentScreen) {
+        if (navController.currentScreen == Screen.PerContactPrivacyList) {
+            contactPrivacyList.clear()
+            contactPrivacyList.addAll(loadContactPrivacyList(context, preferenceManager))
+        }
     }
 
     val themeMode = com.waenhancer.ui.designsystem.LocalThemeMode.current
@@ -223,7 +230,6 @@ fun MainContainerScreen() {
     val pagerState = rememberPagerState { 5 }
     val coroutineScope = rememberCoroutineScope()
 
-    val context = androidx.compose.ui.platform.LocalContext.current
     var lastBackPressTime by remember { mutableStateOf(0L) }
 
     BackHandler(enabled = true) {
@@ -817,11 +823,39 @@ fun MainContainerScreen() {
                                         licenseState = if (licenseManager.isProActivated()) "pro" else "free"
                                     },
                                     contactPrivacyList = contactPrivacyList,
-                                    onClearContact = { c -> contactPrivacyList.removeIf { it.id == c.id } },
-                                    onClearAllContacts = { contactPrivacyList.clear() },
+                                    onClearContact = { c ->
+                                        contactPrivacyList.removeIf { it.id == c.id }
+                                        preferenceManager.remove("${c.id}_privacy")
+                                        preferenceManager.remove("${c.jid}_privacy")
+                                        preferenceManager.remove("per_contact_rules_${c.jid}")
+                                    },
+                                    onClearAllContacts = {
+                                        contactPrivacyList.forEach { c ->
+                                            preferenceManager.remove("${c.id}_privacy")
+                                            preferenceManager.remove("${c.jid}_privacy")
+                                            preferenceManager.remove("per_contact_rules_${c.jid}")
+                                        }
+                                        contactPrivacyList.clear()
+                                    },
                                     onUpdateContact = { updated ->
                                         val idx = contactPrivacyList.indexOfFirst { it.id == updated.id }
                                         if (idx >= 0) contactPrivacyList[idx] = updated
+                                        try {
+                                            val json = org.json.JSONObject().apply {
+                                                put("name", updated.name)
+                                                put("HideSeen", updated.hideSeen)
+                                                put("HideTyping", updated.hideTyping)
+                                                put("HideRecording", updated.hideRecording)
+                                                put("AntiRevoke", updated.antiRevoke)
+                                                put("FreezeLastSeen", updated.freezeLastSeen)
+                                                put("BlockCall", updated.freezeLastSeen)
+                                                put("scope", updated.scope)
+                                            }
+                                            val jsonStr = json.toString()
+                                            preferenceManager.putString("${updated.id}_privacy", jsonStr)
+                                            preferenceManager.putString("${updated.jid}_privacy", jsonStr)
+                                            preferenceManager.putString("per_contact_rules_${updated.jid}", jsonStr)
+                                        } catch (_: Throwable) {}
                                     }
                                 )
                             }
@@ -836,11 +870,39 @@ fun MainContainerScreen() {
                                 licenseState = if (licenseManager.isProActivated()) "pro" else "free"
                             },
                             contactPrivacyList = contactPrivacyList,
-                            onClearContact = { c -> contactPrivacyList.removeIf { it.id == c.id } },
-                            onClearAllContacts = { contactPrivacyList.clear() },
+                            onClearContact = { c ->
+                                contactPrivacyList.removeIf { it.id == c.id }
+                                preferenceManager.remove("${c.id}_privacy")
+                                preferenceManager.remove("${c.jid}_privacy")
+                                preferenceManager.remove("per_contact_rules_${c.jid}")
+                            },
+                            onClearAllContacts = {
+                                contactPrivacyList.forEach { c ->
+                                    preferenceManager.remove("${c.id}_privacy")
+                                    preferenceManager.remove("${c.jid}_privacy")
+                                    preferenceManager.remove("per_contact_rules_${c.jid}")
+                                }
+                                contactPrivacyList.clear()
+                            },
                             onUpdateContact = { updated ->
                                 val idx = contactPrivacyList.indexOfFirst { it.id == updated.id }
                                 if (idx >= 0) contactPrivacyList[idx] = updated
+                                try {
+                                    val json = org.json.JSONObject().apply {
+                                        put("name", updated.name)
+                                        put("HideSeen", updated.hideSeen)
+                                        put("HideTyping", updated.hideTyping)
+                                        put("HideRecording", updated.hideRecording)
+                                        put("AntiRevoke", updated.antiRevoke)
+                                        put("FreezeLastSeen", updated.freezeLastSeen)
+                                        put("BlockCall", updated.freezeLastSeen)
+                                        put("scope", updated.scope)
+                                    }
+                                    val jsonStr = json.toString()
+                                    preferenceManager.putString("${updated.id}_privacy", jsonStr)
+                                    preferenceManager.putString("${updated.jid}_privacy", jsonStr)
+                                    preferenceManager.putString("per_contact_rules_${updated.jid}", jsonStr)
+                                } catch (_: Throwable) {}
                             }
                         )
                     }
@@ -982,4 +1044,44 @@ data class ContactPrivacy(
     val startHour: Int = 9,
     val endHour: Int = 18
 )
+
+fun loadContactPrivacyList(context: android.content.Context, preferenceManager: com.waenhancer.api.contracts.WaexPreferenceManager): List<ContactPrivacy> {
+    val list = mutableListOf<ContactPrivacy>()
+    val all = preferenceManager.all ?: return list
+    val seen = mutableSetOf<String>()
+
+    for ((key, value) in all) {
+        if (key.endsWith("_privacy") && value is String) {
+            val raw = key.removeSuffix("_privacy")
+            val number = raw.substringBefore("@").substringBefore(":")
+            if (number.isEmpty() || number == "custom" || number == "call" || number == "global" || !seen.add(number)) continue
+
+            try {
+                val json = org.json.JSONObject(value)
+                val isGroup = raw.contains("@g.us") || number.contains("-")
+                val isLid = number.length >= 14 && !isGroup
+                val jid = if (raw.contains("@")) raw else if (isGroup) "$number@g.us" else if (isLid) "$number@lid" else "$number@s.whatsapp.net"
+                val rawStoredName = json.optString("name", "")
+                val phoneHint = json.optString("phone", "")
+
+                val resolvedName = com.waenhancer.utils.ContactNameResolver.resolveName(context, jid, rawStoredName, phoneHint)
+
+                list.add(
+                    ContactPrivacy(
+                        id = number,
+                        name = resolvedName,
+                        jid = jid,
+                        hideSeen = json.optBoolean("HideSeen", false),
+                        hideTyping = json.optBoolean("HideTyping", false),
+                        hideRecording = json.optBoolean("HideRecording", false),
+                        antiRevoke = json.optBoolean("AntiRevoke", false),
+                        freezeLastSeen = json.optBoolean("FreezeLastSeen", false) || json.optBoolean("BlockCall", false),
+                        scope = json.optString("scope", "always")
+                    )
+                )
+            } catch (_: Throwable) {}
+        }
+    }
+    return list
+}
 

@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.DialogInterface
 import android.content.SharedPreferences
 import android.content.res.ColorStateList
+import android.database.sqlite.SQLiteDatabase
+import java.io.File
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
@@ -261,6 +263,146 @@ class CustomPrivacyHook(
         return "contact"
     }
 
+    private fun extractDisplayName(activity: Activity, jid: String, fallbackNumber: String): String {
+        try {
+            // 1. Direct WA database lookup (wa.db)
+            val dbName = resolveFromWaDb(activity, jid)
+            if (!dbName.isNullOrBlank()) {
+                XposedBridge.log("$TAG Resolved name from wa.db: $dbName for $jid")
+                return dbName
+            }
+
+            // 2. Check if LID maps to phone in msgstore.db, then check wa.db with phone
+            val mappedPhone = resolveLidToPhone(activity, jid)
+            if (!mappedPhone.isNullOrBlank()) {
+                val mappedDbName = resolveFromWaDb(activity, mappedPhone)
+                if (!mappedDbName.isNullOrBlank()) {
+                    XposedBridge.log("$TAG Resolved name via LID map in wa.db: $mappedDbName for $mappedPhone")
+                    return mappedDbName
+                }
+            }
+
+            // 3. Scan Activity View Hierarchy (Toolbar / Header TextViews)
+            val decorView = activity.window?.decorView
+            if (decorView is ViewGroup) {
+                val foundName = findContactNameInDecorView(decorView)
+                if (!foundName.isNullOrBlank()) {
+                    XposedBridge.log("$TAG Resolved name from decorView: $foundName for $jid")
+                    return foundName
+                }
+            }
+
+            // 4. Check direct activity title
+            val title = activity.title?.toString()?.trim()
+            if (!title.isNullOrEmpty() && title != "WhatsApp" && title != "Contact info" && title != "Group info") {
+                return com.waenhancer.utils.ContactNameResolver.resolveName(activity, jid, title, mappedPhone)
+            }
+
+            // 5. Check Action bar title / subtitle
+            val abTitle = activity.actionBar?.title?.toString()?.trim()
+            if (!abTitle.isNullOrEmpty() && abTitle != "WhatsApp" && abTitle != "Contact info" && abTitle != "Group info") {
+                return com.waenhancer.utils.ContactNameResolver.resolveName(activity, jid, abTitle, mappedPhone)
+            }
+
+            // 6. Check known WhatsApp conversation contact name TextViews by resource identifier
+            val res = activity.resources
+            val pkg = activity.packageName
+            val viewIds = listOf("conversation_contact_name", "conversation_title", "name", "title_toolbar", "toolbar_title", "contact_name", "conversation_header")
+            for (vId in viewIds) {
+                val id = res.getIdentifier(vId, "id", pkg)
+                if (id != 0) {
+                    val tv = activity.findViewById<TextView>(id)
+                    val text = tv?.text?.toString()?.trim()
+                    if (!text.isNullOrBlank() && text != "WhatsApp" && text != "Contact info" && text != "Group info" && !text.startsWith("online") && !text.startsWith("typing")) {
+                        return com.waenhancer.utils.ContactNameResolver.resolveName(activity, jid, text, mappedPhone)
+                    }
+                }
+            }
+
+            // 7. Check Intent extras
+            val intent = activity.intent
+            val extraName = intent?.getStringExtra("display_name") ?: intent?.getStringExtra("name")
+            if (!extraName.isNullOrBlank()) {
+                return com.waenhancer.utils.ContactNameResolver.resolveName(activity, jid, extraName, mappedPhone)
+            }
+        } catch (_: Throwable) {}
+        return com.waenhancer.utils.ContactNameResolver.resolveName(activity, jid, if (fallbackNumber.length > 5) "+$fallbackNumber" else fallbackNumber)
+    }
+
+    private fun resolveFromWaDb(activity: Activity, rawJid: String): String? {
+        try {
+            val waDbFile = File(activity.filesDir?.parentFile, "databases/wa.db")
+            if (waDbFile.exists()) {
+                SQLiteDatabase.openDatabase(waDbFile.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { waDb ->
+                    val user = rawJid.substringBefore("@").substringBefore(":")
+                    val query = "SELECT display_name, wa_name, sort_name, number FROM wa_contacts WHERE jid LIKE ? OR jid = ? OR number = ? OR number LIKE ?"
+                    waDb.rawQuery(query, arrayOf("%$user%", rawJid, user, "%$user%")).use { c ->
+                        if (c != null && c.moveToFirst()) {
+                            val displayName = c.getString(0)
+                            val waName = c.getString(1)
+                            val sortName = c.getString(2)
+                            if (!displayName.isNullOrBlank() && !displayName.all { it.isDigit() }) return displayName
+                            if (!waName.isNullOrBlank() && !waName.all { it.isDigit() }) return waName
+                            if (!sortName.isNullOrBlank() && !sortName.all { it.isDigit() }) return sortName
+                        }
+                    }
+                }
+            }
+        } catch (_: Throwable) {}
+        return null
+    }
+
+    private fun resolveLidToPhone(activity: Activity, rawJid: String): String? {
+        try {
+            val dbFile = File(activity.filesDir?.parentFile, "databases/msgstore.db")
+            if (dbFile.exists()) {
+                SQLiteDatabase.openDatabase(dbFile.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { db ->
+                    val user = rawJid.substringBefore("@").substringBefore(":")
+                    val query = """
+                        SELECT j2.user, j2.raw_string 
+                        FROM jid_map jm
+                        JOIN jid j1 ON jm.lid_row_id = j1._id
+                        JOIN jid j2 ON jm.jid_row_id = j2._id
+                        WHERE j1.raw_string LIKE ? OR j1.user = ?
+                    """.trimIndent()
+                    db.rawQuery(query, arrayOf("%$user%", user)).use { c ->
+                        if (c != null && c.moveToFirst()) {
+                            val phone = c.getString(0)
+                            if (!phone.isNullOrBlank()) return phone
+                        }
+                    }
+                }
+            }
+        } catch (_: Throwable) {}
+        return null
+    }
+
+    private fun findContactNameInDecorView(group: ViewGroup): String? {
+        for (i in 0 until group.childCount) {
+            val child = group.getChildAt(i)
+            if (child is TextView) {
+                val text = child.text?.toString()?.trim() ?: ""
+                if (text.isNotBlank() &&
+                    text != "WhatsApp" &&
+                    text != "Contact info" &&
+                    text != "Group info" &&
+                    text != "Custom Privacy" &&
+                    text != "online" &&
+                    text != "offline" &&
+                    !text.startsWith("last seen") &&
+                    !text.startsWith("typing") &&
+                    !text.all { it.isDigit() || it == '+' || it == ' ' || it == '-' }
+                ) {
+                    return text
+                }
+            } else if (child is ViewGroup) {
+                val found = findContactNameInDecorView(child)
+                if (found != null) return found
+            }
+        }
+        return null
+    }
+
     private fun createInfoScreenTileView(activity: Activity, onClick: () -> Unit): View {
         val isDark = (activity.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
 
@@ -377,6 +519,9 @@ class CustomPrivacyHook(
                     for ((k, v) in checkStateMap) {
                         updatedJson.put(k, v)
                     }
+                    val displayName = extractDisplayName(activity, jid, cleanNumber)
+                    updatedJson.put("name", displayName)
+
                     val jsonStr = updatedJson.toString()
                     prefs.edit()
                         .putString("${cleanNumber}_privacy", jsonStr)

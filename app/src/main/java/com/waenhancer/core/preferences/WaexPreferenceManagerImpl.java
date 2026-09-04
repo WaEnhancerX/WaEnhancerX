@@ -87,6 +87,20 @@ public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
         }
     }
 
+    @Override
+    public void remove(String key) {
+        getStore(key).edit().remove(key).commit();
+        if (isPublicStore(key)) {
+            fixFilePermissions();
+            notifyChange();
+        }
+    }
+
+    @Override
+    public java.util.Map<String, ?> getAll() {
+        return PreferenceStores.publicStore(context).getAll();
+    }
+
     private void notifyChange() {
         try {
             context.getContentResolver().notifyChange(PREFS_URI, null);

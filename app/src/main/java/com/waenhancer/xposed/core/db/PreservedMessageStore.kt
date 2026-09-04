@@ -168,4 +168,24 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
         } catch (ignored: Throwable) {}
         return list
     }
+
+    fun getContactNameByJid(jid: String): String? {
+        try {
+            val db = readableDatabase
+            val user = jid.substringBefore("@").substringBefore(":")
+            val cleanJid = if (jid.contains("@")) jid else "$jid@s.whatsapp.net"
+            db.rawQuery(
+                "SELECT $COL_NAME FROM $TABLE_NAME WHERE ($COL_JID = ? OR $COL_JID LIKE ? OR $COL_JID LIKE ?) AND $COL_NAME IS NOT NULL AND $COL_NAME != '' LIMIT 1",
+                arrayOf(cleanJid, "%$user%", "%$user@%")
+            ).use { cursor ->
+                if (cursor != null && cursor.moveToFirst()) {
+                    val name = cursor.getString(0)
+                    if (!name.isNullOrBlank() && !name.all { it.isDigit() || it == '+' }) {
+                        return name
+                    }
+                }
+            }
+        } catch (ignored: Throwable) {}
+        return null
+    }
 }

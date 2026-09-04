@@ -9,4 +9,6 @@ public interface WaexPreferenceManager {
     void putString(String key, String value);
     float getFloat(String key, float defaultValue);
     void putFloat(String key, float value);
+    void remove(String key);
+    java.util.Map<String, ?> getAll();
 }
