@@ -142,7 +142,7 @@ fun GlobalPrivacySettingsScreen(
                 SettingItem("Hide Online Status", "Hide your green online dot and online status from others", "online_status_indicator"),
                 SettingItem("Freeze Last Seen", "Lock your last seen timestamp in place", "freeze_last_seen"),
                 SettingItem("Hide Typing & Recording Indicators", "Hides typing and recording status from others", "typing_privacy"),
-                SettingItem("Stealth Status Viewing", "View status updates without sending view receipts", "stealth_status_view")
+                SettingItem("Hide Status Viewing", "View status updates without sending view receipts", "stealth_status_view")
             )
         ),
         SettingGroup(
