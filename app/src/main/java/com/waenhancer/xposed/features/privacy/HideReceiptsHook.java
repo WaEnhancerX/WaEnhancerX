@@ -8,6 +8,8 @@ import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
+import de.robv.android.xposed.XposedHelpers;
+import org.json.JSONObject;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.enums.StringMatchType;
@@ -21,16 +23,15 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Privacy Receipts Hook:
- * Strictly separates:
- * 1. Hide Read Receipts (Blue Ticks) - `hide_read_receipts`: Drops SendReadReceiptJob & strips "type=read" on receipt stanzas.
- * 2. Hide Delivery Receipts (Second Tick) - `hide_delivery_receipts`: Suppresses delivery dispatchers, modifies receipt stanza to "type=inactive", and intercepts connection writer dispatch.
- * 3. Stealth Status Viewing - `stealth_status_view`: Drops status viewed beacons.
+ * Handles privacy controls for outgoing receipts:
+ * 1. Read Receipts (Blue Ticks) - `hide_read_receipts`: Drops SendReadReceiptJob & strips "type=read" on receipt stanzas.
+ * 2. Delivery Receipts (Second Tick) - `hide_delivery_receipts`: Suppresses delivery dispatchers, modifies receipt stanza to "type=inactive", and intercepts connection writer dispatch.
+ * 3. Stealth Status Viewing - `stealth_status_view` / per-contact `HideViewStatus`: Suppresses status viewed receipt jobs and stanzas.
  */
 public class HideReceiptsHook extends BaseFeature {
 
@@ -54,7 +55,6 @@ public class HideReceiptsHook extends BaseFeature {
         hookReceiptMethod();
         hookDeliveryDispatchers();
         hookOnDispatchMessage();
-        hookStatusViewReceipts();
     }
 
     private void initProtocolTreeReflection() {
@@ -125,32 +125,48 @@ public class HideReceiptsHook extends BaseFeature {
      */
     private void hookSendReadReceiptJob() {
         try {
-            Method sendJobMethod = DexSearchEngine.getInstance().findMethodWithCache(
-                    context,
-                    classLoader,
-                    "wpp_send_read_receipt_job_v5",
-                    (bridge, loader) -> {
-                        ClassDataList classes = bridge.findClass(FindClass.create()
-                                .matcher(ClassMatcher.create().className("SendReadReceiptJob", StringMatchType.EndsWith)));
-                        if (classes.isEmpty()) return null;
+            Class<?> sendJobClass = null;
+            try {
+                sendJobClass = XposedHelpers.findClassIfExists("com.whatsapp.jobqueue.job.SendReadReceiptJob", classLoader);
+            } catch (Throwable ignored) {}
 
-                        for (ClassData cd : classes) {
+            Method sendJobMethod = null;
+            if (sendJobClass != null) {
+                for (Method m : sendJobClass.getDeclaredMethods()) {
+                    if ("onRun".equals(m.getName()) && m.getParameterCount() == 0) {
+                        sendJobMethod = m;
+                        break;
+                    }
+                }
+            }
+
+            if (sendJobMethod == null) {
+                sendJobMethod = DexSearchEngine.getInstance().findMethodWithCache(
+                        context,
+                        classLoader,
+                        "wpp_send_read_receipt_job_v6",
+                        (bridge, loader) -> {
+                            ClassData cd = bridge.findClass(FindClass.create()
+                                    .matcher(ClassMatcher.create().className("SendReadReceiptJob", StringMatchType.Contains))
+                            ).firstOrNull();
+                            if (cd == null) return null;
+
                             MethodDataList methods = cd.findMethod(FindMethod.create()
-                                    .matcher(MethodMatcher.create().addUsingString("receipt", StringMatchType.Equals)));
+                                    .matcher(MethodMatcher.create().addUsingString("receipt", StringMatchType.Contains)));
                             if (!methods.isEmpty()) {
                                 return methods.get(0).getMethodInstance(loader);
                             }
                             if (cd.getSuperClass() != null) {
                                 MethodDataList superMethods = cd.getSuperClass().findMethod(FindMethod.create()
-                                        .matcher(MethodMatcher.create().addUsingString("receipt", StringMatchType.Equals)));
+                                        .matcher(MethodMatcher.create().addUsingString("receipt", StringMatchType.Contains)));
                                 if (!superMethods.isEmpty()) {
                                     return superMethods.get(0).getMethodInstance(loader);
                                 }
                             }
+                            return null;
                         }
-                        return null;
-                    }
-            );
+                );
+            }
 
             if (sendJobMethod != null) {
                 XposedBridge.hookMethod(sendJobMethod, new XC_MethodHook() {
@@ -159,32 +175,21 @@ public class HideReceiptsHook extends BaseFeature {
                         Object job = param.thisObject;
                         if (job == null) return;
 
-                        String jid = null;
-                        try {
-                            Object jidField = de.robv.android.xposed.XposedHelpers.getObjectField(job, "jid");
-                            if (jidField != null) jid = jidField.toString();
-                        } catch (Throwable ignored) {}
+                        String jid = extractJidString(job, "jid");
+                        String participant = extractJidString(job, "participant");
 
-                        String participant = null;
-                        try {
-                            Object participantField = de.robv.android.xposed.XposedHelpers.getObjectField(job, "participant");
-                            if (participantField != null) participant = participantField.toString();
-                        } catch (Throwable ignored) {}
-
-                        boolean isStatus = (jid != null && (jid.contains("status") || jid.contains("broadcast")))
-                                || (participant != null && participant.contains("status"));
-
-                        if (isStatus) {
-                            if (isStealthStatusViewEnabled()) {
+                        if (isStatusTarget(jid, participant)) {
+                            String target = participant != null ? participant : jid;
+                            if (shouldHideStatusView(target)) {
                                 param.setResult(null); // Suppress status viewed receipt job execution
-                                XposedBridge.log(TAG + " Suppressed Status View Receipt via SendReadReceiptJob for " + (participant != null ? participant : jid));
+                                XposedBridge.log(TAG + " Suppressed Status View Receipt via SendReadReceiptJob for " + target);
                             }
                             return;
                         }
 
-                        if (isHideReadReceiptsEnabled()) {
+                        if (shouldHideReadReceipt(jid)) {
                             param.setResult(null); // Drop read receipt job execution (blue tick suppressed)
-                            XposedBridge.log(TAG + " Suppressed SendReadReceiptJob (Blue Tick prevented)");
+                            XposedBridge.log(TAG + " Suppressed SendReadReceiptJob (Blue Tick prevented for " + jid + ")");
                         }
                     }
                 });
@@ -196,7 +201,7 @@ public class HideReceiptsHook extends BaseFeature {
     }
 
     /**
-     * Hook receipt stanza generator method (ProtocolTreeNode) matching dev4Mod Unobfuscator.loadReceiptMethod.
+     * Hook receipt stanza generator method (ProtocolTreeNode).
      */
     private void hookReceiptMethod() {
         try {
@@ -234,23 +239,23 @@ public class HideReceiptsHook extends BaseFeature {
                         if (param.getResult() == null) return;
                         Object node = param.getResult();
 
-                        boolean hideDelivery = isHideDeliveryReceiptsEnabled();
-                        boolean hideRead = isHideReadReceiptsEnabled();
-                        boolean stealthStatus = isStealthStatusViewEnabled();
-
                         String to = getAttributeValue(node, "to");
                         String participant = getAttributeValue(node, "participant");
                         String type = getAttributeValue(node, "type");
 
-                        boolean isStatusStanza = (to != null && (to.contains("status") || to.contains("broadcast")))
-                                || (participant != null && participant.contains("status"))
-                                || "readstatus".equals(type);
+                        boolean isStatusStanza = isStatusTarget(to, participant) || "readstatus".equals(type);
 
-                        if (isStatusStanza && stealthStatus) {
-                            param.setResult(null); // Drop status viewed receipt stanza completely
-                            XposedBridge.log(TAG + " Dropped Status Receipt Stanza (Stealth Status View)");
+                        if (isStatusStanza) {
+                            String target = participant != null ? participant : to;
+                            if (shouldHideStatusView(target)) {
+                                param.setResult(null); // Drop status viewed receipt stanza completely
+                                XposedBridge.log(TAG + " Dropped Status Receipt Stanza (Stealth Status View for " + target + ")");
+                            }
                             return;
                         }
+
+                        boolean hideDelivery = isHideDeliveryReceiptsEnabled();
+                        boolean hideRead = isHideReadReceiptsEnabled();
 
                         if (hideDelivery) {
                             applyHideDelivery(node);
@@ -259,7 +264,7 @@ public class HideReceiptsHook extends BaseFeature {
                         }
                     }
                 });
-                XposedBridge.log(TAG + " Hooked receipt generator method (dev4Mod): " + receiptMethod.getName());
+                XposedBridge.log(TAG + " Hooked receipt generator method: " + receiptMethod.getName());
             }
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Error hooking receipt method: " + t.getMessage());
@@ -308,7 +313,7 @@ public class HideReceiptsHook extends BaseFeature {
     }
 
     /**
-     * Hook onDispatchMessage (type 419 / 89) for delivery/read suppression matching dev4Mod.
+     * Hook onDispatchMessage (type 419 / 89) for delivery/read suppression.
      */
     private void hookOnDispatchMessage() {
         try {
@@ -471,42 +476,54 @@ public class HideReceiptsHook extends BaseFeature {
         return null;
     }
 
-    /**
-     * Hook Stealth Status Viewing (drops status viewed beacon).
-     */
-    private void hookStatusViewReceipts() {
+    private String extractJidString(Object obj, String fieldName) {
+        if (obj == null || fieldName == null) return null;
         try {
-            Method statusReceiptMethod = DexSearchEngine.getInstance().findMethodWithCache(
-                    context,
-                    classLoader,
-                    "wpp_send_status_read_receipt_v5",
-                    (bridge, loader) -> {
-                        MethodData data = bridge.findMethod(FindMethod.create()
-                                .matcher(MethodMatcher.create()
-                                        .modifiers(Modifier.PUBLIC)
-                                        .returnType(void.class)
-                                        .usingStrings("readstatus")
-                                )
-                        ).firstOrNull();
-                        return data != null ? data.getMethodInstance(loader) : null;
-                    }
-            );
-
-            if (statusReceiptMethod != null) {
-                XposedBridge.hookMethod(statusReceiptMethod, new XC_MethodHook() {
-                    @Override
-                    protected void beforeHookedMethod(MethodHookParam param) {
-                        if (isStealthStatusViewEnabled()) {
-                            param.setResult(null); // Drop status viewed beacon
-                            XposedBridge.log(TAG + " Dropped status viewed beacon");
-                        }
-                    }
-                });
-                XposedBridge.log(TAG + " Hooked StealthStatusView successfully.");
+            Object fieldVal = XposedHelpers.getObjectField(obj, fieldName);
+            if (fieldVal == null) return null;
+            if (fieldVal instanceof String) {
+                return (String) fieldVal;
             }
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + " Error hooking StealthStatusView: " + t.getMessage());
+            try {
+                Object raw = XposedHelpers.callMethod(fieldVal, "getRawString");
+                if (raw != null) return raw.toString();
+            } catch (Throwable ignored) {}
+            return fieldVal.toString();
+        } catch (Throwable ignored) {
+            return null;
         }
+    }
+
+    private boolean isStatusTarget(String jid, String participant) {
+        if (jid != null && (jid.equals("status@broadcast") || jid.contains("status") || jid.contains("broadcast"))) {
+            return true;
+        }
+        if (participant != null && (participant.contains("status") || participant.contains("broadcast"))) {
+            return true;
+        }
+        return false;
+    }
+
+    private boolean shouldHideStatusView(String target) {
+        boolean globalEnabled = isStealthStatusViewEnabled();
+        if (target != null) {
+            JSONObject contactPrivacy = CustomPrivacyHook.getContactPrivacy(prefs, target);
+            if (contactPrivacy != null) {
+                return contactPrivacy.optBoolean("HideViewStatus", globalEnabled);
+            }
+        }
+        return globalEnabled;
+    }
+
+    private boolean shouldHideReadReceipt(String target) {
+        boolean globalEnabled = isHideReadReceiptsEnabled();
+        if (target != null) {
+            JSONObject contactPrivacy = CustomPrivacyHook.getContactPrivacy(prefs, target);
+            if (contactPrivacy != null) {
+                return contactPrivacy.optBoolean("HideSeen", globalEnabled);
+            }
+        }
+        return globalEnabled;
     }
 
     private boolean isHideReadReceiptsEnabled() {
