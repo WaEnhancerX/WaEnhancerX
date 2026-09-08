@@ -1,4 +1,4 @@
-package com.waenhancer.ui.screens.conversation
+package com.waenhancer.ui.screens.conversation;
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -9,12 +9,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import com.waenhancer.ui.components.WaexCard
 import com.waenhancer.ui.components.WaexSectionHeader
 import com.waenhancer.ui.components.WaexSwitchPreference
@@ -22,23 +19,41 @@ import com.waenhancer.ui.components.WaexTopBar
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
+import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
 
 @Composable
 fun ConversationEnhancementsScreen() {
     val navController = LocalWaexNavController.current
+    val preferenceManager = LocalWaexPreferenceManager.current
     val colors = WaexTheme.colors
     val spacing = WaexTheme.spacing
 
-    var alwaysOnlineChecked by remember { mutableStateOf(false) }
-    var customStatusViewChecked by remember { mutableStateOf(true) }
-    var animatedEmojisChecked by remember { mutableStateOf(true) }
-    var customAvatarChecked by remember { mutableStateOf(false) }
-    var customMenusChecked by remember { mutableStateOf(true) }
+    val convKeys = remember {
+        listOf(
+            "anti_edit_messages", "preserve_delete_for_me", "revokeallmessages", "hide_forwarded_tag",
+            "removeforwardlimit", "sticker_confirm_alert", "removeseemore", "stamp_copied_message", "doubletap2like",
+            "jump_to_first_message", "unlimited_pinned_chats", "broadcast_tag", "direct_chat_dialer",
+            "inline_translation", "copy_status_text", "animation_emojis", "disable_defemojis"
+        )
+    }
+
+    val stateMap = remember {
+        mutableStateMapOf<String, Boolean>().apply {
+            convKeys.forEach { key ->
+                put(key, preferenceManager.getBoolean(key, false))
+            }
+        }
+    }
+
+    val onToggle: (String, Boolean) -> Unit = { key, value ->
+        stateMap[key] = value
+        preferenceManager.putBoolean(key, value)
+    }
 
     Scaffold(
         topBar = {
             WaexTopBar(
-                title = "Chat Enhancements",
+                title = "Conversation & Messages",
                 onBackClick = { navController.popBack() }
             )
         },
@@ -52,63 +67,147 @@ fun ConversationEnhancementsScreen() {
                 .padding(spacing.pageMargin),
             verticalArrangement = Arrangement.spacedBy(spacing.stackLg)
         ) {
+            // Section 1: Message Protection & Controls
             WaexSectionHeader(
-                title = "Presence & Customization",
-                subtitle = "Modify chat visibility and menu layout items"
+                title = "Message Protection & Controls",
+                subtitle = "Preserve edits, prevent limits, and safeguard messages"
             )
 
             WaexCard(modifier = Modifier.fillMaxWidth()) {
                 Column {
                     WaexSwitchPreference(
-                        title = "Always Online",
-                        description = "Force your connection status to show as Online constantly inside WhatsApp.",
-                        checked = alwaysOnlineChecked,
-                        onCheckedChange = { alwaysOnlineChecked = it },
+                        title = "Anti-Edit Messages",
+                        description = "Display edit history and keep original message text",
+                        checked = stateMap["anti_edit_messages"] ?: false,
+                        onCheckedChange = { onToggle("anti_edit_messages", it) },
                         icon = WaexIcons.Lock,
                         showDivider = true
                     )
                     WaexSwitchPreference(
-                        title = "Custom Status View Layout",
-                        description = "Display full-sized preview bars for WhatsApp status updates.",
-                        checked = customStatusViewChecked,
-                        onCheckedChange = { customStatusViewChecked = it },
-                        icon = WaexIcons.Folder,
+                        title = "Preserve Delete for Me",
+                        description = "Retain messages locally when Delete for Me is pressed",
+                        checked = stateMap["preserve_delete_for_me"] ?: false,
+                        onCheckedChange = { onToggle("preserve_delete_for_me", it) },
+                        icon = WaexIcons.Security,
                         showDivider = true
                     )
                     WaexSwitchPreference(
-                        title = "Animated Emojis",
-                        description = "Enable animated rendering of stickers and support emojis.",
-                        checked = animatedEmojisChecked,
-                        onCheckedChange = { animatedEmojisChecked = it },
+                        title = "Revoke All Messages Bypass",
+                        description = "Allow Delete for Everyone without time window constraints",
+                        checked = stateMap["revokeallmessages"] ?: false,
+                        onCheckedChange = { onToggle("revokeallmessages", it) },
+                        icon = WaexIcons.Refresh,
+                        showDivider = true
+                    )
+                    WaexSwitchPreference(
+                        title = "Hide Forwarded Tag",
+                        description = "Prevent forwarded tag from appearing on forwarded messages",
+                        checked = stateMap["hide_forwarded_tag"] ?: false,
+                        onCheckedChange = { onToggle("hide_forwarded_tag", it) },
+                        icon = WaexIcons.Share,
+                        showDivider = true
+                    )
+                    WaexSwitchPreference(
+                        title = "Remove Forward Limit",
+                        description = "Forward messages to unlimited chats and contacts at once",
+                        checked = stateMap["removeforwardlimit"] ?: false,
+                        onCheckedChange = { onToggle("removeforwardlimit", it) },
+                        icon = WaexIcons.Share,
+                        showDivider = true
+                    )
+                    WaexSwitchPreference(
+                        title = "Sticker Confirmation Alert",
+                        description = "Prompt with a confirmation dialog before sending stickers",
+                        checked = stateMap["sticker_confirm_alert"] ?: false,
+                        onCheckedChange = { onToggle("sticker_confirm_alert", it) },
                         icon = WaexIcons.Settings,
                         showDivider = true
                     )
                     WaexSwitchPreference(
-                        title = "Custom Avatars Mode",
-                        description = "Replace standard group contact avatars with local custom overrides.",
-                        checked = customAvatarChecked,
-                        onCheckedChange = { customAvatarChecked = it },
+                        title = "Remove See More Button",
+                        description = "Display full long text messages without truncation",
+                        checked = stateMap["removeseemore"] ?: false,
+                        onCheckedChange = { onToggle("removeseemore", it) },
                         icon = WaexIcons.Info,
                         showDivider = true
                     )
                     WaexSwitchPreference(
-                        title = "Custom Action Menus",
-                        description = "Add quick-action icons directly inside chat bubble menus.",
-                        checked = customMenusChecked,
-                        onCheckedChange = { customMenusChecked = it },
-                        icon = WaexIcons.Settings,
+                        title = "Copied Message Timestamp",
+                        description = "Include message timestamp when copying message content",
+                        checked = stateMap["stamp_copied_message"] ?: false,
+                        onCheckedChange = { onToggle("stamp_copied_message", it) },
+                        icon = WaexIcons.Folder,
+                        showDivider = true
+                    )
+                    WaexSwitchPreference(
+                        title = "Double Tap to React",
+                        description = "Double tap any message bubble to trigger instant reaction",
+                        checked = stateMap["doubletap2like"] ?: false,
+                        onCheckedChange = { onToggle("doubletap2like", it) },
+                        icon = WaexIcons.AutoAwesome,
+                        showDivider = false
+                    )
+                }
+            }
+
+            // Section 2: Chat Navigation & Shortcuts
+            WaexSectionHeader(
+                title = "Chat Navigation & Shortcuts",
+                subtitle = "Fast navigation and conversation productivity tools"
+            )
+
+            WaexCard(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    WaexSwitchPreference(
+                        title = "Jump to First Message",
+                        description = "Add direct quick jump to the beginning of any chat",
+                        checked = stateMap["jump_to_first_message"] ?: false,
+                        onCheckedChange = { onToggle("jump_to_first_message", it) },
+                        icon = WaexIcons.Play,
+                        showDivider = true
+                    )
+                    WaexSwitchPreference(
+                        title = "Unlimited Pinned Chats",
+                        description = "Pin unlimited conversations to the top of your chat list",
+                        checked = stateMap["unlimited_pinned_chats"] ?: false,
+                        onCheckedChange = { onToggle("unlimited_pinned_chats", it) },
+                        icon = WaexIcons.Lock,
+                        showDivider = true
+                    )
+                    WaexSwitchPreference(
+                        title = "Show Broadcast Tag",
+                        description = "Display broadcast icon on broadcasted chat messages",
+                        checked = stateMap["broadcast_tag"] ?: false,
+                        onCheckedChange = { onToggle("broadcast_tag", it) },
+                        icon = WaexIcons.Notifications,
+                        showDivider = true
+                    )
+                    WaexSwitchPreference(
+                        title = "Direct Chat Dialer",
+                        description = "Message numbers directly without saving them to contacts",
+                        checked = stateMap["direct_chat_dialer"] ?: false,
+                        onCheckedChange = { onToggle("direct_chat_dialer", it) },
+                        icon = WaexIcons.Contacts,
+                        showDivider = true
+                    )
+                    WaexSwitchPreference(
+                        title = "Inline Message Translation",
+                        description = "Tap-to-translate foreign language messages directly inline",
+                        checked = stateMap["inline_translation"] ?: false,
+                        onCheckedChange = { onToggle("inline_translation", it) },
+                        icon = WaexIcons.Extension,
+                        showDivider = true
+                    )
+                    WaexSwitchPreference(
+                        title = "Copy Status Text",
+                        description = "Long press status captions to copy text directly",
+                        checked = stateMap["copy_status_text"] ?: false,
+                        onCheckedChange = { onToggle("copy_status_text", it) },
+                        icon = WaexIcons.Folder,
                         showDivider = false
                     )
                 }
             }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ConversationEnhancementsScreenPreview() {
-    WaexTheme {
-        ConversationEnhancementsScreen()
     }
 }

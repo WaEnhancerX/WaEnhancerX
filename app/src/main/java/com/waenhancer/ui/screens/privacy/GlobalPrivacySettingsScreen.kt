@@ -104,14 +104,17 @@ fun GlobalPrivacySettingsScreen(
     val preferenceManager = com.waenhancer.ui.navigation.LocalWaexPreferenceManager.current
     val privacyKeys = remember {
         listOf(
-            "always_online", "online_status_indicator", "freeze_last_seen", "typing_privacy",
-            "stealth_status_view", "hide_read_receipts", "hide_delivery_receipts", "hide_seen_receipts",
-            "hide_forwarded_tag", "anti_revoke", "anti_view_once", "locked_chats_enhancer",
-            "dnd_mode", "hide_chats", "custom_privacy", "call_privacy",
-            "anti_edit_messages", "call_type_controller", "chat_limits_bypass", "copy_status_text",
-            "custom_filter_groups", "direct_chat_dialer", "group_admin_tools", "inline_translation",
-            "jump_to_first_message", "preserve_delete_for_me", "status_text_composer", "sticker_confirm_alert",
-            "unlimited_pinned_chats"
+            "always_online", "online_status_indicator", "freeze_last_seen", "ghostmode", "ghostmode_t", "ghostmode_r", "typing_privacy",
+            "hide_read_receipts", "hideread_group", "blueonreply", "seentick", "hide_delivery_receipts", "hide_seen_receipts", "hideonceseen",
+            "stealth_status_view", "autonext_status", "toast_viewed_status",
+            "anti_view_once", "downloadviewonce",
+            "anti_revoke", "antirevokestatus", "antidisappearing", "toastdeleted", "toast_viewed_message",
+            "call_privacy", "call_info",
+            "locked_chats_enhancer", "typearchive", "dnd_mode", "hide_chats", "custom_privacy",
+            "anti_edit_messages", "preserve_delete_for_me", "revokeallmessages", "hide_forwarded_tag", "removeforwardlimit",
+            "sticker_confirm_alert", "removeseemore", "stamp_copied_message", "doubletap2like",
+            "jump_to_first_message", "unlimited_pinned_chats", "broadcast_tag", "direct_chat_dialer", "inline_translation", "copy_status_text",
+            "call_type_controller", "custom_filter_groups", "group_admin_tools", "status_text_composer"
         )
     }
 
@@ -133,7 +136,6 @@ fun GlobalPrivacySettingsScreen(
         mutableStateOf(preferenceManager.getString("deleted_message_color", "#EF4444"))
     }
 
-
     val privacyGroups = listOf(
         SettingGroup(
             "Presence & Online Visibility",
@@ -141,63 +143,99 @@ fun GlobalPrivacySettingsScreen(
                 SettingItem("Always Online", "Keep connection status constantly showing as Online inside WhatsApp", "always_online"),
                 SettingItem("Hide Online Status", "Hide your green online dot and online status from others", "online_status_indicator"),
                 SettingItem("Freeze Last Seen", "Lock your last seen timestamp in place", "freeze_last_seen"),
-                SettingItem("Hide Typing & Recording Indicators", "Hides typing and recording status from others", "typing_privacy"),
-                SettingItem("Hide Status Viewing", "View status updates without sending view receipts", "stealth_status_view")
+                SettingItem("Ghost Mode", "One-tap total invisibility (stealth read, status & presence)", "ghostmode"),
+                SettingItem("Hide Typing Indicator", "Hides typing indicator from chats and groups", "ghostmode_t"),
+                SettingItem("Hide Recording Indicator", "Hides audio recording indicator from chats", "ghostmode_r")
             )
         ),
         SettingGroup(
-            "Message & Delivery Receipts",
+            "Ticks & Seen Receipts",
             listOf(
                 SettingItem("Hide Read Receipts (Blue Ticks)", "Read messages without sending blue read checkmarks", "hide_read_receipts"),
+                SettingItem("Hide Read Receipts for Groups", "Prevent blue ticks on group messages", "hideread_group"),
+                SettingItem("Blue Tick on Reply", "Only send blue ticks once you reply to a message", "blueonreply"),
+                SettingItem("Show Mark as Seen Button", "Add a manual double-tick button inside chats and statuses", "seentick"),
                 SettingItem("Hide Delivery Receipts (Second Tick)", "Receive messages without sending second delivery checkmark", "hide_delivery_receipts"),
-                SettingItem("Hide Voice & Media Seen Receipts", "Listen to audio notes and view media without seen checkmarks", "hide_seen_receipts"),
-                SettingItem("Hide Forwarded Tag", "Prevent forwarded tag from appearing on shared messages", "hide_forwarded_tag")
+                SettingItem("Hide Voice Note Played Receipts", "Listen to voice notes without turning microphone blue", "hide_seen_receipts"),
+                SettingItem("Hide View Once Seen Receipts", "Open view once messages without marking them as opened", "hideonceseen")
             )
         ),
         SettingGroup(
-            "Message Protection & Security",
+            "Status Privacy",
             listOf(
-                SettingItem("Anti-Revoke Messages & Statuses", "Keep deleted messages and statuses visible to you", "anti_revoke"),
-                SettingItem("Anti-View Once", "Bypass view-once constraints on incoming media", "anti_view_once"),
+                SettingItem("Stealth Status Viewing", "View status updates without sending view receipts", "stealth_status_view"),
+                SettingItem("Disable Auto-Skip Status", "Prevent WhatsApp from automatically advancing to the next status", "autonext_status"),
+                SettingItem("Toast on Status Viewed", "Show a toast notification when someone views your status", "toast_viewed_status")
+            )
+        ),
+        SettingGroup(
+            "View Once Protection",
+            listOf(
+                SettingItem("Anti-View Once", "Open and view view-once photos & videos unlimited times", "anti_view_once"),
+                SettingItem("Download View Once Media", "Show download button for view once photos and videos", "downloadviewonce")
+            )
+        ),
+        SettingGroup(
+            "Anti-Revoke & Deletion Defense",
+            listOf(
+                SettingItem("Anti-Revoke Messages", "Keep deleted messages visible in conversations", "anti_revoke"),
+                SettingItem("Anti-Revoke Statuses", "Keep deleted status updates visible in updates tab", "antirevokestatus"),
+                SettingItem("Anti-Disappearing Messages", "Prevent messages from disappearing when timer expires", "antidisappearing"),
+                SettingItem("Toast on Deleted Message", "Show alert notification when a contact deletes a message", "toastdeleted"),
+                SettingItem("Toast on Viewed Message", "Show alert notification when your message is viewed", "toast_viewed_message")
+            )
+        ),
+        SettingGroup(
+            "Calls Privacy & Control",
+            listOf(
+                SettingItem("Call Privacy & Blocker", "Block incoming WhatsApp calls from non-contacts or everyone", "call_privacy"),
+                SettingItem("Additional Call Information", "Display detailed network & codec info during active calls", "call_info")
+            )
+        ),
+        SettingGroup(
+            "Security & Vault",
+            listOf(
                 SettingItem("Locked Chats Enhancer", "Customize and bypass locks for specific chat vaults", "locked_chats_enhancer"),
-                SettingItem("Do Not Disturb (DND) Mode", "Temporarily block incoming messages dynamically", "dnd_mode"),
+                SettingItem("Hide Archived Chats", "Completely hide archived chats from the main conversations list", "typearchive"),
+                SettingItem("Do Not Disturb (DND) Mode", "Temporarily block all incoming traffic dynamically", "dnd_mode"),
                 SettingItem("Hide Chats / Vault", "Hide and lock private chats from the main chat list", "hide_chats")
-            )
-        ),
-        SettingGroup(
-            "Advanced Rules & Filtering",
-            listOf(
-                SettingItem("Call Privacy & Filtering", "Block calls from unwanted contacts", "call_privacy")
             )
         )
     )
 
     val conversationGroups = listOf(
         SettingGroup(
-            "Message Controls",
+            "Message Protection & Controls",
             listOf(
                 SettingItem("Anti-Edit Messages", "Keep original version of edited messages in chat", "anti_edit_messages"),
-                SettingItem("Sticker Confirmation Alert", "Ask before sending clicked stickers", "sticker_confirm_alert"),
-                SettingItem("Jump to First Message", "Add an option to jump directly to the beginning of any chat", "jump_to_first_message"),
-                SettingItem("Copy Status Text", "Allow copying text from status updates", "copy_status_text")
+                SettingItem("Preserve Delete for Me", "Retain messages locally when Delete for Me is selected", "preserve_delete_for_me"),
+                SettingItem("Revoke All Messages Bypass", "Allow Delete for Everyone without time window limits", "revokeallmessages"),
+                SettingItem("Hide Forwarded Tag", "Prevent forwarded tag from appearing on shared messages", "hide_forwarded_tag"),
+                SettingItem("Remove Forward Limit", "Forward messages to unlimited contacts simultaneously", "removeforwardlimit"),
+                SettingItem("Sticker Confirmation Alert", "Ask for confirmation before sending clicked stickers", "sticker_confirm_alert"),
+                SettingItem("Remove See More Button", "Display entire long text messages without truncating", "removeseemore"),
+                SettingItem("Copied Message Timestamp", "Include timestamp information when copying messages", "stamp_copied_message"),
+                SettingItem("Double Tap to React", "Double tap any message bubble to send instant reaction", "doubletap2like")
             )
         ),
         SettingGroup(
-            "Translation",
+            "Chat Navigation & Shortcuts",
             listOf(
-                SettingItem("Inline Message Translation", "Tap-to-translate messages directly inline", "inline_translation")
+                SettingItem("Jump to First Message", "Add an option to jump directly to the beginning of any chat", "jump_to_first_message"),
+                SettingItem("Unlimited Pinned Chats", "Pin more than 3 chats to the top of your list", "unlimited_pinned_chats"),
+                SettingItem("Show Broadcast Tag", "Display broadcast icon on broadcasted conversation messages", "broadcast_tag"),
+                SettingItem("Direct Chat Dialer", "Message someone directly without saving their contact info", "direct_chat_dialer"),
+                SettingItem("Inline Message Translation", "Tap-to-translate messages directly inline", "inline_translation"),
+                SettingItem("Copy Status Text", "Allow copying text from status updates", "copy_status_text")
             )
         ),
         SettingGroup(
             "Chat & Group Utilities",
             listOf(
                 SettingItem("Call Type Controller", "Force voice-only or video-only incoming calls", "call_type_controller"),
-                SettingItem("Chat Limits Bypass", "Bypass group sharing and forwarding constraints", "chat_limits_bypass"),
                 SettingItem("Custom Filter Groups", "Group chats by custom categories", "custom_filter_groups"),
-                SettingItem("Direct Chat Dialer", "Message someone without saving their contact info", "direct_chat_dialer"),
                 SettingItem("Group Admin Tools", "Unlock hidden moderation controls", "group_admin_tools"),
-                SettingItem("Status Text Composer Enhancements", "Format text status updates beautifully", "status_text_composer"),
-                SettingItem("Unlimited Pinned Chats", "Pin more than 3 chats to the top", "unlimited_pinned_chats")
+                SettingItem("Status Text Composer Enhancements", "Format text status updates with custom palettes", "status_text_composer")
             )
         )
     )
