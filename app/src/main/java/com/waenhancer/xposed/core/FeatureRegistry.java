@@ -9,9 +9,12 @@ import com.waenhancer.xposed.features.conversation.CopyStatusTextHook;
 import com.waenhancer.xposed.features.conversation.JumpFirstMessageHook;
 import com.waenhancer.xposed.features.conversation.PreserveDeleteForMeHook;
 import com.waenhancer.xposed.features.conversation.StickerConfirmHook;
+import com.waenhancer.xposed.features.privacy.AlwaysOnlineHook;
 import com.waenhancer.xposed.features.privacy.AntiRevokeHook;
 import com.waenhancer.xposed.features.privacy.AntiViewOnceHook;
+import com.waenhancer.xposed.features.privacy.CustomPrivacyHook;
 import com.waenhancer.xposed.features.privacy.FreezeLastSeenHook;
+import com.waenhancer.xposed.features.privacy.HideForwardedTagHook;
 import com.waenhancer.xposed.features.privacy.HideReceiptsHook;
 import com.waenhancer.xposed.features.privacy.TypingPrivacyHook;
 import de.robv.android.xposed.XposedBridge;
@@ -33,10 +36,11 @@ public final class FeatureRegistry {
         features.add(new AntiViewOnceHook(context, classLoader, prefs));
         features.add(new TypingPrivacyHook(context, classLoader, prefs));
         features.add(new FreezeLastSeenHook(context, classLoader, prefs));
+        features.add(new AlwaysOnlineHook(context, classLoader, prefs));
         features.add(new HideReceiptsHook(context, classLoader, prefs));
         features.add(new AntiRevokeHook(context, classLoader, prefs));
-        features.add(new com.waenhancer.xposed.features.privacy.HideForwardedTagHook(context, classLoader, prefs));
-        features.add(new com.waenhancer.xposed.features.privacy.CustomPrivacyHook(context, classLoader, prefs));
+        features.add(new HideForwardedTagHook(context, classLoader, prefs));
+        features.add(new CustomPrivacyHook(context, classLoader, prefs));
 
         // Conversation & Message Controls Features
         features.add(new AntiEditMessagesHook(context, classLoader, prefs));
@@ -45,7 +49,6 @@ public final class FeatureRegistry {
         features.add(new PreserveDeleteForMeHook(context, classLoader, prefs));
         features.add(new CopyStatusTextHook(context, classLoader, prefs));
     }
-
 
     public void initializeAll() {
         for (BaseFeature feature : features) {
