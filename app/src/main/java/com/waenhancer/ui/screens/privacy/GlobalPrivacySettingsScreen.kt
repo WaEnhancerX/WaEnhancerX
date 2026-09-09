@@ -115,8 +115,13 @@ fun GlobalPrivacySettingsScreen(
             "anti_edit_messages", "preserve_delete_for_me", "revokeallmessages", "hide_forwarded_tag", "removeforwardlimit",
             "sticker_confirm_alert", "removeseemore", "stamp_copied_message", "doubletap2like",
             "jump_to_first_message", "unlimited_pinned_chats", "broadcast_tag", "direct_chat_dialer", "inline_translation", "copy_status_text",
-            "call_type_controller", "custom_filter_groups", "group_admin_tools", "status_text_composer"
+            "call_type_controller", "custom_filter_groups", "group_admin_tools", "status_text_composer",
+            "show_dndmode", "restartbutton", "open_wae"
         )
+    }
+
+    var waexMenuStyle by remember {
+        mutableStateOf(preferenceManager.getString("waex_menu_style", "grouped") ?: "grouped")
     }
 
     val settingsState = remember {
@@ -202,6 +207,16 @@ fun GlobalPrivacySettingsScreen(
                 SettingItem("Hide Archived Chats", "Completely hide archived chats from the main conversations list", "typearchive"),
                 SettingItem("Do Not Disturb (DND) Mode", "Temporarily block all incoming traffic dynamically", "dnd_mode"),
                 SettingItem("Hide Chats / Vault", "Hide and lock private chats from the main chat list", "hide_chats")
+            )
+        ),
+        SettingGroup(
+            "Home Menu Shortcuts",
+            listOf(
+                SettingItem("Ghost Mode (Show in Menu)", "Add a 1-tap Ghost Mode toggle to WhatsApp's 3-dots home menu", "ghostmode"),
+                SettingItem("Freeze Last Seen (Show in Menu)", "Add a 1-tap Freeze Last Seen toggle to WhatsApp's 3-dots home menu", "freezelastseen"),
+                SettingItem("DND Mode (Show in Menu)", "Add a Do Not Disturb toggle to WhatsApp's 3-dots home menu", "show_dndmode"),
+                SettingItem("Restart WhatsApp (Show in Menu)", "Add a Restart option to WhatsApp's 3-dots home menu", "restartbutton"),
+                SettingItem("WA Enhancer Settings (Show in Menu)", "Add a shortcut to open WAEX settings from WhatsApp's 3-dots home menu", "open_wae")
             )
         )
     )
@@ -641,6 +656,72 @@ fun GlobalPrivacySettingsScreen(
                                                     color = colors.primary,
                                                     fontWeight = FontWeight.Bold
                                                 )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // After the last Home Menu Shortcuts item, show the display style picker
+                            if (item.key == "open_wae") {
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = colors.surfaceDim.copy(alpha = 0.6f),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 12.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Text(
+                                            text = "MENU DISPLAY STYLE",
+                                            style = typography.labelSm,
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.primary
+                                        )
+                                        Text(
+                                            text = "How WAEX items appear in WhatsApp's 3-dots home menu",
+                                            style = typography.bodyMd,
+                                            color = colors.onSurfaceVariant,
+                                            fontSize = 11.sp
+                                        )
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(colors.surface)
+                                                .padding(4.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            listOf(
+                                                "grouped"  to "Grouped",
+                                                "separate" to "Separate",
+                                                "icons"    to "Icons"
+                                            ).forEach { (value, label) ->
+                                                val isSelected = waexMenuStyle == value
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .clip(RoundedCornerShape(8.dp))
+                                                        .background(if (isSelected) colors.primary else Color.Transparent)
+                                                        .clickable {
+                                                            waexMenuStyle = value
+                                                            preferenceManager.putString("waex_menu_style", value)
+                                                        }
+                                                        .padding(vertical = 8.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        text = label,
+                                                        style = typography.labelSm,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                        color = if (isSelected) Color.White else colors.onSurfaceVariant
+                                                    )
+                                                }
                                             }
                                         }
                                     }
