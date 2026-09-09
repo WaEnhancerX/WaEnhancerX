@@ -214,7 +214,10 @@ public final class PreferenceSchema {
         add(entries, "force_restore_backup_feature", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "freeze_last_seen", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "freezelastseen", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "freeze_last_seen_active", Type.BOOLEAN, Sensitivity.RUNTIME, Store.PUBLIC);
         add(entries, "ghostmode", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "ghostmode_enabled", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "ghostmode_active", Type.BOOLEAN, Sensitivity.RUNTIME, Store.PUBLIC);
         add(entries, "ghostmode_r", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "ghostmode_t", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "go_to_first_message", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);

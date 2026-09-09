@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.Toast;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
 import de.robv.android.xposed.XC_MethodHook;
@@ -13,8 +14,12 @@ import de.robv.android.xposed.XposedHelpers;
 
 /**
  * Home Screen Header Actions Hook:
- * Dynamically injects toolbar buttons (DND Mode, Restart WhatsApp, WA Enhancer Quick Access, Action Icons)
- * and custom home header name/bio.
+ * Dynamically injects quick toggles and shortcuts into WhatsApp's 3-dots options menu:
+ * - Ghost Mode Toggle (Master stealth on/off)
+ * - Freeze Last Seen Toggle
+ * - DND Mode Toggle
+ * - Restart WhatsApp
+ * - WA Enhancer Settings Shortcut
  */
 public class HomeScreenHeaderActionsHook extends BaseFeature {
 
@@ -22,6 +27,8 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
     private static final int MENU_ID_RESTART = 0x7EAE0001;
     private static final int MENU_ID_SETTINGS = 0x7EAE0002;
     private static final int MENU_ID_DND = 0x7EAE0003;
+    private static final int MENU_ID_GHOST_MODE = 0x7EAE0004;
+    private static final int MENU_ID_FREEZE_LAST_SEEN = 0x7EAE0005;
 
     public HomeScreenHeaderActionsHook(@NonNull Context context, @NonNull ClassLoader classLoader, @NonNull SharedPreferences prefs) {
         super(context, classLoader, prefs);
@@ -69,6 +76,24 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
     }
 
     private void injectHeaderMenuItems(Menu menu) {
+        if (isEnabled("ghostmode", false)) {
+            boolean ghostActive = prefs.getBoolean("ghostmode_active", false);
+            MenuItem ghostItem = menu.add(Menu.NONE, MENU_ID_GHOST_MODE, Menu.NONE, ghostActive ? "Ghost Mode: ON" : "Ghost Mode: OFF");
+            ghostItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+        }
+
+        if (isEnabled("freezelastseen", false) || isEnabled("freeze_last_seen_menu", false)) {
+            boolean freezeActive = prefs.getBoolean("freeze_last_seen_active", false);
+            MenuItem freezeItem = menu.add(Menu.NONE, MENU_ID_FREEZE_LAST_SEEN, Menu.NONE, freezeActive ? "Freeze Last Seen: ON" : "Freeze Last Seen: OFF");
+            freezeItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+        }
+
+        if (isEnabled("show_dndmode", false)) {
+            boolean dndActive = isEnabled("dnd_mode", false);
+            MenuItem dndItem = menu.add(Menu.NONE, MENU_ID_DND, Menu.NONE, dndActive ? "DND: ON" : "DND: OFF");
+            dndItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+        }
+
         if (isEnabled("restartbutton", false)) {
             MenuItem restartItem = menu.add(Menu.NONE, MENU_ID_RESTART, Menu.NONE, "Restart WhatsApp");
             restartItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
@@ -78,17 +103,31 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
             MenuItem settingsItem = menu.add(Menu.NONE, MENU_ID_SETTINGS, Menu.NONE, "WA Enhancer Settings");
             settingsItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
         }
-
-        if (isEnabled("show_dndmode", false)) {
-            boolean dndActive = isEnabled("dnd_mode", false);
-            MenuItem dndItem = menu.add(Menu.NONE, MENU_ID_DND, Menu.NONE, dndActive ? "DND: ON" : "DND: OFF");
-            dndItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
-        }
     }
 
     private boolean handleMenuItemSelection(MenuItem item, Object activityObj) {
         int id = item.getItemId();
-        if (id == MENU_ID_RESTART) {
+        if (id == MENU_ID_GHOST_MODE) {
+            boolean current = prefs.getBoolean("ghostmode_active", false);
+            boolean newState = !current;
+            prefs.edit().putBoolean("ghostmode_active", newState).apply();
+            if (activityObj instanceof Activity) {
+                Activity activity = (Activity) activityObj;
+                Toast.makeText(activity, newState ? "Ghost Mode Activated" : "Ghost Mode Deactivated", Toast.LENGTH_SHORT).show();
+                activity.invalidateOptionsMenu();
+            }
+            return true;
+        } else if (id == MENU_ID_FREEZE_LAST_SEEN) {
+            boolean current = prefs.getBoolean("freeze_last_seen_active", false);
+            boolean newState = !current;
+            prefs.edit().putBoolean("freeze_last_seen_active", newState).apply();
+            if (activityObj instanceof Activity) {
+                Activity activity = (Activity) activityObj;
+                Toast.makeText(activity, newState ? "Last Seen Frozen" : "Last Seen Unfrozen", Toast.LENGTH_SHORT).show();
+                activity.invalidateOptionsMenu();
+            }
+            return true;
+        } else if (id == MENU_ID_RESTART) {
             if (activityObj instanceof Activity) {
                 Activity activity = (Activity) activityObj;
                 activity.recreate();
@@ -108,6 +147,10 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
         } else if (id == MENU_ID_DND) {
             boolean currentDnd = isEnabled("dnd_mode", false);
             prefs.edit().putBoolean("dnd_mode", !currentDnd).apply();
+            if (activityObj instanceof Activity) {
+                Activity activity = (Activity) activityObj;
+                activity.invalidateOptionsMenu();
+            }
             return true;
         }
         return false;

@@ -102,7 +102,11 @@ public class FreezeLastSeenHook extends BaseFeature {
     }
 
     private boolean isPresenceSuppressed() {
-        return isEnabled("freeze_last_seen", false) || isEnabled("online_status_indicator", false);
+        return isEnabled("freeze_last_seen", false)
+                || isEnabled("freeze_last_seen_active", false)
+                || isEnabled("ghostmode_enabled", false)
+                || isEnabled("ghostmode_active", false)
+                || isEnabled("online_status_indicator", false);
     }
 
     @NonNull

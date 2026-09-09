@@ -104,7 +104,8 @@ fun GlobalPrivacySettingsScreen(
     val preferenceManager = com.waenhancer.ui.navigation.LocalWaexPreferenceManager.current
     val privacyKeys = remember {
         listOf(
-            "always_online", "online_status_indicator", "freeze_last_seen", "ghostmode", "ghostmode_t", "ghostmode_r", "typing_privacy",
+            "always_online", "online_status_indicator", "freeze_last_seen", "freezelastseen",
+            "ghostmode_enabled", "ghostmode", "ghostmode_t", "ghostmode_r", "typing_privacy",
             "hide_read_receipts", "hideread_group", "blueonreply", "seentick", "hide_delivery_receipts", "hide_seen_receipts", "hideonceseen",
             "stealth_status_view", "autonext_status", "toast_viewed_status",
             "anti_view_once", "downloadviewonce",
@@ -141,9 +142,11 @@ fun GlobalPrivacySettingsScreen(
             "Presence & Online Visibility",
             listOf(
                 SettingItem("Always Online", "Keep connection status constantly showing as Online inside WhatsApp", "always_online"),
-                SettingItem("Hide Online Status", "Hide your green online dot and online status from others", "online_status_indicator"),
-                SettingItem("Freeze Last Seen", "Lock your last seen timestamp in place", "freeze_last_seen"),
-                SettingItem("Ghost Mode", "One-tap total invisibility (stealth read, status & presence)", "ghostmode"),
+                SettingItem("Hide Online Status", "Hide your green online dot and active status from others", "online_status_indicator"),
+                SettingItem("Freeze Last Seen", "Lock your last seen timestamp in place constantly", "freeze_last_seen"),
+                SettingItem("Freeze Last Seen (Show in Menu)", "Add a quick 'Freeze Last Seen' toggle option to WhatsApp's 3-dots home menu", "freezelastseen"),
+                SettingItem("Ghost Mode", "Activate complete stealth mode constantly (freezes last seen, hides typing/recording & receipts)", "ghostmode_enabled"),
+                SettingItem("Ghost Mode (Show in Menu)", "Add a 1-tap master stealth toggle option to WhatsApp's 3-dots home menu", "ghostmode"),
                 SettingItem("Hide Typing Indicator", "Hides typing indicator from chats and groups", "ghostmode_t"),
                 SettingItem("Hide Recording Indicator", "Hides audio recording indicator from chats", "ghostmode_r")
             )
