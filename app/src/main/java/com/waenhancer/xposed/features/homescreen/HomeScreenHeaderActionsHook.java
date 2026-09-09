@@ -197,12 +197,7 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
             new WaexBottomSheet(activity)
                     .asBottomSheet()
                     .setTitle("Activate Ghost Mode?")
-                    .setMessage("While Ghost Mode is active:\n\n" +
-                            "• Your last seen timestamp is frozen\n" +
-                            "• Online presence indicator is hidden\n" +
-                            "• Typing and voice recording indicators are silenced\n" +
-                            "• Read receipts and status views are kept completely stealthy\n\n" +
-                            "Would you like to turn on Ghost Mode now?")
+                    .setMessage("Hides your online status, freezes last seen, and silences typing & read receipt indicators.")
                     .setPositiveButton("Activate", (dialog, which) -> {
                         prefs.edit().putBoolean("ghostmode_active", true).apply();
                         Toast.makeText(activity, "Ghost Mode Activated", Toast.LENGTH_SHORT).show();
