@@ -8,6 +8,7 @@ import android.view.MenuItem;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
+import com.waenhancer.xposed.core.components.NativeWhatsAppDialog;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -20,8 +21,8 @@ import org.luckypray.dexkit.result.ClassData;
 /**
  * Home Screen Header Actions Hook:
  * Dynamically injects quick toggles and shortcuts into WhatsApp's 3-dots options menu:
- * - Ghost Mode Toggle (Master stealth on/off)
- * - Freeze Last Seen Toggle
+ * - Ghost Mode Toggle (Master stealth with native confirmation dialog)
+ * - Freeze Last Seen Toggle (With native confirmation dialog)
  * - DND Mode Toggle
  * - Restart WhatsApp
  * - WA Enhancer Settings Shortcut
@@ -151,23 +152,13 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
         int id = item.getItemId();
 
         if (id == MENU_ID_GHOST_MODE) {
-            boolean current = prefs.getBoolean("ghostmode_active", false);
-            boolean newState = !current;
-            prefs.edit().putBoolean("ghostmode_active", newState).apply();
             if (activityObj instanceof Activity) {
-                Activity activity = (Activity) activityObj;
-                Toast.makeText(activity, newState ? "Ghost Mode Activated" : "Ghost Mode Deactivated", Toast.LENGTH_SHORT).show();
-                activity.invalidateOptionsMenu();
+                promptGhostModeToggle((Activity) activityObj);
             }
             return true;
         } else if (id == MENU_ID_FREEZE_LAST_SEEN) {
-            boolean current = prefs.getBoolean("freeze_last_seen_active", false);
-            boolean newState = !current;
-            prefs.edit().putBoolean("freeze_last_seen_active", newState).apply();
             if (activityObj instanceof Activity) {
-                Activity activity = (Activity) activityObj;
-                Toast.makeText(activity, newState ? "Last Seen Frozen" : "Last Seen Unfrozen", Toast.LENGTH_SHORT).show();
-                activity.invalidateOptionsMenu();
+                promptFreezeLastSeenToggle((Activity) activityObj);
             }
             return true;
         } else if (id == MENU_ID_RESTART) {
@@ -197,6 +188,69 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
             return true;
         }
         return false;
+    }
+
+    private void promptGhostModeToggle(Activity activity) {
+        boolean currentlyActive = prefs.getBoolean("ghostmode_active", false);
+
+        if (!currentlyActive) {
+            new NativeWhatsAppDialog(activity)
+                    .setTitle("Activate Ghost Mode?")
+                    .setMessage("While Ghost Mode is active:\n\n" +
+                            "• Your last seen timestamp is frozen\n" +
+                            "• Online presence indicator is hidden\n" +
+                            "• Typing and voice recording indicators are silenced\n" +
+                            "• Read receipts and status views are kept completely stealthy\n\n" +
+                            "Would you like to turn on Ghost Mode now?")
+                    .setPositiveButton("Activate", (dialog, which) -> {
+                        prefs.edit().putBoolean("ghostmode_active", true).apply();
+                        Toast.makeText(activity, "Ghost Mode Activated", Toast.LENGTH_SHORT).show();
+                        activity.invalidateOptionsMenu();
+                    })
+                    .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss())
+                    .show();
+        } else {
+            new NativeWhatsAppDialog(activity)
+                    .setTitle("Deactivate Ghost Mode?")
+                    .setMessage("Ghost Mode is currently active.\n\nDeactivating will restore your standard online visibility, typing states, and read receipts.")
+                    .setPositiveButton("Deactivate", (dialog, which) -> {
+                        prefs.edit().putBoolean("ghostmode_active", false).apply();
+                        Toast.makeText(activity, "Ghost Mode Deactivated", Toast.LENGTH_SHORT).show();
+                        activity.invalidateOptionsMenu();
+                    })
+                    .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss())
+                    .show();
+        }
+    }
+
+    private void promptFreezeLastSeenToggle(Activity activity) {
+        boolean currentlyActive = prefs.getBoolean("freeze_last_seen_active", false);
+
+        if (!currentlyActive) {
+            new NativeWhatsAppDialog(activity)
+                    .setTitle("Freeze Last Seen?")
+                    .setMessage("Freezing your last seen will lock your current last seen timestamp in place.\n\n" +
+                            "Your contacts will not see when you come online or use WhatsApp.\n\n" +
+                            "Would you like to freeze your last seen now?")
+                    .setPositiveButton("Freeze", (dialog, which) -> {
+                        prefs.edit().putBoolean("freeze_last_seen_active", true).apply();
+                        Toast.makeText(activity, "Last Seen Frozen", Toast.LENGTH_SHORT).show();
+                        activity.invalidateOptionsMenu();
+                    })
+                    .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss())
+                    .show();
+        } else {
+            new NativeWhatsAppDialog(activity)
+                    .setTitle("Unfreeze Last Seen?")
+                    .setMessage("Last Seen is currently frozen.\n\nUnfreezing will allow WhatsApp to update your last seen timestamp and active online presence normally.")
+                    .setPositiveButton("Unfreeze", (dialog, which) -> {
+                        prefs.edit().putBoolean("freeze_last_seen_active", false).apply();
+                        Toast.makeText(activity, "Last Seen Unfrozen", Toast.LENGTH_SHORT).show();
+                        activity.invalidateOptionsMenu();
+                    })
+                    .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss())
+                    .show();
+        }
     }
 
     @NonNull
