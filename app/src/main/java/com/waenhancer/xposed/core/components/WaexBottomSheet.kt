@@ -246,10 +246,10 @@ class WaexBottomSheet(private val context: Context) {
                 val titleView = createWdsTextView(context).apply {
                     layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f)
                     text = titleText
-                    textSize = 19f
+                    textSize = 18f
                     typeface = Typeface.DEFAULT_BOLD
                     setTextColor(primaryTextColor)
-                    gravity = if (topRightView != null) Gravity.START or Gravity.CENTER_VERTICAL else Gravity.CENTER
+                    gravity = Gravity.CENTER
                 }
                 headerLayout.addView(titleView)
             }
@@ -277,10 +277,10 @@ class WaexBottomSheet(private val context: Context) {
         if (!messageText.isNullOrEmpty()) {
             val msgView = createWdsTextView(context).apply {
                 text = messageText
-                textSize = 14.5f
+                textSize = 14f
                 setTextColor(secondaryTextColor)
-                gravity = Gravity.CENTER
-                setPadding(0, 0, 0, dp(12))
+                gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                setPadding(dp(4), 0, dp(4), dp(10))
             }
             scrollContent.addView(msgView)
         }

@@ -8,7 +8,7 @@ import android.view.MenuItem;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
-import com.waenhancer.xposed.core.components.NativeWhatsAppDialog;
+import com.waenhancer.xposed.core.components.WaexBottomSheet;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -21,8 +21,8 @@ import org.luckypray.dexkit.result.ClassData;
 /**
  * Home Screen Header Actions Hook:
  * Dynamically injects quick toggles and shortcuts into WhatsApp's 3-dots options menu:
- * - Ghost Mode Toggle (Master stealth with native confirmation dialog)
- * - Freeze Last Seen Toggle (With native confirmation dialog)
+ * - Ghost Mode Toggle (Master stealth with native WDS bottom sheet confirmation)
+ * - Freeze Last Seen Toggle (With native WDS bottom sheet confirmation)
  * - DND Mode Toggle
  * - Restart WhatsApp
  * - WA Enhancer Settings Shortcut
@@ -153,12 +153,12 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
 
         if (id == MENU_ID_GHOST_MODE) {
             if (activityObj instanceof Activity) {
-                promptGhostModeToggle((Activity) activityObj);
+                promptGhostModeBottomSheet((Activity) activityObj);
             }
             return true;
         } else if (id == MENU_ID_FREEZE_LAST_SEEN) {
             if (activityObj instanceof Activity) {
-                promptFreezeLastSeenToggle((Activity) activityObj);
+                promptFreezeLastSeenBottomSheet((Activity) activityObj);
             }
             return true;
         } else if (id == MENU_ID_RESTART) {
@@ -190,11 +190,12 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
         return false;
     }
 
-    private void promptGhostModeToggle(Activity activity) {
+    private void promptGhostModeBottomSheet(Activity activity) {
         boolean currentlyActive = prefs.getBoolean("ghostmode_active", false);
 
         if (!currentlyActive) {
-            new NativeWhatsAppDialog(activity)
+            new WaexBottomSheet(activity)
+                    .asBottomSheet()
                     .setTitle("Activate Ghost Mode?")
                     .setMessage("While Ghost Mode is active:\n\n" +
                             "• Your last seen timestamp is frozen\n" +
@@ -210,7 +211,8 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
                     .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss())
                     .show();
         } else {
-            new NativeWhatsAppDialog(activity)
+            new WaexBottomSheet(activity)
+                    .asBottomSheet()
                     .setTitle("Deactivate Ghost Mode?")
                     .setMessage("Ghost Mode is currently active.\n\nDeactivating will restore your standard online visibility, typing states, and read receipts.")
                     .setPositiveButton("Deactivate", (dialog, which) -> {
@@ -223,11 +225,12 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
         }
     }
 
-    private void promptFreezeLastSeenToggle(Activity activity) {
+    private void promptFreezeLastSeenBottomSheet(Activity activity) {
         boolean currentlyActive = prefs.getBoolean("freeze_last_seen_active", false);
 
         if (!currentlyActive) {
-            new NativeWhatsAppDialog(activity)
+            new WaexBottomSheet(activity)
+                    .asBottomSheet()
                     .setTitle("Freeze Last Seen?")
                     .setMessage("Freezing your last seen will lock your current last seen timestamp in place.\n\n" +
                             "Your contacts will not see when you come online or use WhatsApp.\n\n" +
@@ -240,7 +243,8 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
                     .setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss())
                     .show();
         } else {
-            new NativeWhatsAppDialog(activity)
+            new WaexBottomSheet(activity)
+                    .asBottomSheet()
                     .setTitle("Unfreeze Last Seen?")
                     .setMessage("Last Seen is currently frozen.\n\nUnfreezing will allow WhatsApp to update your last seen timestamp and active online presence normally.")
                     .setPositiveButton("Unfreeze", (dialog, which) -> {
