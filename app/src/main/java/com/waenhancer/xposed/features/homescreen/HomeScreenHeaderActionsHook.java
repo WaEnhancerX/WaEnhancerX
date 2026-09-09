@@ -8,9 +8,14 @@ import android.view.MenuItem;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
+import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
+import org.luckypray.dexkit.query.FindClass;
+import org.luckypray.dexkit.query.enums.StringMatchType;
+import org.luckypray.dexkit.query.matchers.ClassMatcher;
+import org.luckypray.dexkit.result.ClassData;
 
 /**
  * Home Screen Header Actions Hook:
@@ -41,21 +46,41 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
 
     private void hookHomeActivityMenu() {
         try {
-            Class<?> homeActivityClass = XposedHelpers.findClassIfExists("com.whatsapp.HomeActivity", classLoader);
+            Class<?> homeActivityClass = DexSearchEngine.getInstance().findClassWithCache(
+                    context,
+                    classLoader,
+                    "wpp_home_activity_class",
+                    (bridge, loader) -> {
+                        ClassData cd = bridge.findClass(FindClass.create()
+                                .matcher(ClassMatcher.create().className(".HomeActivity", StringMatchType.EndsWith))
+                        ).firstOrNull();
+                        if (cd == null) {
+                            cd = bridge.findClass(FindClass.create()
+                                    .matcher(ClassMatcher.create().className("HomeActivity", StringMatchType.Contains))
+                            ).firstOrNull();
+                        }
+                        return cd != null ? cd.getInstance(loader) : null;
+                    }
+            );
+
             if (homeActivityClass == null) {
-                homeActivityClass = XposedHelpers.findClassIfExists("com.whatsapp.home.ui.HomePlaceholderActivity", classLoader);
+                homeActivityClass = XposedHelpers.findClassIfExists("com.whatsapp.HomeActivity", classLoader);
             }
 
             if (homeActivityClass != null) {
-                XposedBridge.hookAllMethods(homeActivityClass, "onCreateOptionsMenu", new XC_MethodHook() {
+                XC_MethodHook menuHook = new XC_MethodHook() {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) {
                         if (param.args.length > 0 && param.args[0] instanceof Menu) {
                             Menu menu = (Menu) param.args[0];
-                            injectHeaderMenuItems(menu);
+                            Activity activity = (param.thisObject instanceof Activity) ? (Activity) param.thisObject : null;
+                            injectHeaderMenuItems(menu, activity);
                         }
                     }
-                });
+                };
+
+                XposedBridge.hookAllMethods(homeActivityClass, "onCreateOptionsMenu", menuHook);
+                XposedBridge.hookAllMethods(homeActivityClass, "onPrepareOptionsMenu", menuHook);
 
                 XposedBridge.hookAllMethods(homeActivityClass, "onOptionsItemSelected", new XC_MethodHook() {
                     @Override
@@ -68,45 +93,63 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
                         }
                     }
                 });
-                XposedBridge.log(TAG + " Hooked HomeActivity options menu.");
+                XposedBridge.log(TAG + " Successfully hooked HomeActivity menu on: " + homeActivityClass.getName());
+            } else {
+                XposedBridge.log(TAG + " Could not find HomeActivity class!");
             }
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Error hooking HomeActivity menu: " + t.getMessage());
         }
     }
 
-    private void injectHeaderMenuItems(Menu menu) {
+    private void injectHeaderMenuItems(Menu menu, Activity activity) {
+        if (menu == null) return;
+
+        // Clean any previously injected items to avoid duplicates
+        menu.removeItem(MENU_ID_GHOST_MODE);
+        menu.removeItem(MENU_ID_FREEZE_LAST_SEEN);
+        menu.removeItem(MENU_ID_DND);
+        menu.removeItem(MENU_ID_RESTART);
+        menu.removeItem(MENU_ID_SETTINGS);
+
         if (isEnabled("ghostmode", false)) {
             boolean ghostActive = prefs.getBoolean("ghostmode_active", false);
             MenuItem ghostItem = menu.add(Menu.NONE, MENU_ID_GHOST_MODE, Menu.NONE, ghostActive ? "Ghost Mode: ON" : "Ghost Mode: OFF");
             ghostItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+            ghostItem.setOnMenuItemClickListener(item -> handleMenuItemSelection(item, activity));
         }
 
         if (isEnabled("freezelastseen", false) || isEnabled("freeze_last_seen_menu", false)) {
             boolean freezeActive = prefs.getBoolean("freeze_last_seen_active", false);
             MenuItem freezeItem = menu.add(Menu.NONE, MENU_ID_FREEZE_LAST_SEEN, Menu.NONE, freezeActive ? "Freeze Last Seen: ON" : "Freeze Last Seen: OFF");
             freezeItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+            freezeItem.setOnMenuItemClickListener(item -> handleMenuItemSelection(item, activity));
         }
 
         if (isEnabled("show_dndmode", false)) {
             boolean dndActive = isEnabled("dnd_mode", false);
             MenuItem dndItem = menu.add(Menu.NONE, MENU_ID_DND, Menu.NONE, dndActive ? "DND: ON" : "DND: OFF");
             dndItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+            dndItem.setOnMenuItemClickListener(item -> handleMenuItemSelection(item, activity));
         }
 
         if (isEnabled("restartbutton", false)) {
             MenuItem restartItem = menu.add(Menu.NONE, MENU_ID_RESTART, Menu.NONE, "Restart WhatsApp");
             restartItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+            restartItem.setOnMenuItemClickListener(item -> handleMenuItemSelection(item, activity));
         }
 
         if (isEnabled("open_wae", false)) {
             MenuItem settingsItem = menu.add(Menu.NONE, MENU_ID_SETTINGS, Menu.NONE, "WA Enhancer Settings");
             settingsItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+            settingsItem.setOnMenuItemClickListener(item -> handleMenuItemSelection(item, activity));
         }
     }
 
     private boolean handleMenuItemSelection(MenuItem item, Object activityObj) {
+        if (item == null) return false;
         int id = item.getItemId();
+
         if (id == MENU_ID_GHOST_MODE) {
             boolean current = prefs.getBoolean("ghostmode_active", false);
             boolean newState = !current;
