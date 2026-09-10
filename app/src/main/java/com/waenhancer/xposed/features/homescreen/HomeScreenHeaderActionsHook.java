@@ -1,9 +1,14 @@
 package com.waenhancer.xposed.features.homescreen;
 
 import android.app.Activity;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.drawable.Drawable;
+import android.os.Process;
+import android.os.SystemClock;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SubMenu;
@@ -310,53 +315,27 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
         if (item == null) return false;
         int id = item.getItemId();
 
-        // Separate mode: WAEX toolbar button opens an action sheet with all enabled items
+        // Separate mode: WAEX toolbar button opens the native quick-action sheet
         if (id == MENU_ID_WAEX_TOOLBAR) {
             if (!(activityObj instanceof Activity)) return true;
             Activity activity = (Activity) activityObj;
 
-            // Build the list of visible item labels dynamically
-            java.util.List<CharSequence> labels = new java.util.ArrayList<>();
-            java.util.List<Integer> itemIds  = new java.util.ArrayList<>();
-
-            if (isEnabled("ghostmode", false)) {
-                boolean on = prefs.getBoolean("ghostmode_active", false);
-                labels.add(on ? "👻  Ghost Mode  •  ON" : "👻  Ghost Mode  •  OFF");
-                itemIds.add(MENU_ID_GHOST_MODE);
-            }
-            if (isEnabled("freezelastseen", false)) {
-                boolean on = prefs.getBoolean("freeze_last_seen_active", false);
-                labels.add(on ? "🕐  Freeze Last Seen  •  ON" : "🕐  Freeze Last Seen  •  OFF");
-                itemIds.add(MENU_ID_FREEZE_LS);
-            }
-            if (isEnabled("show_dndmode", false)) {
-                boolean on = isEnabled("dnd_mode", false);
-                labels.add(on ? "🔕  DND Mode  •  ON" : "🔕  DND Mode  •  OFF");
-                itemIds.add(MENU_ID_DND);
-            }
-            if (isEnabled("restartbutton", false)) {
-                labels.add("🔄  Restart WhatsApp");
-                itemIds.add(MENU_ID_RESTART);
-            }
-            if (isEnabled("open_wae", false)) {
-                labels.add("⚙️  WA Enhancer Settings");
-                itemIds.add(MENU_ID_SETTINGS);
-            }
-
-            if (labels.isEmpty()) return true;
-
-            CharSequence[] labelArray = labels.toArray(new CharSequence[0]);
-            new WaexBottomSheet(activity)
-                    .asBottomSheet()
-                    .setTitle("WAEX")
-                    .setItems(labelArray, (dialog, which) -> {
-                        int selectedId = itemIds.get(which);
-                        // Create a lightweight proxy item to reuse the existing handler
-                        handleWaexItemById(selectedId, activity);
-                    })
-                    .show();
+            WaexQuickActionsSheet.show(
+                    activity,
+                    prefs,
+                    /* onRestart   */ () -> forceRestartWhatsApp(activity),
+                    /* onSettings  */ () -> {
+                        try {
+                            android.content.Intent intent =
+                                    activity.getPackageManager().getLaunchIntentForPackage("com.waenhancer");
+                            if (intent != null) activity.startActivity(intent);
+                        } catch (Throwable ignored) {}
+                    },
+                    /* onInvalidate */ activity::invalidateOptionsMenu
+            );
             return true;
         }
+
 
         if (id == MENU_ID_GHOST_MODE) {
             if (activityObj instanceof Activity) {
@@ -383,7 +362,7 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
 
         if (id == MENU_ID_RESTART) {
             if (activityObj instanceof Activity) {
-                ((Activity) activityObj).recreate();
+                forceRestartWhatsApp((Activity) activityObj);
             }
             return true;
         }
@@ -417,7 +396,7 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
             prefs.edit().putBoolean("dnd_mode", !current).apply();
             activity.invalidateOptionsMenu();
         } else if (itemId == MENU_ID_RESTART) {
-            activity.recreate();
+            forceRestartWhatsApp(activity);
         } else if (itemId == MENU_ID_SETTINGS) {
             try {
                 android.content.Intent intent =
