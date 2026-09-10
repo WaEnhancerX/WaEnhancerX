@@ -1,0 +1,14 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- WAEX Logo – shield with bolt (for "Separate" mode toolbar button) -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M12,2 L4,6 L4,12 C4,16.55 7.41,20.74 12,22 C16.59,20.74 20,16.55 20,12 L20,6 Z" />
+    <!-- Inner bolt/lightning for enhancer branding -->
+    <path
+        android:fillColor="#007AFF"
+        android:pathData="M13,8 L10,13 L12.5,13 L11,16 L14,11 L11.5,11 Z" />
+</vector>

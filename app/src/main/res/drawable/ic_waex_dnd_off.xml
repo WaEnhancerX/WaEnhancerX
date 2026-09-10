@@ -1,0 +1,27 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- DND Mode – bell-off outline (inactive) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="@android:color/white"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M9.5,21 C9.5,22.38 10.62,23.5 12,23.5 C13.38,23.5 14.5,22.38 14.5,21" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="@android:color/white"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:pathData="M5,17 L19,17 L19,16 L17,14 L17,10 C17,7.239 14.761,5 12,5 C9.239,5 7,7.239 7,10 L7,14 L5,16 Z" />
+    <!-- Slash through bell -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="@android:color/white"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:pathData="M3,3 L21,21" />
+</vector>

@@ -3,9 +3,12 @@ package com.waenhancer.xposed.features.homescreen;
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.drawable.Drawable;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SubMenu;
+import android.view.View;
+import android.widget.PopupMenu;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
@@ -39,6 +42,8 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
     private static final int MENU_ID_DND           = 0x7EAE0003;
     private static final int MENU_ID_RESTART       = 0x7EAE0004;
     private static final int MENU_ID_SETTINGS      = 0x7EAE0005;
+    /** Separate-mode: the single WAEX shield toolbar button */
+    private static final int MENU_ID_WAEX_TOOLBAR  = 0x7EAE0006;
 
     // Style constants
     private static final String STYLE_GROUPED  = "grouped";
@@ -139,10 +144,12 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
 
         switch (style) {
             case STYLE_SEPARATE:
-                addItemsToMenu(menu, activity, MenuItem.SHOW_AS_ACTION_NEVER);
+                // Single WAEX toolbar icon; tapping opens a PopupMenu with all items
+                addItemsSeparate(menu, activity);
                 break;
             case STYLE_ICONS:
-                addItemsToMenu(menu, activity, MenuItem.SHOW_AS_ACTION_IF_ROOM);
+                // Each item placed directly in the action bar with its own vector icon
+                addItemsWithIcons(menu, activity);
                 break;
             case STYLE_GROUPED:
             default:
@@ -154,6 +161,7 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
     /** Removes all previously injected WAEX items to prevent duplication on re-inflate. */
     private void removeInjectedItems(Menu menu) {
         menu.removeItem(MENU_ID_WAEX_GROUP);
+        menu.removeItem(MENU_ID_WAEX_TOOLBAR);
         menu.removeItem(MENU_ID_GHOST_MODE);
         menu.removeItem(MENU_ID_FREEZE_LS);
         menu.removeItem(MENU_ID_DND);
@@ -161,7 +169,7 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
         menu.removeItem(MENU_ID_SETTINGS);
     }
 
-    /** Grouped mode: all WAEX items nested inside a single "WAEX" submenu. */
+    /** Grouped mode: all WAEX items nested inside a single "WAEX" submenu entry in the 3-dots menu. */
     private void addItemsGrouped(Menu menu, Activity activity) {
         if (!hasAnyActiveItem()) return;
 
@@ -171,9 +179,75 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
         appendWaexItems(sub, activity, MenuItem.SHOW_AS_ACTION_NEVER);
     }
 
-    /** Flat/icons mode: WAEX items placed directly in the root menu. */
-    private void addItemsToMenu(Menu menu, Activity activity, int showAsAction) {
-        appendWaexItems(menu, activity, showAsAction);
+    /**
+     * Separate mode: injects a single WAEX shield icon into the action bar.
+     * Tapping it opens a PopupMenu listing all enabled WAEX items.
+     */
+    private void addItemsSeparate(Menu menu, Activity activity) {
+        if (!hasAnyActiveItem()) return;
+
+        MenuItem waexBtn = menu.add(Menu.NONE, MENU_ID_WAEX_TOOLBAR, Menu.NONE, "WAEX");
+        waexBtn.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+
+        Drawable logo = MenuIconLoader.logoIcon(context);
+        if (logo != null) waexBtn.setIcon(logo);
+
+        waexBtn.setOnMenuItemClickListener(mi -> {
+            if (activity == null) return false;
+            // Find the view for the toolbar button to anchor the popup
+            View anchor = activity.findViewById(android.R.id.content);
+            PopupMenu popup = new PopupMenu(activity, anchor);
+            Menu popupMenu = popup.getMenu();
+            appendWaexItems(popupMenu, activity, MenuItem.SHOW_AS_ACTION_NEVER);
+            popup.setOnMenuItemClickListener(item -> handleItemSelected(item, activity));
+            popup.show();
+            return true;
+        });
+    }
+
+    /**
+     * Icons mode: each enabled WAEX item shown as an individual action bar icon
+     * with filled/unfilled states for toggleable features.
+     */
+    private void addItemsWithIcons(Menu menu, Activity activity) {
+        appendWaexItems(menu, activity, MenuItem.SHOW_AS_ACTION_IF_ROOM);
+        attachIconsToItems(menu);
+    }
+
+    /** Attaches vector drawables to already-added items in icons mode. */
+    private void attachIconsToItems(Menu menu) {
+        MenuItem ghost = menu.findItem(MENU_ID_GHOST_MODE);
+        if (ghost != null) {
+            boolean active = prefs.getBoolean("ghostmode_active", false);
+            Drawable icon = MenuIconLoader.ghostIcon(context, active);
+            if (icon != null) ghost.setIcon(icon);
+        }
+
+        MenuItem freeze = menu.findItem(MENU_ID_FREEZE_LS);
+        if (freeze != null) {
+            boolean active = prefs.getBoolean("freeze_last_seen_active", false);
+            Drawable icon = MenuIconLoader.freezeIcon(context, active);
+            if (icon != null) freeze.setIcon(icon);
+        }
+
+        MenuItem dnd = menu.findItem(MENU_ID_DND);
+        if (dnd != null) {
+            boolean active = isEnabled("dnd_mode", false);
+            Drawable icon = MenuIconLoader.dndIcon(context, active);
+            if (icon != null) dnd.setIcon(icon);
+        }
+
+        MenuItem restart = menu.findItem(MENU_ID_RESTART);
+        if (restart != null) {
+            Drawable icon = MenuIconLoader.restartIcon(context);
+            if (icon != null) restart.setIcon(icon);
+        }
+
+        MenuItem settings = menu.findItem(MENU_ID_SETTINGS);
+        if (settings != null) {
+            Drawable icon = MenuIconLoader.settingsIcon(context);
+            if (icon != null) settings.setIcon(icon);
+        }
     }
 
     // -------------------------------------------------------------------------
