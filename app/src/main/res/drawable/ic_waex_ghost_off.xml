@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Ghost outline – inactive state -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="@android:color/white"
+        android:strokeWidth="1.8"
+        android:pathData="M12,3 C8.134,3 5,6.134 5,10 L5,20 L8,18 L10,20 L12,18 L14,20 L16,18 L19,20 L19,10 C19,6.134 15.866,3 12,3 Z" />
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M9.5,11 C9.5,11.828 8.828,12.5 8,12.5 C7.172,12.5 6.5,11.828 6.5,11 C6.5,10.172 7.172,9.5 8,9.5 C8.828,9.5 9.5,10.172 9.5,11 Z" />
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M17.5,11 C17.5,11.828 16.828,12.5 16,12.5 C15.172,12.5 14.5,11.828 14.5,11 C14.5,10.172 15.172,9.5 16,9.5 C16.828,9.5 17.5,10.172 17.5,11 Z" />
+</vector>
