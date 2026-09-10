@@ -7,8 +7,6 @@ import android.graphics.drawable.Drawable;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.SubMenu;
-import android.view.View;
-import android.widget.PopupMenu;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
@@ -100,6 +98,20 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
                 }
             });
 
+            // Also hook onMenuItemSelected — WhatsApp sometimes routes action bar taps here directly
+            XposedBridge.hookAllMethods(homeActivityClass, "onMenuItemSelected", new XC_MethodHook() {
+                @Override
+                protected void beforeHookedMethod(MethodHookParam param) {
+                    // param.args[0] = featureId (int), param.args[1] = MenuItem
+                    if (param.args.length > 1 && param.args[1] instanceof MenuItem) {
+                        MenuItem item = (MenuItem) param.args[1];
+                        if (handleItemSelected(item, param.thisObject)) {
+                            param.setResult(true);
+                        }
+                    }
+                }
+            });
+
             XposedBridge.log(TAG + " Hooked HomeActivity: " + homeActivityClass.getName());
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Error attaching hooks: " + t.getMessage());
@@ -181,7 +193,7 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
 
     /**
      * Separate mode: injects a single WAEX shield icon into the action bar.
-     * Tapping it opens a PopupMenu listing all enabled WAEX items.
+     * Item selection is handled via the hooked onOptionsItemSelected → handleItemSelected.
      */
     private void addItemsSeparate(Menu menu, Activity activity) {
         if (!hasAnyActiveItem()) return;
@@ -191,18 +203,7 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
 
         Drawable logo = MenuIconLoader.logoIcon(context);
         if (logo != null) waexBtn.setIcon(logo);
-
-        waexBtn.setOnMenuItemClickListener(mi -> {
-            if (activity == null) return false;
-            // Find the view for the toolbar button to anchor the popup
-            View anchor = activity.findViewById(android.R.id.content);
-            PopupMenu popup = new PopupMenu(activity, anchor);
-            Menu popupMenu = popup.getMenu();
-            appendWaexItems(popupMenu, activity, MenuItem.SHOW_AS_ACTION_NEVER);
-            popup.setOnMenuItemClickListener(item -> handleItemSelected(item, activity));
-            popup.show();
-            return true;
-        });
+        // NOTE: No setOnMenuItemClickListener – handled in handleItemSelected via the Xposed hook.
     }
 
     /**
@@ -309,6 +310,54 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
         if (item == null) return false;
         int id = item.getItemId();
 
+        // Separate mode: WAEX toolbar button opens an action sheet with all enabled items
+        if (id == MENU_ID_WAEX_TOOLBAR) {
+            if (!(activityObj instanceof Activity)) return true;
+            Activity activity = (Activity) activityObj;
+
+            // Build the list of visible item labels dynamically
+            java.util.List<CharSequence> labels = new java.util.ArrayList<>();
+            java.util.List<Integer> itemIds  = new java.util.ArrayList<>();
+
+            if (isEnabled("ghostmode", false)) {
+                boolean on = prefs.getBoolean("ghostmode_active", false);
+                labels.add(on ? "👻  Ghost Mode  •  ON" : "👻  Ghost Mode  •  OFF");
+                itemIds.add(MENU_ID_GHOST_MODE);
+            }
+            if (isEnabled("freezelastseen", false)) {
+                boolean on = prefs.getBoolean("freeze_last_seen_active", false);
+                labels.add(on ? "🕐  Freeze Last Seen  •  ON" : "🕐  Freeze Last Seen  •  OFF");
+                itemIds.add(MENU_ID_FREEZE_LS);
+            }
+            if (isEnabled("show_dndmode", false)) {
+                boolean on = isEnabled("dnd_mode", false);
+                labels.add(on ? "🔕  DND Mode  •  ON" : "🔕  DND Mode  •  OFF");
+                itemIds.add(MENU_ID_DND);
+            }
+            if (isEnabled("restartbutton", false)) {
+                labels.add("🔄  Restart WhatsApp");
+                itemIds.add(MENU_ID_RESTART);
+            }
+            if (isEnabled("open_wae", false)) {
+                labels.add("⚙️  WA Enhancer Settings");
+                itemIds.add(MENU_ID_SETTINGS);
+            }
+
+            if (labels.isEmpty()) return true;
+
+            CharSequence[] labelArray = labels.toArray(new CharSequence[0]);
+            new WaexBottomSheet(activity)
+                    .asBottomSheet()
+                    .setTitle("WAEX")
+                    .setItems(labelArray, (dialog, which) -> {
+                        int selectedId = itemIds.get(which);
+                        // Create a lightweight proxy item to reuse the existing handler
+                        handleWaexItemById(selectedId, activity);
+                    })
+                    .show();
+            return true;
+        }
+
         if (id == MENU_ID_GHOST_MODE) {
             if (activityObj instanceof Activity) {
                 promptGhostModeSheet((Activity) activityObj);
@@ -352,6 +401,30 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
         }
 
         return false;
+    }
+
+    /**
+     * Dispatches an action by raw menu item ID.
+     * Used by the Separate mode bottom sheet which doesn't have a real MenuItem object.
+     */
+    private void handleWaexItemById(int itemId, Activity activity) {
+        if (itemId == MENU_ID_GHOST_MODE) {
+            promptGhostModeSheet(activity);
+        } else if (itemId == MENU_ID_FREEZE_LS) {
+            promptFreezeLastSeenSheet(activity);
+        } else if (itemId == MENU_ID_DND) {
+            boolean current = isEnabled("dnd_mode", false);
+            prefs.edit().putBoolean("dnd_mode", !current).apply();
+            activity.invalidateOptionsMenu();
+        } else if (itemId == MENU_ID_RESTART) {
+            activity.recreate();
+        } else if (itemId == MENU_ID_SETTINGS) {
+            try {
+                android.content.Intent intent =
+                        activity.getPackageManager().getLaunchIntentForPackage("com.waenhancer");
+                if (intent != null) activity.startActivity(intent);
+            } catch (Throwable ignored) {}
+        }
     }
 
     // -------------------------------------------------------------------------
