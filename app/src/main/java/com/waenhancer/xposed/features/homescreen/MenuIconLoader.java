@@ -11,7 +11,7 @@ import de.robv.android.xposed.XposedBridge;
  * Uses createPackageContext + getIdentifier() to resolve drawable IDs without
  * a direct R class reference (safe for Xposed cross-process loading).
  */
-final class MenuIconLoader {
+public final class MenuIconLoader {
 
     private static final String MODULE_PACKAGE = "com.waenhancer";
 
@@ -24,7 +24,7 @@ final class MenuIconLoader {
      * @param drawableName    Name of the drawable (e.g. "ic_waex_ghost_on")
      * @return Drawable or null on failure
      */
-    static Drawable load(Context whatsappContext, String drawableName) {
+    public static Drawable load(Context whatsappContext, String drawableName) {
         try {
             Context moduleCtx = whatsappContext.createPackageContext(
                     MODULE_PACKAGE,

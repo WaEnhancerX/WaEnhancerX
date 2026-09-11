@@ -14,6 +14,7 @@ import com.waenhancer.xposed.features.conversation.PreserveDeleteForMeHook;
 import com.waenhancer.xposed.features.conversation.StickerConfirmHook;
 import com.waenhancer.xposed.features.homescreen.ChatListCustomizationsHook;
 import com.waenhancer.xposed.features.homescreen.HomeScreenHeaderActionsHook;
+import com.waenhancer.xposed.features.media.DownloadViewOnceHook;
 import com.waenhancer.xposed.features.media.MediaQualityBypassHook;
 import com.waenhancer.xposed.features.media.ProximitySensorHook;
 import com.waenhancer.xposed.features.privacy.AlwaysOnlineHook;
@@ -67,6 +68,7 @@ public final class FeatureRegistry {
         features.add(new ChatListCustomizationsHook(context, classLoader, prefs));
 
         // Media & Audio Controls
+        features.add(new DownloadViewOnceHook(context, classLoader, prefs));
         features.add(new MediaQualityBypassHook(context, classLoader, prefs));
         features.add(new ProximitySensorHook(context, classLoader, prefs));
 
