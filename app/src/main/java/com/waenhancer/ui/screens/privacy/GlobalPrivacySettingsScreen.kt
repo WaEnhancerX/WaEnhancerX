@@ -124,6 +124,10 @@ fun GlobalPrivacySettingsScreen(
         mutableStateOf(preferenceManager.getString("waex_menu_style", "grouped") ?: "grouped")
     }
 
+    var waexSettingsPlacement by remember {
+        mutableStateOf(preferenceManager.getString("open_waex", "home_menu") ?: "home_menu")
+    }
+
     val settingsState = remember {
         mutableStateMapOf<String, Boolean>().apply {
             privacyKeys.forEach { key ->
@@ -216,7 +220,7 @@ fun GlobalPrivacySettingsScreen(
                 SettingItem("Freeze Last Seen (Show in Menu)", "Add a 1-tap Freeze Last Seen toggle to WhatsApp's 3-dots home menu", "freezelastseen"),
                 SettingItem("DND Mode (Show in Menu)", "Add a Do Not Disturb toggle to WhatsApp's 3-dots home menu", "show_dndmode"),
                 SettingItem("Restart WhatsApp (Show in Menu)", "Add a Restart option to WhatsApp's 3-dots home menu", "restartbutton"),
-                SettingItem("WA Enhancer Settings (Show in Menu)", "Add a shortcut to open WAEX settings from WhatsApp's 3-dots home menu", "open_wae")
+                SettingItem("WA Enhancer Settings", "Add a shortcut to open WAEX settings from WhatsApp", "open_wae")
             )
         )
     )
@@ -662,8 +666,8 @@ fun GlobalPrivacySettingsScreen(
                                 }
                             }
 
-                            // After the last Home Menu Shortcuts item, show the display style picker
-                            if (item.key == "open_wae") {
+                            // Options when WA Enhancer Settings shortcut is enabled
+                            if (item.key == "open_wae" && (settingsState["open_wae"] == true)) {
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
                                     color = colors.surfaceDim.copy(alpha = 0.6f),
@@ -678,13 +682,78 @@ fun GlobalPrivacySettingsScreen(
                                         verticalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         Text(
-                                            text = "MENU DISPLAY STYLE",
+                                            text = "WAENHANCERX SETTINGS PLACEMENT",
                                             style = typography.labelSm,
                                             fontWeight = FontWeight.Bold,
                                             color = colors.primary
                                         )
                                         Text(
-                                            text = "How WAEX items appear in WhatsApp's 3-dots home menu",
+                                            text = "Choose where to show the WAEX settings entry point",
+                                            style = typography.bodyMd,
+                                            color = colors.onSurfaceVariant,
+                                            fontSize = 11.sp
+                                        )
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(colors.surface)
+                                                .padding(4.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            listOf(
+                                                "home_menu" to "Home Menu",
+                                                "wa_settings" to "WhatsApp Settings"
+                                            ).forEach { (value, label) ->
+                                                val isSelected = waexSettingsPlacement == value
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .clip(RoundedCornerShape(8.dp))
+                                                        .background(if (isSelected) colors.primary else Color.Transparent)
+                                                        .clickable {
+                                                            waexSettingsPlacement = value
+                                                            preferenceManager.putString("open_waex", value)
+                                                        }
+                                                        .padding(vertical = 8.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        text = label,
+                                                        style = typography.labelSm,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                        color = if (isSelected) Color.White else colors.onSurfaceVariant
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Show Menu Display Options for Home Menu Shortcuts
+                            if (item.key == "open_wae") {
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = colors.surfaceDim.copy(alpha = 0.6f),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 16.dp, end = 16.dp, top = if (settingsState["open_wae"] == true) 0.dp else 0.dp, bottom = 12.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Text(
+                                            text = "MENU DISPLAY OPTIONS",
+                                            style = typography.labelSm,
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.primary
+                                        )
+                                        Text(
+                                            text = "How WAEX items appear in WhatsApp's home menu",
                                             style = typography.bodyMd,
                                             color = colors.onSurfaceVariant,
                                             fontSize = 11.sp
