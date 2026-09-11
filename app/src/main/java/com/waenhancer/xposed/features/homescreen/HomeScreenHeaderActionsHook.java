@@ -407,6 +407,39 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
     }
 
     // -------------------------------------------------------------------------
+    // Force restart
+    // -------------------------------------------------------------------------
+
+    /**
+     * Force-closes WhatsApp and relaunches it:
+     * 1. Schedules WhatsApp's own launch intent via AlarmManager (500 ms ahead).
+     * 2. Kills the current process — Android fires the pending intent after the process dies.
+     */
+    private void forceRestartWhatsApp(Activity activity) {
+        try {
+            String pkg = activity.getPackageName();
+            Intent launchIntent = activity.getPackageManager().getLaunchIntentForPackage(pkg);
+            if (launchIntent == null) {
+                // Fallback: relaunch this activity
+                launchIntent = new Intent(activity, activity.getClass());
+            }
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+
+            int flags = PendingIntent.FLAG_ONE_SHOT | PendingIntent.FLAG_IMMUTABLE;
+            PendingIntent pending = PendingIntent.getActivity(activity, 0x7EAE00FF, launchIntent, flags);
+
+            AlarmManager am = (AlarmManager) activity.getSystemService(Context.ALARM_SERVICE);
+            if (am != null) {
+                am.set(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + 500L, pending);
+            }
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " forceRestart schedule failed: " + t.getMessage());
+        }
+        // Kill the process — AlarmManager will bring it back up
+        Process.killProcess(Process.myPid());
+    }
+
+    // -------------------------------------------------------------------------
     // Bottom sheet confirmations
     // -------------------------------------------------------------------------
 
