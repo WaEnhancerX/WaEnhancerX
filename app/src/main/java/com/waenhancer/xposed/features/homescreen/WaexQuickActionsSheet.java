@@ -199,7 +199,9 @@ final class WaexQuickActionsSheet {
             if (prefs.getBoolean("ghostmode", false)) {
                 boolean ghostActive = prefs.getBoolean("ghostmode_active", false);
                 addSwitchRow(content, activity, dialog,
-                        "Ghost Mode", ghostActive,
+                        "Ghost Mode",
+                        "Hide online status, typing & read receipts",
+                        ghostActive,
                         finalPrimaryText, finalSecondaryText,
                         checked -> {
                             prefs.edit().putBoolean("ghostmode_active", checked).apply();
@@ -210,7 +212,9 @@ final class WaexQuickActionsSheet {
             if (prefs.getBoolean("freezelastseen", false)) {
                 boolean freezeActive = prefs.getBoolean("freeze_last_seen_active", false);
                 addSwitchRow(content, activity, dialog,
-                        "Freeze Last Seen", freezeActive,
+                        "Freeze Last Seen",
+                        "Lock your last seen timestamp",
+                        freezeActive,
                         finalPrimaryText, finalSecondaryText,
                         checked -> {
                             prefs.edit().putBoolean("freeze_last_seen_active", checked).apply();
@@ -221,7 +225,9 @@ final class WaexQuickActionsSheet {
             if (prefs.getBoolean("show_dndmode", false)) {
                 boolean dndActive = prefs.getBoolean("dnd_mode", false);
                 addSwitchRow(content, activity, dialog,
-                        "DND Mode", dndActive,
+                        "DND Mode",
+                        "Mute all incoming notifications",
+                        dndActive,
                         finalPrimaryText, finalSecondaryText,
                         checked -> {
                             prefs.edit().putBoolean("dnd_mode", checked).apply();
@@ -238,7 +244,9 @@ final class WaexQuickActionsSheet {
             addDivider(content, activity, dividerColor);
 
             if (prefs.getBoolean("restartbutton", false)) {
-                addTileRow(content, activity, "Restart WhatsApp",
+                addTileRow(content, activity,
+                        "Restart WhatsApp",
+                        "Force close and relaunch WhatsApp",
                         finalPrimaryText, finalSecondaryText,
                         () -> {
                             dialog.dismiss();
@@ -247,7 +255,9 @@ final class WaexQuickActionsSheet {
             }
 
             if (prefs.getBoolean("open_wae", false)) {
-                addTileRow(content, activity, "WA Enhancer Settings",
+                addTileRow(content, activity,
+                        "WA Enhancer Settings",
+                        "Open WAEX settings and preferences",
                         finalPrimaryText, finalSecondaryText,
                         () -> {
                             dialog.dismiss();
@@ -287,34 +297,53 @@ final class WaexQuickActionsSheet {
     // ── Row builders ─────────────────────────────────────────────────────────
 
     /**
-     * Adds a label + WDSSwitch row. Tapping anywhere on the row toggles the switch.
+     * Adds a label+subtitle + WDSSwitch row. Tapping anywhere on the row toggles the switch.
      */
     private static void addSwitchRow(LinearLayout parent, Context ctx, Dialog dialog,
-                                     String label, boolean initialState,
+                                     String label, String subtitle, boolean initialState,
                                      int primaryText, int secondaryText,
                                      SwitchCallback callback) {
         LinearLayout row = new LinearLayout(ctx);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(ctx, 20), dp(ctx, 14), dp(ctx, 20), dp(ctx, 14));
+        row.setPadding(dp(ctx, 20), dp(ctx, 12), dp(ctx, 20), dp(ctx, 12));
         row.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        // Label
-        TextView tv = createWdsTextView(ctx);
-        LinearLayout.LayoutParams tvLp = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f);
-        tv.setLayoutParams(tvLp);
-        tv.setText(label);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        tv.setTextColor(primaryText);
-        tv.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-        row.addView(tv);
+        // Left: vertical title + subtitle stack
+        LinearLayout textStack = new LinearLayout(ctx);
+        textStack.setOrientation(LinearLayout.VERTICAL);
+        textStack.setLayoutParams(new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
 
-        // WDSSwitch — native WhatsApp toggle, fallback to MaterialSwitch → Switch
+        TextView titleTv = createWdsTextView(ctx);
+        titleTv.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        titleTv.setText(label);
+        titleTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        titleTv.setTextColor(primaryText);
+        titleTv.setGravity(Gravity.START);
+        textStack.addView(titleTv);
+
+        TextView subtitleTv = createWdsTextView(ctx);
+        LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        subLp.topMargin = dp(ctx, 2);
+        subtitleTv.setLayoutParams(subLp);
+        subtitleTv.setText(subtitle);
+        subtitleTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        subtitleTv.setTextColor(secondaryText);
+        subtitleTv.setGravity(Gravity.START);
+        textStack.addView(subtitleTv);
+
+        row.addView(textStack);
+
+        // Right: WDSSwitch — native WhatsApp toggle, fallback to MaterialSwitch → Switch
         CompoundButton sw = createWdsSwitch(ctx, initialState);
-        sw.setLayoutParams(new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        LinearLayout.LayoutParams swLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        swLp.leftMargin = dp(ctx, 12);
+        sw.setLayoutParams(swLp);
         sw.setClickable(false);
         sw.setFocusable(false);
         row.addView(sw);
@@ -334,26 +363,46 @@ final class WaexQuickActionsSheet {
     }
 
     /**
-     * Adds a plain label tile (no trailing widget) — used for Restart / Settings.
+     * Adds a plain title+subtitle tile (no trailing widget) — used for Restart / Settings.
      */
     private static void addTileRow(LinearLayout parent, Context ctx,
-                                   String label, int primaryText, int secondaryText,
+                                   String label, String subtitle,
+                                   int primaryText, int secondaryText,
                                    Runnable action) {
         LinearLayout row = new LinearLayout(ctx);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(ctx, 20), dp(ctx, 14), dp(ctx, 20), dp(ctx, 14));
+        row.setPadding(dp(ctx, 20), dp(ctx, 12), dp(ctx, 20), dp(ctx, 12));
         row.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        TextView tv = createWdsTextView(ctx);
-        tv.setLayoutParams(new LinearLayout.LayoutParams(
+        // Left: vertical title + subtitle stack
+        LinearLayout textStack = new LinearLayout(ctx);
+        textStack.setOrientation(LinearLayout.VERTICAL);
+        textStack.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        tv.setText(label);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
-        tv.setTextColor(primaryText);
-        tv.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-        row.addView(tv);
+
+        TextView titleTv = createWdsTextView(ctx);
+        titleTv.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        titleTv.setText(label);
+        titleTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        titleTv.setTextColor(primaryText);
+        titleTv.setGravity(Gravity.START);
+        textStack.addView(titleTv);
+
+        TextView subtitleTv = createWdsTextView(ctx);
+        LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        subLp.topMargin = dp(ctx, 2);
+        subtitleTv.setLayoutParams(subLp);
+        subtitleTv.setText(subtitle);
+        subtitleTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        subtitleTv.setTextColor(secondaryText);
+        subtitleTv.setGravity(Gravity.START);
+        textStack.addView(subtitleTv);
+
+        row.addView(textStack);
 
         row.setBackground(new RippleDrawable(
                 ColorStateList.valueOf(secondaryText & 0x15FFFFFF | 0x15000000),
