@@ -196,6 +196,47 @@ final class WaexQuickActionsSheet {
         if (hasToggles) {
             addDivider(content, activity, dividerColor);
 
+            // Container for Freeze + DND rows — rebuilt live when Ghost Mode toggles
+            LinearLayout dependentContainer = new LinearLayout(activity);
+            dependentContainer.setOrientation(LinearLayout.VERTICAL);
+            dependentContainer.setLayoutParams(new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+            // Runnable that (re)populates dependentContainer based on current ghostActive state
+            Runnable rebuildDependentRows = () -> {
+                dependentContainer.removeAllViews();
+                boolean gActive = prefs.getBoolean("ghostmode", false)
+                        && prefs.getBoolean("ghostmode_active", false);
+
+                if (prefs.getBoolean("freezelastseen", false)) {
+                    boolean freezeOn = gActive || prefs.getBoolean("freeze_last_seen_active", false);
+                    addSwitchRow(dependentContainer, activity, dialog,
+                            "Freeze Last Seen",
+                            gActive ? "Managed by Ghost Mode" : "Lock your last seen timestamp",
+                            freezeOn,
+                            gActive,
+                            finalPrimaryText, finalSecondaryText,
+                            checked -> {
+                                prefs.edit().putBoolean("freeze_last_seen_active", checked).apply();
+                                if (onMenuInvalidate != null) onMenuInvalidate.run();
+                            });
+                }
+
+                if (prefs.getBoolean("show_dndmode", false)) {
+                    boolean dndOn = gActive || prefs.getBoolean("dnd_mode", false);
+                    addSwitchRow(dependentContainer, activity, dialog,
+                            "DND Mode",
+                            gActive ? "Managed by Ghost Mode" : "Mute all incoming notifications",
+                            dndOn,
+                            gActive,
+                            finalPrimaryText, finalSecondaryText,
+                            checked -> {
+                                prefs.edit().putBoolean("dnd_mode", checked).apply();
+                                if (onMenuInvalidate != null) onMenuInvalidate.run();
+                            });
+                }
+            };
+
             if (prefs.getBoolean("ghostmode", false)) {
                 boolean ghostActive = prefs.getBoolean("ghostmode_active", false);
                 addSwitchRow(content, activity, dialog,
@@ -206,49 +247,24 @@ final class WaexQuickActionsSheet {
                         finalPrimaryText, finalSecondaryText,
                         checked -> {
                             prefs.edit().putBoolean("ghostmode_active", checked).apply();
-                            // When activating Ghost Mode, also force-enable its sub-features
                             if (checked) {
+                                // Force-enable sub-features when activating
                                 prefs.edit()
                                         .putBoolean("freeze_last_seen_active", true)
                                         .putBoolean("dnd_mode", true)
                                         .apply();
                             }
+                            // Instantly re-render the dependent rows in the open sheet
+                            rebuildDependentRows.run();
                             if (onMenuInvalidate != null) onMenuInvalidate.run();
                         });
             }
 
-            // Read ghostActive once for dependent rows
-            boolean ghostActive = prefs.getBoolean("ghostmode", false)
-                    && prefs.getBoolean("ghostmode_active", false);
-
-            if (prefs.getBoolean("freezelastseen", false)) {
-                boolean freezeActive = ghostActive || prefs.getBoolean("freeze_last_seen_active", false);
-                addSwitchRow(content, activity, dialog,
-                        "Freeze Last Seen",
-                        ghostActive ? "Managed by Ghost Mode" : "Lock your last seen timestamp",
-                        freezeActive,
-                        ghostActive,
-                        finalPrimaryText, finalSecondaryText,
-                        checked -> {
-                            prefs.edit().putBoolean("freeze_last_seen_active", checked).apply();
-                            if (onMenuInvalidate != null) onMenuInvalidate.run();
-                        });
-            }
-
-            if (prefs.getBoolean("show_dndmode", false)) {
-                boolean dndActive = ghostActive || prefs.getBoolean("dnd_mode", false);
-                addSwitchRow(content, activity, dialog,
-                        "DND Mode",
-                        ghostActive ? "Managed by Ghost Mode" : "Mute all incoming notifications",
-                        dndActive,
-                        ghostActive,
-                        finalPrimaryText, finalSecondaryText,
-                        checked -> {
-                            prefs.edit().putBoolean("dnd_mode", checked).apply();
-                            if (onMenuInvalidate != null) onMenuInvalidate.run();
-                        });
-            }
+            // Initial population of dependent rows
+            rebuildDependentRows.run();
+            content.addView(dependentContainer);
         }
+
 
         // ── Action tiles section ─────────────────────────────────────────────
         boolean hasActions = prefs.getBoolean("restartbutton", false)
