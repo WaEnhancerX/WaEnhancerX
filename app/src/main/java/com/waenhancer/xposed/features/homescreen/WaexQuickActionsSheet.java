@@ -202,19 +202,32 @@ final class WaexQuickActionsSheet {
                         "Ghost Mode",
                         "Hide online status, typing & read receipts",
                         ghostActive,
+                        false,
                         finalPrimaryText, finalSecondaryText,
                         checked -> {
                             prefs.edit().putBoolean("ghostmode_active", checked).apply();
+                            // When activating Ghost Mode, also force-enable its sub-features
+                            if (checked) {
+                                prefs.edit()
+                                        .putBoolean("freeze_last_seen_active", true)
+                                        .putBoolean("dnd_mode", true)
+                                        .apply();
+                            }
                             if (onMenuInvalidate != null) onMenuInvalidate.run();
                         });
             }
 
+            // Read ghostActive once for dependent rows
+            boolean ghostActive = prefs.getBoolean("ghostmode", false)
+                    && prefs.getBoolean("ghostmode_active", false);
+
             if (prefs.getBoolean("freezelastseen", false)) {
-                boolean freezeActive = prefs.getBoolean("freeze_last_seen_active", false);
+                boolean freezeActive = ghostActive || prefs.getBoolean("freeze_last_seen_active", false);
                 addSwitchRow(content, activity, dialog,
                         "Freeze Last Seen",
-                        "Lock your last seen timestamp",
+                        ghostActive ? "Managed by Ghost Mode" : "Lock your last seen timestamp",
                         freezeActive,
+                        ghostActive,
                         finalPrimaryText, finalSecondaryText,
                         checked -> {
                             prefs.edit().putBoolean("freeze_last_seen_active", checked).apply();
@@ -223,11 +236,12 @@ final class WaexQuickActionsSheet {
             }
 
             if (prefs.getBoolean("show_dndmode", false)) {
-                boolean dndActive = prefs.getBoolean("dnd_mode", false);
+                boolean dndActive = ghostActive || prefs.getBoolean("dnd_mode", false);
                 addSwitchRow(content, activity, dialog,
                         "DND Mode",
-                        "Mute all incoming notifications",
+                        ghostActive ? "Managed by Ghost Mode" : "Mute all incoming notifications",
                         dndActive,
+                        ghostActive,
                         finalPrimaryText, finalSecondaryText,
                         checked -> {
                             prefs.edit().putBoolean("dnd_mode", checked).apply();
@@ -297,10 +311,14 @@ final class WaexQuickActionsSheet {
     // ── Row builders ─────────────────────────────────────────────────────────
 
     /**
-     * Adds a label+subtitle + WDSSwitch row. Tapping anywhere on the row toggles the switch.
+     * Adds a label+subtitle + WDSSwitch row.
+     *
+     * @param disabled  When true the row is locked: switch stays checked, alpha dimmed,
+     *                  subtitle shows override text, and click does nothing.
      */
     private static void addSwitchRow(LinearLayout parent, Context ctx, Dialog dialog,
                                      String label, String subtitle, boolean initialState,
+                                     boolean disabled,
                                      int primaryText, int secondaryText,
                                      SwitchCallback callback) {
         LinearLayout row = new LinearLayout(ctx);
@@ -309,6 +327,11 @@ final class WaexQuickActionsSheet {
         row.setPadding(dp(ctx, 20), dp(ctx, 12), dp(ctx, 20), dp(ctx, 12));
         row.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        // Dim the whole row when disabled
+        if (disabled) {
+            row.setAlpha(0.45f);
+        }
 
         // Left: vertical title + subtitle stack
         LinearLayout textStack = new LinearLayout(ctx);
@@ -348,16 +371,20 @@ final class WaexQuickActionsSheet {
         sw.setFocusable(false);
         row.addView(sw);
 
-        // Ripple on whole row
-        row.setBackground(new RippleDrawable(
-                ColorStateList.valueOf(secondaryText & 0x15FFFFFF | 0x15000000),
-                new ColorDrawable(Color.TRANSPARENT), null));
-
-        row.setOnClickListener(v -> {
-            boolean next = !sw.isChecked();
-            sw.setChecked(next);
-            callback.onToggled(next);
-        });
+        if (disabled) {
+            // No ripple, no interaction when locked
+            row.setBackground(new ColorDrawable(Color.TRANSPARENT));
+            row.setClickable(false);
+        } else {
+            row.setBackground(new RippleDrawable(
+                    ColorStateList.valueOf(secondaryText & 0x15FFFFFF | 0x15000000),
+                    new ColorDrawable(Color.TRANSPARENT), null));
+            row.setOnClickListener(v -> {
+                boolean next = !sw.isChecked();
+                sw.setChecked(next);
+                callback.onToggled(next);
+            });
+        }
 
         parent.addView(row);
     }
