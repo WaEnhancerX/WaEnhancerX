@@ -55,6 +55,7 @@ public class HideReceiptsHook extends BaseFeature {
         hookReceiptMethod();
         hookDeliveryDispatchers();
         hookOnDispatchMessage();
+        hookSenderPlayed();
     }
 
     private void initProtocolTreeReflection() {
@@ -526,16 +527,129 @@ public class HideReceiptsHook extends BaseFeature {
         return globalEnabled;
     }
 
+    /**
+     * Hooks WhatsApp's SenderPlayed dispatcher to suppress outgoing "Played" / "Opened" receipts
+     * for Voice Notes (audio) and View-Once media when the corresponding privacy toggles are active.
+     */
+    private void hookSenderPlayed() {
+        try {
+            DexSearchEngine engine = DexSearchEngine.getInstance();
+
+            // 1. Resolve SenderPlayed class via anchor string
+            Class<?> senderPlayedClass = engine.findClassWithCache(
+                    context,
+                    classLoader,
+                    "wpp_sender_played_class",
+                    (bridge, loader) -> {
+                        ClassData cd = bridge.findClass(FindClass.create()
+                                .matcher(ClassMatcher.create().usingStrings("sendmethods/sendClearDirty"))
+                        ).firstOrNull();
+                        return cd != null ? cd.getInstance(loader) : null;
+                    }
+            );
+
+            if (senderPlayedClass == null) {
+                XposedBridge.log(TAG + " WARNING: SenderPlayed class not found.");
+                return;
+            }
+
+            // 2. Hook single-message played sender method
+            for (Method m : senderPlayedClass.getDeclaredMethods()) {
+                if (m.getParameterCount() == 1) {
+                    Class<?> pType = m.getParameterTypes()[0];
+                    // Parameter is FMessage or media message type
+                    if (!pType.isPrimitive() && !pType.getName().startsWith("java.lang.")) {
+                        XposedBridge.hookMethod(m, new XC_MethodHook() {
+                            @Override
+                            protected void beforeHookedMethod(MethodHookParam param) {
+                                Object msgObj = param.args[0];
+                                if (shouldSuppressPlayedReceipt(msgObj)) {
+                                    param.setResult(null);
+                                    XposedBridge.log(TAG + " Suppressed Voice Note / View Once Played Receipt.");
+                                }
+                            }
+                        });
+                        XposedBridge.log(TAG + " Hooked single SenderPlayed method: " + m.getName());
+                    }
+                } else if (m.getParameterCount() > 0 && java.util.Set.class.isAssignableFrom(m.getParameterTypes()[0])) {
+                    // Hook batch/business set played sender method
+                    XposedBridge.hookMethod(m, new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) {
+                            if (param.args[0] instanceof java.util.Set) {
+                                java.util.Set<?> set = (java.util.Set<?>) param.args[0];
+                                if (!set.isEmpty()) {
+                                    Object first = set.iterator().next();
+                                    if (shouldSuppressPlayedReceipt(first)) {
+                                        param.setResult(null);
+                                        XposedBridge.log(TAG + " Suppressed Batch Voice Note / View Once Played Receipt.");
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    XposedBridge.log(TAG + " Hooked batch SenderPlayed method: " + m.getName());
+                }
+            }
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " Error hooking sender played: " + t.getMessage());
+        }
+    }
+
+    private boolean shouldSuppressPlayedReceipt(Object msgObj) {
+        if (msgObj == null) return false;
+
+        boolean hideVoiceNote = isHideVoiceNotePlayedEnabled();
+        boolean hideViewOnce = isHideViewOnceSeenEnabled();
+
+        if (!hideVoiceNote && !hideViewOnce) return false;
+
+        try {
+            // Check media type / view once properties dynamically
+            Class<?> cls = msgObj.getClass();
+            while (cls != null && cls != Object.class) {
+                for (Field f : cls.getDeclaredFields()) {
+                    f.setAccessible(true);
+                    String name = f.getName().toLowerCase();
+                    if (f.getType() == int.class || f.getType() == byte.class) {
+                        int val = f.getInt(msgObj);
+                        // MediaType 2 = Voice Note / Audio
+                        if (hideVoiceNote && val == 2) {
+                            return true;
+                        }
+                    } else if (f.getType() == boolean.class) {
+                        boolean bVal = f.getBoolean(msgObj);
+                        if (hideViewOnce && (name.contains("viewonce") || name.contains("ephemeral")) && bVal) {
+                            return true;
+                        }
+                    }
+                }
+                cls = cls.getSuperclass();
+            }
+        } catch (Throwable ignored) {}
+
+        // Fallback: If either toggle is enabled and played method is triggered for this message
+        return hideVoiceNote || hideViewOnce;
+    }
+
+    private boolean isHideVoiceNotePlayedEnabled() {
+        return isEnabled("hide_seen_receipts", false) || isEnabled("hideaudioseen", false);
+    }
+
+    private boolean isHideViewOnceSeenEnabled() {
+        return isEnabled("hideonceseen", false);
+    }
+
     private boolean isHideReadReceiptsEnabled() {
-        return isEnabled("hide_read_receipts", false);
+        return isEnabled("hide_read_receipts", false) || isEnabled("hideread", false);
     }
 
     private boolean isHideDeliveryReceiptsEnabled() {
-        return isEnabled("hide_delivery_receipts", false);
+        return isEnabled("hide_delivery_receipts", false) || isEnabled("hidereceipt", false);
     }
 
     private boolean isStealthStatusViewEnabled() {
-        return isEnabled("stealth_status_view", false);
+        return isEnabled("stealth_status_view", false) || isEnabled("hidestatusview", false);
     }
 
     @NonNull
