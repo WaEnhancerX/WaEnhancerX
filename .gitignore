@@ -40,3 +40,4 @@ docs/
 .kotlin
 .vscode
 **/*.DS_Store
+.agents
