@@ -62,6 +62,7 @@ public class AntiRevokeHook extends BaseFeature {
 
     private static final Map<String, Long> REVOKED_MESSAGES = new ConcurrentHashMap<>();
     private static final DateFormat TIME_FORMAT = DateFormat.getTimeInstance(DateFormat.SHORT);
+    private final android.os.Handler uiHandler = new android.os.Handler(android.os.Looper.getMainLooper());
 
     /** Resolved WhatsApp FMessage class — used to guard getView items. */
     private Class<?> fMessageClass;
@@ -197,6 +198,7 @@ public class AntiRevokeHook extends BaseFeature {
                                     REVOKED_MESSAGES.put(keyId, now);
                                     DelMessageStore.getInstance(context).insertMessage(null, keyId, now);
                                     dispatchRealtimeRevokeUI(keyId, now);
+                                    com.waenhancer.xposed.features.automation.PresenceToastsHook.showDeletedMessageToast(context, null, uiHandler);
                                     XposedBridge.log(TAG + " Bytecode revoke blocked, keyId=" + keyId);
                                 }
                             }
@@ -248,6 +250,7 @@ public class AntiRevokeHook extends BaseFeature {
                                 REVOKED_MESSAGES.put(keyId, now);
                                 DelMessageStore.getInstance(context).insertMessage(String.valueOf(chatRowId), keyId, now);
                                 dispatchRealtimeRevokeUI(keyId, now);
+                                com.waenhancer.xposed.features.automation.PresenceToastsHook.showDeletedMessageToast(context, null, uiHandler);
                                 param.setResult(0);
                                 XposedBridge.log(TAG + " DB DELETE blocked & UI updated, keyId=" + keyId);
                             }
@@ -279,6 +282,7 @@ public class AntiRevokeHook extends BaseFeature {
                             REVOKED_MESSAGES.put(keyId, now);
                             DelMessageStore.getInstance(context).insertMessage(null, keyId, now);
                             dispatchRealtimeRevokeUI(keyId, now);
+                            com.waenhancer.xposed.features.automation.PresenceToastsHook.showDeletedMessageToast(context, null, uiHandler);
                             XposedBridge.log(TAG + " DB INSERT type=15 blocked & UI updated, keyId=" + keyId);
                         }
                         param.setResult(-1L);

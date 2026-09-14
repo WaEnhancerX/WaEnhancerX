@@ -170,6 +170,9 @@ public class PresenceToastsHook extends BaseFeature {
         }
     }
 
+    private static final java.util.Map<String, Long> LAST_TOAST_MAP = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final long MIN_TOAST_INTERVAL_MS = 1500;
+
     private void processReceiptItem(Object receiptObj, boolean statusToast, boolean msgToast) {
         if (receiptObj == null) return;
         try {
@@ -188,19 +191,71 @@ public class PresenceToastsHook extends BaseFeature {
 
             if (intField != null && jidField != null) {
                 int receiptType = intField.getInt(receiptObj);
+                Object jidVal = jidField.get(receiptObj);
+                if (jidVal == null) return;
+                String rawJid = jidVal.toString();
+
                 // Type 13 = Read / Viewed status receipt
                 if (receiptType == 13 && statusToast) {
-                    Object jidVal = jidField.get(receiptObj);
-                    if (jidVal != null) {
-                        String rawJid = jidVal.toString();
-                        asyncExecutor.execute(() -> {
-                            String name = ContactNameResolver.INSTANCE.resolveName(context, rawJid, null, null);
-                            showToastSafely(name + " viewed your status");
-                        });
-                    }
+                    emitToastWithThrottle(rawJid, "status", () -> {
+                        String name = ContactNameResolver.INSTANCE.resolveName(context, rawJid, null, null);
+                        return name + " viewed your status";
+                    });
+                } else if ((receiptType == 13 || receiptType == 5) && msgToast) {
+                    // Type 5 / 13 for read message receipt
+                    emitToastWithThrottle(rawJid, "msg", () -> {
+                        String name = ContactNameResolver.INSTANCE.resolveName(context, rawJid, null, null);
+                        return name + " viewed your message";
+                    });
                 }
             }
         } catch (Throwable ignored) {}
+    }
+
+    private void emitToastWithThrottle(String rawJid, String actionKey, java.util.concurrent.Callable<String> messageBuilder) {
+        String key = rawJid + "_" + actionKey;
+        long now = System.currentTimeMillis();
+        Long lastTime = LAST_TOAST_MAP.get(key);
+        if (lastTime != null && (now - lastTime) < MIN_TOAST_INTERVAL_MS) {
+            return;
+        }
+        LAST_TOAST_MAP.put(key, now);
+
+        asyncExecutor.execute(() -> {
+            try {
+                String message = messageBuilder.call();
+                if (message != null && !message.isEmpty()) {
+                    showToastSafely(message);
+                }
+            } catch (Throwable ignored) {}
+        });
+    }
+
+    public static void showDeletedMessageToast(Context context, String senderJid, Handler handler) {
+        if (context == null) return;
+        android.content.SharedPreferences prefs = context.getSharedPreferences("com.waenhancer_preferences", Context.MODE_PRIVATE);
+        boolean enabled = prefs.getBoolean("toastdeleted", false);
+        if (!enabled) return;
+
+        String key = (senderJid != null ? senderJid : "unknown") + "_deleted";
+        long now = System.currentTimeMillis();
+        Long lastTime = LAST_TOAST_MAP.get(key);
+        if (lastTime != null && (now - lastTime) < MIN_TOAST_INTERVAL_MS) {
+            return;
+        }
+        LAST_TOAST_MAP.put(key, now);
+
+        Executors.newSingleThreadExecutor().execute(() -> {
+            try {
+                String name = senderJid != null ? ContactNameResolver.INSTANCE.resolveName(context, senderJid, null, null) : "A contact";
+                String text = name + " deleted a message";
+                handler.post(() -> {
+                    try {
+                        Toast.makeText(context, text, Toast.LENGTH_SHORT).show();
+                    } catch (Throwable ignored) {}
+                });
+            } catch (Throwable ignored) {}
+        });
     }
 
     private void showToastSafely(String message) {
