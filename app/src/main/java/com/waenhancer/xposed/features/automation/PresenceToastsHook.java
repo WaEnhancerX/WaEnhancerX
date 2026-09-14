@@ -2,10 +2,13 @@ package com.waenhancer.xposed.features.automation;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.Handler;
 import android.os.Looper;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
+import com.waenhancer.utils.ContactNameResolver;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import de.robv.android.xposed.XC_MethodHook;
@@ -14,16 +17,24 @@ import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.enums.StringMatchType;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.MethodData;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Collection;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Presence & Activity Toasts Hook:
- * Displays real-time toast alerts when contacts come online, type, view status, or delete messages.
+ * Displays real-time toast alerts when:
+ * 1. Contacts view your status (`toast_viewed_status`).
+ * 2. Contacts read your messages (`toast_viewed_message`).
+ * 3. Contacts come online (`showonline` / `typing_online_toasts`).
  */
 public class PresenceToastsHook extends BaseFeature {
 
     private static final String TAG = "[WAEX][PresenceToasts]";
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final ExecutorService asyncExecutor = Executors.newSingleThreadExecutor();
 
     public PresenceToastsHook(@NonNull Context context, @NonNull ClassLoader classLoader, @NonNull SharedPreferences prefs) {
         super(context, classLoader, prefs);
@@ -32,6 +43,8 @@ public class PresenceToastsHook extends BaseFeature {
     @Override
     public void hook() throws Throwable {
         hookIncomingPresence();
+        hookStatusViewedReceipt();
+        hookOnInsertReceipt();
     }
 
     private void hookIncomingPresence() {
@@ -66,12 +79,144 @@ public class PresenceToastsHook extends BaseFeature {
         }
     }
 
+    /**
+     * Hooks StatusReceiptStore/insertOrUpdateSeenReceiptForStatus for real-time status viewed alerts.
+     */
+    private void hookStatusViewedReceipt() {
+        try {
+            Method statusReceiptMethod = DexSearchEngine.getInstance().findMethodWithCache(
+                    context,
+                    classLoader,
+                    "wpp_status_seen_receipt_store",
+                    (bridge, loader) -> {
+                        MethodData md = bridge.findMethod(FindMethod.create()
+                                .matcher(MethodMatcher.create()
+                                        .addUsingString("StatusReceiptStore/insertOrUpdateSeenReceiptForStatus", StringMatchType.Contains)
+                                )
+                        ).firstOrNull();
+                        return md != null ? md.getMethodInstance(loader) : null;
+                    }
+            );
+
+            if (statusReceiptMethod != null) {
+                XposedBridge.hookMethod(statusReceiptMethod, new XC_MethodHook() {
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam param) {
+                        if (!isStatusViewedToastEnabled()) return;
+
+                        if (param.args != null && param.args.length > 0) {
+                            Object jidObj = param.args[0];
+                            String rawJid = jidObj != null ? jidObj.toString() : null;
+                            if (rawJid != null && !rawJid.isEmpty()) {
+                                asyncExecutor.execute(() -> {
+                                    String contactName = ContactNameResolver.INSTANCE.resolveName(context, rawJid, null, null);
+                                    showToastSafely(contactName + " viewed your status");
+                                });
+                            }
+                        }
+                    }
+                });
+                XposedBridge.log(TAG + " Hooked status viewed receipt: " + statusReceiptMethod.getName());
+            }
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " Error hooking status viewed receipt: " + t.getMessage());
+        }
+    }
+
+    /**
+     * Hooks OnInsertReceipt for broader receipt status updates (Viewed status / Viewed messages).
+     */
+    private void hookOnInsertReceipt() {
+        try {
+            Method onInsertReceiptMethod = DexSearchEngine.getInstance().findMethodWithCache(
+                    context,
+                    classLoader,
+                    "wpp_on_insert_receipt_user",
+                    (bridge, loader) -> {
+                        MethodData md = bridge.findMethod(FindMethod.create()
+                                .matcher(MethodMatcher.create()
+                                        .addUsingString("INSERT_RECEIPT_USER", StringMatchType.Contains)
+                                        .paramCount(1)
+                                )
+                        ).firstOrNull();
+                        return md != null ? md.getMethodInstance(loader) : null;
+                    }
+            );
+
+            if (onInsertReceiptMethod != null) {
+                XposedBridge.hookMethod(onInsertReceiptMethod, new XC_MethodHook() {
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam param) {
+                        boolean statusToast = isStatusViewedToastEnabled();
+                        boolean msgToast = isMessageViewedToastEnabled();
+                        if (!statusToast && !msgToast) return;
+
+                        Object arg = param.args[0];
+                        if (arg == null) return;
+
+                        if (arg instanceof Collection) {
+                            for (Object item : (Collection<?>) arg) {
+                                processReceiptItem(item, statusToast, msgToast);
+                            }
+                        } else {
+                            processReceiptItem(arg, statusToast, msgToast);
+                        }
+                    }
+                });
+                XposedBridge.log(TAG + " Hooked onInsertReceiptMethod: " + onInsertReceiptMethod.getName());
+            }
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " Error hooking onInsertReceipt: " + t.getMessage());
+        }
+    }
+
+    private void processReceiptItem(Object receiptObj, boolean statusToast, boolean msgToast) {
+        if (receiptObj == null) return;
+        try {
+            Class<?> cls = receiptObj.getClass();
+            Field intField = null;
+            Field jidField = null;
+
+            for (Field f : cls.getDeclaredFields()) {
+                f.setAccessible(true);
+                if (f.getType() == int.class) {
+                    intField = f;
+                } else if (f.getType().getName().contains("Jid")) {
+                    jidField = f;
+                }
+            }
+
+            if (intField != null && jidField != null) {
+                int receiptType = intField.getInt(receiptObj);
+                // Type 13 = Read / Viewed status receipt
+                if (receiptType == 13 && statusToast) {
+                    Object jidVal = jidField.get(receiptObj);
+                    if (jidVal != null) {
+                        String rawJid = jidVal.toString();
+                        asyncExecutor.execute(() -> {
+                            String name = ContactNameResolver.INSTANCE.resolveName(context, rawJid, null, null);
+                            showToastSafely(name + " viewed your status");
+                        });
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+    }
+
     private void showToastSafely(String message) {
         mainHandler.post(() -> {
             try {
                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
             } catch (Throwable ignored) {}
         });
+    }
+
+    private boolean isStatusViewedToastEnabled() {
+        return isEnabled("toast_viewed_status", false);
+    }
+
+    private boolean isMessageViewedToastEnabled() {
+        return isEnabled("toast_viewed_message", false);
     }
 
     private boolean isOnlineToastEnabled() {
