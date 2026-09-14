@@ -19,6 +19,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
 import android.view.WindowManager;
+import android.view.animation.AccelerateInterpolator;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.CompoundButton;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
@@ -132,6 +134,7 @@ final class WaexQuickActionsSheet {
         Runnable dismissAnim = () -> sheet.animate()
                 .translationY(screenHeight)
                 .setDuration(220)
+                .setInterpolator(new AccelerateInterpolator())
                 .withEndAction(dialog::dismiss)
                 .start();
 
@@ -296,6 +299,8 @@ final class WaexQuickActionsSheet {
             }
         }
 
+        int maxScrollHeight = (int) (screenHeight * 0.58f);
+
         scrollView.addView(content);
         sheet.addView(scrollView);
 
@@ -311,9 +316,27 @@ final class WaexQuickActionsSheet {
             window.getDecorView().setPadding(0, 0, 0, 0);
             window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
             window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
-            window.setDimAmount(0.5f);
+            window.setDimAmount(0.6f);
             window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
         }
+
+        // Native WhatsApp Bottom Sheet Entrance Slide-Up Animation & max scroll height check
+        dialog.setOnShowListener(d -> {
+            sheet.post(() -> {
+                int measuredH = sheet.getHeight();
+                if (measuredH > maxScrollHeight) {
+                    ViewGroup.LayoutParams lp = scrollView.getLayoutParams();
+                    lp.height = maxScrollHeight - dp(activity, 80);
+                    scrollView.setLayoutParams(lp);
+                }
+            });
+            sheet.setTranslationY(screenHeight);
+            sheet.animate()
+                    .translationY(0f)
+                    .setDuration(280)
+                    .setInterpolator(new DecelerateInterpolator(1.8f))
+                    .start();
+        });
 
         if (!activity.isFinishing() && !activity.isDestroyed()) {
             try {

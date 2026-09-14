@@ -412,31 +412,32 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
 
     /**
      * Force-closes WhatsApp and relaunches it:
-     * 1. Schedules WhatsApp's own launch intent via AlarmManager (500 ms ahead).
-     * 2. Kills the current process — Android fires the pending intent after the process dies.
+     * Uses Intent.makeRestartActivityTask to relaunch the activity task, followed by Process.killProcess/System.exit(0).
      */
     private void forceRestartWhatsApp(Activity activity) {
+        if (activity == null) return;
         try {
-            String pkg = activity.getPackageName();
-            Intent launchIntent = activity.getPackageManager().getLaunchIntentForPackage(pkg);
-            if (launchIntent == null) {
-                // Fallback: relaunch this activity
-                launchIntent = new Intent(activity, activity.getClass());
-            }
-            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-
-            int flags = PendingIntent.FLAG_ONE_SHOT | PendingIntent.FLAG_IMMUTABLE;
-            PendingIntent pending = PendingIntent.getActivity(activity, 0x7EAE00FF, launchIntent, flags);
-
-            AlarmManager am = (AlarmManager) activity.getSystemService(Context.ALARM_SERVICE);
-            if (am != null) {
-                am.set(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + 500L, pending);
+            android.content.pm.PackageManager pm = activity.getPackageManager();
+            Intent launchIntent = pm.getLaunchIntentForPackage(activity.getPackageName());
+            if (launchIntent != null && launchIntent.getComponent() != null) {
+                Intent restartIntent = Intent.makeRestartActivityTask(launchIntent.getComponent());
+                restartIntent.setPackage(activity.getPackageName());
+                activity.startActivity(restartIntent);
+            } else {
+                Intent fallback = new Intent(activity, activity.getClass());
+                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                activity.startActivity(fallback);
             }
         } catch (Throwable t) {
-            XposedBridge.log(TAG + " forceRestart schedule failed: " + t.getMessage());
+            XposedBridge.log(TAG + " forceRestartWhatsApp failed: " + t.getMessage());
         }
-        // Kill the process — AlarmManager will bring it back up
-        Process.killProcess(Process.myPid());
+
+        try {
+            Runtime.getRuntime().exit(0);
+        } catch (Throwable ignored) {
+            Process.killProcess(Process.myPid());
+            System.exit(0);
+        }
     }
 
     // -------------------------------------------------------------------------
