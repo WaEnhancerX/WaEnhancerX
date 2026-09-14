@@ -110,7 +110,6 @@ fun GlobalPrivacySettingsScreen(
             "stealth_status_view", "autonext_status", "toast_viewed_status",
             "anti_view_once", "downloadviewonce",
             "anti_revoke", "antirevokestatus", "antidisappearing", "toastdeleted", "toast_viewed_message",
-            "call_privacy", "call_info",
             "locked_chats_enhancer", "typearchive", "dnd_mode", "hide_chats", "custom_privacy",
             "anti_edit_messages", "preserve_delete_for_me", "revokeallmessages", "hide_forwarded_tag", "removeforwardlimit",
             "sticker_confirm_alert", "removeseemore", "stamp_copied_message", "doubletap2like",
@@ -193,13 +192,6 @@ fun GlobalPrivacySettingsScreen(
                 SettingItem("Anti-Disappearing Messages", "Prevent messages from disappearing when timer expires", "antidisappearing"),
                 SettingItem("Toast on Deleted Message", "Show alert notification when a contact deletes a message", "toastdeleted"),
                 SettingItem("Toast on Viewed Message", "Show alert notification when your message is viewed", "toast_viewed_message")
-            )
-        ),
-        SettingGroup(
-            "Calls Privacy & Control",
-            listOf(
-                SettingItem("Call Privacy & Blocker", "Block incoming WhatsApp calls from non-contacts or everyone", "call_privacy"),
-                SettingItem("Additional Call Information", "Display detailed network & codec info during active calls", "call_info")
             )
         ),
         SettingGroup(
@@ -441,6 +433,59 @@ fun GlobalPrivacySettingsScreen(
                         )
                         Text(
                             text = "View preserved delete-for-me chats & group logs",
+                            style = typography.bodyMd,
+                            color = colors.onSurfaceVariant
+                        )
+                    }
+                    Icon(
+                        imageVector = WaexIcons.ChevronRight,
+                        contentDescription = null,
+                        tint = colors.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
+            Surface(
+                shape = radius.bentoCardShape,
+                color = colors.surfaceDim,
+                border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.pageMargin)
+                    .clickable { navController.navigateTo(com.waenhancer.ui.navigation.Screen.CallRecordingSettings) }
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(colors.primary.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = WaexIcons.Mic,
+                            contentDescription = null,
+                            tint = colors.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "Calls & Recording Hub",
+                            style = typography.bodyLg,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.onSurface
+                        )
+                        Text(
+                            text = "Call blocker, caller privacy, recording formats & logs",
                             style = typography.bodyMd,
                             color = colors.onSurfaceVariant
                         )

@@ -31,7 +31,24 @@ public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
 
     @Override
     public boolean getBoolean(String key, boolean defaultValue) {
-        return getStore(key).getBoolean(key, defaultValue);
+        try {
+            return getStore(key).getBoolean(key, defaultValue);
+        } catch (ClassCastException e) {
+            try {
+                Object allVal = getStore(key).getAll().get(key);
+                if (allVal instanceof Boolean) {
+                    return (Boolean) allVal;
+                } else if (allVal instanceof String) {
+                    String s = (String) allVal;
+                    return "true".equalsIgnoreCase(s) || "1".equals(s);
+                } else if (allVal instanceof Number) {
+                    return ((Number) allVal).intValue() != 0;
+                }
+                return defaultValue;
+            } catch (Throwable ignored) {
+                return defaultValue;
+            }
+        }
     }
 
     private static final Uri PREFS_URI = Uri.parse("content://com.waenhancer.hookprovider/preferences");
@@ -47,7 +64,16 @@ public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
 
     @Override
     public String getString(String key, String defaultValue) {
-        return getStore(key).getString(key, defaultValue);
+        try {
+            return getStore(key).getString(key, defaultValue);
+        } catch (ClassCastException e) {
+            try {
+                Object allVal = getStore(key).getAll().get(key);
+                return allVal != null ? String.valueOf(allVal) : defaultValue;
+            } catch (Throwable ignored) {
+                return defaultValue;
+            }
+        }
     }
 
     @Override
