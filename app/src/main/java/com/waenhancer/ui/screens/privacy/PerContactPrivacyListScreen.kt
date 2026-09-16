@@ -224,41 +224,26 @@ fun PerContactPrivacyListScreen(
                             // Master Toggle Card
                             Surface(
                                 shape = radius.bentoCardShape,
-                                color = colors.surface,
+                                color = colors.surfaceDim,
                                 border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(16.dp),
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(colors.primary.copy(alpha = 0.12f)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = WaexIcons.Security,
-                                            contentDescription = null,
-                                            tint = colors.primary,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(14.dp))
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = "Enable Per-Contact Privacy",
                                             style = typography.bodyLg,
-                                            fontWeight = FontWeight.Bold,
+                                            fontWeight = FontWeight.SemiBold,
                                             color = colors.onSurface
                                         )
-                                        Spacer(modifier = Modifier.height(2.dp))
                                         Text(
                                             text = "Allow granular privacy overrides for specific contacts or groups",
                                             style = typography.bodyMd,
-                                            color = colors.onSurfaceVariant
+                                            color = colors.onSurfaceVariant,
+                                            fontSize = 12.sp
                                         )
                                     }
                                     Spacer(modifier = Modifier.width(10.dp))
@@ -278,65 +263,89 @@ fun PerContactPrivacyListScreen(
                                 enter = fadeIn(tween(250)) + slideInVertically(tween(250)),
                                 exit = fadeOut(tween(200)) + slideOutVertically(tween(200))
                             ) {
-                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    Column(modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)) {
-                                        Text(
-                                            text = "IN-APP SHORTCUT PLACEMENT",
-                                            style = typography.labelSm,
-                                            fontWeight = FontWeight.Bold,
-                                            color = colors.primary,
-                                            letterSpacing = 1.sp
-                                        )
-                                        Text(
-                                            text = "Choose where the Custom Privacy action button appears inside WhatsApp",
-                                            style = typography.bodySm,
-                                            color = colors.onSurfaceVariant
-                                        )
-                                    }
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = "IN-APP SHORTCUT PLACEMENT",
+                                        style = typography.labelSm,
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.onSurfaceVariant,
+                                        modifier = Modifier.padding(start = 4.dp)
+                                    )
 
-                                    listOf(
-                                        Triple("1", "Contact & Group Info Screen", "Adds a dedicated Custom Privacy tile on the contact information and group details page"),
-                                        Triple("2", "Chat 3-Dot Options Menu", "Adds 'Custom Privacy' directly into the top-right options menu in chats"),
-                                        Triple("3", "Both (Info Screen & 3-Dot Menu)", "Displays the custom privacy shortcut in both the Info screen and the 3-dot menu")
-                                    ).forEach { (typeValue, title, desc) ->
-                                        val isSelected = customPrivacyType == typeValue
-                                        Surface(
-                                            shape = radius.bentoCardShape,
-                                            color = if (isSelected) colors.surface else colors.surfaceDim,
-                                            border = androidx.compose.foundation.BorderStroke(
-                                                width = if (isSelected) 1.5.dp else 1.dp,
-                                                color = if (isSelected) colors.primary else colors.outlineVariant
-                                            ),
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clickable {
-                                                    customPrivacyType = typeValue
-                                                    preferenceManager.putString("custom_privacy_type", typeValue)
+                                    Surface(
+                                        shape = radius.bentoCardShape,
+                                        color = colors.surfaceDim,
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(modifier = Modifier.fillMaxWidth()) {
+                                            val options = listOf(
+                                                Triple("1", "Contact & Group Info Screen", "Adds a dedicated Custom Privacy tile on contact and group details page"),
+                                                Triple("2", "Chat 3-Dot Options Menu", "Adds 'Custom Privacy' directly into the top-right options menu in chats"),
+                                                Triple("3", "Both (Info Screen & 3-Dot Menu)", "Displays the custom privacy shortcut in both places")
+                                            )
+
+                                            options.forEachIndexed { index, (typeValue, title, desc) ->
+                                                val isSelected = customPrivacyType == typeValue
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clickable {
+                                                            customPrivacyType = typeValue
+                                                            preferenceManager.putString("custom_privacy_type", typeValue)
+                                                        }
+                                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    // Compact Radio Indicator
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(18.dp)
+                                                            .clip(CircleShape)
+                                                            .border(
+                                                                1.5.dp,
+                                                                if (isSelected) colors.primary else colors.outlineVariant,
+                                                                CircleShape
+                                                            ),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        if (isSelected) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .size(9.dp)
+                                                                    .clip(CircleShape)
+                                                                    .background(colors.primary)
+                                                            )
+                                                        }
+                                                    }
+
+                                                    Spacer(modifier = Modifier.width(12.dp))
+
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        Text(
+                                                            text = title,
+                                                            style = typography.bodyMd,
+                                                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                                                            color = if (isSelected) colors.primary else colors.onSurface,
+                                                            fontSize = 13.sp
+                                                        )
+                                                        Text(
+                                                            text = desc,
+                                                            style = typography.bodyMd,
+                                                            color = colors.onSurfaceVariant,
+                                                            fontSize = 11.sp
+                                                        )
+                                                    }
                                                 }
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.padding(16.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Icon(
-                                                    imageVector = if (isSelected) Icons.Rounded.RadioButtonChecked else Icons.Rounded.RadioButtonUnchecked,
-                                                    contentDescription = null,
-                                                    tint = if (isSelected) colors.primary else colors.onSurfaceVariant,
-                                                    modifier = Modifier.size(22.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(14.dp))
-                                                Column(modifier = Modifier.weight(1f)) {
-                                                    Text(
-                                                        text = title,
-                                                        style = typography.bodyLg,
-                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                                        color = if (isSelected) colors.primary else colors.onSurface
-                                                    )
-                                                    Spacer(modifier = Modifier.height(2.dp))
-                                                    Text(
-                                                        text = desc,
-                                                        style = typography.bodyMd,
-                                                        color = colors.onSurfaceVariant
+
+                                                if (index < options.size - 1) {
+                                                    HorizontalDivider(
+                                                        color = colors.outlineVariant.copy(alpha = 0.5f),
+                                                        thickness = 1.dp,
+                                                        modifier = Modifier.padding(horizontal = 16.dp)
                                                     )
                                                 }
                                             }
@@ -348,34 +357,27 @@ fun PerContactPrivacyListScreen(
                             // How It Works Guide Card
                             Surface(
                                 shape = radius.bentoCardShape,
-                                color = colors.surfaceDim,
-                                border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.6f)),
+                                color = colors.surfaceDim.copy(alpha = 0.6f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.4f)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Column(
-                                    modifier = Modifier.padding(16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    modifier = Modifier.padding(14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = WaexIcons.Info,
-                                            contentDescription = null,
-                                            tint = colors.primary,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = "How to Configure Rules",
-                                            style = typography.bodyLg,
-                                            fontWeight = FontWeight.Bold,
-                                            color = colors.onSurface
-                                        )
-                                    }
                                     Text(
-                                        text = "1. Open any chat or contact info page in WhatsApp.\n2. Tap 'Custom Privacy' to set specific overrides (e.g. Hide Read Receipts, Hide Typing, Anti-Revoke).\n3. Saved rules take priority over global privacy settings and appear in the 'Contact Rules' tab.",
+                                        text = "How to Configure Rules",
+                                        style = typography.bodyMd,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = colors.onSurface,
+                                        fontSize = 13.sp
+                                    )
+                                    Text(
+                                        text = "1. Open any chat or contact info page in WhatsApp.\n2. Tap 'Custom Privacy' to set specific overrides.\n3. Saved rules take priority over global privacy settings.",
                                         style = typography.bodyMd,
                                         color = colors.onSurfaceVariant,
-                                        lineHeight = 20.sp
+                                        lineHeight = 17.sp,
+                                        fontSize = 11.sp
                                     )
                                 }
                             }

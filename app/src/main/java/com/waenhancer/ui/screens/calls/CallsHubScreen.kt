@@ -288,91 +288,87 @@ fun CallsHubScreen() {
                             .padding(bottom = 32.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        // ── SECTION 1: CALL PRIVACY & BLOCKER ─────────────────────────
-                        Text(
-                            text = "CALL PRIVACY & BLOCKER",
-                            style = typography.labelSm,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.primary,
-                            letterSpacing = 0.5.sp
-                        )
+                        // ── SECTION 1: WHO CAN CALL ME ─────────────────────────────────
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                text = "WHO CAN CALL ME",
+                                style = typography.labelSm,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
 
-                        Surface(
-                            shape = radius.bentoCardShape,
-                            color = colors.surfaceDim,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.padding(18.dp)) {
-                                Text(
-                                    text = "Who Can Call Me",
-                                    style = typography.headlineMd,
-                                    fontWeight = FontWeight.Bold,
-                                    color = colors.onSurface
-                                )
-                                Text(
-                                    text = "Control which WhatsApp callers are permitted to ring your device",
-                                    style = typography.bodyMd,
-                                    color = colors.onSurfaceVariant,
-                                    fontSize = 12.sp
-                                )
-                                Spacer(modifier = Modifier.height(14.dp))
+                            Surface(
+                                shape = radius.bentoCardShape,
+                                color = colors.surfaceDim,
+                                border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    val blockerOptions = listOf(
+                                        "0" to ("Everyone (No Block)" to "Allow all WhatsApp incoming voice & video calls"),
+                                        "1" to ("Block All Calls" to "Automatically drop every incoming WhatsApp call"),
+                                        "2" to ("Unknown Contacts Only" to "Only allow numbers saved in your phone address book")
+                                    )
 
-                                val blockerOptions = listOf(
-                                    "0" to ("Everyone (No Block)" to "Allow all WhatsApp incoming voice & video calls"),
-                                    "1" to ("Block All Calls" to "Automatically drop every incoming WhatsApp call"),
-                                    "2" to ("Unknown Contacts Only" to "Only allow numbers saved in your phone address book")
-                                )
-
-                                blockerOptions.forEach { (value, details) ->
-                                    val isChosen = callPrivacyMode == value
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 4.dp)
-                                            .clip(radius.defaultShape)
-                                            .background(if (isChosen) colors.primary.copy(alpha = 0.08f) else Color.Transparent)
-                                            .border(
-                                                1.dp,
-                                                if (isChosen) colors.primary else colors.outlineVariant,
-                                                radius.defaultShape
-                                            )
-                                            .clickable {
-                                                callPrivacyMode = value
-                                                prefManager.putString("call_privacy", value)
-                                            }
-                                            .padding(14.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Box(
+                                    blockerOptions.forEachIndexed { index, (value, details) ->
+                                        val isChosen = callPrivacyMode == value
+                                        Row(
                                             modifier = Modifier
-                                                .size(20.dp)
-                                                .clip(CircleShape)
-                                                .border(2.dp, if (isChosen) colors.primary else colors.outlineVariant, CircleShape),
-                                            contentAlignment = Alignment.Center
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    callPrivacyMode = value
+                                                    prefManager.putString("call_privacy", value)
+                                                }
+                                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            if (isChosen) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(10.dp)
-                                                        .clip(CircleShape)
-                                                        .background(colors.primary)
+                                            // Compact Radio Indicator
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(18.dp)
+                                                    .clip(CircleShape)
+                                                    .border(
+                                                        1.5.dp,
+                                                        if (isChosen) colors.primary else colors.outlineVariant,
+                                                        CircleShape
+                                                    ),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                if (isChosen) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(9.dp)
+                                                            .clip(CircleShape)
+                                                            .background(colors.primary)
+                                                    )
+                                                }
+                                            }
+
+                                            Spacer(modifier = Modifier.width(12.dp))
+
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = details.first,
+                                                    style = typography.bodyMd,
+                                                    fontWeight = if (isChosen) FontWeight.SemiBold else FontWeight.Medium,
+                                                    color = if (isChosen) colors.primary else colors.onSurface,
+                                                    fontSize = 13.sp
+                                                )
+                                                Text(
+                                                    text = details.second,
+                                                    style = typography.bodyMd,
+                                                    color = colors.onSurfaceVariant,
+                                                    fontSize = 11.sp
                                                 )
                                             }
                                         }
-                                        Spacer(modifier = Modifier.width(12.dp))
-                                        Column {
-                                            Text(
-                                                text = details.first,
-                                                style = typography.bodyLg,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = colors.onSurface
-                                            )
-                                            Text(
-                                                text = details.second,
-                                                style = typography.bodyMd,
-                                                color = colors.onSurfaceVariant,
-                                                fontSize = 12.sp
+
+                                        if (index < blockerOptions.size - 1) {
+                                            HorizontalDivider(
+                                                color = colors.outlineVariant.copy(alpha = 0.5f),
+                                                thickness = 1.dp,
+                                                modifier = Modifier.padding(horizontal = 16.dp)
                                             )
                                         }
                                     }
@@ -382,349 +378,307 @@ fun CallsHubScreen() {
 
                         // ── SECTION 2: REJECTION ACTION SIMULATION ─────────────────────
                         if (callPrivacyMode != "0") {
-                            Surface(
-                                shape = radius.bentoCardShape,
-                                color = colors.surfaceDim,
-                                border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(18.dp)) {
-                                    Text(
-                                        text = "Call Rejection Appearance",
-                                        style = typography.headlineMd,
-                                        fontWeight = FontWeight.Bold,
-                                        color = colors.onSurface
-                                    )
-                                    Text(
-                                        text = "Choose what the caller experiences when their call is blocked",
-                                        style = typography.bodyMd,
-                                        color = colors.onSurfaceVariant,
-                                        fontSize = 12.sp
-                                    )
-                                    Spacer(modifier = Modifier.height(14.dp))
-
-                                    val rejectOptions = listOf(
-                                        "no_internet" to ("No Internet Connection" to "Caller sees 'Calling...' with no connection ringing tone"),
-                                        "busy" to ("User Busy" to "Simulates immediate line busy tone"),
-                                        "declined" to ("Call Declined" to "Instantly rejects and shows call declined"),
-                                        "uncallable" to ("Not Available" to "Simulates caller not reachable")
-                                    )
-
-                                    rejectOptions.forEach { (typeVal, details) ->
-                                        val isChosen = callRejectType == typeVal
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 4.dp)
-                                                .clip(radius.defaultShape)
-                                                .background(if (isChosen) colors.primary.copy(alpha = 0.08f) else Color.Transparent)
-                                                .border(
-                                                    1.dp,
-                                                    if (isChosen) colors.primary else colors.outlineVariant,
-                                                    radius.defaultShape
-                                                )
-                                                .clickable {
-                                                    callRejectType = typeVal
-                                                    prefManager.putString("call_type", typeVal)
-                                                }
-                                                .padding(14.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(20.dp)
-                                                    .clip(CircleShape)
-                                                    .border(2.dp, if (isChosen) colors.primary else colors.outlineVariant, CircleShape),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                if (isChosen) {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(10.dp)
-                                                            .clip(CircleShape)
-                                                            .background(colors.primary)
-                                                    )
-                                                }
-                                            }
-                                            Spacer(modifier = Modifier.width(12.dp))
-                                            Column {
-                                                Text(
-                                                    text = details.first,
-                                                    style = typography.bodyLg,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    color = colors.onSurface
-                                                )
-                                                Text(
-                                                    text = details.second,
-                                                    style = typography.bodyMd,
-                                                    color = colors.onSurfaceVariant,
-                                                    fontSize = 12.sp
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // ── SECTION 3: CALL DIAGNOSTICS & INFO ────────────────────────
-                        Surface(
-                            shape = radius.bentoCardShape,
-                            color = colors.surfaceDim,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(18.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Additional Call Information",
-                                        style = typography.headlineMd,
-                                        fontWeight = FontWeight.Bold,
-                                        color = colors.onSurface
-                                    )
-                                    Text(
-                                        text = "Display network bitrate, packet loss & audio codec during active calls",
-                                        style = typography.bodyMd,
-                                        color = colors.onSurfaceVariant,
-                                        fontSize = 12.sp
-                                    )
-                                }
-                                StitchSwitch(
-                                    checked = callInfoEnabled,
-                                    onCheckedChange = {
-                                        callInfoEnabled = it
-                                        prefManager.putBoolean("call_info", it)
-                                    }
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = "CALL REJECTION APPEARANCE",
+                                    style = typography.labelSm,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.onSurfaceVariant,
+                                    modifier = Modifier.padding(start = 4.dp)
                                 )
-                            }
-                        }
 
-                        // ── SECTION 4: CALL RECORDING SUITE ────────────────────────────
-                        Text(
-                            text = "AUTOMATIC CALL RECORDING",
-                            style = typography.labelSm,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.primary,
-                            letterSpacing = 0.5.sp
-                        )
+                                Surface(
+                                    shape = radius.bentoCardShape,
+                                    color = colors.surfaceDim,
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.fillMaxWidth()) {
+                                        val rejectOptions = listOf(
+                                            "no_internet" to ("No Internet Connection" to "Caller sees 'Calling...' without connection tone"),
+                                            "busy" to ("User Busy" to "Simulates immediate line busy tone"),
+                                            "declined" to ("Call Declined" to "Instantly rejects and shows call declined"),
+                                            "uncallable" to ("Not Available" to "Simulates caller not reachable")
+                                        )
 
-                        // Main Recording Switch
-                        Surface(
-                            shape = radius.bentoCardShape,
-                            color = colors.surfaceDim,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(18.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Record WhatsApp Calls",
-                                        style = typography.headlineMd,
-                                        fontWeight = FontWeight.Bold,
-                                        color = colors.onSurface
-                                    )
-                                    Text(
-                                        text = "Automatically capture all incoming and outgoing voice conversations",
-                                        style = typography.bodyMd,
-                                        color = colors.onSurfaceVariant,
-                                        fontSize = 12.sp
-                                    )
-                                }
-                                StitchSwitch(
-                                    checked = callRecordingEnabled,
-                                    onCheckedChange = {
-                                        callRecordingEnabled = it
-                                        prefManager.putBoolean("call_recording_enabled", it)
-                                    }
-                                )
-                            }
-                        }
-
-                        if (callRecordingEnabled) {
-                            // Audio Capture Engine Mode
-                            Surface(
-                                shape = radius.bentoCardShape,
-                                color = colors.surfaceDim,
-                                border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(18.dp)) {
-                                    Text(
-                                        text = "Audio Capture Engine",
-                                        style = typography.headlineMd,
-                                        fontWeight = FontWeight.Bold,
-                                        color = colors.onSurface
-                                    )
-                                    Text(
-                                        text = "Select direct hardware audio pipeline or standard microphone source",
-                                        style = typography.bodyMd,
-                                        color = colors.onSurfaceVariant,
-                                        fontSize = 12.sp
-                                    )
-                                    Spacer(modifier = Modifier.height(14.dp))
-
-                                    // Root Direct Stream
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(radius.defaultShape)
-                                            .background(if (useRootStream) colors.primary.copy(alpha = 0.08f) else Color.Transparent)
-                                            .border(
-                                                1.dp,
-                                                if (useRootStream) colors.primary else colors.outlineVariant,
-                                                radius.defaultShape
-                                            )
-                                            .clickable {
-                                                useRootStream = true
-                                                prefManager.putBoolean("call_recording_use_root", true)
-                                            }
-                                            .padding(14.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(20.dp)
-                                                .clip(CircleShape)
-                                                .border(2.dp, if (useRootStream) colors.primary else colors.outlineVariant, CircleShape),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            if (useRootStream) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(10.dp)
-                                                        .clip(CircleShape)
-                                                        .background(colors.primary)
-                                                )
-                                            }
-                                        }
-                                        Spacer(modifier = Modifier.width(12.dp))
-                                        Column {
-                                            Text(
-                                                text = "Direct Audio Pipeline (Recommended)",
-                                                style = typography.bodyLg,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = colors.onSurface
-                                            )
-                                            Text(
-                                                text = "Captures both incoming caller and outgoing voice in crystal clarity",
-                                                style = typography.bodyMd,
-                                                color = colors.onSurfaceVariant,
-                                                fontSize = 12.sp
-                                            )
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(8.dp))
-
-                                    // Non-Root Microphone
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(radius.defaultShape)
-                                            .background(if (!useRootStream) colors.primary.copy(alpha = 0.08f) else Color.Transparent)
-                                            .border(
-                                                1.dp,
-                                                if (!useRootStream) colors.primary else colors.outlineVariant,
-                                                radius.defaultShape
-                                            )
-                                            .clickable {
-                                                useRootStream = false
-                                                prefManager.putBoolean("call_recording_use_root", false)
-                                            }
-                                            .padding(14.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(20.dp)
-                                                .clip(CircleShape)
-                                                .border(2.dp, if (!useRootStream) colors.primary else colors.outlineVariant, CircleShape),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            if (!useRootStream) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(10.dp)
-                                                        .clip(CircleShape)
-                                                        .background(colors.primary)
-                                                )
-                                            }
-                                        }
-                                        Spacer(modifier = Modifier.width(12.dp))
-                                        Column {
-                                            Text(
-                                                text = "Microphone Standard Capture",
-                                                style = typography.bodyLg,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = colors.onSurface
-                                            )
-                                            Text(
-                                                text = "Uses standard Android audio record stream",
-                                                style = typography.bodyMd,
-                                                color = colors.onSurfaceVariant,
-                                                fontSize = 12.sp
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Audio Format Card
-                            Surface(
-                                shape = radius.bentoCardShape,
-                                color = colors.surfaceDim,
-                                border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(18.dp)) {
-                                    Text(
-                                        text = "Recording Format & Encoding",
-                                        style = typography.headlineMd,
-                                        fontWeight = FontWeight.Bold,
-                                        color = colors.onSurface
-                                    )
-                                    Spacer(modifier = Modifier.height(12.dp))
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                    ) {
-                                        listOf(
-                                            "m4a" to "AAC (.m4a)",
-                                            "wav" to "Lossless (.wav)",
-                                            "opus" to "Opus (.opus)"
-                                        ).forEach { (formatKey, label) ->
-                                            val active = audioFormat == formatKey
-                                            Box(
+                                        rejectOptions.forEachIndexed { index, (typeVal, details) ->
+                                            val isChosen = callRejectType == typeVal
+                                            Row(
                                                 modifier = Modifier
-                                                    .weight(1f)
-                                                    .clip(radius.defaultShape)
-                                                    .background(if (active) colors.primary.copy(alpha = 0.12f) else colors.surface)
-                                                    .border(
-                                                        1.dp,
-                                                        if (active) colors.primary else colors.outlineVariant,
-                                                        radius.defaultShape
-                                                    )
+                                                    .fillMaxWidth()
                                                     .clickable {
-                                                        audioFormat = formatKey
-                                                        prefManager.putString("call_recording_format", formatKey)
+                                                        callRejectType = typeVal
+                                                        prefManager.putString("call_type", typeVal)
                                                     }
-                                                    .padding(vertical = 12.dp),
-                                                contentAlignment = Alignment.Center
+                                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                                verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Text(
-                                                    text = label,
-                                                    style = typography.bodyMd,
-                                                    fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-                                                    color = if (active) colors.primary else colors.onSurface,
-                                                    fontSize = 12.sp
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(18.dp)
+                                                        .clip(CircleShape)
+                                                        .border(
+                                                            1.5.dp,
+                                                            if (isChosen) colors.primary else colors.outlineVariant,
+                                                            CircleShape
+                                                        ),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    if (isChosen) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(9.dp)
+                                                                .clip(CircleShape)
+                                                                .background(colors.primary)
+                                                        )
+                                                    }
+                                                }
+
+                                                Spacer(modifier = Modifier.width(12.dp))
+
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = details.first,
+                                                        style = typography.bodyMd,
+                                                        fontWeight = if (isChosen) FontWeight.SemiBold else FontWeight.Medium,
+                                                        color = if (isChosen) colors.primary else colors.onSurface,
+                                                        fontSize = 13.sp
+                                                    )
+                                                    Text(
+                                                        text = details.second,
+                                                        style = typography.bodyMd,
+                                                        color = colors.onSurfaceVariant,
+                                                        fontSize = 11.sp
+                                                    )
+                                                }
+                                            }
+
+                                            if (index < rejectOptions.size - 1) {
+                                                HorizontalDivider(
+                                                    color = colors.outlineVariant.copy(alpha = 0.5f),
+                                                    thickness = 1.dp,
+                                                    modifier = Modifier.padding(horizontal = 16.dp)
                                                 )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // ── SECTION 3: CALL CONTROLS & DIAGNOSTICS ─────────────────────
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                text = "CALL ENHANCEMENTS",
+                                style = typography.labelSm,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
+
+                            Surface(
+                                shape = radius.bentoCardShape,
+                                color = colors.surfaceDim,
+                                border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    // Additional Call Information Row
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Additional Call Information",
+                                                style = typography.bodyLg,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = colors.onSurface
+                                            )
+                                            Text(
+                                                text = "Display bitrate, packet loss & audio codec during active calls",
+                                                style = typography.bodyMd,
+                                                color = colors.onSurfaceVariant,
+                                                fontSize = 12.sp
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        StitchSwitch(
+                                            checked = callInfoEnabled,
+                                            onCheckedChange = {
+                                                callInfoEnabled = it
+                                                prefManager.putBoolean("call_info", it)
+                                            }
+                                        )
+                                    }
+
+                                    HorizontalDivider(
+                                        color = colors.outlineVariant.copy(alpha = 0.5f),
+                                        thickness = 1.dp,
+                                        modifier = Modifier.padding(horizontal = 16.dp)
+                                    )
+
+                                    // Call Recording Master Row
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Record WhatsApp Calls",
+                                                style = typography.bodyLg,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = colors.onSurface
+                                            )
+                                            Text(
+                                                text = "Automatically capture incoming & outgoing voice calls",
+                                                style = typography.bodyMd,
+                                                color = colors.onSurfaceVariant,
+                                                fontSize = 12.sp
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        StitchSwitch(
+                                            checked = callRecordingEnabled,
+                                            onCheckedChange = {
+                                                callRecordingEnabled = it
+                                                prefManager.putBoolean("call_recording_enabled", it)
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // ── SECTION 4: RECORDING CONFIGURATION (when recording enabled) ─
+                        if (callRecordingEnabled) {
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = "RECORDING CONFIGURATION",
+                                    style = typography.labelSm,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.onSurfaceVariant,
+                                    modifier = Modifier.padding(start = 4.dp)
+                                )
+
+                                Surface(
+                                    shape = radius.bentoCardShape,
+                                    color = colors.surfaceDim,
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        // Capture engine row
+                                        Text(
+                                            text = "Audio Capture Engine",
+                                            style = typography.bodyMd,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = colors.onSurface,
+                                            fontSize = 13.sp
+                                        )
+                                        Spacer(modifier = Modifier.height(10.dp))
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            listOf(
+                                                true to ("Direct Pipeline" to "Root / Direct"),
+                                                false to ("Microphone" to "Standard Mic")
+                                            ).forEach { (isRoot, labels) ->
+                                                val active = useRootStream == isRoot
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .clip(radius.defaultShape)
+                                                        .background(if (active) colors.primary.copy(alpha = 0.12f) else colors.surface)
+                                                        .border(
+                                                            1.dp,
+                                                            if (active) colors.primary else colors.outlineVariant,
+                                                            radius.defaultShape
+                                                        )
+                                                        .clickable {
+                                                            useRootStream = isRoot
+                                                            prefManager.putBoolean("call_recording_use_root", isRoot)
+                                                        }
+                                                        .padding(vertical = 10.dp, horizontal = 12.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                        Text(
+                                                            text = labels.first,
+                                                            style = typography.bodyMd,
+                                                            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                                                            color = if (active) colors.primary else colors.onSurface,
+                                                            fontSize = 12.sp
+                                                        )
+                                                        Text(
+                                                            text = labels.second,
+                                                            style = typography.bodySm,
+                                                            color = colors.onSurfaceVariant,
+                                                            fontSize = 10.sp
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        HorizontalDivider(
+                                            color = colors.outlineVariant.copy(alpha = 0.5f),
+                                            thickness = 1.dp
+                                        )
+                                        Spacer(modifier = Modifier.height(14.dp))
+
+                                        // Encoding Format Row
+                                        Text(
+                                            text = "Encoding Format",
+                                            style = typography.bodyMd,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = colors.onSurface,
+                                            fontSize = 13.sp
+                                        )
+                                        Spacer(modifier = Modifier.height(10.dp))
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            listOf(
+                                                "m4a" to "AAC (.m4a)",
+                                                "wav" to "WAV (.wav)",
+                                                "opus" to "Opus (.opus)"
+                                            ).forEach { (formatKey, label) ->
+                                                val active = audioFormat == formatKey
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .clip(radius.defaultShape)
+                                                        .background(if (active) colors.primary.copy(alpha = 0.12f) else colors.surface)
+                                                        .border(
+                                                            1.dp,
+                                                            if (active) colors.primary else colors.outlineVariant,
+                                                            radius.defaultShape
+                                                        )
+                                                        .clickable {
+                                                            audioFormat = formatKey
+                                                            prefManager.putString("call_recording_format", formatKey)
+                                                        }
+                                                        .padding(vertical = 8.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        text = label,
+                                                        style = typography.bodyMd,
+                                                        fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                                                        color = if (active) colors.primary else colors.onSurface,
+                                                        fontSize = 11.sp
+                                                    )
+                                                }
                                             }
                                         }
                                     }
