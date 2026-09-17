@@ -168,9 +168,34 @@ public class CallPrivacyHook extends BaseFeature {
 
     private void processAndShowCallInformation(Object wamCall, Object peerJid, String rawJid) {
         StringBuilder sb = new StringBuilder();
-        String phoneNumber = extractPhoneNumber(rawJid);
-        if (!TextUtils.isEmpty(phoneNumber)) {
-            sb.append("Number: +").append(phoneNumber).append("\n");
+        
+        // 1. Resolve Contact Name and Real Phone Number from LID/JID
+        String contactName = null;
+        String resolvedPhone = null;
+        try {
+            contactName = com.waenhancer.utils.ContactNameResolver.INSTANCE.resolveName(context, rawJid, null, null);
+        } catch (Throwable ignored) {}
+
+        try {
+            resolvedPhone = com.waenhancer.utils.ContactNameResolver.INSTANCE.resolveLidToPhone(context, rawJid);
+        } catch (Throwable ignored) {}
+
+        if (resolvedPhone == null) {
+            String userPart = com.waenhancer.utils.ContactNameResolver.INSTANCE.cleanUserPart(rawJid);
+            if (userPart.length() >= 7 && userPart.length() <= 15 && !rawJid.contains("@lid")) {
+                resolvedPhone = userPart;
+            }
+        }
+
+        if (!TextUtils.isEmpty(contactName) && !contactName.equals("Unknown") && !contactName.equals(rawJid)) {
+            sb.append("Contact: ").append(contactName).append("\n");
+        }
+
+        if (!TextUtils.isEmpty(resolvedPhone)) {
+            String formattedPhone = resolvedPhone.startsWith("+") ? resolvedPhone : "+" + resolvedPhone;
+            sb.append("Number: ").append(formattedPhone).append("\n");
+        } else if (contactName != null && contactName.startsWith("+")) {
+            sb.append("Number: ").append(contactName).append("\n");
         }
 
         String ip = (String) getObjectFieldSafe(wamCall, "callPeerIpStr");
