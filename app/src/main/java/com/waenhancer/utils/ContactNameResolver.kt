@@ -90,9 +90,9 @@ object ContactNameResolver {
                         FROM jid_map jm
                         JOIN jid j1 ON jm.lid_row_id = j1._id
                         JOIN jid j2 ON jm.jid_row_id = j2._id
-                        WHERE j1.raw_string = ? OR j1.user = ?
+                        WHERE j1.user = ? OR j1.raw_string LIKE ? OR j1.raw_string = ?
                     """.trimIndent()
-                    db.rawQuery(resolvePhoneSql, arrayOf(cleanJid, userPart)).use { c ->
+                    db.rawQuery(resolvePhoneSql, arrayOf(userPart, "$userPart%", cleanJid)).use { c ->
                         if (c != null && c.moveToFirst()) {
                             resolvedPhoneJid = c.getString(0)
                             resolvedPhoneUser = c.getString(1)
@@ -103,7 +103,7 @@ object ContactNameResolver {
         } catch (_: Throwable) {}
 
         // Step B: Query Android System Contacts Provider (PhoneLookup + Trailing Digits Match)
-        val candidatePhones = listOfNotNull(resolvedPhoneUser, phoneHint, userPart).filter { it.isNotBlank() }
+        val candidatePhones = listOfNotNull(resolvedPhoneUser, phoneHint, if (!isLidJid(rawJid)) userPart else null).filter { it.isNotBlank() }
         for (targetPhone in candidatePhones) {
             val systemName = getSystemContactName(context, targetPhone)
             if (isValidDisplayName(systemName)) {
@@ -116,10 +116,11 @@ object ContactNameResolver {
             val waDbFile = findDatabase(context, "wa.db")
             if (waDbFile != null && waDbFile.exists()) {
                 SQLiteDatabase.openDatabase(waDbFile.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { waDb ->
-                    val querySql = "SELECT display_name, wa_name, sort_name, number FROM wa_contacts WHERE jid = ? OR jid = ? OR number = ? OR number = ? OR number LIKE ?"
+                    val querySql = "SELECT display_name, wa_name, sort_name, number FROM wa_contacts WHERE jid = ? OR jid = ? OR jid LIKE ? OR number = ? OR number = ? OR number LIKE ?"
                     val params = arrayOf(
                         rawJid,
                         resolvedPhoneJid ?: "",
+                        "%$userPart%",
                         userPart,
                         resolvedPhoneUser ?: "",
                         "%${resolvedPhoneUser ?: userPart}%"
@@ -134,8 +135,8 @@ object ContactNameResolver {
                             if (isValidDisplayName(displayName)) return displayName
                             if (isValidDisplayName(waName)) return waName
                             if (isValidDisplayName(sortName)) return sortName
-                            if (!displayName.isNullOrBlank()) return displayName
-                            if (!number.isNullOrBlank()) return "+$number"
+                            if (!displayName.isNullOrBlank() && isValidDisplayName(displayName)) return displayName
+                            if (!number.isNullOrBlank() && !isLidJid(number)) return "+$number"
                         }
                     }
                 }
@@ -147,7 +148,7 @@ object ContactNameResolver {
             val waDbFile = findDatabase(context, "wa.db")
             if (waDbFile != null && waDbFile.exists()) {
                 SQLiteDatabase.openDatabase(waDbFile.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { waDb ->
-                    waDb.rawQuery("SELECT verified_name FROM wa_vnames WHERE jid = ? OR jid = ?", arrayOf(rawJid, resolvedPhoneJid ?: "")).use { c ->
+                    waDb.rawQuery("SELECT verified_name FROM wa_vnames WHERE jid = ? OR jid = ? OR jid LIKE ?", arrayOf(rawJid, resolvedPhoneJid ?: "", "%$userPart%")).use { c ->
                         if (c != null && c.moveToFirst()) {
                             val vname = c.getString(0)
                             if (isValidDisplayName(vname)) return vname
@@ -157,14 +158,14 @@ object ContactNameResolver {
             }
         } catch (_: Throwable) {}
 
-        if (!resolvedPhoneUser.isNullOrBlank()) {
+        if (!resolvedPhoneUser.isNullOrBlank() && !isLidJid(resolvedPhoneUser)) {
             return formatPhoneNumber(resolvedPhoneUser)
         }
 
-        return if (userPart.all { it.isDigit() } && userPart.length in 10..15) {
+        return if (!isLidJid(rawJid) && userPart.all { it.isDigit() } && userPart.length in 10..15) {
             "+$userPart"
         } else {
-            userPart
+            fallbackName ?: "Unknown"
         }
     }
 
@@ -322,12 +323,17 @@ object ContactNameResolver {
                         FROM jid_map jm
                         JOIN jid j1 ON jm.lid_row_id = j1._id
                         JOIN jid j2 ON jm.jid_row_id = j2._id
-                        WHERE j1.raw_string LIKE ? OR j1.user = ?
+                        WHERE j1.user = ? OR j1.raw_string LIKE ? OR j1.raw_string = ?
                     """.trimIndent()
-                    db.rawQuery(query, arrayOf("%$user%", user)).use { c ->
+                    db.rawQuery(query, arrayOf(user, "$user%", rawJid)).use { c ->
                         if (c != null && c.moveToFirst()) {
                             val phone = c.getString(0)
-                            if (!phone.isNullOrBlank()) return phone
+                            if (!phone.isNullOrBlank() && !isLidJid(phone)) return phone
+                            val rawPhone = c.getString(1)
+                            if (!rawPhone.isNullOrBlank() && !isLidJid(rawPhone)) {
+                                val cleanPhone = cleanUserPart(rawPhone)
+                                if (!isLidJid(cleanPhone)) return cleanPhone
+                            }
                         }
                     }
                 }
@@ -407,7 +413,7 @@ object ContactNameResolver {
 
     fun isLidJid(jid: String): Boolean = jid.contains("@lid") || (cleanUserPart(jid).length >= 14 && !isGroupJid(jid))
 
-    fun cleanUserPart(jid: String): String = jid.substringBefore("@").substringBefore(":")
+    fun cleanUserPart(jid: String): String = jid.substringBefore("@").substringBefore(":").substringBefore(".")
 
     fun formatPhoneNumber(number: String): String = if (number.startsWith("+")) number else "+$number"
 
@@ -416,6 +422,9 @@ object ContactNameResolver {
         val trimmed = name.trim()
         if (trimmed == "Unknown" || trimmed == "WhatsApp" || trimmed == "Contact info" || trimmed == "Group info" || trimmed == "Custom Privacy") return false
         if (trimmed.startsWith("Group (") || trimmed.startsWith("+15478") || trimmed.startsWith("15478")) return false
+        // If string is pure digits and length >= 14, it's a raw LID ID, not a valid contact name
+        val digitsOnly = trimmed.filter { it.isDigit() }
+        if (digitsOnly.length >= 14 && (trimmed.startsWith("+") || trimmed.all { it.isDigit() || it == '.' || it == ':' || it == ' ' })) return false
         if (trimmed.all { it.isDigit() || it == '+' || it == ' ' || it == '-' }) return false
         return true
     }

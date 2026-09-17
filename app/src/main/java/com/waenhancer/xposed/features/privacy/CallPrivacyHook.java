@@ -207,7 +207,7 @@ public class CallPrivacyHook extends BaseFeature {
                                     if (mRejectCallMethod != null && mVoipManagerInstance != null && callId != null) {
                                         String rejectReason = "declined".equals(rejectType) ? null : rejectType;
                                         Class<?>[] pTypes = mRejectCallMethod.getParameterTypes();
-                                        Object[] args = new Object[pTypes.length];
+                                        Object[] args = initDefaultArgs(pTypes);
                                         if (pTypes.length >= 1) args[0] = callId;
                                         if (pTypes.length >= 2) args[1] = rejectReason;
                                         mRejectCallMethod.invoke(mVoipManagerInstance, args);
@@ -218,7 +218,7 @@ public class CallPrivacyHook extends BaseFeature {
                                 case "ended":
                                     if (mEndCallMethod != null && mVoipManagerInstance != null) {
                                         Class<?>[] pTypes = mEndCallMethod.getParameterTypes();
-                                        Object[] args = new Object[pTypes.length];
+                                        Object[] args = initDefaultArgs(pTypes);
                                         if (pTypes.length >= 1) args[0] = true;
                                         mEndCallMethod.invoke(mVoipManagerInstance, args);
                                     }
@@ -241,6 +241,25 @@ public class CallPrivacyHook extends BaseFeature {
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Error hooking Call Privacy: " + t.getMessage());
         }
+    }
+
+    private Object[] initDefaultArgs(Class<?>[] paramTypes) {
+        Object[] args = new Object[paramTypes.length];
+        for (int i = 0; i < paramTypes.length; i++) {
+            Class<?> type = paramTypes[i];
+            if (type == int.class || type == Integer.class) {
+                args[i] = 0;
+            } else if (type == long.class || type == Long.class) {
+                args[i] = 0L;
+            } else if (type == boolean.class || type == Boolean.class) {
+                args[i] = false;
+            } else if (type == double.class || type == Double.class) {
+                args[i] = 0.0;
+            } else {
+                args[i] = null;
+            }
+        }
+        return args;
     }
 
     private void hookNativeHandleOffer() {
@@ -452,18 +471,15 @@ public class CallPrivacyHook extends BaseFeature {
             try {
                 String contactName = ContactNameResolver.INSTANCE.resolveName(context, callerJid, null, null);
                 String resolvedPhone = ContactNameResolver.INSTANCE.resolveLidToPhone(context, callerJid);
-                if (resolvedPhone == null) {
-                    resolvedPhone = ContactNameResolver.INSTANCE.cleanUserPart(callerJid);
-                }
 
                 String title = "Call Blocked";
                 String body;
-                if (!TextUtils.isEmpty(contactName) && !contactName.equals("Unknown") && !contactName.startsWith("+")) {
+                if (!TextUtils.isEmpty(contactName) && !contactName.equals("Unknown") && !contactName.startsWith("+") && ContactNameResolver.INSTANCE.isValidDisplayName(contactName)) {
                     body = "Call from " + contactName + " (" + reason + ")";
-                } else if (!TextUtils.isEmpty(resolvedPhone)) {
+                } else if (!TextUtils.isEmpty(resolvedPhone) && !ContactNameResolver.INSTANCE.isLidJid(resolvedPhone)) {
                     body = "Call from +" + resolvedPhone + " (" + reason + ")";
                 } else {
-                    body = "Incoming call blocked (" + reason + ")";
+                    body = "Call from Unknown Caller (" + reason + ")";
                 }
 
                 showNotification(title, body);
