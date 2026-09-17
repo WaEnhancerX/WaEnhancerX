@@ -498,7 +498,7 @@ fun CallsHubScreen() {
                                                 color = colors.onSurface
                                             )
                                             Text(
-                                                text = "Display bitrate, packet loss & audio codec during active calls",
+                                                text = "Receive detailed notification with caller IP, location, device & version after calls end",
                                                 style = typography.bodyMd,
                                                 color = colors.onSurfaceVariant,
                                                 fontSize = 12.sp
