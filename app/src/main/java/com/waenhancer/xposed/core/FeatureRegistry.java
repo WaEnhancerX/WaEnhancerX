@@ -55,6 +55,10 @@ public final class FeatureRegistry {
         features.add(new CustomPrivacyHook(context, classLoader, prefs));
         features.add(new com.waenhancer.xposed.features.privacy.AutoNextStatusHook(context, classLoader, prefs));
         features.add(new com.waenhancer.xposed.features.privacy.AntiDisappearingMessagesHook(context, classLoader, prefs));
+        features.add(new com.waenhancer.xposed.features.privacy.LockedChatsEnhancerHook(context, classLoader, prefs));
+        features.add(new com.waenhancer.xposed.features.privacy.HideArchivedChatsHook(context, classLoader, prefs));
+        features.add(new com.waenhancer.xposed.features.privacy.DndModeHook(context, classLoader, prefs));
+        features.add(new com.waenhancer.xposed.features.privacy.HideChatsVaultHook(context, classLoader, prefs));
 
         // Conversation & Message Controls
         features.add(new AntiEditMessagesHook(context, classLoader, prefs));

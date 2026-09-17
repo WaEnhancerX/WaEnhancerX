@@ -60,6 +60,7 @@ fun SearchScreen() {
             SearchablePreference("anti_revoke", "Anti-Revoke Messages & Statuses", "Keep deleted messages and statuses visible to you", "Message Protection & Security", 1, "privacy", "Privacy"),
             SearchablePreference("anti_view_once", "Anti-View Once", "Bypass view-once constraints on incoming media", "Message Protection & Security", 1, "privacy", "Privacy"),
             SearchablePreference("locked_chats_enhancer", "Locked Chats Enhancer", "Customize and bypass locks for specific chat vaults", "Message Protection & Security", 1, "privacy", "Privacy"),
+            SearchablePreference("typearchive", "Hide Archived Chats", "Completely hide archived chats from the main conversations list", "Message Protection & Security", 1, "privacy", "Privacy"),
             SearchablePreference("dnd_mode", "Do Not Disturb (DND) Mode", "Temporarily block incoming messages dynamically", "Message Protection & Security", 1, "privacy", "Privacy"),
             SearchablePreference("hide_chats", "Hide Chats / Vault", "Hide and lock private chats from the main chat list", "Message Protection & Security", 1, "privacy", "Privacy"),
             SearchablePreference("custom_privacy", "Per-Contact Custom Privacy", "Set separate rules for specific contacts", "Advanced Rules & Filtering", 1, "privacy", "Privacy"),

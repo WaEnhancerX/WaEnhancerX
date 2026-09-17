@@ -130,7 +130,12 @@ fun GlobalPrivacySettingsScreen(
     val settingsState = remember {
         mutableStateMapOf<String, Boolean>().apply {
             privacyKeys.forEach { key ->
-                put(key, preferenceManager.getBoolean(key, false))
+                var boolVal = preferenceManager.getBoolean(key, false)
+                if (!boolVal && key == "typearchive") {
+                    val strVal = preferenceManager.getString("typearchive", "0")
+                    boolVal = (strVal != null && strVal != "0" && !strVal.equals("false", ignoreCase = true))
+                }
+                put(key, boolVal)
             }
         }
     }
@@ -138,6 +143,11 @@ fun GlobalPrivacySettingsScreen(
     val updatePreference: (String, Boolean) -> Unit = { key, value ->
         settingsState[key] = value
         preferenceManager.putBoolean(key, value)
+        if (key == "typearchive") {
+            preferenceManager.putString("typearchive", if (value) "1" else "0")
+        } else if (key == "locked_chats_enhancer") {
+            preferenceManager.putBoolean("lockedchats_enhancer", value)
+        }
     }
 
     var showColorPickerDialog by remember { mutableStateOf(false) }
