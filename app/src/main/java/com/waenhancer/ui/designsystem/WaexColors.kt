@@ -62,29 +62,30 @@ val lightColors = WaexColors(
 )
 
 val darkColors = WaexColors(
-    primary = Color(0xFF00A884), // WhatsApp Dark Teal
-    primaryContainer = Color(0xFF005140),
-    onPrimary = Color(0xFF00372D),
-    background = Color(0xFF000000), // True pitch black / AMOLED
-    onBackground = Color(0xFFF5F5F5), // High contrast text
-    surface = Color(0xFF000000),
-    onSurface = Color(0xFFF5F5F5),
-    surfaceDim = Color(0xFF111111),
-    surfaceContainerLow = Color(0xFF0A0A0A),
-    surfaceContainer = Color(0xFF141414),
-    surfaceContainerHigh = Color(0xFF1C1C1C),
-    surfaceContainerHighest = Color(0xFF242424),
-    onSurfaceVariant = Color(0xFFCAC4D0),
-    outline = Color(0xFF333333),
-    outlineVariant = Color(0xFF222222),
-    error = Color(0xFFFFB4AB),
+    // Keep these roles in sync with WaEnhancer's values-night palette.
+    primary = Color(0xFF25D366),
+    primaryContainer = Color(0xFF1B5E20),
+    onPrimary = Color(0xFF000000),
+    background = Color(0xFF121212),
+    onBackground = Color(0xFFFFFFFF),
+    surface = Color(0xFF121212),
+    onSurface = Color(0xFFFFFFFF),
+    surfaceDim = Color(0xFF121212),
+    surfaceContainerLow = Color(0xFF1E1E1E),
+    surfaceContainer = Color(0xFF252525),
+    surfaceContainerHigh = Color(0xFF2C2C2C),
+    surfaceContainerHighest = Color(0xFF333333),
+    onSurfaceVariant = Color(0xFFB3B3B3),
+    outline = Color(0xFF64706C),
+    outlineVariant = Color(0xFF2C2C2C),
+    error = Color(0xFFDC2626),
     errorContainer = Color(0xFF690005),
-    onError = Color(0xFF690005),
+    onError = Color(0xFFFFFFFF),
     onErrorContainer = Color(0xFFFFDAD6),
-    secondary = Color(0xFFB0B0B0),
+    secondary = Color(0xFF25D366),
     onSecondary = Color(0xFF000000),
-    secondaryContainer = Color(0xFF222222),
-    onSecondaryContainer = Color(0xFFE0E0E0),
+    secondaryContainer = Color(0xFF1B5E20),
+    onSecondaryContainer = Color(0xFFFFFFFF),
     isLight = false
 )
 

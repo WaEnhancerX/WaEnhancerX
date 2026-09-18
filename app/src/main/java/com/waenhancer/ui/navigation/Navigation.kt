@@ -299,7 +299,7 @@ fun MainContainerScreen() {
         Screen.GlobalPrivacySettings -> "Controls"
         Screen.MediaStatusHub -> "Media & Status"
         Screen.AutomationTasker -> "Automation"
-        Screen.StylesSettings -> "Styles & Customization"
+        Screen.StylesSettings -> "Styles"
         Screen.PerContactPrivacyList -> "Per Contact Rules"
         else -> "WaEnhancerX"
     }
