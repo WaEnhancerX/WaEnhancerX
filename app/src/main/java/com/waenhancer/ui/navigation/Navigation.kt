@@ -86,6 +86,7 @@ import com.waenhancer.ui.screens.pro.ProUpgradePaywallScreen
 
 import com.waenhancer.ui.screens.settings.SystemHealthScreen
 import com.waenhancer.ui.screens.settings.ChangelogScreen
+import com.waenhancer.ui.screens.settings.ReleaseDetailsScreen
 import com.waenhancer.ui.screens.settings.AboutScreen
 import com.waenhancer.ui.screens.settings.UpdateSettingsScreen
 import com.waenhancer.ui.screens.settings.SupportedVersionsScreen
@@ -1019,6 +1020,7 @@ fun WaexAppNavigation(
             onUpdateContact = onUpdateContact
         )
         Screen.Changelog -> ChangelogScreen()
+        is Screen.ReleaseDetails -> ReleaseDetailsScreen(currentScreen.tagName)
         Screen.About -> AboutScreen()
         Screen.UpdateSettings -> UpdateSettingsScreen()
         Screen.SupportedVersions -> SupportedVersionsScreen()
@@ -1084,4 +1086,3 @@ fun loadContactPrivacyList(context: android.content.Context, preferenceManager: 
     }
     return list
 }
-

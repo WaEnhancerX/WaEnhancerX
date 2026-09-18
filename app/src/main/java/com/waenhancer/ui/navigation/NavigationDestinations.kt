@@ -18,6 +18,7 @@ sealed class Screen(val route: String) {
     object PerContactPrivacyList : Screen("per_contact_privacy_list")
     object StylesSettings : Screen("styles_settings")
     object Changelog : Screen("changelog")
+    data class ReleaseDetails(val tagName: String) : Screen("release/$tagName")
     object About : Screen("about")
     object UpdateSettings : Screen("update_settings")
     object SupportedVersions : Screen("supported_versions")
@@ -35,4 +36,3 @@ val Screen.isRootScreen: Boolean
             this is Screen.MediaStatusHub ||
             this is Screen.AutomationTasker ||
             this is Screen.StylesSettings
-

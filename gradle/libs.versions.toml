@@ -20,6 +20,7 @@ okhttp = "4.12.0"
 kotlinxSerializationJson = "1.7.3"
 hiltNavigationCompose = "1.2.0"
 datastore = "1.1.1"
+markwon = "4.6.2"
 
 
 [libraries]
@@ -62,6 +63,8 @@ androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navig
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 libxposed-legacy = { group = "de.robv.android.xposed", name = "api", version = "82" }
 dexkit = { module = "org.luckypray:dexkit", version = "2.2.0" }
+markwon-core = { module = "io.noties.markwon:core", version.ref = "markwon" }
+markwon-html = { module = "io.noties.markwon:html", version.ref = "markwon" }
 
 [plugins]
 

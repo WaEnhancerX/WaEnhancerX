@@ -18,8 +18,8 @@ android {
         applicationId = "com.waenhancer"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = project.findProperty("VERSION_CODE")?.toString()?.toInt() ?: 1
+        versionName = project.findProperty("VERSION_NAME")?.toString() ?: "1.0.0"
     }
 
     signingConfigs {
@@ -127,6 +127,8 @@ dependencies {
     // External dependencies needed on app classpath for Hilt annotation processing
     implementation(libs.retrofit.core)
     implementation(libs.okhttp.core)
+    implementation(libs.markwon.core)
+    implementation(libs.markwon.html)
     implementation(libs.room.runtime)
 
     // Xposed Framework & DexKit Hooking Engine
@@ -149,7 +151,5 @@ kapt {
         arg("dagger.hilt.android.internal.disableAndroidSuperclassValidation", "true")
     }
 }
-
-
 
 

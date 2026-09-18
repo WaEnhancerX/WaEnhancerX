@@ -42,7 +42,10 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (intent.getStringExtra("target_screen") == "supported_versions") {
+        val releaseTag = releaseTagFrom(intent)
+        if (releaseTag != null) {
+            currentNavController?.navigateTo(com.waenhancer.ui.navigation.Screen.ReleaseDetails(releaseTag))
+        } else if (intent.getStringExtra("target_screen") == "supported_versions") {
             currentNavController?.navigateTo(com.waenhancer.ui.navigation.Screen.SupportedVersions)
         }
     }
@@ -73,7 +76,10 @@ class MainActivity : ComponentActivity() {
                         val navController = remember {
                             val controller = WaexNavController()
                             currentNavController = controller
-                            if (intent?.getStringExtra("target_screen") == "supported_versions") {
+                            val releaseTag = releaseTagFrom(intent)
+                            if (releaseTag != null) {
+                                controller.navigateTo(com.waenhancer.ui.navigation.Screen.ReleaseDetails(releaseTag))
+                            } else if (intent?.getStringExtra("target_screen") == "supported_versions") {
                                 controller.navigateTo(com.waenhancer.ui.navigation.Screen.SupportedVersions)
                             }
                             controller
@@ -90,5 +96,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun releaseTagFrom(intent: Intent?): String? {
+        val path = intent?.data?.path ?: return intent?.getStringExtra("release_tag")
+        if (!path.startsWith("/releases/")) return null
+        return path.removePrefix("/releases/").trim('/').takeIf { it.isNotBlank() }
     }
 }

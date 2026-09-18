@@ -155,7 +155,7 @@ fun UpdateSettingsScreen() {
                                 color = colors.onSurface
                             )
                             Text(
-                                text = "Periodically check GitHub releases in background",
+                                text = "Periodically check the WaEnhancer release service",
                                 style = typography.bodyMd,
                                 color = colors.onSurfaceVariant,
                                 fontSize = 12.sp
