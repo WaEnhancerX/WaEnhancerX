@@ -22,6 +22,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -44,6 +46,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.text.util.LinkifyCompat
 import androidx.core.util.PatternsCompat
 import com.waenhancer.ui.components.WaexTopBar
+import com.waenhancer.ui.components.UpdateDownloadSheet
+import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
@@ -72,6 +76,7 @@ fun ChangelogScreen() {
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var reloadKey by remember { mutableStateOf(0) }
+    var pendingInstall by remember { mutableStateOf<WaexRelease?>(null) }
     val installedVersion = remember {
         @Suppress("DEPRECATION")
         context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
@@ -93,7 +98,17 @@ fun ChangelogScreen() {
         if (selectedChannel == "Beta") ReleaseChannel.BETA else ReleaseChannel.STABLE
     )
     Scaffold(
-        topBar = { WaexTopBar("Changelog & Releases", onBackClick = { navController.popBack() }) },
+        topBar = {
+            WaexTopBar(
+                "Changelog & Releases",
+                onBackClick = { navController.popBack() },
+                actions = {
+                    IconButton(onClick = { navController.navigateTo(Screen.UpdateSettings) }) {
+                        Icon(WaexIcons.Settings, contentDescription = "Update settings", tint = colors.onSurface)
+                    }
+                }
+            )
+        },
         containerColor = colors.background
     ) { insets ->
         when {
@@ -114,7 +129,10 @@ fun ChangelogScreen() {
                             val active = selectedChannel == channel
                             Box(Modifier.clip(CircleShape).background(if (active) colors.primary else colors.surfaceDim)
                                 .border(1.dp, if (active) colors.primary else colors.outlineVariant, CircleShape)
-                                .clickable { selectedChannel = channel }.padding(horizontal = 18.dp, vertical = 9.dp)) {
+                                .clickable {
+                                    selectedChannel = channel
+                                    preferences.putString("release_channel", channel.lowercase(Locale.US))
+                                }.padding(horizontal = 18.dp, vertical = 9.dp)) {
                                 Text(channel, style = typography.labelSm, fontWeight = FontWeight.Bold, color = if (active) colors.onPrimary else colors.onSurface)
                             }
                         }
@@ -123,6 +141,8 @@ fun ChangelogScreen() {
                 if (filtered.isEmpty()) item { Text("No $selectedChannel releases found.", color = colors.onSurfaceVariant) }
                 items(filtered, key = { it.tagName }) { release ->
                     val installed = release.version.equals(com.waenhancer.update.normalizeVersion(installedVersion), true)
+                    val comparison = ReleaseRepository.versionCode(release.version).compareTo(ReleaseRepository.versionCode(installedVersion))
+                    val allowDowngrade = preferences.getBoolean("downgrades_enabled", false)
                     Surface(
                         shape = radius.bentoCardShape,
                         color = colors.surfaceContainerLow,
@@ -139,11 +159,26 @@ fun ChangelogScreen() {
                             }
                             Spacer(Modifier.height(12.dp))
                             MarkdownText(release.body, colors.onSurfaceVariant.toArgb(), maxLines = 8)
+                            if (release.downloadUrl != null && (comparison > 0 || comparison < 0 && allowDowngrade)) {
+                                Spacer(Modifier.height(14.dp))
+                                Button(onClick = { pendingInstall = release }, modifier = Modifier.fillMaxWidth()) {
+                                    Text(if (comparison > 0) "Upgrade" else "Downgrade")
+                                }
+                            }
                         }
                     }
                 }
             }
         }
+    }
+    pendingInstall?.let { release ->
+        val isDowngrade = ReleaseRepository.versionCode(release.version) < ReleaseRepository.versionCode(installedVersion)
+        UpdateDownloadSheet(
+            url = release.downloadUrl!!,
+            version = release.tagName,
+            useRoot = isDowngrade || preferences.getBoolean("root_auto_install", false),
+            onDismiss = { pendingInstall = null }
+        )
     }
 }
 

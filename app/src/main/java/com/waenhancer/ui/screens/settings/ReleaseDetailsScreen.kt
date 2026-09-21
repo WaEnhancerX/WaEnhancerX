@@ -48,6 +48,10 @@ fun ReleaseDetailsScreen(tagName: String) {
     var error by remember(tagName) { mutableStateOf<String?>(null) }
     var retry by remember { mutableStateOf(0) }
     var downloadUrl by remember { mutableStateOf<String?>(null) }
+    val installedVersion = remember {
+        @Suppress("DEPRECATION")
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
+    }
     LaunchedEffect(tagName, retry) {
         error = null
         runCatching { ReleaseRepository.fetchRelease(tagName) }
@@ -65,7 +69,10 @@ fun ReleaseDetailsScreen(tagName: String) {
                     MarkdownText(item.body, colors.onSurface.toArgb())
                     Spacer(Modifier.height(20.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        item.downloadUrl?.let { url -> Button(onClick = { downloadUrl = url }, modifier = Modifier.weight(1f)) { Text("Install APK") } }
+                        val isDowngrade = ReleaseRepository.versionCode(item.version) < ReleaseRepository.versionCode(installedVersion)
+                        if (!isDowngrade || preferences.getBoolean("downgrades_enabled", false)) {
+                            item.downloadUrl?.let { url -> Button(onClick = { downloadUrl = url }, modifier = Modifier.weight(1f)) { Text("Install APK") } }
+                        }
                         if (item.htmlUrl.isNotBlank()) OutlinedButton(onClick = { openUrl(context, item.htmlUrl) }, modifier = Modifier.weight(1f)) { Text("Release page") }
                     }
                 }
@@ -82,7 +89,8 @@ fun ReleaseDetailsScreen(tagName: String) {
         UpdateDownloadSheet(
             url = url,
             version = tagName,
-            useRoot = preferences.getBoolean("downgrades_enabled", false),
+            useRoot = ReleaseRepository.versionCode(release?.version ?: tagName) < ReleaseRepository.versionCode(installedVersion) ||
+                preferences.getBoolean("root_auto_install", false),
             onDismiss = { downloadUrl = null }
         )
     }

@@ -114,6 +114,10 @@ fun MainDashboardScreen(
     val hasUnsupportedActiveApp = detectedApps.any {
         it.isInstalled && it.isHooked && !UniversalVersionValidator.isSupported(context, it.versionName.removePrefix("v"), prefs)
     }
+    val moduleVersion = remember(context) {
+        @Suppress("DEPRECATION")
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
+    }
 
     var showCustomizationSoon by remember { mutableStateOf(false) }
 
@@ -168,9 +172,9 @@ fun MainDashboardScreen(
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = when {
-                                !isModuleActive -> "Module Inactive"
-                                hasUnsupportedActiveApp -> "Module Active • Unsupported Version"
-                                else -> "Module Active"
+                                !isModuleActive -> "Module Inactive • v$moduleVersion"
+                                hasUnsupportedActiveApp -> "Module Active • v$moduleVersion • Unsupported Target"
+                                else -> "Module Active • v$moduleVersion"
                             },
                             style = typography.bodyLg,
                             fontWeight = FontWeight.SemiBold,
@@ -186,7 +190,7 @@ fun MainDashboardScreen(
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = "v3.2.0 • Stable",
+                                text = if (moduleVersion.contains("-beta-")) "Beta" else "Stable",
                                 style = typography.labelSm,
                                 color = colors.onSurfaceVariant,
                                 fontSize = 11.sp
@@ -612,4 +616,3 @@ fun StandardNavCard(
         }
     }
 }
-

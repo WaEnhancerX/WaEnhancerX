@@ -1,5 +1,6 @@
 package com.waenhancer.ui.screens.settings
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -28,6 +29,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,6 +44,10 @@ import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
+import com.waenhancer.update.UpdateDownloader
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun UpdateSettingsScreen() {
@@ -50,6 +57,8 @@ fun UpdateSettingsScreen() {
     val spacing = WaexTheme.spacing
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     var autoCheckUpdates by remember { mutableStateOf(prefManager.getBoolean("update_auto_check", true)) }
     var allowDowngrades by remember { mutableStateOf(prefManager.getBoolean("downgrades_enabled", false)) }
@@ -197,8 +206,16 @@ fun UpdateSettingsScreen() {
                         StitchSwitch(
                             checked = allowDowngrades,
                             onCheckedChange = {
-                                allowDowngrades = it
-                                prefManager.putBoolean("downgrades_enabled", it)
+                                if (!it) {
+                                    allowDowngrades = false
+                                    prefManager.putBoolean("downgrades_enabled", false)
+                                } else scope.launch {
+                                    val granted = withContext(Dispatchers.IO) { UpdateDownloader.hasRootAccess() }
+                                    if (granted) {
+                                        allowDowngrades = true
+                                        prefManager.putBoolean("downgrades_enabled", true)
+                                    } else Toast.makeText(context, "Root access is required to enable version downgrades", Toast.LENGTH_LONG).show()
+                                }
                             }
                         )
                     }
@@ -230,8 +247,16 @@ fun UpdateSettingsScreen() {
                         StitchSwitch(
                             checked = rootAutoInstall,
                             onCheckedChange = {
-                                rootAutoInstall = it
-                                prefManager.putBoolean("root_auto_install", it)
+                                if (!it) {
+                                    rootAutoInstall = false
+                                    prefManager.putBoolean("root_auto_install", false)
+                                } else scope.launch {
+                                    val granted = withContext(Dispatchers.IO) { UpdateDownloader.hasRootAccess() }
+                                    if (granted) {
+                                        rootAutoInstall = true
+                                        prefManager.putBoolean("root_auto_install", true)
+                                    } else Toast.makeText(context, "Root access is required to enable silent installation", Toast.LENGTH_LONG).show()
+                                }
                             }
                         )
                     }

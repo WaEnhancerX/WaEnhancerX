@@ -29,6 +29,11 @@ object UpdateDownloader {
         fun onFailure(error: Exception)
     }
 
+    fun hasRootAccess(): Boolean {
+        val output = runRootCommand("id")
+        return output?.let { "uid=0" in it || "root" in it } == true
+    }
+
     fun downloadApk(context: Context, url: String, versionName: String, callback: DownloadCallback): Call? {
         val uriName = runCatching { Uri.parse(url).lastPathSegment }.getOrNull()
         val fileName = uriName?.takeIf { it.endsWith(".apk") }

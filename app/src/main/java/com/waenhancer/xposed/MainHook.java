@@ -63,6 +63,32 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                 XposedBridge.log("[WAEX] Failed to hook ModuleStatus sentinel: " + t.getMessage());
             }
 
+            // Persist the API supplied by the active framework for the manager diagnostics UI.
+            try {
+                XposedHelpers.findAndHookMethod(
+                        "android.app.Application",
+                        lpparam.classLoader,
+                        "onCreate",
+                        new XC_MethodHook() {
+                            @Override
+                            protected void afterHookedMethod(MethodHookParam param) {
+                                try {
+                                    Context context = (Context) param.thisObject;
+                                    int apiVersion = XposedBridge.getXposedVersion();
+                                    com.waenhancer.config.PreferenceStores.publicStore(context)
+                                            .edit()
+                                            .putInt("active_xposed_api_version", apiVersion)
+                                            .commit();
+                                } catch (Throwable t) {
+                                    XposedBridge.log("[WAEX] Failed to save Xposed API version: " + t.getMessage());
+                                }
+                            }
+                        }
+                );
+            } catch (Throwable t) {
+                XposedBridge.log("[WAEX] Failed to register Xposed API recorder: " + t.getMessage());
+            }
+
             // Bypass Android 7+ MODE_WORLD_READABLE check
             try {
                 XposedHelpers.findAndHookMethod(
