@@ -55,8 +55,12 @@ import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.Screen
 import com.waenhancer.utils.UniversalVersionValidator
+import com.waenhancer.utils.SystemDiagnostics
+import com.waenhancer.utils.SystemDiagnosticsReader
 import com.waenhancer.xposed.utils.AppRestartHelper
 import com.waenhancer.xposed.utils.ModuleStatus
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun MainDashboardScreen(
@@ -74,6 +78,11 @@ fun MainDashboardScreen(
 
 
     var refreshTrigger by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    var systemDiagnostics by remember { mutableStateOf<SystemDiagnostics?>(null) }
+
+    androidx.compose.runtime.LaunchedEffect(refreshTrigger) {
+        systemDiagnostics = withContext(Dispatchers.IO) { SystemDiagnosticsReader.read(context) }
+    }
 
     // Re-check target apps on resume and whenever target app sends active broadcast
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -176,8 +185,11 @@ fun MainDashboardScreen(
                                 hasUnsupportedActiveApp -> "Module Active • v$moduleVersion • Unsupported Target"
                                 else -> "Module Active • v$moduleVersion"
                             },
-                            style = typography.bodyLg,
+                            style = typography.bodyMd,
                             fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
                             color = if (hasUnsupportedActiveApp) Color(0xFFEF4444) else colors.onSurface,
                             modifier = Modifier.weight(1f)
                         )
@@ -383,10 +395,19 @@ fun MainDashboardScreen(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
 
+                    val diagnostics = systemDiagnostics
                     val specs = listOf(
                         "Device" to "${android.os.Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${android.os.Build.MODEL}",
                         "Android" to "Android ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})",
-                        "Xposed Framework" to "LSPosed / DexKit v2.0"
+                        "Xposed Framework" to (diagnostics?.framework?.name ?: "Detecting…"),
+                        "Framework Version" to (diagnostics?.framework?.version ?: "Not available"),
+                        "Xposed API" to (diagnostics?.framework?.api?.toString() ?: "Not reported"),
+                        "Root Allowed" to when (diagnostics?.rootAllowed) {
+                            true -> "Yes"
+                            false -> "No"
+                            null -> "Checking…"
+                        },
+                        "SELinux" to (diagnostics?.selinux ?: "Checking…")
                     )
 
                     specs.forEachIndexed { index, (label, value) ->
