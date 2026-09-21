@@ -81,6 +81,17 @@ android {
             useLegacyPackaging = true
         }
     }
+
+    applicationVariants.all {
+        val variant = this
+        variant.outputs.forEach {
+            val output = it as? com.android.build.gradle.api.ApkVariantOutput
+            if (output != null) {
+                val suffix = if (variant.buildType.name == "debug") "_debug" else "_release"
+                output.outputFileName = "WaEnhancerX-v${variant.versionName}${suffix}.apk"
+            }
+        }
+    }
 }
 
 kotlin {
@@ -151,5 +162,4 @@ kapt {
         arg("dagger.hilt.android.internal.disableAndroidSuperclassValidation", "true")
     }
 }
-
 

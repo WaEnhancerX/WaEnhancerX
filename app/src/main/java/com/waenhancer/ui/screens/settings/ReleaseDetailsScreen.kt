@@ -29,8 +29,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.waenhancer.ui.components.WaexTopBar
+import com.waenhancer.ui.components.UpdateDownloadSheet
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
+import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
 import com.waenhancer.update.ReleaseRepository
 import com.waenhancer.update.WaexRelease
 
@@ -38,12 +40,14 @@ import com.waenhancer.update.WaexRelease
 fun ReleaseDetailsScreen(tagName: String) {
     val nav = LocalWaexNavController.current
     val context = LocalContext.current
+    val preferences = LocalWaexPreferenceManager.current
     val colors = WaexTheme.colors
     val typography = WaexTheme.typography
     val spacing = WaexTheme.spacing
     var release by remember(tagName) { mutableStateOf<WaexRelease?>(null) }
     var error by remember(tagName) { mutableStateOf<String?>(null) }
     var retry by remember { mutableStateOf(0) }
+    var downloadUrl by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(tagName, retry) {
         error = null
         runCatching { ReleaseRepository.fetchRelease(tagName) }
@@ -61,7 +65,7 @@ fun ReleaseDetailsScreen(tagName: String) {
                     MarkdownText(item.body, colors.onSurface.toArgb())
                     Spacer(Modifier.height(20.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        item.downloadUrl?.let { url -> Button(onClick = { openUrl(context, url) }, modifier = Modifier.weight(1f)) { Text("Download APK") } }
+                        item.downloadUrl?.let { url -> Button(onClick = { downloadUrl = url }, modifier = Modifier.weight(1f)) { Text("Install APK") } }
                         if (item.htmlUrl.isNotBlank()) OutlinedButton(onClick = { openUrl(context, item.htmlUrl) }, modifier = Modifier.weight(1f)) { Text("Release page") }
                     }
                 }
@@ -73,5 +77,13 @@ fun ReleaseDetailsScreen(tagName: String) {
             }
             else -> Box(Modifier.fillMaxSize().padding(insets), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = colors.primary) }
         }
+    }
+    downloadUrl?.let { url ->
+        UpdateDownloadSheet(
+            url = url,
+            version = tagName,
+            useRoot = preferences.getBoolean("downgrades_enabled", false),
+            onDismiss = { downloadUrl = null }
+        )
     }
 }
