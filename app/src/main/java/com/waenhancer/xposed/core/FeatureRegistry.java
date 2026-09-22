@@ -75,6 +75,7 @@ public final class FeatureRegistry {
 
         // Media & Audio Controls
         features.add(new DownloadViewOnceHook(context, classLoader, prefs));
+        features.add(new com.waenhancer.xposed.features.media.StatusDownloadHook(context, classLoader, prefs));
         features.add(new MediaQualityBypassHook(context, classLoader, prefs));
         features.add(new ProximitySensorHook(context, classLoader, prefs));
 
