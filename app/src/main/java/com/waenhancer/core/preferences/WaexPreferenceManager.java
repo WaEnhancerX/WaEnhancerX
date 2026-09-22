@@ -3,7 +3,6 @@ package com.waenhancer.core.preferences;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.Uri;
-import com.waenhancer.api.contracts.WaexPreferenceManager;
 import com.waenhancer.config.PreferenceSchema;
 import com.waenhancer.config.PreferenceStores;
 import dagger.hilt.android.qualifiers.ApplicationContext;
@@ -11,12 +10,12 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 
 @Singleton
-public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
+public final class WaexPreferenceManager {
 
     private final Context context;
 
     @Inject
-    public WaexPreferenceManagerImpl(@ApplicationContext Context context) {
+    public WaexPreferenceManager(@ApplicationContext Context context) {
         this.context = context;
     }
 
@@ -29,7 +28,6 @@ public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
         return entry == null || entry.store == PreferenceSchema.Store.PUBLIC;
     }
 
-    @Override
     public boolean getBoolean(String key, boolean defaultValue) {
         try {
             return getStore(key).getBoolean(key, defaultValue);
@@ -53,7 +51,6 @@ public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
 
     private static final Uri PREFS_URI = Uri.parse("content://com.waenhancer.hookprovider/preferences");
 
-    @Override
     public void putBoolean(String key, boolean value) {
         getStore(key).edit().putBoolean(key, value).commit();
         if (isPublicStore(key)) {
@@ -62,7 +59,6 @@ public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
         }
     }
 
-    @Override
     public String getString(String key, String defaultValue) {
         try {
             return getStore(key).getString(key, defaultValue);
@@ -76,7 +72,6 @@ public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
         }
     }
 
-    @Override
     public void putString(String key, String value) {
         getStore(key).edit().putString(key, value).commit();
         if (isPublicStore(key)) {
@@ -85,12 +80,10 @@ public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
         }
     }
 
-    @Override
     public int getInt(String key, int defaultValue) {
         return getStore(key).getInt(key, defaultValue);
     }
 
-    @Override
     public void putInt(String key, int value) {
         getStore(key).edit().putInt(key, value).commit();
         if (isPublicStore(key)) {
@@ -99,12 +92,10 @@ public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
         }
     }
 
-    @Override
     public float getFloat(String key, float defaultValue) {
         return getStore(key).getFloat(key, defaultValue);
     }
 
-    @Override
     public void putFloat(String key, float value) {
         getStore(key).edit().putFloat(key, value).commit();
         if (isPublicStore(key)) {
@@ -113,7 +104,6 @@ public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
         }
     }
 
-    @Override
     public void remove(String key) {
         getStore(key).edit().remove(key).commit();
         if (isPublicStore(key)) {
@@ -122,7 +112,6 @@ public final class WaexPreferenceManagerImpl implements WaexPreferenceManager {
         }
     }
 
-    @Override
     public java.util.Map<String, ?> getAll() {
         return PreferenceStores.publicStore(context).getAll();
     }

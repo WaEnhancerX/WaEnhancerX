@@ -77,7 +77,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import com.waenhancer.api.contracts.WaexPreferenceManager
+import com.waenhancer.core.preferences.WaexPreferenceManager
 import com.waenhancer.ui.components.StitchSwitch
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme

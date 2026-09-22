@@ -1,0 +1,3 @@
+[submodule "licensing"]
+	path = licensing
+	url = https://github.com/mubashardev/waex-licensing.git

@@ -70,15 +70,15 @@ fun LicenseActivationModal(
     onDismiss: () -> Unit,
     onActivated: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val colors = WaexTheme.colors
     val spacing = WaexTheme.spacing
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
-    val clipboardManager = LocalClipboardManager.current
 
     var licenseKey by remember { mutableStateOf("") }
     var verifyState by remember { mutableStateOf("idle") } // "idle" | "verifying" | "success" | "error"
-    val coroutineScope = rememberCoroutineScope()
+    var errorMessage by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
@@ -111,7 +111,7 @@ fun LicenseActivationModal(
                     color = colors.onSurface
                 )
                 Text(
-                    text = "Enter your Cryptomus license key",
+                    text = "Enter your WAEX Pro license key",
                     style = typography.bodyMd,
                     color = colors.onSurfaceVariant
                 )
@@ -161,7 +161,7 @@ fun LicenseActivationModal(
         ) {
             if (licenseKey.isEmpty()) {
                 Text(
-                    text = "XXXX-XXXX-XXXX-XXXX",
+                    text = "WAEX-XXXX-XXXX-XXXX",
                     style = typography.bodyLg.copy(fontFamily = FontFamily.Monospace, fontSize = 16.sp),
                     color = colors.onSurfaceVariant.copy(alpha = 0.5f)
                 )
@@ -171,6 +171,7 @@ fun LicenseActivationModal(
                 onValueChange = {
                     licenseKey = it
                     verifyState = "idle"
+                    errorMessage = ""
                 },
                 singleLine = true,
                 textStyle = typography.bodyLg.copy(
@@ -184,7 +185,7 @@ fun LicenseActivationModal(
             )
         }
 
-        if (verifyState == "error") {
+        if (verifyState == "error" && errorMessage.isNotEmpty()) {
             Row(
                 modifier = Modifier.padding(top = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -197,7 +198,7 @@ fun LicenseActivationModal(
                     modifier = Modifier.size(13.dp)
                 )
                 Text(
-                    text = "Invalid license key. Please try again.",
+                    text = errorMessage,
                     style = typography.labelSm,
                     color = Color(0xFFF44336)
                 )
@@ -217,10 +218,8 @@ fun LicenseActivationModal(
         ) {
             val rows = listOf(
                 Triple("License Status", if (verifyState == "success") "✓ Valid" else if (verifyState == "error") "✗ Invalid" else "Pending verification", if (verifyState == "success") Color(0xFF4CAF50) else if (verifyState == "error") Color(0xFFF44336) else colors.onSurfaceVariant),
-                Triple("Device Binding", "Android · SDK 34", colors.onSurface),
-                Triple("Expiration Date", if (verifyState == "success") "Lifetime" else "—", colors.onSurface),
-                Triple("Plan Type", if (verifyState == "success") "Pro — Lifetime" else "—", colors.onSurface),
-                Triple("Validation Source", "Cryptomus API", colors.onSurfaceVariant)
+                Triple("Format Pattern", "WAEX-XXXX-XXXX-XXXX", colors.onSurface),
+                Triple("Hardware Binding", "Hardware UUID + Fingerprint", colors.onSurfaceVariant)
             )
 
             rows.forEach { (label, value, color) ->
@@ -238,19 +237,38 @@ fun LicenseActivationModal(
         // Buttons
         Button(
             onClick = {
-                if (licenseKey.trim().isEmpty()) return@Button
-                verifyState = "verifying"
-                coroutineScope.launch {
-                    delay(1800)
-                    if (licenseKey.contains("PRO") || licenseKey.length >= 19) {
-                        verifyState = "success"
-                        delay(1200)
-                        onActivated()
-                    } else {
-                        verifyState = "error"
-                    }
+                val trimmedKey = licenseKey.trim()
+                if (trimmedKey.isEmpty()) {
+                    verifyState = "error"
+                    errorMessage = "Please enter your license key."
+                    return@Button
                 }
+                if (!com.waenhancer.licensing.LicenseManager.isValidLicensePattern(trimmedKey)) {
+                    verifyState = "error"
+                    errorMessage = "Invalid key format. Expected: WAEX-XXXX-XXXX-XXXX"
+                    return@Button
+                }
+
+                verifyState = "verifying"
+                errorMessage = ""
+
+                com.waenhancer.licensing.LicenseManager.verifyLicense(
+                    context,
+                    trimmedKey,
+                    object : com.waenhancer.licensing.LicenseManager.LicenseCallback {
+                        override fun onSuccess(planName: String?, expiresAtStr: String?, tgUsername: String?) {
+                            verifyState = "success"
+                            onActivated()
+                        }
+
+                        override fun onError(message: String?) {
+                            verifyState = "error"
+                            errorMessage = message ?: "Verification failed."
+                        }
+                    }
+                )
             },
+
             enabled = verifyState != "verifying" && licenseKey.trim().isNotEmpty(),
             shape = radius.lgShape,
             colors = ButtonDefaults.buttonColors(
@@ -283,46 +301,23 @@ fun LicenseActivationModal(
                 Text(text = "Verify License", style = typography.bodyLg, fontWeight = FontWeight.Bold)
             }
         }
-        Spacer(modifier = Modifier.height(12.dp))
 
-        Button(
-            onClick = {
-                val clipText = clipboardManager.getText()?.text
-                if (!clipText.isNullOrEmpty()) {
-                    licenseKey = clipText.trim()
-                } else {
-                    licenseKey = "WXPRO-A8F2-9KL4-M7N3"
-                }
-                verifyState = "idle"
-            },
-            shape = radius.lgShape,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = colors.surface,
-                contentColor = colors.onSurface
-            ),
-            border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(44.dp)
-        ) {
-            Icon(
-                imageVector = WaexIcons.Share, // Clipboard icon analogue
-                contentDescription = null,
-                tint = colors.onSurface,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text = "Paste From Clipboard", style = typography.bodyMd, fontWeight = FontWeight.Medium)
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(14.dp))
         Text(
-            text = "Contact Support",
+            text = "Need a license? Get it on Telegram @waenhancerx_bot",
             style = typography.bodyMd.copy(color = colors.primary, fontWeight = FontWeight.Medium),
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { }
+                .clickable {
+                    try {
+                        val intent = android.content.Intent(
+                            android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse("https://t.me/waenhancerx_bot")
+                        ).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                        context.startActivity(intent)
+                    } catch (ignored: Exception) {}
+                }
                 .padding(vertical = 8.dp)
         )
     }

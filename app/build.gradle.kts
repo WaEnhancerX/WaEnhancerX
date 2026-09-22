@@ -146,6 +146,9 @@ dependencies {
     compileOnly(libs.libxposed.legacy)
     implementation(libs.dexkit)
 
+    // Submodule Licensing Library (Private Submodule)
+    implementation(project(":licensing"))
+
 
     // Testing
     testImplementation(libs.junit)

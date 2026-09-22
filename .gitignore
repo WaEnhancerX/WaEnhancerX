@@ -41,3 +41,5 @@ docs/
 .vscode
 **/*.DS_Store
 .agents
+licensing/
+

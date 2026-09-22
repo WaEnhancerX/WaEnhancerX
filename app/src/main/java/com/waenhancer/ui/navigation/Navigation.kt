@@ -1,6 +1,8 @@
 package com.waenhancer.ui.navigation
 
+import com.waenhancer.licensing.LicenseManager
 import androidx.activity.compose.BackHandler
+
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
@@ -160,14 +162,9 @@ class WaexNavController(initialScreen: Screen = Screen.MainDashboard) {
 
 val LocalWaexNavController = staticCompositionLocalOf { WaexNavController() }
 
-val LocalWaexPreferenceManager = staticCompositionLocalOf<com.waenhancer.api.contracts.WaexPreferenceManager> {
+
+val LocalWaexPreferenceManager = staticCompositionLocalOf<com.waenhancer.core.preferences.WaexPreferenceManager> {
     error("No WaexPreferenceManager provided")
-}
-val LocalWaexPreferenceRepository = staticCompositionLocalOf<com.waenhancer.api.contracts.WaexPreferenceRepository> {
-    error("No WaexPreferenceRepository provided")
-}
-val LocalWaexLicenseManager = staticCompositionLocalOf<com.waenhancer.api.contracts.WaexLicenseManager> {
-    error("No WaexLicenseManager provided")
 }
 
 
@@ -192,11 +189,11 @@ fun MainContainerScreen() {
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
 
-    val licenseManager = LocalWaexLicenseManager.current
     val context = androidx.compose.ui.platform.LocalContext.current
     val preferenceManager = LocalWaexPreferenceManager.current
-    var licenseState by remember { mutableStateOf(if (licenseManager.isProActivated()) "pro" else "free") }
+    var licenseState by remember { mutableStateOf(if ("ACTIVE".equals(LicenseManager.getProStatus(context), ignoreCase = true)) "pro" else "free") }
     var activeModal by remember { mutableStateOf<String?>(null) } // "license" | "file-spoofer" | "message-bomber" | "status-splitter" | null
+
 
     val contactPrivacyList = remember(preferenceManager) {
         mutableStateListOf<ContactPrivacy>().apply {
@@ -820,8 +817,7 @@ fun MainContainerScreen() {
                                     licenseState = licenseState,
                                     onOpenModal = { activeModal = it },
                                     onActivatePro = {
-                                        licenseManager.activateLicense("DUMMY-KEY-PRO")
-                                        licenseState = if (licenseManager.isProActivated()) "pro" else "free"
+                                        activeModal = "license"
                                     },
                                     contactPrivacyList = contactPrivacyList,
                                     onClearContact = { c ->
@@ -867,8 +863,7 @@ fun MainContainerScreen() {
                             licenseState = licenseState,
                             onOpenModal = { activeModal = it },
                             onActivatePro = {
-                                licenseManager.activateLicense("DUMMY-KEY-PRO")
-                                licenseState = if (licenseManager.isProActivated()) "pro" else "free"
+                                activeModal = "license"
                             },
                             contactPrivacyList = contactPrivacyList,
                             onClearContact = { c ->
@@ -959,11 +954,11 @@ fun MainContainerScreen() {
                             "license" -> LicenseActivationModal(
                                 onDismiss = { activeModal = null },
                                 onActivated = {
-                                    licenseManager.activateLicense("DUMMY-KEY-PRO")
-                                    licenseState = if (licenseManager.isProActivated()) "pro" else "free"
+                                    licenseState = if ("ACTIVE".equals(LicenseManager.getProStatus(context), ignoreCase = true)) "pro" else "free"
                                     activeModal = null
                                 }
                             )
+
                             "file-spoofer" -> FileSizeSpooferModal(onDismiss = { activeModal = null })
                             "message-bomber" -> MessageBomberModal(onDismiss = { activeModal = null })
                             "status-splitter" -> StatusVideoSplitterModal(onDismiss = { activeModal = null })
@@ -1047,7 +1042,7 @@ data class ContactPrivacy(
     val endHour: Int = 18
 )
 
-fun loadContactPrivacyList(context: android.content.Context, preferenceManager: com.waenhancer.api.contracts.WaexPreferenceManager): List<ContactPrivacy> {
+fun loadContactPrivacyList(context: android.content.Context, preferenceManager: com.waenhancer.core.preferences.WaexPreferenceManager): List<ContactPrivacy> {
     val list = mutableListOf<ContactPrivacy>()
     val all = preferenceManager.all ?: return list
     val seen = mutableSetOf<String>()

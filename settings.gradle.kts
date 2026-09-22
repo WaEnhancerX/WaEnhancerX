@@ -34,4 +34,6 @@ plugins {
 
 rootProject.name = "Wa Enhancer X"
 include(":app")
+include(":licensing")
+
 

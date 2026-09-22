@@ -15,16 +15,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.waenhancer.api.contracts.WaexLicenseManager
-import com.waenhancer.api.contracts.WaexPreferenceManager
-import com.waenhancer.api.contracts.WaexPreferenceRepository
+import com.waenhancer.core.preferences.WaexPreferenceManager
+import com.waenhancer.licensing.LicenseManager
 import com.waenhancer.ui.designsystem.LocalThemeMode
 import com.waenhancer.ui.designsystem.LocalThemeModeUpdater
 import com.waenhancer.ui.designsystem.WaexTheme
-import com.waenhancer.ui.navigation.LocalWaexLicenseManager
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
-import com.waenhancer.ui.navigation.LocalWaexPreferenceRepository
 import com.waenhancer.ui.navigation.MainContainerScreen
 import com.waenhancer.ui.navigation.WaexNavController
 import dagger.hilt.android.AndroidEntryPoint
@@ -34,8 +31,7 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
 
     @Inject lateinit var preferenceManager: WaexPreferenceManager
-    @Inject lateinit var preferenceRepository: WaexPreferenceRepository
-    @Inject lateinit var licenseManager: WaexLicenseManager
+
 
     private var currentNavController: WaexNavController? = null
 
@@ -49,6 +45,14 @@ class MainActivity : ComponentActivity() {
             currentNavController?.navigateTo(com.waenhancer.ui.navigation.Screen.SupportedVersions)
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+        if ("ACTIVE".equals(LicenseManager.getProStatus(this), ignoreCase = true)) {
+            LicenseManager.silentCheck(this, null)
+        }
+    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -86,12 +90,12 @@ class MainActivity : ComponentActivity() {
                         }
                         CompositionLocalProvider(
                             LocalWaexNavController provides navController,
-                            LocalWaexPreferenceManager provides preferenceManager,
-                            LocalWaexPreferenceRepository provides preferenceRepository,
-                            LocalWaexLicenseManager provides licenseManager
+                            LocalWaexPreferenceManager provides preferenceManager
                         ) {
                             MainContainerScreen()
                         }
+
+
                     }
                 }
             }
