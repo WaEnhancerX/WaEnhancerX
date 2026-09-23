@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.waenhancer.ui.components.WaexCard
 import com.waenhancer.ui.components.WaexInfoBanner
 import com.waenhancer.ui.components.WaexSectionHeader
@@ -212,19 +213,24 @@ fun LicenseActivationScreen() {
                             if (licenseKeyInput.isEmpty()) {
                                 Text(
                                     text = "WAEX-XXXX-XXXX-XXXX",
-                                    style = typography.bodyLg,
+                                    style = typography.bodyLg.copy(
+                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                        letterSpacing = 1.2.sp
+                                    ),
                                     color = colors.onSurfaceVariant.copy(alpha = 0.5f)
                                 )
                             }
                             BasicTextField(
                                 value = licenseKeyInput,
                                 onValueChange = {
-                                    licenseKeyInput = it
+                                    licenseKeyInput = it.uppercase(java.util.Locale.US)
                                     errorMessage = ""
                                 },
                                 singleLine = true,
                                 textStyle = typography.bodyLg.copy(
                                     fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                    fontWeight = FontWeight.SemiBold,
+                                    letterSpacing = 1.2.sp,
                                     color = colors.onSurface
                                 ),
                                 cursorBrush = SolidColor(colors.primary),
@@ -246,7 +252,7 @@ fun LicenseActivationScreen() {
                 // CTA Button
                 Button(
                     onClick = {
-                        val trimmedKey = licenseKeyInput.trim()
+                        val trimmedKey = licenseKeyInput.trim().uppercase(java.util.Locale.US)
                         if (!LicenseManager.isValidLicensePattern(trimmedKey)) {
                             errorMessage = "Invalid key format. Expected: WAEX-XXXX-XXXX-XXXX"
                             return@Button
@@ -288,16 +294,16 @@ fun LicenseActivationScreen() {
                             strokeWidth = 2.dp
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "Verifying…", style = typography.bodyLg.copy(fontWeight = FontWeight.Bold))
+                        Text(text = "Verifying with Server…", style = typography.bodyLg.copy(fontWeight = FontWeight.Bold))
                     } else {
                         Text(text = "Verify & Activate License", style = typography.bodyLg.copy(fontWeight = FontWeight.Bold))
                     }
                 }
 
-                Text(
-                    text = "Get your key from Telegram Bot @waenhancerx_bot",
-                    style = typography.bodyMd.copy(color = colors.primary, fontWeight = FontWeight.Medium),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                Surface(
+                    shape = radius.mdShape,
+                    color = colors.surfaceContainerLow,
+                    border = BorderStroke(1.dp, colors.outlineVariant),
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
@@ -309,8 +315,26 @@ fun LicenseActivationScreen() {
                                 context.startActivity(intent)
                             } catch (ignored: Exception) {}
                         }
-                        .padding(vertical = 4.dp)
-                )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = WaexIcons.Info,
+                            contentDescription = null,
+                            tint = colors.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Get or manage license on Telegram @waenhancerx_bot",
+                            style = typography.bodyMd.copy(color = colors.primary, fontWeight = FontWeight.Medium),
+                            fontSize = 13.sp
+                        )
+                    }
+                }
             }
 
             // Benefits Description

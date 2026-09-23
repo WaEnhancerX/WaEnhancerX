@@ -93,7 +93,6 @@ fun LicenseActivationModal(
                 .clip(CircleShape)
                 .background(colors.outlineVariant)
                 .align(Alignment.CenterHorizontally)
-                .padding(bottom = 20.dp)
         )
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -101,21 +100,41 @@ fun LicenseActivationModal(
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Text(
-                    text = "Activate License",
-                    style = typography.headlineMd,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurface
-                )
-                Text(
-                    text = "Enter your WAEX Pro license key",
-                    style = typography.bodyMd,
-                    color = colors.onSurfaceVariant
-                )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(colors.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = WaexIcons.Lock,
+                        contentDescription = null,
+                        tint = colors.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Column {
+                    Text(
+                        text = "Activate Pro License",
+                        style = typography.headlineMd,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.onSurface
+                    )
+                    Text(
+                        text = "Hardware-locked feature activation",
+                        style = typography.labelSm,
+                        color = colors.onSurfaceVariant
+                    )
+                }
             }
+
             IconButton(
                 onClick = onDismiss,
                 modifier = Modifier
@@ -132,13 +151,13 @@ fun LicenseActivationModal(
                 )
             }
         }
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Key Input Box
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(60.dp)
+                .height(56.dp)
                 .clip(radius.mdShape)
                 .background(
                     when (verifyState) {
@@ -156,29 +175,34 @@ fun LicenseActivationModal(
                     },
                     shape = radius.mdShape
                 )
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 14.dp),
             contentAlignment = Alignment.CenterStart
         ) {
             if (licenseKey.isEmpty()) {
                 Text(
                     text = "WAEX-XXXX-XXXX-XXXX",
-                    style = typography.bodyLg.copy(fontFamily = FontFamily.Monospace, fontSize = 16.sp),
-                    color = colors.onSurfaceVariant.copy(alpha = 0.5f)
+                    style = typography.bodyLg.copy(
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 15.sp,
+                        letterSpacing = 1.2.sp
+                    ),
+                    color = colors.onSurfaceVariant.copy(alpha = 0.45f)
                 )
             }
             BasicTextField(
                 value = licenseKey,
-                onValueChange = {
-                    licenseKey = it
+                onValueChange = { input ->
+                    licenseKey = input.uppercase(java.util.Locale.US)
                     verifyState = "idle"
                     errorMessage = ""
                 },
                 singleLine = true,
                 textStyle = typography.bodyLg.copy(
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
                     color = colors.onSurface,
-                    letterSpacing = 1.5.sp
+                    letterSpacing = 1.2.sp
                 ),
                 cursorBrush = SolidColor(colors.primary),
                 modifier = Modifier.fillMaxWidth()
@@ -187,57 +211,30 @@ fun LicenseActivationModal(
 
         if (verifyState == "error" && errorMessage.isNotEmpty()) {
             Row(
-                modifier = Modifier.padding(top = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(top = 8.dp, start = 4.dp),
+                verticalAlignment = Alignment.Top,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Icon(
                     imageVector = WaexIcons.Warning,
                     contentDescription = null,
                     tint = Color(0xFFF44336),
-                    modifier = Modifier.size(13.dp)
+                    modifier = Modifier.size(14.dp).padding(top = 2.dp)
                 )
                 Text(
                     text = errorMessage,
                     style = typography.labelSm,
-                    color = Color(0xFFF44336)
+                    color = Color(0xFFF44336),
+                    lineHeight = 16.sp
                 )
             }
         }
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
-        // Verification Info Card
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(radius.lgShape)
-                .background(colors.surfaceDim)
-                .border(1.dp, colors.outlineVariant, radius.lgShape)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            val rows = listOf(
-                Triple("License Status", if (verifyState == "success") "✓ Valid" else if (verifyState == "error") "✗ Invalid" else "Pending verification", if (verifyState == "success") Color(0xFF4CAF50) else if (verifyState == "error") Color(0xFFF44336) else colors.onSurfaceVariant),
-                Triple("Format Pattern", "WAEX-XXXX-XXXX-XXXX", colors.onSurface),
-                Triple("Hardware Binding", "Hardware UUID + Fingerprint", colors.onSurfaceVariant)
-            )
-
-            rows.forEach { (label, value, color) ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(text = label, style = typography.bodyMd, color = colors.onSurfaceVariant)
-                    Text(text = value, style = typography.bodyMd, fontWeight = FontWeight.Medium, color = color)
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Buttons
+        // Activation Button
         Button(
             onClick = {
-                val trimmedKey = licenseKey.trim()
+                val trimmedKey = licenseKey.trim().uppercase(java.util.Locale.US)
                 if (trimmedKey.isEmpty()) {
                     verifyState = "error"
                     errorMessage = "Please enter your license key."
@@ -268,7 +265,6 @@ fun LicenseActivationModal(
                     }
                 )
             },
-
             enabled = verifyState != "verifying" && licenseKey.trim().isNotEmpty(),
             shape = radius.lgShape,
             colors = ButtonDefaults.buttonColors(
@@ -278,7 +274,7 @@ fun LicenseActivationModal(
             ),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp)
+                .height(52.dp)
         ) {
             if (verifyState == "verifying") {
                 CircularProgressIndicator(
@@ -287,7 +283,7 @@ fun LicenseActivationModal(
                     strokeWidth = 2.dp
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "Verifying…", style = typography.bodyLg, fontWeight = FontWeight.Bold)
+                Text(text = "Verifying with Server…", style = typography.bodyMd, fontWeight = FontWeight.Bold)
             } else if (verifyState == "success") {
                 Icon(
                     imageVector = WaexIcons.Success,
@@ -296,17 +292,19 @@ fun LicenseActivationModal(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "Activated!", style = typography.bodyLg, fontWeight = FontWeight.Bold)
+                Text(text = "Pro License Activated!", style = typography.bodyMd, fontWeight = FontWeight.Bold)
             } else {
-                Text(text = "Verify License", style = typography.bodyLg, fontWeight = FontWeight.Bold)
+                Text(text = "Verify & Activate", style = typography.bodyMd, fontWeight = FontWeight.Bold)
             }
         }
 
         Spacer(modifier = Modifier.height(14.dp))
-        Text(
-            text = "Need a license? Get it on Telegram @waenhancerx_bot",
-            style = typography.bodyMd.copy(color = colors.primary, fontWeight = FontWeight.Medium),
-            textAlign = TextAlign.Center,
+
+        // Telegram Bot Button
+        Surface(
+            shape = radius.mdShape,
+            color = colors.surfaceDim,
+            border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant),
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable {
@@ -318,8 +316,28 @@ fun LicenseActivationModal(
                         context.startActivity(intent)
                     } catch (ignored: Exception) {}
                 }
-                .padding(vertical = 8.dp)
-        )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = WaexIcons.Info,
+                    contentDescription = null,
+                    tint = colors.primary,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Get or manage license via @waenhancerx_bot",
+                    style = typography.bodyMd.copy(color = colors.primary, fontWeight = FontWeight.Medium),
+                    fontSize = 13.sp
+                )
+            }
+        }
     }
 }
 
