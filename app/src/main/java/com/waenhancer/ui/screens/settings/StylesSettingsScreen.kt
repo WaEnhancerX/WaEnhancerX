@@ -17,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -299,7 +300,7 @@ fun StylesSettingsScreen() {
                                         }
                                     }
                                     .padding(horizontal = 16.dp, vertical = 14.dp)
-                                    .then(if (isLocked) Modifier.androidx.compose.ui.draw.alpha(0.6f) else Modifier),
+                                    .then(if (isLocked) Modifier.alpha(0.6f) else Modifier),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(
@@ -342,7 +343,7 @@ fun StylesSettingsScreen() {
                                 }
                                 StitchSwitch(
                                     checked = if (isLocked) false else (settingsState[item.key] ?: false),
-                                    onCheckedChange = if (isLocked) null else { updatePreference(item.key, it) },
+                                    onCheckedChange = if (isLocked) null else { isChecked -> updatePreference(item.key, isChecked) },
                                     enabled = !isLocked
                                 )
                             }

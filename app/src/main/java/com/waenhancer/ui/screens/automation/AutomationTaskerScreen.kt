@@ -40,6 +40,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -276,7 +277,7 @@ fun AutomationTaskerScreen() {
                         Row(
                             modifier = Modifier
                                 .padding(16.dp)
-                                .then(if (isLocked) Modifier.androidx.compose.ui.draw.alpha(0.6f) else Modifier),
+                                .then(if (isLocked) Modifier.alpha(0.6f) else Modifier),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(

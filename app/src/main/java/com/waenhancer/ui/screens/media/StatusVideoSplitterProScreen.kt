@@ -69,11 +69,22 @@ fun StatusVideoSplitterProScreen() {
                 .padding(spacing.pageMargin),
             verticalArrangement = Arrangement.spacedBy(spacing.stackLg)
         ) {
-            WaexInfoBanner(
-                message = "Pro Feature: Splits long video files into perfect contiguous chunks to upload as a continuous status story. Cuts are made seamlessly on keyframes.",
-                bannerType = com.waenhancer.ui.components.BannerType.INFO,
-                title = "Status Duration Enhancer"
-            )
+            val isPro = com.waenhancer.ui.navigation.LocalIsPro.current
+            val onActivatePro = com.waenhancer.ui.navigation.LocalOnActivatePro.current
+
+            if (!isPro) {
+                WaexInfoBanner(
+                    message = "Status Video Splitter is a Pro-exclusive feature. Please activate your Pro license to split videos.",
+                    bannerType = com.waenhancer.ui.components.BannerType.ERROR,
+                    title = "Pro License Required"
+                )
+            } else {
+                WaexInfoBanner(
+                    message = "Pro Feature: Splits long video files into perfect contiguous chunks to upload as a continuous status story. Cuts are made seamlessly on keyframes.",
+                    bannerType = com.waenhancer.ui.components.BannerType.INFO,
+                    title = "Status Duration Enhancer"
+                )
+            }
 
             // Select Video Card
             WaexSectionHeader(
@@ -88,7 +99,7 @@ fun StatusVideoSplitterProScreen() {
                     .clip(radius.cardShape)
                     .background(colors.surfaceContainerLow)
                     .border(1.dp, colors.outline, radius.cardShape)
-                    .clickable { selectedVideo = "TripToParis_2026.mp4 (3m 42s)" },
+                    .clickable(enabled = isPro) { selectedVideo = "TripToParis_2026.mp4 (3m 42s)" },
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -145,7 +156,7 @@ fun StatusVideoSplitterProScreen() {
                                         color = if (isSelected) colors.primaryContainer else colors.outlineVariant,
                                         shape = radius.defaultShape
                                     )
-                                    .clickable { splitDuration = dur }
+                                    .clickable(enabled = isPro) { splitDuration = dur }
                                     .padding(vertical = 12.dp),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -160,28 +171,44 @@ fun StatusVideoSplitterProScreen() {
                 }
             }
 
-            // Split CTA button
-            Button(
-                onClick = { if (selectedVideo != null) isProcessing = true },
-                shape = radius.buttonShape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colors.primaryContainer,
-                    contentColor = colors.onPrimary
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                enabled = selectedVideo != null
-            ) {
-                Text(text = "Process and Split Video", style = typography.bodyLg.copy(fontWeight = FontWeight.Bold))
-            }
+            // Split / Upgrade CTA button
+            if (!isPro) {
+                Button(
+                    onClick = onActivatePro,
+                    shape = radius.buttonShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colors.primary,
+                        contentColor = colors.onPrimary
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                ) {
+                    Text(text = "Unlock Pro to Use Video Splitter", style = typography.bodyLg.copy(fontWeight = FontWeight.Bold))
+                }
+            } else {
+                Button(
+                    onClick = { if (selectedVideo != null) isProcessing = true },
+                    shape = radius.buttonShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colors.primaryContainer,
+                        contentColor = colors.onPrimary
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    enabled = selectedVideo != null
+                ) {
+                    Text(text = "Process and Split Video", style = typography.bodyLg.copy(fontWeight = FontWeight.Bold))
+                }
 
-            if (isProcessing) {
-                WaexInfoBanner(
-                    message = "Processing: Splitting video into 8 chunks of ${splitDuration} each. Ready to share to WhatsApp status.",
-                    bannerType = com.waenhancer.ui.components.BannerType.INFO,
-                    title = "Video Processing Completed"
-                )
+                if (isProcessing) {
+                    WaexInfoBanner(
+                        message = "Processing: Splitting video into 8 chunks of ${splitDuration} each. Ready to share to WhatsApp status.",
+                        bannerType = com.waenhancer.ui.components.BannerType.INFO,
+                        title = "Video Processing Completed"
+                    )
+                }
             }
         }
     }

@@ -75,11 +75,22 @@ fun MessageBomberProScreen() {
                 .padding(spacing.pageMargin),
             verticalArrangement = Arrangement.spacedBy(spacing.stackLg)
         ) {
-            WaexInfoBanner(
-                message = "Pro Feature: Automated message bursts are subject to account limitations and spam filters. Use responsibly.",
-                bannerType = com.waenhancer.ui.components.BannerType.WARNING,
-                title = "Rate Limit Advisory"
-            )
+            val isPro = com.waenhancer.ui.navigation.LocalIsPro.current
+            val onActivatePro = com.waenhancer.ui.navigation.LocalOnActivatePro.current
+
+            if (!isPro) {
+                WaexInfoBanner(
+                    message = "Message Bomber is a Pro-exclusive feature. Please activate your Pro license to use automated messaging bursts.",
+                    bannerType = com.waenhancer.ui.components.BannerType.ERROR,
+                    title = "Pro License Required"
+                )
+            } else {
+                WaexInfoBanner(
+                    message = "Pro Feature: Automated message bursts are subject to account limitations and spam filters. Use responsibly.",
+                    bannerType = com.waenhancer.ui.components.BannerType.WARNING,
+                    title = "Rate Limit Advisory"
+                )
+            }
 
             // Section: Target Selection
             WaexSectionHeader(
@@ -105,68 +116,71 @@ fun MessageBomberProScreen() {
                         tint = colors.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
                     )
-                    Spacer(modifier = Modifier.width(spacing.stackSm))
-                    Box(
+                    Spacer(modifier = Modifier.width(12.dp))
+                    BasicTextField(
+                        value = targetJid,
+                        onValueChange = { targetJid = it },
                         modifier = Modifier.weight(1f),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        if (targetJid.isEmpty()) {
-                            Text(
-                                text = "Target: e.g. 123456789@s.whatsapp.net",
-                                style = typography.bodyLg,
-                                color = colors.onSurfaceVariant
-                            )
+                        enabled = isPro,
+                        textStyle = typography.bodyLg.copy(color = colors.onSurface),
+                        cursorBrush = SolidColor(colors.primaryContainer),
+                        singleLine = true,
+                        decorationBox = { innerTextField ->
+                            if (targetJid.isEmpty()) {
+                                Text(
+                                    text = "e.g. +1234567890 or 123456@s.whatsapp.net",
+                                    style = typography.bodyLg,
+                                    color = colors.onSurfaceVariant.copy(alpha = 0.5f)
+                                )
+                            }
+                            innerTextField()
                         }
-                        BasicTextField(
-                            value = targetJid,
-                            onValueChange = { targetJid = it },
-                            singleLine = true,
-                            textStyle = typography.bodyLg.copy(color = colors.onSurface),
-                            cursorBrush = SolidColor(colors.primary),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
+                    )
                 }
             }
 
             // Section: Message Content
             WaexSectionHeader(
-                title = "Message Body",
-                subtitle = "Content payload to send repeatedly"
+                title = "Message Content",
+                subtitle = "Define the repetitive payload text"
             )
 
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(110.dp),
+                    .height(100.dp),
                 shape = radius.mdShape,
                 color = colors.surfaceContainerLow,
                 border = BorderStroke(1.dp, if (messageContent.isNotEmpty()) colors.primaryContainer else colors.outlineVariant)
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    contentAlignment = Alignment.TopStart
-                ) {
-                    if (messageContent.isEmpty()) {
-                        Text(
-                            text = "Write message content here...",
-                            style = typography.bodyLg,
-                            color = colors.onSurfaceVariant
-                        )
-                    }
+                Box(modifier = Modifier.padding(16.dp)) {
                     BasicTextField(
                         value = messageContent,
                         onValueChange = { messageContent = it },
+                        modifier = Modifier.fillMaxSize(),
+                        enabled = isPro,
                         textStyle = typography.bodyLg.copy(color = colors.onSurface),
-                        cursorBrush = SolidColor(colors.primary),
-                        modifier = Modifier.fillMaxSize()
+                        cursorBrush = SolidColor(colors.primaryContainer),
+                        decorationBox = { innerTextField ->
+                            if (messageContent.isEmpty()) {
+                                Text(
+                                    text = "Enter repetitive text payload here...",
+                                    style = typography.bodyLg,
+                                    color = colors.onSurfaceVariant.copy(alpha = 0.5f)
+                                )
+                            }
+                            innerTextField()
+                        }
                     )
                 }
             }
 
             // Section: Slider controls
+            WaexSectionHeader(
+                title = "Burst Velocity & Limits",
+                subtitle = "Adjust burst intervals and total message count"
+            )
+
             WaexCard(modifier = Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(spacing.stackMd)) {
                     // Count
@@ -189,6 +203,7 @@ fun MessageBomberProScreen() {
                             value = messageCount,
                             onValueChange = { messageCount = it },
                             valueRange = 5f..100f,
+                            enabled = isPro,
                             colors = SliderDefaults.colors(
                                 thumbColor = colors.primaryContainer,
                                 activeTrackColor = colors.primaryContainer,
@@ -217,6 +232,7 @@ fun MessageBomberProScreen() {
                             value = delayMs,
                             onValueChange = { delayMs = it },
                             valueRange = 100f..2000f,
+                            enabled = isPro,
                             colors = SliderDefaults.colors(
                                 thumbColor = colors.primaryContainer,
                                 activeTrackColor = colors.primaryContainer,
@@ -227,31 +243,50 @@ fun MessageBomberProScreen() {
                 }
             }
 
-            // Start Button
-            Button(
-                onClick = { isRunning = !isRunning },
-                shape = radius.buttonShape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isRunning) colors.error else colors.primaryContainer,
-                    contentColor = colors.onPrimary
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                enabled = targetJid.isNotEmpty() && messageContent.isNotEmpty()
-            ) {
-                Text(
-                    text = if (isRunning) "Stop Bombing Process" else "Initiate Message Burst",
-                    style = typography.bodyLg.copy(fontWeight = FontWeight.Bold)
-                )
-            }
+            // Start / Upgrade Button
+            if (!isPro) {
+                Button(
+                    onClick = onActivatePro,
+                    shape = radius.buttonShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colors.primary,
+                        contentColor = colors.onPrimary
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                ) {
+                    Text(
+                        text = "Unlock Pro to Use Message Bomber",
+                        style = typography.bodyLg.copy(fontWeight = FontWeight.Bold)
+                    )
+                }
+            } else {
+                Button(
+                    onClick = { isRunning = !isRunning },
+                    shape = radius.buttonShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isRunning) colors.error else colors.primaryContainer,
+                        contentColor = colors.onPrimary
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    enabled = targetJid.isNotEmpty() && messageContent.isNotEmpty()
+                ) {
+                    Text(
+                        text = if (isRunning) "Stop Bombing Process" else "Initiate Message Burst",
+                        style = typography.bodyLg.copy(fontWeight = FontWeight.Bold)
+                    )
+                }
 
-            if (isRunning) {
-                WaexInfoBanner(
-                    message = "Active: Sending burst payload to ${targetJid}. Sent 0 / ${messageCount.toInt()} elements.",
-                    bannerType = com.waenhancer.ui.components.BannerType.INFO,
-                    title = "Running Automated Cycle"
-                )
+                if (isRunning) {
+                    WaexInfoBanner(
+                        message = "Active: Sending burst payload to ${targetJid}. Sent 0 / ${messageCount.toInt()} elements.",
+                        bannerType = com.waenhancer.ui.components.BannerType.INFO,
+                        title = "Running Automated Cycle"
+                    )
+                }
             }
         }
     }

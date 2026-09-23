@@ -71,11 +71,22 @@ fun FileSizeSpooferProScreen() {
                 .padding(spacing.pageMargin),
             verticalArrangement = Arrangement.spacedBy(spacing.stackLg)
         ) {
-            WaexInfoBanner(
-                message = "Pro Feature: Bypasses standard WhatsApp media limits by writing custom size tags into the upload envelope. Maximum spoof limit: 500MB.",
-                bannerType = com.waenhancer.ui.components.BannerType.INFO,
-                title = "Media Limit Bypass active"
-            )
+            val isPro = com.waenhancer.ui.navigation.LocalIsPro.current
+            val onActivatePro = com.waenhancer.ui.navigation.LocalOnActivatePro.current
+
+            if (!isPro) {
+                WaexInfoBanner(
+                    message = "File Size Spoofer is a Pro-exclusive feature. Please activate your Pro license to spoof upload envelopes.",
+                    bannerType = com.waenhancer.ui.components.BannerType.ERROR,
+                    title = "Pro License Required"
+                )
+            } else {
+                WaexInfoBanner(
+                    message = "Pro Feature: Bypasses standard WhatsApp media limits by writing custom size tags into the upload envelope. Maximum spoof limit: 500MB.",
+                    bannerType = com.waenhancer.ui.components.BannerType.INFO,
+                    title = "Media Limit Bypass active"
+                )
+            }
 
             // File Selector card
             WaexSectionHeader(
@@ -90,7 +101,7 @@ fun FileSizeSpooferProScreen() {
                     .clip(radius.cardShape)
                     .background(colors.surfaceContainerLow)
                     .border(1.dp, colors.outline, radius.cardShape)
-                    .clickable { selectedFile = "MyVideo_Summer.mp4 (14.2 MB)" },
+                    .clickable(enabled = isPro) { selectedFile = "MyVideo_Summer.mp4 (14.2 MB)" },
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -143,6 +154,7 @@ fun FileSizeSpooferProScreen() {
                         value = targetSizeMb,
                         onValueChange = { targetSizeMb = it },
                         valueRange = 20f..500f,
+                        enabled = isPro,
                         colors = SliderDefaults.colors(
                             thumbColor = colors.primaryContainer,
                             activeTrackColor = colors.primaryContainer,
@@ -181,28 +193,44 @@ fun FileSizeSpooferProScreen() {
                 }
             }
 
-            // Spoof Action CTA Button
-            Button(
-                onClick = { if (selectedFile != null) isSpoofed = true },
-                shape = radius.buttonShape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colors.primaryContainer,
-                    contentColor = colors.onPrimary
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                enabled = selectedFile != null
-            ) {
-                Text(text = "Spoof File Size & Share", style = typography.bodyLg.copy(fontWeight = FontWeight.Bold))
-            }
+            // Spoof Action / Upgrade CTA Button
+            if (!isPro) {
+                Button(
+                    onClick = onActivatePro,
+                    shape = radius.buttonShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colors.primary,
+                        contentColor = colors.onPrimary
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                ) {
+                    Text(text = "Unlock Pro to Use File Spoofer", style = typography.bodyLg.copy(fontWeight = FontWeight.Bold))
+                }
+            } else {
+                Button(
+                    onClick = { if (selectedFile != null) isSpoofed = true },
+                    shape = radius.buttonShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colors.primaryContainer,
+                        contentColor = colors.onPrimary
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    enabled = selectedFile != null
+                ) {
+                    Text(text = "Spoof File Size & Share", style = typography.bodyLg.copy(fontWeight = FontWeight.Bold))
+                }
 
-            if (isSpoofed) {
-                WaexInfoBanner(
-                    message = "Success: Header tags updated. The file will now report as ${targetSizeMb.toInt()} MB inside WhatsApp chats.",
-                    bannerType = com.waenhancer.ui.components.BannerType.INFO,
-                    title = "File Spoofed Successfully"
-                )
+                if (isSpoofed) {
+                    WaexInfoBanner(
+                        message = "Success: Header tags updated. The file will now report as ${targetSizeMb.toInt()} MB inside WhatsApp chats.",
+                        bannerType = com.waenhancer.ui.components.BannerType.INFO,
+                        title = "File Spoofed Successfully"
+                    )
+                }
             }
         }
     }

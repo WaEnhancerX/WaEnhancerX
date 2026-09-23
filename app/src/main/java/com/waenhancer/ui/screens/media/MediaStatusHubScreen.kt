@@ -40,6 +40,7 @@ import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.runtime.LaunchedEffect
@@ -258,7 +259,7 @@ fun MediaStatusHubScreen() {
                                         }
                                     }
                                     .padding(horizontal = 16.dp, vertical = 14.dp)
-                                    .then(if (isLocked) Modifier.androidx.compose.ui.draw.alpha(0.6f) else Modifier),
+                                    .then(if (isLocked) Modifier.alpha(0.6f) else Modifier),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(
@@ -301,7 +302,7 @@ fun MediaStatusHubScreen() {
                                 }
                                 StitchSwitch(
                                     checked = if (isLocked) false else (settingsState[item.key] ?: false),
-                                    onCheckedChange = if (isLocked) null else { updatePreference(item.key, it) },
+                                    onCheckedChange = if (isLocked) null else { isChecked -> updatePreference(item.key, isChecked) },
                                     enabled = !isLocked
                                 )
                             }
