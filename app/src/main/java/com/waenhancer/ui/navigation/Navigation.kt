@@ -162,6 +162,9 @@ class WaexNavController(initialScreen: Screen = Screen.MainDashboard) {
 
 val LocalWaexNavController = staticCompositionLocalOf { WaexNavController() }
 
+val LocalIsPro = staticCompositionLocalOf { false }
+
+val LocalOnActivatePro = staticCompositionLocalOf<() -> Unit> { {} }
 
 val LocalWaexPreferenceManager = staticCompositionLocalOf<com.waenhancer.core.preferences.WaexPreferenceManager> {
     error("No WaexPreferenceManager provided")
@@ -192,7 +195,13 @@ fun MainContainerScreen() {
     val context = androidx.compose.ui.platform.LocalContext.current
     val preferenceManager = LocalWaexPreferenceManager.current
     var licenseState by remember { mutableStateOf(if ("ACTIVE".equals(LicenseManager.getProStatus(context), ignoreCase = true)) "pro" else "free") }
+    val isPro = licenseState == "pro"
     var activeModal by remember { mutableStateOf<String?>(null) } // "license" | "file-spoofer" | "message-bomber" | "status-splitter" | null
+
+    CompositionLocalProvider(
+        LocalIsPro provides isPro,
+        LocalOnActivatePro provides { activeModal = "license" }
+    ) {
 
 
     val contactPrivacyList = remember(preferenceManager) {
@@ -967,6 +976,7 @@ fun MainContainerScreen() {
                 }
             }
         }
+    }
     }
 }
 

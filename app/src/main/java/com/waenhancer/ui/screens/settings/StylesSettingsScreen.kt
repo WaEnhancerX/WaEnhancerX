@@ -103,13 +103,16 @@ fun StylesSettingsScreen() {
     }
 
 
+    val isPro = com.waenhancer.ui.navigation.LocalIsPro.current
+    val onActivatePro = com.waenhancer.ui.navigation.LocalOnActivatePro.current
+
     val appearanceGroups = listOf(
         StyleGroup(
             "Visual Styles",
             WaexIcons.Palette,
             listOf(
                 StyleItem("Chat Bubble Custom Colors", "Customize background colors of bubbles", "bubble_colors"),
-                StyleItem("Dynamic Theme Customization", "Apply fully custom app-wide styling theme", "custom_theme"),
+                StyleItem("Dynamic Theme Customization", "Apply fully custom app-wide styling theme", "custom_theme", isPro = true),
                 StyleItem("Custom Time Format", "Set 24h or relative time display", "custom_time_format"),
                 StyleItem("Custom Toolbar Layout", "Customize quick actions in main header toolbar", "custom_toolbar"),
                 StyleItem("Custom View & DPI Settings", "Adjust UI scale and density overrides", "custom_view_dpi"),
@@ -147,7 +150,7 @@ fun StylesSettingsScreen() {
             listOf(
                 StyleItem("Backup & Restore Preferences", "Import or export WAEX configurations", "backup_restore"),
                 StyleItem("Contact Blocked Verifier", "Verify if a contact has blocked you", "contact_blocked_verify"),
-                StyleItem("Voice Status Enhancement", "Upload high-quality voice status updates", "voice_status_enhancement"),
+                StyleItem("Voice Status Enhancement", "Upload high-quality voice status updates", "voice_status_enhancement", isPro = true),
                 StyleItem("Miscellaneous Enhancements", "Miscellaneous minor feature options", "miscellaneous_enhancements")
             )
         )
@@ -272,6 +275,7 @@ fun StylesSettingsScreen() {
                 ) {
                     Column {
                         group.items.forEachIndexed { index, item ->
+                            val isLocked = item.isPro && !isPro
                             val isHighlighted = navController.highlightTargetKey == item.key
                             val highlightBgColor by animateColorAsState(
                                 targetValue = if (isHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent,
@@ -287,32 +291,59 @@ fun StylesSettingsScreen() {
                                         itemCoordinates[item.key] = y
                                     }
                                     .clickable {
-                                        val currentVal = settingsState[item.key] ?: false
-                                        updatePreference(item.key, !currentVal)
+                                        if (isLocked) {
+                                            onActivatePro()
+                                        } else {
+                                            val currentVal = settingsState[item.key] ?: false
+                                            updatePreference(item.key, !currentVal)
+                                        }
                                     }
-                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                                    .then(if (isLocked) Modifier.androidx.compose.ui.draw.alpha(0.6f) else Modifier),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(
                                     modifier = Modifier.weight(1f),
                                     verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            text = item.label,
+                                            style = typography.bodyLg,
+                                            fontWeight = FontWeight.Medium,
+                                            color = colors.onSurface
+                                        )
+                                        if (item.isPro) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(CircleShape)
+                                                    .background(if (isPro) colors.primaryContainer else Color(0xFFFEE2E2))
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                            ) {
+                                                Text(
+                                                    text = if (isPro) "PRO" else "PRO LOCKED",
+                                                    style = typography.labelSm,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isPro) colors.primary else Color(0xFFDC2626),
+                                                    fontSize = 9.sp
+                                                )
+                                            }
+                                        }
+                                    }
                                     Text(
-                                        text = item.label,
-                                        style = typography.bodyLg,
-                                        fontWeight = FontWeight.Medium,
-                                        color = colors.onSurface
-                                    )
-                                    Text(
-                                        text = item.sublabel,
+                                        text = if (isLocked) "${item.sublabel} • Requires Pro" else item.sublabel,
                                         style = typography.bodyMd,
                                         color = colors.onSurfaceVariant,
                                         fontSize = 12.sp
                                     )
                                 }
                                 StitchSwitch(
-                                    checked = settingsState[item.key] ?: false,
-                                    onCheckedChange = { updatePreference(item.key, it) }
+                                    checked = if (isLocked) false else (settingsState[item.key] ?: false),
+                                    onCheckedChange = if (isLocked) null else { updatePreference(item.key, it) },
+                                    enabled = !isLocked
                                 )
                             }
                             if (index < group.items.lastIndex) {
@@ -336,7 +367,8 @@ private data class StyleGroup(
 private data class StyleItem(
     val label: String,
     val sublabel: String,
-    val key: String
+    val key: String,
+    val isPro: Boolean = false
 )
 
 @Preview(showBackground = true)

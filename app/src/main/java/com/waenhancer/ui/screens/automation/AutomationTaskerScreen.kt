@@ -248,7 +248,11 @@ fun AutomationTaskerScreen() {
                     .padding(horizontal = spacing.pageMargin),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                val isPro = com.waenhancer.ui.navigation.LocalIsPro.current
+                val onActivatePro = com.waenhancer.ui.navigation.LocalOnActivatePro.current
+
                 cards.forEach { card ->
+                    val isLocked = card.isPro && !isPro
                     val isHighlighted = navController.highlightTargetKey == card.key
                     val highlightBgColor by animateColorAsState(
                         targetValue = if (isHighlighted) colors.primary.copy(alpha = 0.15f) else colors.surfaceDim,
@@ -265,22 +269,27 @@ fun AutomationTaskerScreen() {
                                 val y = coordinates.positionInRoot().y - containerY + scrollState.value
                                 itemCoordinates[card.key] = y
                             }
+                            .clickable(enabled = isLocked) {
+                                onActivatePro()
+                            }
                     ) {
                         Row(
-                            modifier = Modifier.padding(16.dp),
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .then(if (isLocked) Modifier.androidx.compose.ui.draw.alpha(0.6f) else Modifier),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
                                 modifier = Modifier
                                     .size(40.dp)
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(if (card.enabled) colors.primaryContainer else Color(0xFFF0F0F2)),
+                                    .background(if (card.enabled && !isLocked) colors.primaryContainer else Color(0xFFF0F0F2)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = card.icon,
                                     contentDescription = null,
-                                    tint = if (card.enabled) colors.primary else colors.onSurfaceVariant,
+                                    tint = if (card.enabled && !isLocked) colors.primary else colors.onSurfaceVariant,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -300,29 +309,30 @@ fun AutomationTaskerScreen() {
                                         Box(
                                             modifier = Modifier
                                                 .clip(CircleShape)
-                                                .background(colors.primaryContainer)
+                                                .background(if (isPro) colors.primaryContainer else Color(0xFFFEE2E2))
                                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                                         ) {
                                             Text(
-                                                text = "PRO",
+                                                text = if (isPro) "PRO" else "PRO LOCKED",
                                                 style = typography.labelSm,
                                                 fontWeight = FontWeight.Bold,
-                                                color = colors.primary,
+                                                color = if (isPro) colors.primary else Color(0xFFDC2626),
                                                 fontSize = 9.sp
                                             )
                                         }
                                     }
                                 }
                                 Text(
-                                    text = card.desc,
+                                    text = if (isLocked) "${card.desc} • Requires Pro" else card.desc,
                                     style = typography.bodyMd,
                                     color = colors.onSurfaceVariant,
                                     fontSize = 12.sp
                                 )
                             }
                             StitchSwitch(
-                                checked = card.enabled,
-                                onCheckedChange = card.onCheckedChange
+                                checked = if (isLocked) false else card.enabled,
+                                onCheckedChange = if (isLocked) null else card.onCheckedChange,
+                                enabled = !isLocked
                             )
                         }
                     }
