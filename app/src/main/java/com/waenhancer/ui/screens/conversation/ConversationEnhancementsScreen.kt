@@ -1,5 +1,8 @@
-package com.waenhancer.ui.screens.conversation;
+package com.waenhancer.ui.screens.conversation
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,28 +12,63 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import com.waenhancer.ui.components.WaexCard
 import com.waenhancer.ui.components.WaexSectionHeader
 import com.waenhancer.ui.components.WaexSwitchPreference
 import com.waenhancer.ui.components.WaexTopBar
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
+import com.waenhancer.ui.navigation.LocalIsPro
+import com.waenhancer.ui.navigation.LocalOnActivatePro
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
+import kotlinx.coroutines.delay
 
 @Composable
 fun ConversationEnhancementsScreen() {
     val navController = LocalWaexNavController.current
     val preferenceManager = LocalWaexPreferenceManager.current
+    val isPro = LocalIsPro.current
+    val onActivatePro = LocalOnActivatePro.current
     val colors = WaexTheme.colors
     val spacing = WaexTheme.spacing
 
+    val scrollState = rememberScrollState()
+    val itemCoordinates = remember { mutableStateMapOf<String, Float>() }
+    var containerY by remember { mutableStateOf(0f) }
+
+    LaunchedEffect(navController.scrollToTargetKey, itemCoordinates.keys.toList()) {
+        val target = navController.scrollToTargetKey
+        if (target != null && itemCoordinates.containsKey(target)) {
+            val yOffset = itemCoordinates[target] ?: 0f
+            scrollState.animateScrollTo(yOffset.toInt())
+            navController.scrollToTargetKey = null
+        }
+    }
+
+    LaunchedEffect(navController.highlightTargetKey) {
+        val target = navController.highlightTargetKey
+        if (target != null) {
+            delay(2000)
+            if (navController.highlightTargetKey == target) {
+                navController.highlightTargetKey = null
+            }
+        }
+    }
+
     val convKeys = remember {
         listOf(
-            "anti_edit_messages", "preserve_delete_for_me", "revokeallmessages", "hide_forwarded_tag",
+            "message_bomber", "anti_edit_messages", "preserve_delete_for_me", "revokeallmessages", "hide_forwarded_tag",
             "removeforwardlimit", "sticker_confirm_alert", "removeseemore", "stamp_copied_message", "doubletap2like",
             "jump_to_first_message", "unlimited_pinned_chats", "broadcast_tag", "direct_chat_dialer",
             "inline_translation", "copy_status_text", "animation_emojis", "disable_defemojis"
@@ -63,7 +101,10 @@ fun ConversationEnhancementsScreen() {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
+                .onGloballyPositioned { containerCoordinates ->
+                    containerY = containerCoordinates.positionInRoot().y
+                }
                 .padding(spacing.pageMargin),
             verticalArrangement = Arrangement.spacedBy(spacing.stackLg)
         ) {
@@ -75,13 +116,49 @@ fun ConversationEnhancementsScreen() {
 
             WaexCard(modifier = Modifier.fillMaxWidth()) {
                 Column {
+                    // Message Bomber Pro
+                    val mbLocked = !isPro
+                    val mbHighlighted = navController.highlightTargetKey == "message_bomber"
+                    val mbHighlightBg by animateColorAsState(
+                        targetValue = if (mbHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent,
+                        animationSpec = tween(durationMillis = 300),
+                        label = "mb_highlight_bg"
+                    )
+                    WaexSwitchPreference(
+                        title = "Message Bomber",
+                        description = if (mbLocked) "PRO • Send multiple messages to a contact in rapid succession" else "Send multiple messages to a contact in rapid succession",
+                        checked = if (mbLocked) false else (stateMap["message_bomber"] ?: false),
+                        onCheckedChange = if (mbLocked) { { onActivatePro() } } else { { onToggle("message_bomber", it) } },
+                        icon = WaexIcons.Mic,
+                        enabled = !mbLocked,
+                        showDivider = true,
+                        modifier = Modifier
+                            .background(mbHighlightBg)
+                            .onGloballyPositioned { coordinates ->
+                                val y = coordinates.positionInRoot().y - containerY + scrollState.value
+                                itemCoordinates["message_bomber"] = y
+                            }
+                    )
+
+                    val aeHighlighted = navController.highlightTargetKey == "anti_edit_messages"
+                    val aeHighlightBg by animateColorAsState(
+                        targetValue = if (aeHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent,
+                        animationSpec = tween(durationMillis = 300),
+                        label = "ae_highlight_bg"
+                    )
                     WaexSwitchPreference(
                         title = "Anti-Edit Messages",
                         description = "Display edit history and keep original message text",
                         checked = stateMap["anti_edit_messages"] ?: false,
                         onCheckedChange = { onToggle("anti_edit_messages", it) },
                         icon = WaexIcons.Lock,
-                        showDivider = true
+                        showDivider = true,
+                        modifier = Modifier
+                            .background(aeHighlightBg)
+                            .onGloballyPositioned { coordinates ->
+                                val y = coordinates.positionInRoot().y - containerY + scrollState.value
+                                itemCoordinates["anti_edit_messages"] = y
+                            }
                     )
                     WaexSwitchPreference(
                         title = "Preserve Delete for Me",

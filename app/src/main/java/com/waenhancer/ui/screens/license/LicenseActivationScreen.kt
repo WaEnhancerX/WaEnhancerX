@@ -397,29 +397,63 @@ fun LicenseActivationScreen() {
                 }
             }
 
-            // Benefits Description & Quick Pro Tool Launchers
+            // Benefits Description & Quick Pro Preference Navigators
             WaexSectionHeader(
                 title = "Pro Capabilities",
-                subtitle = "Tap any tool to launch or view settings directly"
+                subtitle = "Tap any feature to navigate to its configuration"
             )
             WaexCard(modifier = Modifier.fillMaxWidth()) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    val proTools = listOf(
-                        Triple("File Size Spoofer", "Bypass media upload limits up to 10GB", Screen.FileSizeSpooferPro),
-                        Triple("Status Video Splitter", "Auto-slice long videos into status clips", Screen.StatusVideoSplitterPro),
-                        Triple("Message Bomber", "Automated repeat message blasting engine", Screen.MessageBomberPro),
-                        Triple("Automation & Tasker", "Tasker hooks, webhooks & auto-responder", Screen.AutomationTasker),
-                        Triple("Per-Contact Privacy", "Individual stealth, anti-revoke & blue tick overrides", Screen.PerContactPrivacyList),
-                        Triple("Theme & Custom Styles", "Deep customization & visual engine", Screen.StylesSettings)
+                    data class ProFeatureItem(
+                        val title: String,
+                        val desc: String,
+                        val onNavigate: () -> Unit
                     )
 
-                    proTools.forEachIndexed { index, (title, desc, destinationScreen) ->
+                    val proFeatures = listOf(
+                        ProFeatureItem(
+                            "File Size Spoofer",
+                            "Bypass media upload limits up to 10GB",
+                            { navController.navigateToPreference(2, null, "file_size_spoofer") }
+                        ),
+                        ProFeatureItem(
+                            "Status Video Splitter",
+                            "Auto-split long videos for WhatsApp Status updates",
+                            { navController.navigateToPreference(2, null, "status_video_splitter") }
+                        ),
+                        ProFeatureItem(
+                            "Message Bomber",
+                            "Automated repeat message blasting engine",
+                            {
+                                navController.scrollToTargetKey = "message_bomber"
+                                navController.highlightTargetKey = "message_bomber"
+                                navController.navigateTo(Screen.ConversationEnhancements)
+                            }
+                        ),
+                        ProFeatureItem(
+                            "Automation & Tasker",
+                            "Tasker hooks, webhooks & auto-responder",
+                            { navController.navigateTo(Screen.AutomationTasker) }
+                        ),
+                        ProFeatureItem(
+                            "Per-Contact Privacy",
+                            "Individual stealth, anti-revoke & blue tick overrides",
+                            { navController.navigateTo(Screen.PerContactPrivacyList) }
+                        ),
+                        ProFeatureItem(
+                            "Theme & Custom Styles",
+                            "Deep customization & visual engine",
+                            { navController.navigateTo(Screen.StylesSettings) }
+                        )
+                    )
+
+                    proFeatures.forEachIndexed { index, item ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(radius.smShape)
                                 .clickable {
-                                    navController.navigateTo(destinationScreen)
+                                    item.onNavigate()
                                 }
                                 .padding(vertical = 6.dp, horizontal = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -438,12 +472,12 @@ fun LicenseActivationScreen() {
                                 )
                                 Column {
                                     Text(
-                                        text = title,
+                                        text = item.title,
                                         style = typography.bodyMd.copy(fontWeight = FontWeight.SemiBold),
                                         color = colors.onSurface
                                     )
                                     Text(
-                                        text = desc,
+                                        text = item.desc,
                                         style = typography.labelSm,
                                         color = colors.onSurfaceVariant,
                                         fontSize = 11.sp
@@ -457,7 +491,7 @@ fun LicenseActivationScreen() {
                                 modifier = Modifier.size(16.dp)
                             )
                         }
-                        if (index < proTools.lastIndex) {
+                        if (index < proFeatures.lastIndex) {
                             androidx.compose.material3.HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.5f))
                         }
                     }

@@ -85,7 +85,7 @@ fun MediaStatusHubScreen() {
     val preferenceManager = com.waenhancer.ui.navigation.LocalWaexPreferenceManager.current
     val mediaKeys = remember {
         listOf(
-            "call_recording", "download_profile", "download_video_note",
+            "status_video_splitter", "call_recording", "download_profile", "download_video_note",
             "download_view_once", "file_size_spoofer", "media_preview",
             "media_upload_quality", "status_downloader", "video_note_converter",
             "voice_status_enhancement"
@@ -114,6 +114,7 @@ fun MediaStatusHubScreen() {
             "Media Quality & Status Enhancements",
             WaexIcons.Image,
             listOf(
+                MediaItem("Status Video Splitter", "Auto-split long videos for WhatsApp Status updates", "status_video_splitter", isPro = true),
                 MediaItem("Media Upload Quality Enhancer", "Advanced control over upload compression algorithms", "media_upload_quality"),
                 MediaItem("Status Downloader", "Adds a direct download button to save statuses", "status_downloader"),
                 MediaItem("Voice Status Enhancement", "Upload high-quality voice status updates", "voice_status_enhancement", isPro = true)

@@ -66,21 +66,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.waenhancer.ui.components.FileSizeSpooferModal
 import com.waenhancer.ui.components.LicenseActivationModal
-import com.waenhancer.ui.components.MessageBomberModal
-import com.waenhancer.ui.components.StatusVideoSplitterModal
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.screens.audio.AudioTranscriptionScreen
 import com.waenhancer.ui.screens.automation.AutomationTaskerScreen
 import com.waenhancer.ui.screens.conversation.ConversationEnhancementsScreen
-import com.waenhancer.ui.screens.conversation.MessageBomberProScreen
 import com.waenhancer.ui.screens.dashboard.MainDashboardScreen
 import com.waenhancer.ui.screens.license.LicenseActivationScreen
-import com.waenhancer.ui.screens.media.FileSizeSpooferProScreen
 import com.waenhancer.ui.screens.media.MediaStatusHubScreen
-import com.waenhancer.ui.screens.media.StatusVideoSplitterProScreen
 import com.waenhancer.ui.screens.privacy.GlobalPrivacySettingsScreen
 import com.waenhancer.ui.screens.privacy.PerContactPrivacyModal
 import com.waenhancer.ui.screens.privacy.PerContactPrivacyListScreen
@@ -398,52 +392,6 @@ fun MainContainerScreen() {
                                         fontSize = 11.sp
                                     )
                                 }
-                            }
-
-                            // Quick Pro Tools in top bar on Pro screen when Pro is Active
-                            if (currentScreen == Screen.ProUpgradePaywall && licenseState == "pro") {
-                                IconButton(
-                                    onClick = { activeModal = "file-spoofer" },
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .align(Alignment.CenterVertically)
-                                ) {
-                                    Icon(
-                                        imageVector = WaexIcons.Lock,
-                                        contentDescription = "File Spoofer",
-                                        tint = colors.onBackground,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(4.dp))
-                                IconButton(
-                                    onClick = { activeModal = "message-bomber" },
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .align(Alignment.CenterVertically)
-                                ) {
-                                    Icon(
-                                        imageVector = WaexIcons.Mic,
-                                        contentDescription = "Message Bomber",
-                                        tint = colors.onBackground,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(4.dp))
-                                IconButton(
-                                    onClick = { activeModal = "status-splitter" },
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .align(Alignment.CenterVertically)
-                                ) {
-                                    Icon(
-                                        imageVector = WaexIcons.SystemUpdate,
-                                        contentDescription = "Status Splitter",
-                                        tint = colors.onBackground,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(8.dp))
                             }
 
                             IconButton(
@@ -967,10 +915,6 @@ fun MainContainerScreen() {
                                     activeModal = null
                                 }
                             )
-
-                            "file-spoofer" -> FileSizeSpooferModal(onDismiss = { activeModal = null })
-                            "message-bomber" -> MessageBomberModal(onDismiss = { activeModal = null })
-                            "status-splitter" -> StatusVideoSplitterModal(onDismiss = { activeModal = null })
                         }
                     }
                 }
@@ -1013,9 +957,6 @@ fun WaexAppNavigation(
             onOpenModal = onOpenModal,
             onActivatePro = onActivatePro
         )
-        Screen.MessageBomberPro -> MessageBomberProScreen()
-        Screen.FileSizeSpooferPro -> FileSizeSpooferProScreen()
-        Screen.StatusVideoSplitterPro -> StatusVideoSplitterProScreen()
         Screen.Search -> com.waenhancer.ui.screens.search.SearchScreen()
         Screen.StylesSettings -> com.waenhancer.ui.screens.settings.StylesSettingsScreen()
         Screen.PerContactPrivacyList -> PerContactPrivacyListScreen(
