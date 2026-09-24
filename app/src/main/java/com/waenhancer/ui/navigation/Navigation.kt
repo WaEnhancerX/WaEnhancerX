@@ -200,7 +200,7 @@ fun MainContainerScreen() {
 
     CompositionLocalProvider(
         LocalIsPro provides isPro,
-        LocalOnActivatePro provides { activeModal = "license" }
+        LocalOnActivatePro provides { navController.navigateTo(Screen.LicenseActivation) }
     ) {
 
 
@@ -386,7 +386,7 @@ fun MainContainerScreen() {
                                         .clip(CircleShape)
                                         .background(chipBg)
                                         .border(1.dp, chipText.copy(alpha = 0.2f), CircleShape)
-                                        .clickable { activeModal = "license" }
+                                        .clickable { navController.navigateTo(Screen.LicenseActivation) }
                                         .padding(horizontal = 8.dp, vertical = 3.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -826,7 +826,7 @@ fun MainContainerScreen() {
                                     licenseState = licenseState,
                                     onOpenModal = { activeModal = it },
                                     onActivatePro = {
-                                        activeModal = "license"
+                                        navController.navigateTo(Screen.LicenseActivation)
                                     },
                                     contactPrivacyList = contactPrivacyList,
                                     onClearContact = { c ->
@@ -872,7 +872,7 @@ fun MainContainerScreen() {
                             licenseState = licenseState,
                             onOpenModal = { activeModal = it },
                             onActivatePro = {
-                                activeModal = "license"
+                                navController.navigateTo(Screen.LicenseActivation)
                             },
                             contactPrivacyList = contactPrivacyList,
                             onClearContact = { c ->

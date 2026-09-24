@@ -45,6 +45,7 @@ import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.licensing.LicenseManager
 import com.waenhancer.ui.navigation.LocalWaexNavController
+import com.waenhancer.ui.navigation.Screen
 
 @Composable
 fun LicenseActivationScreen() {
@@ -337,38 +338,127 @@ fun LicenseActivationScreen() {
                 }
             }
 
-            // Benefits Description
-            WaexSectionHeader(title = "Verified Plan Benefits")
-            WaexCard(modifier = Modifier.fillMaxWidth()) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    val benefits = listOf(
-                        "File Size Spoofer: Up to 500MB media bypass" to true,
-                        "Status Video Splitter: Unlimited video cuts" to true,
-                        "Message Bomber: Automated burst messages active" to true,
-                        "Voice Note Transcription: AI engine translation" to true,
-                        "24/7 Priority Support access channel" to true
-                    )
-
-                    benefits.forEachIndexed { index, (benefit, active) ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
+            // ─── PRO FEATURES EXPLORATION ACTION BUTTON ───
+            Surface(
+                shape = radius.lgShape,
+                color = colors.primaryContainer.copy(alpha = 0.6f),
+                border = BorderStroke(1.5.dp, colors.primary.copy(alpha = 0.5f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(radius.lgShape)
+                    .clickable {
+                        navController.navigateTo(Screen.ProUpgradePaywall)
+                    }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(radius.mdShape)
+                                .background(colors.primary),
+                            contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = WaexIcons.Success,
+                                imageVector = WaexIcons.Premium,
                                 contentDescription = null,
-                                tint = if (isActive) colors.primary else colors.onSurfaceVariant.copy(alpha = 0.4f),
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(spacing.stackSm))
-                            Text(
-                                text = benefit,
-                                style = typography.bodyMd,
-                                color = if (isActive) colors.onSurface else colors.onSurfaceVariant
+                                tint = colors.onPrimary,
+                                modifier = Modifier.size(22.dp)
                             )
                         }
-                        if (index < benefits.lastIndex) {
-                            androidx.compose.material3.HorizontalDivider(color = colors.outlineVariant)
+                        Column {
+                            Text(
+                                text = "Explore All Pro Features",
+                                style = typography.bodyLg.copy(fontWeight = FontWeight.Bold),
+                                color = colors.onSurface
+                            )
+                            Text(
+                                text = "Compare features & unlock full potential",
+                                style = typography.labelSm,
+                                color = colors.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Icon(
+                        imageVector = WaexIcons.ChevronRight,
+                        contentDescription = "View Features",
+                        tint = colors.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            // Benefits Description & Quick Pro Tool Launchers
+            WaexSectionHeader(
+                title = "Pro Capabilities",
+                subtitle = "Tap any tool to launch or view settings directly"
+            )
+            WaexCard(modifier = Modifier.fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    val proTools = listOf(
+                        Triple("File Size Spoofer", "Bypass media upload limits up to 10GB", Screen.FileSizeSpooferPro),
+                        Triple("Status Video Splitter", "Auto-slice long videos into status clips", Screen.StatusVideoSplitterPro),
+                        Triple("Message Bomber", "Automated repeat message blasting engine", Screen.MessageBomberPro),
+                        Triple("Automation & Tasker", "Tasker hooks, webhooks & auto-responder", Screen.AutomationTasker),
+                        Triple("Per-Contact Privacy", "Individual stealth, anti-revoke & blue tick overrides", Screen.PerContactPrivacyList),
+                        Triple("Theme & Custom Styles", "Deep customization & visual engine", Screen.StylesSettings)
+                    )
+
+                    proTools.forEachIndexed { index, (title, desc, destinationScreen) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(radius.smShape)
+                                .clickable {
+                                    navController.navigateTo(destinationScreen)
+                                }
+                                .padding(vertical = 6.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    imageVector = if (isActive) WaexIcons.Success else WaexIcons.Lock,
+                                    contentDescription = null,
+                                    tint = if (isActive) colors.primary else colors.onSurfaceVariant.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Column {
+                                    Text(
+                                        text = title,
+                                        style = typography.bodyMd.copy(fontWeight = FontWeight.SemiBold),
+                                        color = colors.onSurface
+                                    )
+                                    Text(
+                                        text = desc,
+                                        style = typography.labelSm,
+                                        color = colors.onSurfaceVariant,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+                            Icon(
+                                imageVector = WaexIcons.ChevronRight,
+                                contentDescription = null,
+                                tint = colors.onSurfaceVariant.copy(alpha = 0.4f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        if (index < proTools.lastIndex) {
+                            androidx.compose.material3.HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.5f))
                         }
                     }
                 }
