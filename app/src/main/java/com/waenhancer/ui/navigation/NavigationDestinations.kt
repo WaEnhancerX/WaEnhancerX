@@ -10,7 +10,6 @@ sealed class Screen(val route: String) {
     object AutomationTasker : Screen("automation_tasker")
     object AudioTranscription : Screen("audio_transcription")
     object LicenseActivation : Screen("license_activation")
-    object ProUpgradePaywall : Screen("pro_upgrade_paywall")
     object Search : Screen("search")
     object PerContactPrivacyList : Screen("per_contact_privacy_list")
     object StylesSettings : Screen("styles_settings")

@@ -179,7 +179,7 @@ fun DashboardBentoScreen() {
                     }
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.clickable { navController.navigateTo(Screen.ProUpgradePaywall) }
+                        modifier = Modifier.clickable { navController.navigateTo(Screen.LicenseActivation) }
                     ) {
                         Icon(
                             imageVector = WaexIcons.ContactSupport,

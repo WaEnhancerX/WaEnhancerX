@@ -76,9 +76,7 @@ import com.waenhancer.ui.screens.dashboard.MainDashboardScreen
 import com.waenhancer.ui.screens.license.LicenseActivationScreen
 import com.waenhancer.ui.screens.media.MediaStatusHubScreen
 import com.waenhancer.ui.screens.privacy.GlobalPrivacySettingsScreen
-import com.waenhancer.ui.screens.privacy.PerContactPrivacyModal
 import com.waenhancer.ui.screens.privacy.PerContactPrivacyListScreen
-import com.waenhancer.ui.screens.pro.ProUpgradePaywallScreen
 
 import com.waenhancer.ui.screens.settings.SystemHealthScreen
 import com.waenhancer.ui.screens.settings.ChangelogScreen
@@ -296,7 +294,6 @@ fun MainContainerScreen() {
     val title = when (currentScreen) {
         Screen.MainDashboard -> "WaEnhancerX"
         Screen.SystemHealth -> "System Health"
-        Screen.ProUpgradePaywall -> "Pro Upgrade"
         Screen.GlobalPrivacySettings -> "Controls"
         Screen.MediaStatusHub -> "Media & Status"
         Screen.AutomationTasker -> "Automation"
@@ -953,10 +950,6 @@ fun WaexAppNavigation(
         Screen.AutomationTasker -> AutomationTaskerScreen()
         Screen.AudioTranscription -> AudioTranscriptionScreen()
         Screen.LicenseActivation -> LicenseActivationScreen()
-        Screen.ProUpgradePaywall -> ProUpgradePaywallScreen(
-            onOpenModal = onOpenModal,
-            onActivatePro = onActivatePro
-        )
         Screen.Search -> com.waenhancer.ui.screens.search.SearchScreen()
         Screen.StylesSettings -> com.waenhancer.ui.screens.settings.StylesSettingsScreen()
         Screen.PerContactPrivacyList -> PerContactPrivacyListScreen(

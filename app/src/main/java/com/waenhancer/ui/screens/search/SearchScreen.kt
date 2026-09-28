@@ -245,7 +245,7 @@ fun SearchScreen() {
                                         .fillMaxWidth()
                                         .clickable {
                                             if (pref.key == "pro_features_unlock" || pref.key == "license_verification") {
-                                                navController.navigateTo(com.waenhancer.ui.navigation.Screen.ProUpgradePaywall)
+                                                navController.navigateTo(com.waenhancer.ui.navigation.Screen.LicenseActivation)
                                             } else {
                                                 navController.navigateToPreference(
                                                     tabIndex = pref.tabIndex,

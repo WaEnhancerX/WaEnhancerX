@@ -338,161 +338,127 @@ fun LicenseActivationScreen() {
                 }
             }
 
-            // ─── PRO FEATURES EXPLORATION ACTION BUTTON ───
-            Surface(
-                shape = radius.lgShape,
-                color = colors.primaryContainer.copy(alpha = 0.6f),
-                border = BorderStroke(1.5.dp, colors.primary.copy(alpha = 0.5f)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(radius.lgShape)
-                    .clickable {
-                        navController.navigateTo(Screen.ProUpgradePaywall)
-                    }
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(radius.mdShape)
-                                .background(colors.primary),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = WaexIcons.Premium,
-                                contentDescription = null,
-                                tint = colors.onPrimary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                        Column {
-                            Text(
-                                text = "Explore All Pro Features",
-                                style = typography.bodyLg.copy(fontWeight = FontWeight.Bold),
-                                color = colors.onSurface
-                            )
-                            Text(
-                                text = "Compare features & unlock full potential",
-                                style = typography.labelSm,
-                                color = colors.onSurfaceVariant
-                            )
-                        }
-                    }
-                    Icon(
-                        imageVector = WaexIcons.ChevronRight,
-                        contentDescription = "View Features",
-                        tint = colors.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-
-            // Benefits Description & Quick Pro Preference Navigators
+            // ─── FREE VS PRO FEATURES COMPARISON TABLE ───
             WaexSectionHeader(
-                title = "Pro Capabilities",
-                subtitle = "Tap any feature to navigate to its configuration"
+                title = "Free vs Pro Features",
+                subtitle = "Tap any feature to navigate directly to its settings"
             )
-            WaexCard(modifier = Modifier.fillMaxWidth()) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    data class ProFeatureItem(
-                        val title: String,
-                        val desc: String,
+
+            Surface(
+                shape = radius.bentoCardShape,
+                color = colors.surfaceDim,
+                border = BorderStroke(1.dp, colors.outlineVariant),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column {
+                    // Table Header
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFF0F0F2))
+                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            text = "Feature",
+                            style = typography.labelSm,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.onSurfaceVariant,
+                            modifier = Modifier.weight(1.5f)
+                        )
+                        Text(
+                            text = "Free",
+                            style = typography.labelSm,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = "Pro",
+                            style = typography.labelSm,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.primary,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    androidx.compose.material3.HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
+
+                    data class ComparisonFeature(
+                        val name: String,
+                        val freeVal: String,
+                        val proVal: String,
                         val onNavigate: () -> Unit
                     )
 
-                    val proFeatures = listOf(
-                        ProFeatureItem(
-                            "File Size Spoofer",
-                            "Bypass media upload limits up to 10GB",
-                            { navController.navigateToPreference(2, null, "file_size_spoofer") }
-                        ),
-                        ProFeatureItem(
-                            "Status Video Splitter",
-                            "Auto-split long videos for WhatsApp Status updates",
-                            { navController.navigateToPreference(2, null, "status_video_splitter") }
-                        ),
-                        ProFeatureItem(
-                            "Message Bomber",
-                            "Automated repeat message blasting engine",
-                            {
-                                navController.scrollToTargetKey = "message_bomber"
-                                navController.highlightTargetKey = "message_bomber"
-                                navController.navigateTo(Screen.ConversationEnhancements)
-                            }
-                        ),
-                        ProFeatureItem(
-                            "Automation & Tasker",
-                            "Tasker hooks, webhooks & auto-responder",
-                            { navController.navigateTo(Screen.AutomationTasker) }
-                        ),
-                        ProFeatureItem(
-                            "Per-Contact Privacy",
-                            "Individual stealth, anti-revoke & blue tick overrides",
-                            { navController.navigateTo(Screen.PerContactPrivacyList) }
-                        ),
-                        ProFeatureItem(
-                            "Theme & Custom Styles",
-                            "Deep customization & visual engine",
-                            { navController.navigateTo(Screen.StylesSettings) }
-                        )
+                    val comparisonRows = listOf(
+                        ComparisonFeature("Always Typing", "✗", "✓") {
+                            navController.navigateToPreference(1, "presence", "always_online")
+                        },
+                        ComparisonFeature("Custom Status View", "✗", "✓") {
+                            navController.navigateToPreference(2, null, "custom_status_view")
+                        },
+                        ComparisonFeature("Status Video Splitter", "✗", "✓") {
+                            navController.navigateToPreference(2, null, "status_video_splitter")
+                        },
+                        ComparisonFeature("Voice Status Enhancement", "✗", "✓") {
+                            navController.navigateToPreference(2, null, "voice_status_enhancement")
+                        },
+                        ComparisonFeature("Preserve Deleted Messages", "✗", "✓") {
+                            navController.navigateToPreference(1, "conversation", "anti_revoke_messages")
+                        },
+                        ComparisonFeature("Message Bomber", "✗", "✓") {
+                            navController.scrollToTargetKey = "message_bomber"
+                            navController.highlightTargetKey = "message_bomber"
+                            navController.navigateTo(Screen.ConversationEnhancements)
+                        },
+                        ComparisonFeature("File Size Spoofer", "✗", "✓") {
+                            navController.navigateToPreference(2, null, "file_size_spoofer")
+                        },
+                        ComparisonFeature("Automation & Tasker", "✗", "✓") {
+                            navController.navigateTo(Screen.AutomationTasker)
+                        },
+                        ComparisonFeature("Per-Contact Privacy", "✗", "✓") {
+                            navController.navigateTo(Screen.PerContactPrivacyList)
+                        },
+                        ComparisonFeature("Theme & Custom Styles", "Basic", "Full") {
+                            navController.navigateTo(Screen.StylesSettings)
+                        }
                     )
 
-                    proFeatures.forEachIndexed { index, item ->
+                    comparisonRows.forEachIndexed { idx, item ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(radius.smShape)
-                                .clickable {
-                                    item.onNavigate()
-                                }
-                                .padding(vertical = 6.dp, horizontal = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                                .clickable { item.onNavigate() }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            Text(
+                                text = item.name,
+                                style = typography.bodyMd,
+                                color = colors.onSurface,
+                                modifier = Modifier.weight(1.5f)
+                            )
+                            Text(
+                                text = item.freeVal,
+                                style = typography.bodyMd,
+                                fontWeight = if (item.freeVal == "✓") FontWeight.Bold else FontWeight.Medium,
+                                color = if (item.freeVal == "✓") Color(0xFF4CAF50) else if (item.freeVal == "✗") colors.onSurfaceVariant.copy(alpha = 0.4f) else colors.onSurfaceVariant,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                 modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(
-                                    imageVector = if (isActive) WaexIcons.Success else WaexIcons.Lock,
-                                    contentDescription = null,
-                                    tint = if (isActive) colors.primary else colors.onSurfaceVariant.copy(alpha = 0.5f),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Column {
-                                    Text(
-                                        text = item.title,
-                                        style = typography.bodyMd.copy(fontWeight = FontWeight.SemiBold),
-                                        color = colors.onSurface
-                                    )
-                                    Text(
-                                        text = item.desc,
-                                        style = typography.labelSm,
-                                        color = colors.onSurfaceVariant,
-                                        fontSize = 11.sp
-                                    )
-                                }
-                            }
-                            Icon(
-                                imageVector = WaexIcons.ChevronRight,
-                                contentDescription = null,
-                                tint = colors.onSurfaceVariant.copy(alpha = 0.4f),
-                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = item.proVal,
+                                style = typography.bodyMd,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.primary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                modifier = Modifier.weight(1f)
                             )
                         }
-                        if (index < proFeatures.lastIndex) {
-                            androidx.compose.material3.HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.5f))
+                        if (idx < comparisonRows.lastIndex) {
+                            androidx.compose.material3.HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
                         }
                     }
                 }
