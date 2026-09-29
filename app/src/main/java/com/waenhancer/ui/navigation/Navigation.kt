@@ -74,6 +74,7 @@ import com.waenhancer.ui.screens.automation.AutomationTaskerScreen
 import com.waenhancer.ui.screens.conversation.ConversationEnhancementsScreen
 import com.waenhancer.ui.screens.dashboard.MainDashboardScreen
 import com.waenhancer.ui.screens.license.LicenseActivationScreen
+import com.waenhancer.ui.screens.license.ManageDevicesScreen
 import com.waenhancer.ui.screens.media.MediaStatusHubScreen
 import com.waenhancer.ui.screens.privacy.GlobalPrivacySettingsScreen
 import com.waenhancer.ui.screens.privacy.PerContactPrivacyListScreen
@@ -967,6 +968,7 @@ fun WaexAppNavigation(
         Screen.CallRecordingSettings -> com.waenhancer.ui.screens.settings.CallRecordingSettingsScreen()
         Screen.TaskerGuide -> com.waenhancer.ui.screens.automation.TaskerGuideScreen()
         Screen.TaskerHistory -> com.waenhancer.ui.screens.automation.TaskerHistoryScreen()
+        Screen.ManageDevices -> ManageDevicesScreen()
     }
 }
 

@@ -166,16 +166,19 @@ fun LicenseActivationModal(
             BasicTextField(
                 value = licenseKey,
                 onValueChange = { input ->
-                    licenseKey = input.uppercase(java.util.Locale.US)
-                    verifyState = "idle"
-                    errorMessage = ""
+                    if (verifyState != "verifying") {
+                        licenseKey = input.uppercase(java.util.Locale.US)
+                        verifyState = "idle"
+                        errorMessage = ""
+                    }
                 },
+                enabled = verifyState != "verifying",
                 singleLine = true,
                 textStyle = typography.bodyLg.copy(
                     fontFamily = FontFamily.Monospace,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = colors.onSurface,
+                    color = if (verifyState == "verifying") colors.onSurface.copy(alpha = 0.5f) else colors.onSurface,
                     letterSpacing = 1.2.sp
                 ),
                 cursorBrush = SolidColor(colors.primary),

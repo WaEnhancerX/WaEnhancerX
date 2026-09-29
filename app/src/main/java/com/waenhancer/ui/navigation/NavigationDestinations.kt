@@ -22,6 +22,7 @@ sealed class Screen(val route: String) {
     object CallRecordingSettings : Screen("call_recording_settings")
     object TaskerGuide : Screen("tasker_guide")
     object TaskerHistory : Screen("tasker_history")
+    object ManageDevices : Screen("manage_devices")
 }
 
 

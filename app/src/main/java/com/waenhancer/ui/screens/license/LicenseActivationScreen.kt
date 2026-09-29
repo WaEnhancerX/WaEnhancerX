@@ -64,7 +64,6 @@ fun LicenseActivationScreen() {
     var licenseKeyInput by remember { mutableStateOf("") }
     var isVerifying by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
-    var showUnlinkDialog by remember { mutableStateOf(false) }
 
 
     val isActive = "ACTIVE".equals(proStatus, ignoreCase = true)
@@ -155,23 +154,32 @@ fun LicenseActivationScreen() {
                     }
                 }
 
-                // Action Buttons: Connected Devices / Unlink
+                // Action Button: Connected Devices
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Button(
-                        onClick = { showUnlinkDialog = true },
+                        onClick = { navController.navigateTo(Screen.ManageDevices) },
                         shape = radius.buttonShape,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFF44336).copy(alpha = 0.12f),
-                            contentColor = Color(0xFFF44336)
+                            containerColor = colors.primary,
+                            contentColor = colors.onPrimary
                         ),
                         modifier = Modifier
-                            .weight(1f)
+                            .fillMaxWidth()
                             .height(48.dp)
                     ) {
-                        Text(text = "Unlink Device", fontWeight = FontWeight.SemiBold)
+                        Icon(
+                            imageVector = WaexIcons.Install,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Manage Connected Devices",
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
 
@@ -205,10 +213,11 @@ fun LicenseActivationScreen() {
                                 .fillMaxWidth()
                                 .height(50.dp),
                             shape = radius.smShape,
-                            color = colors.surfaceContainerLow,
+                            color = if (isVerifying) colors.surfaceContainerLow.copy(alpha = 0.5f) else colors.surfaceContainerLow,
                             border = BorderStroke(
                                 1.dp,
                                 if (errorMessage.isNotEmpty()) Color(0xFFF44336)
+                                else if (isVerifying) colors.outlineVariant.copy(alpha = 0.5f)
                                 else if (licenseKeyInput.isNotEmpty()) colors.primary
                                 else colors.outlineVariant
                             )
@@ -220,7 +229,9 @@ fun LicenseActivationScreen() {
                                 Icon(
                                     imageVector = WaexIcons.Lock,
                                     contentDescription = null,
-                                    tint = if (licenseKeyInput.isNotEmpty()) colors.primary else colors.onSurfaceVariant.copy(alpha = 0.6f),
+                                    tint = if (isVerifying) colors.onSurfaceVariant.copy(alpha = 0.38f)
+                                    else if (licenseKeyInput.isNotEmpty()) colors.primary
+                                    else colors.onSurfaceVariant.copy(alpha = 0.6f),
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
@@ -241,15 +252,18 @@ fun LicenseActivationScreen() {
                                     BasicTextField(
                                         value = licenseKeyInput,
                                         onValueChange = {
-                                            licenseKeyInput = it.uppercase(java.util.Locale.US)
-                                            errorMessage = ""
+                                            if (!isVerifying) {
+                                                licenseKeyInput = it.uppercase(java.util.Locale.US)
+                                                errorMessage = ""
+                                            }
                                         },
+                                        enabled = !isVerifying,
                                         singleLine = true,
                                         textStyle = typography.bodyMd.copy(
                                             fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
                                             fontWeight = FontWeight.SemiBold,
                                             letterSpacing = 1.sp,
-                                            color = colors.onSurface
+                                            color = if (isVerifying) colors.onSurface.copy(alpha = 0.5f) else colors.onSurface
                                         ),
                                         cursorBrush = SolidColor(colors.primary),
                                         modifier = Modifier.fillMaxWidth()
@@ -615,217 +629,6 @@ fun LicenseActivationScreen() {
                         if (idx < comparisonRows.lastIndex) {
                             androidx.compose.material3.HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
                         }
-                    }
-                }
-            }
-        }
-    }
-
-    if (showUnlinkDialog) {
-        var isUnlinking by remember { mutableStateOf(false) }
-        var unlinkError by remember { mutableStateOf<String?>(null) }
-
-        androidx.compose.material3.ModalBottomSheet(
-            onDismissRequest = {
-                if (!isUnlinking) showUnlinkDialog = false
-            },
-            containerColor = colors.surface,
-            shape = radius.bottomSheetShape,
-            dragHandle = {
-                Box(
-                    modifier = Modifier
-                        .padding(top = 12.dp, bottom = 8.dp)
-                        .size(width = 36.dp, height = 4.dp)
-                        .clip(radius.fullShape)
-                        .background(colors.outlineVariant)
-                )
-            }
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Warning Icon Circle
-                Box(
-                    modifier = Modifier
-                        .size(60.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFF44336).copy(alpha = 0.12f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = WaexIcons.Warning,
-                        contentDescription = null,
-                        tint = Color(0xFFF44336),
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-
-                // Title and Subtitle
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = "Unlink Device",
-                        style = typography.headlineMd,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.onSurface
-                    )
-                    Text(
-                        text = "Are you sure you want to release this device from your active license slot?",
-                        style = typography.bodyMd,
-                        color = colors.onSurfaceVariant,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
-                }
-
-                // Device & Key Detail Summary Card
-                Surface(
-                    shape = radius.mdShape,
-                    color = colors.surfaceContainerLow,
-                    border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.6f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Current Plan",
-                                style = typography.labelSm,
-                                color = colors.onSurfaceVariant
-                            )
-                            Text(
-                                text = planName.ifEmpty { "Pro License" },
-                                style = typography.bodyMd,
-                                fontWeight = FontWeight.Bold,
-                                color = colors.primary
-                            )
-                        }
-                        androidx.compose.material3.HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.4f))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "License Key",
-                                style = typography.labelSm,
-                                color = colors.onSurfaceVariant
-                            )
-                            Text(
-                                text = maskedKey,
-                                style = typography.bodyMd.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
-                                fontWeight = FontWeight.SemiBold,
-                                color = colors.onSurface
-                            )
-                        }
-                        androidx.compose.material3.HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.4f))
-                        Text(
-                            text = "WhatsApp and WAEX will restart automatically once the device is dissociated.",
-                            style = typography.labelSm,
-                            color = colors.onSurfaceVariant.copy(alpha = 0.8f),
-                            fontSize = 11.sp
-                        )
-                    }
-                }
-
-                if (unlinkError != null) {
-                    Surface(
-                        shape = radius.smShape,
-                        color = Color(0xFFF44336).copy(alpha = 0.1f),
-                        border = BorderStroke(1.dp, Color(0xFFF44336).copy(alpha = 0.3f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = unlinkError ?: "Unlink failed",
-                            style = typography.labelSm,
-                            color = Color(0xFFF44336),
-                            modifier = Modifier.padding(12.dp),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                    }
-                }
-
-                // Action Buttons
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Button(
-                        onClick = {
-                            isUnlinking = true
-                            unlinkError = null
-                            LicenseManager.unlinkDevice(
-                                context,
-                                object : LicenseManager.UnlinkCallback {
-                                    override fun onSuccess() {
-                                        isUnlinking = false
-                                        showUnlinkDialog = false
-                                        proStatus = "FREE"
-                                        planName = "Free"
-                                    }
-
-                                    override fun onError(msg: String?) {
-                                        isUnlinking = false
-                                        unlinkError = msg ?: "Unlink failed. Please try again."
-                                    }
-                                }
-                            )
-                        },
-                        shape = radius.fullShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFF44336),
-                            contentColor = Color.White
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        enabled = !isUnlinking
-                    ) {
-                        if (isUnlinking) {
-                            androidx.compose.material3.CircularProgressIndicator(
-                                color = Color.White,
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = "Unlinking Device…",
-                                style = typography.bodyMd.copy(fontWeight = FontWeight.Bold)
-                            )
-                        } else {
-                            Text(
-                                text = "Confirm Unlink",
-                                style = typography.bodyMd.copy(fontWeight = FontWeight.Bold)
-                            )
-                        }
-                    }
-
-                    androidx.compose.material3.OutlinedButton(
-                        onClick = { showUnlinkDialog = false },
-                        shape = radius.fullShape,
-                        border = BorderStroke(1.dp, colors.outlineVariant),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        enabled = !isUnlinking
-                    ) {
-                        Text(
-                            text = "Cancel",
-                            style = typography.bodyMd.copy(fontWeight = FontWeight.SemiBold),
-                            color = colors.onSurface
-                        )
                     }
                 }
             }
