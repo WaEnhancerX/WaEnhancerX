@@ -43,10 +43,13 @@ import com.waenhancer.ui.components.WaexSectionHeader
 import com.waenhancer.ui.components.WaexTopBar
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ExperimentalMaterial3Api
 import com.waenhancer.licensing.LicenseManager
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.Screen
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LicenseActivationScreen() {
     val navController = LocalWaexNavController.current
@@ -187,126 +190,278 @@ fun LicenseActivationScreen() {
                     )
                 }
 
-                // Key Input Box
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = radius.mdShape,
-                    color = colors.surfaceContainerLow,
-                    border = BorderStroke(1.dp, if (errorMessage.isNotEmpty()) Color(0xFFF44336) else if (licenseKeyInput.isNotEmpty()) colors.primary else colors.outlineVariant)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = WaexIcons.Lock,
-                            contentDescription = null,
-                            tint = colors.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
+                // ─── COMPACT ACTIVATION CARD ───
+                WaexCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Text(
+                            text = "Enter your license key to unlock all premium features.",
+                            style = typography.bodyMd,
+                            color = colors.onSurfaceVariant
                         )
-                        Spacer(modifier = Modifier.width(spacing.stackSm))
-                        Box(
-                            modifier = Modifier.weight(1f),
-                            contentAlignment = Alignment.CenterStart
+
+                        // Key Input Box
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp),
+                            shape = radius.smShape,
+                            color = colors.surfaceContainerLow,
+                            border = BorderStroke(
+                                1.dp,
+                                if (errorMessage.isNotEmpty()) Color(0xFFF44336)
+                                else if (licenseKeyInput.isNotEmpty()) colors.primary
+                                else colors.outlineVariant
+                            )
                         ) {
-                            if (licenseKeyInput.isEmpty()) {
-                                Text(
-                                    text = "WAEX-XXXX-XXXX-XXXX",
-                                    style = typography.bodyLg.copy(
-                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                        letterSpacing = 1.2.sp
-                                    ),
-                                    color = colors.onSurfaceVariant.copy(alpha = 0.5f)
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = WaexIcons.Lock,
+                                    contentDescription = null,
+                                    tint = if (licenseKeyInput.isNotEmpty()) colors.primary else colors.onSurfaceVariant.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(18.dp)
                                 )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Box(
+                                    modifier = Modifier.weight(1f),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    if (licenseKeyInput.isEmpty()) {
+                                        Text(
+                                            text = "WAEX-XXXX-XXXX-XXXX",
+                                            style = typography.bodyMd.copy(
+                                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                                letterSpacing = 1.sp
+                                            ),
+                                            color = colors.onSurfaceVariant.copy(alpha = 0.45f)
+                                        )
+                                    }
+                                    BasicTextField(
+                                        value = licenseKeyInput,
+                                        onValueChange = {
+                                            licenseKeyInput = it.uppercase(java.util.Locale.US)
+                                            errorMessage = ""
+                                        },
+                                        singleLine = true,
+                                        textStyle = typography.bodyMd.copy(
+                                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                            fontWeight = FontWeight.SemiBold,
+                                            letterSpacing = 1.sp,
+                                            color = colors.onSurface
+                                        ),
+                                        cursorBrush = SolidColor(colors.primary),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
                             }
-                            BasicTextField(
-                                value = licenseKeyInput,
-                                onValueChange = {
-                                    licenseKeyInput = it.uppercase(java.util.Locale.US)
-                                    errorMessage = ""
-                                },
-                                singleLine = true,
-                                textStyle = typography.bodyLg.copy(
-                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                    fontWeight = FontWeight.SemiBold,
-                                    letterSpacing = 1.2.sp,
-                                    color = colors.onSurface
-                                ),
-                                cursorBrush = SolidColor(colors.primary),
-                                modifier = Modifier.fillMaxWidth()
+                        }
+
+                        if (errorMessage.isNotEmpty()) {
+                            Text(
+                                text = errorMessage,
+                                style = typography.labelSm,
+                                color = Color(0xFFF44336),
+                                modifier = Modifier.padding(horizontal = 4.dp)
                             )
                         }
-                    }
-                }
 
-                if (errorMessage.isNotEmpty()) {
-                    Text(
-                        text = errorMessage,
-                        style = typography.labelSm,
-                        color = Color(0xFFF44336),
-                        modifier = Modifier.padding(horizontal = 4.dp)
-                    )
-                }
-
-                // CTA Button
-                Button(
-                    onClick = {
-                        val trimmedKey = licenseKeyInput.trim().uppercase(java.util.Locale.US)
-                        if (!LicenseManager.isValidLicensePattern(trimmedKey)) {
-                            errorMessage = "Invalid key format. Expected: WAEX-XXXX-XXXX-XXXX"
-                            return@Button
-                        }
-                        isVerifying = true
-                        errorMessage = ""
-
-                        LicenseManager.verifyLicense(
-                            context,
-                            trimmedKey,
-                            object : LicenseManager.LicenseCallback {
-                                override fun onSuccess(resPlanName: String?, expiresAtStr: String?, tgUsername: String?) {
-                                    isVerifying = false
-                                    proStatus = "ACTIVE"
-                                    planName = LicenseManager.getProPlanName(context)
+                        // Verify Button
+                        Button(
+                            onClick = {
+                                val trimmedKey = licenseKeyInput.trim().uppercase(java.util.Locale.US)
+                                if (!LicenseManager.isValidLicensePattern(trimmedKey)) {
+                                    errorMessage = "Invalid key format. Expected: WAEX-XXXX-XXXX-XXXX"
+                                    return@Button
                                 }
+                                isVerifying = true
+                                errorMessage = ""
 
-                                override fun onError(msg: String?) {
-                                    isVerifying = false
-                                    errorMessage = msg ?: "Verification failed."
-                                }
+                                LicenseManager.verifyLicense(
+                                    context,
+                                    trimmedKey,
+                                    object : LicenseManager.LicenseCallback {
+                                        override fun onSuccess(resPlanName: String?, expiresAtStr: String?, tgUsername: String?) {
+                                            isVerifying = false
+                                            proStatus = "ACTIVE"
+                                            planName = LicenseManager.getProPlanName(context)
+                                        }
+
+                                        override fun onError(msg: String?) {
+                                            isVerifying = false
+                                            errorMessage = msg ?: "Verification failed."
+                                        }
+                                    }
+                                )
+                            },
+                            shape = radius.buttonShape,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = colors.primary,
+                                contentColor = colors.onPrimary
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            enabled = licenseKeyInput.isNotBlank() && !isVerifying
+                        ) {
+                            if (isVerifying) {
+                                androidx.compose.material3.CircularProgressIndicator(
+                                    color = colors.onPrimary,
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Verifying with Server…",
+                                    style = typography.bodyMd.copy(fontWeight = FontWeight.Bold)
+                                )
+                            } else {
+                                Text(
+                                    text = "Verify & Activate",
+                                    style = typography.bodyMd.copy(fontWeight = FontWeight.Bold)
+                                )
                             }
-                        )
-                    },
-                    shape = radius.buttonShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colors.primary,
-                        contentColor = colors.onPrimary
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    enabled = licenseKeyInput.isNotBlank() && !isVerifying
-                ) {
-                    if (isVerifying) {
-                        androidx.compose.material3.CircularProgressIndicator(
-                            color = colors.onPrimary,
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "Verifying with Server…", style = typography.bodyLg.copy(fontWeight = FontWeight.Bold))
-                    } else {
-                        Text(text = "Verify & Activate License", style = typography.bodyLg.copy(fontWeight = FontWeight.Bold))
+                        }
                     }
                 }
 
+                // ─── PURCHASE LICENSE PLANS SECTION ───
+                WaexSectionHeader(
+                    title = "Purchase License Key",
+                    subtitle = "Instant automated delivery via Telegram bot"
+                )
+
+                data class PurchasePlan(
+                    val name: String,
+                    val originalPrice: String?,
+                    val offerPrice: String,
+                    val period: String,
+                    val desc: String,
+                    val badge: String? = null
+                )
+
+                val availablePlans = listOf(
+                    PurchasePlan(
+                        name = "Pro Monthly",
+                        originalPrice = "3.50",
+                        offerPrice = "2.30",
+                        period = "/ Month",
+                        desc = "Full access to all Pro features for 30 days"
+                    ),
+                    PurchasePlan(
+                        name = "Pro Yearly",
+                        originalPrice = "28.50",
+                        offerPrice = "18.99",
+                        period = "/ Year",
+                        desc = "Save 33% with full Pro access for 365 days",
+                        badge = "Best Value"
+                    )
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    availablePlans.forEach { plan ->
+                        Surface(
+                            shape = radius.bentoCardShape,
+                            color = colors.surfaceDim,
+                            border = BorderStroke(1.dp, colors.outlineVariant),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(radius.bentoCardShape)
+                                .clickable {
+                                    try {
+                                        val intent = android.content.Intent(
+                                            android.content.Intent.ACTION_VIEW,
+                                            android.net.Uri.parse("https://t.me/waenhancerx_bot?start=subscribe")
+                                        ).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                                        context.startActivity(intent)
+                                    } catch (ignored: Exception) {}
+                                }
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                // Top Row: Plan Name + Badge
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = plan.name,
+                                        style = typography.bodyLg,
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.onSurface
+                                    )
+
+                                    if (plan.badge != null) {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(radius.fullShape)
+                                                .background(colors.primary)
+                                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = plan.badge.uppercase(java.util.Locale.US),
+                                                style = typography.labelSm.copy(fontSize = 10.sp),
+                                                fontWeight = FontWeight.Bold,
+                                                color = colors.onPrimary
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Price Row
+                                Row(
+                                    verticalAlignment = Alignment.Bottom,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    if (plan.originalPrice != null) {
+                                        Text(
+                                            text = "$${plan.originalPrice}",
+                                            style = typography.bodySm.copy(
+                                                textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
+                                            ),
+                                            color = colors.onSurfaceVariant
+                                        )
+                                    }
+                                    Text(
+                                        text = "$${plan.offerPrice}",
+                                        style = typography.titleLg.copy(fontSize = 20.sp),
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.primary
+                                    )
+                                    Text(
+                                        text = plan.period,
+                                        style = typography.bodySm,
+                                        color = colors.onSurfaceVariant,
+                                        modifier = Modifier.padding(bottom = 2.dp)
+                                    )
+                                }
+
+                                // Description
+                                Text(
+                                    text = plan.desc,
+                                    style = typography.labelSm,
+                                    color = colors.onSurfaceVariant,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Telegram Help Link
                 Surface(
-                    shape = radius.mdShape,
+                    shape = radius.smShape,
                     color = colors.surfaceContainerLow,
                     border = BorderStroke(1.dp, colors.outlineVariant),
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clip(radius.smShape)
                         .clickable {
                             try {
                                 val intent = android.content.Intent(
@@ -318,7 +473,7 @@ fun LicenseActivationScreen() {
                         }
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
@@ -326,13 +481,13 @@ fun LicenseActivationScreen() {
                             imageVector = WaexIcons.Info,
                             contentDescription = null,
                             tint = colors.primary,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(15.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Get or manage license on Telegram @waenhancerx_bot",
+                            text = "Manage license via Telegram @waenhancerx_bot",
                             style = typography.bodyMd.copy(color = colors.primary, fontWeight = FontWeight.Medium),
-                            fontSize = 13.sp
+                            fontSize = 12.sp
                         )
                     }
                 }
@@ -467,39 +622,153 @@ fun LicenseActivationScreen() {
     }
 
     if (showUnlinkDialog) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showUnlinkDialog = false },
-            title = { Text(text = "Unlink Device", fontWeight = FontWeight.Bold) },
-            text = { Text(text = "This will unlink your device from this license key. You can re-link it later or use a different key.\n\nWhatsApp and WAEX will restart after unlinking.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showUnlinkDialog = false
-                        LicenseManager.unlinkDevice(
-                            context,
-                            object : LicenseManager.UnlinkCallback {
-                                override fun onSuccess() {
-                                    proStatus = "FREE"
-                                    planName = "Free"
-                                }
+        var isUnlinking by remember { mutableStateOf(false) }
+        var unlinkError by remember { mutableStateOf<String?>(null) }
 
-                                override fun onError(msg: String?) {
-                                    errorMessage = msg ?: "Unlink failed."
-                                }
-                            }
-                        )
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336))
-                ) {
-                    Text(text = "Confirm Unlink")
-                }
+        androidx.compose.material3.ModalBottomSheet(
+            onDismissRequest = {
+                if (!isUnlinking) showUnlinkDialog = false
             },
+            containerColor = colors.surface,
+            shape = radius.bottomSheetShape,
+            dragHandle = {
+                Box(
+                    modifier = Modifier
+                        .padding(vertical = 10.dp)
+                        .size(width = 36.dp, height = 4.dp)
+                        .clip(radius.fullShape)
+                        .background(colors.outlineVariant)
+                )
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.pageMargin)
+                    .padding(bottom = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFF44336).copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = WaexIcons.Warning,
+                        contentDescription = null,
+                        tint = Color(0xFFF44336),
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
 
-            dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { showUnlinkDialog = false }) {
-                    Text(text = "Cancel")
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "Unlink Device",
+                        style = typography.headlineMd,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.onSurface
+                    )
+                    Text(
+                        text = "This will dissociate your current device from this license key slot. You can reactivate or link a different device afterwards.\n\nWhatsApp and WAEX will restart automatically upon unlinking.",
+                        style = typography.bodyMd,
+                        color = colors.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+
+                if (unlinkError != null) {
+                    Surface(
+                        shape = radius.mdShape,
+                        color = Color(0xFFF44336).copy(alpha = 0.1f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = unlinkError ?: "Unlink failed",
+                            style = typography.labelSm,
+                            color = Color(0xFFF44336),
+                            modifier = Modifier.padding(12.dp),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                }
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            isUnlinking = true
+                            unlinkError = null
+                            LicenseManager.unlinkDevice(
+                                context,
+                                object : LicenseManager.UnlinkCallback {
+                                    override fun onSuccess() {
+                                        isUnlinking = false
+                                        showUnlinkDialog = false
+                                        proStatus = "FREE"
+                                        planName = "Free"
+                                    }
+
+                                    override fun onError(msg: String?) {
+                                        isUnlinking = false
+                                        unlinkError = msg ?: "Unlink failed. Please try again."
+                                    }
+                                }
+                            )
+                        },
+                        shape = radius.buttonShape,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFF44336),
+                            contentColor = Color.White
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        enabled = !isUnlinking
+                    ) {
+                        if (isUnlinking) {
+                            androidx.compose.material3.CircularProgressIndicator(
+                                color = Color.White,
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "Unlinking Device…",
+                                style = typography.bodyLg.copy(fontWeight = FontWeight.Bold)
+                            )
+                        } else {
+                            Text(
+                                text = "Confirm Unlink",
+                                style = typography.bodyLg.copy(fontWeight = FontWeight.Bold)
+                            )
+                        }
+                    }
+
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = { showUnlinkDialog = false },
+                        shape = radius.buttonShape,
+                        border = BorderStroke(1.dp, colors.outlineVariant),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        enabled = !isUnlinking
+                    ) {
+                        Text(
+                            text = "Cancel",
+                            style = typography.bodyMd.copy(fontWeight = FontWeight.SemiBold),
+                            color = colors.onSurface
+                        )
+                    }
                 }
             }
-        )
+        }
     }
 }
