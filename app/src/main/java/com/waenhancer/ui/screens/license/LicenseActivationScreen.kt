@@ -634,7 +634,7 @@ fun LicenseActivationScreen() {
             dragHandle = {
                 Box(
                     modifier = Modifier
-                        .padding(vertical = 10.dp)
+                        .padding(top = 12.dp, bottom = 8.dp)
                         .size(width = 36.dp, height = 4.dp)
                         .clip(radius.fullShape)
                         .background(colors.outlineVariant)
@@ -644,14 +644,15 @@ fun LicenseActivationScreen() {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = spacing.pageMargin)
+                    .padding(horizontal = 24.dp)
                     .padding(bottom = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Warning Icon Circle
                 Box(
                     modifier = Modifier
-                        .size(56.dp)
+                        .size(60.dp)
                         .clip(CircleShape)
                         .background(Color(0xFFF44336).copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center
@@ -664,6 +665,7 @@ fun LicenseActivationScreen() {
                     )
                 }
 
+                // Title and Subtitle
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -675,17 +677,74 @@ fun LicenseActivationScreen() {
                         color = colors.onSurface
                     )
                     Text(
-                        text = "This will dissociate your current device from this license key slot. You can reactivate or link a different device afterwards.\n\nWhatsApp and WAEX will restart automatically upon unlinking.",
+                        text = "Are you sure you want to release this device from your active license slot?",
                         style = typography.bodyMd,
                         color = colors.onSurfaceVariant,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 }
 
+                // Device & Key Detail Summary Card
+                Surface(
+                    shape = radius.mdShape,
+                    color = colors.surfaceContainerLow,
+                    border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.6f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Current Plan",
+                                style = typography.labelSm,
+                                color = colors.onSurfaceVariant
+                            )
+                            Text(
+                                text = planName.ifEmpty { "Pro License" },
+                                style = typography.bodyMd,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.primary
+                            )
+                        }
+                        androidx.compose.material3.HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.4f))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "License Key",
+                                style = typography.labelSm,
+                                color = colors.onSurfaceVariant
+                            )
+                            Text(
+                                text = maskedKey,
+                                style = typography.bodyMd.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
+                                fontWeight = FontWeight.SemiBold,
+                                color = colors.onSurface
+                            )
+                        }
+                        androidx.compose.material3.HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.4f))
+                        Text(
+                            text = "WhatsApp and WAEX will restart automatically once the device is dissociated.",
+                            style = typography.labelSm,
+                            color = colors.onSurfaceVariant.copy(alpha = 0.8f),
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+
                 if (unlinkError != null) {
                     Surface(
-                        shape = radius.mdShape,
+                        shape = radius.smShape,
                         color = Color(0xFFF44336).copy(alpha = 0.1f),
+                        border = BorderStroke(1.dp, Color(0xFFF44336).copy(alpha = 0.3f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
@@ -698,6 +757,7 @@ fun LicenseActivationScreen() {
                     }
                 }
 
+                // Action Buttons
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -723,38 +783,38 @@ fun LicenseActivationScreen() {
                                 }
                             )
                         },
-                        shape = radius.buttonShape,
+                        shape = radius.fullShape,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFFF44336),
                             contentColor = Color.White
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(52.dp),
+                            .height(50.dp),
                         enabled = !isUnlinking
                     ) {
                         if (isUnlinking) {
                             androidx.compose.material3.CircularProgressIndicator(
                                 color = Color.White,
-                                modifier = Modifier.size(20.dp),
+                                modifier = Modifier.size(18.dp),
                                 strokeWidth = 2.dp
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 text = "Unlinking Device…",
-                                style = typography.bodyLg.copy(fontWeight = FontWeight.Bold)
+                                style = typography.bodyMd.copy(fontWeight = FontWeight.Bold)
                             )
                         } else {
                             Text(
                                 text = "Confirm Unlink",
-                                style = typography.bodyLg.copy(fontWeight = FontWeight.Bold)
+                                style = typography.bodyMd.copy(fontWeight = FontWeight.Bold)
                             )
                         }
                     }
 
                     androidx.compose.material3.OutlinedButton(
                         onClick = { showUnlinkDialog = false },
-                        shape = radius.buttonShape,
+                        shape = radius.fullShape,
                         border = BorderStroke(1.dp, colors.outlineVariant),
                         modifier = Modifier
                             .fillMaxWidth()
