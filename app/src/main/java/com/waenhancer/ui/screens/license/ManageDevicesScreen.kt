@@ -553,7 +553,7 @@ private fun DeviceCardItem(
     val radius = WaexTheme.radius
 
     val borderColor = if (device.isCurrent) colors.primary.copy(alpha = 0.5f) else colors.outlineVariant
-    val containerColor = if (device.isCurrent) colors.primaryContainer.copy(alpha = 0.25f) else colors.surface
+    val containerColor = colors.surface
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -564,7 +564,7 @@ private fun DeviceCardItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
@@ -588,7 +588,7 @@ private fun DeviceCardItem(
             // Device Info
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -596,22 +596,25 @@ private fun DeviceCardItem(
                 ) {
                     Text(
                         text = device.deviceInfo,
-                        style = typography.bodyLg,
+                        style = typography.bodyMd,
                         fontWeight = FontWeight.Bold,
-                        color = colors.onSurface
+                        color = colors.onSurface,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                     if (device.isCurrent) {
                         Surface(
                             shape = CircleShape,
-                            color = colors.primary,
-                            modifier = Modifier.padding(start = 2.dp)
+                            color = colors.primaryContainer,
+                            border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.3f))
                         ) {
                             Text(
                                 text = "This Device",
                                 style = typography.labelSm,
                                 fontWeight = FontWeight.Bold,
-                                color = colors.onPrimary,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                color = colors.primary,
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
                                 fontSize = 10.sp
                             )
                         }
@@ -622,7 +625,9 @@ private fun DeviceCardItem(
                     Text(
                         text = device.lastLinkLocation,
                         style = typography.labelSm,
-                        color = colors.onSurfaceVariant
+                        color = colors.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 }
             }
@@ -637,19 +642,19 @@ private fun DeviceCardItem(
                     .clickable { onUnlinkClick() }
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = "Unlink",
                         style = typography.labelSm,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFF44336),
-                        fontSize = 11.sp
+                        fontSize = 12.sp
                     )
                 }
             }
         }
     }
 }
+
