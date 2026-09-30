@@ -1,6 +1,12 @@
 package com.waenhancer.ui.screens.license
 
 import android.widget.Toast
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,18 +24,20 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,6 +50,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -67,6 +77,150 @@ data class ConnectedDeviceItem(
     val isCurrent: Boolean = false
 )
 
+@Composable
+fun shimmerBrush(targetValue: Float = 1000f): Brush {
+    val shimmerColors = listOf(
+        WaexTheme.colors.surfaceContainerLow.copy(alpha = 0.6f),
+        WaexTheme.colors.surfaceContainerHighest.copy(alpha = 0.9f),
+        WaexTheme.colors.surfaceContainerLow.copy(alpha = 0.6f)
+    )
+    val transition = rememberInfiniteTransition(label = "shimmerTransition")
+    val translateAnimation = transition.animateFloat(
+        initialValue = 0f,
+        targetValue = targetValue,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1100, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmerTranslate"
+    )
+    return Brush.linearGradient(
+        colors = shimmerColors,
+        start = Offset.Zero,
+        end = Offset(x = translateAnimation.value, y = translateAnimation.value)
+    )
+}
+
+@Composable
+fun ManageDevicesShimmer(spacing: com.waenhancer.ui.designsystem.WaexSpacing, radius: com.waenhancer.ui.designsystem.WaexRadius) {
+    val brush = shimmerBrush()
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = spacing.pageMargin),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        item {
+            Spacer(modifier = Modifier.height(spacing.stackSm))
+            // Summary Card Shimmer
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(68.dp),
+                shape = radius.cardShape,
+                color = WaexTheme.colors.surface,
+                border = BorderStroke(1.dp, WaexTheme.colors.outlineVariant.copy(alpha = 0.5f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .width(90.dp)
+                                .height(12.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(brush)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(140.dp)
+                                .height(16.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(brush)
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .width(65.dp)
+                            .height(24.dp)
+                            .clip(CircleShape)
+                            .background(brush)
+                    )
+                }
+            }
+        }
+
+        item {
+            Box(
+                modifier = Modifier
+                    .padding(start = 4.dp, top = 4.dp)
+                    .width(110.dp)
+                    .height(14.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(brush)
+            )
+        }
+
+        items(3) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(72.dp),
+                shape = radius.cardShape,
+                color = WaexTheme.colors.surface,
+                border = BorderStroke(1.dp, WaexTheme.colors.outlineVariant.copy(alpha = 0.5f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(brush)
+                    )
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(0.55f)
+                                .height(16.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(brush)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(0.4f)
+                                .height(12.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(brush)
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .width(58.dp)
+                            .height(28.dp)
+                            .clip(CircleShape)
+                            .background(brush)
+                    )
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ManageDevicesScreen() {
@@ -82,6 +236,7 @@ fun ManageDevicesScreen() {
     }
 
     var isLoading by remember { mutableStateOf(true) }
+    var isRefreshing by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var linkedCount by remember { mutableIntStateOf(prefs.getInt("linked_devices_count", 1)) }
     var deviceLimit by remember { mutableIntStateOf(prefs.getInt("device_limit", 2)) }
@@ -113,14 +268,17 @@ fun ManageDevicesScreen() {
         return result
     }
 
-    fun loadDevices(silent: Boolean = false) {
-        if (!silent) {
+    fun loadDevices(isPull: Boolean = false) {
+        if (isPull) {
+            isRefreshing = true
+        } else {
             isLoading = true
             errorMessage = null
         }
         LicenseManager.fetchConnectedDevices(context, object : LicenseManager.DevicesCallback {
             override fun onSuccess(linked: Int, limit: Int, json: String) {
                 isLoading = false
+                isRefreshing = false
                 errorMessage = null
                 linkedCount = linked
                 deviceLimit = limit
@@ -130,6 +288,7 @@ fun ManageDevicesScreen() {
 
             override fun onError(msg: String?) {
                 isLoading = false
+                isRefreshing = false
                 if (devicesList.isEmpty()) {
                     errorMessage = msg ?: "Failed to fetch connected devices."
                 } else {
@@ -146,27 +305,18 @@ fun ManageDevicesScreen() {
         if (parsed.isNotEmpty()) {
             devicesList.clear()
             devicesList.addAll(parsed)
+            isLoading = false
+            loadDevices(isPull = true)
+        } else {
+            loadDevices(isPull = false)
         }
-        loadDevices(silent = parsed.isNotEmpty())
     }
 
     Scaffold(
         topBar = {
             WaexTopBar(
                 title = "Connected Devices",
-                onBackClick = { navController.popBack() },
-                actions = {
-                    IconButton(
-                        onClick = { loadDevices(silent = false) },
-                        enabled = !isLoading
-                    ) {
-                        Icon(
-                            imageVector = WaexIcons.Refresh,
-                            contentDescription = "Refresh",
-                            tint = colors.onSurface
-                        )
-                    }
-                }
+                onBackClick = { navController.popBack() }
             )
         },
         containerColor = colors.background
@@ -177,26 +327,7 @@ fun ManageDevicesScreen() {
                 .padding(paddingValues)
         ) {
             if (isLoading && devicesList.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        CircularProgressIndicator(
-                            color = colors.primary,
-                            modifier = Modifier.size(36.dp),
-                            strokeWidth = 3.dp
-                        )
-                        Text(
-                            text = "Loading connected devices…",
-                            style = typography.bodyMd,
-                            color = colors.onSurfaceVariant
-                        )
-                    }
-                }
+                ManageDevicesShimmer(spacing = spacing, radius = radius)
             } else if (errorMessage != null && devicesList.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -221,7 +352,7 @@ fun ManageDevicesScreen() {
                             textAlign = TextAlign.Center
                         )
                         Button(
-                            onClick = { loadDevices(silent = false) },
+                            onClick = { loadDevices(isPull = false) },
                             shape = radius.buttonShape,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = colors.primary,
@@ -233,97 +364,103 @@ fun ManageDevicesScreen() {
                     }
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = spacing.pageMargin),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = { loadDevices(isPull = true) },
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    item {
-                        Spacer(modifier = Modifier.height(spacing.stackSm))
-                        // Summary status card
-                        WaexCard(modifier = Modifier.fillMaxWidth()) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                    Text(
-                                        text = "Active Device Slots",
-                                        style = typography.labelSm,
-                                        color = colors.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = "$linkedCount of $deviceLimit devices in use",
-                                        style = typography.titleMd,
-                                        fontWeight = FontWeight.Bold,
-                                        color = colors.onSurface
-                                    )
-                                }
-                                Surface(
-                                    shape = CircleShape,
-                                    color = if (linkedCount >= deviceLimit) Color(0xFFFF9800).copy(alpha = 0.15f) else colors.primaryContainer,
-                                    border = BorderStroke(
-                                        1.dp,
-                                        if (linkedCount >= deviceLimit) Color(0xFFFF9800).copy(alpha = 0.4f) else colors.primary.copy(alpha = 0.3f)
-                                    )
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = spacing.pageMargin),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        item {
+                            Spacer(modifier = Modifier.height(spacing.stackSm))
+                            // Summary status card
+                            WaexCard(modifier = Modifier.fillMaxWidth()) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        text = if (linkedCount >= deviceLimit) "Limit Full" else "Available",
-                                        style = typography.labelSm,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (linkedCount >= deviceLimit) Color(0xFFFF9800) else colors.primary,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                        fontSize = 11.sp
-                                    )
+                                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Text(
+                                            text = "Active Device Slots",
+                                            style = typography.labelSm,
+                                            color = colors.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = "$linkedCount of $deviceLimit devices in use",
+                                            style = typography.titleMd,
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.onSurface
+                                        )
+                                    }
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = if (linkedCount >= deviceLimit) Color(0xFFFF9800).copy(alpha = 0.15f) else colors.primaryContainer,
+                                        border = BorderStroke(
+                                            1.dp,
+                                            if (linkedCount >= deviceLimit) Color(0xFFFF9800).copy(alpha = 0.4f) else colors.primary.copy(alpha = 0.3f)
+                                        )
+                                    ) {
+                                        Text(
+                                            text = if (linkedCount >= deviceLimit) "Limit Full" else "Available",
+                                            style = typography.labelSm,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (linkedCount >= deviceLimit) Color(0xFFFF9800) else colors.primary,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                            fontSize = 11.sp
+                                        )
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    item {
-                        Text(
-                            text = "LINKED DEVICES",
-                            style = typography.labelSm,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.onSurfaceVariant,
-                            letterSpacing = 1.sp,
-                            modifier = Modifier.padding(start = 4.dp, top = 4.dp)
-                        )
-                    }
-
-                    if (devicesList.isEmpty()) {
                         item {
-                            WaexCard(modifier = Modifier.fillMaxWidth()) {
-                                Text(
-                                    text = "No linked devices found for this license.",
-                                    style = typography.bodyMd,
-                                    color = colors.onSurfaceVariant,
-                                    modifier = Modifier.padding(vertical = 12.dp)
+                            Text(
+                                text = "LINKED DEVICES",
+                                style = typography.labelSm,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.onSurfaceVariant,
+                                letterSpacing = 1.sp,
+                                modifier = Modifier.padding(start = 4.dp, top = 4.dp)
+                            )
+                        }
+
+                        if (devicesList.isEmpty()) {
+                            item {
+                                WaexCard(modifier = Modifier.fillMaxWidth()) {
+                                    Text(
+                                        text = "No linked devices found for this license.",
+                                        style = typography.bodyMd,
+                                        color = colors.onSurfaceVariant,
+                                        modifier = Modifier.padding(vertical = 12.dp)
+                                    )
+                                }
+                            }
+                        } else {
+                            items(devicesList, key = { it.deviceId.ifEmpty { it.id.toString() } }) { device ->
+                                DeviceCardItem(
+                                    device = device,
+                                    onUnlinkClick = {
+                                        unlinkError = null
+                                        deviceToUnlink = device
+                                    }
                                 )
                             }
                         }
-                    } else {
-                        items(devicesList, key = { it.deviceId.ifEmpty { it.id.toString() } }) { device ->
-                            DeviceCardItem(
-                                device = device,
-                                onUnlinkClick = {
-                                    unlinkError = null
-                                    deviceToUnlink = device
-                                }
-                            )
-                        }
-                    }
 
-                    item {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        WaexInfoBanner(
-                            title = "Device Management",
-                            message = "You can unlink inactive devices here to free up slots for new installations. Unlinking your current device will deactivate Pro on this phone.",
-                            bannerType = com.waenhancer.ui.components.BannerType.INFO
-                        )
-                        Spacer(modifier = Modifier.height(24.dp))
+                        item {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            WaexInfoBanner(
+                                title = "Device Management",
+                                message = "You can unlink inactive devices here to free up slots for new installations. Unlinking your current device will deactivate Pro on this phone.",
+                                bannerType = com.waenhancer.ui.components.BannerType.INFO
+                            )
+                            Spacer(modifier = Modifier.height(24.dp))
+                        }
                     }
                 }
             }
@@ -481,7 +618,7 @@ fun ManageDevicesScreen() {
                                                 navController.popBack()
                                             } else {
                                                 Toast.makeText(context, "Device unlinked successfully.", Toast.LENGTH_SHORT).show()
-                                                loadDevices(silent = true)
+                                                loadDevices(isPull = true)
                                             }
                                         }
 
@@ -577,7 +714,7 @@ private fun DeviceCardItem(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = WaexIcons.Install,
+                        imageVector = WaexIcons.Smartphone,
                         contentDescription = null,
                         tint = if (device.isCurrent) colors.primary else colors.onSurfaceVariant,
                         modifier = Modifier.size(22.dp)

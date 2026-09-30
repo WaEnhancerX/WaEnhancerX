@@ -34,6 +34,7 @@ import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.InstallMobile
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.PhoneAndroid
 
 object WaexIcons {
     val Back = Icons.AutoMirrored.Rounded.ArrowBack
@@ -73,5 +74,6 @@ object WaexIcons {
     val Battery = Icons.Rounded.BatteryChargingFull
     val Layers = Icons.Rounded.Layers
     val Install = Icons.Rounded.InstallMobile
+    val Smartphone = Icons.Rounded.PhoneAndroid
 }
 
