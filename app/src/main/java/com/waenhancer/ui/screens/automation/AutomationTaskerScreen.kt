@@ -1,5 +1,7 @@
 package com.waenhancer.ui.screens.automation
 
+import com.waenhancer.ui.components.WaexProChip
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -274,67 +276,58 @@ fun AutomationTaskerScreen() {
                                 onActivatePro()
                             }
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .padding(16.dp)
-                                .then(if (isLocked) Modifier.alpha(0.6f) else Modifier),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            Row(
                                 modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (card.enabled && !isLocked) colors.primaryContainer else Color(0xFFF0F0F2)),
-                                contentAlignment = Alignment.Center
+                                    .fillMaxWidth()
+                                    .padding(16.dp)
+                                    .then(if (isLocked) Modifier.alpha(0.6f) else Modifier),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = card.icon,
-                                    contentDescription = null,
-                                    tint = if (card.enabled && !isLocked) colors.primary else colors.onSurfaceVariant,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(if (card.enabled && !isLocked) colors.primaryContainer else Color(0xFFF0F0F2)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = card.icon,
+                                        contentDescription = null,
+                                        tint = if (card.enabled && !isLocked) colors.primary else colors.onSurfaceVariant,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
                                     Text(
                                         text = card.title,
                                         style = typography.bodyLg,
                                         fontWeight = FontWeight.Bold,
                                         color = colors.onSurface
                                     )
-                                    if (card.isPro) {
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(CircleShape)
-                                                .background(if (isPro) colors.primaryContainer else Color(0xFFFEE2E2))
-                                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                                        ) {
-                                            Text(
-                                                text = if (isPro) "PRO" else "PRO LOCKED",
-                                                style = typography.labelSm,
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (isPro) colors.primary else Color(0xFFDC2626),
-                                                fontSize = 9.sp
-                                            )
-                                        }
-                                    }
+                                    Text(
+                                        text = if (isLocked) "${card.desc} • Requires Pro" else card.desc,
+                                        style = typography.bodyMd,
+                                        color = colors.onSurfaceVariant,
+                                        fontSize = 12.sp
+                                    )
                                 }
-                                Text(
-                                    text = if (isLocked) "${card.desc} • Requires Pro" else card.desc,
-                                    style = typography.bodyMd,
-                                    color = colors.onSurfaceVariant,
-                                    fontSize = 12.sp
+                                StitchSwitch(
+                                    checked = if (isLocked) false else card.enabled,
+                                    onCheckedChange = if (isLocked) null else card.onCheckedChange,
+                                    enabled = !isLocked
                                 )
                             }
-                            StitchSwitch(
-                                checked = if (isLocked) false else card.enabled,
-                                onCheckedChange = if (isLocked) null else card.onCheckedChange,
-                                enabled = !isLocked
-                            )
+                            if (card.isPro) {
+                                WaexProChip(
+                                    isUnlocked = isPro,
+                                    modifier = Modifier.align(Alignment.TopEnd)
+                                )
+                            }
                         }
                     }
                 }

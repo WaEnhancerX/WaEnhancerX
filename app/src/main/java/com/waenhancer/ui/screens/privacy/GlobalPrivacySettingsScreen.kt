@@ -1,5 +1,7 @@
 package com.waenhancer.ui.screens.privacy
 
+import com.waenhancer.ui.components.WaexProChip
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -521,7 +523,7 @@ fun GlobalPrivacySettingsScreen(
                                 animationSpec = tween(durationMillis = 300),
                                 label = "highlight_bg"
                             )
-                            Row(
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(highlightBgColor)
@@ -537,17 +539,17 @@ fun GlobalPrivacySettingsScreen(
                                             updatePreference(item.key, !currentVal)
                                         }
                                     }
-                                    .padding(horizontal = 16.dp, vertical = 14.dp)
-                                    .then(if (isLocked) Modifier.alpha(0.6f) else Modifier),
-                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                                        .then(if (isLocked) Modifier.alpha(0.6f) else Modifier),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
                                         Text(
                                             text = item.label,
@@ -555,35 +557,25 @@ fun GlobalPrivacySettingsScreen(
                                             fontWeight = FontWeight.Medium,
                                             color = colors.onSurface
                                         )
-                                        if (item.isPro) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(CircleShape)
-                                                    .background(if (isPro) colors.primaryContainer else Color(0xFFFEE2E2))
-                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                                            ) {
-                                                Text(
-                                                    text = if (isPro) "PRO" else "PRO LOCKED",
-                                                    style = typography.labelSm,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = if (isPro) colors.primary else Color(0xFFDC2626),
-                                                    fontSize = 9.sp
-                                                )
-                                            }
-                                        }
+                                        Text(
+                                            text = if (isLocked) "${item.sublabel} • Requires Pro" else item.sublabel,
+                                            style = typography.bodyMd,
+                                            color = colors.onSurfaceVariant,
+                                            fontSize = 12.sp
+                                        )
                                     }
-                                    Text(
-                                        text = if (isLocked) "${item.sublabel} • Requires Pro" else item.sublabel,
-                                        style = typography.bodyMd,
-                                        color = colors.onSurfaceVariant,
-                                        fontSize = 12.sp
+                                    StitchSwitch(
+                                        checked = if (isLocked) false else (settingsState[item.key] ?: false),
+                                        onCheckedChange = if (isLocked) null else { isChecked -> updatePreference(item.key, isChecked) },
+                                        enabled = !isLocked
                                     )
                                 }
-                                StitchSwitch(
-                                    checked = if (isLocked) false else (settingsState[item.key] ?: false),
-                                    onCheckedChange = if (isLocked) null else { isChecked -> updatePreference(item.key, isChecked) },
-                                    enabled = !isLocked
-                                )
+                                if (item.isPro) {
+                                    WaexProChip(
+                                        isUnlocked = isPro,
+                                        modifier = Modifier.align(Alignment.TopEnd)
+                                    )
+                                }
                             }
 
                             // If this is anti_revoke and it is enabled, show indicator choice chips and color sub-preferences
