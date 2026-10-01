@@ -68,6 +68,7 @@ public final class FeatureRegistry {
         features.add(new CopyStatusTextHook(context, classLoader, prefs));
         features.add(new ChatLimitsBypassHook(context, classLoader, prefs));
         features.add(new DoubleTapReactionHook(context, classLoader, prefs));
+        features.add(new com.waenhancer.xposed.features.conversation.MinorFixesHook(context, classLoader, prefs));
 
         // Homescreen & Layout Controls
         features.add(new HomeScreenHeaderActionsHook(context, classLoader, prefs));
@@ -81,6 +82,10 @@ public final class FeatureRegistry {
 
         // Automation & Notification Controls
         features.add(new PresenceToastsHook(context, classLoader, prefs));
+        features.add(new com.waenhancer.xposed.features.automation.TaskerIntegrationHook(context, classLoader, prefs));
+        features.add(new com.waenhancer.xposed.features.conversation.ChatBubbleColorsHook(context, classLoader, prefs));
+        features.add(new com.waenhancer.xposed.features.customization.ChannelRecommendationsFilterHook(context, classLoader, prefs));
+        features.add(new com.waenhancer.xposed.features.customization.OnlinePresenceIndicatorsHook(context, classLoader, prefs));
     }
 
     public void initializeAll() {
