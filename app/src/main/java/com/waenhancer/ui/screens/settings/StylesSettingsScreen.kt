@@ -114,13 +114,13 @@ fun StylesSettingsScreen() {
             "Visual Styles",
             WaexIcons.Palette,
             listOf(
-                StyleItem("Chat Bubble Custom Colors", "Customize background colors of bubbles", "bubble_colors"),
-                StyleItem("Dynamic Theme Customization", "Apply fully custom app-wide styling theme", "custom_theme", isPro = true),
-                StyleItem("Custom Time Format", "Set 24h or relative time display", "custom_time_format"),
-                StyleItem("Custom Toolbar Layout", "Customize quick actions in main header toolbar", "custom_toolbar"),
-                StyleItem("Custom View & DPI Settings", "Adjust UI scale and density overrides", "custom_view_dpi"),
-                StyleItem("Seen Tick Style Customization", "Change WhatsApp seen tick icons", "seen_tick_customization"),
-                StyleItem("Floating Bottom Navigation Bar", "Convert main bottom bar to floating capsule", "floating_bottom_bar")
+                StyleItem("Change Bubble Colors", "Change Bubble Color on Conversation Screen", "bubble_colors"),
+                StyleItem("Custom Theme CSS", "Customize your WhatsApp using CSS styles", "custom_theme", isPro = true),
+                StyleItem("Seconds on Timestamp", "Show seconds next to any timestamp in the WhatsApp app", "custom_time_format"),
+                StyleItem("New Settings Style", "Enable the new settings style, with profile photo on home screen toolbar", "custom_toolbar"),
+                StyleItem("Change Default DPI", "Change the DPI setting for the application. Use 0 to reset to default.", "custom_view_dpi"),
+                StyleItem("View Seen Tick", "Show an icon if the message view was sent to the recipient or unique view was seen", "seen_tick_customization"),
+                StyleItem("Floating Bottom Bar", "Enable iOS-style floating bottom navigation bar", "floating_bottom_bar")
             )
         )
     )
@@ -130,20 +130,20 @@ fun StylesSettingsScreen() {
             "Conversation List Activity & Presence",
             WaexIcons.Security,
             listOf(
-                StyleItem("Online Dot in Chat List", "Show a green dot indicator on avatars when contacts are online", "dotonline"),
-                StyleItem("Online / Last Seen in Chat List", "Display contact online or last seen text directly in chat rows", "showonlinetext"),
-                StyleItem("Contact Online & Typing Toasts", "Get real-time toast alerts when contacts come online or type", "typing_online_toasts")
+                StyleItem("Show Online Dot in Conversation List", "Show a green online dot on home screen", "dotonline"),
+                StyleItem("Show Online/Last seen in Conversation List", "Show a text online or last seen on home screen", "showonlinetext"),
+                StyleItem("Show toast on contact online", "Show a toast when a contact is online", "typing_online_toasts")
             )
         ),
         StyleGroup(
             "Home Layout & Navigation",
             WaexIcons.GridView,
             listOf(
-                StyleItem("Channels Enhancements", "Clean feed, disable channel recommendations", "channels_enhancements"),
-                StyleItem("Chat Filter Visibility Control", "Show or hide standard filter chips", "chat_filters"),
-                StyleItem("Hide Home UI Elements", "Remove communities, call or status tabs", "hide_ui_tabs"),
-                StyleItem("Instagram-style Status Layout", "Render statuses as story circles at top", "instagram_status_layout"),
-                StyleItem("Separate Groups & Personal Chats", "Split chats into two distinct home tabs", "separate_groups_tabs"),
+                StyleItem("Remove Channel Recomendations", "Remove Channel Recomendations from tab Status", "channels_enhancements"),
+                StyleItem("Enable filter chats for type", "Show options to filter chats for groups, contacts and unseen messages", "chat_filters"),
+                StyleItem("Hide Tabs on Home", "Hide tabs on the home screen such as Updates, Communities and Calls", "hide_ui_tabs"),
+                StyleItem("Enable IGStatus on Home Screen", "Show status style Instagram in Home Screen", "instagram_status_layout"),
+                StyleItem("Separate Groups", "Separate your chats by: Groups, Private Chats, Status, Calls, Communities", "separate_groups_tabs"),
                 StyleItem("Quick Action Home Menu", "Add quick actions to home long-press", "quick_home_menu")
             )
         ),
@@ -151,10 +151,10 @@ fun StylesSettingsScreen() {
             "Utilities & Data",
             WaexIcons.Extension,
             listOf(
-                StyleItem("Backup & Restore Preferences", "Import or export WAEX configurations", "backup_restore"),
-                StyleItem("Contact Blocked Verifier", "Verify if a contact has blocked you", "contact_blocked_verify"),
+                StyleItem("Backup Settings", "Import or export WAEX configurations", "backup_restore"),
+                StyleItem("Show Contact Added Status in Conversation", "This option verifies whether the contact added you or has a public profile photo", "contact_blocked_verify"),
                 StyleItem("Voice Status Enhancement", "Upload high-quality voice status updates", "voice_status_enhancement", isPro = true),
-                StyleItem("Miscellaneous Enhancements", "Miscellaneous minor feature options", "miscellaneous_enhancements")
+                StyleItem("Disable Screen off on proximity sensor", "Disable Screen off on proximity sensor to the whole WhatsApp", "miscellaneous_enhancements")
             )
         )
     )

@@ -116,30 +116,6 @@ fun ConversationEnhancementsScreen() {
 
             WaexCard(modifier = Modifier.fillMaxWidth()) {
                 Column {
-                    // Message Bomber Pro
-                    val mbLocked = !isPro
-                    val mbHighlighted = navController.highlightTargetKey == "message_bomber"
-                    val mbHighlightBg by animateColorAsState(
-                        targetValue = if (mbHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent,
-                        animationSpec = tween(durationMillis = 300),
-                        label = "mb_highlight_bg"
-                    )
-                    WaexSwitchPreference(
-                        title = "Message Bomber",
-                        description = if (mbLocked) "PRO • Send multiple messages to a contact in rapid succession" else "Send multiple messages to a contact in rapid succession",
-                        checked = if (mbLocked) false else (stateMap["message_bomber"] ?: false),
-                        onCheckedChange = if (mbLocked) { { onActivatePro() } } else { { onToggle("message_bomber", it) } },
-                        icon = WaexIcons.Mic,
-                        enabled = !mbLocked,
-                        showDivider = true,
-                        modifier = Modifier
-                            .background(mbHighlightBg)
-                            .onGloballyPositioned { coordinates ->
-                                val y = coordinates.positionInRoot().y - containerY + scrollState.value
-                                itemCoordinates["message_bomber"] = y
-                            }
-                    )
-
                     val aeHighlighted = navController.highlightTargetKey == "anti_edit_messages"
                     val aeHighlightBg by animateColorAsState(
                         targetValue = if (aeHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent,
@@ -147,8 +123,8 @@ fun ConversationEnhancementsScreen() {
                         label = "ae_highlight_bg"
                     )
                     WaexSwitchPreference(
-                        title = "Anti-Edit Messages",
-                        description = "Display edit history and keep original message text",
+                        title = "Show Edited Message History",
+                        description = "Show edited message history when clicking \"Edited\" on a message",
                         checked = stateMap["anti_edit_messages"] ?: false,
                         onCheckedChange = { onToggle("anti_edit_messages", it) },
                         icon = WaexIcons.Lock,
@@ -161,7 +137,7 @@ fun ConversationEnhancementsScreen() {
                             }
                     )
                     WaexSwitchPreference(
-                        title = "Preserve Delete for Me",
+                        title = "Delete (for me)",
                         description = "Retain messages locally when Delete for Me is pressed",
                         checked = stateMap["preserve_delete_for_me"] ?: false,
                         onCheckedChange = { onToggle("preserve_delete_for_me", it) },
@@ -169,16 +145,16 @@ fun ConversationEnhancementsScreen() {
                         showDivider = true
                     )
                     WaexSwitchPreference(
-                        title = "Revoke All Messages Bypass",
-                        description = "Allow Delete for Everyone without time window constraints",
+                        title = "Increase limit of \"Delete for everyone\" option",
+                        description = "Increases the limit to 3 days in the option to delete messages for everyone",
                         checked = stateMap["revokeallmessages"] ?: false,
                         onCheckedChange = { onToggle("revokeallmessages", it) },
                         icon = WaexIcons.Refresh,
                         showDivider = true
                     )
                     WaexSwitchPreference(
-                        title = "Hide Forwarded Tag",
-                        description = "Prevent forwarded tag from appearing on forwarded messages",
+                        title = "Hide \"Forwarded\" Tag",
+                        description = "Forward messages without the tag \"Forwarded\"",
                         checked = stateMap["hide_forwarded_tag"] ?: false,
                         onCheckedChange = { onToggle("hide_forwarded_tag", it) },
                         icon = WaexIcons.Share,
@@ -186,39 +162,39 @@ fun ConversationEnhancementsScreen() {
                     )
                     WaexSwitchPreference(
                         title = "Remove Forward Limit",
-                        description = "Forward messages to unlimited chats and contacts at once",
+                        description = "Remove forward limit for 5 chats (normal) and 1 chat (multiple times)",
                         checked = stateMap["removeforwardlimit"] ?: false,
                         onCheckedChange = { onToggle("removeforwardlimit", it) },
                         icon = WaexIcons.Share,
                         showDivider = true
                     )
                     WaexSwitchPreference(
-                        title = "Sticker Confirmation Alert",
-                        description = "Prompt with a confirmation dialog before sending stickers",
+                        title = "Confirmation Before Sending Sticker",
+                        description = "Show a dialog before sending the sticker",
                         checked = stateMap["sticker_confirm_alert"] ?: false,
                         onCheckedChange = { onToggle("sticker_confirm_alert", it) },
                         icon = WaexIcons.Settings,
                         showDivider = true
                     )
                     WaexSwitchPreference(
-                        title = "Remove See More Button",
-                        description = "Display full long text messages without truncation",
+                        title = "Remove \"See More\" Button",
+                        description = "Disable \"See More\" button and show all long message",
                         checked = stateMap["removeseemore"] ?: false,
                         onCheckedChange = { onToggle("removeseemore", it) },
                         icon = WaexIcons.Info,
                         showDivider = true
                     )
                     WaexSwitchPreference(
-                        title = "Copied Message Timestamp",
-                        description = "Include message timestamp when copying message content",
+                        title = "Remove Stamp from Copied Messages",
+                        description = "Removes name and date when copying more than one message",
                         checked = stateMap["stamp_copied_message"] ?: false,
                         onCheckedChange = { onToggle("stamp_copied_message", it) },
                         icon = WaexIcons.Folder,
                         showDivider = true
                     )
                     WaexSwitchPreference(
-                        title = "Double Tap to React",
-                        description = "Double tap any message bubble to trigger instant reaction",
+                        title = "Enable Double Click to React",
+                        description = "Activates the possibility of double-clicking on the message to react it",
                         checked = stateMap["doubletap2like"] ?: false,
                         onCheckedChange = { onToggle("doubletap2like", it) },
                         icon = WaexIcons.AutoAwesome,
@@ -237,30 +213,30 @@ fun ConversationEnhancementsScreen() {
                 Column {
                     WaexSwitchPreference(
                         title = "Jump to First Message",
-                        description = "Add direct quick jump to the beginning of any chat",
+                        description = "Add a button to skip the first message in the conversations screen",
                         checked = stateMap["jump_to_first_message"] ?: false,
                         onCheckedChange = { onToggle("jump_to_first_message", it) },
                         icon = WaexIcons.Play,
                         showDivider = true
                     )
                     WaexSwitchPreference(
-                        title = "Unlimited Pinned Chats",
-                        description = "Pin unlimited conversations to the top of your chat list",
+                        title = "Disable Pinned Chats Limit",
+                        description = "Disable limit of 3 pinned chats",
                         checked = stateMap["unlimited_pinned_chats"] ?: false,
                         onCheckedChange = { onToggle("unlimited_pinned_chats", it) },
                         icon = WaexIcons.Lock,
                         showDivider = true
                     )
                     WaexSwitchPreference(
-                        title = "Show Broadcast Tag",
-                        description = "Display broadcast icon on broadcasted chat messages",
+                        title = "Show chat broadcast icon",
+                        description = "Shows an icon if the contact sent a message via broadcast",
                         checked = stateMap["broadcast_tag"] ?: false,
                         onCheckedChange = { onToggle("broadcast_tag", it) },
                         icon = WaexIcons.Notifications,
                         showDivider = true
                     )
                     WaexSwitchPreference(
-                        title = "Direct Chat Dialer",
+                        title = "New Chat",
                         description = "Message numbers directly without saving them to contacts",
                         checked = stateMap["direct_chat_dialer"] ?: false,
                         onCheckedChange = { onToggle("direct_chat_dialer", it) },
@@ -268,16 +244,16 @@ fun ConversationEnhancementsScreen() {
                         showDivider = true
                     )
                     WaexSwitchPreference(
-                        title = "Inline Message Translation",
-                        description = "Tap-to-translate foreign language messages directly inline",
+                        title = "Enable Google Translate",
+                        description = "Replaces Whatsapp's native translator with Google Translate",
                         checked = stateMap["inline_translation"] ?: false,
                         onCheckedChange = { onToggle("inline_translation", it) },
                         icon = WaexIcons.Extension,
                         showDivider = true
                     )
                     WaexSwitchPreference(
-                        title = "Copy Status Text",
-                        description = "Long press status captions to copy text directly",
+                        title = "Enable Copy Status",
+                        description = "Activates the possibility of copying the description and caption of statuses by holding on them",
                         checked = stateMap["copy_status_text"] ?: false,
                         onCheckedChange = { onToggle("copy_status_text", it) },
                         icon = WaexIcons.Folder,

@@ -162,68 +162,66 @@ fun GlobalPrivacySettingsScreen(
         SettingGroup(
             "Presence & Online Visibility",
             listOf(
-                SettingItem("Always Online", "Keep connection status constantly showing as Online inside WhatsApp", "always_online"),
-                SettingItem("Hide Online Status", "Hide your green online dot and active status from others", "online_status_indicator"),
-                SettingItem("Freeze Last Seen", "Lock your last seen timestamp in place constantly", "freeze_last_seen"),
-                SettingItem("Ghost Mode", "Activate complete stealth mode constantly (freezes last seen, hides typing/recording & receipts)", "ghostmode_enabled"),
-                SettingItem("Hide Typing Indicator", "Hides typing indicator from chats and groups", "ghostmode_t"),
-                SettingItem("Hide Recording Indicator", "Hides audio recording indicator from chats", "ghostmode_r")
+                SettingItem("Always Online", "Show you online even if you minimize WhatsApp (Doesn't work if you remove it from recents)", "always_online"),
+                SettingItem("Freeze Last Seen", "Your last seen time will be frozen", "freezelastseen"),
+                SettingItem("Hide Typing", "Users cannot see that you are typing", "ghostmode_t"),
+                SettingItem("Hide Recording Audio", "Users cannot see that you are recording audio", "ghostmode_r")
             )
         ),
         SettingGroup(
             "Ticks & Seen Receipts",
             listOf(
-                SettingItem("Hide Read Receipts (Blue Ticks)", "Read messages without sending blue read checkmarks", "hide_read_receipts"),
-                SettingItem("Hide Read Receipts for Groups", "Prevent blue ticks on group messages", "hideread_group"),
-                SettingItem("Blue Tick on Reply", "Only send blue ticks once you reply to a message", "blueonreply"),
-                SettingItem("Show Mark as Seen Button", "Add a manual double-tick button inside chats and statuses", "seentick"),
-                SettingItem("Hide Delivery Receipts (Second Tick)", "Receive messages without sending second delivery checkmark", "hide_delivery_receipts"),
-                SettingItem("Hide Voice Note Played Receipts", "Listen to voice notes without turning microphone blue", "hide_seen_receipts"),
-                SettingItem("Hide View Once Seen Receipts", "Open view once messages without marking them as opened", "hideonceseen")
+                SettingItem("Hide Blue Ticks", "View messages within conversation screen without users knowing", "hide_read_receipts"),
+                SettingItem("Hide Blue Tick in Groups", "View messages in groups screen without users knowing", "hideread_group"),
+                SettingItem("Send Blue Ticks upon Reply", "Sends blue ticks after replying to a message", "blueonreply"),
+                SettingItem("Show Button to send blue tick", "Show Button to send blue tick (mark as read/viewed)", "seentick"),
+                SettingItem("Hide Delivered", "Users will not know that their messages have been delivered to you", "hide_delivery_receipts"),
+                SettingItem("Hide audio seen", "Hides the sending of audio reading when listening to it", "hide_seen_receipts"),
+                SettingItem("Hide View Once Seen", "Hide that view one media has been seen", "hideonceseen")
             )
         ),
         SettingGroup(
             "Status Privacy",
             listOf(
-                SettingItem("Stealth Status Viewing", "View status updates without sending view receipts", "stealth_status_view"),
-                SettingItem("Disable Auto-Skip Status", "Prevent WhatsApp from automatically advancing to the next status", "autonext_status"),
-                SettingItem("Toast on Status Viewed", "Show a toast notification when someone views your status", "toast_viewed_status")
+                SettingItem("Hide Status View", "View statuses without users knowing", "stealth_status_view"),
+                SettingItem("Disable Auto Skip Status", "Prevents the current status from advancing automatically to the next one", "autonext_status"),
+                SettingItem("Show toast on viewed your status", "Shows a toast if someone views your status", "toast_viewed_status")
             )
         ),
         SettingGroup(
             "View Once Protection",
             listOf(
-                SettingItem("Anti-View Once", "Open and view view-once photos & videos unlimited times", "anti_view_once"),
-                SettingItem("Download View Once Media", "Show download button for view once photos and videos", "downloadviewonce")
+                SettingItem("Unlimited View Once", "Allows you to open view once media multiple times", "anti_view_once"),
+                SettingItem("Download View Once", "Show button to download view once media", "downloadviewonce")
             )
         ),
         SettingGroup(
             "Anti-Revoke & Deletion Defense",
             listOf(
-                SettingItem("Anti-Revoke Messages", "Keep deleted messages visible in conversations", "anti_revoke"),
-                SettingItem("Anti-Revoke Statuses", "Keep deleted status updates visible in updates tab", "antirevokestatus"),
-                SettingItem("Anti-Disappearing Messages", "Prevent messages from disappearing when timer expires", "antidisappearing"),
-                SettingItem("Toast on Deleted Message", "Show alert notification when a contact deletes a message", "toastdeleted"),
-                SettingItem("Toast on Viewed Message", "Show alert notification when your message is viewed", "toast_viewed_message")
+                SettingItem("Anti-Revoke Messages", "Messages will not be deleted for you", "anti_revoke"),
+                SettingItem("Anti-Delete Status", "View statuses that users have since deleted", "antirevokestatus"),
+                SettingItem("Anti Disappearing Messages", "Temporary messages will not be deleted for you", "antidisappearing"),
+                SettingItem("Show toast notification on delete message", "Show toast notification if any contact deletes any message", "toastdeleted"),
+                SettingItem("Show toast on viewed your message", "Shows a toast if someone views your message", "toast_viewed_message")
             )
         ),
         SettingGroup(
             "Security & Vault",
             listOf(
-                SettingItem("Locked Chats Enhancer", "Customize and bypass locks for specific chat vaults", "locked_chats_enhancer"),
-                SettingItem("Hide Archived Chats", "Completely hide archived chats from the main conversations list", "typearchive"),
-                SettingItem("Do Not Disturb (DND) Mode", "Temporarily block all incoming traffic dynamically", "dnd_mode"),
-                SettingItem("Hide Chats / Vault", "Hide and lock private chats from the main chat list", "hide_chats")
+                SettingItem("Enhanced Locked Chats", "Improve locked chats by hiding notifications and contacts from the contact list", "locked_chats_enhancer"),
+                SettingItem("Hide Archived Chats", "Hide archived chats, to access click 5 times or hold on the \"WhatsApp\" title", "typearchive"),
+                SettingItem("DND Mode", "When Do Not Disturb mode is on, you will be unable to send or receive messages", "dnd_mode"),
+                SettingItem("Hide Locked Chats", "Hide locked chats, view them by holding WhatsApp title on home screen", "hide_chats")
             )
         ),
         SettingGroup(
             "Home Menu Shortcuts",
             listOf(
-                SettingItem("Ghost Mode (Show in Menu)", "Add a 1-tap Ghost Mode toggle to WhatsApp's 3-dots home menu", "ghostmode"),
-                SettingItem("Freeze Last Seen (Show in Menu)", "Add a 1-tap Freeze Last Seen toggle to WhatsApp's 3-dots home menu", "freezelastseen"),
-                SettingItem("DND Mode (Show in Menu)", "Add a Do Not Disturb toggle to WhatsApp's 3-dots home menu", "show_dndmode"),
-                SettingItem("Restart WhatsApp (Show in Menu)", "Add a Restart option to WhatsApp's 3-dots home menu", "restartbutton"),
-                SettingItem("WA Enhancer Settings", "Add a shortcut to open WAEX settings from WhatsApp", "open_wae")
+                SettingItem("Show Ghost Mode Button", "Show a Ghost Mode button on the home screen toolbar", "ghostmode"),
+                SettingItem("Show Freeze Last Seen Button", "Show button for Freezing Last Seen on home screen toolbar", "freezelastseen"),
+                SettingItem("Show DND Button", "Show button for DND Mode on home screen toolbar", "show_dndmode"),
+                SettingItem("Enable Restart Button", "Add button in Home Screen to Restart App", "restartbutton"),
+                SettingItem("Enable Wa Enhancer Button", "Add button in Home Screen to open Wa Enhancer", "open_wae")
             )
         )
     )
@@ -232,35 +230,34 @@ fun GlobalPrivacySettingsScreen(
         SettingGroup(
             "Message Protection & Controls",
             listOf(
-                SettingItem("Anti-Edit Messages", "Keep original version of edited messages in chat", "anti_edit_messages"),
-                SettingItem("Preserve Delete for Me", "Retain messages locally when Delete for Me is selected", "preserve_delete_for_me"),
-                SettingItem("Revoke All Messages Bypass", "Allow Delete for Everyone without time window limits", "revokeallmessages"),
-                SettingItem("Hide Forwarded Tag", "Prevent forwarded tag from appearing on shared messages", "hide_forwarded_tag"),
-                SettingItem("Remove Forward Limit", "Forward messages to unlimited contacts simultaneously", "removeforwardlimit"),
-                SettingItem("Sticker Confirmation Alert", "Ask for confirmation before sending clicked stickers", "sticker_confirm_alert"),
-                SettingItem("Remove See More Button", "Display entire long text messages without truncating", "removeseemore"),
-                SettingItem("Copied Message Timestamp", "Include timestamp information when copying messages", "stamp_copied_message"),
-                SettingItem("Double Tap to React", "Double tap any message bubble to send instant reaction", "doubletap2like")
+                SettingItem("Show Edited Message History", "Show edited message history when clicking \"Edited\" on a message", "anti_edit_messages"),
+                SettingItem("Delete (for me)", "Retain messages locally when Delete for Me is selected", "preserve_delete_for_me"),
+                SettingItem("Increase limit of \"Delete for everyone\" option", "Increases the limit to 3 days in the option to delete messages for everyone", "revokeallmessages"),
+                SettingItem("Hide \"Forwarded\" Tag", "Forward messages without the tag \"Forwarded\"", "hide_forwarded_tag"),
+                SettingItem("Remove Forward Limit", "Remove forward limit for 5 chats (normal) and 1 chat (multiple times)", "removeforwardlimit"),
+                SettingItem("Confirmation Before Sending Sticker", "Show a dialog before sending the sticker", "sticker_confirm_alert"),
+                SettingItem("Remove \"See More\" Button", "Disable \"See More\" button and show all long message", "removeseemore"),
+                SettingItem("Remove Stamp from Copied Messages", "Removes name and date when copying more than one message", "stamp_copied_message"),
+                SettingItem("Enable Double Click to React", "Activates the possibility of double-clicking on the message to react it", "doubletap2like")
             )
         ),
         SettingGroup(
             "Chat Navigation & Shortcuts",
             listOf(
-                SettingItem("Jump to First Message", "Add an option to jump directly to the beginning of any chat", "jump_to_first_message"),
-                SettingItem("Unlimited Pinned Chats", "Pin more than 3 chats to the top of your list", "unlimited_pinned_chats"),
-                SettingItem("Show Broadcast Tag", "Display broadcast icon on broadcasted conversation messages", "broadcast_tag"),
-                SettingItem("Direct Chat Dialer", "Message someone directly without saving their contact info", "direct_chat_dialer"),
-                SettingItem("Inline Message Translation", "Tap-to-translate messages directly inline", "inline_translation"),
-                SettingItem("Copy Status Text", "Allow copying text from status updates", "copy_status_text")
+                SettingItem("Jump to First Message", "Add a button to skip the first message in the conversations screen", "jump_to_first_message"),
+                SettingItem("Disable Pinned Chats Limit", "Disable limit of 3 pinned chats", "unlimited_pinned_chats"),
+                SettingItem("Show chat broadcast icon", "Shows an icon if the contact sent a message via broadcast", "broadcast_tag"),
+                SettingItem("New Chat", "Message someone directly without saving their contact info", "direct_chat_dialer"),
+                SettingItem("Enable Google Translate", "Replaces Whatsapp's native translator with Google Translate", "inline_translation"),
+                SettingItem("Enable Copy Status", "Activates the possibility of copying the description and caption of statuses by holding on them", "copy_status_text")
             )
         ),
         SettingGroup(
             "Chat & Group Utilities",
             listOf(
-                SettingItem("Call Type Controller", "Force voice-only or video-only incoming calls", "call_type_controller"),
-                SettingItem("Custom Filter Groups", "Group chats by custom categories", "custom_filter_groups", isPro = true),
-                SettingItem("Group Admin Tools", "Unlock hidden moderation controls", "group_admin_tools"),
-                SettingItem("Status Text Composer Enhancements", "Format text status updates with custom palettes", "status_text_composer")
+                SettingItem("Enable selection of call type", "Show an option to select whether you want a call via phone or WhatsApp", "call_type_controller"),
+                SettingItem("Show Admin Group Icon", "Show an admin icon next to the name of the user who is the group admin", "group_admin_tools"),
+                SettingItem("Custom colors for text status", "Press and hold on the color selector in the status to customize it", "status_text_composer")
             )
         )
     )

@@ -48,85 +48,99 @@ fun SearchScreen() {
     val preferenceRegistry = remember {
         listOf(
             // --- PRIVACY TAB (Tab 1), Sub-tab "privacy" ---
-            SearchablePreference("always_online", "Always Online", "Keep connection status constantly showing as Online inside WhatsApp", "Presence & Online Visibility", 1, "privacy", "Privacy"),
-            SearchablePreference("online_status_indicator", "Hide Online Status", "Hide your green online dot and online status from others", "Presence & Online Visibility", 1, "privacy", "Privacy"),
-            SearchablePreference("freeze_last_seen", "Freeze Last Seen", "Lock your last seen timestamp in place", "Presence & Online Visibility", 1, "privacy", "Privacy"),
-            SearchablePreference("typing_privacy", "Hide Typing & Recording Indicators", "Hides typing and recording status from others", "Presence & Online Visibility", 1, "privacy", "Privacy"),
-            SearchablePreference("stealth_status_view", "Stealth Status Viewing", "View status updates without sending view receipts", "Presence & Online Visibility", 1, "privacy", "Privacy"),
-            SearchablePreference("hide_read_receipts", "Hide Read Receipts (Blue Ticks)", "Read messages without sending blue read checkmarks", "Message & Delivery Receipts", 1, "privacy", "Privacy"),
-            SearchablePreference("hide_delivery_receipts", "Hide Delivery Receipts (Second Tick)", "Receive messages without sending second delivery checkmark", "Message & Delivery Receipts", 1, "privacy", "Privacy"),
-            SearchablePreference("hide_seen_receipts", "Hide Voice & Media Seen Receipts", "Listen to audio notes and view media without seen checkmarks", "Message & Delivery Receipts", 1, "privacy", "Privacy"),
-            SearchablePreference("hide_forwarded_tag", "Hide Forwarded Tag", "Prevent forwarded tag from appearing on shared messages", "Message & Delivery Receipts", 1, "privacy", "Privacy"),
-            SearchablePreference("anti_revoke", "Anti-Revoke Messages & Statuses", "Keep deleted messages and statuses visible to you", "Message Protection & Security", 1, "privacy", "Privacy"),
-            SearchablePreference("anti_view_once", "Anti-View Once", "Bypass view-once constraints on incoming media", "Message Protection & Security", 1, "privacy", "Privacy"),
-            SearchablePreference("locked_chats_enhancer", "Locked Chats Enhancer", "Customize and bypass locks for specific chat vaults", "Message Protection & Security", 1, "privacy", "Privacy"),
-            SearchablePreference("typearchive", "Hide Archived Chats", "Completely hide archived chats from the main conversations list", "Message Protection & Security", 1, "privacy", "Privacy"),
-            SearchablePreference("dnd_mode", "Do Not Disturb (DND) Mode", "Temporarily block incoming messages dynamically", "Message Protection & Security", 1, "privacy", "Privacy"),
-            SearchablePreference("hide_chats", "Hide Chats / Vault", "Hide and lock private chats from the main chat list", "Message Protection & Security", 1, "privacy", "Privacy"),
-            SearchablePreference("custom_privacy", "Per-Contact Custom Privacy", "Set separate rules for specific contacts", "Advanced Rules & Filtering", 1, "privacy", "Privacy"),
-            SearchablePreference("call_privacy", "Call Privacy & Filtering", "Block calls from unwanted contacts", "Advanced Rules & Filtering", 1, "privacy", "Privacy"),
+            SearchablePreference("always_online", "Always Online", "Show you online even if you minimize WhatsApp (Doesn't work if you remove it from recents)", "Presence & Online Visibility", 1, "privacy", "Privacy"),
+            SearchablePreference("freezelastseen", "Freeze Last Seen", "Your last seen time will be frozen", "Presence & Online Visibility", 1, "privacy", "Privacy"),
+            SearchablePreference("ghostmode_t", "Hide Typing", "Users cannot see that you are typing", "Presence & Online Visibility", 1, "privacy", "Privacy"),
+            SearchablePreference("ghostmode_r", "Hide Recording Audio", "Users cannot see that you are recording audio", "Presence & Online Visibility", 1, "privacy", "Privacy"),
+            SearchablePreference("stealth_status_view", "Hide Status View", "View statuses without users knowing", "Presence & Online Visibility", 1, "privacy", "Privacy"),
+            SearchablePreference("hide_read_receipts", "Hide Blue Ticks", "View messages within conversation screen without users knowing", "Message & Delivery Receipts", 1, "privacy", "Privacy"),
+            SearchablePreference("hideread_group", "Hide Blue Tick in Groups", "View messages in groups screen without users knowing", "Message & Delivery Receipts", 1, "privacy", "Privacy"),
+            SearchablePreference("blueonreply", "Send Blue Ticks upon Reply", "Sends blue ticks after replying to a message", "Message & Delivery Receipts", 1, "privacy", "Privacy"),
+            SearchablePreference("seentick", "Show Button to send blue tick", "Show Button to send blue tick (mark as read/viewed)", "Message & Delivery Receipts", 1, "privacy", "Privacy"),
+            SearchablePreference("hide_delivery_receipts", "Hide Delivered", "Users will not know that their messages have been delivered to you", "Message & Delivery Receipts", 1, "privacy", "Privacy"),
+            SearchablePreference("hide_seen_receipts", "Hide audio seen", "Hides the sending of audio reading when listening to it", "Message & Delivery Receipts", 1, "privacy", "Privacy"),
+            SearchablePreference("hideonceseen", "Hide View Once Seen", "Hide that view one media has been seen", "Message & Delivery Receipts", 1, "privacy", "Privacy"),
+            SearchablePreference("hide_forwarded_tag", "Hide \"Forwarded\" Tag", "Forward messages without the tag \"Forwarded\"", "Message & Delivery Receipts", 1, "privacy", "Privacy"),
+            SearchablePreference("anti_revoke", "Anti-Revoke Messages", "Messages will not be deleted for you", "Message Protection & Security", 1, "privacy", "Privacy"),
+            SearchablePreference("antirevokestatus", "Anti-Delete Status", "View statuses that users have since deleted", "Message Protection & Security", 1, "privacy", "Privacy"),
+            SearchablePreference("anti_view_once", "Unlimited View Once", "Allows you to open view once media multiple times", "Message Protection & Security", 1, "privacy", "Privacy"),
+            SearchablePreference("locked_chats_enhancer", "Enhanced Locked Chats", "Improve locked chats by hiding notifications and contacts from the contact list", "Message Protection & Security", 1, "privacy", "Privacy"),
+            SearchablePreference("typearchive", "Hide Archived Chats", "Hide archived chats, to access click 5 times or hold on the \"WhatsApp\" title", "Message Protection & Security", 1, "privacy", "Privacy"),
+            SearchablePreference("dnd_mode", "DND Mode", "When Do Not Disturb mode is on, you will be unable to send or receive messages", "Message Protection & Security", 1, "privacy", "Privacy"),
+            SearchablePreference("hide_chats", "Hide Locked Chats", "Hide locked chats, view them by holding WhatsApp title on home screen", "Message Protection & Security", 1, "privacy", "Privacy"),
+            SearchablePreference("custom_privacy", "Custom Privacy per contact", "Activate the custom privacy button on the contact information screen", "Advanced Rules & Filtering", 1, "privacy", "Privacy"),
+            SearchablePreference("call_privacy", "Block Calls", "Block WhatsApp calls based on privacy type", "Advanced Rules & Filtering", 1, "privacy", "Privacy"),
+            SearchablePreference("autonext_status", "Disable Auto Skip Status", "Prevents the current status from advancing automatically to the next one", "Status Privacy", 1, "privacy", "Privacy"),
+            SearchablePreference("toast_viewed_status", "Show toast on viewed your status", "Shows a toast if someone views your status", "Status Privacy", 1, "privacy", "Privacy"),
+            SearchablePreference("antidisappearing", "Anti Disappearing Messages", "Temporary messages will not be deleted for you", "Anti-Revoke & Deletion Defense", 1, "privacy", "Privacy"),
+            SearchablePreference("toastdeleted", "Show toast notification on delete message", "Show toast notification if any contact deletes any message", "Anti-Revoke & Deletion Defense", 1, "privacy", "Privacy"),
+            SearchablePreference("toast_viewed_message", "Show toast on viewed your message", "Shows a toast if someone views your message", "Anti-Revoke & Deletion Defense", 1, "privacy", "Privacy"),
+            SearchablePreference("ghostmode", "Show Ghost Mode Button", "Show a Ghost Mode button on the home screen toolbar", "Home Menu Shortcuts", 1, "privacy", "Privacy"),
+            SearchablePreference("show_dndmode", "Show DND Button", "Show button for DND Mode on home screen toolbar", "Home Menu Shortcuts", 1, "privacy", "Privacy"),
+            SearchablePreference("restartbutton", "Enable Restart Button", "Add button in Home Screen to Restart App", "Home Menu Shortcuts", 1, "privacy", "Privacy"),
+            SearchablePreference("open_wae", "Enable Wa Enhancer Button", "Add button in Home Screen or WhatsApp Settings to open Wa Enhancer", "Home Menu Shortcuts", 1, "privacy", "Privacy"),
 
             // --- PRIVACY TAB (Tab 1), Sub-tab "conversation" ---
-            SearchablePreference("anti_edit_messages", "Anti-Edit Messages", "Keep original version of edited messages in chat", "Message Controls", 1, "conversation", "Conversation"),
-            SearchablePreference("preserve_delete_for_me", "Preserve Delete For Me", "Keep local copy when messages are deleted for me", "Message Controls", 1, "conversation", "Conversation"),
-            SearchablePreference("sticker_confirm_alert", "Sticker Confirmation Alert", "Ask before sending clicked stickers", "Message Controls", 1, "conversation", "Conversation"),
-            SearchablePreference("jump_to_first_message", "Jump to First Message", "Add an option to jump directly to the beginning of any chat", "Message Controls", 1, "conversation", "Conversation"),
-            SearchablePreference("copy_status_text", "Copy Status Text", "Allow copying text from status updates", "Message Controls", 1, "conversation", "Conversation"),
-            SearchablePreference("inline_translation", "Inline Message Translation", "Tap-to-translate messages directly inline", "Message Controls", 1, "conversation", "Conversation"),
-            SearchablePreference("direct_chat_dialer", "Direct Chat Dialer", "Message someone without saving their contact info", "Chat & Group Utilities", 1, "conversation", "Conversation"),
-            SearchablePreference("unlimited_pinned_chats", "Unlimited Pinned Chats", "Pin more than 3 chats to the top", "Chat & Group Utilities", 1, "conversation", "Conversation"),
-            SearchablePreference("group_admin_tools", "Group Admin Tools", "Unlock hidden moderation controls", "Chat & Group Utilities", 1, "conversation", "Conversation"),
-            SearchablePreference("chat_limits_bypass", "Chat Limits Bypass", "Bypass group sharing and forwarding constraints", "Chat & Group Utilities", 1, "conversation", "Conversation"),
-            SearchablePreference("call_type_controller", "Call Type Controller", "Force voice-only or video-only incoming calls", "Chat & Group Utilities", 1, "conversation", "Conversation"),
-            SearchablePreference("custom_filter_groups", "Custom Filter Groups", "Group chats by custom categories", "Chat & Group Utilities", 1, "conversation", "Conversation"),
-            SearchablePreference("status_text_composer", "Status Text Composer Enhancements", "Format text status updates beautifully", "Chat & Group Utilities", 1, "conversation", "Conversation"),
+            SearchablePreference("anti_edit_messages", "Show Edited Message History", "Show edited message history when clicking \"Edited\" on a message", "Message Controls", 1, "conversation", "Conversation"),
+            SearchablePreference("preserve_delete_for_me", "Delete (for me)", "Retain messages locally when Delete for Me is selected", "Message Controls", 1, "conversation", "Conversation"),
+            SearchablePreference("revokeallmessages", "Increase limit of \"Delete for everyone\" option", "Increases the limit to 3 days in the option to delete messages for everyone", "Message Controls", 1, "conversation", "Conversation"),
+            SearchablePreference("removeforwardlimit", "Remove Forward Limit", "Remove forward limit for 5 chats (normal) and 1 chat (multiple times)", "Message Controls", 1, "conversation", "Conversation"),
+            SearchablePreference("sticker_confirm_alert", "Confirmation Before Sending Sticker", "Show a dialog before sending the sticker", "Message Controls", 1, "conversation", "Conversation"),
+            SearchablePreference("removeseemore", "Remove \"See More\" Button", "Disable \"See More\" button and show all long message", "Message Controls", 1, "conversation", "Conversation"),
+            SearchablePreference("stamp_copied_message", "Remove Stamp from Copied Messages", "Removes name and date when copying more than one message", "Message Controls", 1, "conversation", "Conversation"),
+            SearchablePreference("doubletap2like", "Enable Double Click to React", "Activates the possibility of double-clicking on the message to react it", "Message Controls", 1, "conversation", "Conversation"),
+            SearchablePreference("jump_to_first_message", "Jump to First Message", "Add a button to skip the first message in the conversations screen", "Message Controls", 1, "conversation", "Conversation"),
+            SearchablePreference("copy_status_text", "Enable Copy Status", "Activates the possibility of copying the description and caption of statuses by holding on them", "Message Controls", 1, "conversation", "Conversation"),
+            SearchablePreference("inline_translation", "Enable Google Translate", "Replaces Whatsapp's native translator with Google Translate", "Message Controls", 1, "conversation", "Conversation"),
+            SearchablePreference("direct_chat_dialer", "New Chat", "Message numbers directly without saving them to contacts", "Chat & Group Utilities", 1, "conversation", "Conversation"),
+            SearchablePreference("unlimited_pinned_chats", "Disable Pinned Chats Limit", "Disable limit of 3 pinned chats", "Chat & Group Utilities", 1, "conversation", "Conversation"),
+            SearchablePreference("broadcast_tag", "Show chat broadcast icon", "Shows an icon if the contact sent a message via broadcast", "Chat & Group Utilities", 1, "conversation", "Conversation"),
+            SearchablePreference("group_admin_tools", "Show Admin Group Icon", "Show an admin icon next to the name of the user who is the group admin", "Chat & Group Utilities", 1, "conversation", "Conversation"),
+            SearchablePreference("call_type_controller", "Enable selection of call type", "Show an option to select whether you want a call via phone or WhatsApp", "Chat & Group Utilities", 1, "conversation", "Conversation"),
+            SearchablePreference("status_text_composer", "Custom colors for text status", "Press and hold on the color selector in the status to customize it", "Chat & Group Utilities", 1, "conversation", "Conversation"),
 
             // --- MEDIA TAB (Tab 2) ---
-            SearchablePreference("media_upload_quality", "Media Upload Quality Enhancer", "Advanced control over upload compression algorithms", "Media Quality & Status Enhancements", 2, null, "Media"),
-            SearchablePreference("status_downloader", "Status Downloader", "Adds a direct download button to save statuses", "Media Quality & Status Enhancements", 2, null, "Media"),
-            SearchablePreference("voice_status_enhancement", "Voice Status Enhancement", "Upload high-quality voice status updates", "Media Quality & Status Enhancements", 2, null, "Media"),
-            SearchablePreference("call_recording", "Call Recording", "Enable automatic call recording for voice/video", "Media Utility & Downloader", 2, null, "Media"),
-            SearchablePreference("download_profile", "Download Profile Photo", "Download full-res profile pictures directly", "Media Utility & Downloader", 2, null, "Media"),
-            SearchablePreference("download_video_note", "Download Video Notes", "Save circular video notes to device", "Media Utility & Downloader", 2, null, "Media"),
-            SearchablePreference("download_view_once", "Download View-Once Media", "Save view-once media items directly to gallery", "Media Utility & Downloader", 2, null, "Media"),
-            SearchablePreference("file_size_spoofer", "File Size Spoofer", "Bypass large file limits when sending media", "Media Utility & Downloader", 2, null, "Media"),
-            SearchablePreference("media_preview", "Direct Media Preview", "View media files directly from notification or chat list", "Media Utility & Downloader", 2, null, "Media"),
-            SearchablePreference("video_note_converter", "Video Note Converter", "Convert standard videos into circular video notes", "Media Utility & Downloader", 2, null, "Media"),
+            SearchablePreference("status_downloader", "Download and Share Status", "Shows two buttons to share and download status", "Media Quality & Status", 2, null, "Media"),
+            SearchablePreference("media_upload_quality", "HD Quality Images & Videos", "Send images and videos in HD quality by default", "Media Quality & Status", 2, null, "Media"),
+            SearchablePreference("voice_status_enhancement", "Voice Status Enhancement", "Upload high-quality voice status updates", "Media Quality & Status", 2, null, "Media"),
+            SearchablePreference("call_recording", "Call Recording", "Record incoming and outgoing calls (Voice & Video) as audio", "Media Utility & Downloader", 2, null, "Media"),
+            SearchablePreference("download_profile", "Download Profile Photo", "Download full-resolution profile pictures directly", "Media Utility & Downloader", 2, null, "Media"),
+            SearchablePreference("download_view_once", "Download View Once", "Show button to download view once media", "Media Utility & Downloader", 2, null, "Media"),
+            SearchablePreference("media_preview", "Enable Media Preview", "Add a button to preview media in a temporary file", "Media Utility & Downloader", 2, null, "Media"),
 
             // --- AUTOMATION TAB (Tab 3), Sub-tab "automation" ---
-            SearchablePreference("always_typing", "Always Typing Mode", "Maintain typing indicator at all times", "Automation", 3, "automation", "Automation"),
-            SearchablePreference("auto_status_forward", "Auto Status Forwarding", "Auto-forward received statuses to contacts", "Automation", 3, "automation", "Automation"),
-            SearchablePreference("message_bomber", "Message Bomber", "Send automated message bursts", "Automation", 3, "automation", "Automation"),
-            SearchablePreference("status_video_splitter", "Status Video Splitter", "Auto-split long videos for status updates", "Automation", 3, "automation", "Automation"),
-            SearchablePreference("tasker_integration", "Tasker Integration", "Exposes WAEX triggers and actions to Tasker", "Automation", 3, "automation", "Automation"),
+            SearchablePreference("always_typing", "Hide Typing", "Users cannot see that you are typing", "Automation", 3, "automation", "Automation"),
+            SearchablePreference("tasker_integration", "Enable Tasker Automation", "Enables using intents to receive and send messages in Tasker", "Automation", 3, "automation", "Automation"),
 
             // --- AUTOMATION TAB (Tab 3), Sub-tab "ai" ---
-            SearchablePreference("voice_transcription", "AI Voice-to-Text Transcription", "Transcribes voice messages into text bubbles using AI", "Audio & AI", 3, "ai", "Automation"),
+            SearchablePreference("voice_transcription", "Audio Transcription", "Enable WhatsApp audio transcription with Groq AI or AssemblyAI", "Audio & AI", 3, "ai", "Automation"),
 
             // --- STYLES TAB (Tab 4), Sub-tab "appearance" ---
-            SearchablePreference("bubble_colors", "Chat Bubble Custom Colors", "Customize background colors of bubbles", "Visual Styles", 4, "appearance", "Styles"),
-            SearchablePreference("custom_theme", "Dynamic Theme Customization", "Apply fully custom app-wide styling theme", "Visual Styles", 4, "appearance", "Styles"),
-            SearchablePreference("custom_time_format", "Custom Time Format", "Set 24h or relative time display", "Visual Styles", 4, "appearance", "Styles"),
-            SearchablePreference("custom_toolbar", "Custom Toolbar Layout", "Customize quick actions in main header toolbar", "Visual Styles", 4, "appearance", "Styles"),
-            SearchablePreference("custom_view_dpi", "Custom View & DPI Settings", "Adjust UI scale and density overrides", "Visual Styles", 4, "appearance", "Styles"),
-            SearchablePreference("seen_tick_customization", "Seen Tick Style Customization", "Change WhatsApp seen tick icons", "Visual Styles", 4, "appearance", "Styles"),
-            SearchablePreference("floating_bottom_bar", "Floating Bottom Navigation Bar", "Convert main bottom bar to floating capsule", "Visual Styles", 4, "appearance", "Styles"),
+            SearchablePreference("bubble_colors", "Change Bubble Colors", "Change Bubble Color on Conversation Screen", "Visual Styles", 4, "appearance", "Styles"),
+            SearchablePreference("custom_theme", "Custom Theme CSS", "Customize your WhatsApp using CSS styles", "Visual Styles", 4, "appearance", "Styles"),
+            SearchablePreference("custom_time_format", "Seconds on Timestamp", "Show seconds next to any timestamp in the WhatsApp app", "Visual Styles", 4, "appearance", "Styles"),
+            SearchablePreference("custom_toolbar", "New Settings Style", "Enable the new settings style, with profile photo on home screen toolbar", "Visual Styles", 4, "appearance", "Styles"),
+            SearchablePreference("custom_view_dpi", "Change Default DPI", "Change the DPI setting for the application. Use 0 to reset to default.", "Visual Styles", 4, "appearance", "Styles"),
+            SearchablePreference("seen_tick_customization", "View Seen Tick", "Show an icon if the message view was sent to the recipient or unique view was seen", "Visual Styles", 4, "appearance", "Styles"),
+            SearchablePreference("floating_bottom_bar", "Floating Bottom Bar", "Enable iOS-style floating bottom navigation bar", "Visual Styles", 4, "appearance", "Styles"),
 
             // --- STYLES TAB (Tab 4), Sub-tab "layout" ---
-            SearchablePreference("dotonline", "Online Dot in Chat List", "Show a green dot indicator on avatars when contacts are online", "Conversation List Activity & Presence", 4, "layout", "Styles"),
-            SearchablePreference("showonlinetext", "Online / Last Seen in Chat List", "Display contact online or last seen text directly in chat rows", "Conversation List Activity & Presence", 4, "layout", "Styles"),
-            SearchablePreference("typing_online_toasts", "Contact Online & Typing Toasts", "Get real-time toast alerts when contacts come online or type", "Conversation List Activity & Presence", 4, "layout", "Styles"),
-            SearchablePreference("channels_enhancements", "Channels Enhancements", "Clean feed, disable channel recommendations", "Home Layout & Navigation", 4, "layout", "Styles"),
-            SearchablePreference("chat_filters", "Chat Filter Visibility Control", "Show or hide standard filter chips", "Home Layout & Navigation", 4, "layout", "Styles"),
-            SearchablePreference("hide_ui_tabs", "Hide Home UI Elements", "Remove communities, call or status tabs", "Home Layout & Navigation", 4, "layout", "Styles"),
-            SearchablePreference("instagram_status_layout", "Instagram-style Status Layout", "Render statuses as story circles at top", "Home Layout & Navigation", 4, "layout", "Styles"),
-            SearchablePreference("separate_groups_tabs", "Separate Groups & Personal Chats", "Split chats into two distinct home tabs", "Home Layout & Navigation", 4, "layout", "Styles"),
+            SearchablePreference("dotonline", "Show Online Dot in Conversation List", "Show a green online dot on home screen", "Conversation List Activity & Presence", 4, "layout", "Styles"),
+            SearchablePreference("showonlinetext", "Show Online/Last seen in Conversation List", "Show a text online or last seen on home screen", "Conversation List Activity & Presence", 4, "layout", "Styles"),
+            SearchablePreference("typing_online_toasts", "Show toast on contact online", "Show a toast when a contact is online", "Conversation List Activity & Presence", 4, "layout", "Styles"),
+            SearchablePreference("channels_enhancements", "Remove Channel Recomendations", "Remove Channel Recomendations from tab Status", "Home Layout & Navigation", 4, "layout", "Styles"),
+            SearchablePreference("chat_filters", "Enable filter chats for type", "Show options to filter chats for groups, contacts and unseen messages", "Home Layout & Navigation", 4, "layout", "Styles"),
+            SearchablePreference("hide_ui_tabs", "Hide Tabs on Home", "Hide tabs on the home screen such as Updates, Communities and Calls", "Home Layout & Navigation", 4, "layout", "Styles"),
+            SearchablePreference("instagram_status_layout", "Enable IGStatus on Home Screen", "Show status style Instagram in Home Screen", "Home Layout & Navigation", 4, "layout", "Styles"),
+            SearchablePreference("separate_groups_tabs", "Separate Groups", "Separate your chats by: Groups, Private Chats, Status, Calls, Communities", "Home Layout & Navigation", 4, "layout", "Styles"),
             SearchablePreference("quick_home_menu", "Quick Action Home Menu", "Add quick actions to home long-press", "Home Layout & Navigation", 4, "layout", "Styles"),
-            SearchablePreference("backup_restore", "Backup & Restore Preferences", "Import or export WAEX configurations", "Utilities & Data", 4, "layout", "Styles"),
-            SearchablePreference("contact_blocked_verify", "Contact Blocked Verifier", "Verify if a contact has blocked you", "Utilities & Data", 4, "layout", "Styles"),
+            SearchablePreference("backup_restore", "Backup Settings", "Import or export WAEX configurations", "Utilities & Data", 4, "layout", "Styles"),
+            SearchablePreference("contact_blocked_verify", "Show Contact Added Status in Conversation", "This option verifies whether the contact added you or has a public profile photo", "Utilities & Data", 4, "layout", "Styles"),
+            SearchablePreference("miscellaneous_enhancements", "Disable Screen off on proximity sensor", "Disable Screen off on proximity sensor to the whole WhatsApp", "Utilities & Data", 4, "layout", "Styles"),
+
             // --- SETTINGS & SYSTEM ---
             SearchablePreference("supported_versions", "Supported WhatsApp Versions", "Manage verified WhatsApp and WA Business versions & wildcards", "System & Compatibility", -1, null, "Settings"),
-            SearchablePreference("bypass_version_check", "Bypass Version Verification", "Force WAEX hooks to load on any WhatsApp version", "System & Compatibility", -1, null, "Settings"),
+            SearchablePreference("bypass_version_check", "Disable Version Check", "Disables the supported version check of WhatsApp", "System & Compatibility", -1, null, "Settings"),
 
             // --- PREMIUM (Paywall) ---
             SearchablePreference("license_verification", "License Verification & Activation", "Manages license key entry and validation", "Premium", -1, null, "Premium"),
@@ -134,15 +148,16 @@ fun SearchScreen() {
         )
     }
 
-    // Filter registry based on query
+    // Enhanced multi-token search filter: matches all query terms across title, description, section, key, and tabLabel
     val filteredPreferences = remember(query) {
-        if (query.trim().isEmpty()) {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) {
             preferenceRegistry
         } else {
-            preferenceRegistry.filter {
-                it.title.contains(query, ignoreCase = true) ||
-                it.description.contains(query, ignoreCase = true) ||
-                it.section.contains(query, ignoreCase = true)
+            val terms = trimmed.lowercase().split("\\s+".toRegex()).filter { it.isNotEmpty() }
+            preferenceRegistry.filter { pref ->
+                val haystack = "${pref.title} ${pref.description} ${pref.section} ${pref.key} ${pref.tabLabel}".lowercase()
+                terms.all { term -> haystack.contains(term) }
             }
         }
     }

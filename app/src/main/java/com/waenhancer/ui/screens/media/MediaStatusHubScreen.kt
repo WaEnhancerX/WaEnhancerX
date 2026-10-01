@@ -87,10 +87,10 @@ fun MediaStatusHubScreen() {
     val preferenceManager = com.waenhancer.ui.navigation.LocalWaexPreferenceManager.current
     val mediaKeys = remember {
         listOf(
-            "status_video_splitter", "call_recording", "download_profile", "download_video_note",
-            "download_view_once", "file_size_spoofer", "media_preview",
-            "media_upload_quality", "status_downloader", "video_note_converter",
-            "voice_status_enhancement"
+            "statusdowload", "status_downloader", "videoquality", "imagequality",
+            "media_upload_quality", "voice_status_enhancement",
+            "call_recording", "download_profile", "download_video_note",
+            "downloadviewonce", "download_view_once", "media_preview", "enable_media_preview"
         )
     }
 
@@ -105,6 +105,22 @@ fun MediaStatusHubScreen() {
     val updatePreference: (String, Boolean) -> Unit = { key, value ->
         settingsState[key] = value
         preferenceManager.putBoolean(key, value)
+        if (key == "status_downloader" || key == "statusdowload") {
+            preferenceManager.putBoolean("statusdowload", value)
+            preferenceManager.putBoolean("status_downloader", value)
+            settingsState["statusdowload"] = value
+            settingsState["status_downloader"] = value
+        } else if (key == "download_view_once" || key == "downloadviewonce") {
+            preferenceManager.putBoolean("downloadviewonce", value)
+            preferenceManager.putBoolean("download_view_once", value)
+            settingsState["downloadviewonce"] = value
+            settingsState["download_view_once"] = value
+        } else if (key == "media_preview" || key == "enable_media_preview") {
+            preferenceManager.putBoolean("enable_media_preview", value)
+            preferenceManager.putBoolean("media_preview", value)
+            settingsState["enable_media_preview"] = value
+            settingsState["media_preview"] = value
+        }
     }
 
 
@@ -113,12 +129,11 @@ fun MediaStatusHubScreen() {
 
     val mediaGroups = listOf(
         MediaGroup(
-            "Media Quality & Status Enhancements",
+            "Media Quality & Status",
             WaexIcons.Image,
             listOf(
-                MediaItem("Status Video Splitter", "Auto-split long videos for WhatsApp Status updates", "status_video_splitter", isPro = true),
-                MediaItem("Media Upload Quality Enhancer", "Advanced control over upload compression algorithms", "media_upload_quality"),
-                MediaItem("Status Downloader", "Adds a direct download button to save statuses", "status_downloader"),
+                MediaItem("Download and Share Status", "Shows two buttons to share and download status", "statusdowload"),
+                MediaItem("HD Quality Images & Videos", "Send images and videos in HD quality by default", "media_upload_quality"),
                 MediaItem("Voice Status Enhancement", "Upload high-quality voice status updates", "voice_status_enhancement", isPro = true)
             )
         ),
@@ -126,13 +141,10 @@ fun MediaStatusHubScreen() {
             "Media Utility & Downloader",
             WaexIcons.Folder,
             listOf(
-                MediaItem("Call Recording", "Enable automatic call recording for voice/video", "call_recording"),
-                MediaItem("Download Profile Photo", "Download full-res profile pictures directly", "download_profile"),
-                MediaItem("Download Video Notes", "Save circular video notes to device", "download_video_note"),
-                MediaItem("Download View-Once Media", "Save view-once media items directly to gallery", "download_view_once"),
-                MediaItem("File Size Spoofer", "Bypass large file limits when sending media", "file_size_spoofer", isPro = true),
-                MediaItem("Direct Media Preview", "View media files directly from notification or chat list", "media_preview"),
-                MediaItem("Video Note Converter", "Convert standard videos into circular video notes", "video_note_converter")
+                MediaItem("Call Recording", "Record incoming and outgoing calls (Voice & Video) as audio", "call_recording"),
+                MediaItem("Download View Once", "Show button to download view once media", "downloadviewonce"),
+                MediaItem("Enable Media Preview", "Add a button to preview media in a temporary file", "media_preview"),
+                MediaItem("Download Profile Photo", "Download full-resolution profile pictures directly", "download_profile")
             )
         )
     )

@@ -120,10 +120,7 @@ fun AutomationTaskerScreen() {
     val preferenceManager = com.waenhancer.ui.navigation.LocalWaexPreferenceManager.current
 
     // Automation states
-    var alwaysTypingEnabled by remember { mutableStateOf(preferenceManager.getBoolean("always_typing", true)) }
-    var autoStatusForwardEnabled by remember { mutableStateOf(preferenceManager.getBoolean("auto_status_forward", false)) }
-    var messageBomberEnabled by remember { mutableStateOf(preferenceManager.getBoolean("message_bomber", false)) }
-    var statusVideoSplitterEnabled by remember { mutableStateOf(preferenceManager.getBoolean("status_video_splitter", false)) }
+    var alwaysTypingEnabled by remember { mutableStateOf(preferenceManager.getBoolean("always_typing", preferenceManager.getBoolean("ghostmode_t", false))) }
     var taskerIntegrationEnabled by remember { mutableStateOf(preferenceManager.getBoolean("tasker_integration", false)) }
 
     // Audio & AI states
@@ -222,23 +219,12 @@ fun AutomationTaskerScreen() {
         if (selectedTab == "automation") {
             // Automation Cards
             val cards = listOf(
-                AutomationCardData("always_typing", WaexIcons.Lock, "Always Typing Mode", "Maintain typing indicator at all times", alwaysTypingEnabled, true) {
+                AutomationCardData("always_typing", WaexIcons.Lock, "Hide Typing", "Users cannot see that you are typing", alwaysTypingEnabled, false) {
                     alwaysTypingEnabled = it
                     preferenceManager.putBoolean("always_typing", it)
+                    preferenceManager.putBoolean("ghostmode_t", it)
                 },
-                AutomationCardData("auto_status_forward", WaexIcons.Share, "Auto Status Forwarding", "Auto-forward received statuses to contacts", autoStatusForwardEnabled, false) {
-                    autoStatusForwardEnabled = it
-                    preferenceManager.putBoolean("auto_status_forward", it)
-                },
-                AutomationCardData("message_bomber", WaexIcons.Mic, "Message Bomber", "Send automated message bursts", messageBomberEnabled, true) {
-                    messageBomberEnabled = it
-                    preferenceManager.putBoolean("message_bomber", it)
-                },
-                AutomationCardData("status_video_splitter", WaexIcons.SystemUpdate, "Status Video Splitter", "Auto-split long videos for status updates", statusVideoSplitterEnabled, true) {
-                    statusVideoSplitterEnabled = it
-                    preferenceManager.putBoolean("status_video_splitter", it)
-                },
-                AutomationCardData("tasker_integration", WaexIcons.AutoAwesome, "Tasker Integration", "Exposes WAEX triggers and actions to Tasker", taskerIntegrationEnabled, false) {
+                AutomationCardData("tasker_integration", WaexIcons.AutoAwesome, "Enable Tasker Automation", "Enables using intents to receive and send messages in Tasker", taskerIntegrationEnabled, false) {
                     taskerIntegrationEnabled = it
                     preferenceManager.putBoolean("tasker_integration", it)
                 }
@@ -455,13 +441,13 @@ fun AutomationTaskerScreen() {
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = "AI Voice-to-Text Transcription",
+                                text = "Audio Transcription",
                                 style = typography.bodyLg,
                                 fontWeight = FontWeight.Bold,
                                 color = colors.onSurface
                             )
                             Text(
-                                text = "Transcribes voice messages into text bubbles using AI",
+                                text = "Enable WhatsApp audio transcription with Groq AI or AssemblyAI",
                                 style = typography.bodyMd,
                                 color = colors.onSurfaceVariant,
                                 fontSize = 12.sp
