@@ -8,8 +8,11 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.BaseAdapter;
 import android.widget.HeaderViewListAdapter;
 import android.widget.ListAdapter;
 import android.widget.ListView;
@@ -18,20 +21,19 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
 
-import com.waenhancer.app.R;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.db.DelMessageStore;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.xposed.features.homescreen.MenuIconLoader;
 import com.waenhancer.xposed.utils.ActivityTracker;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 
-import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.FindClass;
+import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.enums.StringMatchType;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
@@ -39,8 +41,10 @@ import org.luckypray.dexkit.result.ClassData;
 import org.luckypray.dexkit.result.ClassDataList;
 import org.luckypray.dexkit.result.MethodData;
 
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.text.DateFormat;
 import java.util.Date;
 import java.util.Map;
@@ -49,12 +53,12 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Anti-Revoke & Deleted Indicator Engine.
  *
- * Strategy (aligned with WaEnhancer):
+ * Strategy:
  *  1. Block SQLite DELETE on 'message' table and INSERT of message_type=15 placeholders.
  *  2. Block bytecode revocation calls.
  *  3. Persist revoked message key_ids in DelMessageStore for cross-session survival.
- *  4. Decorate revoked messages via ListView.setAdapter → getView hook,
- *     filtered to Conversation activity + android.R.id.list only.
+ *  4. Decorate revoked messages via ListView.setAdapter -> getView hook on android.R.id.list.
+ *  5. Render visual indicator (custom deleted vector icon or "Deleted" text) and colored text.
  */
 public class AntiRevokeHook extends BaseFeature {
 
@@ -62,19 +66,21 @@ public class AntiRevokeHook extends BaseFeature {
 
     private static final Map<String, Long> REVOKED_MESSAGES = new ConcurrentHashMap<>();
     private static final DateFormat TIME_FORMAT = DateFormat.getTimeInstance(DateFormat.SHORT);
-    private final android.os.Handler uiHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Handler uiHandler = new Handler(Looper.getMainLooper());
 
     /** Resolved WhatsApp FMessage class — used to guard getView items. */
     private Class<?> fMessageClass;
 
-    /** Resolved FMessage Key class and its String field that holds the message ID. */
+    /** Resolved FMessage Key class and reflection cache. */
     private Class<?> messageKeyClass;
-    private Field keyIdField;
+    private volatile Field cachedFMessageKeyField;
+    private volatile Field cachedKeyIdField;
 
     /** Track previous getView hook so we can unhook on adapter change. */
     private volatile XC_MethodHook.Unhook previousGetViewHook;
-    /** Track the currently hooked adapter to guard against stale callbacks. */
+    /** Track the currently hooked adapter and ListView. */
     private volatile ListAdapter currentAdapter;
+    private static WeakReference<ListView> activeListView = new WeakReference<>(null);
 
     public AntiRevokeHook(@NonNull Context context, @NonNull ClassLoader classLoader, @NonNull SharedPreferences prefs) {
         super(context, classLoader, prefs);
@@ -93,7 +99,7 @@ public class AntiRevokeHook extends BaseFeature {
 
     private void initMessageClasses() {
         try {
-            // ── Resolve FMessage class (same anchor WaEnhancer uses) ──
+            // ── Resolve FMessage class ──
             fMessageClass = DexSearchEngine.getInstance().findClassWithCache(
                     context, classLoader, "wpp_fmessage_class",
                     (bridge, loader) -> {
@@ -110,8 +116,6 @@ public class AntiRevokeHook extends BaseFeature {
 
             if (fMessageClass != null) {
                 XposedBridge.log(TAG + " FMessage class resolved: " + fMessageClass.getName());
-            } else {
-                XposedBridge.log(TAG + " WARNING: FMessage class not found — getView guard disabled.");
             }
 
             // ── Resolve Key class ──
@@ -130,26 +134,7 @@ public class AntiRevokeHook extends BaseFeature {
                     });
 
             if (messageKeyClass != null) {
-                // WhatsApp Key class has fields: String (remoteJid), String (messageId), boolean (fromMe).
-                // We don't pick statically — extractMessageIdFromKey filters by '@' at runtime.
-                Field candidate = null;
-                for (Field f : messageKeyClass.getDeclaredFields()) {
-                    f.setAccessible(true);
-                    if (f.getType() == String.class) {
-                        if (candidate == null) {
-                            candidate = f;
-                        } else {
-                            keyIdField = f;
-                        }
-                    }
-                }
-                if (keyIdField == null && candidate != null) {
-                    keyIdField = candidate;
-                }
-                XposedBridge.log(TAG + " Key class: " + messageKeyClass.getName()
-                        + ", keyIdField: " + (keyIdField != null ? keyIdField.getName() : "null"));
-            } else {
-                XposedBridge.log(TAG + " WARNING: Could not resolve messageKeyClass.");
+                XposedBridge.log(TAG + " Key class resolved: " + messageKeyClass.getName());
             }
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Error initializing message key classes: " + t.getMessage());
@@ -209,8 +194,6 @@ public class AntiRevokeHook extends BaseFeature {
                     }
                 });
                 XposedBridge.log(TAG + " Hooked bytecode revoke: " + revokeMethod.getName());
-            } else {
-                XposedBridge.log(TAG + " WARNING: Bytecode revoke method not found.");
             }
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Error hooking bytecode revoke: " + t.getMessage());
@@ -300,70 +283,70 @@ public class AntiRevokeHook extends BaseFeature {
      * Real-time UI dispatcher: instantly updates on-screen visible chat bubble when a revocation occurs.
      */
     private void dispatchRealtimeRevokeUI(@NonNull String targetKeyId, long timestamp) {
-        try {
-            Activity conversationAct = ActivityTracker.getCurrentConversation();
-            if (conversationAct != null) {
-                conversationAct.runOnUiThread(() -> {
-                    try {
-                        int listId = conversationAct.getResources().getIdentifier("list", "id", conversationAct.getPackageName());
-                        View listView = listId != 0 ? conversationAct.findViewById(listId) : conversationAct.findViewById(android.R.id.list);
-                        if (listView instanceof ViewGroup) {
-                            ViewGroup group = (ViewGroup) listView;
-                            int count = group.getChildCount();
-                            for (int i = 0; i < count; i++) {
-                                View child = group.getChildAt(i);
-                                if (child instanceof ViewGroup) {
-                                    String childKey = (String) XposedHelpers.getAdditionalInstanceField(child, "waex_key_id");
-                                    if (targetKeyId.equals(childKey)) {
-                                        decorateRevokedRow((ViewGroup) child, timestamp);
-                                        child.invalidate();
-                                        XposedBridge.log(TAG + " Live on-screen chat bubble updated for key: " + targetKeyId);
-                                        break;
-                                    }
-                                }
+        uiHandler.post(() -> {
+            try {
+                // 1. Direct row update on active ListView
+                ListView lv = activeListView.get();
+                if (lv != null) {
+                    int count = lv.getChildCount();
+                    for (int i = 0; i < count; i++) {
+                        View child = lv.getChildAt(i);
+                        if (child instanceof ViewGroup) {
+                            String childKey = (String) XposedHelpers.getAdditionalInstanceField(child, "waex_key_id");
+                            if (targetKeyId.equals(childKey)) {
+                                decorateRevokedRow((ViewGroup) child, timestamp);
+                                child.invalidate();
+                                XposedBridge.log(TAG + " Live on-screen chat bubble updated for key: " + targetKeyId);
+                                break;
                             }
                         }
-                    } catch (Throwable t) {
-                        XposedBridge.log(TAG + " Error in realtime UI update runnable: " + t.getMessage());
                     }
-                });
+                }
+
+                // 2. Notify adapter to rebind dataset
+                if (currentAdapter instanceof BaseAdapter) {
+                    ((BaseAdapter) currentAdapter).notifyDataSetChanged();
+                } else if (currentAdapter instanceof HeaderViewListAdapter) {
+                    ListAdapter wrapped = ((HeaderViewListAdapter) currentAdapter).getWrappedAdapter();
+                    if (wrapped instanceof BaseAdapter) {
+                        ((BaseAdapter) wrapped).notifyDataSetChanged();
+                    }
+                }
+            } catch (Throwable t) {
+                XposedBridge.log(TAG + " Error in realtime UI update runnable: " + t.getMessage());
             }
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + " Error dispatching realtime UI update: " + t.getMessage());
-        }
+        });
     }
 
     // ─── ListView adapter hook (main indicator path) ─────────────────────
 
     /**
-     * Hooks ListView.setAdapter, filtered to the Conversation activity and android.R.id.list.
+     * Hooks ListView.setAdapter on the conversation list view (android.R.id.list).
      * On each getView call, checks if the bound FMessage is revoked and decorates accordingly.
-     * Follows WaEnhancer's ConversationItemListener strategy exactly.
      */
     private void hookListViewAdapter() {
         try {
             XposedHelpers.findAndHookMethod(ListView.class, "setAdapter", ListAdapter.class, new XC_MethodHook() {
                 @Override
                 protected void beforeHookedMethod(MethodHookParam param) {
-                    // ── Guard 1: Only in Conversation activity ──
-                    Activity currentAct = ActivityTracker.getCurrentActivity();
-                    if (currentAct == null) return;
-                    String actName = currentAct.getClass().getSimpleName();
-                    if (!actName.equals("Conversation") && !actName.contains("Conversation")) return;
+                    ListView listView = (ListView) param.thisObject;
+                    if (listView == null || listView.getId() != android.R.id.list) return;
 
-                    // ── Guard 2: Only the main message list (android.R.id.list) ──
-                    if (((ListView) param.thisObject).getId() != android.R.id.list) return;
+                    activeListView = new WeakReference<>(listView);
 
-                    // ── Unwrap adapter ──
+                    // Unwrap adapter
                     ListAdapter adapter = (ListAdapter) param.args[0];
+                    if (adapter == null) return;
                     if (adapter instanceof HeaderViewListAdapter) {
                         adapter = ((HeaderViewListAdapter) adapter).getWrappedAdapter();
                     }
                     if (adapter == null) return;
 
-                    // ── Unhook previous getView hook to prevent stale adapter refs ──
+                    // Unhook previous getView hook to prevent stale adapter refs
                     if (previousGetViewHook != null) {
-                        previousGetViewHook.unhook();
+                        try {
+                            previousGetViewHook.unhook();
+                        } catch (Throwable ignored) {}
                         previousGetViewHook = null;
                     }
 
@@ -371,8 +354,18 @@ public class AntiRevokeHook extends BaseFeature {
                     final ListAdapter boundAdapter = adapter;
 
                     try {
-                        Method getViewMethod = boundAdapter.getClass().getDeclaredMethod(
-                                "getView", int.class, View.class, ViewGroup.class);
+                        Method getViewMethod = XposedHelpers.findMethodBestMatch(
+                                boundAdapter.getClass(),
+                                "getView",
+                                int.class,
+                                View.class,
+                                ViewGroup.class
+                        );
+
+                        if (getViewMethod == null) {
+                            XposedBridge.log(TAG + " getView method not found on " + boundAdapter.getClass().getName());
+                            return;
+                        }
 
                         previousGetViewHook = XposedBridge.hookMethod(getViewMethod, new XC_MethodHook() {
                             @Override
@@ -392,19 +385,17 @@ public class AntiRevokeHook extends BaseFeature {
                                 }
                                 if (item == null) return;
 
-                                // Guard: skip non-FMessage items (date separators, system events)
+                                // Guard: skip non-FMessage items if fMessageClass is known
                                 if (fMessageClass != null && !fMessageClass.isInstance(item)) {
                                     return;
                                 }
 
                                 String keyId = extractKeyIdFromFMessage(item);
                                 if (keyId != null) {
-                                    // Tag row with key_id for fast live on-screen updates
                                     XposedHelpers.setAdditionalInstanceField(row, "waex_key_id", keyId);
                                 }
 
                                 long deletedTs = getRevokedTimestamp(keyId);
-                                XposedBridge.log(TAG + " getView pos=" + pos + " keyId=" + keyId + " ts=" + deletedTs);
                                 if (deletedTs > 0) {
                                     decorateRevokedRow(row, deletedTs);
                                 } else {
@@ -414,51 +405,8 @@ public class AntiRevokeHook extends BaseFeature {
                         });
 
                         XposedBridge.log(TAG + " getView hook installed on adapter: " + boundAdapter.getClass().getName());
-                    } catch (NoSuchMethodException e) {
-                        try {
-                            for (Method m : boundAdapter.getClass().getDeclaredMethods()) {
-                                if (m.getName().equals("getView")) {
-                                    previousGetViewHook = XposedBridge.hookMethod(m, new XC_MethodHook() {
-                                        @Override
-                                        protected void afterHookedMethod(MethodHookParam p) {
-                                            if (p.thisObject != currentAdapter) return;
-                                            if (!isAntiRevokeEnabled()) return;
-
-                                            int pos = (int) p.args[0];
-                                            ViewGroup row = (ViewGroup) p.getResult();
-                                            if (row == null) return;
-
-                                            Object item;
-                                            try {
-                                                item = boundAdapter.getItem(pos);
-                                            } catch (Throwable t) {
-                                                return;
-                                            }
-                                            if (item == null) return;
-
-                                            // Guard: skip non-FMessage items
-                                            if (fMessageClass != null && !fMessageClass.isInstance(item)) return;
-
-                                            String keyId = extractKeyIdFromFMessage(item);
-                                            if (keyId != null) {
-                                                XposedHelpers.setAdditionalInstanceField(row, "waex_key_id", keyId);
-                                            }
-
-                                            long deletedTs = getRevokedTimestamp(keyId);
-                                            if (deletedTs > 0) {
-                                                decorateRevokedRow(row, deletedTs);
-                                            } else {
-                                                resetRowDecoration(row);
-                                            }
-                                        }
-                                    });
-                                    XposedBridge.log(TAG + " getView hook (fallback) installed on: " + boundAdapter.getClass().getName());
-                                    break;
-                                }
-                            }
-                        } catch (Throwable ignored) {}
                     } catch (Throwable t) {
-                        XposedBridge.log(TAG + " Error hooking getView: " + t.getMessage());
+                        XposedBridge.log(TAG + " Error hooking getView on " + boundAdapter.getClass().getName() + ": " + t.getMessage());
                     }
                 }
             });
@@ -471,7 +419,7 @@ public class AntiRevokeHook extends BaseFeature {
     // ─── Revoke timestamp lookup ─────────────────────────────────────────
 
     private long getRevokedTimestamp(@Nullable String keyId) {
-        if (keyId == null) return 0L;
+        if (keyId == null || keyId.isEmpty()) return 0L;
         Long ts = REVOKED_MESSAGES.get(keyId);
         if (ts != null && ts > 0) return ts;
         return DelMessageStore.getInstance(context).getTimestampByMessageId(keyId);
@@ -485,13 +433,15 @@ public class AntiRevokeHook extends BaseFeature {
             int dateId = rowContext.getResources().getIdentifier("date", "id", rowContext.getPackageName());
             int messageTextId = rowContext.getResources().getIdentifier("message_text", "id", rowContext.getPackageName());
 
-            XposedBridge.log(TAG + " decorateRevokedRow: dateId=" + dateId + " msgTextId=" + messageTextId + " ts=" + deletedTimestamp);
-
             TextView dateTextView = dateId != 0 ? rowView.findViewById(dateId) : null;
             TextView messageTextView = messageTextId != 0 ? rowView.findViewById(messageTextId) : null;
 
+            // Fallback: if dateTextView is not found by ID, scan rowView recursively
             if (dateTextView == null) {
-                XposedBridge.log(TAG + " decorateRevokedRow: dateTextView is NULL — cannot decorate");
+                dateTextView = findDateTextViewFallback(rowView);
+            }
+
+            if (dateTextView == null) {
                 return;
             }
 
@@ -506,7 +456,6 @@ public class AntiRevokeHook extends BaseFeature {
             int indicatorType = getIndicatorType();
             boolean colorEnabled = isColorDeletedMessagesEnabled();
             int customColor = getDeletedMessageColor();
-            XposedBridge.log(TAG + " decorateRevokedRow: indicatorType=" + indicatorType + " colorEnabled=" + colorEnabled + " color=" + customColor);
 
             if (colorEnabled) {
                 dateTextView.setTextColor(customColor);
@@ -522,48 +471,30 @@ public class AntiRevokeHook extends BaseFeature {
                 }
             }
 
+            // Save original date text
+            String originalDate = (String) XposedHelpers.getAdditionalInstanceField(dateTextView, "waex_original_date");
+            if (originalDate == null) {
+                originalDate = dateTextView.getText().toString();
+                XposedHelpers.setAdditionalInstanceField(dateTextView, "waex_original_date", originalDate);
+            }
+
             if (indicatorType == 1) { // Show "Deleted" text
-                String originalDate = (String) XposedHelpers.getAdditionalInstanceField(dateTextView, "waex_original_date");
-                if (originalDate == null) {
-                    originalDate = dateTextView.getText().toString();
-                    XposedHelpers.setAdditionalInstanceField(dateTextView, "waex_original_date", originalDate);
-                }
+                dateTextView.setCompoundDrawables(null, null, null, null);
                 String newText = "Deleted • " + originalDate;
                 dateTextView.setText(newText);
-                XposedBridge.log(TAG + " decorateRevokedRow: set text=" + newText);
-
-            } else { // indicatorType == 2 or default: Show icon
-                dateTextView.setCompoundDrawablesWithIntrinsicBounds(null, null, null, null);
-                try {
-                    // Use module context directly — context is injected at construction time
-                    Drawable deleteDrawable = ContextCompat.getDrawable(context, R.drawable.ic_deleted);
-                    if (deleteDrawable != null) {
-                        deleteDrawable = deleteDrawable.mutate();
-                        if (colorEnabled) {
-                            deleteDrawable.setTint(customColor);
-                        }
-                        int size = (int) (dateTextView.getTextSize() * 1.4f);
-                        deleteDrawable.setBounds(0, 0, size, size);
-                        dateTextView.setCompoundDrawables(null, null, deleteDrawable, null);
-                        dateTextView.setCompoundDrawablePadding(6);
-                        XposedBridge.log(TAG + " decorateRevokedRow: set icon drawable size=" + size);
-                    } else {
-                        // Drawable not found — fall through to text fallback
-                        XposedBridge.log(TAG + " decorateRevokedRow: ic_deleted drawable is null, using text fallback");
-                        String originalDate = (String) XposedHelpers.getAdditionalInstanceField(dateTextView, "waex_original_date");
-                        if (originalDate == null) {
-                            originalDate = dateTextView.getText().toString();
-                            XposedHelpers.setAdditionalInstanceField(dateTextView, "waex_original_date", originalDate);
-                        }
-                        dateTextView.setText("🚫 " + originalDate);
-                    }
-                } catch (Throwable t) {
-                    XposedBridge.log(TAG + " decorateRevokedRow: icon error: " + t.getMessage() + " — using text fallback");
-                    String originalDate = (String) XposedHelpers.getAdditionalInstanceField(dateTextView, "waex_original_date");
-                    if (originalDate == null) {
-                        originalDate = dateTextView.getText().toString();
-                        XposedHelpers.setAdditionalInstanceField(dateTextView, "waex_original_date", originalDate);
-                    }
+            } else { // indicatorType == 2 (Default: Show deleted icon)
+                Drawable deleteDrawable = getDeletedIconDrawable(rowContext);
+                if (deleteDrawable != null) {
+                    deleteDrawable = deleteDrawable.mutate();
+                    deleteDrawable.setTint(customColor);
+                    int size = (int) (dateTextView.getTextSize() * 1.35f);
+                    deleteDrawable.setBounds(0, 0, size, size);
+                    dateTextView.setCompoundDrawables(null, null, deleteDrawable, null);
+                    dateTextView.setCompoundDrawablePadding(8);
+                    dateTextView.setText(originalDate);
+                } else {
+                    // Fallback to emoji indicator if vector resource fails to load
+                    dateTextView.setCompoundDrawables(null, null, null, null);
                     dateTextView.setText("🚫 " + originalDate);
                 }
             }
@@ -577,7 +508,7 @@ public class AntiRevokeHook extends BaseFeature {
                 );
             }
         } catch (Throwable t) {
-            XposedBridge.log(TAG + " decorateRevokedRow ERROR: " + t.getMessage());
+            XposedBridge.log(TAG + " decorateRevokedRow error: " + t.getMessage());
         }
     }
 
@@ -589,16 +520,21 @@ public class AntiRevokeHook extends BaseFeature {
 
             TextView dateTextView = dateId != 0 ? rowView.findViewById(dateId) : null;
             TextView messageTextView = messageTextId != 0 ? rowView.findViewById(messageTextId) : null;
+            if (dateTextView == null) {
+                dateTextView = findDateTextViewFallback(rowView);
+            }
             if (dateTextView == null) return;
 
             Integer originalDateColor = (Integer) XposedHelpers.getAdditionalInstanceField(dateTextView, "waex_original_color");
             if (originalDateColor != null) {
                 dateTextView.setTextColor(originalDateColor);
+                XposedHelpers.removeAdditionalInstanceField(dateTextView, "waex_original_color");
             }
             if (messageTextView != null) {
                 Integer originalMsgColor = (Integer) XposedHelpers.getAdditionalInstanceField(messageTextView, "waex_original_color");
                 if (originalMsgColor != null) {
                     messageTextView.setTextColor(originalMsgColor);
+                    XposedHelpers.removeAdditionalInstanceField(messageTextView, "waex_original_color");
                 }
             }
 
@@ -614,39 +550,103 @@ public class AntiRevokeHook extends BaseFeature {
         } catch (Throwable ignored) {}
     }
 
+    @Nullable
+    private TextView findDateTextViewFallback(ViewGroup group) {
+        try {
+            int count = group.getChildCount();
+            for (int i = 0; i < count; i++) {
+                View child = group.getChildAt(i);
+                if (child instanceof TextView) {
+                    int id = child.getId();
+                    if (id != View.NO_ID) {
+                        try {
+                            String entryName = child.getResources().getResourceEntryName(id);
+                            if (entryName != null && entryName.toLowerCase().contains("date")) {
+                                return (TextView) child;
+                            }
+                        } catch (Throwable ignored) {}
+                    }
+                } else if (child instanceof ViewGroup) {
+                    TextView found = findDateTextViewFallback((ViewGroup) child);
+                    if (found != null) return found;
+                }
+            }
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
+    @Nullable
+    private Drawable getDeletedIconDrawable(@NonNull Context rowContext) {
+        Drawable d = MenuIconLoader.load(rowContext, "ic_deleted");
+        if (d != null) return d;
+        return MenuIconLoader.load(context, "ic_deleted");
+    }
+
     // ─── Key extraction from FMessage objects ────────────────────────────
 
     /**
-     * Extracts the message key_id from an FMessage object.
-     * Tries multiple strategies to handle obfuscated field names.
-     * The key_id is a String that does NOT contain '@' (distinguishing it from a JID).
+     * Robust message key_id extractor.
+     * Scans for the Key object within FMessage (which has remoteJid, messageId String, isFromMe boolean).
      */
-    private String extractKeyIdFromFMessage(Object fMessageObj) {
+    @Nullable
+    private String extractKeyIdFromFMessage(@Nullable Object fMessageObj) {
         if (fMessageObj == null) return null;
         try {
+            // 1. Fast Path: Use cached fields if already discovered
+            if (cachedFMessageKeyField != null && cachedKeyIdField != null) {
+                Object keyObj = cachedFMessageKeyField.get(fMessageObj);
+                if (keyObj != null) {
+                    String id = (String) cachedKeyIdField.get(keyObj);
+                    if (id != null && !id.isEmpty()) return id;
+                }
+            }
+
             Class<?> objClass = fMessageObj.getClass();
-            
-            // Scan all fields on instance and superclasses
+
+            // 2. Discover Key object inside FMessage
             Class<?> curr = objClass;
             while (curr != null && curr != Object.class) {
                 for (Field field : curr.getDeclaredFields()) {
+                    if (Modifier.isStatic(field.getModifiers())) continue;
                     field.setAccessible(true);
                     Object val = field.get(fMessageObj);
-                    if (val != null) {
-                        Class<?> valClass = val.getClass();
-                        // Check if val is of Key class or field name/type looks like key
-                        if ((messageKeyClass != null && messageKeyClass.isAssignableFrom(valClass))
-                                || valClass.getSimpleName().contains("Key")
-                                || valClass.getName().contains("Key")) {
-                            String id = extractMessageIdFromKey(val);
-                            if (id != null) return id;
+                    if (val == null) continue;
+
+                    Class<?> valClass = val.getClass();
+                    if (valClass.isPrimitive() || valClass == String.class || valClass.isArray()) continue;
+
+                    // Inspect fields of val to determine if it is a Key object
+                    String keyIdCandidate = null;
+                    boolean hasBoolean = false;
+                    boolean hasJidOrObject = false;
+
+                    for (Field kField : valClass.getDeclaredFields()) {
+                        if (Modifier.isStatic(kField.getModifiers())) continue;
+                        kField.setAccessible(true);
+                        Class<?> kType = kField.getType();
+
+                        if (kType == String.class) {
+                            String str = (String) kField.get(val);
+                            if (str != null && str.length() >= 6 && !str.contains("@")) {
+                                keyIdCandidate = str;
+                                cachedKeyIdField = kField;
+                            }
+                        } else if (kType == boolean.class || kType == Boolean.class) {
+                            hasBoolean = true;
+                        } else if (!kType.isPrimitive()) {
+                            hasJidOrObject = true;
                         }
+                    }
+
+                    if (keyIdCandidate != null && (hasBoolean || hasJidOrObject)) {
+                        cachedFMessageKeyField = field;
+                        return keyIdCandidate;
                     }
                 }
                 curr = curr.getSuperclass();
             }
 
-            // Fallback: Check if fMessageObj directly contains any String field >= 12 chars
+            // 3. Direct String field scan fallback
             curr = objClass;
             while (curr != null && curr != Object.class) {
                 for (Field field : curr.getDeclaredFields()) {
@@ -660,74 +660,8 @@ public class AntiRevokeHook extends BaseFeature {
                 }
                 curr = curr.getSuperclass();
             }
-
-            // Log diagnostic info on failure
-            StringBuilder sb = new StringBuilder();
-            sb.append("Failed key extraction on ").append(objClass.getName()).append(" fields: [");
-            for (Field f : objClass.getDeclaredFields()) {
-                sb.append(f.getName()).append(":").append(f.getType().getSimpleName()).append(", ");
-            }
-            sb.append("]");
-            XposedBridge.log(TAG + " " + sb.toString());
-
         } catch (Throwable t) {
-            XposedBridge.log(TAG + " extractKeyId error: " + t.getMessage());
-        }
-        return null;
-    }
-
-    /**
-     * Finds the Key field within an FMessage instance using the resolved messageKeyClass.
-     */
-    @Nullable
-    private Object findKeyObjectInInstance(Object fMessageObj) {
-        try {
-            Class<?> curr = fMessageObj.getClass();
-            while (curr != null && curr != Object.class) {
-                for (Field f : curr.getDeclaredFields()) {
-                    if (f.getType() == messageKeyClass) {
-                        f.setAccessible(true);
-                        return f.get(fMessageObj);
-                    }
-                }
-                curr = curr.getSuperclass();
-            }
-        } catch (Throwable ignored) {}
-        return null;
-    }
-
-    /**
-     * Extracts the message ID from a Key object.
-     * The message ID is a String field that does NOT contain '@' (which would indicate a JID).
-     * It's typically >= 12 chars (WhatsApp message IDs are hex strings).
-     */
-    private String extractMessageIdFromKey(Object keyObj) {
-        if (keyObj == null) return null;
-        try {
-            // Collect all String fields in the Key object
-            String bestCandidate = null;
-            for (Field f : keyObj.getClass().getDeclaredFields()) {
-                if (f.getType() != String.class) continue;
-                f.setAccessible(true);
-                String val = (String) f.get(keyObj);
-                if (val == null || val.isEmpty()) continue;
-
-                // Skip JIDs (contain '@')
-                if (val.contains("@")) continue;
-
-                // A message ID is typically a long hex/alphanumeric string (>= 12 chars)
-                if (val.length() >= 12) {
-                    return val; // Best match: long non-JID string
-                }
-
-                // Keep shorter candidates as fallback
-                if (val.length() >= 6 && bestCandidate == null) {
-                    bestCandidate = val;
-                }
-            }
-            return bestCandidate;
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + " extractMessageIdFromKey error: " + t.getMessage());
+            XposedBridge.log(TAG + " extractKeyIdFromFMessage error: " + t.getMessage());
         }
         return null;
     }
@@ -735,10 +669,26 @@ public class AntiRevokeHook extends BaseFeature {
     // ─── Preference helpers ──────────────────────────────────────────────
 
     private boolean isAntiRevokeEnabled() {
+        try {
+            if (prefs.contains("anti_revoke")) {
+                Object val = prefs.getAll().get("anti_revoke");
+                if (val instanceof Boolean) return (Boolean) val;
+                if (val instanceof String) return !"0".equals(val) && !"false".equalsIgnoreCase((String) val);
+                if (val instanceof Number) return ((Number) val).intValue() != 0;
+            }
+        } catch (Throwable ignored) {}
         return isEnabled("anti_revoke", false);
     }
 
     private boolean isColorDeletedMessagesEnabled() {
+        try {
+            if (prefs.contains("anti_revoke_color_enabled")) {
+                Object val = prefs.getAll().get("anti_revoke_color_enabled");
+                if (val instanceof Boolean) return (Boolean) val;
+                if (val instanceof String) return !"0".equals(val) && !"false".equalsIgnoreCase((String) val);
+                if (val instanceof Number) return ((Number) val).intValue() != 0;
+            }
+        } catch (Throwable ignored) {}
         return isEnabled("anti_revoke_color_enabled", true);
     }
 
@@ -771,5 +721,3 @@ public class AntiRevokeHook extends BaseFeature {
         return "Anti-Revoke";
     }
 }
-
-

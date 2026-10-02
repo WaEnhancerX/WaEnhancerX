@@ -173,9 +173,9 @@ fun GlobalPrivacySettingsScreen(
             listOf(
                 SettingItem("Hide Blue Ticks", "View messages within conversation screen without users knowing", "hide_read_receipts"),
                 SettingItem("Hide Blue Tick in Groups", "View messages in groups screen without users knowing", "hideread_group"),
-                SettingItem("Send Blue Ticks upon Reply", "Sends blue ticks after replying to a message", "blueonreply"),
-                SettingItem("Show Button to send blue tick", "Show Button to send blue tick (mark as read/viewed)", "seentick"),
-                SettingItem("Hide Delivered", "Users will not know that their messages have been delivered to you", "hide_delivery_receipts"),
+                SettingItem("Send Blue Ticks upon Reply", "Sends blue ticks after replying to a message\n(NOTE: Requires \"Hide Blue Ticks\" active)", "blueonreply"),
+                SettingItem("Show Button to send blue tick", "Show Button to send blue tick (mark as read/viewed)\n(NOTE: Requires \"Hide Blue Ticks\" active)", "seentick"),
+                SettingItem("Hide Delivered", "Users will not know that their messages have been delivered to you\n(CAUTION: May cause delay in receiving messages)", "hide_delivery_receipts"),
                 SettingItem("Hide audio seen", "Hides the sending of audio reading when listening to it", "hide_seen_receipts"),
                 SettingItem("Hide View Once Seen", "Hide that view one media has been seen", "hideonceseen")
             )
@@ -513,7 +513,12 @@ fun GlobalPrivacySettingsScreen(
 
                     Column {
                         group.items.forEachIndexed { index, item ->
+                            val isBlueTickDependent = (item.key == "blueonreply" || item.key == "seentick")
+                            val isHideReadEnabled = settingsState["hide_read_receipts"] ?: false
+                            val isDependencyDisabled = isBlueTickDependent && !isHideReadEnabled
+
                             val isLocked = item.isPro && !isPro
+                            val isItemDisabled = isLocked || isDependencyDisabled
                             val isHighlighted = navController.highlightTargetKey == item.key
                             val highlightBgColor by animateColorAsState(
                                 targetValue = if (isHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent,
@@ -531,7 +536,7 @@ fun GlobalPrivacySettingsScreen(
                                     .clickable {
                                         if (isLocked) {
                                             onActivatePro()
-                                        } else {
+                                        } else if (!isDependencyDisabled) {
                                             val currentVal = settingsState[item.key] ?: false
                                             updatePreference(item.key, !currentVal)
                                         }
@@ -541,7 +546,7 @@ fun GlobalPrivacySettingsScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(horizontal = 16.dp, vertical = 14.dp)
-                                        .then(if (isLocked) Modifier.alpha(0.6f) else Modifier),
+                                        .then(if (isItemDisabled) Modifier.alpha(0.45f) else Modifier),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column(
@@ -555,16 +560,20 @@ fun GlobalPrivacySettingsScreen(
                                             color = colors.onSurface
                                         )
                                         Text(
-                                            text = if (isLocked) "${item.sublabel} • Requires Pro" else item.sublabel,
+                                            text = when {
+                                                isLocked -> "${item.sublabel} • Requires Pro"
+                                                isDependencyDisabled -> "${item.sublabel}\n(Disabled: Turn on \"Hide Blue Ticks\" first)"
+                                                else -> item.sublabel
+                                            },
                                             style = typography.bodyMd,
-                                            color = colors.onSurfaceVariant,
+                                            color = if (isDependencyDisabled) colors.error.copy(alpha = 0.8f) else colors.onSurfaceVariant,
                                             fontSize = 12.sp
                                         )
                                     }
                                     StitchSwitch(
-                                        checked = if (isLocked) false else (settingsState[item.key] ?: false),
-                                        onCheckedChange = if (isLocked) null else { isChecked -> updatePreference(item.key, isChecked) },
-                                        enabled = !isLocked
+                                        checked = if (isItemDisabled && isLocked) false else (settingsState[item.key] ?: false),
+                                        onCheckedChange = if (isItemDisabled) null else { isChecked -> updatePreference(item.key, isChecked) },
+                                        enabled = !isItemDisabled
                                     )
                                 }
                                 if (item.isPro) {

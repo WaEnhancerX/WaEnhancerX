@@ -247,11 +247,8 @@ public class HideReceiptsHook extends BaseFeature {
                         boolean isStatusStanza = isStatusTarget(to, participant) || "readstatus".equals(type);
 
                         if (isStatusStanza) {
-                            String target = participant != null ? participant : to;
-                            if (shouldHideStatusView(target)) {
-                                param.setResult(null); // Drop status viewed receipt stanza completely
-                                XposedBridge.log(TAG + " Dropped Status Receipt Stanza (Stealth Status View for " + target + ")");
-                            }
+                            // Status view receipts are suppressed via SendReadReceiptJob.
+                            // Never return null here as WhatsApp requires a non-null ProtocolTreeNode instance.
                             return;
                         }
 
