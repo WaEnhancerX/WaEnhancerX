@@ -51,14 +51,15 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Anti-Revoke & Deleted Indicator Engine.
+ * Anti-Revoke & Deleted Indicator Engine for Messages and Statuses.
  *
  * Strategy:
- *  1. Block SQLite DELETE on 'message' table and INSERT of message_type=15 placeholders.
- *  2. Block bytecode revocation calls.
- *  3. Persist revoked message key_ids in DelMessageStore for cross-session survival.
- *  4. Decorate revoked messages via ListView.setAdapter -> getView hook on android.R.id.list.
- *  5. Render visual indicator (custom deleted vector icon or "Deleted" text) and colored text.
+ *  1. Block SQLite DELETE on 'message' and 'status' / 'status_v3' tables.
+ *  2. Block SQLite INSERT of message_type=15 placeholders.
+ *  3. Block bytecode revocation calls for both chat messages and status stories.
+ *  4. Persist revoked message/status key_ids in DelMessageStore for cross-session survival.
+ *  5. Decorate revoked messages in Conversation via ListView adapter getView hook.
+ *  6. Decorate revoked statuses in Status Playback viewer header.
  */
 public class AntiRevokeHook extends BaseFeature {
 
@@ -90,8 +91,10 @@ public class AntiRevokeHook extends BaseFeature {
     public void hook() throws Throwable {
         initMessageClasses();
         hookBytecodeRevocation();
+        hookStatusBytecodeRevocation();
         hookDatabaseRevocation();
         hookListViewAdapter();
+        hookStatusPlaybackUI();
         XposedBridge.log(TAG + " All hooks installed.");
     }
 
@@ -173,7 +176,10 @@ public class AntiRevokeHook extends BaseFeature {
                 XposedBridge.hookMethod(revokeMethod, new XC_MethodHook() {
                     @Override
                     protected void beforeHookedMethod(MethodHookParam param) {
-                        if (!isAntiRevokeEnabled()) return;
+                        boolean antiRevokeMsg = isAntiRevokeEnabled();
+                        boolean antiRevokeStatus = isAntiRevokeStatusEnabled();
+                        if (!antiRevokeMsg && !antiRevokeStatus) return;
+
                         try {
                             Object fMessage = (param.args != null && param.args.length > 0) ? param.args[0] : null;
                             if (fMessage != null) {
@@ -200,46 +206,159 @@ public class AntiRevokeHook extends BaseFeature {
         }
     }
 
+    private void hookStatusBytecodeRevocation() {
+        try {
+            Method revokeStatusMethod = DexSearchEngine.getInstance().findMethodWithCache(
+                    context, classLoader, "wpp_revoke_status_manager",
+                    (bridge, loader) -> {
+                        String[] anchors = {
+                                "RevokeStatusManager/failed",
+                                "RevokeStatusManager/revoke",
+                                "StatusStore/deleteStatus",
+                                "RevokeStatusManager"
+                        };
+                        for (String anchor : anchors) {
+                            try {
+                                MethodData data = bridge.findMethod(FindMethod.create()
+                                        .matcher(MethodMatcher.create().usingStrings(anchor))
+                                ).firstOrNull();
+                                if (data != null) {
+                                    Method m = data.getMethodInstance(loader);
+                                    if (m.getParameterCount() >= 1) return m;
+                                }
+                            } catch (Throwable ignored) {}
+                        }
+                        return null;
+                    });
+
+            if (revokeStatusMethod != null) {
+                XposedBridge.hookMethod(revokeStatusMethod, new XC_MethodHook() {
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam param) {
+                        if (!isAntiRevokeStatusEnabled()) return;
+                        try {
+                            Object arg = (param.args != null && param.args.length > 0) ? param.args[0] : null;
+                            if (arg != null) {
+                                String keyId = extractKeyIdFromFMessage(arg);
+                                if (keyId != null) {
+                                    long now = System.currentTimeMillis();
+                                    REVOKED_MESSAGES.put(keyId, now);
+                                    DelMessageStore.getInstance(context).insertMessage(null, keyId, now);
+                                    com.waenhancer.xposed.features.automation.PresenceToastsHook.showDeletedMessageToast(context, null, uiHandler);
+                                    XposedBridge.log(TAG + " Status bytecode revoke blocked, keyId=" + keyId);
+                                }
+                            }
+                        } catch (Throwable t) {
+                            XposedBridge.log(TAG + " Error in status bytecode revoke hook: " + t.getMessage());
+                        }
+                        Class<?> retType = ((Method) param.method).getReturnType();
+                        if (retType == boolean.class || retType == Boolean.class) {
+                            param.setResult(true);
+                        } else if (retType == int.class || retType == Integer.class) {
+                            param.setResult(0);
+                        } else {
+                            param.setResult(null);
+                        }
+                    }
+                });
+                XposedBridge.log(TAG + " Hooked status bytecode revoke: " + revokeStatusMethod.getName());
+            }
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " Error hooking status bytecode revoke: " + t.getMessage());
+        }
+    }
+
     // ─── Database revocation hooks ───────────────────────────────────────
 
     private void hookDatabaseRevocation() {
         try {
-            // 1. Intercept DELETE on 'message' table
+            // 1. Intercept DELETE on 'message' and 'status' / 'status_v3' tables
             XposedBridge.hookAllMethods(SQLiteDatabase.class, "delete", new XC_MethodHook() {
                 @Override
                 protected void beforeHookedMethod(MethodHookParam param) {
-                    if (!isAntiRevokeEnabled()) return;
                     String table = (String) param.args[0];
-                    if (!"message".equals(table)) return;
+                    if (table == null) return;
+
+                    boolean isMsgTable = "message".equals(table) || "messages".equals(table);
+                    boolean isStatusTable = "status".equals(table) || "status_v3".equals(table) || table.contains("status");
+
+                    if (!isMsgTable && !isStatusTable) return;
 
                     String where = (String) param.args[1];
                     String[] whereArgs = param.args.length > 2 ? (String[]) param.args[2] : null;
-                    if (where == null || !where.contains("_id=?") || whereArgs == null || whereArgs.length == 0) return;
-
-                    String msgId = whereArgs[0];
                     SQLiteDatabase db = (SQLiteDatabase) param.thisObject;
 
-                    try (Cursor cursor = db.rawQuery(
-                            "SELECT from_me, message_type, key_id, chat_row_id FROM message WHERE _id=?",
-                            new String[]{msgId})) {
-                        if (cursor != null && cursor.moveToFirst()) {
-                            int fromMe = cursor.getInt(0);
-                            int msgType = cursor.getInt(1);
-                            String keyId = cursor.getString(2);
-                            long chatRowId = cursor.getLong(3);
-
-                            if (fromMe == 0 && msgType != 15 && keyId != null) {
-                                long now = System.currentTimeMillis();
-                                REVOKED_MESSAGES.put(keyId, now);
-                                DelMessageStore.getInstance(context).insertMessage(String.valueOf(chatRowId), keyId, now);
-                                dispatchRealtimeRevokeUI(keyId, now);
-                                com.waenhancer.xposed.features.automation.PresenceToastsHook.showDeletedMessageToast(context, null, uiHandler);
-                                param.setResult(0);
-                                XposedBridge.log(TAG + " DB DELETE blocked & UI updated, keyId=" + keyId);
+                    // Handle Status table deletion
+                    if (isStatusTable) {
+                        if (!isAntiRevokeStatusEnabled()) return;
+                        try {
+                            String query = "SELECT * FROM " + table + (where != null ? " WHERE " + where : "");
+                            try (Cursor cursor = db.rawQuery(query, whereArgs)) {
+                                if (cursor != null && cursor.moveToFirst()) {
+                                    do {
+                                        String jid = null;
+                                        String keyId = null;
+                                        for (int i = 0; i < cursor.getColumnCount(); i++) {
+                                            String col = cursor.getColumnName(i).toLowerCase();
+                                            if (col.contains("jid") && jid == null) {
+                                                jid = cursor.getString(i);
+                                            } else if ((col.contains("key_id") || col.equals("key") || col.contains("msgid")) && keyId == null) {
+                                                keyId = cursor.getString(i);
+                                            }
+                                        }
+                                        if (keyId == null && whereArgs != null && whereArgs.length > 0) {
+                                            keyId = whereArgs[0];
+                                        }
+                                        if (keyId != null) {
+                                            long now = System.currentTimeMillis();
+                                            REVOKED_MESSAGES.put(keyId, now);
+                                            DelMessageStore.getInstance(context).insertMessage(jid, keyId, now);
+                                            com.waenhancer.xposed.features.automation.PresenceToastsHook.showDeletedMessageToast(context, null, uiHandler);
+                                            XposedBridge.log(TAG + " Status DB DELETE blocked & preserved: keyId=" + keyId + " jid=" + jid);
+                                        }
+                                    } while (cursor.moveToNext());
+                                }
                             }
+                            param.setResult(0); // Suppress deletion of status row
+                        } catch (Throwable t) {
+                            param.setResult(0); // Still suppress deletion safely
+                            XposedBridge.log(TAG + " Error querying status before delete: " + t.getMessage());
                         }
-                    } catch (Throwable t) {
-                        XposedBridge.log(TAG + " Error intercepting message delete: " + t.getMessage());
+                        return;
+                    }
+
+                    // Handle Message table deletion
+                    if (isMsgTable) {
+                        if (where == null || !where.contains("_id=?") || whereArgs == null || whereArgs.length == 0) return;
+
+                        String msgId = whereArgs[0];
+                        try (Cursor cursor = db.rawQuery(
+                                "SELECT from_me, message_type, key_id, chat_row_id FROM " + table + " WHERE _id=?",
+                                new String[]{msgId})) {
+                            if (cursor != null && cursor.moveToFirst()) {
+                                int fromMe = cursor.getInt(0);
+                                int msgType = cursor.getInt(1);
+                                String keyId = cursor.getString(2);
+                                long chatRowId = cursor.getLong(3);
+
+                                if (fromMe == 0 && msgType != 15 && keyId != null) {
+                                    boolean antiRevokeMsg = isAntiRevokeEnabled();
+                                    boolean antiRevokeStatus = isAntiRevokeStatusEnabled();
+
+                                    if (antiRevokeMsg || antiRevokeStatus) {
+                                        long now = System.currentTimeMillis();
+                                        REVOKED_MESSAGES.put(keyId, now);
+                                        DelMessageStore.getInstance(context).insertMessage(String.valueOf(chatRowId), keyId, now);
+                                        dispatchRealtimeRevokeUI(keyId, now);
+                                        com.waenhancer.xposed.features.automation.PresenceToastsHook.showDeletedMessageToast(context, null, uiHandler);
+                                        param.setResult(0);
+                                        XposedBridge.log(TAG + " Message DB DELETE blocked & UI updated, keyId=" + keyId);
+                                    }
+                                }
+                            }
+                        } catch (Throwable t) {
+                            XposedBridge.log(TAG + " Error intercepting message delete: " + t.getMessage());
+                        }
                     }
                 }
             });
@@ -248,9 +367,9 @@ public class AntiRevokeHook extends BaseFeature {
             XposedBridge.hookAllMethods(SQLiteDatabase.class, "insertWithOnConflict", new XC_MethodHook() {
                 @Override
                 protected void beforeHookedMethod(MethodHookParam param) {
-                    if (!isAntiRevokeEnabled()) return;
+                    if (!isAntiRevokeEnabled() && !isAntiRevokeStatusEnabled()) return;
                     String table = (String) param.args[0];
-                    if (!"message".equals(table)) return;
+                    if (!"message".equals(table) && !"messages".equals(table)) return;
 
                     ContentValues cv = (ContentValues) param.args[2];
                     if (cv == null) return;
@@ -416,6 +535,113 @@ public class AntiRevokeHook extends BaseFeature {
         }
     }
 
+    // ─── Status Playback UI Hook ─────────────────────────────────────────
+
+    private void hookStatusPlaybackUI() {
+        try {
+            Class<?> playbackFragmentClass = DexSearchEngine.getInstance().findClassWithCache(
+                    context, classLoader, "wpp_status_playback_fragment_class",
+                    (bridge, loader) -> {
+                        ClassData cd = bridge.findClass(FindClass.create()
+                                .matcher(ClassMatcher.create().className("StatusPlaybackContactFragment", StringMatchType.EndsWith))
+                        ).firstOrNull();
+                        return cd != null ? cd.getInstance(loader) : null;
+                    });
+
+            if (playbackFragmentClass != null) {
+                for (Method m : playbackFragmentClass.getDeclaredMethods()) {
+                    if (m.getParameterCount() <= 3 && !Modifier.isStatic(m.getModifiers())) {
+                        XposedBridge.hookMethod(m, new XC_MethodHook() {
+                            @Override
+                            protected void afterHookedMethod(MethodHookParam param) {
+                                if (!isAntiRevokeStatusEnabled()) return;
+                                try {
+                                    Object fragment = param.thisObject;
+                                    if (fragment == null) return;
+
+                                    String keyId = extractStatusKeyFromFragment(fragment);
+                                    if (keyId == null && param.args != null) {
+                                        for (Object arg : param.args) {
+                                            if (arg != null) {
+                                                keyId = extractKeyIdFromFMessage(arg);
+                                                if (keyId != null) break;
+                                            }
+                                        }
+                                    }
+
+                                    View root = extractFragmentRootView(fragment);
+                                    if (keyId == null) {
+                                        if (root instanceof ViewGroup) {
+                                            resetRowDecoration((ViewGroup) root);
+                                        }
+                                        return;
+                                    }
+
+                                    long deletedTs = getRevokedTimestamp(keyId);
+                                    if (deletedTs <= 0) {
+                                        if (root instanceof ViewGroup) {
+                                            resetRowDecoration((ViewGroup) root);
+                                        }
+                                        return;
+                                    }
+
+                                    if (root instanceof ViewGroup) {
+                                        decorateRevokedRow((ViewGroup) root, deletedTs);
+                                    }
+                                } catch (Throwable ignored) {}
+                            }
+                        });
+                    }
+                }
+                XposedBridge.log(TAG + " Hooked StatusPlaybackContactFragment methods for UI indicators.");
+            }
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " Error hooking status playback UI: " + t.getMessage());
+        }
+    }
+
+    @Nullable
+    private String extractStatusKeyFromFragment(@NonNull Object fragment) {
+        try {
+            Class<?> curr = fragment.getClass();
+            while (curr != null && curr != Object.class) {
+                for (Field f : curr.getDeclaredFields()) {
+                    if (Modifier.isStatic(f.getModifiers())) continue;
+                    f.setAccessible(true);
+                    Object val = f.get(fragment);
+                    if (val != null) {
+                        String key = extractKeyIdFromFMessage(val);
+                        if (key != null) return key;
+                    }
+                }
+                curr = curr.getSuperclass();
+            }
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
+    @Nullable
+    private View extractFragmentRootView(@NonNull Object fragment) {
+        try {
+            Method getViewMethod = fragment.getClass().getMethod("getView");
+            return (View) getViewMethod.invoke(fragment);
+        } catch (Throwable ignored) {}
+        try {
+            Class<?> curr = fragment.getClass();
+            while (curr != null && curr != Object.class) {
+                for (Field f : curr.getDeclaredFields()) {
+                    if (View.class.isAssignableFrom(f.getType())) {
+                        f.setAccessible(true);
+                        View v = (View) f.get(fragment);
+                        if (v != null) return v;
+                    }
+                }
+                curr = curr.getSuperclass();
+            }
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
     // ─── Revoke timestamp lookup ─────────────────────────────────────────
 
     private long getRevokedTimestamp(@Nullable String keyId) {
@@ -445,6 +671,14 @@ public class AntiRevokeHook extends BaseFeature {
                 return;
             }
 
+            decorateRevokedTextView(dateTextView, messageTextView, rowContext, deletedTimestamp);
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " decorateRevokedRow error: " + t.getMessage());
+        }
+    }
+
+    public void decorateRevokedTextView(@NonNull TextView dateTextView, @Nullable TextView messageTextView, @NonNull Context rowContext, long deletedTimestamp) {
+        try {
             // Preserve original colors before mutating
             if (XposedHelpers.getAdditionalInstanceField(dateTextView, "waex_original_color") == null) {
                 XposedHelpers.setAdditionalInstanceField(dateTextView, "waex_original_color", dateTextView.getCurrentTextColor());
@@ -508,7 +742,7 @@ public class AntiRevokeHook extends BaseFeature {
                 );
             }
         } catch (Throwable t) {
-            XposedBridge.log(TAG + " decorateRevokedRow error: " + t.getMessage());
+            XposedBridge.log(TAG + " decorateRevokedTextView error: " + t.getMessage());
         }
     }
 
@@ -582,11 +816,11 @@ public class AntiRevokeHook extends BaseFeature {
         return MenuIconLoader.load(context, "ic_deleted");
     }
 
-    // ─── Key extraction from FMessage objects ────────────────────────────
+    // ─── Key extraction from FMessage / FStatus objects ──────────────────
 
     /**
      * Robust message key_id extractor.
-     * Scans for the Key object within FMessage (which has remoteJid, messageId String, isFromMe boolean).
+     * Scans for the Key object within FMessage or FStatus (which has remoteJid, messageId String, isFromMe boolean).
      */
     @Nullable
     private String extractKeyIdFromFMessage(@Nullable Object fMessageObj) {
@@ -678,6 +912,18 @@ public class AntiRevokeHook extends BaseFeature {
             }
         } catch (Throwable ignored) {}
         return isEnabled("anti_revoke", false);
+    }
+
+    private boolean isAntiRevokeStatusEnabled() {
+        try {
+            if (prefs.contains("antirevokestatus")) {
+                Object val = prefs.getAll().get("antirevokestatus");
+                if (val instanceof Boolean) return (Boolean) val;
+                if (val instanceof String) return !"0".equals(val) && !"false".equalsIgnoreCase((String) val);
+                if (val instanceof Number) return ((Number) val).intValue() != 0;
+            }
+        } catch (Throwable ignored) {}
+        return isEnabled("antirevokestatus", false);
     }
 
     private boolean isColorDeletedMessagesEnabled() {
