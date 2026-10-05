@@ -584,8 +584,9 @@ fun GlobalPrivacySettingsScreen(
                                 }
                             }
 
-                            // If this is anti_revoke and it is enabled, show indicator choice chips and color sub-preferences
-                            if (item.key == "anti_revoke" && (settingsState["anti_revoke"] == true)) {
+                            // If anti_revoke or antirevokestatus is enabled, show indicator choice chips and color sub-preferences
+                            if ((item.key == "anti_revoke" && (settingsState["anti_revoke"] == true)) ||
+                                (item.key == "antirevokestatus" && (settingsState["antirevokestatus"] == true) && (settingsState["anti_revoke"] != true))) {
                                 val currentIndicator = preferenceManager.getString("anti_revoke_indicator", "2")
                                 val isColorEnabled = preferenceManager.getBoolean("anti_revoke_color_enabled", true)
 
@@ -628,7 +629,7 @@ fun GlobalPrivacySettingsScreen(
                                                             .clickable {
                                                                 preferenceManager.putString("anti_revoke_indicator", valKey)
                                                                 settingsState["anti_revoke_indicator_dummy"] = !(settingsState["anti_revoke_indicator_dummy"] ?: false)
-                                                            }
+                                                             }
                                                             .padding(vertical = 8.dp),
                                                         contentAlignment = Alignment.Center
                                                     ) {
@@ -656,13 +657,13 @@ fun GlobalPrivacySettingsScreen(
                                         ) {
                                             Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                                 Text(
-                                                    text = "Color Deleted Message Text",
+                                                    text = "Color Deleted Text & Indicator",
                                                     style = typography.bodyMd,
                                                     color = colors.onSurface,
                                                     fontWeight = FontWeight.Medium
                                                 )
                                                 Text(
-                                                    text = "Apply custom color to deleted message and time",
+                                                    text = "Apply custom color to deleted message/status and time",
                                                     style = typography.labelSm,
                                                     color = colors.onSurfaceVariant
                                                 )
@@ -706,7 +707,7 @@ fun GlobalPrivacySettingsScreen(
                                                             .border(1.5.dp, colors.outline, CircleShape)
                                                     )
                                                     Text(
-                                                        text = "Message Text Color",
+                                                        text = "Indicator & Text Color",
                                                         style = typography.bodyMd,
                                                         color = colors.onSurface,
                                                         fontWeight = FontWeight.Medium

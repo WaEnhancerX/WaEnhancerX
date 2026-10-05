@@ -47,6 +47,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.text.DateFormat;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -183,6 +184,10 @@ public class AntiRevokeHook extends BaseFeature {
                         try {
                             Object fMessage = (param.args != null && param.args.length > 0) ? param.args[0] : null;
                             if (fMessage != null) {
+                                if (Boolean.TRUE.equals(extractIsFromMe(fMessage))) {
+                                    XposedBridge.log(TAG + " Allowing own message/status revoke");
+                                    return;
+                                }
                                 String keyId = extractKeyIdFromFMessage(fMessage);
                                 if (keyId != null) {
                                     long now = System.currentTimeMillis();
@@ -239,6 +244,10 @@ public class AntiRevokeHook extends BaseFeature {
                         try {
                             Object arg = (param.args != null && param.args.length > 0) ? param.args[0] : null;
                             if (arg != null) {
+                                if (Boolean.TRUE.equals(extractIsFromMe(arg))) {
+                                    XposedBridge.log(TAG + " Allowing own status revoke");
+                                    return;
+                                }
                                 String keyId = extractKeyIdFromFMessage(arg);
                                 if (keyId != null) {
                                     long now = System.currentTimeMillis();
@@ -293,14 +302,21 @@ public class AntiRevokeHook extends BaseFeature {
                         if (!isAntiRevokeStatusEnabled()) return;
                         try {
                             String query = "SELECT * FROM " + table + (where != null ? " WHERE " + where : "");
+                            boolean foundRemoteStatus = false;
+                            boolean foundOwnStatus = false;
+                            boolean hasOwnershipColumn = false;
                             try (Cursor cursor = db.rawQuery(query, whereArgs)) {
                                 if (cursor != null && cursor.moveToFirst()) {
                                     do {
                                         String jid = null;
                                         String keyId = null;
+                                        boolean fromMe = false;
                                         for (int i = 0; i < cursor.getColumnCount(); i++) {
                                             String col = cursor.getColumnName(i).toLowerCase();
-                                            if (col.contains("jid") && jid == null) {
+                                            if (col.equals("from_me") || col.endsWith(".from_me")) {
+                                                hasOwnershipColumn = true;
+                                                fromMe = cursor.getInt(i) == 1;
+                                            } else if (col.contains("jid") && jid == null) {
                                                 jid = cursor.getString(i);
                                             } else if ((col.contains("key_id") || col.equals("key") || col.contains("msgid")) && keyId == null) {
                                                 keyId = cursor.getString(i);
@@ -309,7 +325,12 @@ public class AntiRevokeHook extends BaseFeature {
                                         if (keyId == null && whereArgs != null && whereArgs.length > 0) {
                                             keyId = whereArgs[0];
                                         }
+                                        if (fromMe) {
+                                            foundOwnStatus = true;
+                                            continue;
+                                        }
                                         if (keyId != null) {
+                                            foundRemoteStatus = true;
                                             long now = System.currentTimeMillis();
                                             REVOKED_MESSAGES.put(keyId, now);
                                             DelMessageStore.getInstance(context).insertMessage(jid, keyId, now);
@@ -319,9 +340,14 @@ public class AntiRevokeHook extends BaseFeature {
                                     } while (cursor.moveToNext());
                                 }
                             }
-                            param.setResult(0); // Suppress deletion of status row
+                            // A delete can target multiple rows. Never suppress it if an own status is
+                            // included; preventing the user from deleting their status is worse than
+                            // allowing a rare mixed batch to proceed.
+                            if (hasOwnershipColumn && foundRemoteStatus && !foundOwnStatus) {
+                                param.setResult(0);
+                            }
                         } catch (Throwable t) {
-                            param.setResult(0); // Still suppress deletion safely
+                            // Ownership could not be established, so let WhatsApp perform the delete.
                             XposedBridge.log(TAG + " Error querying status before delete: " + t.getMessage());
                         }
                         return;
@@ -448,8 +474,12 @@ public class AntiRevokeHook extends BaseFeature {
             XposedHelpers.findAndHookMethod(ListView.class, "setAdapter", ListAdapter.class, new XC_MethodHook() {
                 @Override
                 protected void beforeHookedMethod(MethodHookParam param) {
+                    Activity currentActivity = ActivityTracker.getCurrentActivity();
+                    if (currentActivity == null
+                            || !currentActivity.getClass().getSimpleName().contains("Conversation")) return;
+
                     ListView listView = (ListView) param.thisObject;
-                    if (listView == null || listView.getId() != android.R.id.list) return;
+                    if (listView == null) return;
 
                     activeListView = new WeakReference<>(listView);
 
@@ -504,14 +534,12 @@ public class AntiRevokeHook extends BaseFeature {
                                 }
                                 if (item == null) return;
 
-                                // Guard: skip non-FMessage items if fMessageClass is known
-                                if (fMessageClass != null && !fMessageClass.isInstance(item)) {
-                                    return;
-                                }
-
                                 String keyId = extractKeyIdFromFMessage(item);
                                 if (keyId != null) {
                                     XposedHelpers.setAdditionalInstanceField(row, "waex_key_id", keyId);
+                                } else {
+                                    // Rows are recycled. Never leave the previous message key attached.
+                                    XposedHelpers.removeAdditionalInstanceField(row, "waex_key_id");
                                 }
 
                                 long deletedTs = getRevokedTimestamp(keyId);
@@ -537,87 +565,732 @@ public class AntiRevokeHook extends BaseFeature {
 
     // ─── Status Playback UI Hook ─────────────────────────────────────────
 
+    /**
+     * Thread-local map: records the most recently DB-read status keyId per thread.
+     * This allows reliable keyId lookup even when fragment field scanning fails.
+     */
+    private static final Map<Long, String> sStatusKeyByThread = new ConcurrentHashMap<>();
+
     private void hookStatusPlaybackUI() {
         try {
-            Class<?> playbackFragmentClass = DexSearchEngine.getInstance().findClassWithCache(
+            DexSearchEngine engine = DexSearchEngine.getInstance();
+
+            // ── 1. Resolve StatusPlaybackContactFragment class ──
+            Class<?> playbackFragmentClass = engine.findClassWithCache(
                     context, classLoader, "wpp_status_playback_fragment_class",
                     (bridge, loader) -> {
-                        ClassData cd = bridge.findClass(FindClass.create()
-                                .matcher(ClassMatcher.create().className("StatusPlaybackContactFragment", StringMatchType.EndsWith))
-                        ).firstOrNull();
-                        return cd != null ? cd.getInstance(loader) : null;
+                        try {
+                            return loader.loadClass("com.whatsapp.status.playback.fragment.StatusPlaybackContactFragment");
+                        } catch (Throwable ignored) {}
+                        String[] patterns = {
+                                "com.whatsapp.status.playback.fragment.StatusPlaybackContactFragment",
+                                "StatusPlaybackContactFragment",
+                                "StatusPlaybackFragment"
+                        };
+                        for (String pattern : patterns) {
+                            try {
+                                ClassData cd = bridge.findClass(FindClass.create()
+                                        .matcher(ClassMatcher.create().className(pattern, StringMatchType.Contains))
+                                ).firstOrNull();
+                                if (cd != null) {
+                                    return cd.getInstance(loader);
+                                }
+                            } catch (Throwable ignored) {}
+                        }
+                        return null;
                     });
 
             if (playbackFragmentClass != null) {
-                for (Method m : playbackFragmentClass.getDeclaredMethods()) {
-                    if (m.getParameterCount() <= 3 && !Modifier.isStatic(m.getModifiers())) {
-                        XposedBridge.hookMethod(m, new XC_MethodHook() {
-                            @Override
-                            protected void afterHookedMethod(MethodHookParam param) {
-                                if (!isAntiRevokeStatusEnabled()) return;
-                                try {
-                                    Object fragment = param.thisObject;
-                                    if (fragment == null) return;
-
-                                    String keyId = extractStatusKeyFromFragment(fragment);
-                                    if (keyId == null && param.args != null) {
-                                        for (Object arg : param.args) {
-                                            if (arg != null) {
-                                                keyId = extractKeyIdFromFMessage(arg);
-                                                if (keyId != null) break;
-                                            }
-                                        }
-                                    }
-
-                                    View root = extractFragmentRootView(fragment);
-                                    if (keyId == null) {
-                                        if (root instanceof ViewGroup) {
-                                            resetRowDecoration((ViewGroup) root);
-                                        }
-                                        return;
-                                    }
-
-                                    long deletedTs = getRevokedTimestamp(keyId);
-                                    if (deletedTs <= 0) {
-                                        if (root instanceof ViewGroup) {
-                                            resetRowDecoration((ViewGroup) root);
-                                        }
-                                        return;
-                                    }
-
-                                    if (root instanceof ViewGroup) {
-                                        decorateRevokedRow((ViewGroup) root, deletedTs);
-                                    }
-                                } catch (Throwable ignored) {}
-                            }
-                        });
-                    }
-                }
-                XposedBridge.log(TAG + " Hooked StatusPlaybackContactFragment methods for UI indicators.");
+                XposedBridge.log(TAG + " Status playback fragment class resolved: " + playbackFragmentClass.getName());
             }
+
+            // ── 2. Find status playback page-bind method via DexKit invokes & anchors ──
+            final Class<?> targetFragmentClass = playbackFragmentClass;
+            Method refreshSubtitleMethod = engine.findMethodWithCache(
+                    context, classLoader, "wpp_status_playback_refresh_subtitle",
+                    (bridge, loader) -> {
+                        try {
+                            MethodData refreshCurrentPage = bridge.findMethod(FindMethod.create()
+                                    .matcher(MethodMatcher.create().usingStrings("playbackFragment/refreshCurrentPageSubTitle message is empty"))
+                            ).firstOrNull();
+                            if (refreshCurrentPage != null) {
+                                List<MethodData> invokes = refreshCurrentPage.getInvokes();
+                                if (invokes != null) {
+                                    for (MethodData invoke : invokes) {
+                                        try {
+                                            Method m = invoke.getMethodInstance(loader);
+                                            if (Modifier.isStatic(m.getModifiers()) && m.getParameterCount() >= 1) {
+                                                if (targetFragmentClass != null) {
+                                                    for (Class<?> pType : m.getParameterTypes()) {
+                                                        if (targetFragmentClass.isAssignableFrom(pType) || pType.isAssignableFrom(targetFragmentClass)) {
+                                                            XposedBridge.log(TAG + " Found static refresh subtitle method from invokes: " + m.getName());
+                                                            return m;
+                                                        }
+                                                    }
+                                                } else {
+                                                    return m;
+                                                }
+                                            }
+                                        } catch (Throwable ignored) {}
+                                    }
+                                }
+                                return refreshCurrentPage.getMethodInstance(loader);
+                            }
+                        } catch (Throwable ignored) {}
+
+                        String[] anchors = {
+                                "playbackFragment/refreshCurrentPageSubTitle message is empty",
+                                "StatusPlaybackContactFragment/refreshCurrentPageSubTitle",
+                                "status_playback_subtitle",
+                                "story_playback_page"
+                        };
+                        for (String anchor : anchors) {
+                            try {
+                                MethodData md = bridge.findMethod(FindMethod.create()
+                                        .matcher(MethodMatcher.create().usingStrings(anchor))
+                                ).firstOrNull();
+                                if (md != null) {
+                                    return md.getMethodInstance(loader);
+                                }
+                            } catch (Throwable ignored) {}
+                        }
+                        return null;
+                    });
+
+            // ── 3. Find StatusPlaybackViewClass (the view container holding date & menu) ──
+            Class<?> statusPlaybackViewClass = engine.findClassWithCache(
+                    context, classLoader, "wpp_status_playback_view_class",
+                    (bridge, loader) -> {
+                        try {
+                            int statusHeaderId = context.getResources().getIdentifier("status_header", "id", context.getPackageName());
+                            int menuId = context.getResources().getIdentifier("menu", "id", context.getPackageName());
+                            if (statusHeaderId != 0 && menuId != 0) {
+                                ClassData cd = bridge.findClass(FindClass.create()
+                                        .matcher(ClassMatcher.create()
+                                                .addMethod(MethodMatcher.create().usingNumbers(statusHeaderId, menuId)))
+                                ).firstOrNull();
+                                if (cd != null) {
+                                    return cd.getInstance(loader);
+                                }
+                            }
+                        } catch (Throwable ignored) {}
+                        return null;
+                    });
+
+            if (statusPlaybackViewClass != null) {
+                XposedBridge.log(TAG + " Status playback view container class resolved: " + statusPlaybackViewClass.getName());
+            }
+
+            // ── 4. Hook the status playback subtitle / bind method ──
+            if (refreshSubtitleMethod != null) {
+                final Method finalRefresh = refreshSubtitleMethod;
+                XposedBridge.hookMethod(finalRefresh, buildStatusPageHook("refreshSubtitle"));
+                XposedBridge.log(TAG + " Hooked status playback method: " + finalRefresh.getName());
+            } else {
+                XposedBridge.log(TAG + " Status refresh method not found; using fallback hooks.");
+            }
+
+            // ── 5. Hook TARGETED lifecycle methods on the fragment class ──
+            if (playbackFragmentClass != null) {
+                hookStatusFragmentTargeted(playbackFragmentClass, refreshSubtitleMethod);
+            }
+
+            // ── 5. AndroidX Fragment.onResume fallback (fast class-name filter) ──
+            hookAndroidXFragmentResumeFallback();
+
+            // ── 6. Track status DB reads to capture current keyId reliably ──
+            hookStatusDbQueryReads();
+
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Error hooking status playback UI: " + t.getMessage());
         }
     }
 
-    @Nullable
-    private String extractStatusKeyFromFragment(@NonNull Object fragment) {
+    /**
+     * Hook only specific, named lifecycle methods on the playback fragment.
+     * NEVER loops all declared methods.
+     */
+    private void hookStatusFragmentTargeted(Class<?> fragmentClass, @Nullable Method excludeMethod) {
+        // Lifecycle method names to try (not a loop over all methods)
+        String[] targetNames = {"onResume", "onStart", "onHiddenChanged", "setUserVisibleHint"};
+        for (String name : targetNames) {
+            try {
+                Class<?> curr = fragmentClass;
+                while (curr != null && curr != Object.class) {
+                    try {
+                        Method m = curr.getDeclaredMethod(name);
+                        if (excludeMethod == null || !m.equals(excludeMethod)) {
+                            XposedBridge.hookMethod(m, buildStatusPageHook(name));
+                            XposedBridge.log(TAG + " Hooked status fragment." + name + " on " + curr.getSimpleName());
+                        }
+                        break;
+                    } catch (NoSuchMethodException ignored) {
+                        curr = curr.getSuperclass();
+                    }
+                }
+            } catch (Throwable ignored) {}
+        }
+
+        // Hook at most 2 single-int-arg methods (page-position setters) on the fragment
+        int intArgCount = 0;
+        for (Method m : fragmentClass.getDeclaredMethods()) {
+            if (intArgCount >= 2) break;
+            if (Modifier.isStatic(m.getModifiers())) continue;
+            if (excludeMethod != null && m.equals(excludeMethod)) continue;
+            if (m.getParameterCount() == 1 && m.getParameterTypes()[0] == int.class) {
+                try {
+                    XposedBridge.hookMethod(m, buildStatusPageHookWithArg());
+                    intArgCount++;
+                    XposedBridge.log(TAG + " Hooked status fragment int-arg: " + m.getName());
+                } catch (Throwable ignored) {}
+            }
+        }
+        XposedBridge.log(TAG + " Targeted status fragment hooks complete (" + intArgCount + " int-arg).");
+    }
+
+    /**
+     * Safety-net: hook AndroidX Fragment.onResume with a fast heuristic class-name guard.
+     * Only triggers decoration for fragments whose simple class name implies status/story context.
+     */
+    private void hookAndroidXFragmentResumeFallback() {
         try {
-            Class<?> curr = fragment.getClass();
-            while (curr != null && curr != Object.class) {
+            Class<?> fragmentBase = classLoader.loadClass("androidx.fragment.app.Fragment");
+            XposedHelpers.findAndHookMethod(fragmentBase, "onResume", new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) {
+                    if (!isAntiRevokeStatusEnabled()) return;
+                    Object fragment = param.thisObject;
+                    String simple = fragment.getClass().getSimpleName().toLowerCase();
+                    if (!simple.contains("status") && !simple.contains("story") && !simple.contains("playback")) return;
+                    uiHandler.postDelayed(() -> tryDecorateStatusFragment(fragment), 250);
+                }
+            });
+            XposedBridge.log(TAG + " AndroidX Fragment.onResume status fallback hook installed.");
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " AndroidX Fragment.onResume hook failed: " + t.getMessage());
+        }
+    }
+
+    /**
+     * Hook SQLiteDatabase.rawQuery to record the keyId of status rows being read.
+     * Called before any UI update, so sStatusKeyByThread will hold the right keyId.
+     */
+    private void hookStatusDbQueryReads() {
+        try {
+            XposedBridge.hookAllMethods(SQLiteDatabase.class, "rawQuery", new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) {
+                    if (!isAntiRevokeStatusEnabled()) return;
+                    try {
+                        String sql = (String) param.args[0];
+                        if (sql == null) return;
+                        String sqlLower = sql.toLowerCase();
+                        if (!sqlLower.contains("status")) return;
+
+                        android.database.Cursor cursor = (android.database.Cursor) param.getResult();
+                        if (cursor == null || cursor.getCount() == 0) return;
+
+                        // Try to find a key_id column without moving the cursor
+                        int keyIdCol = cursor.getColumnIndex("key_id");
+                        if (keyIdCol < 0) {
+                            for (int i = 0; i < cursor.getColumnCount(); i++) {
+                                if (cursor.getColumnName(i).toLowerCase().contains("key_id")) {
+                                    keyIdCol = i;
+                                    break;
+                                }
+                            }
+                        }
+                        if (keyIdCol < 0) return;
+
+                        // Only peek if cursor is already positioned (not before-first)
+                        if (!cursor.isBeforeFirst() && !cursor.isAfterLast()) {
+                            String keyId = cursor.getString(keyIdCol);
+                            if (isLikelyStatusKeyId(keyId)) {
+                                sStatusKeyByThread.put(Thread.currentThread().getId(), keyId);
+                                XposedBridge.log(TAG + " Tracked status keyId from DB read: " + keyId);
+                            }
+                        }
+                    } catch (Throwable ignored) {}
+                }
+            });
+            XposedBridge.log(TAG + " Status DB rawQuery tracker installed.");
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " Error installing status DB read tracker: " + t.getMessage());
+        }
+    }
+
+    /** Hook callback for DexKit-found method and named lifecycle hooks. */
+    /** Hook callback for DexKit-found method and named lifecycle hooks. */
+    private XC_MethodHook buildStatusPageHook(String tag) {
+        return new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) {
+                if (!isAntiRevokeStatusEnabled()) return;
+                try {
+                    // Try to inspect arguments first (especially for static helper methods like refreshCurrentPageSubTitle)
+                    String keyIdFromArgs = null;
+                    Object fragmentObj = param.thisObject;
+
+                    if (param.args != null && param.args.length > 0) {
+                        for (Object arg : param.args) {
+                            if (arg == null) continue;
+                            if (arg instanceof View || arg instanceof Number || arg instanceof Boolean) continue;
+
+                            // If thisObject is null (static method), check if any argument is the fragment/controller
+                            if (fragmentObj == null) {
+                                String clsName = arg.getClass().getName().toLowerCase();
+                                if (clsName.contains("fragment") || clsName.contains("playback") || clsName.contains("controller")) {
+                                    fragmentObj = arg;
+                                }
+                            }
+
+                            // Check if this argument is the status item / FMessage
+                            String extracted = extractKeyIdFromFMessage(arg);
+                            if (extracted == null) {
+                                extracted = extractStatusKeyIdStrict(arg);
+                            }
+                            if (extracted != null && isLikelyStatusKeyId(extracted)) {
+                                keyIdFromArgs = extracted;
+                            }
+                        }
+                    }
+
+                    if (keyIdFromArgs != null) {
+                        long ts = getRevokedTimestamp(keyIdFromArgs);
+                        if (ts > 0) {
+                            final String finalKey = keyIdFromArgs;
+                            final long finalTs = ts;
+                            final Object targetObj = fragmentObj;
+                            final Object[] finalArgs = param.args;
+                            uiHandler.post(() -> applyStatusDecorationFromContext(targetObj, finalArgs, finalKey, finalTs));
+                            return;
+                        }
+                    }
+
+                    if (fragmentObj != null) {
+                        tryDecorateStatusFragment(fragmentObj);
+                    }
+                } catch (Throwable ignored) {}
+            }
+        };
+    }
+
+    /** Hook callback for single-int-arg methods (page index binders). */
+    private XC_MethodHook buildStatusPageHookWithArg() {
+        return new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) {
+                if (!isAntiRevokeStatusEnabled()) return;
+                try {
+                    // If any non-int argument is a status-like object, try extracting keyId from it
+                    if (param.args != null) {
+                        for (Object arg : param.args) {
+                            if (arg != null && !(arg instanceof Integer) && !(arg instanceof int[])) {
+                                String keyId = extractStatusKeyIdStrict(arg);
+                                if (keyId == null) {
+                                    keyId = extractKeyIdFromFMessage(arg);
+                                }
+                                if (keyId != null) {
+                                    long ts = getRevokedTimestamp(keyId);
+                                    if (ts > 0) {
+                                        final long finalTs = ts;
+                                        final String finalKeyId = keyId;
+                                        final Object targetObj = param.thisObject;
+                                        final Object[] finalArgs = param.args;
+                                        uiHandler.post(() -> applyStatusDecorationFromContext(targetObj, finalArgs, finalKeyId, finalTs));
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (param.thisObject != null) {
+                        tryDecorateStatusFragment(param.thisObject);
+                    }
+                } catch (Throwable ignored) {}
+            }
+        };
+    }
+
+    /**
+     * Main status decoration entry point.
+     * Tries multiple keyId sources in priority order.
+     */
+    private void tryDecorateStatusFragment(Object fragment) {
+        try {
+            // Priority 1: extract from fragment fields (status-specific strict scan)
+            String keyId = extractStatusKeyIdFromFragment(fragment);
+
+            // Priority 2: last DB-read keyId for this thread
+            if (keyId == null) {
+                keyId = sStatusKeyByThread.get(Thread.currentThread().getId());
+            }
+
+            // Priority 3: fall back to general FMessage extraction
+            if (keyId == null) {
+                keyId = extractStatusKeyFromFragmentGeneral(fragment);
+            }
+
+            if (keyId == null) return;
+
+            long ts = getRevokedTimestamp(keyId);
+            if (ts <= 0) return;
+
+            final String finalKeyId = keyId;
+            final long finalTs = ts;
+            uiHandler.post(() -> applyStatusDecoration(fragment, finalKeyId, finalTs));
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " tryDecorateStatusFragment error: " + t.getMessage());
+        }
+    }
+
+    /**
+     * Attempts to find the status date/time TextView from args, fragment/controller object, or root view hierarchy.
+     */
+    private void applyStatusDecorationFromContext(@Nullable Object fragmentOrController, @Nullable Object[] args, @NonNull String keyId, long ts) {
+        try {
+            // 1. Check if date TextView can be found directly from arguments
+            if (args != null) {
+                for (Object arg : args) {
+                    if (arg instanceof TextView) {
+                        TextView tv = (TextView) arg;
+                        decorateRevokedTextView(tv, null, tv.getContext(), ts);
+                        XposedBridge.log(TAG + " Status playback decorated (from direct arg): keyId=" + keyId);
+                        return;
+                    }
+                    if (arg instanceof View) {
+                        TextView tv = findStatusTimestampTextViewInViewTree((View) arg);
+                        if (tv != null) {
+                            decorateRevokedTextView(tv, null, tv.getContext(), ts);
+                            XposedBridge.log(TAG + " Status playback decorated (from view arg): keyId=" + keyId);
+                            return;
+                        }
+                    }
+                }
+            }
+
+            // 2. Check if fragmentOrController has any View or statusPlaybackView field
+            if (fragmentOrController != null) {
+                TextView tv = findDateTextViewFromObjectFields(fragmentOrController);
+                if (tv != null) {
+                    decorateRevokedTextView(tv, null, tv.getContext(), ts);
+                    XposedBridge.log(TAG + " Status playback decorated (from controller fields): keyId=" + keyId);
+                    return;
+                }
+                applyStatusDecoration(fragmentOrController, keyId, ts);
+            }
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " applyStatusDecorationFromContext error: " + t.getMessage());
+        }
+    }
+
+    /**
+     * Inspects fields of an object (e.g. fragment or status playback page controller) for date TextView or View container.
+     */
+    @Nullable
+    private TextView findDateTextViewFromObjectFields(@NonNull Object obj) {
+        try {
+            Class<?> curr = obj.getClass();
+            int depth = 0;
+            while (curr != null && curr != Object.class && depth < 4) {
                 for (Field f : curr.getDeclaredFields()) {
                     if (Modifier.isStatic(f.getModifiers())) continue;
                     f.setAccessible(true);
-                    Object val = f.get(fragment);
-                    if (val != null) {
-                        String key = extractKeyIdFromFMessage(val);
-                        if (key != null) return key;
+                    Object val = f.get(obj);
+                    if (val == null) continue;
+
+                    if (val instanceof TextView) {
+                        TextView tv = (TextView) val;
+                        if (isLikelyDateTextView(tv)) return tv;
+                    } else if (val instanceof View) {
+                        TextView tv = findStatusTimestampTextViewInViewTree((View) val);
+                        if (tv != null) return tv;
+                    } else if (!val.getClass().isPrimitive() && !val.getClass().isArray() && val.getClass().getName().startsWith("com.whatsapp")) {
+                        // Check one level deeper (e.g. statusPlaybackView container object)
+                        for (Field subField : val.getClass().getDeclaredFields()) {
+                            if (Modifier.isStatic(subField.getModifiers())) continue;
+                            subField.setAccessible(true);
+                            Object subVal = subField.get(val);
+                            if (subVal instanceof TextView) {
+                                TextView subTv = (TextView) subVal;
+                                if (isLikelyDateTextView(subTv)) return subTv;
+                            } else if (subVal instanceof View) {
+                                TextView subTv = findStatusTimestampTextViewInViewTree((View) subVal);
+                                if (subTv != null) return subTv;
+                            }
+                        }
                     }
+                }
+                curr = curr.getSuperclass();
+                depth++;
+            }
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
+    private boolean isLikelyDateTextView(TextView tv) {
+        if (tv.getId() != View.NO_ID) {
+            try {
+                String entry = tv.getResources().getResourceEntryName(tv.getId()).toLowerCase();
+                if (entry.contains("date") || entry.contains("time") || entry.contains("subtitle")) return true;
+            } catch (Throwable ignored) {}
+        }
+        CharSequence text = tv.getText();
+        return text != null && looksLikeTimeString(text.toString());
+    }
+
+    @Nullable
+    private TextView findStatusTimestampTextViewInViewTree(@NonNull View view) {
+        if (view instanceof TextView && isLikelyDateTextView((TextView) view)) {
+            return (TextView) view;
+        }
+        if (view instanceof ViewGroup) {
+            return findStatusTimestampTextView((ViewGroup) view, view.getContext());
+        }
+        return null;
+    }
+
+    /**
+     * Apply the "Deleted" visual indicator to the status playback header TextView.
+     * If view is not ready yet, retries after 300 ms.
+     */
+    private void applyStatusDecoration(Object fragment, String keyId, long ts) {
+        try {
+            View root = extractFragmentRootView(fragment);
+            if (root == null) {
+                // Retry once after delay — view may not be attached yet
+                uiHandler.postDelayed(() -> {
+                    try {
+                        View r = extractFragmentRootView(fragment);
+                        if (r != null) doApplyStatusDecoration(r, keyId, ts);
+                        else XposedBridge.log(TAG + " Status root view still null after delay, keyId=" + keyId);
+                    } catch (Throwable ignored) {}
+                }, 350);
+                return;
+            }
+            doApplyStatusDecoration(root, keyId, ts);
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " applyStatusDecoration error: " + t.getMessage());
+        }
+    }
+
+    private void doApplyStatusDecoration(View root, String keyId, long ts) {
+        if (!(root instanceof ViewGroup)) return;
+        Context ctx = root.getContext();
+
+        TextView target = findStatusTimestampTextView((ViewGroup) root, ctx);
+        if (target == null) {
+            XposedBridge.log(TAG + " No timestamp TextView in status view for key=" + keyId);
+            return;
+        }
+        decorateRevokedTextView(target, null, ctx, ts);
+        XposedBridge.log(TAG + " Status playback decorated: keyId=" + keyId);
+    }
+
+    /**
+     * Finds the timestamp/date TextView in the status header using resource names then text heuristic.
+     */
+    @Nullable
+    private TextView findStatusTimestampTextView(ViewGroup root, Context ctx) {
+        // Strategy 1: by resource name
+        String[] idNames = {"date", "time", "timestamp", "subtitle", "status_time", "story_time", "caption_time"};
+        for (String name : idNames) {
+            try {
+                int id = ctx.getResources().getIdentifier(name, "id", ctx.getPackageName());
+                if (id != 0) {
+                    View v = root.findViewById(id);
+                    if (v instanceof TextView) return (TextView) v;
+                }
+            } catch (Throwable ignored) {}
+        }
+        // Strategy 2: recursive scan for time-like text
+        return findTimeTextViewRecursive(root);
+    }
+
+    @Nullable
+    private TextView findTimeTextViewRecursive(ViewGroup group) {
+        try {
+            for (int i = 0; i < group.getChildCount(); i++) {
+                View child = group.getChildAt(i);
+                if (child.getVisibility() != View.VISIBLE) continue;
+
+                if (child instanceof TextView) {
+                    TextView tv = (TextView) child;
+                    // Check resource name
+                    if (child.getId() != View.NO_ID) {
+                        try {
+                            String entry = child.getResources().getResourceEntryName(child.getId()).toLowerCase();
+                            if (entry.contains("date") || entry.contains("time") || entry.contains("subtitle")) {
+                                return tv;
+                            }
+                        } catch (Throwable ignored) {}
+                    }
+                    // Check text content looks like a time
+                    CharSequence text = tv.getText();
+                    if (text != null && looksLikeTimeString(text.toString())) return tv;
+                } else if (child instanceof ViewGroup) {
+                    TextView found = findTimeTextViewRecursive((ViewGroup) child);
+                    if (found != null) return found;
+                }
+            }
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
+    private boolean looksLikeTimeString(String text) {
+        if (text == null || text.length() < 4 || text.length() > 20) return false;
+        return text.matches(".*\\d{1,2}:\\d{2}.*") // e.g. "10:30 AM", "22:15"
+                || text.equalsIgnoreCase("just now")
+                || text.equalsIgnoreCase("now");
+    }
+
+    // ─── Status keyId extraction helpers ────────────────────────────────
+
+    /**
+     * Strict status keyId extraction from a fragment.
+     * Scans String fields with isLikelyStatusKeyId() filter.
+     * Does NOT use shared chat-message cache (cachedFMessageKeyField).
+     */
+    @Nullable
+    private String extractStatusKeyIdFromFragment(Object fragment) {
+        try {
+            // 1. Check fragment arguments Bundle
+            try {
+                Method getArguments = fragment.getClass().getMethod("getArguments");
+                Object bundle = getArguments.invoke(fragment);
+                if (bundle != null) {
+                    String keyId = extractKeyIdFromBundle(bundle);
+                    if (keyId != null) return keyId;
+                }
+            } catch (Throwable ignored) {}
+
+            // 2. Scan fragment String fields directly
+            Class<?> curr = fragment.getClass();
+            int depth = 0;
+            while (curr != null && curr != Object.class && depth < 6) {
+                for (Field f : curr.getDeclaredFields()) {
+                    if (Modifier.isStatic(f.getModifiers())) continue;
+                    try {
+                        if (f.getType() == String.class) {
+                            f.setAccessible(true);
+                            String val = (String) f.get(fragment);
+                            if (isLikelyStatusKeyId(val)) return val;
+                        } else if (!f.getType().isPrimitive() && !f.getType().isArray()
+                                && f.getType() != Context.class
+                                && !View.class.isAssignableFrom(f.getType())) {
+                            f.setAccessible(true);
+                            Object nested = f.get(fragment);
+                            if (nested == null) continue;
+                            String keyId = extractStatusKeyIdStrict(nested);
+                            if (keyId != null) return keyId;
+                        }
+                    } catch (Throwable ignored) {}
+                }
+                curr = curr.getSuperclass();
+                depth++;
+            }
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " extractStatusKeyIdFromFragment error: " + t.getMessage());
+        }
+        return null;
+    }
+
+    /** Extract keyId-like strings from an Android Bundle via reflection. */
+    @Nullable
+    private String extractKeyIdFromBundle(Object bundle) {
+        try {
+            java.util.Set<?> keys = (java.util.Set<?>) bundle.getClass().getMethod("keySet").invoke(bundle);
+            if (keys == null) return null;
+            Method getString = bundle.getClass().getMethod("getString", String.class);
+            for (Object key : keys) {
+                try {
+                    String val = (String) getString.invoke(bundle, key);
+                    if (isLikelyStatusKeyId(val)) return val;
+                } catch (Throwable ignored) {}
+            }
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
+    /**
+     * Strict keyId scan of one arbitrary object (not a fragment).
+     * Only checks its own String fields — does not recurse further.
+     */
+    @Nullable
+    private String extractStatusKeyIdStrict(Object obj) {
+        if (obj == null) return null;
+        if (obj instanceof String) {
+            return isLikelyStatusKeyId((String) obj) ? (String) obj : null;
+        }
+        try {
+            Class<?> clazz = obj.getClass();
+            if (clazz.isPrimitive() || clazz.isArray()) return null;
+            Class<?> curr = clazz;
+            while (curr != null && curr != Object.class) {
+                for (Field f : curr.getDeclaredFields()) {
+                    if (Modifier.isStatic(f.getModifiers())) continue;
+                    if (f.getType() != String.class) continue;
+                    try {
+                        f.setAccessible(true);
+                        String val = (String) f.get(obj);
+                        if (isLikelyStatusKeyId(val)) return val;
+                    } catch (Throwable ignored) {}
                 }
                 curr = curr.getSuperclass();
             }
         } catch (Throwable ignored) {}
         return null;
+    }
+
+    /**
+     * General (fallback) extraction via existing extractKeyIdFromFMessage.
+     * Uses the shared cache which is tuned for chat messages —
+     * only used as last resort for status.
+     */
+    @Nullable
+    private String extractStatusKeyFromFragmentGeneral(Object fragment) {
+        try {
+            Class<?> curr = fragment.getClass();
+            int depth = 0;
+            while (curr != null && curr != Object.class && depth < 5) {
+                for (Field f : curr.getDeclaredFields()) {
+                    if (Modifier.isStatic(f.getModifiers())) continue;
+                    try {
+                        f.setAccessible(true);
+                        Object val = f.get(fragment);
+                        if (val != null) {
+                            String key = extractKeyIdFromFMessage(val);
+                            if (key != null) return key;
+                        }
+                    } catch (Throwable ignored) {}
+                }
+                curr = curr.getSuperclass();
+                depth++;
+            }
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
+    /**
+     * Returns true if the string matches the WA keyId pattern:
+     * 1–64 alphanumeric/base64 chars, no spaces, dots, slashes, '@', or ':'.
+     */
+    private boolean isLikelyStatusKeyId(@Nullable String str) {
+        if (str == null) return false;
+        int len = str.length();
+        if (len < 1 || len > 64) return false;
+        if (str.contains(".") || str.contains("/") || str.contains("@")
+                || str.contains(" ") || str.contains(":") || str.contains("\\")) return false;
+        if (str.startsWith("com.") || str.startsWith("android") || str.startsWith("java.")) return false;
+        // Must be base64/hex/numeric-like: letters, digits, +, /, =, -, _
+        return str.matches("[A-Za-z0-9+/=_-]+");
+    }
+
+    @Nullable
+    private String extractStatusKeyFromFragment(@NonNull Object fragment) {
+        // Kept for compatibility — delegates to the new strict variant, then general
+        String key = extractStatusKeyIdFromFragment(fragment);
+        return key != null ? key : extractStatusKeyFromFragmentGeneral(fragment);
     }
 
     @Nullable
@@ -819,6 +1492,83 @@ public class AntiRevokeHook extends BaseFeature {
     // ─── Key extraction from FMessage / FStatus objects ──────────────────
 
     /**
+     * Reads the direction bit from an FMessage key. A null result means that
+     * ownership could not be established and callers may use their normal path.
+     */
+    @Nullable
+    private Boolean extractIsFromMe(@Nullable Object message) {
+        if (message == null) return null;
+        try {
+            Object key = null;
+            if (cachedFMessageKeyField != null
+                    && cachedFMessageKeyField.getDeclaringClass().isInstance(message)) {
+                try {
+                    key = cachedFMessageKeyField.get(message);
+                } catch (Throwable ignored) {}
+            }
+
+            if (key == null) {
+                Class<?> curr = message.getClass();
+                while (curr != null && curr != Object.class && key == null) {
+                    for (Field field : curr.getDeclaredFields()) {
+                        if (Modifier.isStatic(field.getModifiers())) continue;
+                        field.setAccessible(true);
+                        Object value = field.get(message);
+                        if (value == null) continue;
+                        Class<?> valueClass = value.getClass();
+                        if ((messageKeyClass != null && messageKeyClass.isInstance(value))
+                                || looksLikeMessageKey(valueClass)) {
+                            key = value;
+                            break;
+                        }
+                    }
+                    curr = curr.getSuperclass();
+                }
+            }
+
+            // Some revoke methods receive the key itself rather than FMessage.
+            if (key == null && ((messageKeyClass != null && messageKeyClass.isInstance(message))
+                    || looksLikeMessageKey(message.getClass()))) {
+                key = message;
+            }
+            if (key == null) return null;
+
+            Class<?> curr = key.getClass();
+            while (curr != null && curr != Object.class) {
+                for (Field field : curr.getDeclaredFields()) {
+                    if (Modifier.isStatic(field.getModifiers())) continue;
+                    Class<?> type = field.getType();
+                    if (type == boolean.class || type == Boolean.class) {
+                        field.setAccessible(true);
+                        Object value = field.get(key);
+                        return value instanceof Boolean ? (Boolean) value : null;
+                    }
+                }
+                curr = curr.getSuperclass();
+            }
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " extractIsFromMe error: " + t.getMessage());
+        }
+        return null;
+    }
+
+    private boolean looksLikeMessageKey(@NonNull Class<?> candidate) {
+        boolean hasBoolean = false;
+        boolean hasString = false;
+        Class<?> curr = candidate;
+        while (curr != null && curr != Object.class) {
+            for (Field field : curr.getDeclaredFields()) {
+                if (Modifier.isStatic(field.getModifiers())) continue;
+                Class<?> type = field.getType();
+                if (type == boolean.class || type == Boolean.class) hasBoolean = true;
+                if (type == String.class) hasString = true;
+            }
+            curr = curr.getSuperclass();
+        }
+        return hasBoolean && hasString;
+    }
+
+    /**
      * Robust message key_id extractor.
      * Scans for the Key object within FMessage or FStatus (which has remoteJid, messageId String, isFromMe boolean).
      */
@@ -827,11 +1577,16 @@ public class AntiRevokeHook extends BaseFeature {
         if (fMessageObj == null) return null;
         try {
             // 1. Fast Path: Use cached fields if already discovered
-            if (cachedFMessageKeyField != null && cachedKeyIdField != null) {
-                Object keyObj = cachedFMessageKeyField.get(fMessageObj);
-                if (keyObj != null) {
-                    String id = (String) cachedKeyIdField.get(keyObj);
-                    if (id != null && !id.isEmpty()) return id;
+            if (cachedFMessageKeyField != null && cachedKeyIdField != null
+                    && cachedFMessageKeyField.getDeclaringClass().isInstance(fMessageObj)) {
+                try {
+                    Object keyObj = cachedFMessageKeyField.get(fMessageObj);
+                    if (keyObj != null && cachedKeyIdField.getDeclaringClass().isInstance(keyObj)) {
+                        String id = (String) cachedKeyIdField.get(keyObj);
+                        if (id != null && !id.isEmpty()) return id;
+                    }
+                } catch (Throwable ignored) {
+                    // Adapter items can have multiple runtime shapes; continue with discovery.
                 }
             }
 
@@ -861,7 +1616,7 @@ public class AntiRevokeHook extends BaseFeature {
 
                         if (kType == String.class) {
                             String str = (String) kField.get(val);
-                            if (str != null && str.length() >= 6 && !str.contains("@")) {
+                            if (str != null && str.length() >= 1 && !str.contains("@") && !str.contains("/")) {
                                 keyIdCandidate = str;
                                 cachedKeyIdField = kField;
                             }
@@ -887,7 +1642,7 @@ public class AntiRevokeHook extends BaseFeature {
                     if (field.getType() == String.class) {
                         field.setAccessible(true);
                         String strVal = (String) field.get(fMessageObj);
-                        if (strVal != null && strVal.length() >= 12 && !strVal.contains("@")) {
+                        if (strVal != null && strVal.length() >= 1 && !strVal.contains("@") && isLikelyStatusKeyId(strVal)) {
                             return strVal;
                         }
                     }
