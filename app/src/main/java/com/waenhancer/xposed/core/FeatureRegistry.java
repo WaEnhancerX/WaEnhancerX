@@ -29,6 +29,7 @@ import com.waenhancer.xposed.features.privacy.HideReceiptsHook;
 import com.waenhancer.xposed.features.privacy.TypingPrivacyHook;
 import com.waenhancer.licensing.features.AudioToVoiceStatusFeature;
 import com.waenhancer.licensing.features.MessageBomberFeature;
+import com.waenhancer.licensing.features.StatusSplitterFeature;
 import de.robv.android.xposed.XposedBridge;
 import java.util.ArrayList;
 import java.util.List;
@@ -83,6 +84,7 @@ public final class FeatureRegistry {
         features.add(new MediaQualityBypassHook(context, classLoader, prefs));
         features.add(new ProximitySensorHook(context, classLoader, prefs));
         AudioToVoiceStatusFeature.install(context, classLoader, prefs);
+        StatusSplitterFeature.install(context, classLoader, prefs);
 
         // Automation & Notification Controls
         features.add(new PresenceToastsHook(context, classLoader, prefs));

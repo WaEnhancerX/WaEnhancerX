@@ -78,6 +78,10 @@ public class HookProvider extends ContentProvider {
                 if (!messageBomberEntitled) {
                     all.put(ProFeatureGate.MESSAGE_BOMBER_PREF, false);
                 }
+                boolean statusSplitterEntitled = ProFeatureGate.isEntitled(
+                        context, ProFeatureGate.STATUS_SPLITTER);
+                all.put(ProFeatureGate.STATUS_SPLITTER_ENTITLEMENT, statusSplitterEntitled);
+                if (!statusSplitterEntitled) all.put(ProFeatureGate.STATUS_SPLITTER_PREF, false);
                 Bundle result = new Bundle();
                 result.putSerializable("prefs", all);
                 return result;
@@ -115,6 +119,9 @@ public class HookProvider extends ContentProvider {
                         && !ProFeatureGate.isEntitled(context, ProFeatureGate.MESSAGE_BOMBER)) {
                     return null;
                 }
+                if (ProFeatureGate.STATUS_SPLITTER_PREF.equals(key)
+                        && "boolean".equals(type) && extras.getBoolean("value")
+                        && !ProFeatureGate.isEntitled(context, ProFeatureGate.STATUS_SPLITTER)) return null;
 
                 var editor = prefs.edit();
                 switch (type) {

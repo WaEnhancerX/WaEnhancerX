@@ -88,7 +88,7 @@ fun MediaStatusHubScreen() {
     val mediaKeys = remember {
         listOf(
             "statusdowload", "status_downloader", "videoquality", "imagequality",
-            "media_upload_quality", "send_audio_as_voice_status",
+            "media_upload_quality", "send_audio_as_voice_status", "status_video_splitter",
             "call_recording", "download_profile", "download_video_note",
             "downloadviewonce", "download_view_once", "media_preview", "enable_media_preview"
         )
@@ -141,6 +141,7 @@ fun MediaStatusHubScreen() {
                 MediaItem("Download and Share Status", "Shows two buttons to share and download status", "statusdowload"),
                 MediaItem("HD Quality Images & Videos", "Send images and videos in HD quality by default", "media_upload_quality"),
                 MediaItem("Audio to Voice Status", "Pick a local audio file and publish it as a voice status", "send_audio_as_voice_status", isPro = true)
+                ,MediaItem("Status Video Splitter", "Split long videos into 30, 60, or 90 second status clips", "status_video_splitter", isPro = true)
             )
         ),
         MediaGroup(
