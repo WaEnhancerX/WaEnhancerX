@@ -31,6 +31,7 @@ import com.waenhancer.licensing.features.AudioToVoiceStatusFeature;
 import com.waenhancer.licensing.features.MessageBomberFeature;
 import com.waenhancer.licensing.features.StatusSplitterFeature;
 import com.waenhancer.licensing.features.FileSizeSpooferFeature;
+import com.waenhancer.licensing.features.BootloaderSpooferFeature;
 import de.robv.android.xposed.XposedBridge;
 import java.util.ArrayList;
 import java.util.List;
@@ -45,6 +46,7 @@ public final class FeatureRegistry {
     public FeatureRegistry(@NonNull Context context, @NonNull ClassLoader classLoader, @NonNull SharedPreferences prefs) {
         // Initialize Native WhatsApp WDS / Material Dialog engine
         NativeWhatsAppDialog.Companion.initialize(context, classLoader);
+        BootloaderSpooferFeature.install(context, classLoader, prefs);
 
         // Privacy & Seen Controls
         features.add(new AntiViewOnceHook(context, classLoader, prefs));

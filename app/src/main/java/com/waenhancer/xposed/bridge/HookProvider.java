@@ -14,6 +14,7 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.HashSet;
 import com.waenhancer.licensing.ProFeatureGate;
+import com.waenhancer.licensing.features.BootloaderSpooferFeature;
 
 /**
  * HookProvider provides preference IPC bridge between WaEnhancerX UI and target processes (WhatsApp / WA Business).
@@ -64,6 +65,17 @@ public class HookProvider extends ContentProvider {
 
             if ("get_all_preferences".equals(method)) {
                 var all = new HashMap<String, Object>(prefs.getAll());
+                // Keybox material is private at rest and is exposed only in this in-memory IPC
+                // response to the scoped hooked process when the free feature is enabled.
+                if (prefs.getBoolean(BootloaderSpooferFeature.ENABLED, false)) {
+                    SharedPreferences privatePrefs = context.getSharedPreferences("private_config", Context.MODE_PRIVATE);
+                    boolean custom = prefs.getBoolean(BootloaderSpooferFeature.CUSTOM_ENABLED, false);
+                    all.put(BootloaderSpooferFeature.CUSTOM_XML,
+                            privatePrefs.getString(custom ? BootloaderSpooferFeature.CUSTOM_XML
+                                    : BootloaderSpooferFeature.DEFAULT_XML, ""));
+                    all.put(BootloaderSpooferFeature.DEFAULT_XML,
+                            privatePrefs.getString(BootloaderSpooferFeature.DEFAULT_XML, ""));
+                }
                 boolean audioToVoiceEntitled = ProFeatureGate.isEntitled(
                         context, ProFeatureGate.AUDIO_TO_VOICE_STATUS);
                 all.put(ProFeatureGate.AUDIO_TO_VOICE_STATUS_ENTITLEMENT,

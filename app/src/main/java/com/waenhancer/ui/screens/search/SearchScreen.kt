@@ -143,6 +143,7 @@ fun SearchScreen() {
             // --- SETTINGS & SYSTEM ---
             SearchablePreference("supported_versions", "Supported WhatsApp Versions", "Manage verified WhatsApp and WA Business versions & wildcards", "System & Compatibility", -1, null, "Settings"),
             SearchablePreference("bypass_version_check", "Disable Version Check", "Disables the supported version check of WhatsApp", "System & Compatibility", -1, null, "Settings"),
+            SearchablePreference("bootloader_spoofer", "Bootloader Spoofer", "Spoof verified boot attestation for WhatsApp integrity checks", "System & Compatibility", -1, null, "Settings"),
 
             // --- PREMIUM (Paywall) ---
             SearchablePreference("license_verification", "License Verification & Activation", "Manages license key entry and validation", "Premium", -1, null, "Premium"),

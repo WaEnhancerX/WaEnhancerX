@@ -18,6 +18,7 @@ sealed class Screen(val route: String) {
     object About : Screen("about")
     object UpdateSettings : Screen("update_settings")
     object SupportedVersions : Screen("supported_versions")
+    object BootloaderSpoofer : Screen("bootloader_spoofer")
     object DeletedMessages : Screen("deleted_messages")
     object CallRecordingSettings : Screen("call_recording_settings")
     object TaskerGuide : Screen("tasker_guide")

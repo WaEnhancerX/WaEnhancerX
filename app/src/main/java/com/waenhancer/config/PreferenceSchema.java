@@ -105,6 +105,9 @@ public final class PreferenceSchema {
         add(entries, "bootloader_spoofer", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "bootloader_spoofer_custom", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "bootloader_spoofer_xml", Type.STRING, Sensitivity.SECRET, Store.PRIVATE);
+        add(entries, "bootloader_spoofer_default_xml", Type.STRING, Sensitivity.CACHE, Store.PRIVATE);
+        add(entries, "bootloader_spoofer_last_updated", Type.STRING, Sensitivity.CACHE, Store.PRIVATE);
+        add(entries, "bootloader_spoofer_last_error", Type.STRING, Sensitivity.CACHE, Store.PRIVATE);
         add(entries, "broadcast_tag", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "bubble_color", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "bubble_color_mode", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);

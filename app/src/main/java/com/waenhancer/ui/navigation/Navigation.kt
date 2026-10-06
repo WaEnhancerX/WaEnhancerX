@@ -85,6 +85,7 @@ import com.waenhancer.ui.screens.settings.ReleaseDetailsScreen
 import com.waenhancer.ui.screens.settings.AboutScreen
 import com.waenhancer.ui.screens.settings.UpdateSettingsScreen
 import com.waenhancer.ui.screens.settings.SupportedVersionsScreen
+import com.waenhancer.ui.screens.settings.BootloaderSpooferScreen
 
 class WaexNavController(initialScreen: Screen = Screen.MainDashboard) {
 
@@ -105,6 +106,10 @@ class WaexNavController(initialScreen: Screen = Screen.MainDashboard) {
     var highlightTargetKey by mutableStateOf<String?>(null)
 
     fun navigateToPreference(tabIndex: Int, subTabId: String?, preferenceKey: String) {
+        if (preferenceKey == "bootloader_spoofer") {
+            navigateTo(Screen.BootloaderSpoofer)
+            return
+        }
         if (preferenceKey == "supported_versions" || preferenceKey == "bypass_version_check") {
             navigateTo(Screen.SupportedVersions)
             return
@@ -295,6 +300,7 @@ fun MainContainerScreen() {
     val title = when (currentScreen) {
         Screen.MainDashboard -> "WaEnhancerX"
         Screen.SystemHealth -> "System Health"
+        Screen.BootloaderSpoofer -> "Bootloader Spoofer"
         Screen.GlobalPrivacySettings -> "Controls"
         Screen.MediaStatusHub -> "Media & Status"
         Screen.AutomationTasker -> "Automation"
@@ -563,6 +569,20 @@ fun MainContainerScreen() {
                                         onClick = {
                                             showMoreMenu = false
                                             navController.navigateTo(Screen.SupportedVersions)
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                Icon(WaexIcons.Security, contentDescription = null,
+                                                    tint = colors.primary, modifier = Modifier.size(16.dp))
+                                                Text("Bootloader Spoofer", style = typography.bodyMd, color = colors.onSurface)
+                                            }
+                                        },
+                                        onClick = {
+                                            showMoreMenu = false
+                                            navController.navigateTo(Screen.BootloaderSpoofer)
                                         }
                                     )
                                     HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant.copy(alpha = 0.5f))
@@ -943,6 +963,7 @@ fun WaexAppNavigation(
             onOpenModal = onOpenModal
         )
         Screen.SystemHealth -> SystemHealthScreen()
+        Screen.BootloaderSpoofer -> BootloaderSpooferScreen()
         Screen.GlobalPrivacySettings -> GlobalPrivacySettingsScreen(
             onOpenModal = onOpenModal
         )
