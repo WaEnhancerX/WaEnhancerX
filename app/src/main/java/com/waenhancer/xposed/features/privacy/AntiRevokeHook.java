@@ -75,6 +75,12 @@ public class AntiRevokeHook extends BaseFeature {
 
     /** Resolved FMessage Key class and reflection cache. */
     private Class<?> messageKeyClass;
+    /** WhatsApp's status-store key type, resolved independently from message keys. */
+    private Class<?> statusKeyClass;
+    /** Maps WhatsApp's status model to its backing FMessage for playback decoration. */
+    private Method statusToMessageMethod;
+    private Class<?> statusModelClass;
+    private volatile Object statusToMessageMapper;
     private volatile Field cachedFMessageKeyField;
     private volatile Field cachedKeyIdField;
 
@@ -139,6 +145,30 @@ public class AntiRevokeHook extends BaseFeature {
 
             if (messageKeyClass != null) {
                 XposedBridge.log(TAG + " Key class resolved: " + messageKeyClass.getName());
+            }
+
+            statusToMessageMethod = DexSearchEngine.getInstance().findMethodWithCache(
+                    context, classLoader, "wpp_status_to_message_mapper_v1",
+                    (bridge, loader) -> {
+                        MethodData data = bridge.findMethod(FindMethod.create()
+                                .matcher(MethodMatcher.create().addUsingString(
+                                        "mapFStatusToFMessageForForwarding", StringMatchType.Contains)))
+                                .firstOrNull();
+                        return data != null ? data.getMethodInstance(loader) : null;
+                    });
+            if (statusToMessageMethod != null && statusToMessageMethod.getParameterCount() > 0) {
+                statusToMessageMethod.setAccessible(true);
+                statusModelClass = statusToMessageMethod.getParameterTypes()[0];
+                XposedBridge.hookAllConstructors(statusToMessageMethod.getDeclaringClass(),
+                        new XC_MethodHook() {
+                            @Override
+                            protected void afterHookedMethod(MethodHookParam param) {
+                                statusToMessageMapper = param.thisObject;
+                            }
+                        });
+                XposedBridge.log(TAG + " Status model mapper resolved: "
+                        + statusModelClass.getName() + " -> "
+                        + (fMessageClass != null ? fMessageClass.getName() : "FMessage"));
             }
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Error initializing message key classes: " + t.getMessage());
@@ -213,25 +243,39 @@ public class AntiRevokeHook extends BaseFeature {
 
     private void hookStatusBytecodeRevocation() {
         try {
-            Method revokeStatusMethod = DexSearchEngine.getInstance().findMethodWithCache(
-                    context, classLoader, "wpp_revoke_status_manager",
+            statusKeyClass = DexSearchEngine.getInstance().findClassWithCache(
+                    context, classLoader, "wpp_status_key_class_v2",
                     (bridge, loader) -> {
-                        String[] anchors = {
-                                "RevokeStatusManager/failed",
-                                "RevokeStatusManager/revoke",
-                                "StatusStore/deleteStatus",
-                                "RevokeStatusManager"
-                        };
-                        for (String anchor : anchors) {
-                            try {
-                                MethodData data = bridge.findMethod(FindMethod.create()
-                                        .matcher(MethodMatcher.create().usingStrings(anchor))
-                                ).firstOrNull();
-                                if (data != null) {
-                                    Method m = data.getMethodInstance(loader);
-                                    if (m.getParameterCount() >= 1) return m;
+                        ClassData data = bridge.findClass(FindClass.create()
+                                .matcher(ClassMatcher.create()
+                                        .addUsingString("Key(id=", StringMatchType.Contains)
+                                        .addUsingString("senderJid", StringMatchType.Contains)))
+                                .firstOrNull();
+                        return data != null ? data.getInstance(loader) : null;
+                    });
+
+            Method revokeStatusMethod = DexSearchEngine.getInstance().findMethodWithCache(
+                    context, classLoader, "wpp_revoke_status_manager_v2",
+                    (bridge, loader) -> {
+                        if (statusKeyClass == null) return null;
+
+                        ClassData managerData = bridge.findClass(FindClass.create()
+                                .matcher(ClassMatcher.create()
+                                        .addUsingString("RevokeStatusManager/failed", StringMatchType.Contains)))
+                                .firstOrNull();
+                        if (managerData == null) return null;
+
+                        Class<?> managerClass = managerData.getInstance(loader);
+                        Class<?> current = managerClass;
+                        while (current != null && current != Object.class) {
+                            for (Method method : current.getDeclaredMethods()) {
+                                Class<?>[] parameterTypes = method.getParameterTypes();
+                                if (parameterTypes.length > 0
+                                        && statusKeyClass.isAssignableFrom(parameterTypes[0])) {
+                                    return method;
                                 }
-                            } catch (Throwable ignored) {}
+                            }
+                            current = current.getSuperclass();
                         }
                         return null;
                     });
@@ -242,13 +286,13 @@ public class AntiRevokeHook extends BaseFeature {
                     protected void beforeHookedMethod(MethodHookParam param) {
                         if (!isAntiRevokeStatusEnabled()) return;
                         try {
-                            Object arg = (param.args != null && param.args.length > 0) ? param.args[0] : null;
-                            if (arg != null) {
-                                if (Boolean.TRUE.equals(extractIsFromMe(arg))) {
+                            Object statusKey = findArgumentOfType(param.args, statusKeyClass);
+                            if (statusKey != null) {
+                                if (Boolean.TRUE.equals(extractIsFromMe(statusKey))) {
                                     XposedBridge.log(TAG + " Allowing own status revoke");
                                     return;
                                 }
-                                String keyId = extractKeyIdFromFMessage(arg);
+                                String keyId = extractKeyIdFromFMessage(statusKey);
                                 if (keyId != null) {
                                     long now = System.currentTimeMillis();
                                     REVOKED_MESSAGES.put(keyId, now);
@@ -256,6 +300,8 @@ public class AntiRevokeHook extends BaseFeature {
                                     com.waenhancer.xposed.features.automation.PresenceToastsHook.showDeletedMessageToast(context, null, uiHandler);
                                     XposedBridge.log(TAG + " Status bytecode revoke blocked, keyId=" + keyId);
                                 }
+                            } else {
+                                XposedBridge.log(TAG + " Status revoke invoked without resolved status key");
                             }
                         } catch (Throwable t) {
                             XposedBridge.log(TAG + " Error in status bytecode revoke hook: " + t.getMessage());
@@ -275,6 +321,15 @@ public class AntiRevokeHook extends BaseFeature {
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Error hooking status bytecode revoke: " + t.getMessage());
         }
+    }
+
+    @Nullable
+    private Object findArgumentOfType(@Nullable Object[] args, @Nullable Class<?> expectedType) {
+        if (args == null || expectedType == null) return null;
+        for (Object arg : args) {
+            if (arg != null && expectedType.isInstance(arg)) return arg;
+        }
+        return null;
     }
 
     // ─── Database revocation hooks ───────────────────────────────────────
@@ -576,12 +631,16 @@ public class AntiRevokeHook extends BaseFeature {
             DexSearchEngine engine = DexSearchEngine.getInstance();
 
             // ── 1. Resolve StatusPlaybackContactFragment class ──
-            Class<?> playbackFragmentClass = engine.findClassWithCache(
-                    context, classLoader, "wpp_status_playback_fragment_class",
+            Class<?> playbackFragmentClass;
+            try {
+                // This class name is stable and loading it directly avoids both a false inner-class
+                // match and an expensive DexKit class scan during WhatsApp startup.
+                playbackFragmentClass = classLoader.loadClass(
+                        "com.whatsapp.status.playback.fragment.StatusPlaybackContactFragment");
+            } catch (Throwable directLoadFailure) {
+                playbackFragmentClass = engine.findClassWithCache(
+                    context, classLoader, "wpp_status_playback_fragment_class_v3",
                     (bridge, loader) -> {
-                        try {
-                            return loader.loadClass("com.whatsapp.status.playback.fragment.StatusPlaybackContactFragment");
-                        } catch (Throwable ignored) {}
                         String[] patterns = {
                                 "com.whatsapp.status.playback.fragment.StatusPlaybackContactFragment",
                                 "StatusPlaybackContactFragment",
@@ -599,6 +658,7 @@ public class AntiRevokeHook extends BaseFeature {
                         }
                         return null;
                     });
+            }
 
             if (playbackFragmentClass != null) {
                 XposedBridge.log(TAG + " Status playback fragment class resolved: " + playbackFragmentClass.getName());
@@ -607,7 +667,8 @@ public class AntiRevokeHook extends BaseFeature {
             // ── 2. Find status playback page-bind method via DexKit invokes & anchors ──
             final Class<?> targetFragmentClass = playbackFragmentClass;
             Method refreshSubtitleMethod = engine.findMethodWithCache(
-                    context, classLoader, "wpp_status_playback_refresh_subtitle",
+                    // v2 is tied to the corrected fragment resolver above.
+                    context, classLoader, "wpp_status_playback_refresh_subtitle_v2",
                     (bridge, loader) -> {
                         try {
                             MethodData refreshCurrentPage = bridge.findMethod(FindMethod.create()
@@ -619,16 +680,15 @@ public class AntiRevokeHook extends BaseFeature {
                                     for (MethodData invoke : invokes) {
                                         try {
                                             Method m = invoke.getMethodInstance(loader);
-                                            if (Modifier.isStatic(m.getModifiers()) && m.getParameterCount() >= 1) {
-                                                if (targetFragmentClass != null) {
-                                                    for (Class<?> pType : m.getParameterTypes()) {
-                                                        if (targetFragmentClass.isAssignableFrom(pType) || pType.isAssignableFrom(targetFragmentClass)) {
-                                                            XposedBridge.log(TAG + " Found static refresh subtitle method from invokes: " + m.getName());
-                                                            return m;
-                                                        }
+                                            if (targetFragmentClass != null
+                                                    && Modifier.isStatic(m.getModifiers())
+                                                    && m.getDeclaringClass() == targetFragmentClass
+                                                    && m.getParameterCount() > 1) {
+                                                for (Class<?> pType : m.getParameterTypes()) {
+                                                    if (pType == targetFragmentClass) {
+                                                        XposedBridge.log(TAG + " Found exact status subtitle binder: " + m.getName());
+                                                        return m;
                                                     }
-                                                } else {
-                                                    return m;
                                                 }
                                             }
                                         } catch (Throwable ignored) {}
@@ -684,7 +744,8 @@ public class AntiRevokeHook extends BaseFeature {
             // ── 4. Hook the status playback subtitle / bind method ──
             if (refreshSubtitleMethod != null) {
                 final Method finalRefresh = refreshSubtitleMethod;
-                XposedBridge.hookMethod(finalRefresh, buildStatusPageHook("refreshSubtitle"));
+                XposedBridge.hookMethod(finalRefresh,
+                        buildStatusPageHook("refreshSubtitle", playbackFragmentClass, statusPlaybackViewClass));
                 XposedBridge.log(TAG + " Hooked status playback method: " + finalRefresh.getName());
             } else {
                 XposedBridge.log(TAG + " Status refresh method not found; using fallback hooks.");
@@ -822,13 +883,18 @@ public class AntiRevokeHook extends BaseFeature {
     /** Hook callback for DexKit-found method and named lifecycle hooks. */
     /** Hook callback for DexKit-found method and named lifecycle hooks. */
     private XC_MethodHook buildStatusPageHook(String tag) {
+        return buildStatusPageHook(tag, null, null);
+    }
+
+    private XC_MethodHook buildStatusPageHook(String tag, @Nullable Class<?> fragmentClass,
+                                               @Nullable Class<?> playbackViewClass) {
         return new XC_MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
                 if (!isAntiRevokeStatusEnabled()) return;
                 try {
                     // Try to inspect arguments first (especially for static helper methods like refreshCurrentPageSubTitle)
-                    String keyIdFromArgs = null;
+                    String keyIdFromArgs = findRevokedStatusKey(param.args);
                     Object fragmentObj = param.thisObject;
 
                     if (param.args != null && param.args.length > 0) {
@@ -837,20 +903,22 @@ public class AntiRevokeHook extends BaseFeature {
                             if (arg instanceof View || arg instanceof Number || arg instanceof Boolean) continue;
 
                             // If thisObject is null (static method), check if any argument is the fragment/controller
-                            if (fragmentObj == null) {
+                            if (fragmentClass != null && fragmentClass.isInstance(arg)) {
+                                fragmentObj = arg;
+                            } else if (fragmentObj == null) {
                                 String clsName = arg.getClass().getName().toLowerCase();
                                 if (clsName.contains("fragment") || clsName.contains("playback") || clsName.contains("controller")) {
                                     fragmentObj = arg;
                                 }
                             }
 
-                            // Check if this argument is the status item / FMessage
-                            String extracted = extractKeyIdFromFMessage(arg);
-                            if (extracted == null) {
-                                extracted = extractStatusKeyIdStrict(arg);
-                            }
-                            if (extracted != null && isLikelyStatusKeyId(extracted)) {
-                                keyIdFromArgs = extracted;
+                            if (keyIdFromArgs == null) {
+                                // Generic fallback for WhatsApp variants whose binder exposes FMessage directly.
+                                String extracted = extractKeyIdFromFMessage(arg);
+                                if (extracted == null) extracted = extractStatusKeyIdStrict(arg);
+                                if (extracted != null && getRevokedTimestamp(extracted) > 0) {
+                                    keyIdFromArgs = extracted;
+                                }
                             }
                         }
                     }
@@ -862,7 +930,15 @@ public class AntiRevokeHook extends BaseFeature {
                             final long finalTs = ts;
                             final Object targetObj = fragmentObj;
                             final Object[] finalArgs = param.args;
-                            uiHandler.post(() -> applyStatusDecorationFromContext(targetObj, finalArgs, finalKey, finalTs));
+                            uiHandler.post(() -> {
+                                TextView exactDate = findStatusDateTextView(targetObj, playbackViewClass);
+                                if (exactDate != null) {
+                                    decorateRevokedStatusTextView(exactDate, finalTs);
+                                    XposedBridge.log(TAG + " Status playback decorated from exact binder: keyId=" + finalKey);
+                                } else {
+                                    applyStatusDecorationFromContext(targetObj, finalArgs, finalKey, finalTs);
+                                }
+                            });
                             return;
                         }
                     }
@@ -873,6 +949,92 @@ public class AntiRevokeHook extends BaseFeature {
                 } catch (Throwable ignored) {}
             }
         };
+    }
+
+    /** Finds the revoked key in the binder arguments without recursively walking the UI model. */
+    @Nullable
+    private String findRevokedStatusKey(@Nullable Object[] args) {
+        if (args == null) return null;
+        for (Object arg : args) {
+            if (arg == null || arg instanceof View || arg instanceof Context) continue;
+            String direct = extractKeyIdFromFMessage(arg);
+            if (direct != null && getRevokedTimestamp(direct) > 0) return direct;
+            try {
+                Class<?> current = arg.getClass();
+                while (current != null && current != Object.class) {
+                    for (Field field : current.getDeclaredFields()) {
+                        if (Modifier.isStatic(field.getModifiers()) || field.getType().isPrimitive()) continue;
+                        field.setAccessible(true);
+                        Object nested = field.get(arg);
+                        if (nested == null) continue;
+                        if ((statusKeyClass != null && statusKeyClass.isInstance(nested))
+                                || (fMessageClass != null && fMessageClass.isInstance(nested))) {
+                            String candidate = extractKeyIdFromFMessage(nested);
+                            if (candidate != null && getRevokedTimestamp(candidate) > 0) return candidate;
+                        } else if (statusModelClass != null && statusModelClass.isInstance(nested)
+                                && statusToMessageMethod != null) {
+                            Object receiver = null;
+                            if (!Modifier.isStatic(statusToMessageMethod.getModifiers())) {
+                                receiver = statusToMessageMapper;
+                                if (receiver == null) {
+                                    try {
+                                        java.lang.reflect.Constructor<?> constructor =
+                                                statusToMessageMethod.getDeclaringClass().getDeclaredConstructor();
+                                        constructor.setAccessible(true);
+                                        receiver = constructor.newInstance();
+                                        statusToMessageMapper = receiver;
+                                    } catch (Throwable ignored) {
+                                        continue;
+                                    }
+                                }
+                            }
+                            Object message = statusToMessageMethod.invoke(receiver, nested);
+                            String candidate = extractKeyIdFromFMessage(message);
+                            if (candidate != null && getRevokedTimestamp(candidate) > 0) return candidate;
+                        }
+                    }
+                    current = current.getSuperclass();
+                }
+            } catch (Throwable ignored) {}
+        }
+        return null;
+    }
+
+    /** Finds the date TextView through the exact playback-view field, as WaEnhancer does. */
+    @Nullable
+    private TextView findStatusDateTextView(@Nullable Object fragment, @Nullable Class<?> playbackViewClass) {
+        if (fragment == null || playbackViewClass == null) return null;
+        try {
+            Object playbackView = null;
+            Class<?> curr = fragment.getClass();
+            while (curr != null && curr != Object.class && playbackView == null) {
+                for (Field field : curr.getDeclaredFields()) {
+                    if (Modifier.isStatic(field.getModifiers())
+                            || !playbackViewClass.isAssignableFrom(field.getType())) continue;
+                    field.setAccessible(true);
+                    playbackView = field.get(fragment);
+                    if (playbackView != null) break;
+                }
+                curr = curr.getSuperclass();
+            }
+            if (playbackView == null) return null;
+
+            int dateId = context.getResources().getIdentifier("date", "id", context.getPackageName());
+            curr = playbackViewClass;
+            while (curr != null && curr != Object.class) {
+                for (Field field : curr.getDeclaredFields()) {
+                    if (Modifier.isStatic(field.getModifiers())
+                            || !TextView.class.isAssignableFrom(field.getType())) continue;
+                    field.setAccessible(true);
+                    TextView textView = (TextView) field.get(playbackView);
+                    if (textView != null && (dateId == 0 || textView.getId() == dateId)) return textView;
+                }
+                curr = curr.getSuperclass();
+            }
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " Exact status date lookup failed: " + t.getMessage());
+        }
+        return null;
     }
 
     /** Hook callback for single-int-arg methods (page index binders). */
@@ -954,14 +1116,14 @@ public class AntiRevokeHook extends BaseFeature {
                 for (Object arg : args) {
                     if (arg instanceof TextView) {
                         TextView tv = (TextView) arg;
-                        decorateRevokedTextView(tv, null, tv.getContext(), ts);
+                        decorateRevokedStatusTextView(tv, ts);
                         XposedBridge.log(TAG + " Status playback decorated (from direct arg): keyId=" + keyId);
                         return;
                     }
                     if (arg instanceof View) {
                         TextView tv = findStatusTimestampTextViewInViewTree((View) arg);
                         if (tv != null) {
-                            decorateRevokedTextView(tv, null, tv.getContext(), ts);
+                            decorateRevokedStatusTextView(tv, ts);
                             XposedBridge.log(TAG + " Status playback decorated (from view arg): keyId=" + keyId);
                             return;
                         }
@@ -973,7 +1135,7 @@ public class AntiRevokeHook extends BaseFeature {
             if (fragmentOrController != null) {
                 TextView tv = findDateTextViewFromObjectFields(fragmentOrController);
                 if (tv != null) {
-                    decorateRevokedTextView(tv, null, tv.getContext(), ts);
+                    decorateRevokedStatusTextView(tv, ts);
                     XposedBridge.log(TAG + " Status playback decorated (from controller fields): keyId=" + keyId);
                     return;
                 }
@@ -1083,7 +1245,7 @@ public class AntiRevokeHook extends BaseFeature {
             XposedBridge.log(TAG + " No timestamp TextView in status view for key=" + keyId);
             return;
         }
-        decorateRevokedTextView(target, null, ctx, ts);
+        decorateRevokedStatusTextView(target, ts);
         XposedBridge.log(TAG + " Status playback decorated: keyId=" + keyId);
     }
 
@@ -1416,6 +1578,24 @@ public class AntiRevokeHook extends BaseFeature {
             }
         } catch (Throwable t) {
             XposedBridge.log(TAG + " decorateRevokedTextView error: " + t.getMessage());
+        }
+    }
+
+    /** Status playback uses text deliberately; injected module drawables are not reliable in WA views. */
+    private void decorateRevokedStatusTextView(@NonNull TextView dateTextView, long deletedTimestamp) {
+        decorateRevokedTextView(dateTextView, null, dateTextView.getContext(), deletedTimestamp);
+        try {
+            String originalDate = (String) XposedHelpers.getAdditionalInstanceField(
+                    dateTextView, "waex_original_date");
+            if (originalDate == null || originalDate.isEmpty()) {
+                originalDate = dateTextView.getText().toString();
+                XposedHelpers.setAdditionalInstanceField(dateTextView, "waex_original_date", originalDate);
+            }
+            dateTextView.setCompoundDrawables(null, null, null, null);
+            dateTextView.setCompoundDrawablePadding(0);
+            dateTextView.setText("🚫 Deleted • " + originalDate);
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " Status emoji decoration failed: " + t.getMessage());
         }
     }
 
