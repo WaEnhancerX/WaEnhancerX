@@ -88,7 +88,7 @@ fun MediaStatusHubScreen() {
     val mediaKeys = remember {
         listOf(
             "statusdowload", "status_downloader", "videoquality", "imagequality",
-            "media_upload_quality", "voice_status_enhancement",
+            "media_upload_quality", "send_audio_as_voice_status",
             "call_recording", "download_profile", "download_video_note",
             "downloadviewonce", "download_view_once", "media_preview", "enable_media_preview"
         )
@@ -97,7 +97,10 @@ fun MediaStatusHubScreen() {
     val settingsState = remember {
         mutableStateMapOf<String, Boolean>().apply {
             mediaKeys.forEach { key ->
-                put(key, preferenceManager.getBoolean(key, false))
+                val defaultValue = if (key == "send_audio_as_voice_status") {
+                    preferenceManager.getBoolean("voice_status_enhancement", false)
+                } else false
+                put(key, preferenceManager.getBoolean(key, defaultValue))
             }
         }
     }
@@ -120,6 +123,9 @@ fun MediaStatusHubScreen() {
             preferenceManager.putBoolean("media_preview", value)
             settingsState["enable_media_preview"] = value
             settingsState["media_preview"] = value
+        } else if (key == "send_audio_as_voice_status") {
+            // Keep older installations compatible while the canonical key is migrated.
+            preferenceManager.putBoolean("voice_status_enhancement", value)
         }
     }
 
@@ -134,7 +140,7 @@ fun MediaStatusHubScreen() {
             listOf(
                 MediaItem("Download and Share Status", "Shows two buttons to share and download status", "statusdowload"),
                 MediaItem("HD Quality Images & Videos", "Send images and videos in HD quality by default", "media_upload_quality"),
-                MediaItem("Voice Status Enhancement", "Upload high-quality voice status updates", "voice_status_enhancement", isPro = true)
+                MediaItem("Audio to Voice Status", "Pick a local audio file and publish it as a voice status", "send_audio_as_voice_status", isPro = true)
             )
         ),
         MediaGroup(

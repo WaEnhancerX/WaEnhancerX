@@ -88,14 +88,17 @@ fun StylesSettingsScreen() {
             "channels_enhancements", "chat_filters", "hide_ui_tabs",
             "instagram_status_layout", "separate_groups_tabs", "quick_home_menu",
             "contact_blocked_verify",
-            "voice_status_enhancement", "miscellaneous_enhancements"
+            "send_audio_as_voice_status", "miscellaneous_enhancements"
         )
     }
 
     val settingsState = remember {
         mutableStateMapOf<String, Boolean>().apply {
             stylesKeys.forEach { key ->
-                put(key, preferenceManager.getBoolean(key, false))
+                val defaultValue = if (key == "send_audio_as_voice_status") {
+                    preferenceManager.getBoolean("voice_status_enhancement", false)
+                } else false
+                put(key, preferenceManager.getBoolean(key, defaultValue))
             }
         }
     }
@@ -103,6 +106,9 @@ fun StylesSettingsScreen() {
     val updatePreference: (String, Boolean) -> Unit = { key, value ->
         settingsState[key] = value
         preferenceManager.putBoolean(key, value)
+        if (key == "send_audio_as_voice_status") {
+            preferenceManager.putBoolean("voice_status_enhancement", value)
+        }
     }
 
 
@@ -152,7 +158,7 @@ fun StylesSettingsScreen() {
             WaexIcons.Extension,
             listOf(
                 StyleItem("Show Contact Added Status in Conversation", "This option verifies whether the contact added you or has a public profile photo", "contact_blocked_verify"),
-                StyleItem("Voice Status Enhancement", "Upload high-quality voice status updates", "voice_status_enhancement", isPro = true),
+                StyleItem("Audio to Voice Status", "Pick a local audio file and publish it as a voice status", "send_audio_as_voice_status", isPro = true),
                 StyleItem("Disable Screen off on proximity sensor", "Disable Screen off on proximity sensor to the whole WhatsApp", "miscellaneous_enhancements")
             )
         )

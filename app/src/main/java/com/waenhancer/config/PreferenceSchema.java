@@ -132,6 +132,10 @@ public final class PreferenceSchema {
         add(entries, "chatfilter", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "contributors_json", Type.STRING, Sensitivity.CACHE, Store.PRIVATE);
         add(entries, "copy_status_text", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "send_audio_as_voice_status", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "pro_entitlement_audio_to_voice_status", Type.BOOLEAN, Sensitivity.RUNTIME, Store.PUBLIC);
+        // Legacy alias retained so existing users keep their selection during migration.
+        add(entries, "voice_status_enhancement", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "copystatus", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "css_failure_count", Type.INT, Sensitivity.RUNTIME, Store.PUBLIC);
         add(entries, "css_last_valid", Type.STRING, Sensitivity.RUNTIME, Store.PUBLIC);

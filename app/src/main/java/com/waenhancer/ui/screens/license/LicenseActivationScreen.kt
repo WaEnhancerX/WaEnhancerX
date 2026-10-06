@@ -570,8 +570,8 @@ fun LicenseActivationScreen() {
                         ComparisonFeature("Status Video Splitter", "✗", "✓") {
                             navController.navigateToPreference(2, null, "status_video_splitter")
                         },
-                        ComparisonFeature("Voice Status Enhancement", "✗", "✓") {
-                            navController.navigateToPreference(2, null, "voice_status_enhancement")
+                        ComparisonFeature("Audio to Voice Status", "✗", "✓") {
+                            navController.navigateToPreference(2, null, "send_audio_as_voice_status")
                         },
                         ComparisonFeature("Preserve Deleted Messages", "✗", "✓") {
                             navController.navigateToPreference(1, "conversation", "anti_revoke_messages")

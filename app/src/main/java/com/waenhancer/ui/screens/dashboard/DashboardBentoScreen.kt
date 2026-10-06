@@ -479,7 +479,7 @@ fun DashboardBentoScreen() {
                 WaexBentoItemMobile(
                     title = "Media",
                     icon = WaexIcons.Image,
-                    chips = listOf("HD Upload", "Status Download", "Unlimited View Once", "Voice Status"),
+                    chips = listOf("HD Upload", "Status Download", "Unlimited View Once", "Audio to Voice Status"),
                     onManageClick = { navController.navigateTo(Screen.MediaStatusHub) }
                 )
 
@@ -665,4 +665,3 @@ fun DashboardBentoScreenPreview() {
         DashboardBentoScreen()
     }
 }
-

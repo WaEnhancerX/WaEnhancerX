@@ -13,6 +13,7 @@ import androidx.annotation.Nullable;
 import java.io.File;
 import java.util.HashMap;
 import java.util.HashSet;
+import com.waenhancer.licensing.ProFeatureGate;
 
 /**
  * HookProvider provides preference IPC bridge between WaEnhancerX UI and target processes (WhatsApp / WA Business).
@@ -62,9 +63,17 @@ public class HookProvider extends ContentProvider {
             }
 
             if ("get_all_preferences".equals(method)) {
-                var all = prefs.getAll();
+                var all = new HashMap<String, Object>(prefs.getAll());
+                boolean audioToVoiceEntitled = ProFeatureGate.isEntitled(
+                        context, ProFeatureGate.AUDIO_TO_VOICE_STATUS);
+                all.put(ProFeatureGate.AUDIO_TO_VOICE_STATUS_ENTITLEMENT,
+                        audioToVoiceEntitled);
+                // The hooked process never sees this Pro switch enabled without entitlement.
+                if (!audioToVoiceEntitled) {
+                    all.put(ProFeatureGate.AUDIO_TO_VOICE_STATUS_PREF, false);
+                }
                 Bundle result = new Bundle();
-                result.putSerializable("prefs", new HashMap<>(all));
+                result.putSerializable("prefs", all);
                 return result;
             }
 
@@ -86,6 +95,14 @@ public class HookProvider extends ContentProvider {
                 String key = extras.getString("key");
                 String type = extras.getString("type");
                 if (key == null || type == null) return null;
+
+                if (ProFeatureGate.AUDIO_TO_VOICE_STATUS_PREF.equals(key)
+                        && "boolean".equals(type)
+                        && extras.getBoolean("value")
+                        && !ProFeatureGate.isEntitled(context,
+                                ProFeatureGate.AUDIO_TO_VOICE_STATUS)) {
+                    return null;
+                }
 
                 var editor = prefs.edit();
                 switch (type) {
