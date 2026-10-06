@@ -134,7 +134,6 @@ fun SearchScreen() {
             SearchablePreference("instagram_status_layout", "Enable IGStatus on Home Screen", "Show status style Instagram in Home Screen", "Home Layout & Navigation", 4, "layout", "Styles"),
             SearchablePreference("separate_groups_tabs", "Separate Groups", "Separate your chats by: Groups, Private Chats, Status, Calls, Communities", "Home Layout & Navigation", 4, "layout", "Styles"),
             SearchablePreference("quick_home_menu", "Quick Action Home Menu", "Add quick actions to home long-press", "Home Layout & Navigation", 4, "layout", "Styles"),
-            SearchablePreference("backup_restore", "Backup Settings", "Import or export WAEX configurations", "Utilities & Data", 4, "layout", "Styles"),
             SearchablePreference("contact_blocked_verify", "Show Contact Added Status in Conversation", "This option verifies whether the contact added you or has a public profile photo", "Utilities & Data", 4, "layout", "Styles"),
             SearchablePreference("miscellaneous_enhancements", "Disable Screen off on proximity sensor", "Disable Screen off on proximity sensor to the whole WhatsApp", "Utilities & Data", 4, "layout", "Styles"),
 
@@ -336,4 +335,3 @@ fun SearchScreen() {
         }
     }
 }
-

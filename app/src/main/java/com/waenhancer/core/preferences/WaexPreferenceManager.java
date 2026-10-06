@@ -3,6 +3,8 @@ package com.waenhancer.core.preferences;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import java.io.InputStream;
+import java.io.OutputStream;
 import com.waenhancer.config.PreferenceSchema;
 import com.waenhancer.config.PreferenceStores;
 import dagger.hilt.android.qualifiers.ApplicationContext;
@@ -114,6 +116,21 @@ public final class WaexPreferenceManager {
 
     public java.util.Map<String, ?> getAll() {
         return PreferenceStores.publicStore(context).getAll();
+    }
+
+    public int exportSettings(Uri destination) throws Exception {
+        OutputStream output = context.getContentResolver().openOutputStream(destination, "wt");
+        if (output == null) throw new java.io.IOException("Could not open backup destination");
+        return SettingsBackupCodec.INSTANCE.encode(context, output);
+    }
+
+    public int importSettings(Uri source) throws Exception {
+        InputStream input = context.getContentResolver().openInputStream(source);
+        if (input == null) throw new java.io.IOException("Could not open backup file");
+        int count = SettingsBackupCodec.INSTANCE.decode(context, input);
+        fixFilePermissions();
+        notifyChange();
+        return count;
     }
 
     private void notifyChange() {

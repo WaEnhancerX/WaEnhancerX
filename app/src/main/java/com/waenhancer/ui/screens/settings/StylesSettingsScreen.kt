@@ -87,7 +87,7 @@ fun StylesSettingsScreen() {
             "dotonline", "showonlinetext", "typing_online_toasts",
             "channels_enhancements", "chat_filters", "hide_ui_tabs",
             "instagram_status_layout", "separate_groups_tabs", "quick_home_menu",
-            "backup_restore", "contact_blocked_verify",
+            "contact_blocked_verify",
             "voice_status_enhancement", "miscellaneous_enhancements"
         )
     }
@@ -151,7 +151,6 @@ fun StylesSettingsScreen() {
             "Utilities & Data",
             WaexIcons.Extension,
             listOf(
-                StyleItem("Backup Settings", "Import or export WAEX configurations", "backup_restore"),
                 StyleItem("Show Contact Added Status in Conversation", "This option verifies whether the contact added you or has a public profile photo", "contact_blocked_verify"),
                 StyleItem("Voice Status Enhancement", "Upload high-quality voice status updates", "voice_status_enhancement", isPro = true),
                 StyleItem("Disable Screen off on proximity sensor", "Disable Screen off on proximity sensor to the whole WhatsApp", "miscellaneous_enhancements")
@@ -349,6 +348,7 @@ fun StylesSettingsScreen() {
         }
         Spacer(modifier = Modifier.height(100.dp))
     }
+
 }
 
 private data class StyleGroup(

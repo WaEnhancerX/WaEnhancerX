@@ -2,6 +2,9 @@ package com.waenhancer.ui.screens.dashboard
 
 import android.content.Context
 import android.content.Intent
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -53,6 +56,7 @@ import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 
 import com.waenhancer.ui.navigation.LocalWaexNavController
+import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
 import com.waenhancer.ui.navigation.Screen
 import com.waenhancer.utils.UniversalVersionValidator
 import com.waenhancer.utils.SystemDiagnostics
@@ -61,6 +65,9 @@ import com.waenhancer.xposed.utils.AppRestartHelper
 import com.waenhancer.xposed.utils.ModuleStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun MainDashboardScreen(
@@ -73,7 +80,36 @@ fun MainDashboardScreen(
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
     val context = LocalContext.current
+    val preferenceManager = LocalWaexPreferenceManager.current
     val isModuleActive = remember { ModuleStatus.isModuleActive() }
+
+    val backupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri ->
+        if (uri != null) {
+            runCatching { preferenceManager.exportSettings(uri) }
+                .onSuccess { Toast.makeText(context, "$it settings backed up", Toast.LENGTH_SHORT).show() }
+                .onFailure { Toast.makeText(context, "Backup failed: ${it.message}", Toast.LENGTH_LONG).show() }
+        }
+    }
+    val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching { preferenceManager.importSettings(uri) }
+                .onSuccess { Toast.makeText(context, "$it settings restored. Restart WhatsApp to apply.", Toast.LENGTH_LONG).show() }
+                .onFailure { Toast.makeText(context, "Restore failed: ${it.message}", Toast.LENGTH_LONG).show() }
+        }
+    }
+    val startBackup = {
+        val stamp = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())
+        runCatching { backupLauncher.launch("WAEX-settings-$stamp.waex") }
+            .onFailure { Toast.makeText(context, "Could not open file picker: ${it.message}", Toast.LENGTH_LONG).show() }
+        Unit
+    }
+    val startRestore = {
+        runCatching { restoreLauncher.launch(arrayOf("application/octet-stream", "*/*")) }
+            .onFailure { Toast.makeText(context, "Could not open file picker: ${it.message}", Toast.LENGTH_LONG).show() }
+        Unit
+    }
 
 
 
@@ -479,7 +515,7 @@ fun MainDashboardScreen(
                             .clip(radius.defaultShape)
                             .background(colors.surfaceDim)
                             .border(1.dp, colors.outlineVariant, radius.defaultShape)
-                            .clickable { /* Backup Action */ }
+                            .clickable(onClick = startBackup)
                             .padding(vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -496,7 +532,7 @@ fun MainDashboardScreen(
                             .clip(radius.defaultShape)
                             .background(colors.surfaceDim)
                             .border(1.dp, colors.outlineVariant, radius.defaultShape)
-                            .clickable { /* Restore Action */ }
+                            .clickable(onClick = startRestore)
                             .padding(vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
