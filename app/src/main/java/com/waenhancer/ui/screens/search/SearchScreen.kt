@@ -105,6 +105,7 @@ fun SearchScreen() {
             SearchablePreference("media_upload_quality", "HD Quality Images & Videos", "Send images and videos in HD quality by default", "Media Quality & Status", 2, null, "Media"),
             SearchablePreference("send_audio_as_voice_status", "Audio to Voice Status", "Pick a local audio file and publish it as a voice status", "Media Quality & Status", 2, null, "Media"),
             SearchablePreference("status_video_splitter", "Status Video Splitter", "Split long videos into 30, 60, or 90 second status clips", "Media Quality & Status", 2, null, "Media"),
+            SearchablePreference("file_size_spoofer", "File Size Spoofer", "Set the file size displayed to the recipient from WhatsApp's send preview", "Media Quality & Status", 2, null, "Media"),
             SearchablePreference("call_recording", "Call Recording", "Record incoming and outgoing calls (Voice & Video) as audio", "Media Utility & Downloader", 2, null, "Media"),
             SearchablePreference("download_profile", "Download Profile Photo", "Download full-resolution profile pictures directly", "Media Utility & Downloader", 2, null, "Media"),
             SearchablePreference("download_view_once", "Download View Once", "Show button to download view once media", "Media Utility & Downloader", 2, null, "Media"),

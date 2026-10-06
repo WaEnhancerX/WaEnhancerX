@@ -82,6 +82,10 @@ public class HookProvider extends ContentProvider {
                         context, ProFeatureGate.STATUS_SPLITTER);
                 all.put(ProFeatureGate.STATUS_SPLITTER_ENTITLEMENT, statusSplitterEntitled);
                 if (!statusSplitterEntitled) all.put(ProFeatureGate.STATUS_SPLITTER_PREF, false);
+                boolean fileSizeSpooferEntitled = ProFeatureGate.isEntitled(
+                        context, ProFeatureGate.FILE_SIZE_SPOOFER);
+                all.put(ProFeatureGate.FILE_SIZE_SPOOFER_ENTITLEMENT, fileSizeSpooferEntitled);
+                if (!fileSizeSpooferEntitled) all.put(ProFeatureGate.FILE_SIZE_SPOOFER_PREF, false);
                 Bundle result = new Bundle();
                 result.putSerializable("prefs", all);
                 return result;
@@ -122,6 +126,9 @@ public class HookProvider extends ContentProvider {
                 if (ProFeatureGate.STATUS_SPLITTER_PREF.equals(key)
                         && "boolean".equals(type) && extras.getBoolean("value")
                         && !ProFeatureGate.isEntitled(context, ProFeatureGate.STATUS_SPLITTER)) return null;
+                if (ProFeatureGate.FILE_SIZE_SPOOFER_PREF.equals(key)
+                        && "boolean".equals(type) && extras.getBoolean("value")
+                        && !ProFeatureGate.isEntitled(context, ProFeatureGate.FILE_SIZE_SPOOFER)) return null;
 
                 var editor = prefs.edit();
                 switch (type) {

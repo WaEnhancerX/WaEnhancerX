@@ -88,7 +88,7 @@ fun MediaStatusHubScreen() {
     val mediaKeys = remember {
         listOf(
             "statusdowload", "status_downloader", "videoquality", "imagequality",
-            "media_upload_quality", "send_audio_as_voice_status", "status_video_splitter",
+            "media_upload_quality", "send_audio_as_voice_status", "status_video_splitter", "file_size_spoofer",
             "call_recording", "download_profile", "download_video_note",
             "downloadviewonce", "download_view_once", "media_preview", "enable_media_preview"
         )
@@ -142,6 +142,7 @@ fun MediaStatusHubScreen() {
                 MediaItem("HD Quality Images & Videos", "Send images and videos in HD quality by default", "media_upload_quality"),
                 MediaItem("Audio to Voice Status", "Pick a local audio file and publish it as a voice status", "send_audio_as_voice_status", isPro = true)
                 ,MediaItem("Status Video Splitter", "Split long videos into 30, 60, or 90 second status clips", "status_video_splitter", isPro = true)
+                ,MediaItem("File Size Spoofer", "Set the file size displayed to the recipient from WhatsApp's send preview", "file_size_spoofer", isPro = true)
             )
         ),
         MediaGroup(

@@ -261,6 +261,8 @@ public final class PreferenceSchema {
         add(entries, "locked_chats_enhancer", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "lockedchats_enhancer", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "media_preview", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "file_size_spoofer", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "pro_entitlement_file_size_spoofer", Type.BOOLEAN, Sensitivity.RUNTIME, Store.PUBLIC);
         add(entries, "menuwicon", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "message_bomber", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "message_device_source", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
