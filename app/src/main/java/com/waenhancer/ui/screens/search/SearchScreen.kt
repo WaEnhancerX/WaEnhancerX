@@ -81,6 +81,7 @@ fun SearchScreen() {
             SearchablePreference("open_wae", "Enable Wa Enhancer Button", "Add button in Home Screen or WhatsApp Settings to open Wa Enhancer", "Home Menu Shortcuts", 1, "privacy", "Privacy"),
 
             // --- PRIVACY TAB (Tab 1), Sub-tab "conversation" ---
+            SearchablePreference("message_bomber", "Message Bomber", "Send a short, delayed sequence of messages from inside a WhatsApp chat", "Message Controls", 1, "conversation", "Conversation"),
             SearchablePreference("anti_edit_messages", "Show Edited Message History", "Show edited message history when clicking \"Edited\" on a message", "Message Controls", 1, "conversation", "Conversation"),
             SearchablePreference("preserve_delete_for_me", "Delete (for me)", "Retain messages locally when Delete for Me is selected", "Message Controls", 1, "conversation", "Conversation"),
             SearchablePreference("revokeallmessages", "Increase limit of \"Delete for everyone\" option", "Increases the limit to 3 days in the option to delete messages for everyone", "Message Controls", 1, "conversation", "Conversation"),

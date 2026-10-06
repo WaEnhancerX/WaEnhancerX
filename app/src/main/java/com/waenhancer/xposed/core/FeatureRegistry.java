@@ -28,6 +28,7 @@ import com.waenhancer.xposed.features.privacy.HideForwardedTagHook;
 import com.waenhancer.xposed.features.privacy.HideReceiptsHook;
 import com.waenhancer.xposed.features.privacy.TypingPrivacyHook;
 import com.waenhancer.licensing.features.AudioToVoiceStatusFeature;
+import com.waenhancer.licensing.features.MessageBomberFeature;
 import de.robv.android.xposed.XposedBridge;
 import java.util.ArrayList;
 import java.util.List;
@@ -70,6 +71,7 @@ public final class FeatureRegistry {
         features.add(new ChatLimitsBypassHook(context, classLoader, prefs));
         features.add(new DoubleTapReactionHook(context, classLoader, prefs));
         features.add(new com.waenhancer.xposed.features.conversation.MinorFixesHook(context, classLoader, prefs));
+        MessageBomberFeature.install(context, classLoader, prefs);
 
         // Homescreen & Layout Controls
         features.add(new HomeScreenHeaderActionsHook(context, classLoader, prefs));

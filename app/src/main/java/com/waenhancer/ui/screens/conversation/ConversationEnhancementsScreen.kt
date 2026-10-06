@@ -116,6 +116,28 @@ fun ConversationEnhancementsScreen() {
 
             WaexCard(modifier = Modifier.fillMaxWidth()) {
                 Column {
+                    val bomberHighlighted = navController.highlightTargetKey == "message_bomber"
+                    val bomberHighlightBg by animateColorAsState(
+                        targetValue = if (bomberHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent,
+                        animationSpec = tween(durationMillis = 300),
+                        label = "bomber_highlight_bg"
+                    )
+                    WaexSwitchPreference(
+                        title = "Message Bomber · Pro",
+                        description = "Send a short, delayed sequence of messages from inside a WhatsApp chat",
+                        checked = isPro && (stateMap["message_bomber"] ?: false),
+                        onCheckedChange = { enabled ->
+                            if (isPro) onToggle("message_bomber", enabled) else onActivatePro()
+                        },
+                        icon = WaexIcons.AutoAwesome,
+                        showDivider = true,
+                        modifier = Modifier
+                            .background(bomberHighlightBg)
+                            .onGloballyPositioned { coordinates ->
+                                val y = coordinates.positionInRoot().y - containerY + scrollState.value
+                                itemCoordinates["message_bomber"] = y
+                            }
+                    )
                     val aeHighlighted = navController.highlightTargetKey == "anti_edit_messages"
                     val aeHighlightBg by animateColorAsState(
                         targetValue = if (aeHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent,

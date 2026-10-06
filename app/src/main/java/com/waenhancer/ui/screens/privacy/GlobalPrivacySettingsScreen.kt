@@ -114,7 +114,7 @@ fun GlobalPrivacySettingsScreen(
             "anti_view_once", "downloadviewonce",
             "anti_revoke", "antirevokestatus", "antidisappearing", "toastdeleted", "toast_viewed_message",
             "locked_chats_enhancer", "typearchive", "dnd_mode", "hide_chats", "custom_privacy",
-            "anti_edit_messages", "preserve_delete_for_me", "revokeallmessages", "hide_forwarded_tag", "removeforwardlimit",
+            "message_bomber", "anti_edit_messages", "preserve_delete_for_me", "revokeallmessages", "hide_forwarded_tag", "removeforwardlimit",
             "sticker_confirm_alert", "removeseemore", "stamp_copied_message", "doubletap2like",
             "jump_to_first_message", "unlimited_pinned_chats", "broadcast_tag", "direct_chat_dialer", "inline_translation", "copy_status_text",
             "call_type_controller", "custom_filter_groups", "group_admin_tools", "status_text_composer",
@@ -230,6 +230,7 @@ fun GlobalPrivacySettingsScreen(
         SettingGroup(
             "Message Protection & Controls",
             listOf(
+                SettingItem("Message Bomber", "Send a short, delayed sequence of messages from inside a WhatsApp chat", "message_bomber", isPro = true),
                 SettingItem("Show Edited Message History", "Show edited message history when clicking \"Edited\" on a message", "anti_edit_messages"),
                 SettingItem("Delete (for me)", "Retain messages locally when Delete for Me is selected", "preserve_delete_for_me"),
                 SettingItem("Increase limit of \"Delete for everyone\" option", "Increases the limit to 3 days in the option to delete messages for everyone", "revokeallmessages"),

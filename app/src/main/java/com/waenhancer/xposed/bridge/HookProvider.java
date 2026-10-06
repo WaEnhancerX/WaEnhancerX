@@ -72,6 +72,12 @@ public class HookProvider extends ContentProvider {
                 if (!audioToVoiceEntitled) {
                     all.put(ProFeatureGate.AUDIO_TO_VOICE_STATUS_PREF, false);
                 }
+                boolean messageBomberEntitled = ProFeatureGate.isEntitled(
+                        context, ProFeatureGate.MESSAGE_BOMBER);
+                all.put(ProFeatureGate.MESSAGE_BOMBER_ENTITLEMENT, messageBomberEntitled);
+                if (!messageBomberEntitled) {
+                    all.put(ProFeatureGate.MESSAGE_BOMBER_PREF, false);
+                }
                 Bundle result = new Bundle();
                 result.putSerializable("prefs", all);
                 return result;
@@ -101,6 +107,12 @@ public class HookProvider extends ContentProvider {
                         && extras.getBoolean("value")
                         && !ProFeatureGate.isEntitled(context,
                                 ProFeatureGate.AUDIO_TO_VOICE_STATUS)) {
+                    return null;
+                }
+                if (ProFeatureGate.MESSAGE_BOMBER_PREF.equals(key)
+                        && "boolean".equals(type)
+                        && extras.getBoolean("value")
+                        && !ProFeatureGate.isEntitled(context, ProFeatureGate.MESSAGE_BOMBER)) {
                     return null;
                 }
 
