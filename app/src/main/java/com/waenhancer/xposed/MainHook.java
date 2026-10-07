@@ -111,6 +111,11 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
         boolean isWhatsAppTarget = com.waenhancer.utils.WhatsAppPackageDetector.isWhatsAppPackageName(packageName);
 
         if (isWhatsAppTarget) {
+            // Only hook the main package process (e.g. "com.whatsapp", not isolated or secondary background workers)
+            if (lpparam.processName != null && !lpparam.processName.equals(packageName)) {
+                return;
+            }
+
             XposedBridge.log("[WAEX] Injected into target: " + packageName + " (process: " + lpparam.processName + ")");
 
             // Initialize features on target Application creation

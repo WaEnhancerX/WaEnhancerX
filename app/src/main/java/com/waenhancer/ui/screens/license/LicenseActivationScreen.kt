@@ -48,6 +48,26 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import com.waenhancer.licensing.LicenseManager
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.Screen
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.BufferedInputStream
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.URL
+
+data class PurchasePlan(
+    val id: Int = 0,
+    val name: String,
+    val originalPrice: String?,
+    val offerPrice: String,
+    val period: String = "",
+    val desc: String = "",
+    val badge: String? = null
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,6 +84,100 @@ fun LicenseActivationScreen() {
     var licenseKeyInput by remember { mutableStateOf("") }
     var isVerifying by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
+
+    val fallbackPlans = remember {
+        listOf(
+            PurchasePlan(
+                id = 2,
+                name = "Pro Monthly",
+                originalPrice = "3.50",
+                offerPrice = "2.30",
+                period = "/ Month",
+                desc = "Full access to all Pro features for 30 days"
+            ),
+            PurchasePlan(
+                id = 3,
+                name = "Pro Yearly",
+                originalPrice = "28.50",
+                offerPrice = "18.99",
+                period = "/ Year",
+                desc = "Save 33% with full Pro access for 365 days",
+                badge = "Best Value"
+            )
+        )
+    }
+
+    var plans by remember { mutableStateOf<List<PurchasePlan>>(emptyList()) }
+    var isLoadingPlans by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        val cachePrefs = context.getSharedPreferences("waex_plans_cache", android.content.Context.MODE_PRIVATE)
+        val cacheTime = cachePrefs.getLong("plans_cache_time", 0L)
+        val cachedData = cachePrefs.getString("plans_cache_data", null)
+        val currentTime = System.currentTimeMillis()
+
+        if (!cachedData.isNullOrBlank() && (currentTime - cacheTime) < 3600000L) { // 1 hour TTL
+            try {
+                val parsed = parsePlansJson(cachedData)
+                if (parsed.isNotEmpty()) {
+                    plans = parsed
+                    isLoadingPlans = false
+                    return@LaunchedEffect
+                }
+            } catch (_: Exception) {}
+        }
+
+        // Fetch from API
+        withContext(Dispatchers.IO) {
+            var urlConnection: HttpURLConnection? = null
+            try {
+                val url = URL("https://waex.mubashar.dev/api/v1/plans")
+                urlConnection = (url.openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    connectTimeout = 5000
+                    readTimeout = 5000
+                    setRequestProperty("Accept", "application/json")
+                }
+
+                val inputStream = BufferedInputStream(urlConnection.inputStream)
+                val reader = BufferedReader(InputStreamReader(inputStream, "UTF-8"))
+                val sb = StringBuilder()
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    sb.append(line)
+                }
+
+                val responseStr = sb.toString()
+                val parsed = parsePlansJson(responseStr)
+
+                if (parsed.isNotEmpty()) {
+                    cachePrefs.edit()
+                        .putString("plans_cache_data", responseStr)
+                        .putLong("plans_cache_time", System.currentTimeMillis())
+                        .apply()
+
+                    withContext(Dispatchers.Main) {
+                        plans = parsed
+                        isLoadingPlans = false
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        plans = fallbackPlans
+                        isLoadingPlans = false
+                    }
+                }
+            } catch (_: Exception) {
+                withContext(Dispatchers.Main) {
+                    if (plans.isEmpty()) {
+                        plans = fallbackPlans
+                    }
+                    isLoadingPlans = false
+                }
+            } finally {
+                urlConnection?.disconnect()
+            }
+        }
+    }
 
 
     val isActive = "ACTIVE".equals(proStatus, ignoreCase = true)
@@ -346,123 +460,140 @@ fun LicenseActivationScreen() {
                     subtitle = "Instant automated delivery via Telegram bot"
                 )
 
-                data class PurchasePlan(
-                    val name: String,
-                    val originalPrice: String?,
-                    val offerPrice: String,
-                    val period: String,
-                    val desc: String,
-                    val badge: String? = null
-                )
-
-                val availablePlans = listOf(
-                    PurchasePlan(
-                        name = "Pro Monthly",
-                        originalPrice = "3.50",
-                        offerPrice = "2.30",
-                        period = "/ Month",
-                        desc = "Full access to all Pro features for 30 days"
-                    ),
-                    PurchasePlan(
-                        name = "Pro Yearly",
-                        originalPrice = "28.50",
-                        offerPrice = "18.99",
-                        period = "/ Year",
-                        desc = "Save 33% with full Pro access for 365 days",
-                        badge = "Best Value"
-                    )
-                )
-
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    availablePlans.forEach { plan ->
-                        Surface(
-                            shape = radius.bentoCardShape,
-                            color = colors.surfaceDim,
-                            border = BorderStroke(1.dp, colors.outlineVariant),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(radius.bentoCardShape)
-                                .clickable {
-                                    try {
-                                        val intent = android.content.Intent(
-                                            android.content.Intent.ACTION_VIEW,
-                                            android.net.Uri.parse("https://t.me/waenhancerx_bot?start=subscribe")
-                                        ).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
-                                        context.startActivity(intent)
-                                    } catch (ignored: Exception) {}
+                if (isLoadingPlans && plans.isEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        repeat(2) {
+                            Surface(
+                                shape = radius.bentoCardShape,
+                                color = colors.surfaceDim,
+                                border = BorderStroke(1.dp, colors.outlineVariant),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(width = 120.dp, height = 18.dp)
+                                            .clip(radius.smShape)
+                                            .background(colors.outlineVariant)
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(width = 80.dp, height = 24.dp)
+                                            .clip(radius.smShape)
+                                            .background(colors.outlineVariant)
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth(0.7f)
+                                            .height(14.dp)
+                                            .clip(radius.smShape)
+                                            .background(colors.outlineVariant)
+                                    )
                                 }
-                        ) {
-                            Column(
+                            }
+                        }
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        plans.forEach { plan ->
+                            Surface(
+                                shape = radius.bentoCardShape,
+                                color = colors.surfaceDim,
+                                border = BorderStroke(1.dp, colors.outlineVariant),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                                    .clip(radius.bentoCardShape)
+                                    .clickable {
+                                        try {
+                                            val intent = android.content.Intent(
+                                                android.content.Intent.ACTION_VIEW,
+                                                android.net.Uri.parse("https://t.me/waenhancerx_bot?start=subscribe")
+                                            ).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+                                            context.startActivity(intent)
+                                        } catch (ignored: Exception) {}
+                                    }
                             ) {
-                                // Top Row: Plan Name + Badge
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    Text(
-                                        text = plan.name,
-                                        style = typography.bodyLg,
-                                        fontWeight = FontWeight.Bold,
-                                        color = colors.onSurface
-                                    )
+                                    // Top Row: Plan Name + Badge
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = plan.name,
+                                            style = typography.bodyLg,
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.onSurface
+                                        )
 
-                                    if (plan.badge != null) {
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(radius.fullShape)
-                                                .background(colors.primary)
-                                                .padding(horizontal = 8.dp, vertical = 2.dp)
-                                        ) {
+                                        if (plan.badge != null && plan.badge.isNotBlank()) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(radius.fullShape)
+                                                    .background(colors.primary)
+                                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                                            ) {
+                                                Text(
+                                                    text = plan.badge.uppercase(java.util.Locale.US),
+                                                    style = typography.labelSm.copy(fontSize = 10.sp),
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = colors.onPrimary
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    // Price Row
+                                    Row(
+                                        verticalAlignment = Alignment.Bottom,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        if (plan.originalPrice != null && plan.originalPrice.isNotBlank() && plan.originalPrice != plan.offerPrice) {
                                             Text(
-                                                text = plan.badge.uppercase(java.util.Locale.US),
-                                                style = typography.labelSm.copy(fontSize = 10.sp),
-                                                fontWeight = FontWeight.Bold,
-                                                color = colors.onPrimary
+                                                text = "$${plan.originalPrice}",
+                                                style = typography.bodySm.copy(
+                                                    textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
+                                                ),
+                                                color = colors.onSurfaceVariant
+                                            )
+                                        }
+                                        Text(
+                                            text = "$${plan.offerPrice}",
+                                            style = typography.titleLg.copy(fontSize = 20.sp),
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.primary
+                                        )
+                                        if (plan.period.isNotBlank()) {
+                                            Text(
+                                                text = plan.period,
+                                                style = typography.bodySm,
+                                                color = colors.onSurfaceVariant,
+                                                modifier = Modifier.padding(bottom = 2.dp)
                                             )
                                         }
                                     }
-                                }
 
-                                // Price Row
-                                Row(
-                                    verticalAlignment = Alignment.Bottom,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    if (plan.originalPrice != null) {
+                                    // Description
+                                    if (plan.desc.isNotBlank()) {
                                         Text(
-                                            text = "$${plan.originalPrice}",
-                                            style = typography.bodySm.copy(
-                                                textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
-                                            ),
-                                            color = colors.onSurfaceVariant
+                                            text = plan.desc,
+                                            style = typography.labelSm,
+                                            color = colors.onSurfaceVariant,
+                                            fontSize = 12.sp
                                         )
                                     }
-                                    Text(
-                                        text = "$${plan.offerPrice}",
-                                        style = typography.titleLg.copy(fontSize = 20.sp),
-                                        fontWeight = FontWeight.Bold,
-                                        color = colors.primary
-                                    )
-                                    Text(
-                                        text = plan.period,
-                                        style = typography.bodySm,
-                                        color = colors.onSurfaceVariant,
-                                        modifier = Modifier.padding(bottom = 2.dp)
-                                    )
                                 }
-
-                                // Description
-                                Text(
-                                    text = plan.desc,
-                                    style = typography.labelSm,
-                                    color = colors.onSurfaceVariant,
-                                    fontSize = 12.sp
-                                )
                             }
                         }
                     }
@@ -634,4 +765,54 @@ fun LicenseActivationScreen() {
             }
         }
     }
+}
+
+private fun parsePlansJson(jsonStr: String): List<PurchasePlan> {
+    val list = mutableListOf<PurchasePlan>()
+    val array = JSONArray(jsonStr)
+    for (i in 0 until array.length()) {
+        val obj = array.getJSONObject(i)
+        val id = obj.optInt("id", 0)
+        val name = obj.optString("name", "")
+        val originalPrice = if (obj.has("original_price") && !obj.isNull("original_price")) {
+            obj.optString("original_price")
+        } else null
+        val offerPrice = obj.optString("offer_price", "")
+        val badge = if (obj.has("badge") && !obj.isNull("badge")) {
+            obj.optString("badge")
+        } else null
+        var period = obj.optString("period", "")
+        if (period.isEmpty()) {
+            if (name.contains("monthly", ignoreCase = true)) {
+                period = "/ Month"
+            } else if (name.contains("yearly", ignoreCase = true)) {
+                period = "/ Year"
+            }
+        }
+        var desc = obj.optString("desc", "")
+        if (desc.isEmpty()) {
+            desc = if (name.contains("monthly", ignoreCase = true)) {
+                "Full access to all Pro features for 30 days"
+            } else if (name.contains("yearly", ignoreCase = true)) {
+                "Save 33% with full Pro access for 365 days"
+            } else {
+                "Unlock all premium Pro capabilities"
+            }
+        }
+
+        if (name.isNotBlank() && offerPrice.isNotBlank()) {
+            list.add(
+                PurchasePlan(
+                    id = id,
+                    name = name,
+                    originalPrice = originalPrice,
+                    offerPrice = offerPrice,
+                    period = period,
+                    desc = desc,
+                    badge = badge
+                )
+            )
+        }
+    }
+    return list
 }

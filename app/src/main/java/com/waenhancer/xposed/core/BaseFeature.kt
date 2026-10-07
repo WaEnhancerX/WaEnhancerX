@@ -22,11 +22,6 @@ abstract class BaseFeature(
     abstract val name: String
 
     protected fun isEnabled(key: String, def: Boolean = false): Boolean {
-        if (prefs is XSharedPreferences) {
-            prefs.reload()
-        } else if (prefs is PreferenceBridgeClient) {
-            prefs.syncPreferences()
-        }
         return prefs.getBoolean(key, def)
     }
 }
