@@ -2,6 +2,9 @@
 <resources>
     <!-- Supported WhatsApp Packages & Clones (Used by LSPosed & WhatsAppPackageDetector) -->
     <string-array name="xposed_scope">
+        <!-- Self / Module App (Required for LSPosed to hook ModuleStatus sentinel & detect activation) -->
+        <item>com.waenhancer</item>
+
         <!-- Official WhatsApp & WhatsApp Business -->
         <item>com.whatsapp</item>
         <item>com.whatsapp.w4b</item>

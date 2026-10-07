@@ -68,3 +68,16 @@
 -dontwarn org.commonmark.**
 -dontwarn io.noties.markwon.**
 
+# 10. Xposed Framework Entrypoints & Module Status Sentinel (CRITICAL)
+-keep public class * implements de.robv.android.xposed.IXposedHookLoadPackage { *; }
+-keep public class * implements de.robv.android.xposed.IXposedHookZygoteInit { *; }
+-keep public class * implements de.robv.android.xposed.IXposedHookInitPackageResources { *; }
+-keep class de.robv.android.xposed.** { *; }
+-dontwarn de.robv.android.xposed.**
+
+-keep class com.waenhancer.xposed.MainHook { *; }
+-keep class com.waenhancer.xposed.utils.ModuleStatus {
+    public static boolean isModuleActive();
+}
+
+

@@ -32,35 +32,27 @@ android {
             val androidStoreFile = (project.findProperty("androidStoreFile") as? String)
                 ?: keystoreProperties.getProperty("androidStoreFile") ?: "key.jks"
             val keyFile = rootProject.file(androidStoreFile)
-            if (keyFile.exists()) {
-                storeFile = keyFile
-                storePassword = (project.findProperty("androidStorePassword") as? String)
-                    ?: keystoreProperties.getProperty("androidStorePassword") ?: "123456"
-                keyAlias = (project.findProperty("androidKeyAlias") as? String)
-                    ?: keystoreProperties.getProperty("androidKeyAlias") ?: "my-alias"
-                keyPassword = (project.findProperty("androidKeyPassword") as? String)
-                    ?: keystoreProperties.getProperty("androidKeyPassword") ?: "123456"
-                enableV1Signing = true
-                enableV2Signing = true
-            }
+            storeFile = if (keyFile.exists()) keyFile else rootProject.file("key.jks")
+            storePassword = (project.findProperty("androidStorePassword") as? String)
+                ?: keystoreProperties.getProperty("androidStorePassword") ?: "123456"
+            keyAlias = (project.findProperty("androidKeyAlias") as? String)
+                ?: keystoreProperties.getProperty("androidKeyAlias") ?: "my-alias"
+            keyPassword = (project.findProperty("androidKeyPassword") as? String)
+                ?: keystoreProperties.getProperty("androidKeyPassword") ?: "123456"
+            enableV1Signing = true
+            enableV2Signing = true
         }
     }
 
     buildTypes {
         debug {
-            val config = signingConfigs.getByName("releaseConfig")
-            if (config.storeFile != null && config.storeFile!!.exists()) {
-                signingConfig = config
-            }
+            signingConfig = signingConfigs.getByName("releaseConfig")
         }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            val config = signingConfigs.getByName("releaseConfig")
-            if (config.storeFile != null && config.storeFile!!.exists()) {
-                signingConfig = config
-            }
+            signingConfig = signingConfigs.getByName("releaseConfig")
         }
     }
     
