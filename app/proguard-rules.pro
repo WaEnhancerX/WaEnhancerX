@@ -63,3 +63,8 @@
 -keep class com.waenhancer.api.contracts.** { *; }
 -keep class com.waenhancer.features.**.model.** { *; }
 -keep class com.waenhancer.core.**.entity.** { *; }
+
+# 9. Markwon & Commonmark optional extension dependencies
+-dontwarn org.commonmark.**
+-dontwarn io.noties.markwon.**
+
