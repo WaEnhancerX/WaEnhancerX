@@ -40,10 +40,10 @@ render.experimental.xml
 google-services.json
 
 # Local investigation material and generated documentation
-references/
-docs/
-.agents/
-tools/
+/references/
+/docs/
+/.agents/
+/tools/
 
 # Private implementation module, supplied outside the public repository
-licensing/
+/licensing/
