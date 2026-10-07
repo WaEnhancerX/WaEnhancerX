@@ -8,9 +8,11 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Bundle;
+import android.os.ParcelFileDescriptor;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.util.HashMap;
 import java.util.HashSet;
 import com.waenhancer.licensing.ProFeatureGate;
@@ -38,6 +40,7 @@ public class HookProvider extends ContentProvider {
     @Nullable
     @Override
     public Bundle call(@NonNull String method, @Nullable String arg, @Nullable Bundle extras) {
+        int callerUid = Binder.getCallingUid();
         long token = Binder.clearCallingIdentity();
         try {
             SharedPreferences prefs = getPrefs();
@@ -45,6 +48,44 @@ public class HookProvider extends ContentProvider {
 
             Context context = getContext();
             if (context == null) return null;
+
+            if ("create_call_recording".equals(method)) {
+                if (!isWhatsAppCaller(context, callerUid) || extras == null) return null;
+                String requestedName = extras.getString("name", "Call.m4a");
+                String safeName = requestedName.replaceAll("[^A-Za-z0-9._-]", "_");
+                if (safeName.isEmpty()) safeName = "Call.m4a";
+                File base = context.getExternalFilesDir(null);
+                if (base == null) base = context.getFilesDir();
+                File directory = new File(base, "CallRecordings");
+                if (!directory.exists() && !directory.mkdirs()) return null;
+                File output = new File(directory, safeName);
+                try {
+                    ParcelFileDescriptor descriptor = ParcelFileDescriptor.open(
+                            output,
+                            ParcelFileDescriptor.MODE_CREATE
+                                    | ParcelFileDescriptor.MODE_TRUNCATE
+                                    | ParcelFileDescriptor.MODE_READ_WRITE);
+                    Bundle result = new Bundle();
+                    result.putParcelable("descriptor", descriptor);
+                    result.putString("path", output.getAbsolutePath());
+                    return result;
+                } catch (FileNotFoundException ignored) {
+                    return null;
+                }
+            }
+
+            if ("delete_call_recording".equals(method)) {
+                if (!isWhatsAppCaller(context, callerUid) || extras == null) return null;
+                String requestedName = extras.getString("name", "");
+                String safeName = requestedName.replaceAll("[^A-Za-z0-9._-]", "_");
+                File base = context.getExternalFilesDir(null);
+                if (base == null) base = context.getFilesDir();
+                boolean deleted = !safeName.isEmpty()
+                        && new File(new File(base, "CallRecordings"), safeName).delete();
+                Bundle result = new Bundle();
+                result.putBoolean("deleted", deleted);
+                return result;
+            }
 
             if ("register_hooked_package".equals(method)) {
                 String pkg = (arg != null) ? arg : (extras != null ? extras.getString("package") : null);
@@ -191,6 +232,17 @@ public class HookProvider extends ContentProvider {
         } finally {
             Binder.restoreCallingIdentity(token);
         }
+    }
+
+    private boolean isWhatsAppCaller(@NonNull Context context, int uid) {
+        String[] packages = context.getPackageManager().getPackagesForUid(uid);
+        if (packages == null) return false;
+        for (String packageName : packages) {
+            if ("com.whatsapp".equals(packageName) || "com.whatsapp.w4b".equals(packageName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Nullable

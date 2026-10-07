@@ -110,7 +110,7 @@ fun CallsHubScreen() {
     var callInfoEnabled by remember { mutableStateOf(prefManager.getBoolean("call_info", false)) }
 
     // Call Recording State
-    var callRecordingEnabled by remember { mutableStateOf(prefManager.getBoolean("call_recording_enabled", true)) }
+    var callRecordingEnabled by remember { mutableStateOf(prefManager.getBoolean("call_recording_enabled", false)) }
     var useRootStream by remember { mutableStateOf(prefManager.getBoolean("call_recording_use_root", false)) }
     var audioFormat by remember { mutableStateOf(prefManager.getString("call_recording_format", "m4a") ?: "m4a") }
 
@@ -713,7 +713,6 @@ fun CallsHubScreen() {
                                         ) {
                                             listOf(
                                                 "m4a" to "AAC (.m4a)",
-                                                "wav" to "WAV (.wav)",
                                                 "opus" to "Opus (.opus)"
                                             ).forEach { (formatKey, label) ->
                                                 val active = audioFormat == formatKey

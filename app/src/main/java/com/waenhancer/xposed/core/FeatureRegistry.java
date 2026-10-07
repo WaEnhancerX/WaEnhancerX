@@ -17,6 +17,8 @@ import com.waenhancer.xposed.features.homescreen.HomeScreenHeaderActionsHook;
 import com.waenhancer.xposed.features.media.DownloadViewOnceHook;
 import com.waenhancer.xposed.features.media.MediaQualityBypassHook;
 import com.waenhancer.xposed.features.media.ProximitySensorHook;
+import com.waenhancer.xposed.features.media.CallRecordingHook;
+import com.waenhancer.xposed.features.media.ProfilePhotoDownloadHook;
 import com.waenhancer.xposed.features.privacy.AlwaysOnlineHook;
 import com.waenhancer.xposed.features.privacy.AntiRevokeHook;
 import com.waenhancer.xposed.features.privacy.AntiViewOnceHook;
@@ -86,6 +88,8 @@ public final class FeatureRegistry {
         features.add(new com.waenhancer.xposed.features.media.StatusDownloadHook(context, classLoader, prefs));
         features.add(new MediaQualityBypassHook(context, classLoader, prefs));
         features.add(new ProximitySensorHook(context, classLoader, prefs));
+        features.add(new CallRecordingHook(context, classLoader, prefs));
+        features.add(new ProfilePhotoDownloadHook(context, classLoader, prefs));
         AudioToVoiceStatusFeature.install(context, classLoader, prefs);
         StatusSplitterFeature.install(context, classLoader, prefs);
         FileSizeSpooferFeature.install(context, classLoader, prefs);
