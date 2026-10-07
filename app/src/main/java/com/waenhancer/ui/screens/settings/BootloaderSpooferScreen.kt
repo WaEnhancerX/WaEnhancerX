@@ -40,6 +40,9 @@ fun BootloaderSpooferScreen() {
     var updated by remember { mutableStateOf(prefs.getString(BootloaderSpooferFeature.LAST_UPDATED, "")) }
     var syncError by remember { mutableStateOf(prefs.getString(BootloaderSpooferFeature.LAST_ERROR, "")) }
     var syncing by remember { mutableStateOf(false) }
+    var verifying by remember { mutableStateOf(false) }
+    var report by remember { mutableStateOf<BootloaderSpooferFeature.VerificationReport?>(null) }
+    var showReport by remember { mutableStateOf(false) }
 
     val importer = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -139,17 +142,112 @@ fun BootloaderSpooferScreen() {
                     OutlinedButton(onClick = { importer.launch("*/*") }, modifier = Modifier.fillMaxWidth()) {
                         Text(if (customReady) "Replace custom keybox.xml" else "Import custom keybox.xml")
                     }
+                    OutlinedButton(onClick = {
+                        verifying = true
+                        scope.launch {
+                            val selectedXml = withContext(Dispatchers.IO) {
+                                prefs.getString(if (custom) BootloaderSpooferFeature.CUSTOM_XML
+                                else BootloaderSpooferFeature.DEFAULT_XML, "")
+                            }
+                            report = withContext(Dispatchers.Default) {
+                                BootloaderSpooferFeature.verify(context, selectedXml, !custom)
+                            }
+                            verifying = false; showReport = true
+                        }
+                    }, enabled = !verifying && (if (custom) customReady else managedReady),
+                        modifier = Modifier.fillMaxWidth()) {
+                        if (verifying) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        else Text("Verify selected keybox")
+                    }
                 }
             }
             Text("Restart WhatsApp after changing the keybox source or enabling this feature.",
                 style = typography.bodyMd, color = colors.onSurfaceVariant)
         }
     }
+    if (showReport && report != null) VerificationSheet(report!!, onDismiss = { showReport = false })
 }
 
 private fun formatUpdated(value: String): String = value
     .replace("T", " ")
     .replace(Regex("\\.\\d+Z$"), " UTC")
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun VerificationSheet(report: BootloaderSpooferFeature.VerificationReport, onDismiss: () -> Unit) {
+    val colors = WaexTheme.colors
+    val typography = WaexTheme.typography
+    val scoreColor = when {
+        report.totalScore >= 85 -> Color(0xFF10B981)
+        report.totalScore >= 60 -> Color(0xFFF59E0B)
+        else -> colors.error
+    }
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = colors.background) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+            .padding(horizontal = WaexTheme.spacing.pageMargin).padding(bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text("Keybox verification", style = typography.titleLg, fontWeight = FontWeight.Bold, color = colors.onSurface)
+            Text(report.source, style = typography.bodyMd, color = colors.onSurfaceVariant)
+            Surface(shape = WaexTheme.radius.bentoCardShape, color = scoreColor.copy(alpha = 0.1f),
+                border = BorderStroke(1.dp, scoreColor.copy(alpha = 0.4f)), modifier = Modifier.fillMaxWidth()) {
+                Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("${report.totalScore}", style = typography.titleLg, fontWeight = FontWeight.Bold, color = scoreColor)
+                    Text(" / 100", style = typography.titleLg, color = colors.onSurfaceVariant)
+                    Spacer(Modifier.weight(1f))
+                    Text(if (report.recommended) "RECOMMENDED" else "NEEDS ATTENTION",
+                        style = typography.labelSm, fontWeight = FontWeight.Bold, color = scoreColor)
+                }
+            }
+            if (report.error.isNotBlank()) {
+                AuditCard("Parse error", 0, 0, listOf(report.error to false))
+            } else {
+                AuditCard("Spoofer runtime", report.runtimeScore, 10, listOf(
+                    "Feature enabled" to report.featureEnabled,
+                    "WhatsApp hook recently active" to report.hookActive))
+                AuditCard("EC attestation chain", report.ecScore, 40, listOf(
+                    "Certificates parsed" to report.ecPresent,
+                    "Trust chain verified" to report.ecChainValid,
+                    "Private key matches" to report.ecKeyMatches,
+                    "Certificate is current" to !report.ecExpired))
+                AuditCard("RSA attestation chain", report.rsaScore, 20, listOf(
+                    "Certificates parsed" to report.rsaPresent,
+                    "Trust chain verified" to report.rsaChainValid,
+                    "Private key matches" to report.rsaKeyMatches,
+                    "Certificate is current" to !report.rsaExpired))
+                AuditCard("Integrity estimate", report.integrityScore, 30, listOf(
+                    "Basic integrity supported" to report.basicIntegrity,
+                    "Device integrity supported" to report.deviceIntegrity,
+                    "Strong integrity supported" to false))
+            }
+            Text("This is a local configuration audit, not a live Google Play Integrity verdict.",
+                style = typography.bodyMd, color = colors.onSurfaceVariant)
+            Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Done") }
+        }
+    }
+}
+
+@Composable
+private fun AuditCard(title: String, score: Int, maximum: Int, checks: List<Pair<String, Boolean>>) {
+    val colors = WaexTheme.colors
+    val typography = WaexTheme.typography
+    Surface(shape = WaexTheme.radius.bentoCardShape, color = colors.surfaceDim,
+        border = BorderStroke(1.dp, colors.outlineVariant), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Row(Modifier.fillMaxWidth()) {
+                Text(title, style = typography.bodyLg, fontWeight = FontWeight.Bold,
+                    color = colors.onSurface, modifier = Modifier.weight(1f))
+                Text("$score / $maximum", style = typography.bodyLg, fontWeight = FontWeight.Bold, color = colors.primary)
+            }
+            checks.forEach { (label, passed) ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(if (passed) "✓" else "×", color = if (passed) Color(0xFF10B981) else colors.error,
+                        fontWeight = FontWeight.Bold)
+                    Text(label, style = typography.bodyMd, color = colors.onSurfaceVariant)
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun SettingRow(title: String, summary: String, checked: Boolean, enabled: Boolean = true,
