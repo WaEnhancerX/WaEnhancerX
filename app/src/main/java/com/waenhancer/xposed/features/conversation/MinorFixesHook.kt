@@ -6,6 +6,7 @@ import android.content.ContentProvider
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.content.pm.ProviderInfo
 import android.os.Bundle
 import com.waenhancer.xposed.core.BaseFeature
 import de.robv.android.xposed.XC_MethodHook
@@ -69,10 +70,20 @@ class MinorFixesHook(
                     activity.classLoader
                 )
                 val provider = providerClass.getDeclaredConstructor().newInstance() as ContentProvider
-                val providerInfo = activity.packageManager.getProviderInfo(
-                    ComponentName(activity.packageName, ML_KIT_INIT_PROVIDER),
-                    PackageManager.GET_META_DATA
-                )
+                val providerInfo = try {
+                    activity.packageManager.getProviderInfo(
+                        ComponentName(activity.packageName, ML_KIT_INIT_PROVIDER),
+                        PackageManager.GET_META_DATA
+                    )
+                } catch (lookupError: Throwable) {
+                    XposedBridge.log("$TAG Provider metadata unavailable; initializing with runtime metadata: ${lookupError.message}")
+                    ProviderInfo().apply {
+                        name = ML_KIT_INIT_PROVIDER
+                        packageName = activity.packageName
+                        authority = "${activity.packageName}.mlkitinitprovider"
+                        applicationInfo = activity.applicationInfo
+                    }
+                }
 
                 provider.attachInfo(activity.applicationContext, providerInfo)
                 isMlKitInitialized = true

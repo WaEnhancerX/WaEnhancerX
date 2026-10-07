@@ -1,6 +1,7 @@
 package com.waenhancer.ui.screens.calls
 
 import android.content.Context
+import android.content.Intent
 import android.media.MediaPlayer
 import android.os.Environment
 import android.widget.Toast
@@ -16,6 +17,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -60,6 +62,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import com.waenhancer.ui.components.StitchSwitch
 import com.waenhancer.ui.components.WaexTopBar
 import com.waenhancer.ui.designsystem.WaexIcons
@@ -116,6 +119,7 @@ fun CallsHubScreen() {
     var isLoadingRecordings by remember { mutableStateOf(false) }
     var currentlyPlayingPath by remember { mutableStateOf<String?>(null) }
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    var selectedRecordingPaths by remember { mutableStateOf(emptySet<String>()) }
 
     fun stopAudio() {
         try {
@@ -124,6 +128,50 @@ fun CallsHubScreen() {
         } catch (_: Throwable) {}
         mediaPlayer = null
         currentlyPlayingPath = null
+    }
+
+    fun clearRecordingSelection() {
+        selectedRecordingPaths = emptySet()
+    }
+
+    fun toggleRecordingSelection(item: RecordedCallItem) {
+        selectedRecordingPaths = if (item.file.absolutePath in selectedRecordingPaths) {
+            selectedRecordingPaths - item.file.absolutePath
+        } else {
+            selectedRecordingPaths + item.file.absolutePath
+        }
+    }
+
+    fun shareSelectedRecordings() {
+        val selected = recordingsList.filter { it.file.absolutePath in selectedRecordingPaths }
+        if (selected.isEmpty()) return
+        runCatching {
+            val uris = ArrayList(selected.map {
+                FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", it.file)
+            })
+            val intent = if (uris.size == 1) {
+                Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_STREAM, uris.first())
+            } else {
+                Intent(Intent.ACTION_SEND_MULTIPLE).putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+            }.apply {
+                type = "audio/*"
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                clipData = android.content.ClipData.newRawUri("Call recording", uris.first())
+            }
+            context.startActivity(Intent.createChooser(intent, "Share call recording"))
+            clearRecordingSelection()
+        }.onFailure {
+            Toast.makeText(context, "Couldn't share the selected recording", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun deleteSelectedRecordings() {
+        val selected = recordingsList.filter { it.file.absolutePath in selectedRecordingPaths }
+        if (currentlyPlayingPath in selectedRecordingPaths) stopAudio()
+        val removed = selected.filter { runCatching { it.file.delete() }.getOrDefault(false) }
+        recordingsList.removeAll(removed.toSet())
+        clearRecordingSelection()
+        Toast.makeText(context, "Deleted ${removed.size} recording${if (removed.size == 1) "" else "s"}", Toast.LENGTH_SHORT).show()
     }
 
     DisposableEffect(Unit) {
@@ -140,6 +188,7 @@ fun CallsHubScreen() {
             File(context.getExternalFilesDir(null), "CallRecordings"),
             File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_RECORDINGS), "WAEX_Calls"),
             File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "WAEX_Calls"),
+            File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "WaEnhancer/Recordings"),
             File(context.filesDir, "call_recordings")
         )
 
@@ -186,8 +235,22 @@ fun CallsHubScreen() {
     Scaffold(
         topBar = {
             WaexTopBar(
-                title = "Calls & Recording",
-                onBackClick = { navController.popBack() }
+                title = if (selectedRecordingPaths.isEmpty()) "Calls & Recording" else "${selectedRecordingPaths.size} selected",
+                onBackClick = if (selectedRecordingPaths.isEmpty()) {
+                    { navController.popBack() }
+                } else {
+                    { clearRecordingSelection() }
+                },
+                actions = if (selectedRecordingPaths.isEmpty()) null else {
+                    {
+                        IconButton(onClick = { shareSelectedRecordings() }) {
+                            Icon(WaexIcons.Share, contentDescription = "Share selected", tint = colors.onSurface)
+                        }
+                        IconButton(onClick = { deleteSelectedRecordings() }) {
+                            Icon(WaexIcons.Clear, contentDescription = "Delete selected", tint = colors.error)
+                        }
+                    }
+                }
             )
         },
         containerColor = colors.background
@@ -740,14 +803,22 @@ fun CallsHubScreen() {
                             }
                             items(recordingsList, key = { it.file.absolutePath }) { item ->
                                 val isPlaying = currentlyPlayingPath == item.file.absolutePath
+                                val isSelected = item.file.absolutePath in selectedRecordingPaths
                                 Surface(
                                     shape = radius.bentoCardShape,
-                                    color = if (isPlaying) colors.primary.copy(alpha = 0.08f) else colors.surfaceDim,
+                                    color = if (isSelected || isPlaying) colors.primary.copy(alpha = 0.08f) else colors.surfaceDim,
                                     border = androidx.compose.foundation.BorderStroke(
                                         1.dp,
-                                        if (isPlaying) colors.primary else colors.outlineVariant
+                                        if (isSelected || isPlaying) colors.primary else colors.outlineVariant
                                     ),
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .combinedClickable(
+                                            onClick = {
+                                                if (selectedRecordingPaths.isNotEmpty()) toggleRecordingSelection(item)
+                                            },
+                                            onLongClick = { toggleRecordingSelection(item) }
+                                        )
                                 ) {
                                     Row(
                                         modifier = Modifier
@@ -829,8 +900,14 @@ fun CallsHubScreen() {
                                             }
                                         }
 
-                                        // Delete Recording Button
-                                        IconButton(
+                                        if (isSelected) {
+                                            Icon(
+                                                imageVector = WaexIcons.Check,
+                                                contentDescription = "Selected",
+                                                tint = colors.primary,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        } else IconButton(
                                             onClick = {
                                                 if (currentlyPlayingPath == item.file.absolutePath) {
                                                     stopAudio()

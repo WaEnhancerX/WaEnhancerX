@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
     <cache-path name="cache" path="." />
+    <files-path name="private_call_recordings" path="call_recordings/" />
+    <external-files-path name="app_call_recordings" path="CallRecordings/" />
+    <external-path name="public_recordings" path="Recordings/WAEX_Calls/" />
+    <external-path name="public_music_recordings" path="Music/WAEX_Calls/" />
+    <external-path name="compatible_music_recordings" path="Music/WaEnhancer/Recordings/" />
 </paths>
