@@ -49,6 +49,7 @@ object WhatsAppPackageDetector {
                 } else {
                     packages.addAll(context.resources.getStringArray(R.array.xposed_scope))
                 }
+                packages.remove(MODULE_PACKAGE)
             } catch (_: Throwable) {}
         }
         return packages
@@ -185,6 +186,8 @@ object WhatsAppPackageDetector {
                 }
             }
         } catch (_: Throwable) {}
+
+        discoveredPackages.remove(MODULE_PACKAGE)
 
         val result = mutableListOf<HookedAppInfo>()
 

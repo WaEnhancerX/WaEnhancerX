@@ -66,7 +66,7 @@ fun ReleaseDetailsScreen(tagName: String) {
                     Text(item.tagName, style = typography.headlineMd, fontWeight = FontWeight.Bold, color = colors.onSurface)
                     Text(formatReleaseDate(item.publishedAt), style = typography.bodyMd, color = colors.onSurfaceVariant)
                     Spacer(Modifier.height(18.dp))
-                    MarkdownText(item.body, colors.onSurface.toArgb())
+                    ChangelogBodyView(item.body)
                     Spacer(Modifier.height(20.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         val isDowngrade = ReleaseRepository.versionCode(item.version) < ReleaseRepository.versionCode(installedVersion)

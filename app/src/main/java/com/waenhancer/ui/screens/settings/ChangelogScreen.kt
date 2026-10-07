@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -158,7 +159,7 @@ fun ChangelogScreen() {
                                 Text(formatReleaseDate(release.publishedAt), style = typography.bodyMd, color = colors.onSurfaceVariant, fontSize = 12.sp)
                             }
                             Spacer(Modifier.height(12.dp))
-                            MarkdownText(release.body, colors.onSurfaceVariant.toArgb(), maxLines = 8)
+                            ChangelogBodyView(release.body)
                             if (release.downloadUrl != null && (comparison > 0 || comparison < 0 && allowDowngrade)) {
                                 Spacer(Modifier.height(14.dp))
                                 Button(onClick = { pendingInstall = release }, modifier = Modifier.fillMaxWidth()) {
@@ -187,6 +188,113 @@ private fun Badge(label: String, color: Color) {
     Spacer(Modifier.width(8.dp))
     Box(Modifier.clip(CircleShape).background(color.copy(alpha = .15f)).padding(horizontal = 8.dp, vertical = 2.dp)) {
         Text(label, color = color, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+data class ParsedCategory(
+    val name: String,
+    val items: MutableList<String> = mutableListOf()
+)
+
+fun parseChangelogBody(body: String): List<ParsedCategory> {
+    val categories = mutableListOf<ParsedCategory>()
+    if (body.isBlank()) return categories
+    var currentCategory: ParsedCategory? = null
+    val lines = body.split("\n")
+    for (rawLine in lines) {
+        val line = rawLine.trim()
+        if (line.isEmpty()) continue
+
+        if (line.startsWith("[") && line.endsWith("]")) {
+            val catName = line.substring(1, line.length - 1).trim()
+            currentCategory = categories.firstOrNull { it.name.equals(catName, ignoreCase = true) }
+                ?: ParsedCategory(catName).also { categories.add(it) }
+            continue
+        }
+
+        var text = line
+        if (text.startsWith("-") || text.startsWith("*")) {
+            text = text.substring(1).trim()
+        }
+
+        var itemCategoryName = currentCategory?.name ?: "Added"
+        if (text.startsWith("[")) {
+            val closeBracket = text.indexOf(']')
+            if (closeBracket > 0) {
+                itemCategoryName = text.substring(1, closeBracket).trim()
+                text = text.substring(closeBracket + 1).trim()
+            }
+        }
+
+        if (text.startsWith("-") || text.startsWith("*")) {
+            text = text.substring(1).trim()
+        }
+
+        if (text.isNotEmpty()) {
+            val target = categories.firstOrNull { it.name.equals(itemCategoryName, ignoreCase = true) }
+                ?: ParsedCategory(itemCategoryName).also { categories.add(it) }
+            target.items.add(text)
+        }
+    }
+    return categories
+}
+
+@Composable
+fun ChangelogBodyView(body: String, maxItemsPerCategory: Int = Int.MAX_VALUE) {
+    val categories = remember(body) { parseChangelogBody(body) }
+    val colors = WaexTheme.colors
+    val typography = WaexTheme.typography
+
+    if (categories.isEmpty()) {
+        MarkdownText(body, colors.onSurfaceVariant.toArgb(), maxLines = 8)
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            categories.forEach { category ->
+                val badgeBg = when (category.name.lowercase(Locale.US)) {
+                    "added" -> Color(0xFF10B981)
+                    "improvements" -> Color(0xFF3B82F6)
+                    "fixes" -> Color(0xFFEF4444)
+                    else -> Color(0xFF64748B)
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(badgeBg)
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = category.name.uppercase(Locale.US),
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    category.items.take(maxItemsPerCategory).forEach { item ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "•",
+                                color = colors.primary,
+                                style = typography.bodyMd,
+                                fontWeight = FontWeight.Bold
+                            )
+                            MarkdownText(
+                                markdown = item,
+                                textColor = colors.onSurface.toArgb(),
+                                maxLines = 4
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
