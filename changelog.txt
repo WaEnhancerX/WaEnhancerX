@@ -1,4 +1,5 @@
 [Added]
+- Added support upto v2.26.40.xx WA/WB
 - Self-hook sentinel activation check support
 - Universal WhatsApp version detection and multi-package support
 - Support for latest WhatsApp & WhatsApp Business
