@@ -24,6 +24,7 @@ sealed class Screen(val route: String) {
     object TaskerGuide : Screen("tasker_guide")
     object TaskerHistory : Screen("tasker_history")
     object ManageDevices : Screen("manage_devices")
+    object FloatingBottomBarCustomizer : Screen("floating_bottom_bar_customizer")
 }
 
 

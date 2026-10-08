@@ -1,0 +1,63 @@
+name: "⚡ WhatsApp Compatibility / Hook Breakage"
+description: "Report hook failures, broken features, or crashes after a WhatsApp update"
+title: "[Compat]: "
+labels: ["compatibility", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template specifically for hook breakages, obfuscation changes, or signature updates caused by new WhatsApp app releases.
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I have verified this breakage is due to a specific WhatsApp update and reproducible.
+          required: true
+        - label: I have checked if there is already an open issue for this WhatsApp version.
+          required: true
+  - type: input
+    id: wa-target-version
+    attributes:
+      label: Target WhatsApp Version & Architecture
+      placeholder: "e.g. 2.24.15.10 (arm64-v8a)"
+    validations:
+      required: true
+  - type: input
+    id: last-working-version
+    attributes:
+      label: Last Known Working WhatsApp Version
+      placeholder: "e.g. 2.24.14.85"
+  - type: dropdown
+    id: affected-component
+    attributes:
+      label: Affected Component / Hook
+      description: Which area or hook broke?
+      options:
+        - Message & Media Features (Anti-Delete, Download, etc.)
+        - Privacy & Stealth (Freeze Last Seen, Hide Read Receipts, etc.)
+        - UI & Customization (Themes, Status bar, Navigation)
+        - Security & Fingerprint / App Lock
+        - Plugin Host / Sub-modules
+        - General Hook Initialization / Injection Failure
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: breakage-details
+    attributes:
+      label: Breakage Details
+      description: What specific hook or functionality failed? Include exact symptoms (e.g. silent failure, method not found, app crash).
+      placeholder: Describe the hook failure in detail...
+    validations:
+      required: true
+  - type: textarea
+    id: stacktrace
+    attributes:
+      label: Hook Logs & Stack Trace
+      description: Paste relevant Xposed/LSPosed logs or crash traces.
+      placeholder: |
+        ```
+        NoSuchMethodError / Hook failed logs
+        ```
+      render: shell

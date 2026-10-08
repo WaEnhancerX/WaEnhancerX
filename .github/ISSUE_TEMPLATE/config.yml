@@ -1,0 +1,9 @@
+blank_issues_enabled: false
+contact_links:
+  - name: "💬 Telegram Community"
+    url: "https://t.me/waenhancerx"
+    about: "Join the official Telegram community to ask questions, chat, and discuss ideas."
+  - name: "🔒 Security Vulnerability Reporting"
+    url: "https://github.com/WaEnhancerX/WaEnhancerX/security/policy"
+    about: "Report security vulnerabilities privately and securely."
+

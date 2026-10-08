@@ -331,11 +331,31 @@ fun StylesSettingsScreen() {
                                             fontSize = 12.sp
                                         )
                                     }
-                                    StitchSwitch(
-                                        checked = if (isLocked) false else (settingsState[item.key] ?: false),
-                                        onCheckedChange = if (isLocked) null else { isChecked -> updatePreference(item.key, isChecked) },
-                                        enabled = !isLocked
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        if (item.key == "floating_bottom_bar") {
+                                            IconButton(
+                                                onClick = {
+                                                    navController.navigateTo(com.waenhancer.ui.navigation.Screen.FloatingBottomBarCustomizer)
+                                                },
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = WaexIcons.Settings,
+                                                    contentDescription = "Customize Floating Bottom Bar",
+                                                    tint = colors.primary,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+                                        StitchSwitch(
+                                            checked = if (isLocked) false else (settingsState[item.key] ?: false),
+                                            onCheckedChange = if (isLocked) null else { isChecked -> updatePreference(item.key, isChecked) },
+                                            enabled = !isLocked
+                                        )
+                                    }
                                 }
                                 if (item.isPro) {
                                     WaexProChip(

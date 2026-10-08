@@ -31,8 +31,8 @@ All contributors are expected to adhere to our [Code of Conduct](CODE_OF_CONDUCT
 1. **Fork the repository** on GitHub.
 2. **Clone your fork** locally:
    ```bash
-   git clone https://github.com/<your-username>/WAEX.git
-   cd WAEX
+   git clone https://github.com/WaEnhancerX/WaEnhancerX.git
+   cd WaEnhancerX
    ```
 3. **Create a new topic branch**:
    ```bash

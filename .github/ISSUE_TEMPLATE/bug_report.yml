@@ -1,0 +1,107 @@
+name: "🐛 Bug Report"
+description: "Report a bug or unexpected behavior in WAEX"
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report an issue! Please ensure you have checked existing open and closed issues before submitting.
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I have searched existing issues and verified this issue has not been reported yet.
+          required: true
+        - label: I am using the latest release / build of WAEX.
+          required: true
+        - label: I understand that questions or general support requests should go to Discussions or our community channels.
+          required: true
+  - type: input
+    id: app-version
+    attributes:
+      label: WAEX Version
+      placeholder: "e.g. 1.2.0 (Build 42) or commit hash"
+    validations:
+      required: true
+  - type: input
+    id: wa-version
+    attributes:
+      label: WhatsApp Version & Package
+      placeholder: "e.g. WhatsApp 2.24.12.78 (com.whatsapp) or WhatsApp Business"
+    validations:
+      required: true
+  - type: input
+    id: device-info
+    attributes:
+      label: Device & Android Version
+      placeholder: "e.g. Google Pixel 8 / Android 14 (LineageOS 21)"
+    validations:
+      required: true
+  - type: dropdown
+    id: hook-framework
+    attributes:
+      label: Root / Hook Framework
+      description: Select the root and hook implementation in use.
+      options:
+        - LSPosed (Zygisk / Magisk)
+        - LSPosed (KernelSU)
+        - LSPosed (APatch)
+        - KernelSU Module
+        - APatch Module
+        - Non-Root / Patched APK
+        - Other / Not Applicable
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Describe the problem clearly...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Step-by-step instructions to reproduce the issue.
+      placeholder: |
+        1. Open WAEX settings
+        2. Enable feature 'X'
+        3. Open WhatsApp and navigate to 'Y'
+        4. Observe crash / unintended behavior
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: Explain what should have happened...
+    validations:
+      required: true
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: Explain what actually happened...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Logcat Output
+      description: Paste relevant logcat outputs, crash stack traces, or LSPosed logs here.
+      placeholder: |
+        ```
+        Paste log lines here
+        ```
+      render: shell
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots / Screen Recordings
+      description: Drag and drop any relevant screenshots or screen recordings to help explain the issue.

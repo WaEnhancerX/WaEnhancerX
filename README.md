@@ -54,8 +54,17 @@ Before installing WaEnhancerX, make sure your device has:
 5. Reboot your device.
 6. Open WhatsApp and find the WaEnhancerX options in the main settings menu.
 
+## Community & Policies
+
+- [Telegram Community](https://t.me/waenhancerx)
+- [Contributing Guidelines](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security Policy](SECURITY.md)
+- [Accessibility Statement](ACCESSIBILITY.md)
+
 ## License
 
 WaEnhancerX is licensed under the [Apache License 2.0](LICENSE). You may use, modify, and distribute it in open-source or proprietary projects as long as you include the original copyright notice and a copy of the license.
 
 Copyright 2026 Mubashar Dev and the WaEnhancerX Organization.
+

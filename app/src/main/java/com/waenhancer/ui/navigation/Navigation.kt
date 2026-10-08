@@ -990,6 +990,7 @@ fun WaexAppNavigation(
         Screen.TaskerGuide -> com.waenhancer.ui.screens.automation.TaskerGuideScreen()
         Screen.TaskerHistory -> com.waenhancer.ui.screens.automation.TaskerHistoryScreen()
         Screen.ManageDevices -> ManageDevicesScreen()
+        Screen.FloatingBottomBarCustomizer -> com.waenhancer.ui.screens.settings.FloatingBottomBarCustomizerScreen()
     }
 }
 

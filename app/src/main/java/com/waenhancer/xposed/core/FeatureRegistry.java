@@ -100,6 +100,7 @@ public final class FeatureRegistry {
         features.add(new com.waenhancer.xposed.features.conversation.ChatBubbleColorsHook(context, classLoader, prefs));
         features.add(new com.waenhancer.xposed.features.customization.ChannelRecommendationsFilterHook(context, classLoader, prefs));
         features.add(new com.waenhancer.xposed.features.customization.OnlinePresenceIndicatorsHook(context, classLoader, prefs));
+        features.add(new com.waenhancer.xposed.features.customization.FloatingBottomBarHook(context, classLoader, prefs));
     }
 
     public void initializeAll() {
