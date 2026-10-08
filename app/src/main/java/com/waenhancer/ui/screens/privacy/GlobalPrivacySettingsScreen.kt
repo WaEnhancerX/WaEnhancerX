@@ -857,6 +857,69 @@ fun GlobalPrivacySettingsScreen(
                                 }
                             }
 
+                            // Show Custom Reaction Emoji selection when Double Click to React is enabled
+                            if (item.key == "doubletap2like" && (settingsState["doubletap2like"] == true)) {
+                                var showEmojiPicker by remember { mutableStateOf(false) }
+                                var currentEmoji by remember {
+                                    mutableStateOf(preferenceManager.getString("doubletap2like_emoji", "👍").ifBlank { "👍" })
+                                }
+
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = colors.surfaceDim.copy(alpha = 0.6f),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 12.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { showEmojiPicker = true }
+                                            .padding(12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "CUSTOM REACTION EMOJI",
+                                                style = typography.labelSm,
+                                                fontWeight = FontWeight.Bold,
+                                                color = colors.primary
+                                            )
+                                            Text(
+                                                text = "Tap to change default reaction emoji ($currentEmoji)",
+                                                style = typography.bodyMd,
+                                                color = colors.onSurfaceVariant,
+                                                fontSize = 11.sp
+                                            )
+                                        }
+
+                                        Surface(
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = colors.surface,
+                                            modifier = Modifier.padding(start = 8.dp)
+                                        ) {
+                                            Text(
+                                                text = currentEmoji,
+                                                style = typography.titleMd,
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (showEmojiPicker) {
+                                    com.waenhancer.ui.components.WaexEmojiPickerDialog(
+                                        initialEmoji = currentEmoji,
+                                        onEmojiSelected = { emoji ->
+                                            currentEmoji = emoji
+                                            preferenceManager.putString("doubletap2like_emoji", emoji)
+                                        },
+                                        onDismiss = { showEmojiPicker = false }
+                                    )
+                                }
+                            }
+
                             if (index < group.items.lastIndex) {
                                 HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
                             }

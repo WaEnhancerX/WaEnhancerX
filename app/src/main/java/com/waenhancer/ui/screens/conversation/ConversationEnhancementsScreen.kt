@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.unit.dp
 import com.waenhancer.ui.components.WaexCard
 import com.waenhancer.ui.components.WaexSectionHeader
 import com.waenhancer.ui.components.WaexSwitchPreference
@@ -41,6 +42,7 @@ fun ConversationEnhancementsScreen() {
     val isPro = LocalIsPro.current
     val onActivatePro = LocalOnActivatePro.current
     val colors = WaexTheme.colors
+    val typography = WaexTheme.typography
     val spacing = WaexTheme.spacing
 
     val scrollState = rememberScrollState()
@@ -214,14 +216,54 @@ fun ConversationEnhancementsScreen() {
                         icon = WaexIcons.Folder,
                         showDivider = true
                     )
+                    val doubleTapEnabled = stateMap["doubletap2like"] ?: false
                     WaexSwitchPreference(
                         title = "Enable Double Click to React",
                         description = "Activates the possibility of double-clicking on the message to react it",
-                        checked = stateMap["doubletap2like"] ?: false,
+                        checked = doubleTapEnabled,
                         onCheckedChange = { onToggle("doubletap2like", it) },
                         icon = WaexIcons.AutoAwesome,
-                        showDivider = false
+                        showDivider = doubleTapEnabled
                     )
+
+                    if (doubleTapEnabled) {
+                        var showEmojiPicker by remember { mutableStateOf(false) }
+                        var currentEmoji by remember {
+                            mutableStateOf(preferenceManager.getString("doubletap2like_emoji", "👍").ifBlank { "👍" })
+                        }
+
+                        com.waenhancer.ui.components.WaexPreferenceItem(
+                            title = "Custom Reaction",
+                            description = "Change the default emoji sent when double-clicking ($currentEmoji)",
+                            icon = WaexIcons.Palette,
+                            onClick = { showEmojiPicker = true },
+                            showDivider = false,
+                            trailing = {
+                                androidx.compose.material3.Surface(
+                                    shape = androidx.compose.foundation.shape.CircleShape,
+                                    color = colors.surfaceContainerHighest,
+                                    modifier = Modifier.padding(end = 4.dp)
+                                ) {
+                                    androidx.compose.material3.Text(
+                                        text = currentEmoji,
+                                        style = typography.titleMd,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+                        )
+
+                        if (showEmojiPicker) {
+                            com.waenhancer.ui.components.WaexEmojiPickerDialog(
+                                initialEmoji = currentEmoji,
+                                onEmojiSelected = { emoji ->
+                                    currentEmoji = emoji
+                                    preferenceManager.putString("doubletap2like_emoji", emoji)
+                                },
+                                onDismiss = { showEmojiPicker = false }
+                            )
+                        }
+                    }
                 }
             }
 

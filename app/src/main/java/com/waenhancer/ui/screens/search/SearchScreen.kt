@@ -90,6 +90,7 @@ fun SearchScreen() {
             SearchablePreference("removeseemore", "Remove \"See More\" Button", "Disable \"See More\" button and show all long message", "Message Controls", 1, "conversation", "Conversation"),
             SearchablePreference("stamp_copied_message", "Remove Stamp from Copied Messages", "Removes name and date when copying more than one message", "Message Controls", 1, "conversation", "Conversation"),
             SearchablePreference("doubletap2like", "Enable Double Click to React", "Activates the possibility of double-clicking on the message to react it", "Message Controls", 1, "conversation", "Conversation"),
+            SearchablePreference("doubletap2like_emoji", "Custom Reaction Emoji", "Change the default emoji sent when double-clicking on a message", "Message Controls", 1, "conversation", "Conversation"),
             SearchablePreference("jump_to_first_message", "Jump to First Message", "Add a button to skip the first message in the conversations screen", "Message Controls", 1, "conversation", "Conversation"),
             SearchablePreference("copy_status_text", "Enable Copy Status", "Activates the possibility of copying the description and caption of statuses by holding on them", "Message Controls", 1, "conversation", "Conversation"),
             SearchablePreference("inline_translation", "Enable Google Translate", "Replaces Whatsapp's native translator with Google Translate", "Message Controls", 1, "conversation", "Conversation"),

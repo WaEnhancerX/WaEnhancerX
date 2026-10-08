@@ -1,13 +1,6 @@
-[Added]
-- Added support upto v2.26.40.xx WA/WB
-- Self-hook sentinel activation check support
-- Universal WhatsApp version detection and multi-package support
-- Support for latest WhatsApp & WhatsApp Business
-
-[Fixes]
-- Fixed module activation detection on physical devices
-- Kept Xposed entrypoints and ModuleStatus from ProGuard stripping
+[Updated]
+- Updated Minimum Xposed API to 102
 
 [Improvements]
-- Unified release and debug signing with project keystore
-- Modern Jetpack Compose UI enhancements and performance optimizations
+- Improved double tab to react
+- Improved Bootloader spoofer for new protections and enabled by default for new users

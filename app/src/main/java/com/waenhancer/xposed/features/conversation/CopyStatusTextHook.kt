@@ -40,7 +40,12 @@ class CopyStatusTextHook(
                         val view = param.thisObject as? TextView ?: return
                         val resName = getResourceEntryName(view) ?: return
 
-                        if (resName == "caption" || resName == "message_text" || resName == "status_text") {
+                        val act = com.waenhancer.xposed.utils.ActivityTracker.getCurrentActivity()
+                        val actName = act?.javaClass?.simpleName ?: ""
+                        // Only target Status activities (StatusPlaybackActivity), never Conversation
+                        if (actName.contains("Conversation")) return
+
+                        if (resName == "caption" || resName == "status_text") {
                             if (view.getTag(TAG_HOOKED.hashCode()) != null) return
                             view.setTag(TAG_HOOKED.hashCode(), true)
 
