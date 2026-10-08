@@ -4,10 +4,16 @@
 
 ![Platform](https://img.shields.io/badge/Platform-Android-green.svg)
 ![Framework](https://img.shields.io/badge/Framework-LSPosed%20%7C%20Zygisk-orange.svg)
+[![WaEnhancerX Downloads](https://img.shields.io/github/downloads/WaEnhancerX/WaEnhancerX/total.svg?label=WaEnhancerX%20Downloads)](https://github.com/WaEnhancerX/WaEnhancerX/releases)
+[![LSPosed Repo Downloads](https://img.shields.io/github/downloads/xposed-Modules-Repo/com.waenhancer/total.svg?label=LSPosed%20Repo%20Downloads)](https://github.com/xposed-Modules-Repo/com.waenhancer/releases)
 ![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
 ![Status](https://img.shields.io/badge/Status-Active%20Development-success.svg)
 
 WaEnhancerX is an Android module that adds interface customization, automation, and privacy options to the official WhatsApp app. It runs through LSPosed and integrates its settings into the app, so you do not need to install a modified or third-party WhatsApp APK.
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/chart?repos=waenhancerx/waenhancerx&type=date&legend=top-left)](https://www.star-history.com/?repos=waenhancerx%2Fwaenhancerx&type=date&legend=top-left)
 
 ## Important notice
 

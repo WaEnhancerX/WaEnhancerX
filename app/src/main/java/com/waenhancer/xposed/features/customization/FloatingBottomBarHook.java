@@ -2,14 +2,29 @@ package com.waenhancer.xposed.features.customization;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
+import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
+import android.animation.StateListAnimator;
 import android.app.Activity;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.graphics.Color;
+import android.graphics.Canvas;
+import android.graphics.ColorFilter;
+import android.graphics.LinearGradient;
 import android.graphics.Outline;
+import android.graphics.Paint;
+import android.graphics.PixelFormat;
+import android.graphics.Rect;
+import android.graphics.RectF;
+import android.graphics.RenderEffect;
+import android.graphics.Shader;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.StateListDrawable;
 import android.os.Build;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -18,12 +33,14 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
 import android.view.ViewParent;
+import android.view.ViewTreeObserver;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
@@ -73,6 +90,7 @@ public class FloatingBottomBarHook extends BaseFeature {
     private static final WeakHashMap<View, View> scrollableBottomBarCache = new WeakHashMap<>();
     private static final WeakHashMap<View, Boolean> mainScrollableCache = new WeakHashMap<>();
     private static final WeakHashMap<Activity, Float> scrollGestureY = new WeakHashMap<>();
+    private static final WeakHashMap<ViewGroup, ViewTreeObserver.OnPreDrawListener> indicatorGuards = new WeakHashMap<>();
 
     private static int bottomNavId = -1;
     private static int navigationBarId = -1;
@@ -987,7 +1005,11 @@ public class FloatingBottomBarHook extends BaseFeature {
         float density = bar.getContext().getResources().getDisplayMetrics().density;
         Context ctx = bar.getContext();
         int userRadius = prefs.getInt("floating_bottom_bar_radius", userRadiusDp);
-        final float radius = userRadius * density;
+        // Frosted glass is a true capsule. A fixed dp radius looked only partially rounded
+        // when vertical padding increased the navigation height.
+        final float radius = pillDesignIos
+                ? Math.max(bar.getHeight(), (56 + (userVerticalPaddingDp * 2)) * density) / 2f
+                : userRadius * density;
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             bar.setBackgroundTintList(null);
@@ -1000,6 +1022,25 @@ public class FloatingBottomBarHook extends BaseFeature {
             mlp.leftMargin = sideMargin;
             mlp.rightMargin = sideMargin;
             bar.setLayoutParams(mlp);
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            if (pillDesignIos) {
+                final int capsuleInset = sideMargin;
+                container.setOutlineProvider(new ViewOutlineProvider() {
+                    @Override
+                    public void getOutline(View view, Outline outline) {
+                        int right = Math.max(capsuleInset + 1, view.getWidth() - capsuleInset);
+                        outline.setRoundRect(capsuleInset, 0, right, view.getHeight(), radius);
+                    }
+                });
+                // Backdrop effects are composed before the child View's outline clip. Clipping the
+                // outer container masks the rectangular blur surface to the exact pill bounds.
+                container.setClipToOutline(true);
+            } else {
+                container.setClipToOutline(false);
+                container.setOutlineProvider(ViewOutlineProvider.BACKGROUND);
+            }
         }
 
         boolean isNight = isNightMode(ctx);
@@ -1046,10 +1087,138 @@ public class FloatingBottomBarHook extends BaseFeature {
                     outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), radius);
                 }
             });
-            bar.setClipToOutline(false);
+            bar.setClipToOutline(pillDesignIos);
         }
 
+        // Install backdrop blur only after the final rounded outline exists; the RenderNode uses
+        // that outline as its blur mask at effect creation time.
+        applyBackdropBlur(bar, useGlass, density);
+
         makeChildrenTransparent(bar);
+        applyPresetTabIndicators(bar, density);
+    }
+
+    /**
+     * Refined and iOS Glass replace WhatsApp's stock active indicator with the liquid selection
+     * capsules used by the original WaEnhancer implementation. StateListDrawable keeps the
+     * effect synchronized when WhatsApp changes tabs without installing click listeners.
+     */
+    private static void applyPresetTabIndicators(ViewGroup bar, float density) {
+        if (!pillDesignPro && !pillDesignIos) return;
+        for (int i = 0; i < bar.getChildCount(); i++) {
+            View child = bar.getChildAt(i);
+            if (!(child instanceof ViewGroup)) continue;
+            ViewGroup menu = (ViewGroup) child;
+            for (int j = 0; j < menu.getChildCount(); j++) {
+                View tab = menu.getChildAt(j);
+                if (!(tab instanceof ViewGroup)) continue;
+                hideNativeActiveIndicator(tab);
+
+                StateListDrawable selector = new StateListDrawable();
+                selector.addState(new int[]{android.R.attr.state_checked},
+                        createPresetIndicator(tab, density));
+                selector.addState(new int[]{android.R.attr.state_selected},
+                        createPresetIndicator(tab, density));
+                selector.addState(new int[]{android.R.attr.state_activated},
+                        createPresetIndicator(tab, density));
+                selector.addState(new int[0], new ColorDrawable(Color.TRANSPARENT));
+                selector.setEnterFadeDuration(180);
+                selector.setExitFadeDuration(140);
+                tab.setBackground(selector);
+                tab.setClipToOutline(false);
+                tab.setStateListAnimator(createSelectionAnimator(tab));
+            }
+        }
+        installNativeIndicatorGuard(bar);
+    }
+
+    private static StateListAnimator createSelectionAnimator(View tab) {
+        StateListAnimator animator = new StateListAnimator();
+        animator.addState(new int[]{android.R.attr.state_checked}, scaleAnimator(tab, 1f, 220L));
+        animator.addState(new int[]{android.R.attr.state_selected}, scaleAnimator(tab, 1f, 220L));
+        animator.addState(new int[]{android.R.attr.state_activated}, scaleAnimator(tab, 1f, 220L));
+        animator.addState(new int[0], scaleAnimator(tab, 0.92f, 170L));
+        return animator;
+    }
+
+    private static Animator scaleAnimator(View tab, float scale, long duration) {
+        AnimatorSet set = new AnimatorSet();
+        set.playTogether(
+                ObjectAnimator.ofFloat(tab, View.SCALE_X, scale),
+                ObjectAnimator.ofFloat(tab, View.SCALE_Y, scale)
+        );
+        set.setDuration(duration);
+        return set;
+    }
+
+    private static void installNativeIndicatorGuard(ViewGroup bar) {
+        if (indicatorGuards.containsKey(bar)) return;
+        ViewTreeObserver.OnPreDrawListener guard = () -> {
+            hideNativeActiveIndicator(bar);
+            return true;
+        };
+        indicatorGuards.put(bar, guard);
+        bar.getViewTreeObserver().addOnPreDrawListener(guard);
+        bar.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override public void onViewAttachedToWindow(View view) {}
+
+            @Override public void onViewDetachedFromWindow(View view) {
+                ViewTreeObserver observer = view.getViewTreeObserver();
+                if (observer.isAlive()) observer.removeOnPreDrawListener(guard);
+                indicatorGuards.remove(bar);
+                view.removeOnAttachStateChangeListener(this);
+            }
+        });
+    }
+
+    private static Drawable createPresetIndicator(View tab, float density) {
+        return pillDesignIos
+                ? new IosLiquidGlassDrawable(tab.getContext(), density)
+                : new LiquidOvalDrawable(tab.getContext(), density);
+    }
+
+    private static void hideNativeActiveIndicator(View view) {
+        if (view.getId() != View.NO_ID) {
+            try {
+                String name = view.getResources().getResourceEntryName(view.getId());
+                if (name != null && name.contains("active_indicator")) {
+                    view.setBackground(null);
+                    view.setBackgroundColor(Color.TRANSPARENT);
+                    view.setAlpha(0f);
+                    view.setVisibility(View.INVISIBLE);
+                    return;
+                }
+            } catch (Throwable ignored) {}
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                hideNativeActiveIndicator(group.getChildAt(i));
+            }
+        }
+    }
+
+    /**
+     * Applies a real backdrop blur to the RenderNode, leaving icons and labels sharp. A normal
+     * View RenderEffect would blur the navigation content itself, which is not a frosted-glass
+     * effect. setBackdropRenderEffect is hidden on some Android releases, so Xposed reflection is
+     * used with the translucent background retained as a graceful fallback.
+     */
+    private static void applyBackdropBlur(View view, boolean enabled, float density) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return;
+        try {
+            Object renderNode = XposedHelpers.getObjectField(view, "mRenderNode");
+            if (renderNode == null) return;
+            RenderEffect effect = enabled
+                    ? RenderEffect.createBlurEffect(18f * density, 18f * density, Shader.TileMode.CLAMP)
+                    : null;
+            XposedHelpers.callMethod(renderNode, "setBackdropRenderEffect", effect);
+            XposedHelpers.callMethod(renderNode, "setClipToOutline", enabled);
+            view.invalidate();
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " Backdrop blur unavailable; using translucent fallback: "
+                    + t.getClass().getSimpleName());
+        }
     }
 
     private static void makeChildrenTransparent(View view) {
@@ -1084,6 +1253,115 @@ public class FloatingBottomBarHook extends BaseFeature {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             view.setTranslationZ(PILL_TRANSLATION_Z_DP * density);
         }
+    }
+
+    private static final class LiquidOvalDrawable extends Drawable {
+        private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint border = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint highlight = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint shadow = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final boolean night;
+        private final float density;
+
+        LiquidOvalDrawable(Context context, float density) {
+            this.night = isNightMode(context);
+            this.density = density;
+            border.setStyle(Paint.Style.STROKE);
+            border.setStrokeWidth(density);
+            border.setColor(night ? 0x45FFFFFF : 0x25000000);
+            highlight.setStyle(Paint.Style.STROKE);
+            highlight.setStrokeWidth(0.9f * density);
+            shadow.setColor(night ? 0x66000000 : 0x2C000000);
+        }
+
+        @Override public void draw(@NonNull Canvas canvas) {
+            Rect b = getBounds();
+            if (b.isEmpty()) return;
+            float cx = b.exactCenterX();
+            float cy = b.exactCenterY();
+            float width = b.width() * 0.78f;
+            float height = Math.max(1f, b.height() - 4f * density);
+            RectF oval = new RectF(cx - width / 2f, cy - height / 2f,
+                    cx + width / 2f, cy + height / 2f);
+            float radius = height / 2f;
+            RectF shadowBounds = new RectF(oval);
+            shadowBounds.offset(0f, 1.5f * density);
+            canvas.drawRoundRect(shadowBounds, radius, radius, shadow);
+            fill.setShader(new LinearGradient(cx, oval.top, cx, oval.bottom,
+                    new int[]{night ? 0x38FFFFFF : 0x82FFFFFF,
+                            night ? 0x14FFFFFF : 0x42FFFFFF,
+                            night ? 0x28FFFFFF : 0x62FFFFFF},
+                    new float[]{0f, 0.52f, 1f}, Shader.TileMode.CLAMP));
+            canvas.drawRoundRect(oval, radius, radius, fill);
+            highlight.setShader(new LinearGradient(oval.left, oval.top, oval.right, oval.top,
+                    new int[]{0x00FFFFFF, 0xCCFFFFFF, 0x00FFFFFF}, null,
+                    Shader.TileMode.CLAMP));
+            canvas.drawArc(oval, 205f, 130f, false, highlight);
+            canvas.drawRoundRect(oval, radius, radius, border);
+        }
+
+        @Override public void setAlpha(int alpha) {
+            fill.setAlpha(alpha); border.setAlpha(alpha); highlight.setAlpha(alpha); shadow.setAlpha(alpha);
+        }
+        @Override public void setColorFilter(@Nullable ColorFilter filter) {
+            fill.setColorFilter(filter); border.setColorFilter(filter); highlight.setColorFilter(filter);
+        }
+        @Override public int getOpacity() { return PixelFormat.TRANSLUCENT; }
+    }
+
+    private static final class IosLiquidGlassDrawable extends Drawable {
+        private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint border = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint specular = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint shadow = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final boolean night;
+        private final float density;
+
+        IosLiquidGlassDrawable(Context context, float density) {
+            this.night = isNightMode(context);
+            this.density = density;
+            border.setStyle(Paint.Style.STROKE);
+            border.setStrokeWidth(density);
+            border.setColor(night ? 0x55FFFFFF : 0x28000000);
+            specular.setStyle(Paint.Style.STROKE);
+            specular.setStrokeWidth(1.2f * density);
+            specular.setStrokeCap(Paint.Cap.ROUND);
+            shadow.setColor(night ? 0x33000000 : 0x14000000);
+        }
+
+        @Override public void draw(@NonNull Canvas canvas) {
+            Rect b = getBounds();
+            if (b.isEmpty()) return;
+            float cx = b.exactCenterX();
+            float cy = b.exactCenterY();
+            float width = b.width() * 0.82f;
+            float height = Math.max(1f, b.height() - 8f * density);
+            RectF glass = new RectF(cx - width / 2f, cy - height / 2f,
+                    cx + width / 2f, cy + height / 2f);
+            float radius = height / 2f;
+            RectF shadowBounds = new RectF(glass);
+            shadowBounds.offset(0f, 1.5f * density);
+            canvas.drawRoundRect(shadowBounds, radius, radius, shadow);
+            fill.setShader(new LinearGradient(cx, glass.top, cx, glass.bottom,
+                    night ? 0x32FFFFFF : 0x80FFFFFF,
+                    night ? 0x08FFFFFF : 0x2AFFFFFF, Shader.TileMode.CLAMP));
+            canvas.drawRoundRect(glass, radius, radius, fill);
+            RectF shine = new RectF(glass);
+            shine.inset(1.8f * density, 1.8f * density);
+            specular.setShader(new LinearGradient(shine.left, shine.top, shine.right, shine.top,
+                    new int[]{0x00FFFFFF, 0x75FFFFFF, 0x00FFFFFF}, null,
+                    Shader.TileMode.CLAMP));
+            canvas.drawArc(shine, 205f, 130f, false, specular);
+            canvas.drawRoundRect(glass, radius, radius, border);
+        }
+
+        @Override public void setAlpha(int alpha) {
+            fill.setAlpha(alpha); border.setAlpha(alpha); specular.setAlpha(alpha); shadow.setAlpha(alpha);
+        }
+        @Override public void setColorFilter(@Nullable ColorFilter filter) {
+            fill.setColorFilter(filter); border.setColorFilter(filter); specular.setColorFilter(filter);
+        }
+        @Override public int getOpacity() { return PixelFormat.TRANSLUCENT; }
     }
 
     private void positionFabAboveCurrentBar(View fab) {

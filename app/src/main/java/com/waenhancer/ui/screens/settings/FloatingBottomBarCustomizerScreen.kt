@@ -160,8 +160,15 @@ fun FloatingBottomBarCustomizerScreen() {
                     }
 
                     // Floating Pill Mock
-                    val previewPillShape = RoundedCornerShape((cornerRadius * 0.8f).dp)
-                    val previewBgColor = if (glassEnabled) {
+                    val isIosGlass = pillDesign == "ios_glass"
+                    val isRefined = pillDesign == "pro"
+                    val previewPillShape = if (isIosGlass) {
+                        RoundedCornerShape(50)
+                    } else {
+                        RoundedCornerShape((cornerRadius * 0.8f).dp)
+                    }
+                    val previewUsesGlass = glassEnabled || isIosGlass
+                    val previewBgColor = if (previewUsesGlass) {
                         val alphaVal = (glassOpacity / 100f).coerceIn(0.15f, 0.9f)
                         Color(0xFF1F2C34).copy(alpha = alphaVal)
                     } else {
@@ -171,8 +178,8 @@ fun FloatingBottomBarCustomizerScreen() {
                     Surface(
                         shape = previewPillShape,
                         color = previewBgColor,
-                        border = BorderStroke(1.dp, if (glassEnabled) Color.White.copy(alpha = 0.2f) else Color(0x18FFFFFF)),
-                        shadowElevation = 8.dp,
+                        border = BorderStroke(1.dp, if (previewUsesGlass) Color.White.copy(alpha = 0.32f) else Color(0x18FFFFFF)),
+                        shadowElevation = if (isRefined) 12.dp else 8.dp,
                         modifier = Modifier
                             .fillMaxWidth()
                             .align(Alignment.BottomCenter)
@@ -191,16 +198,31 @@ fun FloatingBottomBarCustomizerScreen() {
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy((iconLabelSpacing * 0.6f).dp)
                             ) {
+                                val activeShape = RoundedCornerShape(50)
+                                val activeFill = when {
+                                    isIosGlass -> Color.White.copy(alpha = 0.16f)
+                                    isRefined -> Color.White.copy(alpha = 0.12f)
+                                    else -> Color(0xFF00A884).copy(alpha = 0.2f)
+                                }
+                                val activeTint = if (isIosGlass || isRefined) Color.White else Color(0xFF00A884)
                                 Box(
                                     modifier = Modifier
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF00A884).copy(alpha = 0.2f))
-                                        .padding(horizontal = 10.dp, vertical = 2.dp)
+                                        .clip(activeShape)
+                                        .background(activeFill)
+                                        .then(
+                                            if (isIosGlass || isRefined) {
+                                                Modifier.border(1.dp, Color.White.copy(alpha = 0.32f), activeShape)
+                                            } else Modifier
+                                        )
+                                        .padding(
+                                            horizontal = if (isIosGlass || isRefined) 13.dp else 10.dp,
+                                            vertical = if (isIosGlass || isRefined) 5.dp else 2.dp
+                                        )
                                 ) {
                                     Icon(
                                         imageVector = WaexIcons.GridView,
                                         contentDescription = null,
-                                        tint = Color(0xFF00A884),
+                                        tint = activeTint,
                                         modifier = Modifier.size((iconSize * 0.8f).coerceIn(16f, 24f).dp)
                                     )
                                 }
@@ -208,7 +230,7 @@ fun FloatingBottomBarCustomizerScreen() {
                                     text = "Chats",
                                     fontSize = (textSize * 0.85f).coerceIn(9f, 13f).sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF00A884)
+                                    color = activeTint
                                 )
                             }
 
