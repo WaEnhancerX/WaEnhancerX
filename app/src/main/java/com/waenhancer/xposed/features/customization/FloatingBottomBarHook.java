@@ -13,6 +13,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewOutlineProvider;
@@ -26,7 +27,6 @@ import androidx.annotation.NonNull;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.waenhancer.licensing.LicenseManager;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 
@@ -72,6 +72,7 @@ public class FloatingBottomBarHook extends BaseFeature {
     private static final WeakHashMap<View, Float> targetTranslations = new WeakHashMap<>();
     private static final WeakHashMap<View, View> scrollableBottomBarCache = new WeakHashMap<>();
     private static final WeakHashMap<View, Boolean> mainScrollableCache = new WeakHashMap<>();
+    private static final WeakHashMap<Activity, Float> scrollGestureY = new WeakHashMap<>();
 
     private static int bottomNavId = -1;
     private static int navigationBarId = -1;
@@ -115,7 +116,7 @@ public class FloatingBottomBarHook extends BaseFeature {
         glassFillColor = getPrefColor(prefs, "floating_bottom_bar_fill_color", 0);
 
         String designPref = prefs.getString("floating_bottom_bar_pill_design", "regular");
-        boolean isProActive = "ACTIVE".equalsIgnoreCase(LicenseManager.getProStatus(context));
+        boolean isProActive = prefs.getBoolean("waex_pro_active", false);
         pillDesignPro = "pro".equals(designPref) && isProActive;
         pillDesignIos = "ios_glass".equals(designPref) && isProActive;
 
@@ -203,7 +204,58 @@ public class FloatingBottomBarHook extends BaseFeature {
         }
 
         if (scrollHideEnabled) {
-            hookRecyclerViewScrollListeners();
+            hookTouchScrollGestures(homeClass);
+        }
+    }
+
+    /**
+     * WhatsApp sometimes ships an obfuscated RecyclerView implementation whose scroll dispatcher
+     * cannot be resolved by name. Observing touch movement is a non-consuming fallback that keeps
+     * hide/show behavior working for every current home tab without replacing its listeners.
+     */
+    private void hookTouchScrollGestures(Class<?> homeClass) {
+        if (homeClass == null) return;
+        try {
+            XposedHelpers.findAndHookMethod(homeClass, "dispatchTouchEvent", MotionEvent.class,
+                    new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) {
+                            if (!(param.thisObject instanceof Activity)) return;
+                            Activity activity = (Activity) param.thisObject;
+                            MotionEvent event = (MotionEvent) param.args[0];
+                            if (event == null) return;
+
+                            int action = event.getActionMasked();
+                            if (action == MotionEvent.ACTION_DOWN) {
+                                // Ignore gestures beginning on the navigation itself.
+                                if (event.getRawY() < activity.getResources().getDisplayMetrics().heightPixels * 0.82f) {
+                                    scrollGestureY.put(activity, event.getRawY());
+                                }
+                                return;
+                            }
+
+                            Float previousY = scrollGestureY.get(activity);
+                            if (previousY == null) return;
+                            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                                scrollGestureY.remove(activity);
+                                return;
+                            }
+                            if (action != MotionEvent.ACTION_MOVE) return;
+
+                            float currentY = event.getRawY();
+                            float delta = previousY - currentY;
+                            float threshold = 8f * activity.getResources().getDisplayMetrics().density;
+                            if (Math.abs(delta) < threshold) return;
+
+                            View decor = activity.getWindow().getDecorView();
+                            View bottomNav = decor instanceof ViewGroup
+                                    ? findBottomNavInRoot((ViewGroup) decor) : null;
+                            if (bottomNav != null) onViewScrolled(bottomNav, delta > 0 ? 10 : -10);
+                            scrollGestureY.put(activity, currentY);
+                        }
+                    });
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " Failed to hook touch scroll fallback: " + t);
         }
     }
 
@@ -508,8 +560,9 @@ public class FloatingBottomBarHook extends BaseFeature {
             bar.setOnApplyWindowInsetsListener((v, insets) -> insets);
 
             float density = bar.getContext().getResources().getDisplayMetrics().density;
-            int padV = (int) (userVerticalPaddingDp * density);
-            int pillHeight = (int) ((56 + (userVerticalPaddingDp * 2)) * density);
+            int effectivePaddingDp = userVerticalPaddingDp + (pillDesignPro ? 2 : 0);
+            int padV = (int) (effectivePaddingDp * density);
+            int pillHeight = (int) ((56 + (effectivePaddingDp * 2)) * density);
             if (pillHeight < (int) (48 * density)) {
                 pillHeight = (int) (48 * density);
             }
@@ -562,8 +615,9 @@ public class FloatingBottomBarHook extends BaseFeature {
 
     private void updateOverlayLayout(FrameLayout rootView, ViewGroup container, ViewGroup bar) {
         float density = bar.getContext().getResources().getDisplayMetrics().density;
-        int padV = (int) (userVerticalPaddingDp * density);
-        int pillHeight = (int) ((56 + (userVerticalPaddingDp * 2)) * density);
+        int effectivePaddingDp = userVerticalPaddingDp + (pillDesignPro ? 2 : 0);
+        int padV = (int) (effectivePaddingDp * density);
+        int pillHeight = (int) ((56 + (effectivePaddingDp * 2)) * density);
         if (pillHeight < (int) (48 * density)) {
             pillHeight = (int) (48 * density);
         }
@@ -954,10 +1008,11 @@ public class FloatingBottomBarHook extends BaseFeature {
             bgColor = glassFillColor;
         }
 
-        if (glassEnabled) {
+        boolean useGlass = glassEnabled || pillDesignIos;
+        if (useGlass) {
             int alpha = Math.max(0, Math.min(255, Math.round((glassOpacity / 100f) * 255f)));
             if (glassOpacity == 35f) {
-                alpha = isNight ? 0x55 : 0x77;
+                alpha = pillDesignIos ? (isNight ? 0x66 : 0x88) : (isNight ? 0x55 : 0x77);
             }
             int rgb = bgColor & 0x00FFFFFF;
             bgColor = (alpha << 24) | rgb;
@@ -967,10 +1022,22 @@ public class FloatingBottomBarHook extends BaseFeature {
         background.setShape(GradientDrawable.RECTANGLE);
         background.setCornerRadius(radius);
         background.setColor(bgColor);
-        background.setStroke(Math.max(1, (int) (0.6f * density)), isNight ? 0x18FFFFFF : 0x22000000);
+        int strokeWidth = Math.max(1, (int) ((pillDesignPro || pillDesignIos ? 1f : 0.6f) * density));
+        int strokeColor = pillDesignIos
+                ? (isNight ? 0x55FFFFFF : 0x44000000)
+                : (pillDesignPro ? (isNight ? 0x30FFFFFF : 0x33008069)
+                : (isNight ? 0x18FFFFFF : 0x22000000));
+        background.setStroke(strokeWidth, strokeColor);
 
         bar.setBackground(background);
         applyPillShadow(bar, density);
+        if (pillDesignPro) {
+            bar.setElevation(16f * density);
+            bar.setTranslationZ(10f * density);
+        } else if (pillDesignIos) {
+            bar.setElevation(10f * density);
+            bar.setTranslationZ(6f * density);
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             bar.setOutlineProvider(new ViewOutlineProvider() {
@@ -990,10 +1057,19 @@ public class FloatingBottomBarHook extends BaseFeature {
             ViewGroup group = (ViewGroup) view;
             for (int i = 0; i < group.getChildCount(); i++) {
                 View child = group.getChildAt(i);
-                child.setBackground(null);
-                child.setBackgroundColor(0);
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    child.setBackgroundTintList(null);
+                boolean activeIndicator = false;
+                if (child.getId() != View.NO_ID) {
+                    try {
+                        String name = child.getResources().getResourceEntryName(child.getId());
+                        activeIndicator = name != null && name.contains("active_indicator");
+                    } catch (Throwable ignored) {}
+                }
+                if (!activeIndicator) {
+                    child.setBackground(null);
+                    child.setBackgroundColor(0);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        child.setBackgroundTintList(null);
+                    }
                 }
                 String className = child.getClass().getName();
                 if (child instanceof ViewGroup && (className.contains("Frame") || className.contains("Linear") || className.contains("Relative") || className.contains("Menu"))) {

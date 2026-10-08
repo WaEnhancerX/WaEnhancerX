@@ -49,7 +49,14 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         if ("ACTIVE".equals(LicenseManager.getProStatus(this), ignoreCase = true)) {
-            LicenseManager.silentCheck(this, null)
+            val wasPro = true
+            LicenseManager.silentCheck(this) {
+                val isProNow = "ACTIVE".equals(
+                    LicenseManager.getProStatus(this),
+                    ignoreCase = true
+                )
+                if (wasPro != isProNow && !isFinishing && !isDestroyed) recreate()
+            }
         }
     }
 

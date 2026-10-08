@@ -414,6 +414,9 @@ fun LicenseActivationScreen() {
                                             isVerifying = false
                                             proStatus = "ACTIVE"
                                             planName = LicenseManager.getProPlanName(context)
+                                            // Rebuild the activity so every CompositionLocal and Pro-gated
+                                            // screen observes the new entitlement immediately.
+                                            (context as? android.app.Activity)?.recreate()
                                         }
 
                                         override fun onError(msg: String?) {

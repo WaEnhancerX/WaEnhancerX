@@ -196,8 +196,8 @@ public final class PreferenceSchema {
         add(entries, "floating_bottom_bar_glass_opacity", Type.FLOAT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "floating_bottom_bar_height_mode", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "floating_bottom_bar_horizontal_margin", Type.FLOAT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
-        add(entries, "floating_bottom_bar_icon_label_spacing", Type.FLOAT, Sensitivity.PRIVATE_SETTING, Store.PRIVATE);
-        add(entries, "floating_bottom_bar_icon_size", Type.FLOAT, Sensitivity.PRIVATE_SETTING, Store.PRIVATE);
+        add(entries, "floating_bottom_bar_icon_label_spacing", Type.INT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "floating_bottom_bar_icon_size", Type.INT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "floating_bottom_bar_indicator_color", Type.INT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "floating_bottom_bar_indicator_height", Type.FLOAT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "floating_bottom_bar_indicator_offset", Type.FLOAT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
@@ -214,10 +214,14 @@ public final class PreferenceSchema {
         add(entries, "floating_bottom_bar_minimal_fab_opacity", Type.FLOAT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "floating_bottom_bar_minimal_fab_radius", Type.FLOAT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "floating_bottom_bar_minimal_fab_size", Type.FLOAT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
-        add(entries, "floating_bottom_bar_padding_vertical", Type.FLOAT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
-        add(entries, "floating_bottom_bar_radius", Type.FLOAT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "floating_bottom_bar_margin_bottom", Type.INT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "floating_bottom_bar_margin_horizontal", Type.INT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "floating_bottom_bar_padding_vertical", Type.INT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "floating_bottom_bar_pill_design", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "floating_bottom_bar_radius", Type.INT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "floating_bottom_bar_scroll_hide", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "floating_bottom_bar_scroll_hide_mode", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
-        add(entries, "floating_bottom_bar_text_size", Type.FLOAT, Sensitivity.PRIVATE_SETTING, Store.PRIVATE);
+        add(entries, "floating_bottom_bar_text_size", Type.INT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "floating_nav_bar", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "floatingmenu", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "unlock_premium_customization", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);

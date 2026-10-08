@@ -479,6 +479,19 @@ fun FloatingBottomBarCustomizerScreen() {
                                     preferenceManager.putInt("floating_bottom_bar_text_size", it.toInt())
                                 }
                             )
+
+                            HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant.copy(alpha = 0.5f))
+
+                            SliderItem(
+                                label = "Icon & Label Spacing",
+                                value = iconLabelSpacing,
+                                valueRange = 0f..8f,
+                                unit = "dp",
+                                onValueChange = {
+                                    iconLabelSpacing = it
+                                    preferenceManager.putInt("floating_bottom_bar_icon_label_spacing", it.toInt())
+                                }
+                            )
                         }
                     }
 

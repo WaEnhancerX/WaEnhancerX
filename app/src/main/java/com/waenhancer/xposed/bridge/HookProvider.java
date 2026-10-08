@@ -106,6 +106,8 @@ public class HookProvider extends ContentProvider {
 
             if ("get_all_preferences".equals(method)) {
                 var all = new HashMap<String, Object>(prefs.getAll());
+                all.put("waex_pro_active", "ACTIVE".equalsIgnoreCase(
+                        com.waenhancer.licensing.LicenseManager.getProStatus(context)));
                 // Keybox material is private at rest and is exposed only in this in-memory IPC
                 // response to the scoped hooked process when the free feature is enabled.
                 if (prefs.getBoolean(BootloaderSpooferFeature.ENABLED, true)) {
