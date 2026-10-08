@@ -3,8 +3,7 @@ package com.waenhancer.xposed.features.conversation;
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.view.GestureDetector;
-import android.view.MotionEvent;
+import android.os.SystemClock;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.HeaderViewListAdapter;
@@ -19,16 +18,16 @@ import com.waenhancer.xposed.utils.ActivityTracker;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
-import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.enums.StringMatchType;
-import org.luckypray.dexkit.query.matchers.ClassMatcher;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
-import org.luckypray.dexkit.result.ClassData;
 import org.luckypray.dexkit.result.MethodData;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.WeakHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Double Tap to React Feature:
@@ -40,13 +39,20 @@ public class DoubleTapReactionHook extends BaseFeature {
     private static final String PREF_KEY = "doubletap2like";
     private static final String PREF_EMOJI_KEY = "doubletap2like_emoji";
     private static final String FIELD_BOUND_MSG = "waex_doubletap_fmessage";
+    private static final String FIELD_BOUND_KEY_ID = "waex_doubletap_key_id";
+    private static final Pattern KEY_ID_REGEX = Pattern.compile("id=([A-Za-z0-9]+)");
 
     private Class<?> fMessageClass;
     private Class<?> actionUserClass;
     private Method reactionSenderMethod;
     private volatile Object cachedActionUserInstance;
 
-    private static final WeakHashMap<View, Long> lastClickMap = new WeakHashMap<>();
+    private static final WeakHashMap<View, ClickTracker> clickTrackerMap = new WeakHashMap<>();
+
+    private static class ClickTracker {
+        long lastClickTime = 0L;
+        int clickCount = 0;
+    }
 
     public DoubleTapReactionHook(@NonNull Context context, @NonNull ClassLoader classLoader, @NonNull SharedPreferences prefs) {
         super(context, classLoader, prefs);
@@ -209,9 +215,14 @@ public class DoubleTapReactionHook extends BaseFeature {
                                         }
 
                                         final Object fMessage = item;
-                                        XposedHelpers.setAdditionalInstanceField(row, FIELD_BOUND_MSG, fMessage);
+                                        String keyId = extractKeyId(fMessage);
 
-                                        bindDoubleClickListener(row, fMessage);
+                                        XposedHelpers.setAdditionalInstanceField(row, FIELD_BOUND_MSG, fMessage);
+                                        if (keyId != null) {
+                                            XposedHelpers.setAdditionalInstanceField(row, FIELD_BOUND_KEY_ID, keyId);
+                                        }
+
+                                        bindDoubleClickListener(row, fMessage, keyId);
                                     }
                                 });
                             } catch (Throwable t) {
@@ -225,19 +236,39 @@ public class DoubleTapReactionHook extends BaseFeature {
         }
     }
 
-    private void bindDoubleClickListener(final ViewGroup row, final Object fMessage) {
+    private void bindDoubleClickListener(final ViewGroup row, final Object fMessage, final String keyId) {
         row.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 if (!isEnabled(PREF_KEY, false)) return;
 
-                long now = System.currentTimeMillis();
-                Long lastClick = lastClickMap.get(v);
-                if (lastClick != null && (now - lastClick) < 500) {
-                    lastClickMap.remove(v);
-                    handleDoubleTapReaction(v, fMessage);
+                // Validate view is still bound to the same message
+                if (keyId != null) {
+                    Object currentBoundId = XposedHelpers.getAdditionalInstanceField(v, FIELD_BOUND_KEY_ID);
+                    if (currentBoundId != null && !keyId.equals(currentBoundId)) {
+                        return;
+                    }
+                }
+
+                long now = SystemClock.uptimeMillis();
+                ClickTracker tracker = clickTrackerMap.get(v);
+                if (tracker == null) {
+                    tracker = new ClickTracker();
+                    clickTrackerMap.put(v, tracker);
+                }
+
+                if (tracker.lastClickTime == 0L || (now - tracker.lastClickTime) < 500) {
+                    tracker.lastClickTime = now;
+                    tracker.clickCount++;
                 } else {
-                    lastClickMap.put(v, now);
+                    tracker.lastClickTime = now;
+                    tracker.clickCount = 1;
+                }
+
+                if (tracker.clickCount >= 2) {
+                    tracker.clickCount = 0;
+                    tracker.lastClickTime = 0L;
+                    handleDoubleTapReaction(v, fMessage);
                 }
             }
         });
@@ -315,11 +346,38 @@ public class DoubleTapReactionHook extends BaseFeature {
         return null;
     }
 
+    @Nullable
+    private String extractKeyId(Object messageObj) {
+        if (messageObj == null) return null;
+        try {
+            Class<?> curr = messageObj.getClass();
+            while (curr != null && curr != Object.class) {
+                for (Field field : curr.getDeclaredFields()) {
+                    field.setAccessible(true);
+                    Object valObj = field.get(messageObj);
+                    if (valObj == null) continue;
+
+                    String str = valObj.toString();
+                    if (str.startsWith("Key(") || str.contains("id=") || valObj.getClass().getSimpleName().contains("Key")) {
+                        Matcher matcher = KEY_ID_REGEX.matcher(str);
+                        if (matcher.find()) {
+                            String id = matcher.group(1);
+                            if (id != null && !id.isEmpty()) return id;
+                        }
+                    }
+                }
+                curr = curr.getSuperclass();
+            }
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
     @NonNull
     @Override
     public String getName() {
         return "Double Tap Reaction";
     }
 }
+
 
 
