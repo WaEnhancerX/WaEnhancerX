@@ -3,6 +3,7 @@
 
 [Fixed]
 - Fixed Seperate groups tab
+- Fixed media preview
 
 [Improvements]
 - Improved Floating Bottom Menu

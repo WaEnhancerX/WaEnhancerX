@@ -16,6 +16,7 @@ import com.waenhancer.xposed.features.homescreen.ChatListCustomizationsHook;
 import com.waenhancer.xposed.features.homescreen.HomeScreenHeaderActionsHook;
 import com.waenhancer.xposed.features.media.DownloadViewOnceHook;
 import com.waenhancer.xposed.features.media.MediaQualityBypassHook;
+import com.waenhancer.xposed.features.media.MediaPreviewHook;
 import com.waenhancer.xposed.features.media.ProximitySensorHook;
 import com.waenhancer.xposed.features.media.CallRecordingHook;
 import com.waenhancer.xposed.features.media.ProfilePhotoDownloadHook;
@@ -87,6 +88,7 @@ public final class FeatureRegistry {
         features.add(new DownloadViewOnceHook(context, classLoader, prefs));
         features.add(new com.waenhancer.xposed.features.media.StatusDownloadHook(context, classLoader, prefs));
         features.add(new MediaQualityBypassHook(context, classLoader, prefs));
+        features.add(new MediaPreviewHook(context, classLoader, prefs));
         features.add(new ProximitySensorHook(context, classLoader, prefs));
         features.add(new CallRecordingHook(context, classLoader, prefs));
         features.add(new ProfilePhotoDownloadHook(context, classLoader, prefs));
