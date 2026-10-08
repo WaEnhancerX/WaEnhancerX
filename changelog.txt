@@ -1,6 +1,10 @@
 [Updated]
 - Updated Minimum Xposed API to 102
 
+[Fixed]
+- Fixed Seperate groups tab
+
 [Improvements]
+- Improved Floating Bottom Menu
 - Improved double tab to react
 - Improved Bootloader spoofer for new protections and enabled by default for new users

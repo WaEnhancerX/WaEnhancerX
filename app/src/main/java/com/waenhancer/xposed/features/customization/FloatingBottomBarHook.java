@@ -24,7 +24,7 @@ import android.graphics.Shader;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
-import android.graphics.drawable.StateListDrawable;
+import android.graphics.drawable.TransitionDrawable;
 import android.os.Build;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -36,6 +36,7 @@ import android.view.ViewParent;
 import android.view.ViewTreeObserver;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.FrameLayout;
+import android.widget.Checkable;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -91,6 +92,8 @@ public class FloatingBottomBarHook extends BaseFeature {
     private static final WeakHashMap<View, Boolean> mainScrollableCache = new WeakHashMap<>();
     private static final WeakHashMap<Activity, Float> scrollGestureY = new WeakHashMap<>();
     private static final WeakHashMap<ViewGroup, ViewTreeObserver.OnPreDrawListener> indicatorGuards = new WeakHashMap<>();
+    private static final WeakHashMap<ViewGroup, Integer> forcedSelectedTabs = new WeakHashMap<>();
+    private static final WeakHashMap<View, Boolean> renderedSelectedTabs = new WeakHashMap<>();
 
     private static int bottomNavId = -1;
     private static int navigationBarId = -1;
@@ -1100,8 +1103,8 @@ public class FloatingBottomBarHook extends BaseFeature {
 
     /**
      * Refined and iOS Glass replace WhatsApp's stock active indicator with the liquid selection
-     * capsules used by the original WaEnhancer implementation. StateListDrawable keeps the
-     * effect synchronized when WhatsApp changes tabs without installing click listeners.
+     * capsules used by the original WaEnhancer implementation. A per-frame reconciler keeps the
+     * effect synchronized across both clicks and WhatsApp's pager swipes.
      */
     private static void applyPresetTabIndicators(ViewGroup bar, float density) {
         if (!pillDesignPro && !pillDesignIos) return;
@@ -1114,22 +1117,33 @@ public class FloatingBottomBarHook extends BaseFeature {
                 if (!(tab instanceof ViewGroup)) continue;
                 hideNativeActiveIndicator(tab);
 
-                StateListDrawable selector = new StateListDrawable();
-                selector.addState(new int[]{android.R.attr.state_checked},
-                        createPresetIndicator(tab, density));
-                selector.addState(new int[]{android.R.attr.state_selected},
-                        createPresetIndicator(tab, density));
-                selector.addState(new int[]{android.R.attr.state_activated},
-                        createPresetIndicator(tab, density));
-                selector.addState(new int[0], new ColorDrawable(Color.TRANSPARENT));
-                selector.setEnterFadeDuration(180);
-                selector.setExitFadeDuration(140);
-                tab.setBackground(selector);
+                // NavigationBarItemView does not expose its checked state in its drawable state
+                // consistently on a cold launch. The reconciler below therefore owns this
+                // background explicitly instead of relying on a StateListDrawable selector.
+                tab.setBackground(new ColorDrawable(Color.TRANSPARENT));
                 tab.setClipToOutline(false);
-                tab.setStateListAnimator(createSelectionAnimator(tab));
+                tab.setStateListAnimator(null);
+                renderedSelectedTabs.remove(tab);
+                installInjectedTabStateSync(menu, tab);
             }
         }
         installNativeIndicatorGuard(bar);
+    }
+
+    private static void installInjectedTabStateSync(ViewGroup menu, View tab) {
+        tab.setOnTouchListener((view, event) -> {
+            if (event.getActionMasked() != MotionEvent.ACTION_UP) return false;
+            // Let WhatsApp perform the pager change first, then mirror the final selection onto
+            // its injected/custom menu items (which WhatsApp does not mark checked itself).
+            menu.postDelayed(() -> {
+                int touchedIndex = menu.indexOfChild(view);
+                forcedSelectedTabs.put(menu, touchedIndex);
+                for (int i = 0; i < menu.getChildCount(); i++) {
+                    setTabChecked(menu.getChildAt(i), i == touchedIndex);
+                }
+            }, 32L);
+            return false;
+        });
     }
 
     private static StateListAnimator createSelectionAnimator(View tab) {
@@ -1155,6 +1169,7 @@ public class FloatingBottomBarHook extends BaseFeature {
         if (indicatorGuards.containsKey(bar)) return;
         ViewTreeObserver.OnPreDrawListener guard = () -> {
             hideNativeActiveIndicator(bar);
+            synchronizeInjectedTabSelection(bar);
             return true;
         };
         indicatorGuards.put(bar, guard);
@@ -1166,9 +1181,109 @@ public class FloatingBottomBarHook extends BaseFeature {
                 ViewTreeObserver observer = view.getViewTreeObserver();
                 if (observer.isAlive()) observer.removeOnPreDrawListener(guard);
                 indicatorGuards.remove(bar);
+                for (int i = 0; i < bar.getChildCount(); i++) {
+                    if (bar.getChildAt(i) instanceof ViewGroup) {
+                        forcedSelectedTabs.remove((ViewGroup) bar.getChildAt(i));
+                    }
+                }
+                renderedSelectedTabs.clear();
                 view.removeOnAttachStateChangeListener(this);
             }
         });
+    }
+
+    private static void synchronizeInjectedTabSelection(ViewGroup bar) {
+        int activeConversationTab = SeparateGroupsHook.getResumedConversationTab();
+        for (int i = 0; i < bar.getChildCount(); i++) {
+            View child = bar.getChildAt(i);
+            if (!(child instanceof ViewGroup)) continue;
+            ViewGroup menu = (ViewGroup) child;
+            if (menu.getChildCount() < 2 || !containsText(menu.getChildAt(1), "Groups")) continue;
+
+            boolean firstReconciliation = !forcedSelectedTabs.containsKey(menu);
+            int selectedIndex;
+            if (activeConversationTab == 200 || activeConversationTab == 500) {
+                selectedIndex = activeConversationTab == 500 ? 1 : 0;
+            } else {
+                int forcedIndex = forcedSelectedTabs.containsKey(menu)
+                        ? forcedSelectedTabs.get(menu) : -1;
+                ArrayList<Integer> checked = new ArrayList<>();
+                for (int j = 0; j < menu.getChildCount(); j++) {
+                    View item = menu.getChildAt(j);
+                    if ((item instanceof Checkable && ((Checkable) item).isChecked())
+                            || item.isSelected() || item.isActivated()) {
+                        checked.add(j);
+                    }
+                }
+
+                selectedIndex = -1;
+                if (checked.size() > 1 && forcedIndex >= 0) {
+                    for (int index : checked) if (index != forcedIndex) selectedIndex = index;
+                } else if (checked.size() == 1) {
+                    selectedIndex = checked.get(0);
+                }
+                if (selectedIndex < 0) selectedIndex = forcedIndex >= 0 ? forcedIndex : 0;
+            }
+
+            forcedSelectedTabs.put(menu, selectedIndex);
+            if (firstReconciliation) {
+                // The initial checked state predates our StateListDrawable, so force a single
+                // edge transition to make Android resolve and animate the newly attached selector.
+                for (int j = 0; j < menu.getChildCount(); j++) {
+                    setTabChecked(menu.getChildAt(j), false);
+                }
+            }
+            for (int j = 0; j < menu.getChildCount(); j++) {
+                setTabChecked(menu.getChildAt(j), j == selectedIndex);
+            }
+        }
+    }
+
+    private static void setTabChecked(View item, boolean checked) {
+        if (item instanceof Checkable && ((Checkable) item).isChecked() != checked) {
+            ((Checkable) item).setChecked(checked);
+        }
+        if (item.isSelected() != checked) item.setSelected(checked);
+        if (item.isActivated() != checked) item.setActivated(checked);
+        item.refreshDrawableState();
+        Boolean rendered = renderedSelectedTabs.get(item);
+        if (rendered == null || rendered != checked) {
+            Drawable from = item.getBackground();
+            if (from == null) from = new ColorDrawable(Color.TRANSPARENT);
+            Drawable to = checked
+                    ? createPresetIndicator(item,
+                    item.getContext().getResources().getDisplayMetrics().density)
+                    : new ColorDrawable(Color.TRANSPARENT);
+            TransitionDrawable transition = new TransitionDrawable(new Drawable[]{from, to});
+            transition.setCrossFadeEnabled(true);
+            item.setBackground(transition);
+            transition.startTransition(checked ? 180 : 140);
+            renderedSelectedTabs.put(item, checked);
+            if (checked) {
+                item.setScaleX(0.94f);
+                item.setScaleY(0.94f);
+                item.animate().scaleX(1f).scaleY(1f).setDuration(220L)
+                        .setInterpolator(new AccelerateDecelerateInterpolator()).start();
+            } else {
+                item.animate().scaleX(1f).scaleY(1f).setDuration(170L)
+                        .setInterpolator(new AccelerateDecelerateInterpolator()).start();
+            }
+        }
+        item.invalidate();
+    }
+
+    private static boolean containsText(View view, String expected) {
+        if (view instanceof TextView) {
+            CharSequence text = ((TextView) view).getText();
+            return text != null && expected.contentEquals(text);
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                if (containsText(group.getChildAt(i), expected)) return true;
+            }
+        }
+        return false;
     }
 
     private static Drawable createPresetIndicator(View tab, float density) {
