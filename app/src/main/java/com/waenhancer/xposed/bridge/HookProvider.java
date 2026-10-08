@@ -108,7 +108,7 @@ public class HookProvider extends ContentProvider {
                 var all = new HashMap<String, Object>(prefs.getAll());
                 // Keybox material is private at rest and is exposed only in this in-memory IPC
                 // response to the scoped hooked process when the free feature is enabled.
-                if (prefs.getBoolean(BootloaderSpooferFeature.ENABLED, false)) {
+                if (prefs.getBoolean(BootloaderSpooferFeature.ENABLED, true)) {
                     SharedPreferences privatePrefs = context.getSharedPreferences("private_config", Context.MODE_PRIVATE);
                     boolean custom = prefs.getBoolean(BootloaderSpooferFeature.CUSTOM_ENABLED, false);
                     all.put(BootloaderSpooferFeature.CUSTOM_XML,
