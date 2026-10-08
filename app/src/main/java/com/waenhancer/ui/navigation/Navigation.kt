@@ -195,12 +195,20 @@ fun MainContainerScreen() {
     var licenseState by remember { mutableStateOf(if ("ACTIVE".equals(LicenseManager.getProStatus(context), ignoreCase = true)) "pro" else "free") }
     val isPro = licenseState == "pro"
     var activeModal by remember { mutableStateOf<String?>(null) } // "license" | "file-spoofer" | "message-bomber" | "status-splitter" | null
+    var activeNotice by remember { mutableStateOf<com.waenhancer.notices.NoticeItem?>(null) }
+
+    LaunchedEffect(Unit) {
+        val notice = com.waenhancer.notices.NoticeRepository.getActiveNotice(context, preferenceManager)
+        if (notice != null) {
+            activeNotice = notice
+            com.waenhancer.notices.NoticeRepository.markNoticeShown(context, notice)
+        }
+    }
 
     CompositionLocalProvider(
         LocalIsPro provides isPro,
         LocalOnActivatePro provides { navController.navigateTo(Screen.LicenseActivation) }
     ) {
-
 
     val contactPrivacyList = remember(preferenceManager) {
         mutableStateListOf<ContactPrivacy>().apply {
@@ -937,6 +945,14 @@ fun MainContainerScreen() {
                     }
                 }
             }
+        }
+
+        // Material 3 Remote Notice Bottom Sheet
+        activeNotice?.let { notice ->
+            com.waenhancer.ui.components.NoticeBottomSheet(
+                notice = notice,
+                onDismiss = { activeNotice = null }
+            )
         }
     }
     }
