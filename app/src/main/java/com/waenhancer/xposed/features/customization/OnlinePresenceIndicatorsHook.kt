@@ -36,6 +36,7 @@ class OnlinePresenceIndicatorsHook(
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val visibleRows = Collections.synchronizedMap(WeakHashMap<View, String>())
+    private val rowOverlays = Collections.synchronizedMap(WeakHashMap<View, FrameLayout>())
     private val showDot = isEnabled("dotonline", false)
     private val showText = isEnabled("showonlinetext", false)
     @Volatile private var subscriptionReceiver: Any? = null
@@ -99,7 +100,7 @@ class OnlinePresenceIndicatorsHook(
                             XposedBridge.log("[WAEX][OnlinePresence] Contact fields: $fields")
                         }
                     }
-                    val row = findView(param.thisObject, 3, HashSet())
+                    val row = findConversationRow(param.thisObject)
                     val jid = findJid(param.args, 3)
                     if ((row == null || jid == null) && bindDiagnostics.getAndIncrement() < 5) {
                         XposedBridge.log("[WAEX][OnlinePresence] Bind decode row=${row != null}, jid=${jid ?: "missing"}, args=${param.args?.size ?: 0}")
@@ -141,7 +142,6 @@ class OnlinePresenceIndicatorsHook(
         visibleRows[row] = jid
         row.setTag(TAG_BOUND_JID, jid)
         render(row, PresenceStateStore.get(jid))
-        overlay.bringToFront()
     }
 
     private fun requestPresence(contact: Any?) {
@@ -205,13 +205,12 @@ class OnlinePresenceIndicatorsHook(
     }
 
     private fun ensureOverlay(row: ViewGroup): FrameLayout {
-        row.findViewById<FrameLayout>(ID_OVERLAY)?.let { return it }
+        rowOverlays[row]?.let { return it }
         val overlay = FrameLayout(row.context).apply {
             id = ID_OVERLAY
             isClickable = false
             isFocusable = false
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         }
         if (showDot) {
             overlay.addView(View(row.context).apply {
@@ -239,12 +238,18 @@ class OnlinePresenceIndicatorsHook(
                 topMargin = dp(28)
             })
         }
-        row.addView(overlay)
+        row.overlay.add(overlay)
+        val updateBounds = {
+            overlay.layout(0, 0, row.width, row.height)
+        }
+        row.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateBounds() }
+        row.post { updateBounds() }
+        rowOverlays[row] = overlay
         return overlay
     }
 
     private fun render(row: View, state: PresenceStateStore.State?) {
-        val overlay = row.findViewById<FrameLayout>(ID_OVERLAY) ?: return
+        val overlay = rowOverlays[row] ?: return
         overlay.findViewById<View>(ID_DOT)?.visibility = if (state?.online == true) View.VISIBLE else View.GONE
         overlay.findViewById<TextView>(ID_TEXT)?.let { text ->
             when {
@@ -259,21 +264,50 @@ class OnlinePresenceIndicatorsHook(
         }
     }
 
-    private fun findView(value: Any?, depth: Int, seen: MutableSet<Any>): View? {
-        if (value == null || depth < 0 || !seen.add(value)) return null
-        if (value is View) return value
+    /** Finds the bound conversation row rather than whichever View happens to be the first
+     * field on WhatsApp's filler object (currently that first field is the home search bar). */
+    private fun findConversationRow(value: Any?): View? {
+        val candidates = ArrayList<View>()
+        collectViews(value, 4, Collections.newSetFromMap(WeakHashMap()), candidates)
+        val sample = candidates.firstOrNull() ?: return null
+        val resources = sample.resources
+        val packageName = sample.context.packageName
+        val contactSelectorId = resources.getIdentifier("contact_selector", "id", packageName)
+        val conversationContentId = resources.getIdentifier("conversations_row_content", "id", packageName)
+        val rowContentId = resources.getIdentifier("row_content", "id", packageName)
+        if (contactSelectorId == 0 || (conversationContentId == 0 && rowContentId == 0)) return null
+        return candidates.asSequence()
+            .filterIsInstance<ViewGroup>()
+            .filter { candidate ->
+                candidate.findViewById<View>(contactSelectorId) != null &&
+                    ((conversationContentId != 0 && candidate.findViewById<View>(conversationContentId) != null) ||
+                        (rowContentId != 0 && candidate.findViewById<View>(rowContentId) != null))
+            }
+            .filter { it.height == 0 || it.height in dp(56)..dp(128) }
+            .minByOrNull { candidate ->
+                val width = if (candidate.width > 0) candidate.width else Int.MAX_VALUE / 1024
+                val height = if (candidate.height > 0) candidate.height else Int.MAX_VALUE / 1024
+                width.toLong() * height.toLong()
+            }
+    }
+
+    private fun collectViews(value: Any?, depth: Int, seen: MutableSet<Any>, output: MutableList<View>) {
+        if (value == null || depth < 0 || !seen.add(value)) return
+        if (value is View) {
+            output.add(value)
+            return
+        }
         var type: Class<*>? = value.javaClass
-        while (type != null && !type.name.startsWith("java.")) {
+        while (type != null && !type.name.startsWith("java.") && !type.name.startsWith("android.")) {
             for (field in type.declaredFields) {
                 if (Modifier.isStatic(field.modifiers)) continue
                 try {
                     field.isAccessible = true
-                    findView(field.get(value), depth - 1, seen)?.let { return it }
+                    collectViews(field.get(value), depth - 1, seen, output)
                 } catch (_: Throwable) {}
             }
             type = type.superclass
         }
-        return null
     }
 
     private fun findJid(values: Array<out Any?>?, depth: Int): String? {
