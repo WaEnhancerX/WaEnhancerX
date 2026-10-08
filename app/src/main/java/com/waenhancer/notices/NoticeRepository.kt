@@ -77,15 +77,14 @@ object NoticeRepository {
 
         val selected = eligibleNotices.firstOrNull() ?: return@withContext null
 
-        // Rate-limiting check temporarily bypassed for testing
-        // val lastShownAt = prefs.getLong(KEY_LAST_SHOWN_AT, 0L)
-        // val lastShownSig = prefs.getString(KEY_LAST_SHOWN_SIG, "") ?: ""
-        // val currentSig = "${selected.id}:${selected.revision}"
-        // val isNewNotice = currentSig != lastShownSig
-        // val isExpired = (System.currentTimeMillis() - lastShownAt) >= SHOW_INTERVAL_MS
-        // if (!isNewNotice && !isExpired) {
-        //     return@withContext null
-        // }
+        val lastShownAt = prefs.getLong(KEY_LAST_SHOWN_AT, 0L)
+        val lastShownSig = prefs.getString(KEY_LAST_SHOWN_SIG, "") ?: ""
+        val currentSig = "${selected.id}:${selected.revision}"
+        val isNewNotice = currentSig != lastShownSig
+        val isExpired = (System.currentTimeMillis() - lastShownAt) >= SHOW_INTERVAL_MS
+        if (!isNewNotice && !isExpired) {
+            return@withContext null
+        }
 
         selected
     }
