@@ -550,7 +550,7 @@ fun AboutScreen() {
 
                     // GitHub Issues button
                     OutlinedButton(
-                        onClick = { openUrl("https://github.com/mubashardev/WaEnhancer/issues") },
+                        onClick = { openUrl("https://github.com/WaEnhancerX/WaEnhancerX/issues") },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp),
