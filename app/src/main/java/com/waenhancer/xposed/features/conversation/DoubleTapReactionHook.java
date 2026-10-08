@@ -4,7 +4,9 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.SystemClock;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.widget.HeaderViewListAdapter;
 import android.widget.ListAdapter;
@@ -22,12 +24,9 @@ import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.enums.StringMatchType;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.MethodData;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.WeakHashMap;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Double Tap to React Feature:
@@ -39,19 +38,31 @@ public class DoubleTapReactionHook extends BaseFeature {
     private static final String PREF_KEY = "doubletap2like";
     private static final String PREF_EMOJI_KEY = "doubletap2like_emoji";
     private static final String FIELD_BOUND_MSG = "waex_doubletap_fmessage";
-    private static final String FIELD_BOUND_KEY_ID = "waex_doubletap_key_id";
-    private static final Pattern KEY_ID_REGEX = Pattern.compile("id=([A-Za-z0-9]+)");
+    private static final String FIELD_TOUCH_WRAPPER = "waex_doubletap_touch_wrapper";
 
     private Class<?> fMessageClass;
     private Class<?> actionUserClass;
     private Method reactionSenderMethod;
     private volatile Object cachedActionUserInstance;
 
-    private static final WeakHashMap<View, ClickTracker> clickTrackerMap = new WeakHashMap<>();
+    private static final WeakHashMap<View, TouchTracker> touchTrackerMap = new WeakHashMap<>();
 
-    private static class ClickTracker {
-        long lastClickTime = 0L;
-        int clickCount = 0;
+    private static class TouchTracker {
+        float downX;
+        float downY;
+        long downTime;
+        long lastTapTime;
+        boolean moved;
+
+        void resetGesture() {
+            downTime = 0L;
+            moved = false;
+        }
+
+        void resetAll() {
+            resetGesture();
+            lastTapTime = 0L;
+        }
     }
 
     public DoubleTapReactionHook(@NonNull Context context, @NonNull ClassLoader classLoader, @NonNull SharedPreferences prefs) {
@@ -61,7 +72,6 @@ public class DoubleTapReactionHook extends BaseFeature {
     @Override
     public void hook() throws Throwable {
         initReflection();
-        hookConversationRowConstructor();
         hookListViewAdapter();
     }
 
@@ -119,37 +129,6 @@ public class DoubleTapReactionHook extends BaseFeature {
                     + ", ReactionSender: " + (reactionSenderMethod != null));
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Init reflection error: " + t.getMessage());
-        }
-    }
-
-    private void hookConversationRowConstructor() {
-        try {
-            Class<?> conversationRowClass = DexSearchEngine.getInstance().findClassWithCache(
-                    context, classLoader, "wpp_conversation_row_class",
-                    (bridge, loader) -> {
-                        MethodData data = bridge.findMethod(FindMethod.create()
-                                .matcher(MethodMatcher.create()
-                                        .addUsingString("ConversationRow/setupUserNameInGroupView/", StringMatchType.Contains)))
-                                .firstOrNull();
-                        return data != null ? data.getMethodInstance(loader).getDeclaringClass() : null;
-                    }
-            );
-
-            if (conversationRowClass != null) {
-                XposedBridge.hookAllConstructors(conversationRowClass, new XC_MethodHook() {
-                    @Override
-                    protected void afterHookedMethod(MethodHookParam param) {
-                        if (!isEnabled(PREF_KEY, false)) return;
-                        if (param.thisObject instanceof ViewGroup) {
-                            ViewGroup vg = (ViewGroup) param.thisObject;
-                            vg.setOnTouchListener(null);
-                        }
-                    }
-                });
-                XposedBridge.log(TAG + " Hooked ConversationRow constructors.");
-            }
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + " Failed to hook ConversationRow constructor: " + t.getMessage());
         }
     }
 
@@ -215,14 +194,9 @@ public class DoubleTapReactionHook extends BaseFeature {
                                         }
 
                                         final Object fMessage = item;
-                                        String keyId = extractKeyId(fMessage);
-
                                         XposedHelpers.setAdditionalInstanceField(row, FIELD_BOUND_MSG, fMessage);
-                                        if (keyId != null) {
-                                            XposedHelpers.setAdditionalInstanceField(row, FIELD_BOUND_KEY_ID, keyId);
-                                        }
 
-                                        bindDoubleClickListener(row, fMessage, keyId);
+                                        bindDoubleTapListener(row);
                                     }
                                 });
                             } catch (Throwable t) {
@@ -236,42 +210,83 @@ public class DoubleTapReactionHook extends BaseFeature {
         }
     }
 
-    private void bindDoubleClickListener(final ViewGroup row, final Object fMessage, final String keyId) {
-        row.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (!isEnabled(PREF_KEY, false)) return;
+    private void bindDoubleTapListener(final ViewGroup row) {
+        TouchTracker tracker = touchTrackerMap.get(row);
+        if (tracker == null) {
+            tracker = new TouchTracker();
+            touchTrackerMap.put(row, tracker);
+        } else {
+            // List rows are recycled; a tap on the previous message must not carry over.
+            tracker.resetAll();
+        }
 
-                // Validate view is still bound to the same message
-                if (keyId != null) {
-                    Object currentBoundId = XposedHelpers.getAdditionalInstanceField(v, FIELD_BOUND_KEY_ID);
-                    if (currentBoundId != null && !keyId.equals(currentBoundId)) {
-                        return;
-                    }
-                }
+        Object installedWrapper = XposedHelpers.getAdditionalInstanceField(row, FIELD_TOUCH_WRAPPER);
+        View.OnTouchListener currentListener = getOnTouchListener(row);
+        if (installedWrapper != null && installedWrapper == currentListener) return;
 
+        final View.OnTouchListener originalListener = currentListener;
+        final int touchSlop = ViewConfiguration.get(row.getContext()).getScaledTouchSlop();
+        View.OnTouchListener wrapper = (view, event) -> {
+            boolean handled = originalListener != null && originalListener.onTouch(view, event);
+            observeTouch(view, event, touchSlop);
+            return handled;
+        };
+        XposedHelpers.setAdditionalInstanceField(row, FIELD_TOUCH_WRAPPER, wrapper);
+        row.setOnTouchListener(wrapper);
+    }
+
+    @Nullable
+    private View.OnTouchListener getOnTouchListener(View view) {
+        try {
+            Object listenerInfo = XposedHelpers.getObjectField(view, "mListenerInfo");
+            return listenerInfo == null ? null
+                    : (View.OnTouchListener) XposedHelpers.getObjectField(listenerInfo, "mOnTouchListener");
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private void observeTouch(View view, MotionEvent event, int touchSlop) {
+        TouchTracker tracker = touchTrackerMap.get(view);
+        if (tracker == null) return;
+
+        switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+                tracker.downX = event.getX();
+                tracker.downY = event.getY();
+                tracker.downTime = SystemClock.uptimeMillis();
+                tracker.moved = false;
+                break;
+            case MotionEvent.ACTION_MOVE:
+                float dx = event.getX() - tracker.downX;
+                float dy = event.getY() - tracker.downY;
+                if ((dx * dx) + (dy * dy) > touchSlop * touchSlop) tracker.moved = true;
+                break;
+            case MotionEvent.ACTION_CANCEL:
+                tracker.resetGesture();
+                break;
+            case MotionEvent.ACTION_UP:
                 long now = SystemClock.uptimeMillis();
-                ClickTracker tracker = clickTrackerMap.get(v);
-                if (tracker == null) {
-                    tracker = new ClickTracker();
-                    clickTrackerMap.put(v, tracker);
+                boolean isTap = tracker.downTime != 0L && !tracker.moved
+                        && now - tracker.downTime <= ViewConfiguration.getLongPressTimeout();
+                tracker.resetGesture();
+                if (!isTap || !isEnabled(PREF_KEY, false)) {
+                    tracker.lastTapTime = 0L;
+                    return;
                 }
 
-                if (tracker.lastClickTime == 0L || (now - tracker.lastClickTime) < 500) {
-                    tracker.lastClickTime = now;
-                    tracker.clickCount++;
+                if (tracker.lastTapTime != 0L
+                        && now - tracker.lastTapTime <= ViewConfiguration.getDoubleTapTimeout()) {
+                    tracker.lastTapTime = 0L;
+                    Object message = XposedHelpers.getAdditionalInstanceField(view, FIELD_BOUND_MSG);
+                    if (message != null) handleDoubleTapReaction(view, message);
                 } else {
-                    tracker.lastClickTime = now;
-                    tracker.clickCount = 1;
+                    tracker.lastTapTime = now;
                 }
-
-                if (tracker.clickCount >= 2) {
-                    tracker.clickCount = 0;
-                    tracker.lastClickTime = 0L;
-                    handleDoubleTapReaction(v, fMessage);
-                }
-            }
-        });
+                break;
+            default:
+                break;
+        }
     }
 
     private void handleDoubleTapReaction(View rowView, Object fMessage) {
@@ -346,38 +361,9 @@ public class DoubleTapReactionHook extends BaseFeature {
         return null;
     }
 
-    @Nullable
-    private String extractKeyId(Object messageObj) {
-        if (messageObj == null) return null;
-        try {
-            Class<?> curr = messageObj.getClass();
-            while (curr != null && curr != Object.class) {
-                for (Field field : curr.getDeclaredFields()) {
-                    field.setAccessible(true);
-                    Object valObj = field.get(messageObj);
-                    if (valObj == null) continue;
-
-                    String str = valObj.toString();
-                    if (str.startsWith("Key(") || str.contains("id=") || valObj.getClass().getSimpleName().contains("Key")) {
-                        Matcher matcher = KEY_ID_REGEX.matcher(str);
-                        if (matcher.find()) {
-                            String id = matcher.group(1);
-                            if (id != null && !id.isEmpty()) return id;
-                        }
-                    }
-                }
-                curr = curr.getSuperclass();
-            }
-        } catch (Throwable ignored) {}
-        return null;
-    }
-
     @NonNull
     @Override
     public String getName() {
         return "Double Tap Reaction";
     }
 }
-
-
-
