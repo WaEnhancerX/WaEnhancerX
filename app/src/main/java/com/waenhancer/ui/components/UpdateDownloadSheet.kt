@@ -64,7 +64,8 @@ fun UpdateDownloadSheet(url: String, version: String, useRoot: Boolean, onDismis
                 }
             }
         })
-        onDispose { }
+        // Dismissal must not leak network activity or mutate a disposed sheet.
+        onDispose { call?.cancel() }
     }
 
     ModalBottomSheet(onDismissRequest = {}, containerColor = colors.surfaceContainer) {

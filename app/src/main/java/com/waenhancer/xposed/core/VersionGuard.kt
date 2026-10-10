@@ -1,22 +1,13 @@
 package com.waenhancer.xposed.core
 
 import android.app.Activity
-import android.app.Application
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageInfo
-import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.widget.Toast
 import com.waenhancer.utils.UniversalVersionValidator
 import com.waenhancer.xposed.core.components.WaexBottomSheet
-import com.waenhancer.xposed.utils.AppRestartHelper
-import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
-import de.robv.android.xposed.XposedHelpers
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -53,58 +44,24 @@ object VersionGuard {
 
             XposedBridge.log("$TAG Unsupported WhatsApp version detected: $currentVersion (${appContext.packageName}). Pausing features.")
 
-            // Hook Activity.onResume for immediate, reliable bottom sheet trigger on UI startup
-            try {
-                XposedHelpers.findAndHookMethod(
-                    Activity::class.java,
-                    "onResume",
-                    object : XC_MethodHook() {
-                        override fun afterHookedMethod(param: MethodHookParam) {
-                            val activity = param.thisObject as? Activity ?: return
-                            onTargetActivityResumed(activity)
-                        }
-                    }
-                )
-            } catch (t: Throwable) {
-                XposedBridge.log("$TAG Error hooking Activity.onResume: ${t.message}")
-            }
-
-            // Fallback via ActivityLifecycleCallbacks
-            if (appContext is Application) {
-                appContext.registerActivityLifecycleCallbacks(object : Application.ActivityLifecycleCallbacks {
-                    override fun onActivityResumed(activity: Activity) {
-                        onTargetActivityResumed(activity)
-                    }
-
-                    override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
-                    override fun onActivityStarted(activity: Activity) {}
-                    override fun onActivityPaused(activity: Activity) {}
-                    override fun onActivityStopped(activity: Activity) {}
-                    override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
-                    override fun onActivityDestroyed(activity: Activity) {}
-                })
-            }
+            // ActivityTracker is registered once before verifyAndGuard by MainHook.
+            // Its onActivityResumed callback shows the dialog. Avoid globally
+            // hooking Activity.onResume (or registering a second lifecycle observer).
 
             return false
         } catch (t: Throwable) {
             XposedBridge.log("$TAG Error verifying version: ${t.message}")
-            return true // Fallback to allowing execution if packageInfo fails
+            return false // Fail closed; an unknown host version must not run obfuscated hooks.
         }
     }
 
     @JvmStatic
     fun onTargetActivityResumed(activity: Activity) {
-        val prefs = sPrefs ?: run {
-            XposedBridge.log("$TAG onTargetActivityResumed: sPrefs is null")
-            return
-        }
-        val currentVersion = sCurrentVersion.ifEmpty {
-            XposedBridge.log("$TAG onTargetActivityResumed: sCurrentVersion is empty")
-            return
-        }
+        val prefs = sPrefs ?: return
+        val currentVersion = sCurrentVersion.ifEmpty { return }
+        if (dialogShown.get()) return
         if (activity.isFinishing || activity.isDestroyed) return
         val actName = activity.javaClass.name
-        XposedBridge.log("$TAG onTargetActivityResumed received: $actName")
         if (actName.contains("Permission") || actName.contains("Stub") || actName.contains("Splash")) return
         showUnsupportedBottomSheetOnce(activity, currentVersion, prefs)
     }
@@ -128,8 +85,7 @@ object VersionGuard {
                     return@runOnUiThread
                 }
 
-                val wildcard = UniversalVersionValidator.toWildcard(currentVersion)
-                XposedBridge.log("$TAG Displaying WaexBottomSheet with wildcard: $wildcard")
+                XposedBridge.log("$TAG Displaying compatibility warning for $currentVersion")
 
                 WaexBottomSheet(activity)
                     .setTitle("WAEX Compatibility Notice")
@@ -156,6 +112,7 @@ object VersionGuard {
                     }
                     .show()
             } catch (t: Throwable) {
+                dialogShown.set(false) // A failed dialog must not permanently suppress the notice.
                 XposedBridge.log("$TAG Failed to show native bottom sheet: ${t.message}")
                 t.printStackTrace()
             }

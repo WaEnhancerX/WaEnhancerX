@@ -8,6 +8,7 @@ import android.os.Looper;
 import android.widget.Toast;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -28,17 +29,29 @@ public final class AppRestartHelper {
         Process process = null;
         try {
             process = new ProcessBuilder("su", "-c", command).redirectErrorStream(true).start();
-            StringBuilder output = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) output.append(line).append('\n');
-            }
+            final Process commandProcess = process;
+            StringBuilder output = new StringBuilder(2048);
+            Thread drainer = new Thread(() -> {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(commandProcess.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        synchronized (output) {
+                            if (output.length() < 8192) output.append(line, 0,
+                                    Math.min(line.length(), 8192 - output.length())).append('\n');
+                        }
+                    }
+                } catch (IOException ignored) { }
+            }, "WAEX-root-output");
+            drainer.setDaemon(true);
+            drainer.start();
             boolean finished = process.waitFor(4, TimeUnit.SECONDS);
             if (!finished) {
                 process.destroyForcibly();
                 return null;
             }
-            return output.toString().trim();
+            drainer.join(500);
+            if (process.exitValue() != 0) return null;
+            synchronized (output) { return output.toString().trim(); }
         } catch (Exception ignored) {
             return null;
         } finally {
@@ -50,6 +63,7 @@ public final class AppRestartHelper {
      * Force stops the given target package via root (or IPC broadcast) and then restarts it.
      */
     public static void restartPackage(Context context, String packageName, String appName) {
+        if (packageName == null || !packageName.matches("[A-Za-z_][A-Za-z0-9_.]*")) return;
         mainHandler.post(() -> Toast.makeText(context.getApplicationContext(), "Restarting " + appName + "...", Toast.LENGTH_SHORT).show());
 
         executor.execute(() -> {

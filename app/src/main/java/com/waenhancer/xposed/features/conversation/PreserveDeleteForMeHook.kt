@@ -136,7 +136,6 @@ class PreserveDeleteForMeHook(
                                                 isGroup = isGroup
                                             )
 
-                                            XposedBridge.log("$TAG Preserved Delete-For-Me: chat='$chatDisplayName', sender='$senderDisplayName', keyId=$keyId, text='$textData'")
                                         }
                                     } while (cursor.moveToNext())
 

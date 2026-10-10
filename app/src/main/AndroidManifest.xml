@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Only the signed WAEX manager can request a target-process restart. -->
+    <permission
+        android:name="com.waenhancer.permission.RESTART_TARGET"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="com.waenhancer.permission.RESTART_TARGET" />
+
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

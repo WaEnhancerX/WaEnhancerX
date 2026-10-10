@@ -97,10 +97,15 @@ fun MediaStatusHubScreen() {
     val settingsState = remember {
         mutableStateMapOf<String, Boolean>().apply {
             mediaKeys.forEach { key ->
+                val canonicalKey = when (key) {
+                    "call_recording" -> "call_recording_enabled"
+                    "media_upload_quality" -> "imagequality"
+                    else -> key
+                }
                 val defaultValue = if (key == "send_audio_as_voice_status") {
                     preferenceManager.getBoolean("voice_status_enhancement", false)
                 } else false
-                put(key, preferenceManager.getBoolean(key, defaultValue))
+                put(key, preferenceManager.getBoolean(canonicalKey, defaultValue))
             }
         }
     }
@@ -108,7 +113,17 @@ fun MediaStatusHubScreen() {
     val updatePreference: (String, Boolean) -> Unit = { key, value ->
         settingsState[key] = value
         preferenceManager.putBoolean(key, value)
-        if (key == "status_downloader" || key == "statusdowload") {
+        if (key == "call_recording") {
+            // The recorder and the detailed Calls screen use this canonical flag.
+            // Preserve the historical UI key for searches and older installations.
+            preferenceManager.putBoolean("call_recording_enabled", value)
+        } else if (key == "media_upload_quality") {
+            // The actual compression/FPS hooks consume these two settings.
+            preferenceManager.putBoolean("imagequality", value)
+            preferenceManager.putBoolean("video_maxfps", value)
+            settingsState["imagequality"] = value
+            settingsState["video_maxfps"] = value
+        } else if (key == "status_downloader" || key == "statusdowload") {
             preferenceManager.putBoolean("statusdowload", value)
             preferenceManager.putBoolean("status_downloader", value)
             settingsState["statusdowload"] = value
