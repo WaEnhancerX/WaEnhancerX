@@ -112,8 +112,17 @@ public final class SeparateGroupsHook extends BaseFeature {
         XposedBridge.hookMethod(method, new XC_MethodHook() {
             @Override protected void afterHookedMethod(MethodHookParam param) {
                 if (!(param.getResult() instanceof ArrayList)) return;
-                @SuppressWarnings("unchecked") ArrayList<Integer> result = (ArrayList<Integer>) param.getResult();
-                if (!result.contains(GROUPS)) result.add(Math.min(1, result.size()), GROUPS);
+                // WhatsApp 2.26.39.79's WDSBottomBar supports at most five items.
+                // Replace Communities (600) instead of blindly inserting a sixth tab.
+                ArrayList<?> raw = (ArrayList<?>) param.getResult();
+                for (Object id : raw) if (!(id instanceof Integer)) return;
+                @SuppressWarnings("unchecked") ArrayList<Integer> result = (ArrayList<Integer>) raw;
+                ArrayList<Integer> configured = SeparateGroupsTabPolicy.rewrite(result);
+                if (!result.equals(configured)) {
+                    result.clear();
+                    result.addAll(configured);
+                }
+                // The fragment factory uses the exact displayed order.
                 synchronized (tabs) { tabs.clear(); tabs.addAll(result); }
             }
         });
@@ -155,7 +164,8 @@ public final class SeparateGroupsHook extends BaseFeature {
             XposedBridge.hookMethod(method, new XC_MethodHook() {
                 @Override protected void afterHookedMethod(MethodHookParam param) {
                     if (!(param.getResult() instanceof List)) return;
-                    Integer tab = fragmentTabs.get(param.thisObject);
+                    Integer tab;
+                    synchronized (fragmentTabs) { tab = fragmentTabs.get(param.thisObject); }
                     if (tab == null) return;
                     param.setResult(filter((List<?>) param.getResult(), tab == GROUPS));
                 }
