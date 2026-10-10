@@ -26,7 +26,15 @@ public final class DexCacheManager {
     private final Context mContext;
     private final SharedPreferences mPrefs;
     private final Map<String, Object> mMemoryCache = new ConcurrentHashMap<>();
-    private final Set<String> mFailedKeys = ConcurrentHashMap.newKeySet();
+    // A failed Dex scan can be transient (e.g. classes loaded later). Never
+    // permanently suppress that feature for the rest of the host process.
+    private final Map<String, Long> mFailedKeys = new ConcurrentHashMap<>();
+    private static final long FAILURE_RETRY_MS = 60_000L;
+
+    private boolean recentlyFailed(String key) {
+        Long timestamp = mFailedKeys.get(key);
+        return timestamp != null && android.os.SystemClock.elapsedRealtime() - timestamp < FAILURE_RETRY_MS;
+    }
 
     private DexCacheManager(@NonNull Context context) {
         this.mContext = context.getApplicationContext() != null ? context.getApplicationContext() : context;
@@ -56,6 +64,7 @@ public final class DexCacheManager {
                 XposedBridge.log("[WAEX] Host version changed (" + cachedHostVersion + " -> " + hostVersionCode + "). Invalidating Dex cache.");
                 mPrefs.edit().clear().putLong("host_version_code", hostVersionCode).apply();
                 mMemoryCache.clear();
+                mFailedKeys.clear();
             }
         } catch (Throwable t) {
             XposedBridge.log("[WAEX] Error validating DexCache version: " + t.getMessage());
@@ -72,7 +81,7 @@ public final class DexCacheManager {
      */
     @Nullable
     public Class<?> getClass(@NonNull ClassLoader loader, @NonNull String key, @NonNull Resolver<Class<?>> resolver) {
-        if (mFailedKeys.contains(key)) return null;
+        if (recentlyFailed(key)) return null;
 
         Object mem = mMemoryCache.get(key);
         if (mem instanceof Class<?>) return (Class<?>) mem;
@@ -97,7 +106,7 @@ public final class DexCacheManager {
             XposedBridge.log("[WAEX] Class resolution failed for [" + key + "]: " + t.getMessage());
         }
 
-        mFailedKeys.add(key);
+        mFailedKeys.put(key, android.os.SystemClock.elapsedRealtime());
         return null;
     }
 
@@ -106,7 +115,7 @@ public final class DexCacheManager {
      */
     @Nullable
     public Method getMethod(@NonNull ClassLoader loader, @NonNull String key, @NonNull Resolver<Method> resolver) {
-        if (mFailedKeys.contains(key)) return null;
+        if (recentlyFailed(key)) return null;
 
         Object mem = mMemoryCache.get(key);
         if (mem instanceof Method) return (Method) mem;
@@ -134,7 +143,7 @@ public final class DexCacheManager {
             XposedBridge.log("[WAEX] Method resolution failed for [" + key + "]: " + t.getMessage());
         }
 
-        mFailedKeys.add(key);
+        mFailedKeys.put(key, android.os.SystemClock.elapsedRealtime());
         return null;
     }
 
@@ -143,7 +152,7 @@ public final class DexCacheManager {
      */
     @Nullable
     public Field getField(@NonNull ClassLoader loader, @NonNull String key, @NonNull Resolver<Field> resolver) {
-        if (mFailedKeys.contains(key)) return null;
+        if (recentlyFailed(key)) return null;
 
         Object mem = mMemoryCache.get(key);
         if (mem instanceof Field) return (Field) mem;
@@ -173,7 +182,7 @@ public final class DexCacheManager {
             XposedBridge.log("[WAEX] Field resolution failed for [" + key + "]: " + t.getMessage());
         }
 
-        mFailedKeys.add(key);
+        mFailedKeys.put(key, android.os.SystemClock.elapsedRealtime());
         return null;
     }
 

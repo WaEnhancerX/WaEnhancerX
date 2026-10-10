@@ -43,7 +43,6 @@ import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.text.DateFormat
 import java.util.Date
-import java.util.concurrent.ConcurrentHashMap
 import java.util.regex.Pattern
 
 /**
@@ -68,8 +67,11 @@ class AntiEditMessagesHook(
         private const val FIELD_ROW_ID = "waex_row_id"
         private const val FIELD_MSG_ID = "waex_msg_id"
         private const val FIELD_MSG_TEXT = "waex_msg_text"
-        private val messageTextCache = ConcurrentHashMap<String, String>()
-        private val timeFormatter = DateFormat.getTimeInstance(DateFormat.SHORT)
+        // No per-message in-memory cache: the SQLite store is already indexed,
+        // and an unbounded map retains chat text throughout the host lifetime.
+        private val timeFormatter = object : ThreadLocal<DateFormat>() {
+            override fun initialValue(): DateFormat = DateFormat.getTimeInstance(DateFormat.SHORT)
+        }
         private val KEY_ID_REGEX = Pattern.compile("id=([A-Za-z0-9]+)")
     }
 
@@ -104,9 +106,6 @@ class AntiEditMessagesHook(
                                 if (!newMessage.isNullOrBlank() && (!keyId.isNullOrEmpty() || rowId > 0)) {
                                     val ts = System.currentTimeMillis()
                                     editStore.recordEdit(rowId, keyId, newMessage, ts)
-                                    if (!keyId.isNullOrEmpty()) {
-                                        messageTextCache[keyId] = newMessage
-                                    }
                                 }
                             } catch (t: Throwable) {
                                 XposedBridge.log("$TAG Error in onMessageEdit: ${t.message}")
@@ -238,7 +237,6 @@ class AntiEditMessagesHook(
                                             XposedHelpers.setAdditionalInstanceField(row, FIELD_MSG_ID, keyId)
                                             XposedHelpers.setAdditionalInstanceField(row, "waex_key_id", keyId)
                                             if (!msgText.isNullOrEmpty()) {
-                                                messageTextCache[keyId] = msgText
                                                 XposedHelpers.setAdditionalInstanceField(row, FIELD_MSG_TEXT, msgText)
                                             }
                                         }
@@ -399,7 +397,7 @@ class AntiEditMessagesHook(
             for (item in descendingList) {
                 val isFirst = (item.versionNumber == 1)
                 val isLatest = (item.versionNumber == totalVersions && totalVersions > 1)
-                val timeStr = if (item.timestamp > 0) timeFormatter.format(Date(item.timestamp)) else ""
+                val timeStr = if (item.timestamp > 0) timeFormatter.get().format(Date(item.timestamp)) else ""
 
                 val title = when {
                     isLatest -> "Version ${item.versionNumber} (Latest) • $timeStr"
