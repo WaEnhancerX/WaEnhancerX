@@ -83,7 +83,8 @@ public class MediaQualityBypassHook extends BaseFeature {
                     }
             );
 
-            if (videoFpsMethod != null) {
+            if (videoFpsMethod != null && (videoFpsMethod.getReturnType() == int.class
+                    || videoFpsMethod.getReturnType() == Integer.class)) {
                 XposedBridge.hookMethod(videoFpsMethod, new XC_MethodHook() {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) {
@@ -93,6 +94,8 @@ public class MediaQualityBypassHook extends BaseFeature {
                     }
                 });
                 XposedBridge.log(TAG + " Hooked video encoder FPS: " + videoFpsMethod.getName());
+            } else if (videoFpsMethod != null) {
+                XposedBridge.log(TAG + " Skipped incompatible video FPS return type: " + videoFpsMethod);
             }
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Error hooking video quality: " + t.getMessage());

@@ -85,7 +85,8 @@ public class ChatLimitsBypassHook extends BaseFeature {
                     }
             );
 
-            if (forwardLimitMethod != null) {
+            if (forwardLimitMethod != null && (forwardLimitMethod.getReturnType() == int.class
+                    || forwardLimitMethod.getReturnType() == Integer.class)) {
                 XposedBridge.hookMethod(forwardLimitMethod, new XC_MethodHook() {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) {
@@ -95,6 +96,8 @@ public class ChatLimitsBypassHook extends BaseFeature {
                     }
                 });
                 XposedBridge.log(TAG + " Hooked forwardLimitMethod: " + forwardLimitMethod.getName());
+            } else if (forwardLimitMethod != null) {
+                XposedBridge.log(TAG + " Skipped incompatible forwarding-limit signature: " + forwardLimitMethod);
             }
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Error hooking forward limit: " + t.getMessage());
@@ -117,7 +120,8 @@ public class ChatLimitsBypassHook extends BaseFeature {
                     }
             );
 
-            if (revokeWindowMethod != null) {
+            if (revokeWindowMethod != null && (revokeWindowMethod.getReturnType() == boolean.class
+                    || revokeWindowMethod.getReturnType() == Boolean.class)) {
                 XposedBridge.hookMethod(revokeWindowMethod, new XC_MethodHook() {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) {
@@ -127,6 +131,8 @@ public class ChatLimitsBypassHook extends BaseFeature {
                     }
                 });
                 XposedBridge.log(TAG + " Hooked revokeWindowMethod: " + revokeWindowMethod.getName());
+            } else if (revokeWindowMethod != null) {
+                XposedBridge.log(TAG + " Skipped incompatible revoke-window signature: " + revokeWindowMethod);
             }
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Error hooking revoke time window: " + t.getMessage());

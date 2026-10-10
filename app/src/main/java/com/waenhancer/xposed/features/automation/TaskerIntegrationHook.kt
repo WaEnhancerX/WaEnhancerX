@@ -4,12 +4,14 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.Uri
 import android.content.SharedPreferences
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import com.waenhancer.xposed.core.BaseFeature
 import com.waenhancer.xposed.core.devkit.DexSearchEngine
+import com.waenhancer.xposed.utils.ActivityTracker
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
@@ -19,7 +21,9 @@ import java.lang.reflect.Method
 
 /**
  * Tasker & External Automation Dispatcher Hook.
- * Allows Tasker, MacroDroid, and Automate to send messages and receive WhatsApp incoming message events.
+ * Opens a prefilled chat when a user-approved automation fires while WhatsApp
+ * is foregrounded, and emits notifications for incoming message events.
+ * It does not silently transmit messages on the user's behalf.
  */
 class TaskerIntegrationHook(
     context: Context,
@@ -49,8 +53,10 @@ class TaskerIntegrationHook(
                     if (phoneOrJid.isBlank() || messageText.isBlank()) return
 
                     val cleanNumber = phoneOrJid.replace("\\D".toRegex(), "")
-                    if (cleanNumber.isNotEmpty()) {
-                        sendMessageDirectly(cleanNumber, messageText)
+                    // E.164 phone numbers have at most 15 digits. Bound untrusted
+                    // broadcast data to avoid giant URI allocations in WhatsApp.
+                    if (cleanNumber.length in 7..15 && messageText.length <= 4096) {
+                        openPreparedMessage(cleanNumber, messageText)
                     }
                 }
             }
@@ -111,12 +117,25 @@ class TaskerIntegrationHook(
         }
     }
 
-    private fun sendMessageDirectly(phoneNumber: String, text: String) {
-        try {
-            val jidString = if (phoneNumber.contains("@")) phoneNumber else "$phoneNumber@s.whatsapp.net"
-            val uri = android.net.Uri.parse("https://api.whatsapp.com/send?phone=$phoneNumber&text=${android.net.Uri.encode(text)}")
-        } catch (t: Throwable) {
-            XposedBridge.log("[WAEX][Tasker] Error dispatching message: ${t.message}")
+    /** The original implementation only constructed a Uri and did nothing.
+     * Use a WhatsApp-owned deep link with explicit user confirmation. Android
+     * restricts background activity launches, so never force a background pop-up. */
+    private fun openPreparedMessage(phoneNumber: String, text: String) {
+        mainHandler.post {
+            try {
+                val foreground = ActivityTracker.getCurrentActivity()
+                if (foreground == null || foreground.isFinishing || foreground.isDestroyed) {
+                    XposedBridge.log("[WAEX][Tasker] Open WhatsApp before requesting a prepared message")
+                    return@post
+                }
+                val uri = Uri.parse("https://api.whatsapp.com/send?phone=$phoneNumber&text=${Uri.encode(text)}")
+                val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+                    setPackage(context.packageName)
+                }
+                foreground.startActivity(intent)
+            } catch (t: Throwable) {
+                XposedBridge.log("[WAEX][Tasker] Cannot open prepared message: ${t.message}")
+            }
         }
     }
 
