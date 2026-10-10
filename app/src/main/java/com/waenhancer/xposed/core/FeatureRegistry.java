@@ -40,79 +40,121 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Orchestrates and registers all modular hooks in WAEX.
+ * Lazy, failure-isolated hook installation. A missing class or an exception in one
+ * feature must not prevent all remaining (independent) features from loading.
  */
 public final class FeatureRegistry {
 
-    private final List<BaseFeature> features = new ArrayList<>();
+    @FunctionalInterface
+    private interface FeatureFactory {
+        BaseFeature create() throws Throwable;
+    }
 
-    public FeatureRegistry(@NonNull Context context, @NonNull ClassLoader classLoader, @NonNull SharedPreferences prefs) {
-        // Initialize Native WhatsApp WDS / Material Dialog engine
-        NativeWhatsAppDialog.Companion.initialize(context, classLoader);
-        BootloaderSpooferFeature.install(context, classLoader, prefs);
+    @FunctionalInterface
+    private interface Installer {
+        void install() throws Throwable;
+    }
 
+    private static final class RegisteredFeature {
+        final String name;
+        final FeatureFactory factory;
+
+        RegisteredFeature(String name, FeatureFactory factory) {
+            this.name = name;
+            this.factory = factory;
+        }
+    }
+
+    private final Context context;
+    private final ClassLoader classLoader;
+    private final SharedPreferences prefs;
+    private final List<RegisteredFeature> features = new ArrayList<>();
+
+    public FeatureRegistry(@NonNull Context context, @NonNull ClassLoader classLoader,
+                           @NonNull SharedPreferences prefs) {
+        this.context = context;
+        this.classLoader = classLoader;
+        this.prefs = prefs;
+        registerFeatures();
+    }
+
+    private void add(String name, FeatureFactory factory) {
+        features.add(new RegisteredFeature(name, factory));
+    }
+
+    private void registerFeatures() {
         // Privacy & Seen Controls
-        features.add(new AntiViewOnceHook(context, classLoader, prefs));
-        features.add(new TypingPrivacyHook(context, classLoader, prefs));
-        features.add(new FreezeLastSeenHook(context, classLoader, prefs));
-        features.add(new AlwaysOnlineHook(context, classLoader, prefs));
-        features.add(new HideReceiptsHook(context, classLoader, prefs));
-        features.add(new BlueOnReplyHook(context, classLoader, prefs));
-        features.add(new CallPrivacyHook(context, classLoader, prefs));
-        features.add(new AntiRevokeHook(context, classLoader, prefs));
-        features.add(new HideForwardedTagHook(context, classLoader, prefs));
-        features.add(new CustomPrivacyHook(context, classLoader, prefs));
-        features.add(new com.waenhancer.xposed.features.privacy.AutoNextStatusHook(context, classLoader, prefs));
-        features.add(new com.waenhancer.xposed.features.privacy.AntiDisappearingMessagesHook(context, classLoader, prefs));
-        features.add(new com.waenhancer.xposed.features.privacy.LockedChatsEnhancerHook(context, classLoader, prefs));
-        features.add(new com.waenhancer.xposed.features.privacy.HideArchivedChatsHook(context, classLoader, prefs));
-        features.add(new com.waenhancer.xposed.features.privacy.DndModeHook(context, classLoader, prefs));
-        features.add(new com.waenhancer.xposed.features.privacy.HideChatsVaultHook(context, classLoader, prefs));
+        add("Anti-View Once", () -> new AntiViewOnceHook(context, classLoader, prefs));
+        add("Typing Privacy", () -> new TypingPrivacyHook(context, classLoader, prefs));
+        add("Freeze Last Seen", () -> new FreezeLastSeenHook(context, classLoader, prefs));
+        add("Always Online", () -> new AlwaysOnlineHook(context, classLoader, prefs));
+        add("Hide Receipts", () -> new HideReceiptsHook(context, classLoader, prefs));
+        add("Blue On Reply", () -> new BlueOnReplyHook(context, classLoader, prefs));
+        add("Call Privacy", () -> new CallPrivacyHook(context, classLoader, prefs));
+        add("Anti Revoke", () -> new AntiRevokeHook(context, classLoader, prefs));
+        add("Hide Forwarded Tag", () -> new HideForwardedTagHook(context, classLoader, prefs));
+        add("Custom Privacy", () -> new CustomPrivacyHook(context, classLoader, prefs));
+        add("Auto Next Status", () -> new com.waenhancer.xposed.features.privacy.AutoNextStatusHook(context, classLoader, prefs));
+        add("Anti Disappearing", () -> new com.waenhancer.xposed.features.privacy.AntiDisappearingMessagesHook(context, classLoader, prefs));
+        add("Locked Chats", () -> new com.waenhancer.xposed.features.privacy.LockedChatsEnhancerHook(context, classLoader, prefs));
+        add("Hide Archived Chats", () -> new com.waenhancer.xposed.features.privacy.HideArchivedChatsHook(context, classLoader, prefs));
+        add("DND Mode", () -> new com.waenhancer.xposed.features.privacy.DndModeHook(context, classLoader, prefs));
+        add("Hide Chats Vault", () -> new com.waenhancer.xposed.features.privacy.HideChatsVaultHook(context, classLoader, prefs));
 
         // Conversation & Message Controls
-        features.add(new AntiEditMessagesHook(context, classLoader, prefs));
-        features.add(new StickerConfirmHook(context, classLoader, prefs));
-        features.add(new JumpFirstMessageHook(context, classLoader, prefs));
-        features.add(new PreserveDeleteForMeHook(context, classLoader, prefs));
-        features.add(new CopyStatusTextHook(context, classLoader, prefs));
-        features.add(new ChatLimitsBypassHook(context, classLoader, prefs));
-        features.add(new DoubleTapReactionHook(context, classLoader, prefs));
-        features.add(new com.waenhancer.xposed.features.conversation.MinorFixesHook(context, classLoader, prefs));
-        MessageBomberFeature.install(context, classLoader, prefs);
+        add("Anti Edit", () -> new AntiEditMessagesHook(context, classLoader, prefs));
+        add("Sticker Confirm", () -> new StickerConfirmHook(context, classLoader, prefs));
+        add("Jump First Message", () -> new JumpFirstMessageHook(context, classLoader, prefs));
+        add("Preserve Delete For Me", () -> new PreserveDeleteForMeHook(context, classLoader, prefs));
+        add("Copy Status Text", () -> new CopyStatusTextHook(context, classLoader, prefs));
+        add("Chat Limits", () -> new ChatLimitsBypassHook(context, classLoader, prefs));
+        add("Double Tap Reaction", () -> new DoubleTapReactionHook(context, classLoader, prefs));
+        add("Minor Fixes", () -> new com.waenhancer.xposed.features.conversation.MinorFixesHook(context, classLoader, prefs));
 
         // Homescreen & Layout Controls
-        features.add(new HomeScreenHeaderActionsHook(context, classLoader, prefs));
-        features.add(new ChatListCustomizationsHook(context, classLoader, prefs));
+        add("Home Header Actions", () -> new HomeScreenHeaderActionsHook(context, classLoader, prefs));
+        add("Chat List", () -> new ChatListCustomizationsHook(context, classLoader, prefs));
 
         // Media & Audio Controls
-        features.add(new DownloadViewOnceHook(context, classLoader, prefs));
-        features.add(new com.waenhancer.xposed.features.media.StatusDownloadHook(context, classLoader, prefs));
-        features.add(new MediaQualityBypassHook(context, classLoader, prefs));
-        features.add(new MediaPreviewHook(context, classLoader, prefs));
-        features.add(new ProximitySensorHook(context, classLoader, prefs));
-        features.add(new CallRecordingHook(context, classLoader, prefs));
-        features.add(new ProfilePhotoDownloadHook(context, classLoader, prefs));
-        AudioToVoiceStatusFeature.install(context, classLoader, prefs);
-        StatusSplitterFeature.install(context, classLoader, prefs);
-        FileSizeSpooferFeature.install(context, classLoader, prefs);
+        add("Download View Once", () -> new DownloadViewOnceHook(context, classLoader, prefs));
+        add("Status Download", () -> new com.waenhancer.xposed.features.media.StatusDownloadHook(context, classLoader, prefs));
+        add("Media Quality", () -> new MediaQualityBypassHook(context, classLoader, prefs));
+        add("Media Preview", () -> new MediaPreviewHook(context, classLoader, prefs));
+        add("Proximity Sensor", () -> new ProximitySensorHook(context, classLoader, prefs));
+        add("Call Recording", () -> new CallRecordingHook(context, classLoader, prefs));
+        add("Profile Photo Download", () -> new ProfilePhotoDownloadHook(context, classLoader, prefs));
 
-        // Automation & Notification Controls
-        features.add(new PresenceToastsHook(context, classLoader, prefs));
-        features.add(new com.waenhancer.xposed.features.automation.TaskerIntegrationHook(context, classLoader, prefs));
-        features.add(new com.waenhancer.xposed.features.conversation.ChatBubbleColorsHook(context, classLoader, prefs));
-        features.add(new com.waenhancer.xposed.features.customization.ChannelRecommendationsFilterHook(context, classLoader, prefs));
-        features.add(new com.waenhancer.xposed.features.customization.OnlinePresenceIndicatorsHook(context, classLoader, prefs));
-        features.add(new com.waenhancer.xposed.features.customization.SeparateGroupsHook(context, classLoader, prefs));
-        features.add(new com.waenhancer.xposed.features.customization.FloatingBottomBarHook(context, classLoader, prefs));
+        // Automation, visual customizations and notifications
+        add("Presence Toasts", () -> new PresenceToastsHook(context, classLoader, prefs));
+        add("Tasker Integration", () -> new com.waenhancer.xposed.features.automation.TaskerIntegrationHook(context, classLoader, prefs));
+        add("Chat Bubble Colors", () -> new com.waenhancer.xposed.features.conversation.ChatBubbleColorsHook(context, classLoader, prefs));
+        add("Channel Recommendations", () -> new com.waenhancer.xposed.features.customization.ChannelRecommendationsFilterHook(context, classLoader, prefs));
+        add("Presence Indicators", () -> new com.waenhancer.xposed.features.customization.OnlinePresenceIndicatorsHook(context, classLoader, prefs));
+        add("Separate Groups", () -> new com.waenhancer.xposed.features.customization.SeparateGroupsHook(context, classLoader, prefs));
+        add("Floating Bottom Bar", () -> new com.waenhancer.xposed.features.customization.FloatingBottomBarHook(context, classLoader, prefs));
+    }
+
+    private static void installSafely(String name, Installer installer) {
+        try {
+            installer.install();
+        } catch (Throwable failure) {
+            XposedBridge.log("[WAEX] Failed to install [" + name + "]: " + failure);
+        }
     }
 
     public void initializeAll() {
-        for (BaseFeature feature : features) {
-            try {
+        installSafely("Native WhatsApp Dialog", () -> NativeWhatsAppDialog.Companion.initialize(context, classLoader));
+        installSafely("Bootloader Spoofer", () -> BootloaderSpooferFeature.install(context, classLoader, prefs));
+        for (RegisteredFeature registered : features) {
+            installSafely(registered.name, () -> {
+                BaseFeature feature = registered.factory.create();
                 feature.hook();
-            } catch (Throwable t) {
-                XposedBridge.log("[WAEX] Error initializing feature [" + feature.getName() + "]: " + t.getMessage());
-            }
+            });
         }
+        // License checks remain implemented exclusively by the original licensing module.
+        installSafely("Message Bomber", () -> MessageBomberFeature.install(context, classLoader, prefs));
+        installSafely("Audio To Voice", () -> AudioToVoiceStatusFeature.install(context, classLoader, prefs));
+        installSafely("Status Splitter", () -> StatusSplitterFeature.install(context, classLoader, prefs));
+        installSafely("File Size Spoofer", () -> FileSizeSpooferFeature.install(context, classLoader, prefs));
     }
 }

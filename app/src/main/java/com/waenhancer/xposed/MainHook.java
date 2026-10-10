@@ -2,7 +2,6 @@ package com.waenhancer.xposed;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.ContextWrapper;
 import com.waenhancer.xposed.bridge.client.PreferenceBridgeClient;
 import com.waenhancer.xposed.core.FeatureRegistry;
 import com.waenhancer.xposed.utils.ModuleStatus;
@@ -14,6 +13,7 @@ import de.robv.android.xposed.XSharedPreferences;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 
 
@@ -26,8 +26,11 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
     public static final String PACKAGE_MANAGER = "com.waenhancer";
     public static final String PACKAGE_WPP = "com.whatsapp";
     public static final String PACKAGE_BUSINESS = "com.whatsapp.w4b";
+    public static final String RESTART_PERMISSION = "com.waenhancer.permission.RESTART_TARGET";
 
     private static XSharedPreferences sPrefs;
+    // Xposed loads this class separately in each target process.
+    private static final AtomicBoolean targetInitialized = new AtomicBoolean(false);
     private String mModulePath;
 
     @Override
@@ -118,8 +121,24 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
 
             XposedBridge.log("[WAEX] Injected into target: " + packageName + " (process: " + lpparam.processName + ")");
 
-            // Initialize features on target Application creation
+            // Instrumentation still runs when a target Application overrides onCreate
+            // without calling super. Application.onCreate is a fallback for OEM runtimes.
+            boolean instrumentationHooked = false;
             try {
+                XposedHelpers.findAndHookMethod(
+                        "android.app.Instrumentation", lpparam.classLoader,
+                        "callApplicationOnCreate", android.app.Application.class,
+                        new XC_MethodHook() {
+                            @Override
+                            protected void afterHookedMethod(MethodHookParam param) {
+                                initializeTarget((Context) param.args[0], packageName, lpparam.classLoader);
+                            }
+                        });
+                instrumentationHooked = true;
+            } catch (Throwable t) {
+                XposedBridge.log("[WAEX] Cannot hook Instrumentation.callApplicationOnCreate: " + t);
+            }
+            if (!instrumentationHooked) try {
                 XposedHelpers.findAndHookMethod(
                         "android.app.Application",
                         lpparam.classLoader,
@@ -127,60 +146,61 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                         new XC_MethodHook() {
                             @Override
                             protected void afterHookedMethod(MethodHookParam param) {
-                                Context appContext = (Context) param.thisObject;
-                                if (appContext instanceof android.app.Application) {
-                                    com.waenhancer.xposed.utils.ActivityTracker.install((android.app.Application) appContext);
-                                }
-
-                                // Register this package as active hooked package for the dashboard
-                                com.waenhancer.utils.WhatsAppPackageDetector.registerHookedPackage(appContext, packageName);
-
-                                try {
-                                    android.content.IntentFilter filter = new android.content.IntentFilter("com.waenhancer.WHATSAPP.RESTART");
-                                    android.content.BroadcastReceiver receiver = new android.content.BroadcastReceiver() {
-                                        @Override
-                                        public void onReceive(Context context, android.content.Intent intent) {
-                                            String pkg = intent.getStringExtra("PKG");
-                                            if (pkg == null || pkg.equals(packageName)) {
-                                                android.os.Process.killProcess(android.os.Process.myPid());
-                                                System.exit(0);
-                                            }
-                                        }
-                                    };
-                                    if (android.os.Build.VERSION.SDK_INT >= 33) {
-                                        appContext.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED);
-                                    } else {
-                                        appContext.registerReceiver(receiver, filter);
-                                    }
-                                } catch (Throwable ignored) {}
-
-                                XposedBridge.log("[WAEX] Target Application created. Initializing features...");
-                                try {
-                                    PreferenceBridgeClient bridgeClient =
-                                            new PreferenceBridgeClient(appContext, getPrefs());
-
-                                    // Verify universal version compatibility before loading hooks
-                                    boolean isSupported = com.waenhancer.xposed.core.VersionGuard.verifyAndGuard(
-                                            appContext,
-                                            lpparam.classLoader,
-                                            bridgeClient
-                                    );
-
-                                    if (isSupported) {
-                                        FeatureRegistry registry = new FeatureRegistry(appContext, lpparam.classLoader, bridgeClient);
-                                        registry.initializeAll();
-                                    } else {
-                                        XposedBridge.log("[WAEX] Feature initialization halted due to unverified WhatsApp version.");
-                                    }
-                                } catch (Throwable t) {
-                                    XposedBridge.log("[WAEX] Error initializing FeatureRegistry: " + t.getMessage());
-                                }
+                                initializeTarget((Context) param.thisObject, packageName, lpparam.classLoader);
                             }
                         }
                 );
             } catch (Throwable t) {
                 XposedBridge.log("[WAEX] Error hooking Application.onCreate in target: " + t.getMessage());
             }
+        }
+    }
+
+    private static void initializeTarget(Context context, String packageName, ClassLoader loader) {
+        if (!(context instanceof android.app.Application)
+                || !targetInitialized.compareAndSet(false, true)) return;
+        android.app.Application application = (android.app.Application) context;
+
+        try {
+            com.waenhancer.xposed.utils.ActivityTracker.install(application);
+        } catch (Throwable t) {
+            XposedBridge.log("[WAEX] ActivityTracker startup failed: " + t);
+        }
+        try {
+            com.waenhancer.utils.WhatsAppPackageDetector.registerHookedPackage(application, packageName);
+        } catch (Throwable t) {
+            XposedBridge.log("[WAEX] Hooked-package registration failed: " + t);
+        }
+        // Without a signature permission, any installed application could kill WhatsApp.
+        try {
+            android.content.IntentFilter filter = new android.content.IntentFilter("com.waenhancer.WHATSAPP.RESTART");
+            android.content.BroadcastReceiver receiver = new android.content.BroadcastReceiver() {
+                @Override
+                public void onReceive(Context receiverContext, android.content.Intent intent) {
+                    if (intent != null && packageName.equals(intent.getStringExtra("PKG"))) {
+                        android.os.Process.killProcess(android.os.Process.myPid());
+                    }
+                }
+            };
+            if (android.os.Build.VERSION.SDK_INT >= 33) {
+                application.registerReceiver(receiver, filter, RESTART_PERMISSION,
+                        null, Context.RECEIVER_EXPORTED);
+            } else {
+                application.registerReceiver(receiver, filter, RESTART_PERMISSION, null);
+            }
+        } catch (Throwable t) {
+            XposedBridge.log("[WAEX] Restart receiver registration failed: " + t);
+        }
+
+        try {
+            PreferenceBridgeClient bridgeClient = new PreferenceBridgeClient(application, getPrefs());
+            if (com.waenhancer.xposed.core.VersionGuard.verifyAndGuard(application, loader, bridgeClient)) {
+                new FeatureRegistry(application, loader, bridgeClient).initializeAll();
+            } else {
+                XposedBridge.log("[WAEX] Hooks paused: WhatsApp version not verified.");
+            }
+        } catch (Throwable t) {
+            XposedBridge.log("[WAEX] Error initializing FeatureRegistry: " + t);
         }
     }
 }
