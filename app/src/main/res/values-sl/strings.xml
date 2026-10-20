@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Wa Enhancer X</string>
-    <string name="xposed_description">Modularno ogrodje za izboljšave za WhatsApp in WhatsApp Business.</string>
+    <string name="xposed_description">Xposed/LSPosed orodja za zasebnost, zaščito pred izbrisom, upravljanje multimedijskih datotek in prilagajanje za WhatsApp in WhatsApp Business na Android napravah z root dostopom.</string>
     <string name="about_title">O programu in zahvale</string>
     <string name="maintainer">mubashardev</string>
     <string name="developer">Razvil Mubashar Dev</string>
@@ -35,6 +35,12 @@
     <string name="app_theme_title">Tema aplikacije</string>
     <string name="app_theme_desc">Izberi videz WAEX-a</string>
     <string name="choose_app_theme">Izberi temo aplikacije</string>
+    <string name="interface_size_title">Velikost vmesnika</string>
+    <string name="interface_size_desc">Prilagajanje besedila, upravljalnih elementov, razmikov in navigacije v celotni aplikaciji</string>
+    <string name="interface_size_compact">Kompakten</string>
+    <string name="interface_size_standard">Standardni</string>
+    <string name="interface_size_comfortable">Udoben</string>
+    <string name="interface_size_large">Velik</string>
     <string name="theme_follow_system">Sledi sistemu</string>
     <string name="theme_light">Svetla</string>
     <string name="theme_dark">Temna</string>
@@ -61,6 +67,8 @@
     <string name="filter_all">Vse</string>
     <string name="requires_pro">Zahteva Pro</string>
     <string name="pro_feature_tag">Pro</string>
+    <string name="build_variant_debug">Razvojna različica</string>
+    <string name="build_variant_release">Končna različica</string>
     <string name="dashboard_title">WaEnhancerX</string>
     <string name="module_active">Modul je aktiven</string>
     <string name="module_inactive">Modul je neaktiven</string>
@@ -142,14 +150,14 @@
     <string name="feat_call_privacy_desc">Blokiranje klicev v WhatsAppu glede na vrsto zasebnosti</string>
     <string name="feat_autonext_status_title">Onemogoči samodejni preskok statusa</string>
     <string name="feat_autonext_status_desc">Preprečevanje, da se trenutni status samodejno preklopi na naslednjega</string>
-    <string name="feat_toast_viewed_status_title">Prikaži obvestilo, ko si je nekdo ogledal tvoj status</string>
-    <string name="feat_toast_viewed_status_desc">Prikazovanje obvestila, če si nekdo oregleda tvoj status</string>
+    <string name="feat_toast_viewed_status_title">Opozorila o potrditvi ogleda stanja</string>
+    <string name="feat_toast_viewed_status_desc">Opozarjanja, ko prejmeš potrditev ogleda tvojega stanja; ponavljajoča se potrdila so lahko združena v skupine.</string>
     <string name="feat_antidisappearing_title">Preprečevanje izginjanja sporočil</string>
     <string name="feat_antidisappearing_desc">Začasna sporočila se ti ne bodo izbrisala</string>
     <string name="feat_toastdeleted_title">Prikaži obvestilo ob izbrisu sporočila</string>
     <string name="feat_toastdeleted_desc">Prikazovanje obvestila, če kateri koli stik izbriše katero koli sporočilo</string>
-    <string name="feat_toast_viewed_message_title">Prikaži obvestilo ob ogledu tvojega sporočila</string>
-    <string name="feat_toast_viewed_message_desc">Prikazovanje obvestila, če si nekdo ogleda tvoje sporočilo</string>
+    <string name="feat_toast_viewed_message_title">Opozorila o potrditvah branja sporočil</string>
+    <string name="feat_toast_viewed_message_desc">Opozarjanja, ko prejmeš potrditev branja tvojega sporočila; ponavljajoča se potrdila so lahko združena v skupine.</string>
     <string name="feat_ghostmode_title">Prikaži gumb za način Ghost Mode</string>
     <string name="feat_ghostmode_desc">Prikazovanje gumba za način Ghost Mode na orodni vrstici v začetnem pogledu</string>
     <string name="feat_show_dndmode_title">Prikaži gumb za način Ne moti</string>
@@ -280,8 +288,6 @@
     <string name="feat_license_verification_desc">Upravljanje vnosa in preverjanja licenčnega ključa</string>
     <string name="feat_pro_features_unlock_title">Upravljaj premium funkcije</string>
     <string name="feat_pro_features_unlock_desc">Dinamično zaklepanje/odklepanje premium funkcij</string>
-    <string name="feat_metaai_title">Skrij gumb Meta AI</string>
-    <string name="feat_metaai_desc">Skrij gumb Meta AI na zaslonu klepetov.</string>
     <string name="sec_chat_group_utilities">Orodja za klepet in skupine</string>
     <string name="sec_conversation_list_activity_presence">Dejavnost na seznamu klepetov in prisotnost</string>
     <string name="sec_visual_styles">Vizualni slogi</string>
@@ -352,7 +358,7 @@
     <string name="tasker_view_setup_guide">Oglej si Navodila za nastavitev →</string>
     <string name="tasker_execution_history">Zgodovina izvedb</string>
     <string name="call_recording_config_title">Konfiguracija snemanja klicev</string>
-    <string name="call_recording_config_desc">Nastavite zvočne vire, formate in bitno hitrost</string>
+    <string name="call_recording_config_desc">Nastavljanje zvočnih virov, formatov in bitne hitrosti</string>
     <string name="requires_pro_label">Zahteva različico Pro</string>
     <string name="subtab_automation">Avtomatizacija</string>
     <string name="subtab_audio_ai">Avdio in umetna inteligenca</string>
@@ -368,6 +374,13 @@
     <string name="dep_disabled_hide_blue_ticks">(Onemogočeno: najprej vklopi možnost Skrij modre kljukice)</string>
     <string name="title_call_configurations">Nastavitve klicev</string>
     <string name="title_call_recordings">Posnetki</string>
-    <string name="view_once_setting_save_failed">Nastavitve ni bilo mogoče shraniti</string>
-    <string name="waex_l10n_builtin_match">"Podprto"</string>
+
+    <string name="feat_status_style_title">Zgodbe in slog statusa</string>
+    <string name="feat_status_style_desc">Prilagajanje postavitev zgodb in statusov v WhatsAppu z izvirnimi različicami uporabniškega vmesnika</string>
+    <string name="status_style_default">Privzeto</string>
+    <string name="status_style_vertical_rows">Navpične vrstice</string>
+    <string name="status_style_facebook_grid">Facebookove kartice (mreža)</string>
+    <string name="status_style_vertical_compact">Navpični seznam (strnjen)</string>
+    <string name="status_style_vertical_circle">Navpični seznam (krožni avatarji)</string>
+    <string name="status_style_vertical_square">Navpični seznam (kvadratne kartice)</string>
 </resources>
