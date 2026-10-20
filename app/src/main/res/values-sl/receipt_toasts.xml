@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="receipt_observed_message">%1$s je pravkar prebral vaše sporočilo</string>
-    <string name="receipt_observed_status">%1$s si je pravkar ogledal vaše stanje</string>
+    <string name="receipt_observed_message">%1$s je pravkar prebral/a tvoje sporočilo</string>
+    <string name="receipt_observed_status">%1$s si je pravkar ogledal/a tvoje stanje</string>
 </resources>
