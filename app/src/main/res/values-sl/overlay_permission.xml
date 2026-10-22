@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="overlay_restricted_settings_help">Če Android sporoči, da je aplikaciji zavrnil dostop do omejene nastavitve, odprite podatke o aplikaciji in v meniju poiščite možnost Dovoli omejene nastavitve. Dovolite jo le, če tej namestitvi zaupate, nato se vrnite na Prikazovanje čez druge aplikacije. WaEnhancerX lahko še naprej uporabljate brez tega izbirnega dovoljenja.</string>
+    <string name="overlay_open_app_info">Odpri podatke o aplikaciji</string>
+    <string name="overlay_settings_unavailable">Android ni mogel odpreti tega zaslona z nastavitvami. Dovoljenje lahko preverite v meniju Nastavitve &gt; Aplikacije &gt; WaEnhancerX.</string>
+</resources>

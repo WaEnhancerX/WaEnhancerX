@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="overlay_restricted_settings_help">Si Android indica que denegó el acceso de esta app a un ajuste restringido, abre Información de la app y busca Permitir ajustes restringidos en el menú. Permítelo solo si confías en esta instalación y vuelve a Mostrar sobre otras apps. Puedes seguir usando WaEnhancerX sin este permiso opcional.</string>
+    <string name="overlay_open_app_info">Abrir Información de la app</string>
+    <string name="overlay_settings_unavailable">Android no pudo abrir esta pantalla. Puedes revisar el permiso en Ajustes &gt; Apps &gt; WaEnhancerX.</string>
+</resources>

@@ -3,9 +3,10 @@ package com.waenhancer.xposed.features.customization
 import android.content.Context
 import android.content.SharedPreferences
 import android.view.View
-import android.view.ViewGroup
 import com.waenhancer.xposed.core.BaseFeature
 import com.waenhancer.xposed.core.devkit.DexSearchEngine
+import com.waenhancer.xposed.utils.ViewVisibilityGuard
+import com.waenhancer.xposed.utils.ViewClassSelector
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import org.luckypray.dexkit.query.FindClass
@@ -28,36 +29,27 @@ class ChannelRecommendationsFilterHook(
     override fun hook() {
         if (!isEnabled("channels_enhancements", false)) return
 
-        try {
-            val recClass = DexSearchEngine.getInstance().findClassWithCache(
-                context,
-                classLoader,
-                "wpp_channel_rec_class"
-            ) { bridge, loader ->
-                val result = bridge.findClass(
-                    FindClass.create().matcher(
-                        ClassMatcher.create().addUsingString("hasNewsletterSubscriptions", StringMatchType.Contains)
-                    )
-                ).firstOrNull()
-                result?.getInstance(loader)
-            }
-
-            if (recClass != null) {
-                XposedBridge.hookAllConstructors(recClass, object : XC_MethodHook() {
-                    override fun afterHookedMethod(param: MethodHookParam) {
-                        val view = param.thisObject as? View ?: return
-                        view.visibility = View.GONE
-                        val layoutParams = view.layoutParams
-                        if (layoutParams != null) {
-                            layoutParams.height = 0
-                            layoutParams.width = 0
-                            view.layoutParams = layoutParams
-                        }
-                    }
-                })
-            }
-        } catch (t: Throwable) {
-            XposedBridge.log("[WAEX][ChannelsFilter] Error hooking channel recommendation container: ${t.message}")
+        val recClass = DexSearchEngine.getInstance().findClassWithCache(
+            context,
+            classLoader,
+            "wpp_channel_rec_view_class_v2"
+        ) { bridge, loader ->
+            val candidates = bridge.findClass(
+                FindClass.create().matcher(
+                    ClassMatcher.create().addUsingString("hasNewsletterSubscriptions", StringMatchType.Contains)
+                )
+            ).map { it.getInstance(loader) }
+            ViewClassSelector.uniqueView(candidates)
         }
+
+        check(recClass != null && View::class.java.isAssignableFrom(recClass)) {
+            "Channel recommendation view selector is unavailable for this target"
+        }
+        XposedBridge.hookAllConstructors(recClass, object : XC_MethodHook() {
+            override fun afterHookedMethod(param: MethodHookParam) {
+                val view = param.thisObject as? View ?: return
+                ViewVisibilityGuard.hideWhileEnabled(view, prefs, "channels_enhancements")
+            }
+        })
     }
 }

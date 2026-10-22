@@ -13,6 +13,7 @@ import android.os.Bundle
 import android.os.Environment
 import android.os.PowerManager
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -51,6 +52,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -446,11 +448,11 @@ fun PermissionsScreen(
                 }
             }
             PermissionType.SYSTEM_ALERT_WINDOW -> {
-                val intent = Intent(
-                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:${context.packageName}")
-                )
-                genericSettingsLauncher.launch(intent)
+                if (!OverlayPermissionLauncher.openOverlay(context.packageName) {
+                        genericSettingsLauncher.launch(it)
+                    }) {
+                    Toast.makeText(context, context.getString(R.string.overlay_settings_unavailable), Toast.LENGTH_LONG).show()
+                }
             }
             PermissionType.BATTERY_OPTIMIZATION -> {
                 try {
@@ -710,6 +712,23 @@ fun PermissionsScreen(
                                 fontSize = 12.sp,
                                 lineHeight = 16.sp
                             )
+                            if (item.type == PermissionType.SYSTEM_ALERT_WINDOW && !isGranted &&
+                                currentRequestingItem?.id == item.id) {
+                                Text(
+                                    text = context.getString(R.string.overlay_restricted_settings_help),
+                                    style = typography.bodyMd,
+                                    color = colors.onSurfaceVariant
+                                )
+                                TextButton(onClick = {
+                                    if (!OverlayPermissionLauncher.openAppInfo(context.packageName) {
+                                            genericSettingsLauncher.launch(it)
+                                        }) {
+                                        Toast.makeText(context, context.getString(R.string.overlay_settings_unavailable), Toast.LENGTH_LONG).show()
+                                    }
+                                }) {
+                                    Text(context.getString(R.string.overlay_open_app_info))
+                                }
+                            }
                         }
 
                         Spacer(modifier = Modifier.width(12.dp))

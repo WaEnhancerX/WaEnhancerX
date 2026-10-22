@@ -7,6 +7,9 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.xposed.utils.ViewVisibilityGuard;
+import com.waenhancer.xposed.utils.ViewClassSelector;
+import java.util.ArrayList;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import org.luckypray.dexkit.query.FindClass;
@@ -29,38 +32,37 @@ public class ChatListCustomizationsHook extends BaseFeature {
 
     @Override
     public void hook() throws Throwable {
-        hookMetaAiFab();
         hookConversationsRow();
+        if (isMetaAiDisabled()) hookMetaAiFab();
     }
 
     private void hookMetaAiFab() {
-        try {
-            Class<?> metaAiFabClass = DexSearchEngine.getInstance().findClassWithCache(
-                    context,
-                    classLoader,
-                    "wpp_meta_ai_fab_class",
-                    (bridge, loader) -> {
-                        ClassData cd = bridge.findClass(FindClass.create()
-                                .matcher(ClassMatcher.create().className("MetaAi", StringMatchType.Contains))
-                        ).firstOrNull();
-                        return cd != null ? cd.getInstance(loader) : null;
+        Class<?> metaAiFabClass = DexSearchEngine.getInstance().findClassWithCache(
+                context,
+                classLoader,
+                "wpp_meta_ai_fab_view_class_v2",
+                (bridge, loader) -> {
+                    ArrayList<Class<?>> candidates = new ArrayList<>();
+                    for (ClassData cd : bridge.findClass(FindClass.create()
+                            .matcher(ClassMatcher.create().className("MetaAi", StringMatchType.Contains))
+                    )) {
+                        candidates.add(cd.getInstance(loader));
                     }
-            );
+                    return ViewClassSelector.uniqueView(candidates);
+                }
+        );
 
-            if (metaAiFabClass != null) {
-                XposedBridge.hookAllConstructors(metaAiFabClass, new XC_MethodHook() {
-                    @Override
-                    protected void afterHookedMethod(MethodHookParam param) {
-                        if (isMetaAiDisabled() && param.thisObject instanceof View) {
-                            View view = (View) param.thisObject;
-                            view.setVisibility(View.GONE);
-                        }
-                    }
-                });
-            }
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + " Error hooking Meta AI: " + t.getMessage());
+        if (metaAiFabClass == null || !View.class.isAssignableFrom(metaAiFabClass)) {
+            throw new IllegalStateException("Meta AI view selector is unavailable for this target");
         }
+        XposedBridge.hookAllConstructors(metaAiFabClass, new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) {
+                if (param.thisObject instanceof View) {
+                    ViewVisibilityGuard.hideWhileEnabled((View) param.thisObject, prefs, "metaai");
+                }
+            }
+        });
     }
 
     private void hookConversationsRow() {

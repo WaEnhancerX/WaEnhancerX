@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="overlay_restricted_settings_help">If Android says this app was denied access to a restricted setting, open App info and check the menu for Allow restricted settings. Only allow it if you trust this installation, then return to Display over other apps. You can continue using WaEnhancerX without this optional permission.</string>
+    <string name="overlay_open_app_info">Open App info</string>
+    <string name="overlay_settings_unavailable">Android could not open this settings screen. You can review the permission in Settings &gt; Apps &gt; WaEnhancerX.</string>
+</resources>

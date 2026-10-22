@@ -62,6 +62,7 @@ import de.robv.android.xposed.XposedHelpers;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -97,6 +98,8 @@ public class FloatingBottomBarHook extends BaseFeature {
     private static final WeakHashMap<ViewGroup, ViewTreeObserver.OnPreDrawListener> indicatorGuards = new WeakHashMap<>();
     private static final WeakHashMap<ViewGroup, Integer> forcedSelectedTabs = new WeakHashMap<>();
     private static final WeakHashMap<View, Boolean> renderedSelectedTabs = new WeakHashMap<>();
+    private static final WeakHashMap<View, WeakReference<TransitionDrawable>> renderedTransitions = new WeakHashMap<>();
+    private static final WeakHashMap<ViewGroup, WeakReference<FabLayoutListener>> pendingFabLayouts = new WeakHashMap<>();
 
     private static int bottomNavId = -1;
     private static int navigationBarId = -1;
@@ -1253,10 +1256,16 @@ public class FloatingBottomBarHook extends BaseFeature {
         }
         if (item.isSelected() != checked) item.setSelected(checked);
         if (item.isActivated() != checked) item.setActivated(checked);
-        item.refreshDrawableState();
         Boolean rendered = renderedSelectedTabs.get(item);
         if (rendered == null || rendered != checked) {
             Drawable from = item.getBackground();
+            // Reuse the previous target, not its whole transition history. Keeping the
+            // TransitionDrawable here nests two more layers on every selection change.
+            WeakReference<TransitionDrawable> reference = renderedTransitions.get(item);
+            TransitionDrawable previous = reference != null ? reference.get() : null;
+            if (previous != null && from == previous) {
+                from = previous.getDrawable(previous.getNumberOfLayers() - 1);
+            }
             if (from == null) from = new ColorDrawable(Color.TRANSPARENT);
             Drawable to = checked
                     ? createPresetIndicator(item,
@@ -1265,6 +1274,7 @@ public class FloatingBottomBarHook extends BaseFeature {
             TransitionDrawable transition = new TransitionDrawable(new Drawable[]{from, to});
             transition.setCrossFadeEnabled(true);
             item.setBackground(transition);
+            renderedTransitions.put(item, new WeakReference<>(transition));
             transition.startTransition(checked ? 180 : 140);
             renderedSelectedTabs.put(item, checked);
             if (checked) {
@@ -1277,7 +1287,6 @@ public class FloatingBottomBarHook extends BaseFeature {
                         .setInterpolator(new AccelerateDecelerateInterpolator()).start();
             }
         }
-        item.invalidate();
     }
 
     private static boolean containsText(View view, String expected) {
@@ -1305,10 +1314,11 @@ public class FloatingBottomBarHook extends BaseFeature {
             try {
                 String name = view.getResources().getResourceEntryName(view.getId());
                 if (name != null && name.contains("active_indicator")) {
-                    view.setBackground(null);
-                    view.setBackgroundColor(Color.TRANSPARENT);
-                    view.setAlpha(0f);
-                    view.setVisibility(View.INVISIBLE);
+                    // This runs before drawing. Mutating unchanged Views here starts
+                    // another invalidation/layout cycle even while the bar is idle.
+                    if (view.getBackground() != null) view.setBackground(null);
+                    if (view.getAlpha() != 0f) view.setAlpha(0f);
+                    if (view.getVisibility() != View.INVISIBLE) view.setVisibility(View.INVISIBLE);
                     return;
                 }
             } catch (Throwable ignored) {}
@@ -1508,14 +1518,15 @@ public class FloatingBottomBarHook extends BaseFeature {
             }
         }
 
-        if (container == null) return;
+        if (container == null || !rootView.isAttachedToWindow() || !container.isAttachedToWindow()
+                || container.getRootView() != rootView.getRootView()) return;
 
         int barHeight = container.getHeight();
         if (barHeight <= 0) {
-            final ViewGroup targetContainer = container;
-            rootView.postDelayed(() -> positionFabsAboveBar(rootView, targetContainer), 100L);
+            awaitFabLayout(rootView, container);
             return;
         }
+        cancelFabLayout(container);
 
         int bottomMargin = 0;
         ViewGroup.LayoutParams lp = container.getLayoutParams();
@@ -1534,6 +1545,64 @@ public class FloatingBottomBarHook extends BaseFeature {
                 fab.setTranslationY(totalOffset);
                 fab.bringToFront();
             }
+        }
+    }
+
+    private static void awaitFabLayout(ViewGroup rootView, ViewGroup container) {
+        WeakReference<FabLayoutListener> reference = pendingFabLayouts.get(container);
+        FabLayoutListener previous = reference != null ? reference.get() : null;
+        if (previous != null && previous.root.get() == rootView) return;
+        if (previous != null) previous.remove(container);
+        FabLayoutListener listener = new FabLayoutListener(rootView, container);
+        pendingFabLayouts.put(container, new WeakReference<>(listener));
+        container.addOnLayoutChangeListener(listener);
+        container.addOnAttachStateChangeListener(listener);
+    }
+
+    private static void cancelFabLayout(ViewGroup container) {
+        WeakReference<FabLayoutListener> reference = pendingFabLayouts.get(container);
+        FabLayoutListener listener = reference != null ? reference.get() : null;
+        if (listener != null) listener.remove(container);
+        else pendingFabLayouts.remove(container);
+    }
+
+    /** Wait for an actual layout; a detached or permanently empty bar schedules no polling. */
+    private static final class FabLayoutListener implements View.OnLayoutChangeListener,
+            View.OnAttachStateChangeListener {
+        private final WeakReference<ViewGroup> root;
+        private final WeakReference<ViewGroup> container;
+
+        FabLayoutListener(ViewGroup root, ViewGroup container) {
+            this.root = new WeakReference<>(root);
+            this.container = new WeakReference<>(container);
+        }
+
+        private void remove(View owner) {
+            owner.removeOnLayoutChangeListener(this);
+            owner.removeOnAttachStateChangeListener(this);
+            WeakReference<FabLayoutListener> current = pendingFabLayouts.get(owner);
+            if (current != null && current.get() == this) pendingFabLayouts.remove(owner);
+        }
+
+        @Override public void onLayoutChange(View view, int left, int top, int right, int bottom,
+                int oldLeft, int oldTop, int oldRight, int oldBottom) {
+            ViewGroup targetRoot = root.get();
+            ViewGroup targetContainer = container.get();
+            if (targetRoot == null || targetContainer == null || !view.isAttachedToWindow()
+                    || targetRoot.getRootView() != view.getRootView()) {
+                remove(view);
+                return;
+            }
+            if (bottom > top) {
+                remove(view);
+                positionFabsAboveBar(targetRoot, targetContainer);
+            }
+        }
+
+        @Override public void onViewAttachedToWindow(View view) {}
+
+        @Override public void onViewDetachedFromWindow(View view) {
+            remove(view);
         }
     }
 
