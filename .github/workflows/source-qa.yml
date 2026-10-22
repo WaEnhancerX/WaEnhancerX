@@ -49,6 +49,26 @@ jobs:
           fi
           kotlinc -version
 
+      - name: Verify bounded Maven dependency recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_maven_dependencies.py --out "$RUNNER_TEMP/waex-maven-recovery"
+
+      - name: Upload Maven dependency recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maven-dependency-recovery-evidence
+          path: |
+            ${{ runner.temp }}/waex-maven-recovery/result.json
+            ${{ runner.temp }}/waex-maven-recovery/test_*/*.log
+            ${{ runner.temp }}/waex-maven-recovery/test_*/*retry.json
+            ${{ runner.temp }}/waex-maven-recovery/test_*/calls.jsonl
+            ${{ runner.temp }}/waex-maven-recovery/test_*/config.json
+          retention-days: 14
+          if-no-files-found: error
+
       - name: Parse all production Java and Kotlin files (no Android SDK)
         shell: bash
         run: |
@@ -74,6 +94,8 @@ jobs:
             qa/test_dnd_preference_policy.py
             qa/test_dex_negative_cache.py
             qa/test_restart_safety.py
+            qa/test_root_command_deadline.py
+            qa/test_hma_dashboard_state.py
             qa/test_hook_return_types.py
             qa/test_monet_wiring.py
             qa/test_catalog_source.py
@@ -363,5 +385,71 @@ jobs:
         with:
           name: stability-framework-evidence
           path: ${{ runner.temp }}/waex-stability/*/evidence
+          retention-days: 14
+          if-no-files-found: error
+
+  hma-config-framework:
+    name: HMA scoped repair / Android API 24, 28, 34 / checked shell writes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Require complete HMA production sources and compiler tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v kotlinc
+          command -v mvn
+          test -f app/src/main/java/com/waenhancer/utils/HmaDiagnostics.kt
+          test -f app/src/main/java/com/waenhancer/utils/HmaConfigPolicy.java
+          test -f app/src/main/java/com/waenhancer/utils/HmaConfigFile.java
+          test -f app/src/main/java/com/waenhancer/xposed/utils/RootCommandRunner.java
+          test -f qa/android_hma_test.py
+          test -f qa/test_hma_backup_commands.py
+          test -f qa/test_selected_upstream_hardening.py
+          test -f qa/fixtures/HmaFlowTest.kt
+          test -f qa/fixtures/HmaContractTest.java
+          test -f qa/fixtures/RootCommandBoundedChecks.java
+          test -f qa/fixtures/hma_command_service.py
+      - name: Verify complete diagnostics, bounded reads and target-local atomic replacements
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/android_hma_test.py \
+            --out "$RUNNER_TEMP/waex-hma-framework" \
+            --maven-repo "$RUNNER_TEMP/waex-hma-maven-cache"
+          echo 'Complete public HMA classes passed framework and temporary-file shell checks. No real su, Android config, HMA service, SELinux or LSPosed injection was exercised.'
+      - name: Verify compiled recovery commands and preserve upstream hardening contracts
+        shell: bash
+        env:
+          HMA_QA_COMMAND_OUT: ${{ runner.temp }}/waex-hma-command-contracts
+        run: |
+          set -euo pipefail
+          python3 qa/test_selected_upstream_hardening.py
+      - name: Preserve exact source, fixture, dependency and command evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hma-config-framework-evidence
+          path: |
+            ${{ runner.temp }}/waex-hma-framework/*.json
+            ${{ runner.temp }}/waex-hma-framework/*.log
+            ${{ runner.temp }}/waex-hma-framework/command-cases/*/events.jsonl
+            ${{ runner.temp }}/waex-hma-framework/command-cases/*/control.json
+            ${{ runner.temp }}/waex-hma-command-contracts/*.json
+            ${{ runner.temp }}/waex-hma-command-contracts/*.log
+            ${{ runner.temp }}/waex-hma-command-contracts/test_*/*.json
+            ${{ runner.temp }}/waex-hma-command-contracts/test_*/*.log
+            ${{ runner.temp }}/waex-hma-command-contracts/test_*/*.sh
           retention-days: 14
           if-no-files-found: error

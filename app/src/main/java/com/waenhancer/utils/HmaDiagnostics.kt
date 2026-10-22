@@ -2,10 +2,11 @@ package com.waenhancer.utils
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
+import android.os.Process
 import com.waenhancer.xposed.utils.AppRestartHelper
+import com.waenhancer.xposed.utils.RootCommandRunner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.atomic.AtomicReference
@@ -21,13 +22,16 @@ object HmaDiagnostics {
 
     private const val HMA_ZYGISK_PATH = "/data/adb/modules/hma_oss_zygisk"
     private const val LSP_CONFIG_DB = "/data/adb/lspd/config/modules_config.db"
-    private const val HMA_CONFIG_GLOB = "/data/misc/hide_my_applist*/config.json"
-    private const val HMA_ALT_CONFIG = "/data/adb/hma/config.json"
 
-    private val cachedResult = AtomicReference<HmaReport?>(null)
+    private data class RequestKey(val applicationUid: Int, val modulePackage: String, val targets: List<String>) {
+        val userId: Int get() = AndroidUserScope.userIdForUid(applicationUid)
+    }
+    private data class CachedReport(val request: RequestKey, val report: HmaReport)
+    private val cachedResult = AtomicReference<CachedReport?>(null)
 
     enum class HmaState {
         CHECKING,
+        UNAVAILABLE,
         NOT_ACTIVE,
         NOT_CONFIGURED,
         CLEAN,
@@ -48,7 +52,18 @@ object HmaDiagnostics {
         val message: String? = null
     )
 
-    fun cached(): HmaReport? = cachedResult.get()
+    private fun requestKey(context: Context, targetPackages: Collection<String>): RequestKey? = try {
+        val uid = context.applicationInfo.uid
+        // Resolve the calling app's identity before entering a root shell. A Context
+        // for another package or profile must not select which manager is stopped.
+        if (uid != Process.myUid()) null else {
+            AndroidUserScope.matchingUserId(uid, Process.myUid())
+            val targets = if (targetPackages.isEmpty()) DeclaredWhatsAppTargets.packages() else targetPackages
+            RequestKey(uid, context.packageName, targets.toSortedSet().toList())
+        }
+    } catch (_: Exception) {
+        null
+    }
 
     /**
      * Inspects HMA state and verifies if any target package in [targetPackages]
@@ -59,35 +74,32 @@ object HmaDiagnostics {
         targetPackages: Collection<String>,
         forceRefresh: Boolean = false
     ): HmaReport = withContext(Dispatchers.IO) {
-        if (!forceRefresh) {
-            cachedResult.get()?.let { return@withContext it }
+        val request = requestKey(context, targetPackages)
+            ?: return@withContext HmaReport(HmaState.UNAVAILABLE)
+        // A check cannot publish a pre-repair snapshot after repair invalidates it.
+        synchronized(repairLock) {
+            if (!forceRefresh) {
+                cachedResult.get()?.takeIf { it.request == request }?.let { return@synchronized it.report }
+            }
+            val report = runCheck(context, request)
+            cachedResult.set(CachedReport(request, report))
+            report
         }
-
-        val report = runCheck(context.applicationContext, targetPackages)
-        cachedResult.set(report)
-        report
     }
 
-    private fun runCheck(context: Context, targetPackages: Collection<String>): HmaReport {
-        if (!isHmaInstalledAndActive(context)) {
+    private fun runCheck(context: Context, request: RequestKey): HmaReport {
+        if (!isHmaInstalledAndActive(context, request.userId)) {
             return HmaReport(HmaState.NOT_ACTIVE)
         }
 
-        val allConfigs = readAllHmaConfigs()
+        val allConfigs = readAllHmaConfigs(request.userId)
         if (allConfigs.isEmpty()) {
             return HmaReport(HmaState.NOT_CONFIGURED)
         }
 
         // Known module package identifiers to check for concealment
-        val currentPackage = context.packageName
-        val moduleSignatures = setOf(currentPackage, "com.waenhancer", "com.waenhancer.debug")
-
-        // Packages to check: target packages passed in plus DeclaredWhatsAppTargets if targetPackages is empty
-        val packagesToCheck = if (targetPackages.isNotEmpty()) {
-            targetPackages.toSet()
-        } else {
-            DeclaredWhatsAppTargets.packages()
-        }
+        val currentPackage = request.modulePackage
+        val packagesToCheck = request.targets
 
         val details = mutableListOf<TargetIsolationDetail>()
         val blockedList = mutableListOf<String>()
@@ -98,12 +110,11 @@ object HmaDiagnostics {
             var primaryBlockReason: String? = null
 
             for ((_, config) in allConfigs) {
-                val templates = config.optJSONObject("templates") ?: JSONObject()
                 val scope = config.optJSONObject("scope") ?: JSONObject()
-                val scopeObj = scope.optJSONObject(pkg) ?: continue
+                if (scope.optJSONObject(pkg) == null) continue
 
                 foundInAnyScope = true
-                val blockReason = checkScopeBlockReason(scopeObj, templates, moduleSignatures)
+                val blockReason = HmaConfigPolicy.blockingReason(config, pkg, currentPackage)
                 if (blockReason != null) {
                     primaryBlockReason = blockReason
                     break
@@ -167,8 +178,9 @@ object HmaDiagnostics {
         "org.frknkrc44.hma_oss",
         "com.google.android.hmal"
     )
+    private val repairLock = Any()
 
-    private fun isHmaInstalledAndActive(context: Context): Boolean {
+    private fun isHmaInstalledAndActive(context: Context, userId: Int): Boolean {
         // 1. Zygisk module directory check
         val zygiskCheck = AppRestartHelper.runRootCommand(
             "[ -d $HMA_ZYGISK_PATH ] && [ ! -f $HMA_ZYGISK_PATH/disable ] && echo active; " +
@@ -202,47 +214,36 @@ object HmaDiagnostics {
         }
 
         // 3. Installed package manager check dynamically for any HMA / HMAL packages
-        val installedHmaPackages = getInstalledHmaPackages(context)
+        val installedHmaPackages = getInstalledHmaPackages(context, userId)
         if (installedHmaPackages.isNotEmpty()) {
             return true
         }
 
         // 4. Check if any HMA config file exists directly
-        val configPaths = findAllHmaConfigPaths()
+        val configPaths = findAllHmaConfigPaths(userId)
         return configPaths.isNotEmpty()
     }
 
     /**
-     * Dynamically discovers all installed HMA / HMAL packages on the system.
+     * Discovers exact HMA / HMAL managers installed for the calling app's user.
      */
-    private fun getInstalledHmaPackages(context: Context): List<String> {
-        val packages = mutableSetOf<String>()
-        try {
-            val pm = context.packageManager
-            val installed = pm.getInstalledPackages(0).map { it.packageName }
-            for (pkg in installed) {
-                val lower = pkg.lowercase()
-                if (lower.contains("hidemyapp") || lower.contains("hma") || lower.endsWith(".hmal")) {
-                    packages.add(pkg)
-                }
-            }
-        } catch (_: Exception) {}
-
-        // Also query via root package manager in case package visibility is restricted
-        val pmOut = AppRestartHelper.runRootCommand("pm list packages")
-        if (!pmOut.isNullOrBlank()) {
-            pmOut.lines().forEach { raw ->
-                val line = raw.trim()
-                if (line.startsWith("package:")) {
-                    val p = line.removePrefix("package:").trim()
-                    val lower = p.lowercase()
-                    if (lower.contains("hidemyapp") || lower.contains("hma") || lower.endsWith(".hmal")) {
-                        packages.add(p)
-                    }
-                }
-            }
+    private fun getInstalledHmaPackages(context: Context, userId: Int): List<String> {
+        val packages = linkedSetOf<String>()
+        val pm = context.packageManager
+        for (pkg in KNOWN_HMA_PACKAGES) {
+            try {
+                val info = pm.getApplicationInfo(pkg, 0)
+                if (AndroidUserScope.userIdForUid(info.uid) == userId) packages.add(pkg)
+            } catch (_: Exception) {}
         }
-
+        // Package visibility can hide a known manager from the app. Never guess
+        // an unrelated package from a substring before issuing a force-stop.
+        AppRestartHelper.runRootCommand("pm list packages --user $userId")?.lineSequence()?.forEach { raw ->
+            val line = raw.trim()
+            if (!line.startsWith("package:")) return@forEach
+            val pkg = line.removePrefix("package:")
+            if (HmaConfigPolicy.isManagerPackage(pkg)) packages.add(pkg)
+        }
         return packages.toList()
     }
 
@@ -265,288 +266,120 @@ object HmaDiagnostics {
     }
 
     /**
-     * Reads all available HMA / HMAL configurations across the device.
+     * Reads a previously discovered, canonical HMA / HMAL configuration candidate.
      */
-    private fun readAllHmaConfigs(): List<Pair<String, JSONObject>> {
-        val paths = findAllHmaConfigPaths()
+    private fun readConfigSnapshot(path: String): HmaConfigFile.Snapshot? {
+        if (!HmaConfigFile.isConfigPath(path)) return null
+        val output = RootCommandRunner.runBounded(
+            HmaConfigFile.readCommand(path), 4_000L, HmaConfigFile.MAX_COMMAND_OUTPUT
+        )
+        return HmaConfigFile.parseSnapshot(path, output)
+    }
+
+    private fun readAllHmaConfigs(userId: Int): List<Pair<String, JSONObject>> {
         val configs = mutableListOf<Pair<String, JSONObject>>()
-        for (path in paths) {
-            val out = AppRestartHelper.runRootCommand("cat $path 2>/dev/null")
-            if (!out.isNullOrBlank() && out.trimStart().startsWith("{")) {
-                try {
-                    configs.add(path to JSONObject(out))
-                } catch (_: Exception) {}
-            }
+        for (path in findAllHmaConfigPaths(userId)) {
+            val snapshot = readConfigSnapshot(path) ?: continue
+            try {
+                configs.add(path to JSONObject(snapshot.json))
+            } catch (_: Exception) {}
         }
         return configs
     }
 
     /**
-     * Finds all valid HMA / HMAL configuration paths across system directories,
-     * zygisk data directories, and app-internal private files.
+     * Global HMA service stores use package-name rules shared across users. Private
+     * manager files are only candidates for this user; finding one does not prove
+     * that the running service imported or currently enforces those rules.
      */
-    private fun findAllHmaConfigPaths(): List<String> {
-        val findCmd = "find /data/misc /data/system /data/adb /data/user/0 /data/data -name 'config.json' " +
-                "\\( -path '*hide_my_applist*' -o -path '*hma*' \\) 2>/dev/null; true"
+    private fun findAllHmaConfigPaths(userId: Int): List<String> {
+        val privateCandidates = KNOWN_HMA_PACKAGES.joinToString(" ") {
+            HmaConfigFile.quote("/data/user/$userId/$it/files/config.json")
+        }
+        // Direct service paths plus exact manager files avoid a recursive scan of
+        // unrelated apps and never ask the root namespace to resolve /data/data.
+        val findCmd = "for waex_path in /data/misc/hide_my_applist*/config.json " +
+                "/data/system/hide_my_applist*/config.json $privateCandidates; do " +
+                "[ -f \"\$waex_path\" ] && readlink -f \"\$waex_path\"; done 2>/dev/null; true"
         val out = AppRestartHelper.runRootCommand(findCmd) ?: return emptyList()
         return out.lines()
             .map { it.trim() }
-            .filter { it.isNotBlank() && it.endsWith("config.json") }
+            .filter { HmaConfigFile.isConfigPathForUser(it, userId) }
             .distinct()
     }
 
     /**
-     * Fixes HMA isolation settings for the specified [targetPackage] by removing
-     * any blocking rules across all found HMA config files (such as 'xposed' preset,
-     * module in blacklist extra list/template, or adding module to whitelist extra list/template
-     * when whitelist mode is enabled).
+     * Updates only the selected declared target. A successful file replacement
+     * is not evidence that the HMA service reloaded it or that hooks injected.
      */
-    suspend fun fixTargetIsolation(context: Context, targetPackage: String): Boolean = withContext(Dispatchers.IO) {
-        // Force-stop HMA and any related processes BEFORE reading/modifying configuration
-        forceStopHmaApps(context)
-
-        val configPaths = findAllHmaConfigPaths()
-        if (configPaths.isEmpty()) return@withContext false
-
-        val moduleSignatures = setOf(
-            context.packageName,
-            "com.waenhancer",
-            "com.waenhancer.debug"
-        )
-
-        var anySuccess = false
-
-        for (configPath in configPaths) {
-            val currentJsonStr = AppRestartHelper.runRootCommand("cat $configPath 2>/dev/null") ?: continue
-            if (!currentJsonStr.trimStart().startsWith("{")) continue
-
-            try {
-                val root = JSONObject(currentJsonStr)
-                val scope = root.optJSONObject("scope") ?: continue
-                val targetScope = scope.optJSONObject(targetPackage) ?: continue
-
-                val useWhitelist = targetScope.optBoolean("useWhitelist", false)
-
-                if (useWhitelist) {
-                    // Whitelist mode: To make module visible, module package MUST be in extraAppList
-                    val extraAppList = targetScope.optJSONArray("extraAppList") ?: JSONArray().also {
-                        targetScope.put("extraAppList", it)
-                    }
-                    val currentApps = (0 until extraAppList.length()).map { extraAppList.optString(it) }.toMutableSet()
-                    currentApps.add(context.packageName)
-                    val newArr = JSONArray()
-                    currentApps.forEach { newArr.put(it) }
-                    targetScope.put("extraAppList", newArr)
-
-                    // Also remove from extraOppositeAppList if present
-                    targetScope.optJSONArray("extraOppositeAppList")?.let { arr ->
-                        val filtered = JSONArray()
-                        for (i in 0 until arr.length()) {
-                            val v = arr.optString(i)
-                            if (v !in moduleSignatures) filtered.put(v)
+    suspend fun fixTargetIsolation(context: Context, targetPackage: String): Boolean =
+        withContext(Dispatchers.IO) {
+            if (!DeclaredWhatsAppTargets.contains(targetPackage)) return@withContext false
+            val request = requestKey(context, listOf(targetPackage)) ?: return@withContext false
+            synchronized(repairLock) {
+                var changed = false
+                var failed = false
+                try {
+                    forceStopHmaApps(context, request.userId)
+                    for (path in findAllHmaConfigPaths(request.userId)) {
+                        val snapshot = readConfigSnapshot(path)
+                        if (snapshot == null) {
+                            failed = true
+                            continue
                         }
-                        targetScope.put("extraOppositeAppList", filtered)
-                    }
-                } else {
-                    // Blacklist mode: remove module package from extraAppList
-                    targetScope.optJSONArray("extraAppList")?.let { arr ->
-                        val filtered = JSONArray()
-                        for (i in 0 until arr.length()) {
-                            val v = arr.optString(i)
-                            if (v !in moduleSignatures) filtered.put(v)
-                        }
-                        targetScope.put("extraAppList", filtered)
-                    }
-
-                    // Remove "xposed" preset from applyPresets
-                    targetScope.optJSONArray("applyPresets")?.let { arr ->
-                        val filtered = JSONArray()
-                        for (i in 0 until arr.length()) {
-                            val v = arr.optString(i)
-                            if (!v.equals("xposed", ignoreCase = true)) filtered.put(v)
-                        }
-                        targetScope.put("applyPresets", filtered)
-                    }
-                }
-
-                // Remove module from any blacklist templates
-                val templates = root.optJSONObject("templates")
-                if (templates != null) {
-                    val keys = templates.keys()
-                    while (keys.hasNext()) {
-                        val key = keys.next()
-                        val template = templates.optJSONObject(key) ?: continue
-                        val isWhitelist = template.optBoolean("isWhitelist", false)
-                        if (!isWhitelist) {
-                            template.optJSONArray("appList")?.let { arr ->
-                                val filtered = JSONArray()
-                                for (i in 0 until arr.length()) {
-                                    val v = arr.optString(i)
-                                    if (v !in moduleSignatures) filtered.put(v)
-                                }
-                                template.put("appList", filtered)
+                        try {
+                            val updated = HmaConfigPolicy.repair(
+                                JSONObject(snapshot.json), targetPackage, request.modulePackage
+                            ) ?: continue
+                            val json = updated.toString()
+                            // Validate the replacement size before creating a recovery copy.
+                            val write = HmaConfigFile.writeCommand(snapshot, json)
+                            val backup = AppRestartHelper.runRootCommand(
+                                HmaConfigFile.backupCommand(snapshot)
+                            )
+                            if (backup != HmaConfigFile.BACKUP_ACK) {
+                                failed = true
+                                continue
                             }
+                            val result = AppRestartHelper.runRootCommand(write)
+                            if (result != HmaConfigFile.WRITE_ACK ||
+                                readConfigSnapshot(path)?.json != json) {
+                                failed = true
+                                // The repair remains unsuccessful even if rollback succeeds.
+                                restoreConfigSnapshot(snapshot, json)
+                            } else {
+                                changed = true
+                            }
+                        } catch (_: Exception) {
+                            failed = true
                         }
                     }
+                    changed && !failed
+                } finally {
+                    forceStopHmaApps(context, request.userId)
+                    cachedResult.set(null)
                 }
-
-                // Keep a recoverable copy before replacing HMA's live configuration.
-                val quotedConfig = shellQuote(configPath)
-                val backupConfig = "$configPath.waex.bak"
-                val quotedBackup = shellQuote(backupConfig)
-                val backupResult = AppRestartHelper.runRootCommand(
-                    "cp -p $quotedConfig $quotedBackup 2>/dev/null && " +
-                            "(restorecon $quotedBackup 2>/dev/null || true) && " +
-                            "echo WAEX_HMA_BACKUP_OK"
-                )
-                if (backupResult?.contains("WAEX_HMA_BACKUP_OK") != true) continue
-
-                // Write modified JSON using a temporary file, preserving owner and SELinux context.
-                val b64 = android.util.Base64.encodeToString(
-                    root.toString().toByteArray(Charsets.UTF_8),
-                    android.util.Base64.NO_WRAP
-                )
-                val tmpConfig = "$configPath.tmp"
-                val quotedTmp = shellQuote(tmpConfig)
-
-                val writeScript = "OWNER=\$(stat -c '%u:%g' $quotedConfig 2>/dev/null); " +
-                        "echo '$b64' | base64 -d > $quotedTmp && " +
-                        "([ -z \"\$OWNER\" ] || chown \$OWNER $quotedTmp 2>/dev/null) && " +
-                        "chmod 600 $quotedTmp 2>/dev/null && " +
-                        "(restorecon $quotedTmp 2>/dev/null || true) && " +
-                        "mv -f $quotedTmp $quotedConfig && " +
-                        "([ -z \"\$OWNER\" ] || chown \$OWNER $quotedConfig 2>/dev/null) && " +
-                        "chmod 600 $quotedConfig 2>/dev/null && " +
-                        "(restorecon $quotedConfig 2>/dev/null || true) && " +
-                        "echo WAEX_HMA_WRITE_OK"
-
-                val writeResult = AppRestartHelper.runRootCommand(writeScript)
-                val verifiedJson = if (writeResult?.contains("WAEX_HMA_WRITE_OK") == true) {
-                    AppRestartHelper.runRootCommand("cat $quotedConfig 2>/dev/null")
-                } else null
-                val verified = try {
-                    val parsed = JSONObject(verifiedJson ?: "")
-                    val verifiedScope = parsed.optJSONObject("scope")?.optJSONObject(targetPackage)
-                    val verifiedTemplates = parsed.optJSONObject("templates") ?: JSONObject()
-                    verifiedScope != null && checkScopeBlockReason(
-                        verifiedScope, verifiedTemplates, moduleSignatures
-                    ) == null
-                } catch (_: Exception) {
-                    false
-                }
-
-                if (verified) {
-                    anySuccess = true
-                } else {
-                    // A failed/partial write must never strand the user with a broken HMA config.
-                    AppRestartHelper.runRootCommand(
-                        "cp -p $quotedBackup $quotedConfig 2>/dev/null && " +
-                                "restorecon $quotedConfig 2>/dev/null; true"
-                    )
-                }
-            } catch (_: Exception) {}
+            }
         }
 
-        // Force-stop again after updating config to ensure clean state
-        forceStopHmaApps(context)
-
-        // Clear cached diagnostic result so next check reflects new state
-        cachedResult.set(null)
-        anySuccess
+    private fun restoreConfigSnapshot(snapshot: HmaConfigFile.Snapshot, attemptedJson: String): Boolean {
+        val result = AppRestartHelper.runRootCommand(
+            HmaConfigFile.restoreCommand(snapshot, attemptedJson)
+        )
+        return result == HmaConfigFile.RESTORE_ACK &&
+            readConfigSnapshot(snapshot.path)?.digest == snapshot.digest
     }
 
-    /**
-     * Force-stops all HMA and related app instances and processes.
-     */
+    /** Force-stop only known manager packages for this app's user, once per pass. */
     fun forceStopHmaApps(context: Context) {
-        val installedHmas = getInstalledHmaPackages(context)
-        for (pkg in installedHmas) {
-            AppRestartHelper.runRootCommand("am force-stop $pkg")
-        }
-        // Also fallback to any packages directly found by pm
-        val pmOut = AppRestartHelper.runRootCommand("pm list packages")
-        if (!pmOut.isNullOrBlank()) {
-            pmOut.lines().forEach { raw ->
-                val line = raw.trim()
-                if (line.startsWith("package:")) {
-                    val p = line.removePrefix("package:").trim()
-                    val lower = p.lowercase()
-                    if (lower.contains("hma") || lower.contains("hidemyapp") || lower.endsWith(".hmal")) {
-                        AppRestartHelper.runRootCommand("am force-stop $p")
-                    }
-                }
-            }
+        val request = requestKey(context, emptyList()) ?: return
+        forceStopHmaApps(context, request.userId)
+    }
+
+    private fun forceStopHmaApps(context: Context, userId: Int) {
+        for (pkg in getInstalledHmaPackages(context, userId)) {
+            AppRestartHelper.runRootCommand("am force-stop --user $userId " + HmaConfigFile.quote(pkg))
         }
     }
 
-    private fun checkScopeBlockReason(
-        scopeObj: JSONObject,
-        templates: JSONObject,
-        moduleSignatures: Set<String>
-    ): String? {
-        val useWhitelist = scopeObj.optBoolean("useWhitelist", false)
-        val extraAppList = scopeObj.optJSONArray("extraAppList")?.toStringSet() ?: emptySet()
-        val extraOppositeAppList = scopeObj.optJSONArray("extraOppositeAppList")?.toStringSet() ?: emptySet()
-
-        if (useWhitelist) {
-            // Whitelist mode: if module is in opposite list, it is hidden/blocked
-            if (extraOppositeAppList.any { it in moduleSignatures }) {
-                return "Hidden via Whitelist mode (in invisible apps list)"
-            }
-
-            // Check if any applied whitelist template allows the module
-            val appliedTemplates = scopeObj.optJSONArray("applyTemplates")?.toStringSet() ?: emptySet()
-            var allowedByTemplate = false
-            for (templateName in appliedTemplates) {
-                val template = templates.optJSONObject(templateName) ?: continue
-                val isTemplateWhitelist = template.optBoolean("isWhitelist", false)
-                val templateApps = template.optJSONArray("appList")?.toStringSet() ?: emptySet()
-                if (isTemplateWhitelist && templateApps.any { it in moduleSignatures }) {
-                    allowedByTemplate = true
-                    break
-                }
-            }
-
-            // In Whitelist mode, if the module is NOT explicitly allowed (neither in extraAppList nor in a whitelist template), it is hidden!
-            val allowedInExtra = extraAppList.any { it in moduleSignatures }
-            if (!allowedInExtra && !allowedByTemplate) {
-                return "Hidden via Whitelist mode (module not included in visible apps)"
-            }
-        } else {
-            // Blacklist mode: if module is in extraAppList, it is hidden/blocked
-            if (extraAppList.any { it in moduleSignatures }) {
-                return "Hidden via Blacklist mode (in additional apps to hide)"
-            }
-
-            // Check applied blacklist templates
-            val appliedTemplates = scopeObj.optJSONArray("applyTemplates")?.toStringSet() ?: emptySet()
-            for (templateName in appliedTemplates) {
-                val template = templates.optJSONObject(templateName) ?: continue
-                val isTemplateWhitelist = template.optBoolean("isWhitelist", false)
-                val templateApps = template.optJSONArray("appList")?.toStringSet() ?: emptySet()
-
-                if (!isTemplateWhitelist && templateApps.any { it in moduleSignatures }) {
-                    return "Hidden by blacklist template \"$templateName\""
-                }
-            }
-
-            // Check presets (e.g. "xposed" preset hides all Xposed modules / manager)
-            val appliedPresets = scopeObj.optJSONArray("applyPresets")?.toStringSet() ?: emptySet()
-            if (appliedPresets.any { it.equals("xposed", ignoreCase = true) }) {
-                return "Hidden by HMA \"xposed\" preset"
-            }
-        }
-
-        return null
-    }
-
-    private fun JSONArray.toStringSet(): Set<String> {
-        val set = mutableSetOf<String>()
-        for (i in 0 until length()) {
-            optString(i, null)?.let { set.add(it) }
-        }
-        return set
-    }
-
-    private fun shellQuote(value: String): String = "'" + value.replace("'", "'\\''") + "'"
 }
