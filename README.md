@@ -6,7 +6,7 @@
 
 **UI customization, automation, and privacy engine for WhatsApp on Android**
 
-WaEnhancer X is an open-source Xposed/LSPosed module for rooted Android that enhances WhatsApp and WhatsApp Business with privacy controls, anti-delete recovery, view-once media tools, interface customization, and productivity features—without repackaging the official app.
+WaEnhancer X is an open-source Xposed/LSPosed module for WhatsApp & WhatsApp Business with privacy tools, anti-delete, view-once media, Meta AI removal, and UI customization.
 
 [![Android Platform](https://img.shields.io/badge/Platform-Android%20API%2024%2B-3DDC84?style=flat&logo=android&logoColor=white)](https://developer.android.com)
 [![Framework](https://img.shields.io/badge/Framework-LSPosed%20%7C%20Zygisk-orange?style=flat)](https://github.com/JingMatrix/LSPosed)
