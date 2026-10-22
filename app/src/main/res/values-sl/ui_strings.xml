@@ -1,0 +1,1020 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Static resource references from UiText call sites. Do not translate keys. -->
+<resources>
+    <string name="waex_ui_1_open_any_chat_or_contact_info_page_i_f5ec973b" formatted="false">1. Odpri kateri koli pogovor ali stran s podatki o stiku v WhatsAppu.\n2. Tapni »Prilagojena zasebnost«, da nastaviš posebne izjeme.\n3. Shranjena pravila imajo prednost pred splošnimi nastavitvami zasebnosti.</string>
+    <string name="waex_ui_1_s_2_s_followers_3_s_repositories_3525e760">%1$s%2$s sledilcev | %3$s repozitorijev</string>
+    <string name="waex_ui_1_s_active_0c79364e">%1$s aktivnih</string>
+    <string name="waex_ui_1_s_available_24c71695">%1$s na voljo</string>
+    <string name="waex_ui_1_s_commits_6a8c37d2"> • %1$s potrditev</string>
+    <string name="waex_ui_1_s_failed_af74ff71">%1$s neuspešnih</string>
+    <string name="waex_ui_1_s_followers_3024eca2">%1$s sledilcev</string>
+    <string name="waex_ui_1_s_followers_3e4e03fd"> • %1$s sledilcev</string>
+    <string name="waex_ui_1_s_hidden_416c73f0">%1$s skritih</string>
+    <string name="waex_ui_1_s_hooks_f0333300">%1$s hookov</string>
+    <string name="waex_ui_1_s_initialization_a35e3f64">%1$s inicializacij</string>
+    <string name="waex_ui_1_s_last_error_2f54987d">%1$s zadnja napaka</string>
+    <string name="waex_ui_1_s_of_2_s_devices_in_use_1ac51503">%1$s od %2$s naprav v uporabi</string>
+    <string name="waex_ui_1_s_of_2_s_granted_f824e2d7">%1$s od %2$s odobrenih</string>
+    <string name="waex_ui_1_s_of_2_s_granted_missing_permissions_d52260f9">%1$s od %2$s odobrenih. Manjkajoča dovoljenja bodo zahtevana, ko jih bo funkcija potrebovala.</string>
+    <string name="waex_ui_1_s_preference_bridge_c27008b2">%1$s mostovov za nastavitve</string>
+    <string name="waex_ui_1_s_preserved_messages_74d3a032">%1$s ohranjenih sporočil</string>
+    <string name="waex_ui_1_s_s_avatar_21ab3ff2">%1$s-ov avatar</string>
+    <string name="waex_ui_1_s_s_contributions_7a33f895">%1$s-ovi prispevki</string>
+    <string name="waex_ui_1_s_selected_5f9d5da8">%1$s izbranih</string>
+    <string name="waex_ui_1_s_settings_backed_up_1a3f7819">%1$s nastavitev varnostno kopiranih</string>
+    <string name="waex_ui_1_s_settings_restored_restart_whatsapp_09d38d41">%1$s nastavitev obnovljenih. Za uporabo ponovno zaženi WhatsApp.</string>
+    <string name="waex_ui_1_s_supporters_and_counting_0c9807fc">%1$s podpornikov in število se še povečuje</string>
+    <string name="waex_ui_aac_m4a_512c810e" formatted="false">AAC (.m4a)</string>
+    <string name="waex_ui_accept_89713b9c" formatted="false">Sprejmi</string>
+    <string name="waex_ui_account_protection_2b24d9b9" formatted="false">Zaščita računa</string>
+    <string name="waex_ui_action_64cff131" formatted="false">Dejanje</string>
+    <string name="waex_ui_action_intent_5c8cbed1" formatted="false">Namen dejanja:</string>
+    <string name="waex_ui_action_send_intent_b3deaa4a" formatted="false">Dejanje: Pošlji namen</string>
+    <string name="waex_ui_action_send_message_automatically_5e143aa0" formatted="false">DEJANJE: SAMODEJNO POŠLJI SPOROČILO</string>
+    <string name="waex_ui_activate_ghost_mode_2481d3ff" formatted="false">Aktivirati način »Ghost«?</string>
+    <string name="waex_ui_activate_license_key_3e7cbad8" formatted="false">Aktiviraj licenčni ključ</string>
+    <string name="waex_ui_activate_pro_license_9b27501f" formatted="false">Aktiviraj licenco Pro</string>
+    <string name="waex_ui_activate_restart_017ecc0d" formatted="false">Aktiviraj in ponovno zaženi</string>
+    <string name="waex_ui_active_630c2f1c" formatted="false">AKTIVNO</string>
+    <string name="waex_ui_active_after_whatsapp_is_restarted_64b5969c" formatted="false">Aktivno po ponovnem zagonu WhatsAppa</string>
+    <string name="waex_ui_active_device_slots_045c453d" formatted="false">Aktivna mesta za naprave</string>
+    <string name="waex_ui_active_hours_range_b86fa4fd" formatted="false">Območje aktivnih ur</string>
+    <string name="waex_ui_active_pro_191376ef" formatted="false">Aktivna licenca Pro</string>
+    <string name="waex_ui_active_subscription_8a09aaa3" formatted="false">Aktivna naročnina</string>
+    <string name="waex_ui_add_filter_76de3dfc" formatted="false">Dodaj filter</string>
+    <string name="waex_ui_add_me_to_the_list_6c6e9342" formatted="false">Dodaj me na seznam</string>
+    <string name="waex_ui_add_rule_968c3cb8" formatted="false">Dodaj pravilo</string>
+    <string name="waex_ui_add_universal_rule_1_s_2944d582">Dodaj splošno pravilo (%1$s)</string>
+    <string name="waex_ui_added_universal_rule_1_s_6af7d00f">Dodano splošno pravilo %1$s</string>
+    <string name="waex_ui_additional_call_information_c9b77d50" formatted="false">Dodatne informacije o klicu</string>
+    <string name="waex_ui_adds_a_dedicated_custom_privacy_tile_o_9290614b" formatted="false">Dodaja namensko ploščico »Prilagojena zasebnost« na strani s podrobnostmi o stikih in skupinah</string>
+    <string name="waex_ui_adds_custom_privacy_directly_into_the_81b1ca4c" formatted="false">Dodaja možnost »Prilagojena zasebnost« neposredno v desni zgornji meni z možnostmi v klepetih</string>
+    <string name="waex_ui_adjust_corner_curves_margins_and_sizin_72c8f1f8" formatted="false">Prilagajanje zaobljenosti vogalov, robov in velikosti</string>
+    <string name="waex_ui_advanced_protection_for_your_messaging_b0cdb7dc" formatted="false">Napredna zaščita za tvoje izkušnje pri pošiljanju sporočil. Nadzoruj vidnost in trajanje sporočil.</string>
+    <string name="waex_ui_after_ignoring_an_update_0072f0fc" formatted="false">Po prezrtju posodobitve</string>
+    <string name="waex_ui_ai_transcription_provider_39d10f0b" formatted="false">Ponudnik transkripcije z umetno inteligenco</string>
+    <string name="waex_ui_all_files_access_c5936362" formatted="false">Dostop do vseh datotek</string>
+    <string name="waex_ui_all_installed_whatsapp_apps_are_alread_75c1f385" formatted="false">Vse nameščene aplikacije WhatsApp so že podprte!</string>
+    <string name="waex_ui_all_settings_reset_to_default_75452587" formatted="false">Vse nastavitve so ponastavljene na privzete vrednosti</string>
+    <string name="waex_ui_allow_all_whatsapp_incoming_voice_vide_3f8889bd" formatted="false">Dovoli vse dohodne glasovne in video klice v WhatsAppu</string>
+    <string name="waex_ui_allow_granular_privacy_overrides_for_s_2a8a0ee6" formatted="false">Dovoli podrobno prepisovanje nastavitev zasebnosti za posamezne stike ali skupine</string>
+    <string name="waex_ui_allow_user_defined_versions_and_wildca_ac9bee29" formatted="false">Dovoli uporabniško definirane različice in pravila z nadomestnimi znaki za nalaganje hookov</string>
+    <string name="waex_ui_allow_version_downgrades_cb84c618" formatted="false">Dovoli vrnitev na prejšnjo različico</string>
+    <string name="waex_ui_always_active_cbdb4cc2" formatted="false">Vedno aktiven</string>
+    <string name="waex_ui_always_typing_b7568ffa" formatted="false">Vedno tipkam</string>
+    <string name="waex_ui_android_device_9ea4780b" formatted="false">Naprava Android</string>
+    <string name="waex_ui_animated_emojis_cf3b4565" formatted="false">Animirani emojiji</string>
+    <string name="waex_ui_anti_disappearing_messages_f4d02052" formatted="false">Prepreči izginjanje sporočil</string>
+    <string name="waex_ui_anti_edit_messages_5a3cecdb" formatted="false">Prepreči urejanje sporočil</string>
+    <string name="waex_ui_anti_revoke_c56cb768" formatted="false">Prepreči preklic</string>
+    <string name="waex_ui_anti_revoke_e16be3ed" formatted="false">Prepreči preklic</string>
+    <string name="waex_ui_anti_revoke_status_8c7b6e5c" formatted="false">Status preprečitve preklica</string>
+    <string name="waex_ui_anti_view_once_73413cd8" formatted="false">Prepreči enkratni ogled</string>
+    <string name="waex_ui_api_1_s_7ed74ebc">API %1$s</string>
+    <string name="waex_ui_apk_does_not_match_selected_version_1_2285cdd0">APK se ne ujema z izbrano različico %1$s</string>
+    <string name="waex_ui_app_logo_c1fa6ccf" formatted="false">Logotip aplikacije</string>
+    <string name="waex_ui_appearance_3907fa7f" formatted="false">Videz</string>
+    <string name="waex_ui_apply_custom_color_to_deleted_message_11bb3603" formatted="false">Uporabi prilagojeno barvo za izbrisana sporočila/stanje in čas</string>
+    <string name="waex_ui_apply_during_set_hours_3b459f48" formatted="false">Uporabi v določenih urah</string>
+    <string name="waex_ui_approve_the_superuser_request_if_your_eb6a2e6a" formatted="false">Odobri zahtevo za superuporabnika, če tvoj upravitelj korenskih pravic zaprosi za dovoljenje.</string>
+    <string name="waex_ui_archived_chats_unavailable_in_this_wha_a75f8af5" formatted="false">Arhivirani klepeti niso na voljo v tej različici WhatsAppa</string>
+    <string name="waex_ui_are_you_sure_you_want_to_delete_filter_5aa1a0e8">Ali si prepričan/a, da želiš izbrisati filter »%1$s«?</string>
+    <string name="waex_ui_are_you_sure_you_want_to_remove_all_cu_214cbfda" formatted="false">Ali si prepričan/a, da želiš odstraniti vsa prilagojena pravila zasebnosti? Ta dejanja bodo ponovno vzpostavila privzeta pravila zasebnosti za vse stike in jih ni mogoče razveljaviti.</string>
+    <string name="waex_ui_ask_the_module_to_check_when_whatsapp_eef51246" formatted="false">Vprašaj modul naj preveri, kdaj se WhatsApp zažene</string>
+    <string name="waex_ui_assemblyai_api_key_1a41b574" formatted="false">Ključ AssemblyAI API</string>
+    <string name="waex_ui_at_most_every_6_hours_6e9a44b5" formatted="false">Največ vsakih 6 ur</string>
+    <string name="waex_ui_at_most_once_a_day_9198c451" formatted="false">Največ enkrat na dan</string>
+    <string name="waex_ui_at_most_once_a_week_8226a663" formatted="false">Največ enkrat na teden</string>
+    <string name="waex_ui_audio_call_edd60bff" formatted="false">Zvočni klic</string>
+    <string name="waex_ui_audio_capture_engine_2219d349" formatted="false">Motor za zajem zvoka</string>
+    <string name="waex_ui_auto_check_for_updates_7598a244" formatted="false">Samodejno preverjanje posodobitev</string>
+    <string name="waex_ui_auto_download_models_6789ddb3" formatted="false">Samodejno prenašanje modelov</string>
+    <string name="waex_ui_auto_reply_8772ec0f" formatted="false">Samodejni odgovor</string>
+    <string name="waex_ui_auto_reply_i_am_currently_driving_will_8c4dec21" formatted="false">Samodejni odgovor: Trenutno vozim, kmalu se bom oglasil/a.</string>
+    <string name="waex_ui_automate_whatsapp_workflows_using_inte_9ba38948" formatted="false">Avtomatiziraj delovne tokove WhatsAppa z uporabo oddaj namena v aplikacijah Tasker, MacroDroid in Automate.</string>
+    <string name="waex_ui_automated_checks_adf7684a" formatted="false">AVTOMATIZIRANA PREVERJANJA</string>
+    <string name="waex_ui_automated_morning_briefing_scheduled_d_42884bb5" formatted="false">Avtomatizirano jutranje poročilo z načrtovanim pošiljanjem</string>
+    <string name="waex_ui_automatically_capture_incoming_outgoin_892737f9" formatted="false">Samodejno zajemanje dohodnih in odhodnih glasovnih klicev</string>
+    <string name="waex_ui_automatically_drop_every_incoming_what_52316223" formatted="false">Samodejno zavrnitev vsakega dohodnega klica v WhatsApp</string>
+    <string name="waex_ui_automatically_hides_pill_when_scrollin_cc4932d4" formatted="false">Samodejno skrivanje okna ob pomikanju po seznamu pogovorov</string>
+    <string name="waex_ui_automatically_install_downloaded_apk_v_c1ae30db" formatted="false">Samodejna namestitev prenesenega APK prek root shell-a</string>
+    <string name="waex_ui_automation_tasker_e61057ac" formatted="false">Avtomatizacija in Tasker</string>
+    <string name="waex_ui_available_apk_assets_for_1_s_8419f6c4">Razpoložljiva sredstva APK za %1$s</string>
+    <string name="waex_ui_available_e6744473" formatted="false">Na voljo</string>
+    <string name="waex_ui_available_extras_1d71d8a2" formatted="false">Na voljo dodatki:</string>
+    <string name="waex_ui_awaiting_runtime_report_c20be700" formatted="false">Čakam na poročilo o izvajanju</string>
+    <string name="waex_ui_backup_failed_1_s_5a9e913e">Varnostno kopiranje ni uspelo: %1$s</string>
+    <string name="waex_ui_base_translation_dictionary_42_mb_41e8799d" formatted="false">Osnovni prevajalski slovar: 42 MB</string>
+    <string name="waex_ui_basic_0e35f6e9" formatted="false">Osnovno</string>
+    <string name="waex_ui_basic_integrity_supported_9e9e6a42" formatted="false">Podprta osnovna integriteta</string>
+    <string name="waex_ui_be_the_first_supporter_featured_here_b_c40e50c7" formatted="false">Bodi prvi podpornik, ki bo predstavljen tukaj, tako da označiš WaEnhancerX z zvezdico na GitHubu.</string>
+    <string name="waex_ui_become_a_supporter_868a6b05" formatted="false">Postani podpornik/ca</string>
+    <string name="waex_ui_behavior_change_color_7489c095" formatted="false">Obnašanje: spremeni barvo</string>
+    <string name="waex_ui_behavior_edf8d3f1" formatted="false">Obnašanje</string>
+    <string name="waex_ui_behavior_gone_remove_c0b72aa7" formatted="false">Obnašanje: izginilo (odstrani)</string>
+    <string name="waex_ui_behavior_opacity_1_s_7e479a2b">Obnašanje: prosojnost (%1$s%%)</string>
+    <string name="waex_ui_behavior_resize_1_s_98639c64">Obnašanje: spremeni velikost (%1$s)</string>
+    <string name="waex_ui_behavior_translucency_d145210f" formatted="false">Obnašanje in prosojnost</string>
+    <string name="waex_ui_best_value_06447fa6" formatted="false">Najboljša vrednost</string>
+    <string name="waex_ui_beta_70339031" formatted="false">Beta</string>
+    <string name="waex_ui_block_all_calls_f74be201" formatted="false">Blokiraj vse klice</string>
+    <string name="waex_ui_blue_on_reply_afb645a1" formatted="false">Modro ob odgovoru</string>
+    <string name="waex_ui_blue_on_reply_d4d34105" formatted="false">Modro ob odgovoru</string>
+    <string name="waex_ui_blue_tick_sent_22828691" formatted="false">Modra kljukica poslana</string>
+    <string name="waex_ui_bootloader_spoofing_integrity_54acd305" formatted="false">Ponarejanje Bootloaderja in integriteta</string>
+    <string name="waex_ui_both_info_screen_3_dot_menu_9ea0f0e7" formatted="false">Oboje (zaslon z informacijami in meni s tremi pikami)</string>
+    <string name="waex_ui_bottom_margin_f43447af" formatted="false">Spodnji rob</string>
+    <string name="waex_ui_brightness_ec811d30" formatted="false">Svetlost</string>
+    <string name="waex_ui_broadcast_intent_to_send_a_message_wit_d171b9bd" formatted="false">Pošlji namero za pošiljanje sporočila brez odpiranja vmesnika WhatsAppa.</string>
+    <string name="waex_ui_bubble_colors_8926b38c" formatted="false">Barve balončkov</string>
+    <string name="waex_ui_button_placement_15d950e9" formatted="false">POLOŽAJ GUMBOV</string>
+    <string name="waex_ui_bypass_version_verification_cc98aed9" formatted="false">Preskoči preverjanje različice</string>
+    <string name="waex_ui_call_declined_f695a2f2" formatted="false">Zavrnjen klic</string>
+    <string name="waex_ui_call_enhancements_2ffe1444" formatted="false">IZBOLJŠAVE KLICEV</string>
+    <string name="waex_ui_call_privacy_230ae481" formatted="false">Zasebnost klicev</string>
+    <string name="waex_ui_call_recording_bb8d55c9" formatted="false">Snemanje klicev</string>
+    <string name="waex_ui_call_rejection_appearance_4b21bb01" formatted="false">IZGLED ZAVRNJENEGA KLICA</string>
+    <string name="waex_ui_caller_sees_calling_without_connection_78bae289" formatted="false">Klicatelj vidi »Kličem …« brez signala povezave</string>
+    <string name="waex_ui_calls_b73a5e2c" formatted="false">Klici</string>
+    <string name="waex_ui_calls_recording_6042880c" formatted="false">Klici in snemanje</string>
+    <string name="waex_ui_certificate_is_current_581ed686" formatted="false">Potrdilo je trenutno</string>
+    <string name="waex_ui_certificates_parsed_9c645673" formatted="false">Potrdila so bila analizirana</string>
+    <string name="waex_ui_change_c0bf75bd" formatted="false">Spremeni</string>
+    <string name="waex_ui_change_color_pro_0fbd0557" formatted="false">Spremeni barvo (Pro)</string>
+    <string name="waex_ui_change_the_default_emoji_sent_when_dou_9ed5b05d">Spremeni privzeti emoji, ki se pošlje ob dvojnem kliku (%1$s)</string>
+    <string name="waex_ui_changelog_releases_f404e373" formatted="false">Seznam sprememb in izdaje</string>
+    <string name="waex_ui_chat_3_dot_options_menu_07e9e5b5" formatted="false">Meni možnosti s tremi pikami v klepetu</string>
+    <string name="waex_ui_chat_filter_display_7d02ece7" formatted="false">Prikaz filtrov v klepetu</string>
+    <string name="waex_ui_chat_filters_444a8afd" formatted="false">Filtri klepeta</string>
+    <string name="waex_ui_chat_limits_bypass_3746bd63" formatted="false">Preskoči omejitve klepeta</string>
+    <string name="waex_ui_chat_list_customizations_e7528188" formatted="false">Prilagajanje seznama klepetov</string>
+    <string name="waex_ui_chats_ef5b4049" formatted="false">Klepeti</string>
+    <string name="waex_ui_check_again_fb7099ad" formatted="false">Preveri še enkrat</string>
+    <string name="waex_ui_check_frequency_12e9b9ef" formatted="false">Pogostost preverjanja</string>
+    <string name="waex_ui_check_that_every_selector_has_a_matchi_c94dfb11" formatted="false">Preveri, ali ima vsak selektor ustrezen blok { }</string>
+    <string name="waex_ui_check_when_module_opens_147ecac4" formatted="false">Preveri ob odprtju modula</string>
+    <string name="waex_ui_check_when_whatsapp_opens_112f6dcc" formatted="false">Preveri ob odprtju WhatsAppa</string>
+    <string name="waex_ui_checking_root_access_76c86676" formatted="false">Preverjanje root dostopa</string>
+    <string name="waex_ui_choose_color_f2cd02c5" formatted="false">Izberi barvo</string>
+    <string name="waex_ui_choose_where_to_show_the_waex_settings_44afa3ae" formatted="false">Izberi, kje naj se prikaže vstopna točka za nastavitve WAEX</string>
+    <string name="waex_ui_classic_regular_2f519419" formatted="false">Klasično (običajno)</string>
+    <string name="waex_ui_clear_all_custom_rules_faed51b9" formatted="false">Izbriši vsa prilagojena pravila?</string>
+    <string name="waex_ui_clear_all_ddceb7ad" formatted="false">Izbriši vse</string>
+    <string name="waex_ui_clear_search_3b7ea517" formatted="false">Izbriši iskanje</string>
+    <string name="waex_ui_close_7d9eb7ac" formatted="false">Zapri</string>
+    <string name="waex_ui_close_search_55656b5e" formatted="false">Zapri iskanje</string>
+    <string name="waex_ui_collapse_1_s_a0b382ed">Zloži %1$s</string>
+    <string name="waex_ui_collapse_be6eb1fc" formatted="false">Zloži</string>
+    <string name="waex_ui_color_deleted_text_indicator_ae75ad33" formatted="false">Barva izbrisanega besedila in indikatorja</string>
+    <string name="waex_ui_communities_c864f329" formatted="false">Skupnosti</string>
+    <string name="waex_ui_compatibility_verified_cca213b2" formatted="false">Združljivost preverjena</string>
+    <string name="waex_ui_completed_22a970d2" formatted="false">Zaključeno</string>
+    <string name="waex_ui_completed_with_hook_failures_24befe70" formatted="false">Zaključeno z napakami pri hookih</string>
+    <string name="waex_ui_configuration_b332c349" formatted="false">Nastavitve</string>
+    <string name="waex_ui_configure_1_s_a548a230">Nastavi %1$s</string>
+    <string name="waex_ui_configure_6defafa2" formatted="false">Nastavi</string>
+    <string name="waex_ui_configure_filter_items_1e380999" formatted="false">Nastavi elemente filtra</string>
+    <string name="waex_ui_configure_rules_for_this_specific_cont_13ad1641" formatted="false">Nastavi pravila za ta konkreten stik</string>
+    <string name="waex_ui_configure_scroll_hide_dynamics_and_bac_42fabf06" formatted="false">Nastavi dinamiko skrivanja pri pomikanju in prosojnost na ozadje</string>
+    <string name="waex_ui_configured_84aebc69" formatted="false">Nastavljeno</string>
+    <string name="waex_ui_confirm_unlink_current_device_078a2a44" formatted="false">Potrdi prekinitev povezave s trenutno napravo</string>
+    <string name="waex_ui_confirm_unlink_device_f6a5f66a" formatted="false">Potrdi prekinitev povezave z napravo</string>
+    <string name="waex_ui_connected_22965568" formatted="false">Povezano</string>
+    <string name="waex_ui_connected_devices_16c0c720" formatted="false">Povezane naprave</string>
+    <string name="waex_ui_connected_directly_547bd078" formatted="false">Neposredno povezano</string>
+    <string name="waex_ui_connection_status_3693e288" formatted="false">Stanje povezave</string>
+    <string name="waex_ui_contact_group_info_screen_5dbeac75" formatted="false">Pogled z informacijami o stikih in skupinah</string>
+    <string name="waex_ui_contact_rules_1_s_c13a5f53">Pravila za stike (%1$s)</string>
+    <string name="waex_ui_contact_rules_9a0c44b0" formatted="false">Pravila za stike</string>
+    <string name="waex_ui_contacts_access_af7abbb0" formatted="false">Dostop do stikov</string>
+    <string name="waex_ui_contacts_with_custom_privacy_rules_wil_37b703c4" formatted="false">Tukaj se bodo prikazali stiki s prilagojenimi pravili zasebnosti. Pravila lahko nastaviš znotraj pogovora v WhatsAppu.</string>
+    <string name="waex_ui_continue_to_waenhancerx_44fe727b" formatted="false">Nadaljuj v WaEnhancerX</string>
+    <string name="waex_ui_convert_received_voice_notes_to_readab_47e047f7" formatted="false">Pretvori prejete glasovne zapiske v berljive besedilne balončke v klepetu.</string>
+    <string name="waex_ui_copied_1_s_to_clipboard_99b46814">%1$s je bil kopiran v odložišče</string>
+    <string name="waex_ui_copied_status_text_to_clipboard_b81c6089" formatted="false">Besedilo stanja je bilo kopirano v odložišče</string>
+    <string name="waex_ui_copy_error_19dc540f" formatted="false">Napaka pri kopiranju</string>
+    <string name="waex_ui_copy_text_b0ac9cea" formatted="false">Kopiraj besedilo</string>
+    <string name="waex_ui_copy_the_error_details_when_reporting_8ec1cba5" formatted="false">\n\nKopiraj podrobnosti o napaki, ko poročaš o tej težavi.</string>
+    <string name="waex_ui_corner_radius_e1cf3271" formatted="false">Polmer vogala</string>
+    <string name="waex_ui_could_not_load_this_github_profile_eb4f568a" formatted="false">Tega profila GitHub ni bilo mogoče naložiti.</string>
+    <string name="waex_ui_could_not_open_archived_chats_d18485fc" formatted="false">Arhiviranih pogovorov ni bilo mogoče odpreti</string>
+    <string name="waex_ui_could_not_open_file_picker_1_s_5bc514b4">Izbirnika datotek ni bilo mogoče odpreti: %1$s</string>
+    <string name="waex_ui_could_not_open_link_dfa30a8f" formatted="false">Povezave ni bilo mogoče odpreti</string>
+    <string name="waex_ui_could_not_open_locked_chats_cfe581e0" formatted="false">Zaklenjenih pogovorov ni bilo mogoče odpreti</string>
+    <string name="waex_ui_could_not_read_the_selected_file_a179611f" formatted="false">Izbrane datoteke ni bilo mogoče prebrati</string>
+    <string name="waex_ui_could_not_refresh_devices_8e10f690" formatted="false">Naprav ni bilo mogoče osvežiti.</string>
+    <string name="waex_ui_couldn_t_find_you_or_your_friend_here_68192ff2" formatted="false">Sebe ali tvojega prijatelja tukaj nisi našel/la?</string>
+    <string name="waex_ui_couldn_t_save_profile_photo_296d0ed9" formatted="false">Profilne slike ni bilo mogoče shraniti</string>
+    <string name="waex_ui_couldn_t_share_the_selected_recording_d260dfd9" formatted="false">Izbranega posnetka ni bilo mogoče deliti</string>
+    <string name="waex_ui_css_theme_5cd3abac" formatted="false">CSS-tema</string>
+    <string name="waex_ui_current_device_unlinked_reverted_to_fr_646d3450" formatted="false">Trenutna naprava je bila odvezana. Vrnili smo se na brezplačni paket.</string>
+    <string name="waex_ui_custom_dpi_749aab90" formatted="false">Prilagojena ločljivost (DPI)</string>
+    <string name="waex_ui_custom_keybox_ba042043" formatted="false">Prilagojena tipkovnica</string>
+    <string name="waex_ui_custom_keybox_imported_76fd6f29" formatted="false">Uvožena prilagojena tipkovnica</string>
+    <string name="waex_ui_custom_keybox_ready_961be371" formatted="false">Prilagojena tipkovnica je pripravljena</string>
+    <string name="waex_ui_custom_privacy_76f9c20d" formatted="false">Prilagojena zasebnost</string>
+    <string name="waex_ui_custom_privacy_rules_17ba2822" formatted="false">Prilagojena pravila zasebnosti</string>
+    <string name="waex_ui_custom_privacy_saved_f499fef5" formatted="false">Prilagojena zasebnost je shranjena</string>
+    <string name="waex_ui_custom_reaction_9a565091" formatted="false">Prilagojena reakcija</string>
+    <string name="waex_ui_custom_reaction_emoji_e6b8a58e" formatted="false">EMOJI ZA PRILAGOJENO REAKCIJO</string>
+    <string name="waex_ui_custom_status_layout_c8b6c1ff" formatted="false">Prilagojena postavitev statusa</string>
+    <string name="waex_ui_custom_status_view_2159812e" formatted="false">Prilagojeni pogled statusa</string>
+    <string name="waex_ui_custom_time_format_dfda77a8" formatted="false">Prilagojeni format časa</string>
+    <string name="waex_ui_custom_toolbar_1fde08d6" formatted="false">Prilagojena orodna vrstica</string>
+    <string name="waex_ui_customize_floating_bottom_bar_58ae0180" formatted="false">Prilagajanje plavajoče spodnje vrstice</string>
+    <string name="waex_ui_dashboard_67b69646" formatted="false">Nadzorna plošča</string>
+    <string name="waex_ui_date_unavailable_616fdd79" formatted="false">datum ni na voljo</string>
+    <string name="waex_ui_deactivate_ghost_mode_ae52c22b" formatted="false">Deaktivirati način »Ghost«?</string>
+    <string name="waex_ui_deactivate_restart_5f1c0ebe" formatted="false">Deaktiviraj in ponovno zaženi</string>
+    <string name="waex_ui_deactivating_restores_your_normal_onli_e7fff0e3" formatted="false">Deaktiviranje ponovno vzpostavi tvojo običajno vidnost v omrežju, indikatorje tipkanja in potrditve branja.\n\nŽeliš ponovno zagnati WhatsApp, da se spremembe uveljavijo?</string>
+    <string name="waex_ui_debug_1a03bd2f" formatted="false">Odpravljanje napak</string>
+    <string name="waex_ui_default_dpi_9037cbe6" formatted="false">Privzeti DPI</string>
+    <string name="waex_ui_default_language_28bee244" formatted="false">Privzeti jezik</string>
+    <string name="waex_ui_delete_filter_9cb0dfa6" formatted="false">Izbriši filter</string>
+    <string name="waex_ui_delete_selected_d2ab5d46" formatted="false">Izbriši izbrano</string>
+    <string name="waex_ui_deleted_504973e7" formatted="false">🚫 Izbrisano •</string>
+    <string name="waex_ui_deleted_at_36fa22d4" formatted="false">Izbrisano ob:</string>
+    <string name="waex_ui_deleted_icon_a9a44dc0" formatted="false">Izbrisana ikona 🚫</string>
+    <string name="waex_ui_developer_3fb7b394" formatted="false">Razvijalec</string>
+    <string name="waex_ui_device_6ba0bdec" formatted="false">Naprava</string>
+    <string name="waex_ui_device_attestation_e6c517e1" formatted="false">POTRDILO NAPRAVE</string>
+    <string name="waex_ui_device_environment_663d37f3" formatted="false">Okolje naprave</string>
+    <string name="waex_ui_device_integrity_supported_d1cb6d72" formatted="false">Podprta celovitost naprave</string>
+    <string name="waex_ui_device_management_0be43a11" formatted="false">Upravljanje naprave</string>
+    <string name="waex_ui_device_model_e266c843" formatted="false">Model naprave</string>
+    <string name="waex_ui_device_unlinked_successfully_cb9d61d0" formatted="false">Naprava je bila uspešno odvezana.</string>
+    <string name="waex_ui_direct_pipeline_e449cc90" formatted="false">Neposredni kanal</string>
+    <string name="waex_ui_disable_proximity_sensor_9f5bf89d" formatted="false">Onemogoči senzor bližine</string>
+    <string name="waex_ui_disable_see_more_button_and_show_all_l_74a0a668" formatted="false">Onemogoči gumb »Poglej več« in prikaži celotno dolgo sporočilo</string>
+    <string name="waex_ui_disabled_0c7ef33e" formatted="false">ONEMOGOČENO</string>
+    <string name="waex_ui_disabled_75081b59" formatted="false">Onemogočeno</string>
+    <string name="waex_ui_dismiss_48845bff" formatted="false">Prekliči</string>
+    <string name="waex_ui_display_over_other_apps_9a1d9177" formatted="false">Prikaži nad drugimi aplikacijami</string>
+    <string name="waex_ui_displays_the_custom_privacy_shortcut_i_478c235f" formatted="false">Prikaže prilagojeno bližnjico za zasebnost na obeh mestih</string>
+    <string name="waex_ui_dissociating_your_current_phone_will_r_cdfc4aef" formatted="false">Odvezava trenutnega telefona bo vrnila WAEX na brezplačno stopnjo in ponovno zagnala aplikacijo.</string>
+    <string name="waex_ui_dnd_off_1695672b" formatted="false">DND: IZKLOPLJENO</string>
+    <string name="waex_ui_dnd_on_58025d4c" formatted="false">DND: VKLOPLJENO</string>
+    <string name="waex_ui_do_you_want_to_send_this_sticker_to_th_962b373b" formatted="false">Ali želiš to nalepko poslati v klepet?</string>
+    <string name="waex_ui_done_11a6767d" formatted="false">Končano</string>
+    <string name="waex_ui_double_tap_reaction_b4b8e267" formatted="false">Reakcija z dvojnim dotikom</string>
+    <string name="waex_ui_downgrade_d955b7e8" formatted="false">Vrnitev na prejšnjo različico</string>
+    <string name="waex_ui_download_d6eafe82" formatted="false">Prenos</string>
+    <string name="waex_ui_download_failed_1_s_1f37f501">Prenos ni uspel: %1$s</string>
+    <string name="waex_ui_downloading_and_validating_the_certifi_d80cdcf2" formatted="false">Prenos in preverjanje verige certifikatov …</string>
+    <string name="waex_ui_downloading_update_01436823" formatted="false">Prenos posodobitve</string>
+    <string name="waex_ui_e_g_007cd8a1" formatted="false">npr. 👍</string>
+    <string name="waex_ui_e_g_conversation_row_date_c1b9b63b" formatted="false">npr. conversation_row_date</string>
+    <string name="waex_ui_ec_attestation_chain_8a11fd52" formatted="false">Veriga potrdil EC</string>
+    <string name="waex_ui_edit_filter_47d55283" formatted="false">Uredi filter</string>
+    <string name="waex_ui_edited_message_history_492e60cb" formatted="false">Zgodovina urejanja sporočil</string>
+    <string name="waex_ui_enable_5342e09f" formatted="false">Omogoči</string>
+    <string name="waex_ui_enable_bootloader_spoofer_27426554" formatted="false">Omogoči ponarejanje Bootloaderja</string>
+    <string name="waex_ui_enable_custom_versions_9be60a96" formatted="false">Omogoči prilagojene različice</string>
+    <string name="waex_ui_enable_floating_bottom_bar_6888db9b" formatted="false">Omogoči plavajočo spodnjo vrstico</string>
+    <string name="waex_ui_enable_per_contact_privacy_be0089bd" formatted="false">Omogoči zasebnost po posameznih stikih</string>
+    <string name="waex_ui_enable_the_feature_when_your_source_is_797a721f" formatted="false">Omogoči funkcijo, ko bo tvoj vir pripravljen</string>
+    <string name="waex_ui_encoding_format_414693ab" formatted="false">Format kodiranja</string>
+    <string name="waex_ui_end_hour_37f91306" formatted="false">Konec ure</string>
+    <string name="waex_ui_enforcing_1ca5672a" formatted="false">Uveljavljanje</string>
+    <string name="waex_ui_engine_running_11ac7787" formatted="false">Motor teče</string>
+    <string name="waex_ui_enhanced_adaptive_shadows_and_refined_107eefd1" formatted="false">Izboljšane prilagodljive sence in izpopolnjeno oblikovanje</string>
+    <string name="waex_ui_enter_0_or_a_number_from_120_to_1000_b5a85be0" formatted="false">Vnesi 0 ali številko od 120 do 1000</string>
+    <string name="waex_ui_enter_0_to_use_the_device_default_or_a_2e3826cd" formatted="false">Vnesi 0, če želiš uporabiti privzeto nastavitev naprave, ali vrednost DPI od 120 do 1000.</string>
+    <string name="waex_ui_enter_your_license_key_to_unlock_all_p_51f39af2" formatted="false">Vnesi licenčni ključ, da odkleneš vse premium funkcije.</string>
+    <string name="waex_ui_error_1_s_81a2d6c7">Napaka: %1$s</string>
+    <string name="waex_ui_error_8eecdde0" formatted="false">Napaka:</string>
+    <string name="waex_ui_error_displaying_image_1_s_9844d874">Napaka pri prikazovanju slike: %1$s</string>
+    <string name="waex_ui_error_displaying_video_1_s_6a5f9a50">Napaka pri prikazovanju videa: %1$s</string>
+    <string name="waex_ui_error_finding_message_info_d5e24fb5" formatted="false">Napaka pri iskanju informacij o sporočilu</string>
+    <string name="waex_ui_error_launching_preview_1_s_e1200bff">Napaka pri zagonu predogleda: %1$s</string>
+    <string name="waex_ui_error_opening_status_768e80f2" formatted="false">Napaka pri odpiranju stanja:</string>
+    <string name="waex_ui_error_playing_video_14f39a6f" formatted="false">Napaka pri predvajanju videa</string>
+    <string name="waex_ui_error_saving_status_media_de3da11e" formatted="false">Napaka pri shranjevanju medijev stanja:</string>
+    <string name="waex_ui_event_incoming_message_3d2cc9a6" formatted="false">DOGODEK: PRIHAJAJOČE SPOROČILO</string>
+    <string name="waex_ui_event_message_received_29191586" formatted="false">Dogodek: prejeto sporočilo</string>
+    <string name="waex_ui_every_eligible_app_open_dadc9b2a" formatted="false">Vsaka ustrezna odprta aplikacija</string>
+    <string name="waex_ui_everyone_no_block_f8505494" formatted="false">Vsi (brez blokiranja)</string>
+    <string name="waex_ui_exit_waenhancerx_7cb55953" formatted="false">Zapri WaEnhancerX</string>
+    <string name="waex_ui_expand_07548c2c" formatted="false">Razširi</string>
+    <string name="waex_ui_expand_1_s_e144bd52">Razširi %1$s</string>
+    <string name="waex_ui_expires_f6725f3a" formatted="false">Potek veljavnosti</string>
+    <string name="waex_ui_extra_number_1234567890_extra_message_ad458a9f" formatted="false">Dodatno: številka:1234567890\nDodatno: sporočilo:Tukaj vpiši svoj avtomatski odgovor</string>
+    <string name="waex_ui_fade_out_7d680202" formatted="false">Izginjanje</string>
+    <string name="waex_ui_failed_02bd3492" formatted="false">NEUSPEŠNO</string>
+    <string name="waex_ui_failed_031a8f0f" formatted="false">Neuspešno</string>
+    <string name="waex_ui_failed_to_download_status_19426d76" formatted="false">Prenos stanja ni uspel:</string>
+    <string name="waex_ui_failed_to_fetch_connected_devices_127a4496" formatted="false">Pridobivanje povezanih naprav ni uspelo.</string>
+    <string name="waex_ui_failed_to_load_devices_15cdbbab" formatted="false">Naložitev naprav ni uspela</string>
+    <string name="waex_ui_failed_to_save_706247c6" formatted="false">Shranjevanje ni uspelo:</string>
+    <string name="waex_ui_fast_navigation_and_conversation_produ_83302a70" formatted="false">Orodja za hitro navigacijo in produktivnost pogovorov</string>
+    <string name="waex_ui_feature_3d377ae9" formatted="false">Funkcija</string>
+    <string name="waex_ui_feature_enabled_8e093ea1" formatted="false">Funkcija omogočena</string>
+    <string name="waex_ui_features_5697d03d" formatted="false">Funkcije</string>
+    <string name="waex_ui_filter_items_954cac3d" formatted="false">Filtriranje elementov</string>
+    <string name="waex_ui_filter_view_id_1867e726" formatted="false">ID filtriranega pogleda</string>
+    <string name="waex_ui_force_waex_hooks_to_run_on_any_version_ffdfb190" formatted="false">Prisili WAEX-hooke, da se izvajajo na kateri koli različici brez preverjanja (Napredno)</string>
+    <string name="waex_ui_framework_package_2cd0a851" formatted="false">Paket ogrodja</string>
+    <string name="waex_ui_framework_version_b4522d19" formatted="false">Različica ogrodja</string>
+    <string name="waex_ui_free_f411a1fb" formatted="false">Brezplačno</string>
+    <string name="waex_ui_free_plan_6d7e546c" formatted="false">Brezplačni način</string>
+    <string name="waex_ui_free_vs_pro_features_3092c6e5" formatted="false">Brezplačne funkcije v primerjavi s funkcijami Pro</string>
+    <string name="waex_ui_freeze_509b1035" formatted="false">Zamrznitev</string>
+    <string name="waex_ui_freeze_last_seen_200aea50" formatted="false">Aktivirati zamrznitev Zadnjič viden?</string>
+    <string name="waex_ui_freeze_last_seen_off_2cb42c68" formatted="false">Zamrznitev Zadnjič viden: IZKLOPLJENO</string>
+    <string name="waex_ui_freeze_last_seen_on_ad444fb9" formatted="false">Zamrznitev Zadnjič viden: VKLOPLJENO</string>
+    <string name="waex_ui_freeze_restart_bfdfd4fc" formatted="false">Zamrznitev in ponovni zagon</string>
+    <string name="waex_ui_frosted_glass_effect_294ac5db" formatted="false">Učinek motnega stekla</string>
+    <string name="waex_ui_full_008dacb6" formatted="false">Polno</string>
+    <string name="waex_ui_full_access_to_all_pro_features_for_30_3746092e" formatted="false">Polni dostop do vseh funkcij Pro za 30 dni</string>
+    <string name="waex_ui_full_quality_media_info_is_unavailable_a93af643" formatted="false">Podatki o medijih v polni kakovosti niso na voljo</string>
+    <string name="waex_ui_general_c910d474" formatted="false">Splošno</string>
+    <string name="waex_ui_general_stability_improvements_and_bug_d6cabb44" formatted="false">Splošne izboljšave stabilnosti in popravki napak.</string>
+    <string name="waex_ui_geometry_spacing_a08202fb" formatted="false">Geometrija in razmiki</string>
+    <string name="waex_ui_get_or_manage_license_via_waenhancerx_266f2cff" formatted="false">Pridobi ali upravljaj licenco prek @waenhancerx_bot</string>
+    <string name="waex_ui_get_whisper_models_over_wi_fi_automati_445a151d" formatted="false">Samodejno pridobi modele Whisper prek Wi-Fi-ja.</string>
+    <string name="waex_ui_ghost_mode_48b2b30e" formatted="false">Način Ghost</string>
+    <string name="waex_ui_ghost_mode_activated_970ac067" formatted="false">Način Ghost je vklopljen</string>
+    <string name="waex_ui_ghost_mode_deactivated_7b9d7043" formatted="false">Način Ghost je izklopljen</string>
+    <string name="waex_ui_ghost_mode_hides_your_online_status_fr_aef9e9dc" formatted="false">Način Ghost skrije tvoj status povezave, zamrzne Zadnjič viden ter utiša zvoke tipkanja in potrditve branja pri vseh stikih.\n\nAli naj ponovno zaženem WhatsApp, da se uporabijo spremembe?</string>
+    <string name="waex_ui_ghost_mode_off_33af0cd9" formatted="false">Način Ghost: IZKLOPLJEN</string>
+    <string name="waex_ui_ghost_mode_on_c6fad9c9" formatted="false">Način Ghost: VKLOPLJEN</string>
+    <string name="waex_ui_github_account_b8d6a3e1" formatted="false">Račun GitHub</string>
+    <string name="waex_ui_glass_opacity_fd4ffb38" formatted="false">Prosojnost stekla</string>
+    <string name="waex_ui_gone_remove_aced6fb5" formatted="false">Odstranjeno (Odstrani)</string>
+    <string name="waex_ui_grant_everything_now_for_convenience_o_022cad3f" formatted="false">Za večjo udobnost zdaj odobri vse ali pa nadaljuj in dovoljenja odobri šele takrat, ko jih posamezna funkcija potrebuje.</string>
+    <string name="waex_ui_groq_api_key_af3ea8bb" formatted="false">Ključ Groq API-ja</string>
+    <string name="waex_ui_group_1_s_preserved_29347f6b">Skupina • %1$s ohranjeno</string>
+    <string name="waex_ui_grouped_89731456" formatted="false">Združeno v skupine</string>
+    <string name="waex_ui_grouped_under_waex_2485cb08" formatted="false">Združeno v skupino pod WAEX</string>
+    <string name="waex_ui_groups_39bbb719" formatted="false">Skupine</string>
+    <string name="waex_ui_hardware_locked_feature_activation_946923fc" formatted="false">Aktivacija funkcij, vezana na strojno opremo</string>
+    <string name="waex_ui_hd_upload_ee403315" formatted="false">Prenos v HD-kakovosti</string>
+    <string name="waex_ui_hex_code_fc70e187" formatted="false">Šestnajstiški kod</string>
+    <string name="waex_ui_hide_audio_recording_state_dca180a4" formatted="false">Skrij stanje avdio snemanja</string>
+    <string name="waex_ui_hide_forwarded_tag_a4f281a7" formatted="false">Skrij oznako Posredovano</string>
+    <string name="waex_ui_hide_home_tabs_1bb26596" formatted="false">Skrij zavihke v začetnem pogledu</string>
+    <string name="waex_ui_hide_home_tabs_98f3a2cc" formatted="false">Skrij zavihke v začetnem pogledu</string>
+    <string name="waex_ui_hide_on_scroll_395216cb" formatted="false">Skrij ob pomikanju</string>
+    <string name="waex_ui_hide_online_d0b23371" formatted="false">Skrij v povezavi</string>
+    <string name="waex_ui_hide_read_confirmation_2ae39653" formatted="false">Skrij potrditev branja</string>
+    <string name="waex_ui_hide_receipts_c2702133" formatted="false">Skrij potrdila o prejemu</string>
+    <string name="waex_ui_hide_recording_52e7a008" formatted="false">Skrij snemanje</string>
+    <string name="waex_ui_hide_recording_status_ccd978cf" formatted="false">Skrij stanje snemanja</string>
+    <string name="waex_ui_hide_search_14bd5cb7" formatted="false">Skrij iskanje</string>
+    <string name="waex_ui_hide_seen_28cfe6b3" formatted="false">Skrij ogledano</string>
+    <string name="waex_ui_hide_seen_tick_8eba5af5" formatted="false">Skrij kljukico ogledano</string>
+    <string name="waex_ui_hide_typing_indicator_153c8ac4" formatted="false">Skrij indikator tipkanja</string>
+    <string name="waex_ui_hide_typing_status_afddc69c" formatted="false">Skrij stanje tipkanja</string>
+    <string name="waex_ui_hide_view_status_64ca562e" formatted="false">Skrij stanje ogleda</string>
+    <string name="waex_ui_home_feed_ea0a795f" formatted="false">Začetni zaslon in novičarski kanal</string>
+    <string name="waex_ui_home_header_actions_98c6aa19" formatted="false">Dejanja v glavi začetnega pogleda</string>
+    <string name="waex_ui_home_menu_792a1d5a" formatted="false">Meni na začetnem pogledu</string>
+    <string name="waex_ui_hook_runtime_3e54a2b2" formatted="false">Čas izvajanja hooka</string>
+    <string name="waex_ui_hook_success_bf7c8178" formatted="false">USPEŠEN HOOK</string>
+    <string name="waex_ui_hooks_d412a062" formatted="false">Hooki</string>
+    <string name="waex_ui_horizontal_margin_fa46b8a7" formatted="false">Vodoravni rob</string>
+    <string name="waex_ui_how_to_configure_rules_2ee03efe" formatted="false">Kako nastaviti pravila</string>
+    <string name="waex_ui_how_waex_items_appear_in_whatsapp_s_ho_3f618d0d" formatted="false">Kako se elementi WAEX prikažejo v glavnem meniju WhatsAppa</string>
+    <string name="waex_ui_hue_4d7056f0" formatted="false">Odtenek</string>
+    <string name="waex_ui_icon_label_spacing_55a49e40" formatted="false">Razmik med ikonami in oznakami</string>
+    <string name="waex_ui_icon_size_73cbeb77" formatted="false">Velikost ikone</string>
+    <string name="waex_ui_icons_eae96e02" formatted="false">Ikone</string>
+    <string name="waex_ui_ignore_battery_optimizations_58d12723" formatted="false">Prezri optimizacijo baterije</string>
+    <string name="waex_ui_ignore_fce77c34" formatted="false">Prezri</string>
+    <string name="waex_ui_import_a_keybox_xml_before_enabling_7a4e19d7" formatted="false">Uvozi datoteko keybox.xml pred vklopom</string>
+    <string name="waex_ui_import_custom_keybox_xml_7c82038f" formatted="false">Uvozi prilagojeno datoteko keybox.xml</string>
+    <string name="waex_ui_imported_keybox_selected_1ba384df" formatted="false">Izbrana uvožena datoteka keybox</string>
+    <string name="waex_ui_in_app_shortcut_placement_08e2621d" formatted="false">POSTAVITEV BLIŽNJICE V APLIKACIJI</string>
+    <string name="waex_ui_in_progress_c1f88e9d" formatted="false">V teku</string>
+    <string name="waex_ui_indicator_style_7b2d18a3" formatted="false">SLOG INDIKATORJA</string>
+    <string name="waex_ui_indicator_text_color_55dfa1d7" formatted="false">Barva indikatorja in besedila</string>
+    <string name="waex_ui_individuals_d64d3d99" formatted="false">Posamezniki</string>
+    <string name="waex_ui_injected_3a4e038a" formatted="false">Vstavljeno</string>
+    <string name="waex_ui_injected_hooks_ec0c619c" formatted="false">Vstavljeni hooki</string>
+    <string name="waex_ui_injected_initialization_failed_2316f8ba" formatted="false">Vstavljeno • Inicializacija ni uspela</string>
+    <string name="waex_ui_injected_settings_connection_unavailab_e020f0c5" formatted="false">Vstavljeno • Povezava z nastavitvami ni na voljo</string>
+    <string name="waex_ui_injected_some_features_failed_a9530842" formatted="false">Vstavljeno • Nekatere funkcije niso uspele</string>
+    <string name="waex_ui_injected_unsupported_version_c24bde79" formatted="false">Vstavljeno • Nepodprta različica</string>
+    <string name="waex_ui_injected_using_settings_fallback_d493392d" formatted="false">Vstavljeno • Uporaba nadomestnih nastavitev</string>
+    <string name="waex_ui_injection_detected_97ffea75" formatted="false">Zaznano vstavljanje</string>
+    <string name="waex_ui_input_your_purchased_key_to_verify_you_2dc5edbb" formatted="false">Vnesi kupljeni ključ za preverjanje licence.</string>
+    <string name="waex_ui_instagram_status_layout_59eb72e4" formatted="false">Oblika statusa kot na Instagramu</string>
+    <string name="waex_ui_install_apk_6f672034" formatted="false">Namesti APK</string>
+    <string name="waex_ui_install_older_builds_over_newer_versio_0fccde02" formatted="false">Namestitev starejše različice namesto novejših (potreben root)</string>
+    <string name="waex_ui_install_unknown_apps_d293d7b0" formatted="false">Namesti neznane aplikacije</string>
+    <string name="waex_ui_installation_successful_restarting_dbd45bac" formatted="false">Namestitev uspešna. Ponovni zagon …</string>
+    <string name="waex_ui_installed_f8b32f4e" formatted="false">Nameščeno</string>
+    <string name="waex_ui_installed_v_1_s_5bf3b702">Nameščeno: v%1$s</string>
+    <string name="waex_ui_instant_automated_delivery_via_telegra_f09ba74c" formatted="false">Takojšnja avtomatizirana dostava prek Telegram bot-a</string>
+    <string name="waex_ui_instantly_rejects_and_shows_call_decli_f15c55b2" formatted="false">Takoj zavrni in prikaži, da je klic zavrnjen</string>
+    <string name="waex_ui_integrity_estimate_87441ad8" formatted="false">Ocena integritete</string>
+    <string name="waex_ui_invalid_key_format_expected_waex_xxxx_8bf26cd1" formatted="false">Neveljaven format ključa. Pričakovano: WAEX-XXXX-XXXX-XXXX</string>
+    <string name="waex_ui_invalid_keybox_1_s_0d9cdabc">Neveljavni keybox: %1$s</string>
+    <string name="waex_ui_invalid_value_d3c7d623" formatted="false">Neveljavna vrednost</string>
+    <string name="waex_ui_ios_frosted_glass_21526033" formatted="false">iOS motno steklo</string>
+    <string name="waex_ui_is_online_e0992fa5" formatted="false">je povezan</string>
+    <string name="waex_ui_join_our_supporters_and_get_your_githu_3a43f85e" formatted="false">Pridruži se našim podpornikom in tvoj profil na GitHubu bo prikazan na tem seznamu.</string>
+    <string name="waex_ui_join_the_supporters_list_b169de4a" formatted="false">Pridružite se seznamu podpornikov</string>
+    <string name="waex_ui_keep_deleted_messages_visible_7d6b1de5" formatted="false">Ohrani izbrisana sporočila vidna</string>
+    <string name="waex_ui_kernel_8a716159" formatted="false">Kernel</string>
+    <string name="waex_ui_keybox_file_is_too_large_cf788fae" formatted="false">Datoteka keybox je prevelika</string>
+    <string name="waex_ui_keybox_setup_required_f83e4b34" formatted="false">Potrebna je nastavitev keyboxa</string>
+    <string name="waex_ui_keybox_source_910cb5ff" formatted="false">IZVOR KEYBOXa</string>
+    <string name="waex_ui_keybox_verification_e29bc513" formatted="false">Preverjanje keyboxa</string>
+    <string name="waex_ui_language_downloads_2c65f45e" formatted="false">Jezik in prenosi</string>
+    <string name="waex_ui_last_seen_frozen_263b4306" formatted="false">Zadnjič viden zamrznjen</string>
+    <string name="waex_ui_last_seen_unfrozen_9b59cac2" formatted="false">Zadnjič viden odmrznjen</string>
+    <string name="waex_ui_last_updated_1_s_a8874f34"> | Zadnja posodobitev %1$s</string>
+    <string name="waex_ui_later_73b6e48a" formatted="false">Kasneje</string>
+    <string name="waex_ui_license_expired_7314f40b" formatted="false">Licenca je potekla</string>
+    <string name="waex_ui_license_key_71fd251d" formatted="false">Licenčni ključ</string>
+    <string name="waex_ui_license_removed_from_this_device_0a2fb62a" formatted="false">Licenca je bila odstranjena s te naprave.</string>
+    <string name="waex_ui_licensing_75b38c87" formatted="false">Licenciranje</string>
+    <string name="waex_ui_lifetime_access_6307bd6b" formatted="false">Dostop za celo življenje</string>
+    <string name="waex_ui_lifetime_pro_edfdc169" formatted="false">Pro za celo življenje</string>
+    <string name="waex_ui_limit_full_67c23ba0" formatted="false">Omejena polna</string>
+    <string name="waex_ui_lines_added_caa510fe" formatted="false">Dodane vrstice</string>
+    <string name="waex_ui_lines_deleted_0bfbeabe" formatted="false">Izbrisane vrstice</string>
+    <string name="waex_ui_linked_devices_34c09c50" formatted="false">POVEZANE NAPRAVE</string>
+    <string name="waex_ui_live_preview_d61b13d1" formatted="false">Predogled v živo</string>
+    <string name="waex_ui_location_ip_2730d766" formatted="false">Lokacija / IP</string>
+    <string name="waex_ui_lock_your_online_timestamp_03f3f564" formatted="false">Zakleni svoj časovni žig povezanosti</string>
+    <string name="waex_ui_locked_chats_unavailable_in_this_whats_05439a78" formatted="false">Zaklenjeni klepeti niso na voljo v tej različici WhatsAppa</string>
+    <string name="waex_ui_locked_pro_feature_8239ac16" formatted="false">Zaklenjena funkcija Pro</string>
+    <string name="waex_ui_locks_your_last_seen_timestamp_so_cont_3c49d617" formatted="false">Zaklene tvoj časovni žig zadnjič viden, tako da stiki ne bodo videli, kdaj si aktiven.\n\nŽeliš ponovno zagnati WhatsApp, da se uveljavijo spremembe?</string>
+    <string name="waex_ui_long_press_whatsapp_title_eee432ef" formatted="false">Dolgo pritisni WhatsApp naslov</string>
+    <string name="waex_ui_maintainer_ba79e198" formatted="false">VZDRŽEVALEC</string>
+    <string name="waex_ui_manage_1_s_8d56809c">Upravljanje %1$s</string>
+    <string name="waex_ui_manage_automation_b6075a0b" formatted="false">Upravljanje avtomatizacije</string>
+    <string name="waex_ui_manage_connected_devices_638abe23" formatted="false">Upravljanje povezanih naprav</string>
+    <string name="waex_ui_manage_license_via_telegram_waenhancer_03cb64d0" formatted="false">Upravljanje licence prek Telegrama @waenhancerx_bot</string>
+    <string name="waex_ui_manage_privacy_settings_cf4ad284" formatted="false">Upravljanje nastavitev zasebnosti</string>
+    <string name="waex_ui_managed_keybox_ready_9149f2ec" formatted="false">Upravljan keybox pripravljen</string>
+    <string name="waex_ui_managed_keybox_unavailable_e63767b6" formatted="false">Upravljan keybox ni na voljo</string>
+    <string name="waex_ui_managed_keybox_updated_23fcdd3d" formatted="false">Upravljan keybox posodobljen</string>
+    <string name="waex_ui_manager_process_hooked_a78a75a7" formatted="false">Proces upravitelja priključen</string>
+    <string name="waex_ui_media_not_available_yet_c504582c" formatted="false">Medij še ni na voljo</string>
+    <string name="waex_ui_media_not_cached_or_available_yet_45e16ba0" formatted="false">Medij še ni shranjen v predpomnilniku ali na voljo</string>
+    <string name="waex_ui_media_preview_2e70b815" formatted="false">Predogled medija</string>
+    <string name="waex_ui_media_quality_bypass_699781cb" formatted="false">Preskok kakovosti medija</string>
+    <string name="waex_ui_menu_display_options_c808869d" formatted="false">MOŽNOSTI PRIKAZA MENIJA</string>
+    <string name="waex_ui_menu_icons_6ee1d5da" formatted="false">Ikone menija</string>
+    <string name="waex_ui_menu_option_e2b665ae" formatted="false">Možnost menija</string>
+    <string name="waex_ui_message_bomber_pro_33022491" formatted="false">Message Bomber · Pro</string>
+    <string name="waex_ui_message_protection_controls_ecb4dab0" formatted="false">Zaščita in nadzor sporočil</string>
+    <string name="waex_ui_messagedevicesource_6086ae2c" formatted="false">MessageDeviceSource</string>
+    <string name="waex_ui_microphone_186352a8" formatted="false">Mikrofon</string>
+    <string name="waex_ui_microphone_call_recording_db09aa48" formatted="false">Mikrofon in snemanje klicev</string>
+    <string name="waex_ui_minorfixes_c42ace17" formatted="false">Manjši popravki</string>
+    <string name="waex_ui_model_download_status_ff625765" formatted="false">Stanje prenosa modela</string>
+    <string name="waex_ui_module_framework_b4c7101d" formatted="false">Modul in ogrodje</string>
+    <string name="waex_ui_module_inactive_57d5f17f" formatted="false">Modul je neaktiven</string>
+    <string name="waex_ui_module_status_78cf7255" formatted="false">Stanje modula</string>
+    <string name="waex_ui_module_version_d923cdd4" formatted="false">Različica modula</string>
+    <string name="waex_ui_modules_76c86c4c" formatted="false">Moduli</string>
+    <string name="waex_ui_month_40edde43" formatted="false">/ Mesec</string>
+    <string name="waex_ui_more_options_6285ce5d" formatted="false">Več možnosti</string>
+    <string name="waex_ui_my_status_43503c17" formatted="false">Moj status</string>
+    <string name="waex_ui_name_sender_name_number_sender_jid_pho_ee23ebc4" formatted="false">%name (ime pošiljatelja)\n%number (JID pošiljatelja / telefonska številka)\n%message (besedilna vsebina)</string>
+    <string name="waex_ui_needs_attention_e0004b39" formatted="false">ZAHTEVA POZORNOST</string>
+    <string name="waex_ui_no_1ea442a1" formatted="false">Ne</string>
+    <string name="waex_ui_no_active_hooks_reported_by_whatsapp_p_50b24a7f" formatted="false">Proces WhatsApp ne poroča o nobenih aktivnih hookih.\nPreveri, ali WhatsApp deluje.</string>
+    <string name="waex_ui_no_active_rules_fc15b50c" formatted="false">Ni aktivnih pravil</string>
+    <string name="waex_ui_no_call_recordings_yet_1a95417c" formatted="false">Še ni posnetkov klicev</string>
+    <string name="waex_ui_no_changelog_available_d334743e" formatted="false">Dnevnik sprememb ni na voljo.</string>
+    <string name="waex_ui_no_contributors_found_faee6c16" formatted="false">Ni najdenih sodelavcev</string>
+    <string name="waex_ui_no_custom_rules_yet_35ba92cb" formatted="false">Še ni prilagojenih pravil</string>
+    <string name="waex_ui_no_custom_version_rules_added_yet_tap_f86be378" formatted="false">Še ni dodanih prilagojenih pravil za različice.\nTapni »Dodaj pravilo«, da izbereš nepodprto aplikacijo in samodejno registriraš njeno vejo različice.</string>
+    <string name="waex_ui_no_filters_added_bc59f30c" formatted="false">Ni dodanih filtrov</string>
+    <string name="waex_ui_no_hidden_read_receipt_to_send_15d6cfc0" formatted="false">Ni skritega potrdila o branju za pošiljanje</string>
+    <string name="waex_ui_no_injected_hooks_matching_filter_fe90503b" formatted="false">Ni vstavljenih hookov, ki bi ustrezali filtru</string>
+    <string name="waex_ui_no_internet_connection_13a21216" formatted="false">Ni internetne povezave</string>
+    <string name="waex_ui_no_linked_devices_found_for_this_licen_c225645d" formatted="false">Za to licenco ni bilo najdenih povezanih naprav.</string>
+    <string name="waex_ui_no_message_history_found_d6380f22" formatted="false">Ni bilo najdenega zgodovine sporočil</string>
+    <string name="waex_ui_no_messages_a06faf26" formatted="false">Ni sporočil</string>
+    <string name="waex_ui_no_preserved_group_chats_29845d70" formatted="false">Ni ohranjenih skupinskih klepetov</string>
+    <string name="waex_ui_no_preserved_individual_chats_0491329d" formatted="false">Ni ohranjenih individualnih klepetov</string>
+    <string name="waex_ui_no_releases_found_d8feb500" formatted="false">Ni bilo najdenih izdaj.</string>
+    <string name="waex_ui_no_tabs_hidden_eb0aba28" formatted="false">Ni skritih zavihkov</string>
+    <string name="waex_ui_no_validated_managed_keybox_is_cached_d0090b84" formatted="false">V predpomnilniku še ni potrjenega upravljanega keyboxa</string>
+    <string name="waex_ui_none_reported_ffcae7fc" formatted="false">Nič ni bilo sporočeno</string>
+    <string name="waex_ui_not_available_2ab64517" formatted="false">Ni na voljo</string>
+    <string name="waex_ui_not_available_67a926f7" formatted="false">Ni na voljo</string>
+    <string name="waex_ui_not_configured_dd1841d2" formatted="false">Ni nastavljeno</string>
+    <string name="waex_ui_not_detected_9f4a1062" formatted="false">Ni zaznano</string>
+    <string name="waex_ui_not_injected_3b307d1f" formatted="false">Ni vstavljeno</string>
+    <string name="waex_ui_not_installed_d08041a7" formatted="false">Ni nameščeno</string>
+    <string name="waex_ui_not_installed_on_this_device_6aac8f5e" formatted="false">Ni nameščeno na tej napravi</string>
+    <string name="waex_ui_not_reported_adadface" formatted="false">Ni bilo sporočeno</string>
+    <string name="waex_ui_not_reported_yet_355b4779" formatted="false">Ni bilo še sporočeno</string>
+    <string name="waex_ui_note_resizing_view_elements_dynamicall_95d239ba" formatted="false">Opomba: dinamično spreminjanje velikosti elementov v pogledu zahteva dodatno upodabljanje postavitve. Zaradi tega se lahko pogledi, ki vsebujejo te elemente, nalagajo z manjšo zamudo.</string>
+    <string name="waex_ui_online_presence_indicators_05934fbe" formatted="false">Kazalniki prisotnosti v povezavi</string>
+    <string name="waex_ui_only_allow_numbers_saved_in_your_phone_504e2e53" formatted="false">Dovoli samo številke, shranjene v imeniku telefona</string>
+    <string name="waex_ui_opacity_0_100_e19bed46" formatted="false">Prosojnost (0 - 100)</string>
+    <string name="waex_ui_opacity_pro_aa6ab765" formatted="false">Prosojnost (Pro)</string>
+    <string name="waex_ui_open_archived_chats_4757b69a" formatted="false">ODPRI ARHIVIRANE KLEPETE</string>
+    <string name="waex_ui_open_archived_chats_791f3567" formatted="false">Odpri arhivirane klepete</string>
+    <string name="waex_ui_open_github_0d2cda15" formatted="false">Odpri GitHub</string>
+    <string name="waex_ui_open_locked_chats_b10ca180" formatted="false">ODPRI ZAKLENJENE KLEPETE</string>
+    <string name="waex_ui_open_locked_chats_d1a58216" formatted="false">Odpri zaklenjene klepete</string>
+    <string name="waex_ui_open_to_hire_c4863654" formatted="false">Odprto za zaposlitev</string>
+    <string name="waex_ui_open_waex_settings_51efb194" formatted="false">Odpri nastavitve WAEX</string>
+    <string name="waex_ui_open_your_github_profile_9303415f" formatted="false">Odpri svoj profil na GitHubu</string>
+    <string name="waex_ui_optional_permissions_766be476" formatted="false">Izbirna dovoljenja</string>
+    <string name="waex_ui_opus_opus_f43733be" formatted="false">Opus (.opus)</string>
+    <string name="waex_ui_or_enter_custom_emoji_8442012c" formatted="false">Ali vnesi emoji po meri</string>
+    <string name="waex_ui_overview_d4b1ea57" formatted="false">Pregled</string>
+    <string name="waex_ui_parse_error_65837ce7" formatted="false">Napaka pri razčlenjevanju</string>
+    <string name="waex_ui_participant_554f4235" formatted="false">Udeleženec</string>
+    <string name="waex_ui_paused_unsupported_version_66797ffe" formatted="false">Zaustavljeno: nepodprta različica</string>
+    <string name="waex_ui_pending_332011b9" formatted="false">V ČAKANJU</string>
+    <string name="waex_ui_per_contact_privacy_c4476ed0" formatted="false">Zasebnost po stiku</string>
+    <string name="waex_ui_per_contact_privacy_is_currently_disab_b04d6482" formatted="false">Zasebnost po stiku je trenutno onemogočena v nastavitvah.</string>
+    <string name="waex_ui_periodically_check_the_waenhancerx_rel_0026b98e" formatted="false">Redno preverjaj storitev za izdajo WaEnhancerX</string>
+    <string name="waex_ui_permissive_3bd46607" formatted="false">Dovoljujoče</string>
+    <string name="waex_ui_photos_media_storage_38774dc5" formatted="false">Shranjevanje fotografij in multimedijskih datotek</string>
+    <string name="waex_ui_pill_design_5eba892d" formatted="false">Oblika tableta</string>
+    <string name="waex_ui_pill_design_preset_3b444249" formatted="false">Prednastavitev oblike tableta</string>
+    <string name="waex_ui_plan_fa8ed0bd" formatted="false">Načrt</string>
+    <string name="waex_ui_play_436e6101" formatted="false">Predvajaj</string>
+    <string name="waex_ui_playback_error_1_s_158f296a">Napaka pri predvajanju: %1$s</string>
+    <string name="waex_ui_please_allow_waenhancer_x_to_install_a_cde29fd6" formatted="false">Dovoli, da WaEnhancer X lahko namešča aplikacije</string>
+    <string name="waex_ui_please_enter_your_license_key_49b0976f" formatted="false">Vnesi svoj licenčni ključ.</string>
+    <string name="waex_ui_please_wait_until_the_status_finishes_0ef2b7ff" formatted="false">Počakaj, da se stanje v celoti prenese, nato poskusi znova</string>
+    <string name="waex_ui_popular_reactions_c2b82def" formatted="false">Priljubljene reakcije</string>
+    <string name="waex_ui_post_notifications_515765d2" formatted="false">Obvestila o objavah</string>
+    <string name="waex_ui_preferences_refresh_immediately_restar_e3de7bee" formatted="false">Nastavitve se takoj osvežijo; ponovni zagon WhatsAppa ponovno vključi hooke, ki se naložijo le ob zagonu</string>
+    <string name="waex_ui_presence_toasts_ee8f508c" formatted="false">Obvestila o prisotnosti</string>
+    <string name="waex_ui_preserve_deleted_messages_e39773df" formatted="false">Ohrani izbrisana sporočila</string>
+    <string name="waex_ui_preserve_edits_prevent_limits_and_safe_6139d177" formatted="false">Ohrani urejanja, prepreči omejitve in zaščiti sporočila</string>
+    <string name="waex_ui_preserved_9d31b48b" formatted="false">Ohranjeno</string>
+    <string name="waex_ui_preserved_message_547f6da1" formatted="false">Ohranjeno sporočilo</string>
+    <string name="waex_ui_presets_954f93fe" formatted="false">Prednastavitve</string>
+    <string name="waex_ui_press_back_again_to_exit_c151b888" formatted="false">Za izhod ponovno pritisni nazaj</string>
+    <string name="waex_ui_prevent_revoke_35c7d01c" formatted="false">Prepreči preklic</string>
+    <string name="waex_ui_prevents_system_throttling_for_backgro_663fb76c" formatted="false">Preprečuje omejevanje zmogljivosti sistema za avtomatizacije Taskerja v ozadju in trajne skrite hooke.</string>
+    <string name="waex_ui_privacy_rules_42135437" formatted="false">PRAVILA ZASEBNOSTI</string>
+    <string name="waex_ui_private_key_matches_4e90c050" formatted="false">Ujemanje zasebnega ključa</string>
+    <string name="waex_ui_pro_license_activated_b27626fb" formatted="false">Pro licenca aktivirana!</string>
+    <string name="waex_ui_pro_monthly_fc7aed6d" formatted="false">Pro mesečno</string>
+    <string name="waex_ui_pro_yearly_a80329b0" formatted="false">Pro letno</string>
+    <string name="waex_ui_profile_photo_download_95f7b1b8" formatted="false">Prenos profilne slike</string>
+    <string name="waex_ui_profile_photo_is_not_ready_yet_8ff494b5" formatted="false">Profilna slika še ni pripravljena</string>
+    <string name="waex_ui_profile_photo_saved_to_pictures_waex_p_a8c4bd76" formatted="false">Profilna slika shranjena v Fotografije/WAEX/Profile Photos</string>
+    <string name="waex_ui_purchase_license_key_7dc5ed9a" formatted="false">Nakup licenčnega ključa</string>
+    <string name="waex_ui_ready_5fa7aac5" formatted="false">Pripravljeno</string>
+    <string name="waex_ui_real_time_preview_of_how_whatsapp_bott_e803ed32" formatted="false">Predogled v realnem času, kako izgleda spodnja navigacijska tableta v WhatsAppu</string>
+    <string name="waex_ui_rec_a29ea413" formatted="false">Rec</string>
+    <string name="waex_ui_receive_detailed_notification_with_cal_e55e211d" formatted="false">Po koncu klicev prejmi podrobno obvestilo z IP-naslovom klicatelja, lokacijo, napravo in različico</string>
+    <string name="waex_ui_recommended_baa505ce" formatted="false">PRIPOROČLJIVO</string>
+    <string name="waex_ui_record_whatsapp_calls_edeb6ac1" formatted="false">Snemanje klicev v WhatsAppu</string>
+    <string name="waex_ui_recording_configuration_40230390" formatted="false">NASTAVITVE SNEMANJA</string>
+    <string name="waex_ui_recording_deleted_ded881bb" formatted="false">Snemanje izbrisano</string>
+    <string name="waex_ui_refined_pro_277942ba" formatted="false">Izboljšano (Pro)</string>
+    <string name="waex_ui_refresh_diagnostics_7bce98ec" formatted="false">Osveži diagnostiko</string>
+    <string name="waex_ui_refresh_failed_1_s_5b508fd6">Osvežitev ni uspela: %1$s</string>
+    <string name="waex_ui_refresh_hooks_5fbeb9a0" formatted="false">Osveži hooke</string>
+    <string name="waex_ui_refresh_managed_keybox_7f2d970b" formatted="false">Osveži upravljan keybox</string>
+    <string name="waex_ui_refreshing_1c0def7b" formatted="false">Osvežuje se …</string>
+    <string name="waex_ui_refreshing_managed_keybox_7bf6aed4" formatted="false">Osvežuje se upravljan keybox</string>
+    <string name="waex_ui_release_details_7a63d360" formatted="false">Podrobnosti o izdaji</string>
+    <string name="waex_ui_release_e020e3c6" formatted="false">Izdaja</string>
+    <string name="waex_ui_release_not_found_2df35e7c" formatted="false">Izdaja ni bila najdena.</string>
+    <string name="waex_ui_release_page_6ba4c7eb" formatted="false">Stran izdaje</string>
+    <string name="waex_ui_remind_me_again_after_one_day_6522d8db" formatted="false">Spomni me ponovno čez en dan</string>
+    <string name="waex_ui_remind_me_again_after_one_week_31ebcd1e" formatted="false">Spomni me ponovno čez en teden</string>
+    <string name="waex_ui_remove_custom_rules_a2782b75" formatted="false">Odstrani prilagojena pravila</string>
+    <string name="waex_ui_remove_license_1af46866" formatted="false">Odstrani licenco</string>
+    <string name="waex_ui_remove_license_70f459dc" formatted="false">Odstraniti licenco?</string>
+    <string name="waex_ui_removing_d4b09919" formatted="false">Odstranjuje se …</string>
+    <string name="waex_ui_replace_custom_keybox_xml_9dbdb703" formatted="false">Zamenjaj prilagojeno datoteko keybox.xml</string>
+    <string name="waex_ui_reported_hooked_targets_0f7b326d" formatted="false">Prijavljeni cilji s hooki</string>
+    <string name="waex_ui_required_extras_54e6a19f" formatted="false">Potrebni dodatki:</string>
+    <string name="waex_ui_required_for_automatic_call_recording_109166ae" formatted="false">Potrebno za samodejno snemanje klicev in prepis sporočil z glasom v besedilo z umetno inteligenco.</string>
+    <string name="waex_ui_required_for_download_progress_indicat_70ce5a66" formatted="false">Potrebno za kazalce napredka prenosa, spletna obvestila in sinhronizacijo s Taskerjem.</string>
+    <string name="waex_ui_required_for_seamless_in_app_version_u_d1c6c3a3" formatted="false">Potrebno za nemoteno prenašanje posodobitev različic znotraj aplikacije in namestitev modulov.</string>
+    <string name="waex_ui_required_for_whatsapp_database_backups_961af6f4" formatted="false">Potrebno za varnostne kopije baze podatkov WhatsAppa, ponarejanje datotek in obnovo arhivov pogovorov.</string>
+    <string name="waex_ui_required_to_display_floating_action_bu_a9a30dce" formatted="false">Potrebno za prikaz plavajočih akcijskih balončkov, spletnih obvestil in hitrih menijev v pogovorih.</string>
+    <string name="waex_ui_required_to_resolve_contact_names_and_d8a90ce5" formatted="false">Potrebno za prepoznavanje imen stikov in nastavitev pravil zasebnosti za posamezne stike.</string>
+    <string name="waex_ui_required_to_save_status_photos_split_v_63d9ba8a" formatted="false">Potrebno za shranjevanje statusnih fotografij, razdeljevanje videoposnetkov in nalaganje prilagojenih tem ozadij.</string>
+    <string name="waex_ui_required_to_save_status_updates_backup_14a75a0b" formatted="false">Potrebno za shranjevanje posodobitev statusa, varnostnih kopij nastavitev in izvoz posnetkov.</string>
+    <string name="waex_ui_reset_automatically_after_24_hours_4ea91231" formatted="false">Samodejna ponastavitev po 24 urah</string>
+    <string name="waex_ui_resize_pro_7dff96e9" formatted="false">Sprememba velikosti (Pro)</string>
+    <string name="waex_ui_restart_app_07fe185c" formatted="false">Ponovni zagon aplikacije</string>
+    <string name="waex_ui_restart_required_b4687115" formatted="false">Potreben ponovni zagon</string>
+    <string name="waex_ui_restart_whatsapp_after_changing_the_ke_8275d80a" formatted="false">Ponovno zaženi WhatsApp po spremembi vira keyboxa ali omogočanju te funkcije.</string>
+    <string name="waex_ui_restart_whatsapp_e68a0fd3" formatted="false">Ponovni zagon WhatsAppa</string>
+    <string name="waex_ui_restore_failed_1_s_995c8df5">Obnova ni uspela: %1$s</string>
+    <string name="waex_ui_retain_messages_locally_when_delete_fo_83f67a27" formatted="false">Ohrani sporočila lokalno, ko pritisneš Izbriši zame</string>
+    <string name="waex_ui_retry_942087cc" formatted="false">Ponovi</string>
+    <string name="waex_ui_root_access_is_required_a22936b2" formatted="false">Potreben je root dostop</string>
+    <string name="waex_ui_root_access_is_required_to_enable_sile_8a319a7a" formatted="false">Za omogočanje tihe namestitve je potreben root dostop</string>
+    <string name="waex_ui_root_access_is_required_to_enable_vers_650bb903" formatted="false">Za omogočanje vrnitve na prejšnjo različice je potreben root dostop</string>
+    <string name="waex_ui_root_allowed_fb11f039" formatted="false">Root dovoljen</string>
+    <string name="waex_ui_root_direct_ffade4c1" formatted="false">Root / Neposredno</string>
+    <string name="waex_ui_root_installation_failed_1_s_eb2c4718">Namestitev z rootom ni uspela: %1$s</string>
+    <string name="waex_ui_root_lets_waenhancerx_verify_the_modul_415333af" formatted="false">Root omogoča WAEnhancerX-ju preverjanje obsega modula in podprtega izvedbenega okolja. Metode vstavljanja brez root dostopa, kot so LSPatch in alternative na osnovi Shizuku, niso podprte.</string>
+    <string name="waex_ui_rsa_attestation_chain_04437628" formatted="false">Veriga potrdil RSA</string>
+    <string name="waex_ui_rule_scope_010c9afb" formatted="false">OBSEG PRAVIL</string>
+    <string name="waex_ui_rules_apply_at_all_times_5fbfcc41" formatted="false">Pravila veljajo vedno</string>
+    <string name="waex_ui_run_an_eligible_update_check_when_waen_57552a51" formatted="false">Ob zagonu aplikacije WAEnhancerX preveri, ali so na voljo ustrezne posodobitve</string>
+    <string name="waex_ui_runtime_api_captured_2625bdc2" formatted="false">Zajet API izvedbenega okolja</string>
+    <string name="waex_ui_saturation_993f024b" formatted="false">Zasičenost</string>
+    <string name="waex_ui_save_33_with_full_pro_access_for_365_d_9ab320db" formatted="false">Prihrani 33% s polnim dostopom do različice Pro za 365 dni</string>
+    <string name="waex_ui_save_rules_fb164cd9" formatted="false">Shrani pravila</string>
+    <string name="waex_ui_saved_to_b95e47d2" formatted="false">Shranjeno v:</string>
+    <string name="waex_ui_scale_1_s_c7fc4a67">Skala: %1$s</string>
+    <string name="waex_ui_scheduled_rules_59260020" formatted="false">Načrtovana pravila</string>
+    <string name="waex_ui_search_bar_de54d68f" formatted="false">Iskalna vrstica</string>
+    <string name="waex_ui_search_github_usernames_968bd7a0" formatted="false">Iskanje uporabniških imen na GitHubu</string>
+    <string name="waex_ui_search_hidden_7723b9b3" formatted="false">Iskanje skritih</string>
+    <string name="waex_ui_search_icon_edfdb08d" formatted="false">Ikona iskanja</string>
+    <string name="waex_ui_search_injected_hooks_classes_6ad2a50f" formatted="false">Iskanje vstavljenih hookov in razredov …</string>
+    <string name="waex_ui_search_supporters_d4975694" formatted="false">Iskanje podpornikov</string>
+    <string name="waex_ui_section_1_s_ab7f31a7">Oddelek: %1$s</string>
+    <string name="waex_ui_seen_8894cf30" formatted="false">Ogledano</string>
+    <string name="waex_ui_select_accent_color_ba07cfa2" formatted="false">Izberi barvo poudarka</string>
+    <string name="waex_ui_select_an_installed_app_to_automatical_35b59d2f" formatted="false">Izberi nameščeno aplikacijo, da se samodejno ustvari in registrira pravilo za njeno univerzalno različico:</string>
+    <string name="waex_ui_select_build_type_7aca4b93" formatted="false">Izberi tip zgradbe</string>
+    <string name="waex_ui_select_or_type_the_default_emoji_sent_1489519d" formatted="false">Izberi ali vnesi privzeti emoji, ki se pošlje ob dvojnem tapu sporočila.</string>
+    <string name="waex_ui_select_overall_aesthetic_theme_for_the_16217000" formatted="false">Izberi splošno estetsko temo za plavajočo vrstico</string>
+    <string name="waex_ui_select_unsupported_app_294b5650" formatted="false">Izberi nepodprto aplikacijo</string>
+    <string name="waex_ui_selected_57fd7a0c" formatted="false">Izbrano</string>
+    <string name="waex_ui_selected_speech_locale_english_us_90b823a7" formatted="false">Izbrana jezikovna nastavitev govora: angleščina (ZDA)</string>
+    <string name="waex_ui_send_blue_tick_a14924d4" formatted="false">Pošlji modro kljukico</string>
+    <string name="waex_ui_send_f6f4688f" formatted="false">Pošlji</string>
+    <string name="waex_ui_send_sticker_29e230ec" formatted="false">Poslati nalepko?</string>
+    <string name="waex_ui_separate_726c1269" formatted="false">Loči</string>
+    <string name="waex_ui_separate_items_7f91460e" formatted="false">Loči elemente</string>
+    <string name="waex_ui_separate_menu_items_36c8f114" formatted="false">Loči menijske elemente</string>
+    <string name="waex_ui_set_speech_interpretation_locale_92437d43" formatted="false">Nastavi jezikovno okolje za glasovno tolmačenje</string>
+    <string name="waex_ui_settings_enforcement_4ea541a3" formatted="false">NASTAVITVE IN IZVRŠEVANJE</string>
+    <string name="waex_ui_setup_progress_c4b08e4f" formatted="false">Napredek nastavitve</string>
+    <string name="waex_ui_share_call_recording_692216ae" formatted="false">Deli posnetek klica</string>
+    <string name="waex_ui_share_selected_e3040dd9" formatted="false">Deli izbrano</string>
+    <string name="waex_ui_shield_heart_4bd16fe2" formatted="false">Zaščiti srce</string>
+    <string name="waex_ui_show_hook_injection_toast_dc03f223" formatted="false">Prikaži obvestilo o vstavljanju hookov</string>
+    <string name="waex_ui_show_in_3_dots_waex_menu_022a93a6" formatted="false">Prikaži v meniju s tremi pikami / WAEX</string>
+    <string name="waex_ui_show_it_again_on_the_next_check_40bbb328" formatted="false">Ponovno prikaži ob naslednjem preverjanju</string>
+    <string name="waex_ui_show_restart_sheet_after_changes_7fd4dac3" formatted="false">Prikaži okno za ponovni zagon po spremembah</string>
+    <string name="waex_ui_show_the_injecting_hooks_notification_3b01d0c9" formatted="false">Prikaži obvestilo o vstavljanju hookov ob zagonu WhatsAppa</string>
+    <string name="waex_ui_silent_root_install_6fff1c8e" formatted="false">Tiha namestitev z root dostopom</string>
+    <string name="waex_ui_simulates_caller_not_reachable_fd5240bd" formatted="false">Simulira, da klicatelj ni dosegljiv</string>
+    <string name="waex_ui_simulates_immediate_line_busy_tone_983e3462" formatted="false">Simulira takojšen signal zasedene linije</string>
+    <string name="waex_ui_slide_down_a1a55254" formatted="false">Pomakni navzdol</string>
+    <string name="waex_ui_solid_themed_floating_pill_with_sleek_90c46dd3" formatted="false">Enobarvna plavajoča tableta z elegantnim obrisom</string>
+    <string name="waex_ui_spoof_the_locked_and_verified_boot_sta_b8bb2e3a" formatted="false">Ponaredi zaklenjeno in preverjeno stanje zagona, ki ga uporabljajo preverjanja integritete WhatsApp</string>
+    <string name="waex_ui_spoofer_runtime_a7fae7b9" formatted="false">Čas delovanja ponarejevalnika</string>
+    <string name="waex_ui_stable_90ee3057" formatted="false">Stabilno</string>
+    <string name="waex_ui_standard_mic_84f47136" formatted="false">Standardni mikrofon</string>
+    <string name="waex_ui_star_waenhancerx_on_github_and_your_pr_9240b818" formatted="false">Označi WaEnhancerX z zvezdico na GitHubu in tvoj profil se bo pridružil temu seznamu podpornikov. Je brezplačno, traja le trenutek in pomaga več ljudem odkriti projekt. Morda bo trajalo nekaj časa, preden se nove zvezdice prikažejo.</string>
+    <string name="waex_ui_start_hour_ab66a6d4" formatted="false">Ura začetka</string>
+    <string name="waex_ui_status_920e413c" formatted="false">Stanje</string>
+    <string name="waex_ui_status_download_bbc8b7f1" formatted="false">Stanje prenosa</string>
+    <string name="waex_ui_status_forward_efd1de1c" formatted="false">Stanje posredovanja</string>
+    <string name="waex_ui_status_saved_to_gallery_waex_9f345669" formatted="false">Stanje shranjeno v galeriji (WAEX)</string>
+    <string name="waex_ui_status_splitter_89951412" formatted="false">Stanje razdeljevalnika</string>
+    <string name="waex_ui_status_text_b35d0184" formatted="false">Stanje besedila</string>
+    <string name="waex_ui_stickers_dbf9cbbe" formatted="false">Nalepke</string>
+    <string name="waex_ui_stop_cae7d57b" formatted="false">Zaustavi</string>
+    <string name="waex_ui_storage_access_a334c4ca" formatted="false">Dostop do pomnilnika</string>
+    <string name="waex_ui_stored_privately_on_this_device_8914dd99" formatted="false">Zasebno shranjeno na tej napravi</string>
+    <string name="waex_ui_strong_integrity_supported_5590a4ba" formatted="false">Podprta visoka integriteta</string>
+    <string name="waex_ui_style_whatsapp_views_using_ids_widget_eedbeb45" formatted="false">Oblikujte prikaze WhatsAppa z uporabo ID-jev, vrst gradnikov, omejenih dejavnosti in splošnih lastnosti CSS. Po shranjevanju ponovno zaženi WhatsApp.</string>
+    <string name="waex_ui_subscription_expired_88f93274" formatted="false">Naročnina je potekla</string>
+    <string name="waex_ui_summarize_long_audios_107bd840" formatted="false">Povzemanje dolgih avdio posnetkov</string>
+    <string name="waex_ui_supported_abis_05063fc8" formatted="false">Podprti ABI-ji</string>
+    <string name="waex_ui_supporting_since_1_s_2957c30c">Podprto od %1$s</string>
+    <string name="waex_ui_system_6725e7bb" formatted="false">Sistem</string>
+    <string name="waex_ui_system_diagnostics_005acd73" formatted="false">Sistemska diagnostika</string>
+    <string name="waex_ui_tap_any_feature_to_navigate_directly_t_7307e93d" formatted="false">Tapni katero koli funkcijo, da se neposredno preusmeriš na njene nastavitve</string>
+    <string name="waex_ui_tap_star_on_github_and_your_profile_wi_89e8efe3" formatted="false">Tapni zvezdico na GitHubu in tvoj profil se bo prikazal po posodobitvi seznama.</string>
+    <string name="waex_ui_tap_to_add_a_view_id_to_remove_or_cust_55465be9" formatted="false">Tapni +, da dodaš ID pogleda, ki ga želiš odstraniti ali prilagoditi v WhatsAppu.</string>
+    <string name="waex_ui_tap_to_change_default_reaction_emoji_1_341eb819">Tapni, da spremeniš privzeti emoji za reakcijo (%1$s)</string>
+    <string name="waex_ui_tap_whatsapp_title_3_times_84515b9e" formatted="false">Trikrat tapni naslov WhatsAppa</string>
+    <string name="waex_ui_target_1_s_d0d8050b">Cilj: %1$s</string>
+    <string name="waex_ui_target_applications_compatibility_4941b8c2" formatted="false">ZDRUŽLJIVOST CILJNIH APLIKACIJ</string>
+    <string name="waex_ui_tasker_integration_87cf63e8" formatted="false">Integracija s Taskerjem</string>
+    <string name="waex_ui_telegram_account_bd7330e3" formatted="false">Telegramov račun</string>
+    <string name="waex_ui_temporary_lockout_fa623835" formatted="false">Začasna blokada</string>
+    <string name="waex_ui_test_532eaabd" formatted="false">Test</string>
+    <string name="waex_ui_text_deleted_0eb7a071" formatted="false">Besedilo »Izbrisano«</string>
+    <string name="waex_ui_text_size_4c676fed" formatted="false">Velikost besedila</string>
+    <string name="waex_ui_thank_you_for_being_a_pro_subscriber_a_65080d96" formatted="false">Hvala, da si naročnik Pro in da si WaEnhancerX stargazer!</string>
+    <string name="waex_ui_the_full_quality_image_could_not_be_de_355cd5b2" formatted="false">Slike v polni kakovosti ni bilo mogoče dekodirati</string>
+    <string name="waex_ui_theme_custom_styles_41b03b0d" formatted="false">Tema in prilagojeni slogi</string>
+    <string name="waex_ui_this_behavior_requires_pro_license_225df57d" formatted="false">Za to delovanje je potrebna licenca Pro.</string>
+    <string name="waex_ui_this_check_runs_locally_using_the_syst_53890e09" formatted="false">To preverjanje poteka lokalno z uporabo sistemskega ukaza identitete. Podatki o root dostopu ali izpis ukaza se ne naložijo.</string>
+    <string name="waex_ui_this_device_7a0686d7" formatted="false">Ta naprava</string>
+    <string name="waex_ui_this_is_a_local_configuration_audit_no_9ae8e494" formatted="false">To je lokalni pregled nastavitve, ne pa trenutna ocena integritete v Google Playu.</string>
+    <string name="waex_ui_this_message_was_sent_via_a_linked_dev_7be749b8" formatted="false">To sporočilo je bilo poslano prek povezane naprave (namizni računalnik/telefon)</string>
+    <string name="waex_ui_this_will_disconnect_1_s_from_your_lic_83c7968b">S tem se bo »%1$s« odklopil od tvojega licenčnega ključa in sprostil mesto za napravo.</string>
+    <string name="waex_ui_this_will_unlink_this_device_remove_th_a2b62c79" formatted="false">S tem se bo ta naprava odvezala, shranjena licenca se bo odstranila, WAEX pa se bo vrnil na brezplačno uporabo.</string>
+    <string name="waex_ui_today_1_40_pm_3985c17d" formatted="false">Danes, 13:40</string>
+    <string name="waex_ui_today_2_15_pm_3746292d" formatted="false">Danes, 14:15</string>
+    <string name="waex_ui_today_9_00_am_6144f2eb" formatted="false">Danes, 9:00</string>
+    <string name="waex_ui_toolbar_icons_12004bba" formatted="false">Ikone na orodni vrstici</string>
+    <string name="waex_ui_tools_ea93d6a2" formatted="false">Orodja</string>
+    <string name="waex_ui_top_icon_d8a8beb7" formatted="false">Zgornja ikona</string>
+    <string name="waex_ui_total_commits_fe2d82f4" formatted="false">Skupno število predlogov</string>
+    <string name="waex_ui_transcribe_voice_notes_automatically_u_0d57d8de" formatted="false">Samodejno prepisovanje glasovnih opomb z lokalnim modelom</string>
+    <string name="waex_ui_transforms_the_default_navigation_bar_c18f96ff" formatted="false">Preoblikuje privzeto navigacijsko vrstico v sodobno lebdečo tableto</string>
+    <string name="waex_ui_translucent_background_with_blurred_ba_0d5bf87c" formatted="false">Prosojno ozadje z zameglenim ozadjem</string>
+    <string name="waex_ui_translucent_glassmorphism_with_refract_a6528ef4" formatted="false">Prosojni glassmorphism z refrakcijskim robom</string>
+    <string name="waex_ui_trial_98a66e97" formatted="false">Preizkusna različica</string>
+    <string name="waex_ui_trigger_automation_whenever_a_new_mess_f5c90c18" formatted="false">Sproži avtomatizacijo ob prejemu novega sporočila v WhatsAppu.</string>
+    <string name="waex_ui_triggered_macro_forward_to_telegram_bo_b1f50fd0" formatted="false">Sproženi makro: »Posreduj botu Telegram«</string>
+    <string name="waex_ui_trust_chain_verified_9699f47e" formatted="false">Verificirana veriga zaupanja</string>
+    <string name="waex_ui_try_again_d8b8392e" formatted="false">Ponovno poskusi</string>
+    <string name="waex_ui_typing_25dfb9b4" formatted="false">Tipkanje</string>
+    <string name="waex_ui_unable_to_determine_chat_jid_fb5fdb1b" formatted="false">JID klepeta ni mogoče določiti</string>
+    <string name="waex_ui_unable_to_execute_the_root_installer_798f1547" formatted="false">Root namestitvenega programa ni mogoče izvesti</string>
+    <string name="waex_ui_unable_to_load_release_f214dab0" formatted="false">Izdaje ni mogoče naložiti.</string>
+    <string name="waex_ui_unable_to_load_releases_4dd4eff4" formatted="false">Izdaj ni mogoče naložiti.</string>
+    <string name="waex_ui_unable_to_remove_the_license_please_tr_9d627156" formatted="false">Licence ni mogoče odstraniti. Poskusi znova.</string>
+    <string name="waex_ui_unable_to_save_setting_d9dcb19d" formatted="false">Nastavitev ni mogoče shraniti</string>
+    <string name="waex_ui_unavailable_ca184496" formatted="false">Ni na voljo</string>
+    <string name="waex_ui_unfreeze_last_seen_2b755d69" formatted="false">Deaktivirati zamrznitev zadnjega prikazanega?</string>
+    <string name="waex_ui_unfreeze_restart_482e080f" formatted="false">Odmrzni in ponovno zaženi</string>
+    <string name="waex_ui_universal_base_c5227bf4" formatted="false">Univerzalna osnova</string>
+    <string name="waex_ui_universal_built_in_versions_3e18e512" formatted="false">UNIVERZALNE VGRADENE RAZLIČICE</string>
+    <string name="waex_ui_unknown_b764cdc0" formatted="false">Neznano</string>
+    <string name="waex_ui_unknown_contact_52b001c8" formatted="false">Neznani stik</string>
+    <string name="waex_ui_unknown_contacts_only_0adb8d96" formatted="false">Samo neznani stiki</string>
+    <string name="waex_ui_unknown_device_88fc11e3" formatted="false">Neznana naprava</string>
+    <string name="waex_ui_unknown_preview_error_8c54371c" formatted="false">Neznana napaka pri predogledu</string>
+    <string name="waex_ui_unlink_b90108da" formatted="false">Prekini povezavo</string>
+    <string name="waex_ui_unlink_connected_device_1311613b" formatted="false">Prekini povezavo s povezano napravo?</string>
+    <string name="waex_ui_unlink_failed_c7a96076" formatted="false">Prekinitev povezave ni uspela</string>
+    <string name="waex_ui_unlink_failed_please_try_again_9fd5d00b" formatted="false">Prekinitev povezave ni uspela. Poskusi znova.</string>
+    <string name="waex_ui_unlink_this_device_8d093d5b" formatted="false">Prekiniti povezavo s to napravo?</string>
+    <string name="waex_ui_unlinking_device_725e69f6" formatted="false">Prekinjanje povezave z napravo …</string>
+    <string name="waex_ui_unlock_all_premium_pro_capabilities_f4442f27" formatted="false">Odkleni vse premium Pro funkcije</string>
+    <string name="waex_ui_unsupported_54324658" formatted="false">Ni podprto</string>
+    <string name="waex_ui_unsupported_setups_may_behave_unpredic_ac8b9130" formatted="false">Nepodprte nastavitve se lahko obnašajo nepredvidljivo in lahko povečajo tveganje za omejitve v WhatsAppu. Dostop do korenskega dostopa ne odpravi vseh tveganj pri uporabi modifikacij.</string>
+    <string name="waex_ui_update_available_5ae200f9" formatted="false">Na voljo je posodobitev</string>
+    <string name="waex_ui_update_c1c1009d" formatted="false">Posodobi</string>
+    <string name="waex_ui_update_now_f96f4d46" formatted="false">Posodobi zdaj</string>
+    <string name="waex_ui_update_settings_46ed6957" formatted="false">Posodobi nastavitve</string>
+    <string name="waex_ui_updates_22e2bada" formatted="false">Posodobitve</string>
+    <string name="waex_ui_updates_every_1_s_hours_afe94996">Posodobitve vsakih %1$s ur</string>
+    <string name="waex_ui_upgrade_7ec0261b" formatted="false">Nadgradnja</string>
+    <string name="waex_ui_use_custom_keybox_5b599ff8" formatted="false">Uporabi prilagojeni keybox</string>
+    <string name="waex_ui_use_gemini_nano_to_write_bulleted_abst_ab74bf14" formatted="false">Uporabi Gemini nano za pisanje povzetkov s pikami za dolge zapiske.</string>
+    <string name="waex_ui_user_busy_0ee28857" formatted="false">Uporabnik je zaseden</string>
+    <string name="waex_ui_user_defined_7b3c9074" formatted="false">Določeno s strani uporabnika</string>
+    <string name="waex_ui_user_defined_versions_1_s_5f331ced">RAZLIČICE, KI JIH DOLOČI UPORABNIK (%1$s)</string>
+    <string name="waex_ui_using_disk_fallback_4319351a" formatted="false">Uporaba nadomestnega diska</string>
+    <string name="waex_ui_validated_and_stored_privately_updated_2fc9fc11">Preverjeno in shranjeno zasebno\nPosodobljeno: %1$s</string>
+    <string name="waex_ui_verification_failed_f07240d4" formatted="false">Preverjanje ni uspelo.</string>
+    <string name="waex_ui_verify_activate_acf94d3b" formatted="false">Preveri in aktiviraj</string>
+    <string name="waex_ui_verify_selected_keybox_d4032599" formatted="false">Preveri izbrani keybox</string>
+    <string name="waex_ui_verifying_with_server_88342cf7" formatted="false">Preverjanje s strežnikom …</string>
+    <string name="waex_ui_version_1_s_2_s_3bc79b6b">Različica %1$s  •  %2$s</string>
+    <string name="waex_ui_version_1_s_b65bfa7f">Različica %1$s</string>
+    <string name="waex_ui_vertical_inner_padding_1285094a" formatted="false">Navpično notranje razmikovanje</string>
+    <string name="waex_ui_view_1_s_configured_contact_s_5418a89a">Poglej %1$s konfiguriranih stikov →</string>
+    <string name="waex_ui_view_detailed_contributions_606cb13b" formatted="false">Poglej podrobne prispevke</string>
+    <string name="waex_ui_view_details_90789c12" formatted="false">Poglej podrobnosti</string>
+    <string name="waex_ui_view_github_profile_1a49fe64" formatted="false">Poglej profil na GitHubu</string>
+    <string name="waex_ui_view_id_cannot_be_empty_c385b267" formatted="false">ID pogleda ne sme biti prazen</string>
+    <string name="waex_ui_view_release_details_12e6eae8" formatted="false">Poglej podrobnosti izdaje</string>
+    <string name="waex_ui_viewed_your_message_1fbdce3c" formatted="false">ogledal/a tvoje sporočilo</string>
+    <string name="waex_ui_viewed_your_status_44b3e59c" formatted="false">ogledal/a tvoj status</string>
+    <string name="waex_ui_visit_website_584aa47f" formatted="false">Obišči spletno stran</string>
+    <string name="waex_ui_voice_note_ai_rules_a5996bf0" formatted="false">Pravila AI za glasovne zapiske</string>
+    <string name="waex_ui_voice_transcription_677b2813" formatted="false">Glasovni prepis</string>
+    <string name="waex_ui_wa_enhancer_settings_ff30ce0c" formatted="false">Nastavitve WA Enhancer X</string>
+    <string name="waex_ui_waenhancer_x_could_not_finish_loading_b154030c" formatted="false">WaEnhancer X ni mogel dokončati nalaganja svojih hookov.\n\n</string>
+    <string name="waex_ui_waenhancer_x_injection_error_87f8b907" formatted="false">WaEnhancer X napaka pri vstavljanju</string>
+    <string name="waex_ui_waenhancer_x_injection_failed_8387f7f8" formatted="false">WaEnhancer X vstavljanje ni uspelo</string>
+    <string name="waex_ui_waenhancerx_settings_placement_8c28acc2" formatted="false">WAENHANCERX POSTAVITEV NASTAVITEV</string>
+    <string name="waex_ui_waenhancerx_supports_rooted_devices_wi_a07ec3e0" formatted="false">WaEnhancerX podpira le naprave z root dostopom in odobrenim Xposed ogrodjem. Aplikacija ne more delovati, dokler ni na voljo root dostop.</string>
+    <string name="waex_ui_waex_1_s_is_available_8b796483">WAEX %1$s je na voljo</string>
+    <string name="waex_ui_waex_compatibility_notice_a91003b3" formatted="false">Obvestilo o združljivosti WAEX</string>
+    <string name="waex_ui_waex_features_are_temporarily_paused_f_f15254a3" formatted="false">Funkcije WAEX so začasno onemogočene zaradi varnosti, da se prepreči nestabilnost aplikacije.\n\n</string>
+    <string name="waex_ui_waex_hooks_injected_0b677cb2" formatted="false">Vstavljeni WAEX hooki</string>
+    <string name="waex_ui_waex_managed_keybox_3dc5818e" formatted="false">Keybox, ki ga upravlja WAEX</string>
+    <string name="waex_ui_wait_until_a_newer_release_is_availabl_9e7d1559" formatted="false">Počakaj, dokler ne bo na voljo novejša različica</string>
+    <string name="waex_ui_want_to_see_yourself_here_b2789bdc" formatted="false">Želiš se pojaviti tukaj?</string>
+    <string name="waex_ui_we_couldn_t_load_the_supporters_right_f4aba896" formatted="false">Trenutno ni bilo mogoče naložiti podpornikov.</string>
+    <string name="waex_ui_whatsapp_hook_active_95610821" formatted="false">WhatsApp hook je aktiven</string>
+    <string name="waex_ui_whatsapp_hooked_c9066f8d" formatted="false">WhatsApp je hookan</string>
+    <string name="waex_ui_whatsapp_settings_37faf372" formatted="false">Nastavitve WhatsAppa</string>
+    <string name="waex_ui_whatsapp_will_resume_updating_your_las_13fe4e9d" formatted="false">WhatsApp bo ponovno normalno posodabljal časovni žig zadnjič viden. \n\nAli želiš ponovno zagnati WhatsApp, da se spremembe upoštevajo?</string>
+    <string name="waex_ui_when_messages_are_deleted_via_delete_f_439b7068" formatted="false">Ko se sporočila izbrišejo prek funkcije »Izbriši zame«, se ohranijo in prikažejo tukaj.</string>
+    <string name="waex_ui_when_whatsapp_calls_are_placed_or_rece_a10b5a50" formatted="false">Ko se WhatsApp-klici opravijo ali sprejmejo z vklopljenim snemanjem klicev, se zvočne datoteke samodejno prikažejo tukaj.</string>
+    <string name="waex_ui_who_can_call_me_14ebef24" formatted="false">KDO ME LAHKO POKLIČE</string>
+    <string name="waex_ui_why_this_is_required_78ad78a4" formatted="false">Zakaj je to potrebno</string>
+    <string name="waex_ui_xposed_api_09eb1963" formatted="false">Xposed API</string>
+    <string name="waex_ui_xposed_compatible_framework_7b13131b" formatted="false">Ogrodje, združljivo z Xposed</string>
+    <string name="waex_ui_xposed_framework_171b0ce2" formatted="false">Ogrodje Xposed</string>
+    <string name="waex_ui_xposed_framework_connected_d363853a" formatted="false">Ogrodje Xposed povezano</string>
+    <string name="waex_ui_year_aae0fb2c" formatted="false">/ Leto</string>
+    <string name="waex_ui_yes_85a39ab3" formatted="false">Da</string>
+    <string name="waex_ui_you_7b1aab93" formatted="false">Vi:</string>
+    <string name="waex_ui_you_can_manage_supported_versions_in_w_3d83ae46" formatted="false">Podprte različice lahko upravljate v nastavitvah WAEX.</string>
+    <string name="waex_ui_you_can_unlink_inactive_devices_here_t_c1c5b92f" formatted="false">Tukaj lahko prekinete povezavo z neaktivnimi napravami, da sprostite prostore za nove namestitve. Prekinitev povezave s trenutno napravo bo deaktivirala različico Pro na tem telefonu.</string>
+    <string name="waex_ui_your_license_period_has_ended_pro_feat_119bf1d7" formatted="false">Vaše licenčno obdobje se je izteklo. Funkcije Pro so trenutno zaklenjene.</string>
+    <string name="waex_ui_your_previous_license_has_expired_ente_a8f8ea0a" formatted="false">Vaša prejšnja licenca je potekla. Vnesite nov ključ za podaljšanje.</string>
+    <string name="waex_ui_your_privacy_d2a7115d" formatted="false">Vaša zasebnost</string>
+    <string name="waex_ui_your_pro_license_is_active_and_hardwar_9353b737" formatted="false">Vaša licenca Pro je aktivna in zaklenjena na strojno opremo.</string>
+    <string name="waex_ui_your_whatsapp_version_1_s_is_not_in_th_9fbbe591">Vaša različica WhatsApp (%1$s) ni v območju preverjenih podprtih različic.\n\n</string>
+    <plurals name="waex_recordings_deleted">
+        <item quantity="one">Izbrisan je bil %1$d posnetek</item>
+        <item quantity="two">Izbrisana sta bila %1$d posnetka</item>
+        <item quantity="few">Izbrisani so bili %1$d posnetki</item>
+        <item quantity="other">Izbrisano je bilo %1$d posnetkov</item>
+    </plurals>
+    <string name="waex_ui_urgent_ee603f0d" formatted="false">NUJNO</string>
+    <string name="waex_ui_important_ed99f4e1" formatted="false">POMEMBNO</string>
+    <string name="waex_ui_announcement_35236c01" formatted="false">OBVESTILO</string>
+    <string name="waex_ui_device_default_aa46c373" formatted="false">Privzeta nastavitev naprave</string>
+    <string name="waex_ui_scheduled_1_02d_00_2_s_3_02d_00_4_s_d83744a2">Načrtovano (%1$02d:00 %2$s – %3$02d:00 %4$s)</string>
+    <string name="waex_ui_filteritems_13d0396f" formatted="false">FilterItems</string>
+    <string name="waex_ui_custom_privacy_per_contact_ec801065" formatted="false">Prilagojena zasebnost (po stiku)</string>
+    <string name="waex_ui_chat_filter_display_09f142ed" formatted="false">Prikaz filtra klepetov</string>
+    <string name="waex_ui_seconds_on_timestamp_4f657076" formatted="false">Sekunde na časovnem žigu</string>
+    <string name="waex_ui_enable_igstatus_on_home_screen_ce457dd6" formatted="false">Omogoči IGStatus na začetnem zaslonu</string>
+    <string name="waex_ui_new_settings_style_75a5f9e2" formatted="false">Nov slog nastavitev</string>
+    <string name="waex_ui_separate_chats_and_groups_0f02fb58" formatted="false">Ločeni klepeti in skupine</string>
+    <string name="waex_ui_callrecording_54cdad34" formatted="false">CallRecording</string>
+    <string name="waex_ui_profilephotodownload_fc5a91b0" formatted="false">ProfilePhotoDownload</string>
+    <string name="waex_ui_antidisappearingmessageshook_a65958d9" formatted="false">AntiDisappearingMessagesHook</string>
+    <string name="waex_ui_anti_view_once_a41c8a43" formatted="false">Preprečevanje enkratnega ogleda</string>
+    <string name="waex_ui_autonextstatushook_36e09852" formatted="false">AutoNextStatusHook</string>
+    <string name="waex_ui_do_not_disturb_dnd_mode_953bfab9" formatted="false">Način »Ne moti« (DND)</string>
+    <string name="waex_ui_freeze_last_seen_hide_online_cc51a92d" formatted="false">Zamrznitev Zadnjič viden in Skrij v povezavi</string>
+    <string name="waex_ui_hide_archived_chats_2e849c18" formatted="false">Skrij arhivirane klepete</string>
+    <string name="waex_ui_hide_locked_chats_158db2ee" formatted="false">Skrij zaklenjene klepete</string>
+    <string name="waex_ui_locked_chats_enhancer_9e4efc4c" formatted="false">Izboljšava zaklenjenih klepetov</string>
+    <string name="waex_ui_typing_privacy_275e0699" formatted="false">Zasebnost tipkanja</string>
+    <string name="waex_ui_hide_read_receipts_8570ec32" formatted="false">Skrij potrdila o prebranih sporočilih</string>
+    <string name="waex_ui_anti_edit_messages_ba78575f" formatted="false">Preprečevanje urejanja sporočil</string>
+    <string name="waex_ui_hide_anti_revoke_31415448" formatted="false">Skrij preprečevanje preklica</string>
+    <string name="waex_ui_message_device_source_07c0fd57" formatted="false">Vir sporočila na napravi</string>
+    <string name="waex_ui_minor_fixes_d7dd47fe" formatted="false">Manjši popravki</string>
+    <string name="waex_ui_preserve_delete_for_me_6b1bbc80" formatted="false">Ohranitev Izbriši zame</string>
+    <string name="waex_ui_copy_status_text_2a137dd9" formatted="false">Kopiranje besedila statusa</string>
+    <string name="waex_ui_unknown_feature_b9dd509c" formatted="false">Neznana funkcija</string>
+    <string name="waex_ui_fixes_59e59654" formatted="false">Popravki</string>
+    <string name="waex_ui_fixed_1246fc93" formatted="false">Popravljeno</string>
+    <string name="waex_ui_improvements_c3eb9e6f" formatted="false">Izboljšave</string>
+    <string name="waex_ui_added_6b02e0d3" formatted="false">Dodano</string>
+    <string name="waex_ui_new_language_4625c9e3" formatted="false">Nov jezik</string>
+    <string name="waex_ui_community_contribution_b81681ab" formatted="false">Prispevek skupnosti</string>
+    <string name="waex_ui_notes_8a7525b1" formatted="false">Opombe</string>
+    <string name="waex_ui_show_changes_b12a6ef8" formatted="false">Prikaži spremembe</string>
+    <string name="waex_ui_version_1_s_latest_2_s_d802e8b0">Različica %1$s (najnovejša) • %2$s</string>
+    <string name="waex_ui_version_1_original_1_s_ac2f8fb2">Različica 1 (izvirna) • %1$s</string>
+    <string name="waex_ui_version_1_latest_1_s_7e28fc56">Različica 1 (najnovejša) • %1$s</string>
+    <string name="waex_ui_version_1_s_2_s_4d9f20e0">Različica %1$s • %2$s</string>
+    <string name="waex_ui_message_was_edited_by_sender_9724779c" formatted="false">Sporočilo je uredil pošiljatelj.</string>
+    <string name="waex_ui_online_f6fc84c9" formatted="false">v povezavi</string>
+    <string name="waex_ui_last_seen_1_s_752c705a">zadnjič viden %1$s</string>
+    <string name="waex_ui_image_preview_eec6294a" formatted="false">Predogled slike</string>
+    <string name="waex_ui_video_preview_95068058" formatted="false">Predogled videa</string>
+    <string name="waex_ui_preparing_preview_21580387" formatted="false">Priprava predogleda</string>
+    <string name="waex_ui_connecting_0_bf886e36" formatted="false">Povezovanje … 0 %</string>
+    <string name="waex_ui_downloading_1_s_2_s_3186d141">Prenašanje … %1$s%%\n%2$s</string>
+    <string name="waex_ui_close_preview_7d8ab368" formatted="false">Zapri predogled</string>
+    <string name="waex_ui_enable_or_customize_per_contact_privac_50106974" formatted="false">Omogoči ali prilagodi pravila zasebnosti za posamezne stike</string>
+    <string name="waex_ui_hide_blue_ticks_4e92202b" formatted="false">Skrij modre kljukice</string>
+    <string name="waex_ui_don_t_send_read_receipts_for_received_2768604b" formatted="false">Ne pošiljaj potrdil o prebranih sporočilih</string>
+    <string name="waex_ui_hide_status_view_9e96ff07" formatted="false">Skrij prikaz stanja</string>
+    <string name="waex_ui_view_contact_s_status_updates_anonymou_f261e1d8" formatted="false">Anonimno si oglej posodobitve stanja stika</string>
+    <string name="waex_ui_hide_delivered_receipts_ebd5864a" formatted="false">Skrij potrdila o dostavi</string>
+    <string name="waex_ui_don_t_send_second_delivery_checkmark_2ec75e29" formatted="false">Ne pošiljaj druge kljukice za dostavo</string>
+    <string name="waex_ui_hide_typing_indicator_e48b0c04" formatted="false">Skrij indikator tipkanja</string>
+    <string name="waex_ui_don_t_show_typing_status_when_composin_53881600" formatted="false">Ne prikazuj statusa tipkanja med sestavljanjem sporočila</string>
+    <string name="waex_ui_hide_voice_recording_5ddf1ff6" formatted="false">Skrij snemanje glasu</string>
+    <string name="waex_ui_don_t_show_recording_audio_status_2771c3ab" formatted="false">Ne prikazuj statusa snemanja zvoka</string>
+    <string name="waex_ui_preserve_deleted_messages_in_this_chat_33da3410" formatted="false">Ohrani izbrisana sporočila v tem klepetu</string>
+    <string name="waex_ui_block_incoming_calls_caf90480" formatted="false">Blokiraj dohodne klice</string>
+    <string name="waex_ui_silently_decline_calls_from_this_conta_ff63b7eb" formatted="false">Tiho zavrni klice od tega stika</string>
+    <string name="waex_ui_deleted_a_message_475dad17" formatted="false">je izbrisal/a sporočilo</string>
+    <string name="waex_ui_managed_by_ghost_mode_43c1f096" formatted="false">Upravlja način Ghost</string>
+    <string name="waex_ui_lock_your_last_seen_timestamp_3ffb4b47" formatted="false">Zakleni časovni žig Zadnjič viden</string>
+    <string name="waex_ui_dnd_mode_09024263" formatted="false">Način Ne moti</string>
+    <string name="waex_ui_mute_all_incoming_notifications_543d04fe" formatted="false">Utiši vsa dohodna obvestila</string>
+    <string name="waex_ui_hide_online_status_typing_read_receipt_d3490518" formatted="false">Skrij status v povezavi, tipkanje in potrditev branja</string>
+    <string name="waex_ui_force_close_and_relaunch_whatsapp_780fd6fd" formatted="false">Prisilno zapri in ponovno zaženi WhatsApp</string>
+    <string name="waex_ui_open_waex_settings_and_preferences_8ec5880a" formatted="false">Odpri nastavitve in preference WAEX</string>
+    <string name="waex_ui_deleted_576d3831" formatted="false">Izbrisano •</string>
+    <string name="waex_ui_contact_8fe6d397" formatted="false">Stik:</string>
+    <string name="waex_ui_number_45bd4956" formatted="false">Številka:</string>
+    <string name="waex_ui_isp_3dc5d9b0" formatted="false">Ponudnik internetnih storitev:</string>
+    <string name="waex_ui_region_82dd7dd1" formatted="false">Regija:</string>
+    <string name="waex_ui_timezone_60d86213" formatted="false">Časovni pas:</string>
+    <string name="waex_ui_country_bb1b735c" formatted="false">Država:</string>
+    <string name="waex_ui_city_9890558c" formatted="false">Mesto:</string>
+    <string name="waex_ui_platform_b458abe9" formatted="false">Platforma:</string>
+    <string name="waex_ui_whatsapp_version_a69b25df" formatted="false">Različica WhatsAppa:</string>
+    <string name="waex_ui_call_information_1e683bf5" formatted="false">Podatki o klicu</string>
+    <string name="waex_ui_call_blocked_f8914b51" formatted="false">Klic blokiran</string>
+    <string name="waex_ui_call_from_e08ca331" formatted="false">Klic iz</string>
+    <string name="waex_ui_call_from_861d44f2" formatted="false">Klic iz +</string>
+    <string name="waex_ui_call_from_unknown_caller_5fc833e1" formatted="false">Klic od neznanega klicatelja (</string>
+    <string name="waex_ui_whatsapp_call_information_d0f6cd71" formatted="false">WhatsAppa podatki o klicu</string>
+    <string name="waex_ui_unsupported_restart_target_db4c044c" formatted="false">Nepodprti cilj za ponovni zagon</string>
+    <string name="waex_ui_unable_to_launch_selected_whatsapp_app_db15818c" formatted="false">Izbrane aplikacije WhatsApp ni mogoče zagnati</string>
+    <string name="waex_ui_unable_to_find_selected_whatsapp_app_719a2e57" formatted="false">Izbrane aplikacije WhatsApp ni mogoče najti</string>
+    <string name="waex_ui_restarting_8e116479" formatted="false">Se ponovno zaganjam</string>
+    <string name="waex_ui_whatsapp_opened_restart_not_verified_82c7c6d0" formatted="false">WhatsApp je odprt; ponovni zagon ni bil preverjen</string>
+    <string name="waex_ui_could_not_reopen_whatsapp_6cd0efa0" formatted="false">WhatsAppa ni bilo mogoče ponovno odpreti</string>
+    <string name="waex_ui_unable_to_restart_whatsapp_858d4979" formatted="false">WhatsAppa ni mogoče ponovno zagnati</string>
+    <string name="waex_ui_restart_operation_unavailable_1da7ab39" formatted="false">Operacija ponovnega zagona ni na voljo</string>
+    <string name="waex_ui_restarting_whatsapp_and_waex_3f47c0c8" formatted="false">Ponovni zagon WhatsAppa in WAEX-a...</string>
+    <string name="waex_ui_unable_to_restart_apps_94cd4609" formatted="false">Aplikacij ni mogoče ponovno zagnati</string>
+    <string name="waex_ui_unable_to_relaunch_waex_f2b8e3cb" formatted="false">WAEX-a ni mogoče ponovno zagnati</string>
+    <string name="waex_ui_a_contact_f7f0de9a" formatted="false">Stik</string>
+    <string name="waex_ui_no_internet_ff1eadfe" formatted="false">Ni interneta</string>
+    <string name="waex_ui_ended_7cdc804e" formatted="false">Končano</string>
+    <string name="waex_ui_your_wa_enhancer_preferences_changed_r_eaa93890" formatted="false">Tvoje nastavitve WA Enhancerja so se spremenile. Ponovno zaženi WhatsApp, da se uveljavijo.</string>
+    <string name="waex_ui_restart_whatsapp_to_apply_f249101e" formatted="false">Ponovno zaženi WhatsApp, da se uveljavijo:\n\n</string>
+    <string name="waex_ui_more_d2740bc9" formatted="false"> več\n</string>
+    <string name="waex_ui_setting_1_s_58e12775">Nastavitev: %1$s</string>
+    <string name="waex_ui_chat_bubble_colors_6fb86fab" formatted="false">Barve balončkov za klepet</string>
+    <string name="waex_ui_channel_recommendations_filter_94085776" formatted="false">Filter priporočil kanalov</string>
+    <string name="waex_ui_anti_edit_c3d97416" formatted="false">Zaščita pred urejanjem</string>
+    <string name="waex_ui_media_status_498f9960" formatted="false">Stanje medijev</string>
+    <string name="waex_ui_media_saved_v30" formatted="false">Medij shranjen (WAEX)</string>
+    <string name="waex_ui_media_save_failed_v30" formatted="false">Te datoteke medija ni mogoče shraniti</string>
+    <string name="waex_ui_media_export_in_progress_v36" formatted="false">Izvoz medijev že poteka</string>
+    <string name="waex_ui_audio_saved_v36" formatted="false">Zvok shranjen (WAEX)</string>
+    <string name="waex_ui_audio_save_failed_v36" formatted="false">Te zvočne datoteke ni mogoče shraniti</string>
+    <string name="waex_ui_call_audio_v36" formatted="false">Zvok klica</string>
+    <string name="waex_ui_call_audio_if_supported_v36" formatted="false">Če je podprto</string>
+    <string name="waex_ui_standard_audio_v36" formatted="false">Standardni zvok</string>
+    <string name="waex_ui_communication_mic_v36" formatted="false">Komunikacija / mikrofon</string>
+    <string name="waex_l10n_switch_release">Preklop na javno različico</string>
+    <string name="waex_l10n_switch_debug">Preklop na različico za odpravljanje napak</string>
+    <string name="waex_l10n_reinstall_apk">Ponovna namestitev APK-ja</string>
+    <string name="waex_l10n_no_rejected_versions">Ni na voljo nobene zavrnjene različice za dodajanje. Preveri stanje pravil za vsak cilj; to ni test združljivosti funkcij.</string>
+    <string name="waex_l10n_builtin_match">Podprto</string>
+    <string name="waex_l10n_custom_unverified">Prilagojena dovoljenja (nepreverjeno)</string>
+    <string name="waex_l10n_bypass_unverified">Preskok aktiven (nepreverjeno)</string>
+    <string name="waex_l10n_rejected_rules">Različica, ki jo pravila zavračajo</string>
+    <string name="waex_l10n_version_check_unavailable">Preverjanje različice ni na voljo</string>
+    <string name="waex_l10n_recipient_unconfirmed">Prejemnika klepeta ni mogoče preveriti</string>
+    <string name="waex_l10n_guard_unsupported">Tvoja različica WhatsAppa (%1$s) ne ustreza nastavljenim pravilom glede različic.</string>
+    <string name="waex_l10n_guard_rules_unavailable">WAEX ni mogel prebrati pravil glede različic iz tega procesa WhatsAppa. Preveri, ali ima WhatsApp dostop do paketa WAEX in njegovih sredstev.</string>
+    <string name="waex_l10n_guard_prefs_unavailable">WAEX ni mogel prebrati nastavitev združljivosti. Preveri most za nastavitve in ponovno zaženi WhatsApp.</string>
+    <string name="waex_l10n_guard_version_unknown">WAEX ni mogel ugotoviti nameščene različice WhatsAppa.</string>
+    <string name="waex_l10n_guard_paused">Funkcije WAEX so zaradi varnosti začasno onemogočene. To ni potrditev funkcionalne združljivosti.</string>
+    <string name="waex_l10n_guard_review">Odpri nastavitve WAEX, da si pregledaš težavo. Ne omogočaj preskoka različice zgolj zato, da bi skril napako pri dostopu.</string>
+    <string name="waex_l10n_last_report">Zadnje poročilo (ni aktualno): %1$s</string>
+    <string name="waex_l10n_detail_active">Vstavljeno in aktivno (%1$d/%2$d aktivnih hookov)</string>
+    <string name="waex_l10n_detail_init">Vstavljeno • Inicializacija: %1$s</string>
+    <string name="waex_l10n_detail_bridge">Vstavljeno • Most: %1$s</string>
+    <string name="waex_l10n_runtime_001">Ni nameščeno</string>
+    <string name="waex_l10n_runtime_002">Modul je neaktiven</string>
+    <string name="waex_l10n_runtime_003">Vstavljanje je potrjeno</string>
+    <string name="waex_l10n_runtime_004">Vstavljanje ni potrjeno: identiteta zagona ni na voljo</string>
+    <string name="waex_l10n_runtime_005">Vstavljanje ni potrjeno: poročilo iz drugega zagona</string>
+    <string name="waex_l10n_runtime_006">Vstavljanje ni potrjeno: ni poročila o delovanju</string>
+    <string name="waex_l10n_runtime_007">Vstavljanje ni potrjeno: poročilo je poteklo ali se je spremenila ura</string>
+    <string name="waex_l10n_runtime_008">Vstavljanje ni potrjeno: preverjanje procesa ni na voljo</string>
+    <string name="waex_l10n_runtime_009">Poročani proces ne teče</string>
+    <string name="waex_l10n_runtime_010">Vstavljanje ni potrjeno: proces se je spremenil</string>
+    <string name="waex_l10n_runtime_011">Vstavljeno • Preverjanje združljivosti ni na voljo</string>
+    <string name="waex_l10n_runtime_012">Vstavljeno • Zaustavljeno zaradi zaščite ciljne različice</string>
+    <string name="waex_l10n_runtime_013">Vstavljeno • Inicializacija ni uspela</string>
+    <string name="waex_l10n_runtime_014">Vstavljeno • Lokalno preverjanje različice zahteva pregled</string>
+    <string name="waex_l10n_runtime_015">Vstavljeno • Inicializacija poteka</string>
+    <string name="waex_l10n_runtime_016">Vstavljeno • Povezava z nastavitvami ni na voljo</string>
+    <string name="waex_l10n_runtime_017">Vstavljeno • Uporablja se nadomestna povezava z nastavitvami</string>
+    <string name="waex_l10n_runtime_018">Vstavljeno • Nekatere funkcije so spodletele</string>
+    <string name="waex_l10n_runtime_019">Vstavljeno • Pripravljenost funkcije ni potrjena</string>
+    <string name="waex_l10n_runtime_020">Vstavljeno • Povezava z nastavitvami ni potrjena</string>
+    <string name="waex_l10n_runtime_021">Vstavljeno • Preskok različice je aktiven</string>
+    <string name="waex_l10n_runtime_022">Vstavljeno • Dovoljenje za prilagojeno različico; nepreverjeno</string>
+    <string name="waex_l10n_runtime_023">Vstavljeno • Inicializacija je po poročilu zaključena</string>
+    <string name="waex_l10n_runtime_024">Neposredno povezano</string>
+    <string name="waex_l10n_runtime_025">Uporablja se nadomestni disk</string>
+    <string name="waex_l10n_runtime_026">Ni na voljo</string>
+    <string name="waex_l10n_runtime_027">Ni poročano</string>
+    <string name="waex_l10n_runtime_028">Zaključeno</string>
+    <string name="waex_l10n_runtime_029">Zaključeno z napakami pri hookih</string>
+    <string name="waex_l10n_runtime_030">V teku</string>
+    <string name="waex_l10n_runtime_031">Zaustavljeno: preverjanje združljivosti ni na voljo</string>
+    <string name="waex_l10n_runtime_032">Zaustavljeno: nepodprta različica</string>
+    <string name="waex_l10n_runtime_033">Neuspešno</string>
+    <string name="waex_l10n_runtime_034">Zaznano vstavljanje</string>
+    <string name="waex_l10n_runtime_035">Ni zaznan noben nameščen cilj</string>
+    <string name="waex_l10n_runtime_036">Pravila glede različic zahtevajo pregled</string>
+    <string name="waex_l10n_runtime_037">Ciljno okolje za izvajanje zahteva pregled</string>
+    <string name="waex_l10n_runtime_038">Preskok različice je aktiven; združljivost ni preverjena</string>
+    <string name="waex_l10n_runtime_039">Dovoljenje za prilagojeno različico; združljivost ni preverjena</string>
+    <string name="waex_l10n_runtime_040">Pravila glede različic so sprejeta; okolje za izvajanje ni potrjeno</string>
+    <string name="waex_l10n_runtime_041">Pravila so sprejeta; poročano o inicializaciji</string>
+    <string name="waex_ui_hma_reason_not_configured">Ni konfigurirano v obsegu HMA</string>
+    <string name="waex_ui_hma_reason_visible">Aktivno v HMA, modul viden</string>
+    <string name="waex_ui_hma_reason_allowlist_invisible">Skrito prek načina bele liste (na seznamu nevidnih aplikacij)</string>
+    <string name="waex_ui_hma_reason_allowlist_missing">Skrito prek načina bele liste (modul ni vključen v vidne aplikacije)</string>
+    <string name="waex_ui_hma_reason_blocklist_extra">Skrito prek načina črne liste (v dodatnih aplikacijah za skritje)</string>
+    <string name="waex_ui_hma_reason_template">Skrito s predlogo črne liste »%1$s«</string>
+    <string name="waex_ui_hma_reason_preset">Skrito s prednastavitvijo HMA »xposed«</string>
+    <string name="waex_ui_deleted_a_status"> je izbrisal/a stanje</string>
+    <string name="waex_ui_restarting_whatsapp_short">Ponovni zagon WhatsAppa …</string>
+</resources>
