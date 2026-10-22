@@ -199,7 +199,7 @@ public class ChatLimitsBypassHook extends BaseFeature {
                             try {
                                 Method instance = invoke.getMethodInstance(loader);
                                 if (Set.class.isAssignableFrom(instance.getReturnType())
-                                        && instance.getParameterCount() == 2
+                                        && instance.getParameterTypes().length == 2
                                         && Iterable.class.isAssignableFrom(instance.getParameterTypes()[0])
                                         && Set.class.isAssignableFrom(instance.getParameterTypes()[1])) {
                                     return instance;

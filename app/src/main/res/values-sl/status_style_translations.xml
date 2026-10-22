@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feat_status_style_title">Slog zgodb in stanj</string>
+    <string name="feat_status_style_desc">Prilagodite postavitev zgodb in stanj z izvirnimi različicami vmesnika WhatsApp</string>
+    <string name="status_style_default">Privzeto</string>
+    <string name="status_style_vertical_rows">Navpične vrstice</string>
+    <string name="status_style_facebook_grid">Kartice Facebook (mreža)</string>
+    <string name="status_style_vertical_compact">Navpični seznam (strnjen)</string>
+    <string name="status_style_vertical_circle">Navpični seznam (okrogle profilne slike)</string>
+    <string name="status_style_vertical_square">Navpični seznam (kvadratne kartice)</string>
+</resources>

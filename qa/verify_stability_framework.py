@@ -54,7 +54,7 @@ dependencies {
     write('build.gradle.kts',build)
     write('src/main/AndroidManifest.xml','<manifest xmlns:android="http://schemas.android.com/apk/res/android"/>')
     identity={};modes=['update','filter','clock'] if a.mode=='all' else [a.mode]
-    sources={'update':['update/UpdateDownloader.kt','update/UpdateTransferPolicy.kt','update/UpdateDownloadSession.kt','update/ReleaseRepository.kt','ui/components/UpdateDownloadSheet.kt','xposed/utils/RootCommandRunner.java'],
+    sources={'update':['update/UpdateDownloader.kt','update/UpdateTransferPolicy.kt','update/UpdateDownloadSession.kt','update/ReleaseRepository.kt','ui/components/UpdateDownloadSheet.kt','xposed/utils/RootCommandRunner.java','utils/AndroidUserScope.java'],
              'filter':['xposed/features/customization/FilterItemsHook.kt','model/FilterItem.kt'],
              'clock':['ui/components/RuntimeObservationClock.kt','utils/InjectionEvidence.kt']}
     expected={'update':5,'filter':3,'clock':1}

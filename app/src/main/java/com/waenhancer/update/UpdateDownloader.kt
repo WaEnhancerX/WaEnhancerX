@@ -2,6 +2,7 @@ package com.waenhancer.update
 
 import com.waenhancer.app.R
 import com.waenhancer.utils.UiText
+import com.waenhancer.utils.AndroidUserScope
 
 import android.app.Activity
 import android.content.Context
@@ -155,6 +156,14 @@ object UpdateDownloader {
 
     fun installApkWithRoot(context: Context, apkFile: File, expectedVersion: String) {
         val activity = context.findActivity() ?: return
+        val userId = try {
+            AndroidUserScope.matchingUserId(activity.applicationInfo.uid, Process.myUid())
+        } catch (_: RuntimeException) {
+            Toast.makeText(activity,
+                UiText.get(R.string.waex_ui_unable_to_execute_the_root_installer_798f1547,
+                    "Unable to execute the root installer"), Toast.LENGTH_LONG).show()
+            return
+        }
         if (!isValidModuleApk(activity, apkFile, expectedVersion)) {
             Toast.makeText(activity, UiText.get(R.string.waex_ui_apk_does_not_match_selected_version_1_2285cdd0, "APK does not match selected version %1\$s", expectedVersion), Toast.LENGTH_LONG).show()
             return
@@ -175,7 +184,8 @@ object UpdateDownloader {
                     val size = copyResult.toLongOrNull() ?: 0
                     if (size == apkFile.length() && size > 1024) {
                         // Package Manager requires -d when the APK has a lower versionCode.
-                        runRootCommand("pm install -r -d --user 0 $target", 70)
+                        // Keep the explicit installation target in the manager's profile.
+                        runRootCommand("pm install -r -d --user $userId $target", 70)
                     }
                     else if (copyResult.isNotEmpty()) {
                         "Failed to copy verified APK: $copyResult"
