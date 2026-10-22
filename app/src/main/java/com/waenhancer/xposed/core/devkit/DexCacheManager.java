@@ -7,6 +7,7 @@ import android.os.Build;
 import android.os.SystemClock;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import com.waenhancer.app.BuildConfig;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import java.lang.reflect.Field;
@@ -24,8 +25,15 @@ public final class DexCacheManager {
 
     private static volatile DexCacheManager sInstance;
 
+    // Bump for incompatible descriptor/selection semantics within a module version.
+    // Compiled module identity avoids cross-profile/package-visibility lookups at startup.
+    private static final int DESCRIPTOR_SCHEMA_VERSION = 1;
+    private static final String MODULE_CACHE_GENERATION = DESCRIPTOR_SCHEMA_VERSION + ":"
+            + BuildConfig.VERSION_CODE + ":" + BuildConfig.VERSION_NAME;
+
     private final Context mContext;
     private final SharedPreferences mPrefs;
+    private final boolean mPersistentCacheValid;
     private final Map<String, Object> mMemoryCache = new ConcurrentHashMap<>();
     // A missing/temporarily unavailable DexKit match is not permanently negative.
     // Suppress repeated attempts for 60 seconds per key/kind (not a single-flight lock).
@@ -39,7 +47,7 @@ public final class DexCacheManager {
         this.mPrefs = mContext.getSharedPreferences("waex_dex_cache", Context.MODE_PRIVATE);
 
         // Invalidate cache automatically if host app or module version changed
-        validateCacheVersion();
+        mPersistentCacheValid = validateCacheVersion();
     }
 
     public static DexCacheManager getInstance(@NonNull Context context) {
@@ -54,20 +62,26 @@ public final class DexCacheManager {
     }
 
     @SuppressWarnings("deprecation") // versionCode is the platform API before Android 9.
-    private void validateCacheVersion() {
+    private boolean validateCacheVersion() {
         try {
             PackageInfo host = mContext.getPackageManager().getPackageInfo(mContext.getPackageName(), 0);
             long hostVersionCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
                     ? host.getLongVersionCode() : host.versionCode;
             long cachedHostVersion = mPrefs.getLong("host_version_code", -1);
+            String cachedModuleGeneration = mPrefs.getString("module_cache_generation", null);
 
-            if (cachedHostVersion != hostVersionCode) {
-                mPrefs.edit().clear().putLong("host_version_code", hostVersionCode).apply();
+            if (cachedHostVersion != hostVersionCode || !MODULE_CACHE_GENERATION.equals(cachedModuleGeneration)) {
+                mPrefs.edit().clear().putLong("host_version_code", hostVersionCode)
+                        .putString("module_cache_generation", MODULE_CACHE_GENERATION).apply();
                 mMemoryCache.clear();
                 mFailedKeys.clear();
             }
+            return true;
         } catch (Throwable t) {
-            XposedBridge.log("[WAEX] Error validating DexCache version: " + t.getMessage());
+            XposedBridge.log("[WAEX] Error validating DexCache version: " + t.getClass().getSimpleName());
+            // A still-resolvable persisted member may have been selected by another
+            // host/module. Resolve into memory until a later process can validate disk.
+            return false;
         }
     }
 
@@ -86,7 +100,7 @@ public final class DexCacheManager {
         if (mFailedKeys.shouldSkip(DexNegativeLookupCache.Kind.CLASS,
                 key, SystemClock.elapsedRealtime())) return null;
 
-        String cachedName = mPrefs.getString(key, null);
+        String cachedName = mPersistentCacheValid ? mPrefs.getString(key, null) : null;
         if (cachedName != null) {
             try {
                 Class<?> cls = XposedHelpers.findClass(cachedName, loader);
@@ -99,7 +113,7 @@ public final class DexCacheManager {
         try {
             Class<?> resolved = resolver.resolve();
             if (resolved != null) {
-                mPrefs.edit().putString(key, resolved.getName()).apply();
+                if (mPersistentCacheValid) mPrefs.edit().putString(key, resolved.getName()).apply();
                 mMemoryCache.put(key, resolved);
                 mFailedKeys.clearFailure(DexNegativeLookupCache.Kind.CLASS, key);
                 return resolved;
@@ -123,7 +137,7 @@ public final class DexCacheManager {
         if (mFailedKeys.shouldSkip(DexNegativeLookupCache.Kind.METHOD,
                 key, SystemClock.elapsedRealtime())) return null;
 
-        String serialized = mPrefs.getString(key, null);
+        String serialized = mPersistentCacheValid ? mPrefs.getString(key, null) : null;
         if (serialized != null) {
             try {
                 Method method = deserializeMethod(loader, serialized);
@@ -139,7 +153,7 @@ public final class DexCacheManager {
             Method resolved = resolver.resolve();
             if (resolved != null) {
                 String encoded = serializeMethod(resolved);
-                mPrefs.edit().putString(key, encoded).apply();
+                if (mPersistentCacheValid) mPrefs.edit().putString(key, encoded).apply();
                 mMemoryCache.put(key, resolved);
                 mFailedKeys.clearFailure(DexNegativeLookupCache.Kind.METHOD, key);
                 return resolved;
@@ -163,7 +177,7 @@ public final class DexCacheManager {
         if (mFailedKeys.shouldSkip(DexNegativeLookupCache.Kind.FIELD,
                 key, SystemClock.elapsedRealtime())) return null;
 
-        String serialized = mPrefs.getString(key, null);
+        String serialized = mPersistentCacheValid ? mPrefs.getString(key, null) : null;
         if (serialized != null) {
             try {
                 String[] parts = serialized.split(":");
@@ -181,7 +195,7 @@ public final class DexCacheManager {
             Field resolved = resolver.resolve();
             if (resolved != null) {
                 String encoded = resolved.getDeclaringClass().getName() + ":" + resolved.getName();
-                mPrefs.edit().putString(key, encoded).apply();
+                if (mPersistentCacheValid) mPrefs.edit().putString(key, encoded).apply();
                 mMemoryCache.put(key, resolved);
                 mFailedKeys.clearFailure(DexNegativeLookupCache.Kind.FIELD, key);
                 return resolved;

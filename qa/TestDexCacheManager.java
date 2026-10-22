@@ -17,7 +17,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class TestDexCacheManager {
     public static final class Sample {
         public String value;
+        public String correctedValue;
         public int length(int x) { return x; }
+        public int correctedLength(int x) { return x; }
     }
 
     private static final class MemoryPrefs implements SharedPreferences {
@@ -181,6 +183,44 @@ public final class TestDexCacheManager {
         newManager(context);
         check("retained".equals(context.preferences.getString("same-version-descriptor", null)),
                 "unchanged host version preserves descriptors");
+
+        // Without host identity, old members still resolve but cannot be trusted.
+        // Use fresh resolver results only in memory; never stamp unknown disk data as current.
+        DexCacheManager trusted = newManager(context);
+        check(trusted.getClass(loader, "test-missing-class", () -> Sample.class) == Sample.class,
+                "seed existing class for failed validation");
+        check(trusted.getField(loader, "field-key", () -> field).equals(field),
+                "seed existing field for failed validation");
+        context.manager.failLookup = true;
+        DexCacheManager unknownHost = newManager(context);
+        AtomicInteger safeScans = new AtomicInteger();
+        Method corrected = Sample.class.getDeclaredMethod("correctedLength", int.class);
+        Field correctedField = Sample.class.getDeclaredField("correctedValue");
+        String beforeClass = context.preferences.getString("test-missing-class", null);
+        String beforeMethod = context.preferences.getString("method-key", null);
+        String beforeField = context.preferences.getString("field-key", null);
+        check(unknownHost.getClass(loader, "test-missing-class", () -> {
+            safeScans.incrementAndGet(); return String.class;
+        }) == String.class, "unvalidated host bypasses disk class descriptor");
+        check(unknownHost.getMethod(loader, "method-key", () -> {
+            safeScans.incrementAndGet(); return corrected;
+        }).equals(corrected), "unvalidated host bypasses disk method descriptor");
+        check(unknownHost.getField(loader, "field-key", () -> {
+            safeScans.incrementAndGet(); return correctedField;
+        }).equals(correctedField), "unvalidated host bypasses disk field descriptor");
+        check(safeScans.get() == 3, "unvalidated host resolves each kind once");
+        check(unknownHost.getMethod(loader, "method-key", () -> {
+            safeScans.incrementAndGet(); return length;
+        }).equals(corrected) && safeScans.get() == 3, "safe memory result avoids repeated scan");
+        check(java.util.Objects.equals(beforeClass, context.preferences.getString("test-missing-class", null)),
+                "unvalidated class result is not persisted");
+        check(java.util.Objects.equals(beforeMethod, context.preferences.getString("method-key", null)),
+                "unvalidated method result is not persisted");
+        check(java.util.Objects.equals(beforeField, context.preferences.getString("field-key", null)),
+                "unvalidated field result is not persisted");
+        context.manager.failLookup = false;
+        check(newManager(context).getMethod(loader, "method-key", () -> corrected).equals(length),
+                "later validated process can reuse its unchanged trusted disk generation");
         System.out.println("PASS: " + checks + " production DexCacheManager integration checks; API " + api + " double");
     }
 }
