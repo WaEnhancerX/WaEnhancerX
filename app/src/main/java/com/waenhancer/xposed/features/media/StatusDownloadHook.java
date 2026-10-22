@@ -6,16 +6,12 @@ import com.waenhancer.utils.UiText;
 import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
-import android.content.ContentValues;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
-import android.os.Build;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
-import android.provider.MediaStore;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -31,18 +27,11 @@ import com.waenhancer.xposed.features.homescreen.MenuIconLoader;
 import com.waenhancer.xposed.utils.ActivityTracker;
 
 import java.io.File;
-import java.io.BufferedInputStream;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -458,7 +447,7 @@ public class StatusDownloadHook extends BaseFeature {
         File best = null;
         for (File candidate : candidates) {
             try {
-                detectMediaFormat(candidate);
+                StatusMediaExporter.inspect(candidate);
                 if (best == null || candidate.length() > best.length()) {
                     best = candidate;
                 }
@@ -570,151 +559,13 @@ public class StatusDownloadHook extends BaseFeature {
 
     private void saveMediaFile(Context ctx, File srcFile) {
         try {
-            MediaFormat format = detectMediaFormat(srcFile);
-
-            String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
-            String relativeDir;
-
-            if (format.kind == MediaKind.VIDEO) {
-                relativeDir = Environment.DIRECTORY_MOVIES + "/WAEX";
-            } else if (format.kind == MediaKind.AUDIO) {
-                relativeDir = Environment.DIRECTORY_MUSIC + "/WAEX";
-            } else {
-                relativeDir = Environment.DIRECTORY_PICTURES + "/WAEX";
-            }
-
-            String outName = "WAEX_STATUS_" + timestamp + format.extension;
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                ContentValues values = new ContentValues();
-                values.put(MediaStore.MediaColumns.DISPLAY_NAME, outName);
-                values.put(MediaStore.MediaColumns.MIME_TYPE, format.mimeType);
-                values.put(MediaStore.MediaColumns.RELATIVE_PATH, relativeDir);
-
-                Uri collection;
-                if (format.kind == MediaKind.VIDEO) {
-                    collection = MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
-                } else if (format.kind == MediaKind.AUDIO) {
-                    collection = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
-                } else {
-                    collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
-                }
-
-                Uri itemUri = ctx.getContentResolver().insert(collection, values);
-                if (itemUri != null) {
-                    try (InputStream in = new FileInputStream(srcFile);
-                         OutputStream out = ctx.getContentResolver().openOutputStream(itemUri)) {
-                        if (out != null) {
-                            byte[] buf = new byte[8192];
-                            int len;
-                            while ((len = in.read(buf)) > 0) {
-                                out.write(buf, 0, len);
-                            }
-                            showToast(ctx, UiText.get(R.string.waex_ui_status_saved_to_gallery_waex_9f345669, "Status saved to Gallery (WAEX)"));
-                            return;
-                        }
-                    }
-                }
-            } else {
-                File baseDir = Environment.getExternalStoragePublicDirectory(
-                        format.kind == MediaKind.VIDEO
-                                ? Environment.DIRECTORY_MOVIES
-                                : (format.kind == MediaKind.AUDIO ? Environment.DIRECTORY_MUSIC : Environment.DIRECTORY_PICTURES)
-                );
-                File dir = new File(baseDir, "WAEX");
-                if (!dir.exists()) dir.mkdirs();
-                File dest = new File(dir, outName);
-
-                try (InputStream in = new FileInputStream(srcFile);
-                     OutputStream out = new FileOutputStream(dest)) {
-                    byte[] buf = new byte[8192];
-                    int len;
-                    while ((len = in.read(buf)) > 0) {
-                        out.write(buf, 0, len);
-                    }
-                    showToast(ctx, UiText.get(R.string.waex_ui_saved_to_b95e47d2, "Saved to: ") + dest.getAbsolutePath());
-                    return;
-                }
-            }
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + " saveMediaFile error: " + t.getClass().getSimpleName());
-            showToast(ctx, UiText.get(R.string.waex_ui_error_saving_status_media_de3da11e, "Error saving status media: ") + t.getMessage());
-        }
-    }
-
-    private MediaFormat detectMediaFormat(File file) throws Exception {
-        byte[] header = new byte[16];
-        int count;
-        try (BufferedInputStream input = new BufferedInputStream(new FileInputStream(file))) {
-            count = input.read(header);
-        }
-
-        String name = file.getName().toLowerCase(Locale.ROOT);
-        if (count >= 12 && header[4] == 'f' && header[5] == 't' && header[6] == 'y' && header[7] == 'p') {
-            if (name.endsWith(".m4a") || name.endsWith(".aac")) {
-                return new MediaFormat(MediaKind.AUDIO, ".m4a", "audio/mp4");
-            }
-            return new MediaFormat(MediaKind.VIDEO, ".mp4", "video/mp4");
-        }
-        if (count >= 4 && header[0] == 0x1A && header[1] == 0x45 && header[2] == (byte) 0xDF && header[3] == (byte) 0xA3) {
-            return new MediaFormat(MediaKind.VIDEO, ".mkv", "video/x-matroska");
-        }
-        if (count >= 12 && header[0] == 'R' && header[1] == 'I' && header[2] == 'F' && header[3] == 'F'
-                && header[8] == 'W' && header[9] == 'E' && header[10] == 'B' && header[11] == 'P') {
-            return new MediaFormat(MediaKind.IMAGE, ".webp", "image/webp");
-        }
-        if (count >= 8 && header[0] == (byte) 0x89 && header[1] == 'P' && header[2] == 'N' && header[3] == 'G') {
-            return new MediaFormat(MediaKind.IMAGE, ".png", "image/png");
-        }
-        if (count >= 3 && header[0] == (byte) 0xFF && header[1] == (byte) 0xD8 && header[2] == (byte) 0xFF) {
-            return new MediaFormat(MediaKind.IMAGE, ".jpg", "image/jpeg");
-        }
-        if (count >= 6 && header[0] == 'G' && header[1] == 'I' && header[2] == 'F') {
-            return new MediaFormat(MediaKind.IMAGE, ".gif", "image/gif");
-        }
-        if (count >= 4 && header[0] == 'O' && header[1] == 'g' && header[2] == 'g' && header[3] == 'S') {
-            return new MediaFormat(MediaKind.AUDIO, ".ogg", "audio/ogg");
-        }
-        if (count >= 3 && header[0] == 'I' && header[1] == 'D' && header[2] == '3') {
-            return new MediaFormat(MediaKind.AUDIO, ".mp3", "audio/mpeg");
-        }
-        if (count >= 2 && header[0] == (byte) 0xFF
-                && (header[1] == (byte) 0xF1 || header[1] == (byte) 0xF9)) {
-            return new MediaFormat(MediaKind.AUDIO, ".aac", "audio/aac");
-        }
-
-        if (name.endsWith(".mp4") || name.endsWith(".3gp") || name.endsWith(".mov")) {
-            return new MediaFormat(MediaKind.VIDEO, ".mp4", "video/mp4");
-        }
-        if (name.endsWith(".mkv")) {
-            return new MediaFormat(MediaKind.VIDEO, ".mkv", "video/x-matroska");
-        }
-        if (name.endsWith(".opus") || name.endsWith(".ogg")) {
-            return new MediaFormat(MediaKind.AUDIO, ".ogg", "audio/ogg");
-        }
-        if (name.endsWith(".mp3")) {
-            return new MediaFormat(MediaKind.AUDIO, ".mp3", "audio/mpeg");
-        }
-        if (name.endsWith(".m4a")) {
-            return new MediaFormat(MediaKind.AUDIO, ".m4a", "audio/mp4");
-        }
-        if (name.endsWith(".aac")) {
-            return new MediaFormat(MediaKind.AUDIO, ".aac", "audio/aac");
-        }
-        throw new IllegalArgumentException("Unsupported or incomplete status media format");
-    }
-
-    private enum MediaKind { IMAGE, VIDEO, AUDIO }
-
-    private static final class MediaFormat {
-        final MediaKind kind;
-        final String extension;
-        final String mimeType;
-
-        MediaFormat(MediaKind kind, String extension, String mimeType) {
-            this.kind = kind;
-            this.extension = extension;
-            this.mimeType = mimeType;
+            StatusMediaExporter.export(ctx, srcFile);
+            showToast(ctx, UiText.get(R.string.waex_ui_status_saved_to_gallery_waex_9f345669,
+                    "Status saved to Gallery (WAEX)"));
+        } catch (Exception failure) {
+            XposedBridge.log(TAG + " status export failed: " + failure.getClass().getSimpleName());
+            showToast(ctx, UiText.get(R.string.waex_ui_failed_to_download_status_19426d76,
+                    "Failed to download status: ") + failure.getClass().getSimpleName());
         }
     }
 
