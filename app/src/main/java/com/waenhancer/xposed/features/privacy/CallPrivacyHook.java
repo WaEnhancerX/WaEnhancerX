@@ -16,6 +16,7 @@ import android.text.TextUtils;
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
+import com.waenhancer.utils.ContactIdentityPolicy;
 import com.waenhancer.utils.ContactNameResolver;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
@@ -537,28 +538,45 @@ public class CallPrivacyHook extends BaseFeature {
 
     private boolean isCallPrivacyEnabled() {
         String mode = prefs.getString(PREF_KEY_PRIVACY, "0");
-        return !"0".equals(mode) || prefs.getBoolean("call_privacy_enabled", false);
+        // Confirmed per-contact choices also work with the default global mode.
+        // shouldBlockCall preserves the boundary for ambiguous legacy rules.
+        return !"0".equals(mode) || prefs.getBoolean("call_privacy_enabled", false)
+                || prefs.getBoolean("custom_privacy", true);
     }
 
     private boolean shouldBlockCall(String callerJid) {
+        if (ContactIdentityPolicy.canonicalJid(callerJid) == null) return false;
+        String mode = prefs.getString(PREF_KEY_PRIVACY, "0");
+        if ("1".equals(mode)) return true; // No contact/database work for Block All.
+
         // Match both identities. Newer WhatsApp builds commonly deliver calls as
         // @lid while an existing per-contact rule is stored under the phone JID.
-        String phoneJid = ContactNameResolver.INSTANCE.resolveLidToPhone(context, callerJid);
+        // The resolver returns digits, not a JID. Never use an unmapped LID's
+        // numeric user part as a phone number or a namespace-free database key.
+        String phone = ContactIdentityPolicy.phoneUser(callerJid);
+        if (phone == null && ContactIdentityPolicy.isLid(callerJid)) {
+            phone = ContactNameResolver.INSTANCE.resolveLidToPhone(context, callerJid);
+        }
+        String phoneJid = phone != null ? phone + "@s.whatsapp.net" : null;
         JSONObject contactPrivacy = findContactPrivacy(callerJid, phoneJid);
         if (contactPrivacy != null && contactPrivacy.optBoolean("BlockCall", false)) {
-            return true;
+            // Older manager versions copied FreezeLastSeen into BlockCall. Only
+            // extend filtering to global-default calls after the existing WA
+            // dialog has explicitly saved the call choice. Preserve rules where
+            // the previous global-mode/enable gate already admitted filtering.
+            boolean legacyFilterEnabled = !"0".equals(mode)
+                    || prefs.getBoolean("call_privacy_enabled", false);
+            if (legacyFilterEnabled
+                    || Boolean.TRUE.equals(contactPrivacy.opt("BlockCallConfirmed"))) {
+                return true;
+            }
         }
 
-        String mode = prefs.getString(PREF_KEY_PRIVACY, "0");
         // "0" = Everyone (No Block)
         // "1" = Block All Calls
         // "2" = Block Unknowns / Non-contacts (allow saved contacts only)
-        if ("1".equals(mode)) {
-            return true;
-        }
-
         if ("2".equals(mode)) {
-            return isUnknownCaller(callerJid);
+            return isUnknownCaller(callerJid, phone);
         }
 
         return false;
@@ -572,54 +590,61 @@ public class CallPrivacyHook extends BaseFeature {
         return privacy;
     }
 
-    private boolean isUnknownCaller(String rawJid) {
+    private boolean isUnknownCaller(String rawJid, String phone) {
+        String phoneJid = phone != null ? phone + "@s.whatsapp.net" : rawJid;
         try {
             // Check if saved in wa_contacts in wa.db
             File waDbFile = findDatabase("wa.db");
-            if (waDbFile != null && waDbFile.exists()) {
+            if (waDbFile != null) {
                 try (SQLiteDatabase db = SQLiteDatabase.openDatabase(waDbFile.getAbsolutePath(), null, SQLiteDatabase.OPEN_READONLY)) {
-                    String cleanUser = ContactNameResolver.INSTANCE.cleanUserPart(rawJid);
-                    String phoneJid = ContactNameResolver.INSTANCE.resolveLidToPhone(context, rawJid);
-                    String query = "SELECT display_name, raw_contact_id FROM wa_contacts WHERE (jid = ? OR jid = ? OR number = ?) AND raw_contact_id > 0";
-                    try (Cursor c = db.rawQuery(query, new String[]{rawJid, phoneJid != null ? phoneJid : "", cleanUser})) {
-                        if (c != null && c.moveToFirst()) {
-                            return false; // Known saved contact!
-                        }
-                    }
+                    String query = "SELECT 1 FROM wa_contacts WHERE raw_contact_id > 0 AND (jid = ? OR jid = ?"
+                            + (phone != null ? " OR number = ?) LIMIT 1" : ") LIMIT 1");
+                    String[] args = phone != null
+                            ? new String[]{rawJid, phoneJid, phone}
+                            : new String[]{rawJid, phoneJid};
+                    if (hasSavedContact(db, query, args)) return false;
 
                     // New WhatsApp versions store saved contacts in wa_address_book,
                     // frequently keyed by @lid rather than the legacy phone JID.
                     String addressBookQuery = "SELECT 1 FROM wa_address_book "
                             + "WHERE is_whatsapp_user = 1 AND (jid = ? OR jid = ?) LIMIT 1";
-                    try (Cursor c = db.rawQuery(addressBookQuery,
-                            new String[]{rawJid, phoneJid != null ? phoneJid : ""})) {
-                        if (c != null && c.moveToFirst()) return false;
-                    } catch (Throwable ignored) {
-                        // Older schemas do not have wa_address_book; wa_contacts remains valid.
-                    }
+                    if (hasSavedContact(db, addressBookQuery, new String[]{rawJid, phoneJid})) return false;
                 }
             }
+        } catch (RuntimeException ignored) {
+            // A missing/unreadable database must not skip the independent Contacts lookup.
+        }
 
-            // Fallback: check ContactNameResolver
-            String name = ContactNameResolver.INSTANCE.resolveName(context, rawJid, null, null);
-            if (ContactNameResolver.INSTANCE.isValidDisplayName(name)) {
-                return false; // Known contact name resolved!
+        // Only an exactly matched saved system contact is evidence of membership
+        // in the address book. Push, business and cached display names are not.
+        if (phone != null) {
+            try {
+                String name = ContactNameResolver.INSTANCE.getSystemContactName(context, phone);
+                if (ContactNameResolver.INSTANCE.isValidDisplayName(name)) return false;
+            } catch (RuntimeException ignored) {
+                // Unavailable Contacts permission/provider leaves the caller unknown.
             }
-        } catch (Throwable ignored) {}
+        }
         return true; // Unknown contact
     }
 
-    private File findDatabase(String dbName) {
-        String targetPkg = "com.whatsapp";
-        File[] candidates = new File[]{
-                new File(context.getFilesDir() != null ? context.getFilesDir().getParentFile() : null, "databases/" + dbName),
-                new File("/data/data/" + targetPkg + "/databases/" + dbName),
-                new File("/data/user/0/" + targetPkg + "/databases/" + dbName)
-        };
-        for (File f : candidates) {
-            if (f != null && f.exists()) return f;
+    private boolean hasSavedContact(SQLiteDatabase db, String query, String[] args) {
+        try (Cursor c = db.rawQuery(query, args)) {
+            return c != null && c.moveToFirst();
+        } catch (RuntimeException ignored) {
+            // The two supported tables are independent; either may be absent.
+            return false;
         }
-        return null;
+    }
+
+    private File findDatabase(String dbName) {
+        if (!"wa.db".equals(dbName)) return null;
+        try {
+            File file = context.getDatabasePath(dbName);
+            return file != null && file.isFile() && file.canRead() ? file : null;
+        } catch (RuntimeException unavailable) {
+            return null;
+        }
     }
 
     private String extractCallerJid(Object callInfo) {

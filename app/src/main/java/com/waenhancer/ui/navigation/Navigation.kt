@@ -793,23 +793,10 @@ fun MainContainerScreen() {
                                         contactPrivacyList.clear()
                                     },
                                     onUpdateContact = { updated ->
-                                        val idx = contactPrivacyList.indexOfFirst { it.id == updated.id }
-                                        if (idx >= 0) contactPrivacyList[idx] = updated
                                         try {
-                                            val json = org.json.JSONObject().apply {
-                                                put("name", updated.name)
-                                                put("HideSeen", updated.hideSeen)
-                                                put("HideTyping", updated.hideTyping)
-                                                put("HideRecording", updated.hideRecording)
-                                                put("AntiRevoke", updated.antiRevoke)
-                                                put("FreezeLastSeen", updated.freezeLastSeen)
-                                                put("BlockCall", updated.freezeLastSeen)
-                                                put("scope", updated.scope)
-                                            }
-                                            val jsonStr = json.toString()
-                                            preferenceManager.putString("${updated.id}_privacy", jsonStr)
-                                            preferenceManager.putString("${updated.jid}_privacy", jsonStr)
-                                            preferenceManager.putString("per_contact_rules_${updated.jid}", jsonStr)
+                                            saveContactPrivacy(preferenceManager, updated)
+                                            val idx = contactPrivacyList.indexOfFirst { it.id == updated.id }
+                                            if (idx >= 0) contactPrivacyList[idx] = updated
                                         } catch (_: Throwable) {}
                                     }
                                 )
@@ -839,23 +826,10 @@ fun MainContainerScreen() {
                                 contactPrivacyList.clear()
                             },
                             onUpdateContact = { updated ->
-                                val idx = contactPrivacyList.indexOfFirst { it.id == updated.id }
-                                if (idx >= 0) contactPrivacyList[idx] = updated
                                 try {
-                                    val json = org.json.JSONObject().apply {
-                                        put("name", updated.name)
-                                        put("HideSeen", updated.hideSeen)
-                                        put("HideTyping", updated.hideTyping)
-                                        put("HideRecording", updated.hideRecording)
-                                        put("AntiRevoke", updated.antiRevoke)
-                                        put("FreezeLastSeen", updated.freezeLastSeen)
-                                        put("BlockCall", updated.freezeLastSeen)
-                                        put("scope", updated.scope)
-                                    }
-                                    val jsonStr = json.toString()
-                                    preferenceManager.putString("${updated.id}_privacy", jsonStr)
-                                    preferenceManager.putString("${updated.jid}_privacy", jsonStr)
-                                    preferenceManager.putString("per_contact_rules_${updated.jid}", jsonStr)
+                                    saveContactPrivacy(preferenceManager, updated)
+                                    val idx = contactPrivacyList.indexOfFirst { it.id == updated.id }
+                                    if (idx >= 0) contactPrivacyList[idx] = updated
                                 } catch (_: Throwable) {}
                             }
                         )
@@ -1055,6 +1029,30 @@ data class ContactPrivacy(
     val endHour: Int = 18
 )
 
+/** Update only the controls owned by the manager's per-contact editor. */
+private fun saveContactPrivacy(preferenceManager: WaexPreferenceManager, updated: ContactPrivacy) {
+    // Match CustomPrivacyHook's existing first-non-null precedence. Read at save
+    // time so a call/status rule changed after opening this editor is preserved.
+    // A malformed authoritative document must fail before any preference write.
+    val currentRules = preferenceManager.getString("${updated.id}_privacy", null)
+        ?: preferenceManager.getString("${updated.jid}_privacy", null)
+        ?: preferenceManager.getString("per_contact_rules_${updated.jid}", null)
+    val json = if (currentRules == null) org.json.JSONObject() else org.json.JSONObject(currentRules)
+    if (!json.has("name")) json.put("name", updated.name)
+    json.put("HideSeen", updated.hideSeen)
+    json.put("HideTyping", updated.hideTyping)
+    json.put("HideRecording", updated.hideRecording)
+    json.put("AntiRevoke", updated.antiRevoke)
+    // This legacy field is independent of BlockCall. The public hooks currently
+    // consume only the global freeze-last-seen preferences.
+    json.put("FreezeLastSeen", updated.freezeLastSeen)
+    json.put("scope", updated.scope)
+    val jsonStr = json.toString()
+    preferenceManager.putString("${updated.id}_privacy", jsonStr)
+    preferenceManager.putString("${updated.jid}_privacy", jsonStr)
+    preferenceManager.putString("per_contact_rules_${updated.jid}", jsonStr)
+}
+
 fun loadContactPrivacyList(context: Context, preferenceManager: WaexPreferenceManager): List<ContactPrivacy> {
     val list = mutableListOf<ContactPrivacy>()
     val all = preferenceManager.all ?: return list
@@ -1085,7 +1083,7 @@ fun loadContactPrivacyList(context: Context, preferenceManager: WaexPreferenceMa
                         hideTyping = json.optBoolean("HideTyping", false),
                         hideRecording = json.optBoolean("HideRecording", false),
                         antiRevoke = json.optBoolean("AntiRevoke", false),
-                        freezeLastSeen = json.optBoolean("FreezeLastSeen", false) || json.optBoolean("BlockCall", false),
+                        freezeLastSeen = json.optBoolean("FreezeLastSeen", false),
                         scope = json.optString("scope", "always")
                     )
                 )

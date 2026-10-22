@@ -357,6 +357,10 @@ class CustomPrivacyHook(
                     for ((k, v) in checkStateMap) {
                         updatedJson.put(k, v)
                     }
+                    // This existing dialog exposes the call choice explicitly.
+                    // Older manager saves could derive BlockCall from last-seen
+                    // settings, so the default global mode requires this marker.
+                    updatedJson.put("BlockCallConfirmed", true)
                     val displayName = extractDisplayName(activity, jid, cleanNumber)
                     updatedJson.put("name", displayName)
 

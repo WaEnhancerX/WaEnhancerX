@@ -74,6 +74,8 @@ jobs:
             qa/test_dnd_preference_policy.py
             qa/test_dex_negative_cache.py
             qa/test_restart_safety.py
+            qa/test_call_privacy_contacts.py
+            qa/test_contact_privacy_editor.py
             qa/test_hook_return_types.py
             qa/test_monet_wiring.py
             qa/test_catalog_source.py
