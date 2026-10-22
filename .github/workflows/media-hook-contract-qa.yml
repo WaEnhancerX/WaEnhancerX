@@ -1,0 +1,76 @@
+name: Media quality and incoming view-once contracts
+
+on:
+  push:
+    branches: [main, 'integration/preview-current-main-*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exercise complete hooks under both JID namespaces and reject mutations
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/waex-media-hook-contract"
+          python3 qa/test_media_hook_contracts.py --jid-family modern | tee "$RUNNER_TEMP/waex-media-hook-contract/modern.log"
+          python3 qa/test_media_hook_contracts.py --jid-family legacy | tee "$RUNNER_TEMP/waex-media-hook-contract/legacy.log"
+          python3 qa/mutate_media_hook_contracts.py --evidence "$RUNNER_TEMP/waex-media-hook-contract/mutations"
+      - name: Verify pinned DexKit bytes and compile the complete production API consumers
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/waex-media-hook-contract" <<'PYAPI'
+          import hashlib, io, json, shutil, subprocess, sys, urllib.request, zipfile
+          from pathlib import Path
+          out = Path(sys.argv[1])
+          url = 'https://repo.maven.apache.org/maven2/org/luckypray/dexkit/2.2.0/dexkit-2.2.0.aar'
+          with urllib.request.urlopen(url, timeout=45) as response:
+              archive = response.read(4 * 1024 * 1024 + 1)
+          assert len(archive) <= 4 * 1024 * 1024
+          assert hashlib.sha256(archive).hexdigest() == 'cf4488da9f721750ce5ff4311e88356cbfcb1d4444c2b519b12d8bdb5f33f2c6'
+          with zipfile.ZipFile(io.BytesIO(archive)) as bundle:
+              members = [item for item in bundle.infolist() if item.filename == 'classes.jar']
+              assert len(members) == 1 and members[0].file_size <= 2 * 1024 * 1024
+              api = bundle.read(members[0])
+          assert hashlib.sha256(api).hexdigest() == '195979d9576ba6d68a1c60bdd3e38cd3aed068d4e0c5c6c99caa50bc25fcb9f1'
+          jar = out / 'dexkit-2.2.0.jar'
+          jar.write_bytes(api)
+          compiler = shutil.which('kotlinc')
+          assert compiler, 'Kotlin CLI is required'
+          stdlib = Path(compiler).resolve().parents[1] / 'lib/kotlin-stdlib.jar'
+          with (out / 'real-dexkit-api.json').open('w') as log:
+              subprocess.run([sys.executable, 'qa/compile_media_dexkit_api.py', '--dexkit-jar', str(jar), '--kotlin-stdlib', str(stdlib)], stdout=log, check=True, timeout=90)
+          PYAPI
+      - name: Preserve source identities and execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: waex-media-hook-contract-evidence
+          path: |
+            ${{ runner.temp }}/waex-media-hook-contract/**/*.json
+            ${{ runner.temp }}/waex-media-hook-contract/**/*.log
+          if-no-files-found: error
+          retention-days: 14

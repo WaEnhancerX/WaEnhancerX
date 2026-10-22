@@ -7,125 +7,139 @@ import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
+import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.enums.StringMatchType;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.ClassData;
-import org.luckypray.dexkit.result.ClassDataList;
 import org.luckypray.dexkit.result.MethodData;
 import org.luckypray.dexkit.result.MethodDataList;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
 
 /**
- * View Once Bypass: converts incoming view-once photos/videos/voice-notes into normal permanent media.
- * Uses WaEnhancer's proven multi-method unobfuscation strategy:
- *   1. Finds method containing SQL "INSERT_VIEW_ONCE_SQL" or "view_once"
- *   2. Hooks all implementations of the ViewOnce state setter interface (param int, return void)
- *   3. Forces view_once state from 1 (View Once) to 0 (Standard media)
+ * Changes incoming view-once state 1 to ordinary media state 0 when enabled.
+ * A SQL-linked state interface or the direct view_once setter must belong to a
+ * verified message type. Outgoing media and unknown identities are preserved.
  */
 public class AntiViewOnceHook extends BaseFeature {
-
     private static final String TAG = "[WAEX][AntiViewOnce]";
+    private final Set<Method> installed = new LinkedHashSet<>();
 
     public AntiViewOnceHook(@NonNull Context context, @NonNull ClassLoader classLoader, @NonNull SharedPreferences prefs) {
         super(context, classLoader, prefs);
     }
 
     @Override
-    public void hook() throws Throwable {
-        hookViewOnceSetters();
+    public synchronized void hook() throws Throwable {
+        installStateHooks();
+        if (installed.isEmpty() && (isEnabled("anti_view_once", false) || isEnabled("viewonce", false))) {
+            throw new IllegalStateException("View-once contract unavailable");
+        }
     }
 
-    private void hookViewOnceSetters() {
+    private void installStateHooks() {
         try {
             DexSearchEngine.getInstance().initialize(context);
-            var bridge = DexSearchEngine.getInstance().getBridge();
-            if (bridge == null) {
+            DexKitBridge bridge = DexSearchEngine.getInstance().getBridge();
+            if (bridge == null) return;
+            ViewOnceMessageContract messages = ViewOnceMessageContract.resolve(bridge, classLoader);
+            if (messages == null) {
+                XposedBridge.log(TAG + " Message ownership contract unavailable; state setters not installed");
                 return;
             }
-
-            List<Method> targets = new ArrayList<>();
-
-            // Strategy 1 (Proven WaEnhancer): Search for INSERT_VIEW_ONCE_SQL caller and find invoked interface
-            try {
-                MethodDataList sqlMethods = bridge.findMethod(FindMethod.create()
-                        .matcher(MethodMatcher.create().addUsingString("INSERT_VIEW_ONCE_SQL", StringMatchType.Contains)));
-
-                if (!sqlMethods.isEmpty()) {
-                    MethodData caller = sqlMethods.get(0);
-                    for (MethodData invoke : caller.getInvokes()) {
-                        try {
-                            Method m = invoke.getMethodInstance(classLoader);
-                            if (m.getDeclaringClass().isInterface() && m.getDeclaringClass().getMethods().length <= 3) {
-                                ClassDataList implementors = bridge.findClass(FindClass.create()
-                                        .matcher(ClassMatcher.create().addInterface(m.getDeclaringClass().getName())));
-                                for (ClassData cd : implementors) {
-                                    Class<?> cls = cd.getInstance(classLoader);
-                                    for (Method m2 : cls.getDeclaredMethods()) {
-                                        Class<?>[] methodParameters = m2.getParameterTypes();
-                                        if (methodParameters.length == 1
-                                                && methodParameters[0] == int.class
-                                                && m2.getReturnType() == void.class) {
-                                            targets.add(m2);
-                                        }
-                                    }
-                                }
-                            }
-                        } catch (Throwable ignored) {}
-                    }
-                }
-            } catch (Throwable t) {
-                XposedBridge.log(TAG + " Strategy 1 search failed: " + t.getMessage());
-            }
-
-            // Strategy 2: Direct search for methods with "view_once" string taking an int
-            if (targets.isEmpty()) {
-                try {
-                    MethodDataList directMethods = bridge.findMethod(FindMethod.create()
-                            .matcher(MethodMatcher.create()
-                                    .modifiers(Modifier.PUBLIC)
-                                    .paramTypes(int.class)
-                                    .returnType(void.class)
-                                    .usingStrings("view_once")));
-                    for (MethodData md : directMethods) {
-                        try {
-                            Method m = md.getMethodInstance(classLoader);
-                            if (m != null) targets.add(m);
-                        } catch (Throwable ignored) {}
-                    }
-                } catch (Throwable t) {
-                    XposedBridge.log(TAG + " Strategy 2 search failed: " + t.getMessage());
-                }
-            }
-
-            // Hook all discovered setter methods
+            Set<Method> targets = sqlSetters(bridge, messages);
+            if (targets.isEmpty()) addDirectSetters(bridge, messages, targets);
             for (Method target : targets) {
+                if (installed.contains(target)) continue;
                 try {
                     XposedBridge.hookMethod(target, new XC_MethodHook() {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam param) {
+                            // Keep preference reads live even if the feature was OFF at installation.
                             if (!isEnabled("anti_view_once", false) && !isEnabled("viewonce", false)) return;
-                            if (param.args != null && param.args.length > 0 && param.args[0] instanceof Integer) {
-                                int state = (int) param.args[0];
-                                if (state == 1) {
-                                    param.args[0] = 0;
-                                }
-                            }
+                            if (param.args == null || param.args.length != 1
+                                    || !(param.args[0] instanceof Integer) || (Integer) param.args[0] != 1) return;
+                            if (messages.isIncoming(param.thisObject)) param.args[0] = 0;
                         }
                     });
-                } catch (Throwable t) {
-                    XposedBridge.log(TAG + " Error hooking method " + target.getName() + ": " + t.getMessage());
+                    installed.add(target);
+                } catch (RuntimeException | LinkageError failure) {
+                    XposedBridge.log(TAG + " Setter installation failed: " + failure.getClass().getSimpleName());
                 }
             }
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError failure) {
+            XposedBridge.log(TAG + " State contract unavailable: " + failure.getClass().getSimpleName());
+        }
+    }
 
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + " Error during hookViewOnceSetters: " + t.getMessage());
+    private Set<Method> sqlSetters(DexKitBridge bridge, ViewOnceMessageContract messages) {
+        Set<Method> result = new LinkedHashSet<>();
+        Set<Method> stateContracts = new LinkedHashSet<>();
+        try {
+            MethodDataList callers = bridge.findMethod(FindMethod.create().matcher(MethodMatcher.create()
+                    .addUsingString("INSERT_VIEW_ONCE_SQL", StringMatchType.Contains)));
+            for (MethodData caller : callers) {
+                Set<Method> candidates = new LinkedHashSet<>();
+                for (MethodData invoke : caller.getInvokes()) {
+                    try {
+                        if (!invoke.isMethod()) continue;
+                        Method setter = ViewOnceMessageContract.interfaceSetter(invoke.getMethodInstance(classLoader));
+                        if (setter != null) candidates.add(setter);
+                    } catch (ReflectiveOperationException | RuntimeException | LinkageError unavailable) {
+                        // This individual invoked member may be absent in this host build.
+                    }
+                }
+                if (candidates.size() == 1) stateContracts.add(candidates.iterator().next());
+            }
+            for (Method contract : stateContracts) {
+                for (ClassData data : bridge.findClass(FindClass.create().matcher(ClassMatcher.create()
+                        .addInterface(contract.getDeclaringClass().getName())))) {
+                    try {
+                        Class<?> type = data.getInstance(classLoader);
+                        if (!messages.isMessageType(type)) continue;
+                        // Resolve this exact interface member, including inherited implementations.
+                        Method target = type.getMethod(contract.getName(), int.class);
+                        if (messages.accepts(target)) result.add(target);
+                    } catch (ReflectiveOperationException | RuntimeException | LinkageError unavailable) {
+                        // Reject one unsupported implementation without losing other media classes.
+                    }
+                }
+            }
+        } catch (RuntimeException | LinkageError failure) {
+            XposedBridge.log(TAG + " SQL state discovery failed: " + failure.getClass().getSimpleName());
+        }
+        return result;
+    }
+
+    private void addDirectSetters(DexKitBridge bridge, ViewOnceMessageContract messages, Set<Method> targets) {
+        try {
+            Map<Class<?>, Set<Method>> byMessageType = new LinkedHashMap<>();
+            MethodDataList direct = bridge.findMethod(FindMethod.create().matcher(MethodMatcher.create()
+                    .modifiers(Modifier.PUBLIC).paramTypes(int.class).returnType(void.class)
+                    .addUsingString("view_once", StringMatchType.Equals)));
+            for (MethodData data : direct) {
+                try {
+                    if (!data.isMethod()) continue;
+                    Method method = data.getMethodInstance(classLoader);
+                    if (messages.accepts(method)) byMessageType.computeIfAbsent(method.getDeclaringClass(),
+                            ignored -> new LinkedHashSet<>()).add(method);
+                } catch (ReflectiveOperationException | RuntimeException | LinkageError unavailable) {
+                    // A direct match still has to satisfy the same message ownership contract.
+                }
+            }
+            for (Set<Method> candidates : byMessageType.values()) {
+                if (candidates.size() == 1) targets.add(candidates.iterator().next());
+            }
+        } catch (RuntimeException | LinkageError failure) {
+            XposedBridge.log(TAG + " Direct state discovery failed: " + failure.getClass().getSimpleName());
         }
     }
 
