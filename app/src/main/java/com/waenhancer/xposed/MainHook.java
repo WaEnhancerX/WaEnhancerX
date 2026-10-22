@@ -10,6 +10,8 @@ import android.os.Handler;
 import android.os.Looper;
 import com.waenhancer.xposed.bridge.client.PreferenceBridgeClient;
 import com.waenhancer.xposed.core.FeatureRegistry;
+import com.waenhancer.xposed.core.RuntimeReportDispatcher;
+import com.waenhancer.xposed.core.RuntimeReportDispatcher.Kind;
 import com.waenhancer.xposed.utils.ModuleStatus;
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.IXposedHookZygoteInit;
@@ -41,9 +43,21 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
     private static final AtomicBoolean HEARTBEAT_STARTED = new AtomicBoolean(false);
     private static final AtomicBoolean INJECTION_TOAST_SHOWN = new AtomicBoolean(false);
     private static final long HEARTBEAT_INTERVAL_MS = 10_000L;
-    private static volatile String sRuntimeStatus = "INJECTED";
-    private static volatile String sBridgeStatus = "PENDING";
-    private static volatile String sRuntimeError;
+    private static volatile RuntimeState sRuntimeState = new RuntimeState("INJECTED", "PENDING", null);
+    private static final RuntimeReportDispatcher RUNTIME_REPORTS = new RuntimeReportDispatcher(
+            failure -> XposedBridge.log("[WAEX] Runtime report delivery failed: "
+                    + failure.getClass().getSimpleName()));
+
+    private static final class RuntimeState {
+        final String status;
+        final String bridge;
+        final String error;
+        RuntimeState(String status, String bridge, String error) {
+            this.status = status;
+            this.bridge = bridge;
+            this.error = error;
+        }
+    }
     private String mModulePath;
 
     @Override
@@ -198,20 +212,17 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                             + t.getClass().getSimpleName());
                                 }
 
-                                try {
-                                    com.waenhancer.utils.WhatsAppPackageDetector.registerHookedPackage(
-                                            appContext, packageName);
-                                } catch (Throwable t) {
-                                    XposedBridge.log("[WAEX] Hooked-package reporting failed: "
-                                            + t.getClass().getSimpleName());
-                                }
+                                RUNTIME_REPORTS.submitLatest(Kind.PACKAGE, () -> {
+                                    try {
+                                        com.waenhancer.utils.WhatsAppPackageDetector.registerHookedPackage(
+                                                appContext, packageName);
+                                    } catch (Throwable t) {
+                                        XposedBridge.log("[WAEX] Hooked-package reporting failed: "
+                                                + t.getClass().getSimpleName());
+                                    }
+                                });
                                 reportTargetRuntime(
                                         appContext, packageName, "INJECTED", "PENDING", null);
-                                try {
-                                    appContext.getContentResolver().call(
-                                            android.net.Uri.parse("content://com.waenhancer.hookprovider"),
-                                            "request_update_check", packageName, null);
-                                } catch (Throwable ignored) {}
 
                                 try {
                                     android.content.IntentFilter filter = new android.content.IntentFilter("com.waenhancer.WHATSAPP.RESTART");
@@ -261,7 +272,7 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                         android.content.BroadcastReceiver prefsReceiver = new android.content.BroadcastReceiver() {
                                             @Override
                                             public void onReceive(Context context, android.content.Intent intent) {
-                                                bridgeClient.syncPreferences();
+                                                bridgeClient.requestRefresh();
                                             }
                                         };
                                         if (android.os.Build.VERSION.SDK_INT >= 33) {
@@ -301,7 +312,8 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                         }
                                         FeatureRegistry registry = new FeatureRegistry(appContext, lpparam.classLoader, bridgeClient);
                                         registry.initializeAll();
-                                        registry.reportInjectedHooks(appContext, packageName);
+                                        RUNTIME_REPORTS.submitLatest(Kind.HOOKS,
+                                                () -> registry.reportInjectedHooks(appContext, packageName));
                                         reportTargetRuntime(
                                                 appContext,
                                                 packageName,
@@ -330,6 +342,13 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                     XposedBridge.log("[WAEX] Error initializing FeatureRegistry: " + t.getMessage());
                                     showInjectionErrorSheet(t, packageName, lpparam.processName);
                                 }
+                                RUNTIME_REPORTS.submitLatest(Kind.UPDATE_CHECK, () -> {
+                                    try {
+                                        appContext.getContentResolver().call(
+                                                android.net.Uri.parse("content://com.waenhancer.hookprovider"),
+                                                "request_update_check", packageName, null);
+                                    } catch (Throwable ignored) {}
+                                });
                             }
                         };
 
@@ -382,24 +401,28 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                             String error) {
         Context appContext = context.getApplicationContext() != null
                 ? context.getApplicationContext() : context;
-        sRuntimeStatus = runtimeStatus;
-        sBridgeStatus = bridgeStatus;
-        sRuntimeError = error;
-        com.waenhancer.utils.WhatsAppPackageDetector.reportRuntimeHealth(
-                appContext, packageName, runtimeStatus, bridgeStatus, error);
+        RuntimeState state = new RuntimeState(runtimeStatus, bridgeStatus, error);
+        sRuntimeState = state;
+        enqueueRuntimeReport(appContext, packageName, state);
 
         if (HEARTBEAT_STARTED.compareAndSet(false, true)) {
             Handler handler = new Handler(Looper.getMainLooper());
             Runnable heartbeat = new Runnable() {
                 @Override
                 public void run() {
-                    com.waenhancer.utils.WhatsAppPackageDetector.reportRuntimeHealth(
-                            appContext, packageName, sRuntimeStatus, sBridgeStatus, sRuntimeError);
+                    enqueueRuntimeReport(appContext, packageName, sRuntimeState);
                     handler.postDelayed(this, HEARTBEAT_INTERVAL_MS);
                 }
             };
             handler.postDelayed(heartbeat, HEARTBEAT_INTERVAL_MS);
         }
+    }
+
+    private static void enqueueRuntimeReport(Context context, String packageName, RuntimeState state) {
+        long observedAtMillis = System.currentTimeMillis();
+        RUNTIME_REPORTS.submitLatest(Kind.HEALTH,
+                () -> com.waenhancer.utils.WhatsAppPackageDetector.reportRuntimeHealth(
+                        context, packageName, state.status, state.bridge, state.error, observedAtMillis));
     }
 
     /**

@@ -5,6 +5,7 @@ Isolated test library only: no private licensing, signing, host APK or LSPosed e
 """
 from pathlib import Path
 import argparse,hashlib,json,os,shutil,subprocess,tomllib,urllib.request
+import xml.etree.ElementTree as ET
 from framework_localization import stage_localization, build_localization_table
 
 TEST=r'''package com.waenhancer.utils
@@ -55,10 +56,13 @@ class RuntimeResourcesTest {
    val id=module.resources.getIdentifier("universal_supported_versions","array","com.waenhancer")
    assertTrue(id!=0)
    assertEquals("com.waenhancer:array/universal_supported_versions",module.resources.getResourceName(id))
+   assertEquals(module.resources.getStringArray(id).map{it.trim()},UniversalVersionValidator.getBuiltinSupportedVersions(module))
+   assertEquals(module.resources.getStringArray(id).map{it.trim()},UniversalVersionValidator.getBuiltinSupportedVersions(host(module)))
    assertEquals(D.BUILTIN_RULE,UniversalVersionValidator.evaluate(module,"2.26.40.76",null))
    assertEquals(D.BUILTIN_RULE,UniversalVersionValidator.evaluate(host(module),"2.26.40.76",null))
    assertEquals(D.UNSUPPORTED,UniversalVersionValidator.evaluate(host(module),"99.99.99.99",null))
-   assertEquals(D.RULES_UNAVAILABLE,UniversalVersionValidator.evaluate(host(module,false),"2.26.40.76",null))
+   assertEquals(D.BUILTIN_RULE,UniversalVersionValidator.evaluate(host(module,false),"2.26.40.76",null))
+   assertEquals(D.UNSUPPORTED,UniversalVersionValidator.evaluate(host(module,false),"99.99.99.99",null))
    contexts++
   }
   println("PASSED $contexts real compiled-resource contexts; host visibility wrappers, not HMA")
@@ -71,19 +75,38 @@ class RuntimeResourcesTest {
  @Test fun numericFallbackCannotUseTheFixtureResourceTable(){
   val application=RuntimeEnvironment.getApplication()
   val resourceName=application.resources.getResourceName(com.waenhancer.app.R.array.universal_supported_versions)
-  assertNotEquals("com.waenhancer:array/universal_supported_versions",resourceName)
+  // AGP packages library unit-test resources under namespace + ".test".
+  assertEquals("com.waenhancer.app.test:array/universal_supported_versions",resourceName)
+  assertArrayEquals(arrayOf("9.99.1"),application.resources.getStringArray(com.waenhancer.app.R.array.universal_supported_versions))
+  assertEquals(0,application.resources.getIdentifier("universal_supported_versions","array","com.waenhancer"))
   val misleading=object:ContextWrapper(application){
    override fun getPackageName()="com.waenhancer"
   }
-  assertEquals(D.RULES_UNAVAILABLE,UniversalVersionValidator.evaluate(misleading,"2.26.40.76",null))
+  assertEquals(D.UNSUPPORTED,UniversalVersionValidator.evaluate(misleading,"9.99.1",null))
+  assertEquals(D.BUILTIN_RULE,UniversalVersionValidator.evaluate(misleading,"2.26.40.76",null))
  }
  @Test fun explicitPermissionsRemainDistinct(){
   val p=RuntimeEnvironment.getApplication().getSharedPreferences("explicit-test",0)
   val hidden=host(resourceContext("release","es-CL"),false)
-  assertTrue(p.edit().clear().putBoolean("customize_supported_versions",true).putStringSet("custom_supported_versions",setOf("2.26.40.76")).commit())
-  assertEquals(D.CUSTOM_RULE,UniversalVersionValidator.evaluate(hidden,"2.26.40.76",p))
+  assertTrue(p.edit().clear().putBoolean("customize_supported_versions",true).putStringSet("custom_supported_versions",setOf("9.99.1")).commit())
+  assertEquals(D.CUSTOM_RULE,UniversalVersionValidator.evaluate(hidden,"9.99.1",p))
+  assertEquals(D.UNSUPPORTED,UniversalVersionValidator.evaluate(hidden,"9.99.2",p))
+  assertEquals(D.BUILTIN_RULE,UniversalVersionValidator.evaluate(hidden,"2.26.40.76",p))
   assertTrue(p.edit().putBoolean("bypass_version_check",true).commit())
   assertEquals(D.EXPLICIT_BYPASS,UniversalVersionValidator.evaluate(hidden,"99.99.99.99",p))
+ }
+ @Test fun fatalResourceFailuresPropagate(){
+  val fatal=OutOfMemoryError("fixture resource failure; no memory exhaustion")
+  val broken=object:ContextWrapper(RuntimeEnvironment.getApplication()){
+   override fun getPackageName()="com.waenhancer"
+   override fun getResources():Resources=throw fatal
+  }
+  try {
+   UniversalVersionValidator.evaluate(broken,"2.26.40.76",null)
+   fail("Fatal resource failures must not become compatibility decisions")
+  } catch(actual:OutOfMemoryError){
+   assertSame(fatal,actual)
+  }
  }
 }
 '''
@@ -132,12 +155,24 @@ dependencies {
   p=probe/path;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(text)
  identities={}
  # Compile all of these source files unchanged; unrelated private services are test doubles.
- files=['utils/UniversalVersionValidator.kt','utils/WhatsAppPackageDetector.kt','utils/XposedRuntimeInspector.kt','utils/InjectionEvidence.kt','utils/TargetRuntimePresentation.kt','ui/components/RuntimeObservationClock.kt','xposed/core/VersionGuard.kt']
+ files=['utils/AndroidUserScope.java','utils/UniversalVersionValidator.kt','utils/WhatsAppPackageDetector.kt','utils/XposedRuntimeInspector.kt','utils/InjectionEvidence.kt','utils/TargetRuntimePresentation.kt','ui/components/RuntimeObservationClock.kt','xposed/core/VersionGuard.kt']
  if (root/'app/src/main/java/com/waenhancer/utils/DeclaredWhatsAppTargets.java').exists():files+=['utils/DeclaredWhatsAppTargets.java']
  for name in files:
   p=root/'app/src/main/java/com/waenhancer'/name
   write('src/main/java/com/waenhancer/'+name,p.read_text());identities[name]=hashlib.sha256(p.read_bytes()).hexdigest()
- write('src/main/res/values/arrays.xml',(root/'app/src/main/res/values/arrays.xml').read_text())
+ arrays_source=root/'app/src/main/res/values/arrays.xml'
+ arrays=ET.fromstring(arrays_source.read_bytes())
+ foreign_rules=arrays.find("string-array[@name='universal_supported_versions']")
+ if foreign_rules is None:raise RuntimeError('Missing fixture version-rule array')
+ # This test-library table has a foreign owner. Its unique rule must never
+ # authorize a host through the module's numeric resource-ID fallback.
+ for item in list(foreign_rules):foreign_rules.remove(item)
+ ET.SubElement(foreign_rules,'item').text='9.99.1'
+ fixture_arrays=ET.tostring(arrays,encoding='unicode')
+ write('src/main/res/values/arrays.xml',fixture_arrays)
+ (e/'fixture-arrays.xml').write_text(fixture_arrays)
+ identities['app/src/main/res/values/arrays.xml']=hashlib.sha256(arrays_source.read_bytes()).hexdigest()
+ identities['fixture/src/main/res/values/arrays.xml']=hashlib.sha256(fixture_arrays.encode()).hexdigest()
  write('src/main/AndroidManifest.xml','<manifest xmlns:android="http://schemas.android.com/apk/res/android"/>')
  write('src/main/java/com/waenhancer/config/PreferenceStores.java','package com.waenhancer.config; import android.content.*; public final class PreferenceStores {public static SharedPreferences publicStore(Context c){return c.getSharedPreferences("probe",0);} public static SharedPreferences privateStore(Context c){return c.getSharedPreferences("probe-private",0);}}')
  write('src/main/java/com/waenhancer/xposed/utils/ModuleStatus.java','package com.waenhancer.xposed.utils; public final class ModuleStatus {public static boolean isModuleActive(){return false;}}')
@@ -158,6 +193,7 @@ class WaexBottomSheet(a:Activity){fun setTitle(s:String)=this;fun setMessage(s:S
   shutil.copy2(fixture,e/fixture.name)
   identities[str(fixture.relative_to(root))]=hashlib.sha256(fixture.read_bytes()).hexdigest()
  write('src/test/java/com/waenhancer/utils/RuntimeResourcesTest.kt',TEST)
+ identities['fixture/RuntimeResourcesTest.kt']=hashlib.sha256(TEST.encode()).hexdigest()
  (e/'source-sha256.json').write_text(json.dumps(identities,indent=2));(e/'RuntimeResourcesTest.kt').write_text(TEST);(e/'build.gradle.kts').write_text(build)
  cmd=['bash',str(root/'gradlew'),'-p',str(project),'--no-daemon',':probe:testDebugUnitTest']
  with (e/'framework-build.log').open('w') as log:
@@ -166,12 +202,11 @@ class WaexBottomSheet(a:Activity){fun setTitle(s:String)=this;fun setMessage(s:S
  if result.returncode:
   print((e/'framework-build.log').read_text()[-18000:]);raise RuntimeError('Isolated framework validation failed')
  results=list(e.glob('TEST-*.xml'))
- import xml.etree.ElementTree as ET
  assert results,'No JUnit reports'
  tests=failures=errors=skipped=0
  for p in results:
   t=ET.parse(p).getroot();tests+=int(t.get('tests',0));failures+=int(t.get('failures',0));errors+=int(t.get('errors',0));skipped+=int(t.get('skipped',0))
- assert tests==(11 if localized else 4) and failures==0 and errors==0 and skipped==0,(tests,failures,errors,skipped)
+ assert tests==(12 if localized else 5) and failures==0 and errors==0 and skipped==0,(tests,failures,errors,skipped)
  (e/'result.json').write_text(json.dumps({'tests':tests,'contexts':22,'locale_resource_tests':7 if localized else 0,'failures':failures,'errors':errors,'skipped':skipped,'limits':'Compiled public utilities and clock with test service doubles. No full WAEX APK, Compose screen rendering, HMA or LSPosed.'},indent=2))
  print(f'PASS: real Android/Compose API compilation; {tests} Android 14 JUnit methods, 22 compiled-resource contexts; localized tests={localized}; no full app/LSPosed')
 

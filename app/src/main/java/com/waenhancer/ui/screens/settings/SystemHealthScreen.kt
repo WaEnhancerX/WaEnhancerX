@@ -84,7 +84,7 @@ fun SystemHealthScreen() {
                 .filter { it.isInstalled }.map { it.packageName }
         }
         val refreshed = withContext(Dispatchers.IO) {
-            XposedRuntimeInspector.inspect(packages)
+            XposedRuntimeInspector.inspect(context, packages)
         }
         runtimeSnapshot = refreshed
     }

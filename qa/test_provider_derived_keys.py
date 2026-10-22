@@ -28,7 +28,7 @@ assert 'return applyPreferenceChanges(context, prefs, callerUid,' in provider
 assert 'callerOwnsPackage(context, callerUid, pkg)' in provider
 assert provider.index('isTrustedCaller(context, callerUid)') < provider.index('Binder.clearCallingIdentity()')
 assert '"report_runtime_health".equals(method)' in provider
-for signal in ('runtime_boot_', 'runtime_status_', 'runtime_error_', 'bridge_status_'):
+for signal in ('runtime_boot_', 'runtime_pid_', 'runtime_status_', 'runtime_error_', 'bridge_status_'):
     assert signal in provider, f"Current upstream telemetry removed: {signal}"
 assert 'PreferenceWriteTypePolicy.accepts(entry.type.name(), type)' in provider
 with tempfile.TemporaryDirectory(prefix="waex_provider_policy_") as temp:

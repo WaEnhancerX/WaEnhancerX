@@ -9,9 +9,29 @@ class WhatsAppPackageDetectorTest {
     @Test
     fun `runtime inspection reads live process ids`() {
         val snapshot = parseXposedRuntimeSnapshot(
-            "PID|com.whatsapp|123 456\n"
+            "PID|com.whatsapp|1023456|123 456\n",
+            mapOf("com.whatsapp" to 1023456)
         )
+        assertTrue(snapshot.complete)
         assertTrue(snapshot.runningPids["com.whatsapp"] == setOf(123, 456))
+    }
+
+    @Test
+    fun `runtime inspection rejects another profile uid`() {
+        val snapshot = parseXposedRuntimeSnapshot(
+            "PID|com.whatsapp|23456|123 456\n",
+            mapOf("com.whatsapp" to 1023456)
+        )
+        assertFalse(snapshot.complete)
+    }
+
+    @Test
+    fun `runtime inspection rejects records without uid evidence`() {
+        val snapshot = parseXposedRuntimeSnapshot(
+            "PID|com.whatsapp|123 456\n",
+            mapOf("com.whatsapp" to 1023456)
+        )
+        assertFalse(snapshot.complete)
     }
 
     @Test

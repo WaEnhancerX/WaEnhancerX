@@ -17,6 +17,10 @@ CASES=[
  ('fatal-resource-error-hidden',U+'UniversalVersionValidator.kt','} catch (_: LinkageError) {\n            null','} catch (_: Throwable) {\n            null','test_runtime_diagnostics.py'),
  ('unknown-means-stopped',U+'InjectionEvidence.kt','runningPids == null -> InjectionEvidence.PROCESS_OBSERVATION_UNAVAILABLE','runningPids == null -> InjectionEvidence.PROCESS_STOPPED','test_runtime_diagnostics.py'),
  ('stale-cache-kept',U+'XposedRuntimeInspector.kt','cachedSnapshot = result //','if (result != null) cachedSnapshot = result //','test_runtime_diagnostics.py'),
+ ('foreign-process-uid-admitted',U+'XposedRuntimeInspector.kt','parts[2].toIntOrNull() != expectedUids[parts[1]] || ','','test_runtime_diagnostics.py'),
+ ('foreign-package-profile-admitted',U+'XposedRuntimeInspector.kt',' && AndroidUserScope.userIdForUid(info.uid) == userId','','test_runtime_diagnostics.py'),
+ ('foreign-caller-profile-admitted',U+'XposedRuntimeInspector.kt','AndroidUserScope.matchingUserId(context.applicationInfo.uid, Process.myUid())','AndroidUserScope.userIdForUid(context.applicationInfo.uid)','test_runtime_diagnostics.py'),
+ ('pid-list-globbing',U+'XposedRuntimeInspector.kt',r'set -f\ncommand -v pidof','command -v pidof','test_runtime_diagnostics.py'),
  ('timestamp-after-command',U+'XposedRuntimeInspector.kt','.copy(observedAtElapsed = startedAtElapsed)','.copy(observedAtElapsed = SystemClock.elapsedRealtime())','test_runtime_diagnostics.py'),
  ('obsolete-pause',G,'if (generation != decisionGeneration.get() || decision.allowed) return@runOnUiThread','if (false) return@runOnUiThread','test_runtime_diagnostics.py'),
  ('custom-is-verified',U+'TargetRuntimePresentation.kt','decision == UniversalVersionValidator.Decision.CUSTOM_RULE -> Status("Injected • Custom version allowance; unverified", Severity.REVIEW)','decision == UniversalVersionValidator.Decision.CUSTOM_RULE -> Status("Injected • Custom version allowance; unverified", Severity.OK)','test_runtime_diagnostics.py'),
@@ -37,7 +41,7 @@ def main():
     r=subprocess.run([sys.executable,str(root/'qa'/test)],cwd=root,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=180)
    except subprocess.TimeoutExpired:raise RuntimeError(name+': timeout is not a behavioral detection')
    (a.out/(name+'.log')).write_text(r.stdout)
-   behavioral=r.returncode!=0 and 'COMPILE_OK:' in r.stdout and ('ASSERTION|' in r.stdout or 'java.lang.AssertionError:' in r.stdout)
+   behavioral=r.returncode!=0 and 'COMPILE_OK:' in r.stdout and ('ASSERTION|' in r.stdout or 'AssertionError:' in r.stdout)
    if not behavioral:raise RuntimeError(name+': not rejected by behavior after compilation\n'+r.stdout[-2500:])
    results.append({'name':name,'test':test,'exit':r.returncode,'compiled':True,'behaviorally_rejected':True})
    (a.out/'results.json').write_text(json.dumps(results,indent=2));print('REJECTED:',name,flush=True)

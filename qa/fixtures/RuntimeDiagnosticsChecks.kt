@@ -39,25 +39,27 @@ fun main(args:Array<String>){
     ck("module context requested by exact package",host.contextRequests.isNotEmpty() && host.contextRequests.all{it.first=="com.waenhancer"},true)
     ck("resource access never requests application code",host.contextRequests.all{it.second and Context.CONTEXT_INCLUDE_CODE==0},true)
     val hidden=Context("com.whatsapp",Resources("com.whatsapp",emptyMap(),mapOf(R.array.universal_supported_versions to arrayOf("9.99.1"))))
-    ck("unavailable not unsupported",UniversalVersionValidator.evaluate(hidden,"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
+    ck("hidden module uses static module rules",UniversalVersionValidator.evaluate(hidden,"2.26.40.76",prefs),D.BUILTIN_RULE)
     ck("reject foreign matching numeric table",UniversalVersionValidator.isSupported(hidden,"9.99.1",prefs),false)
     ck("never read foreign resource ID",hidden.resources.reads.size,0)
-    ck("null context cannot resolve builtins",UniversalVersionValidator.evaluate(null,"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
-    ck("no-context bool remains fail closed",UniversalVersionValidator.isSupported("2.26.40.76",prefs),false)
-    ck("wrong context returned",UniversalVersionValidator.evaluate(Context("com.whatsapp",hidden.resources,hidden),"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
+    ck("null context uses static module rules",UniversalVersionValidator.evaluate(null,"2.26.40.76",prefs),D.BUILTIN_RULE)
+    ck("no-context bool uses verified module fallback",UniversalVersionValidator.isSupported("2.26.40.76",prefs),true)
+    ck("static rules remain identical to module array",UniversalVersionValidator.getBuiltinSupportedVersions(null),rules.toList())
+    ck("static fallback rejects unknown versions",UniversalVersionValidator.isSupported(null,"9.99.1",prefs),false)
+    ck("wrong context uses static module rules",UniversalVersionValidator.evaluate(Context("com.whatsapp",hidden.resources,hidden),"2.26.40.76",prefs),D.BUILTIN_RULE)
     val foreignMatching=Context("com.whatsapp",Resources("com.whatsapp",names,mapOf(R.array.universal_supported_versions to rules)))
-    ck("matching rules in wrong context rejected",UniversalVersionValidator.evaluate(Context("com.whatsapp",hidden.resources,foreignMatching),"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
+    ck("wrong context cannot replace the static module fallback",UniversalVersionValidator.evaluate(Context("com.whatsapp",hidden.resources,foreignMatching),"2.26.40.76",prefs),D.BUILTIN_RULE)
     ck("wrong context rejected before its array read",foreignMatching.resources.reads.size,0)
     val misplacedModuleResources=Resources("com.waenhancer",names,mapOf(R.array.universal_supported_versions to rules))
     val wrongPackageContext=Context("com.whatsapp",misplacedModuleResources)
-    ck("requested module must not return a host context",UniversalVersionValidator.evaluate(Context("com.whatsapp",hidden.resources,wrongPackageContext),"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
+    ck("wrong package cannot replace static module rules",UniversalVersionValidator.evaluate(Context("com.whatsapp",hidden.resources,wrongPackageContext),"2.26.40.76",prefs),D.BUILTIN_RULE)
     ck("unexpected context is rejected before reading even matching arrays",misplacedModuleResources.reads.size,0)
-    ck("wrong owner at same number",UniversalVersionValidator.evaluate(module(rules,"com.whatsapp:array/universal_supported_versions"),"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
-    ck("wrong name at same number",UniversalVersionValidator.evaluate(module(rules,"com.waenhancer:array/another_array"),"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
+    ck("foreign owner uses static module rules",UniversalVersionValidator.evaluate(module(rules,"com.whatsapp:array/universal_supported_versions"),"2.26.40.76",prefs),D.BUILTIN_RULE)
+    ck("foreign array name uses static module rules",UniversalVersionValidator.evaluate(module(rules,"com.waenhancer:array/another_array"),"2.26.40.76",prefs),D.BUILTIN_RULE)
     ck("own numeric fallback verified by full name",UniversalVersionValidator.evaluate(module(rules,"com.waenhancer:array/universal_supported_versions",emptyMap()),"2.26.40.76",prefs),D.BUILTIN_RULE)
     for(failure in listOf(SecurityException("blocked"),android.content.pm.PackageManager.NameNotFoundException(),NoClassDefFoundError("unavailable"))){
         val inaccessible=Context("com.whatsapp",hidden.resources,mod).apply{contextFailure=failure}
-        ck("resource access failure remains unavailable ${failure.javaClass.simpleName}",UniversalVersionValidator.evaluate(inaccessible,"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
+        ck("resource access failure uses static module rules ${failure.javaClass.simpleName}",UniversalVersionValidator.evaluate(inaccessible,"2.26.40.76",prefs),D.BUILTIN_RULE)
     }
     for(failure in listOf(AssertionError("controlled assertion"),OutOfMemoryError("controlled VM failure"),ThreadDeath())){
         val broken=Context("com.whatsapp",hidden.resources,mod).apply{contextFailure=failure}
@@ -66,27 +68,30 @@ fun main(args:Array<String>){
         ck("fatal or assertion error is not a rules result ${failure.javaClass.simpleName}",caught===failure,true)
     }
     for(list in listOf(emptyArray<String>(),arrayOf("bad"),arrayOf(""),arrayOf("2.26.40.xx",""),arrayOf("*.xx"))){
-        ck("invalid builtin contents not usable",UniversalVersionValidator.evaluate(module(list),"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
+        ck("invalid array uses static module rules",UniversalVersionValidator.evaluate(module(list),"2.26.40.76",prefs),D.BUILTIN_RULE)
     }
     // A future 2.26.x branch can become supported as arrays.xml changes. Keep the
     // synthetic major-zero version outside that range and test 2.26.42 above.
     for(v in listOf("2.26.35.90","0.0.0.0","9.99.1"))ck("true rejected version $v",UniversalVersionValidator.evaluate(mod,v,prefs),D.UNSUPPORTED)
     for(v in listOf(null,""," ","v"))ck("version unavailable",UniversalVersionValidator.evaluate(mod,v,prefs),D.VERSION_UNAVAILABLE)
-    val custom=Prefs().apply{values["customize_supported_versions"]=true;values["custom_supported_versions"]=setOf("2.26.40.76")}
-    ck("intentional custom permission preserved",UniversalVersionValidator.evaluate(hidden,"2.26.40.76",custom),D.CUSTOM_RULE)
-    ck("custom does not admit other versions",UniversalVersionValidator.evaluate(hidden,"2.26.40.75",custom),D.RULES_UNAVAILABLE)
+    val custom=Prefs().apply{values["customize_supported_versions"]=true;values["custom_supported_versions"]=setOf("9.99.1")}
+    ck("intentional custom permission preserved",UniversalVersionValidator.evaluate(hidden,"9.99.1",custom),D.CUSTOM_RULE)
+    ck("custom does not admit other versions",UniversalVersionValidator.evaluate(hidden,"9.99.2",custom),D.UNSUPPORTED)
+    ck("built-in rule retains precedence",UniversalVersionValidator.evaluate(hidden,"2.26.40.76",custom),D.BUILTIN_RULE)
     custom.values["customize_supported_versions"]=false
-    ck("disabled custom not auto-enabled",UniversalVersionValidator.evaluate(hidden,"2.26.40.76",custom),D.RULES_UNAVAILABLE)
+    ck("disabled custom not auto-enabled",UniversalVersionValidator.evaluate(hidden,"9.99.1",custom),D.UNSUPPORTED)
     val bypass=Prefs().apply{values["bypass_version_check"]=true}
     ck("explicit existing bypass preserved",UniversalVersionValidator.evaluate(hidden,"99.8.7",bypass),D.EXPLICIT_BYPASS)
     ck("even bypass needs version",UniversalVersionValidator.evaluate(hidden,"",bypass),D.VERSION_UNAVAILABLE)
     ck("unreadable preferences named honestly",UniversalVersionValidator.evaluate(mod,"2.26.40.76",Prefs().apply{fail=true}),D.PREFERENCES_UNAVAILABLE)
     ck("evaluating did not change preferences",prefs.values.size,0)
     val loader=VersionGuard.javaClass.classLoader
-    ck("guard rejects hidden module",VersionGuard.verifyAndGuard(hidden,loader,prefs),false)
+    ck("guard accepts only declared fallback rules",VersionGuard.verifyAndGuard(hidden,loader,prefs),true)
+    val unavailablePrefs=Prefs().apply{fail=true}
+    ck("guard pauses on unreadable settings",VersionGuard.verifyAndGuard(hidden,loader,unavailablePrefs),false)
     ck("guard forwards unavailable decision",VersionGuard.runtimeStatus(),"COMPATIBILITY_UNAVAILABLE")
     VersionGuard.onTargetActivityResumed(android.app.Activity())
-    ck("access error notice",WaexBottomSheet.lastMessage.contains("could not read its version rules"),true)
+    ck("settings access error notice",WaexBottomSheet.lastMessage.contains("compatibility settings"),true)
     ck("dialog shown once",WaexBottomSheet.shows,1)
     VersionGuard.onTargetActivityResumed(android.app.Activity());ck("no duplicate dialog",WaexBottomSheet.shows,1)
     ck("guard recovery after fresh verification",VersionGuard.verifyAndGuard(host,loader,prefs),true)
@@ -102,7 +107,7 @@ fun main(args:Array<String>){
     ck("failure notice reason",VersionGuard.noticeMessage("v",D.PREFERENCES_UNAVAILABLE).contains("compatibility settings"),true)
     ck("no missing-resource mislabel",VersionGuard.noticeMessage("2.26.40.76",D.RULES_UNAVAILABLE).contains("not match"),false)
     ck("guard logs exclude raw preferences",de.robv.android.xposed.XposedBridge.logs.any{it.contains("private value")},false)
-    VersionGuard.verifyAndGuard(hidden,loader,prefs)
+    VersionGuard.verifyAndGuard(hidden,loader,unavailablePrefs)
     WaexBottomSheet.fail=true;VersionGuard.onTargetActivityResumed(android.app.Activity())
     WaexBottomSheet.fail=false;VersionGuard.onTargetActivityResumed(android.app.Activity())
     ck("warning can recover after failed show",WaexBottomSheet.shows,2)
@@ -124,8 +129,8 @@ fun main(args:Array<String>){
     ck("compat helper preserves strict proof",hasCurrentInjection(true,7,7,123,setOf(123),10000,35000),true)
     ck("compat helper expires",hasCurrentInjection(true,7,7,123,setOf(123),10000,35001),false)
     SystemClock.time=1000
-    Root.output="PID|com.whatsapp|123 456\n\nEND|WAEX_PROCESS_SNAPSHOT"
-    val snap=XposedRuntimeInspector.inspect(listOf("com.whatsapp"))!!
+    Root.output="PID|com.whatsapp|23456|123 456\n\nEND|WAEX_PROCESS_SNAPSHOT"
+    val snap=XposedRuntimeInspector.inspect(mod, listOf("com.whatsapp"))!!
     File(args.single()).writeText(Root.lastCommand)
     ck("PID values",snap.pidsFor("com.whatsapp",1000),setOf(123,456))
     ck("missing package isn't stopped",snap.pidsFor("com.whatsapp.w4b",1000),null)
@@ -135,29 +140,52 @@ fun main(args:Array<String>){
     ck("fresh cache",XposedRuntimeInspector.cached()!=null,true)
     SystemClock.time=26001;ck("cache expires",XposedRuntimeInspector.cached(),null)
     SystemClock.time=1000
-    for(text in listOf("", "bad", "PID|com.whatsapp|123\nPID|com.whatsapp|456", "PID|com.whatsapp|0", "PID|com.whatsapp|-1", "PID|com.whatsapp|abc", "PID|com.whatsapp|2147483648", "PID|com.whatsapp|123 other", "PID|com.whatsapp;bad|123", "PID|com.whatsapp.w4b|456")){
+    for(text in listOf("", "bad", "PID|com.whatsapp|23456|123\nPID|com.whatsapp|23456|456", "PID|com.whatsapp|23456|0", "PID|com.whatsapp|23456|-1", "PID|com.whatsapp|23456|abc", "PID|com.whatsapp|23456|2147483648", "PID|com.whatsapp|23456|123 other", "PID|com.whatsapp;bad|23456|123", "PID|com.whatsapp.w4b|23456|456")){
         Root.output=text+"\nEND|WAEX_PROCESS_SNAPSHOT\n"
-        ck("incomplete or malformed probe rejected",XposedRuntimeInspector.inspect(listOf("com.whatsapp")),null)
+        ck("incomplete or malformed probe rejected",XposedRuntimeInspector.inspect(mod, listOf("com.whatsapp")),null)
         ck("failed probe clears old proof",XposedRuntimeInspector.cached(),null)
     }
-    Root.output="PID|com.whatsapp|123\nEND|WAEX_PROCESS_SNAPSHOT";XposedRuntimeInspector.inspect(listOf("com.whatsapp"))
-    Root.output=null;ck("root denied",XposedRuntimeInspector.inspect(listOf("com.whatsapp")),null)
+    Root.output="PID|com.whatsapp|23456|123\nEND|WAEX_PROCESS_SNAPSHOT";XposedRuntimeInspector.inspect(mod, listOf("com.whatsapp"))
+    Root.output=null;ck("root denied",XposedRuntimeInspector.inspect(mod, listOf("com.whatsapp")),null)
     ck("denied invalidates cached",XposedRuntimeInspector.cached(),null)
-    Root.output="PID|com.whatsapp|123\nEND|WAEX_PROCESS_SNAPSHOT";XposedRuntimeInspector.inspect(listOf("com.whatsapp"));Root.fail=true
-    ck("root exception unavailable",XposedRuntimeInspector.inspect(listOf("com.whatsapp")),null);Root.fail=false
+    Root.output="PID|com.whatsapp|23456|123\nEND|WAEX_PROCESS_SNAPSHOT";XposedRuntimeInspector.inspect(mod, listOf("com.whatsapp"));Root.fail=true
+    ck("root exception unavailable",XposedRuntimeInspector.inspect(mod, listOf("com.whatsapp")),null);Root.fail=false
     ck("exception clears cache",XposedRuntimeInspector.cached(),null)
-    Root.output="PID|com.whatsapp|\nEND|WAEX_PROCESS_SNAPSHOT"
-    ck("true absence is distinct",XposedRuntimeInspector.inspect(listOf("com.whatsapp"))!!.pidsFor("com.whatsapp",1000),emptySet<Int>())
-    Root.output="PID|com.whatsapp|123\nEND|WAEX_PROCESS_SNAPSHOT";val calls=Root.calls
-    ck("invalid package refused",XposedRuntimeInspector.inspect(listOf("com.whatsapp;id")),null)
+    Root.output="PID|com.whatsapp|23456|\nEND|WAEX_PROCESS_SNAPSHOT"
+    ck("true absence is distinct",XposedRuntimeInspector.inspect(mod, listOf("com.whatsapp"))!!.pidsFor("com.whatsapp",1000),emptySet<Int>())
+    Root.output="PID|com.whatsapp|23456|123\nEND|WAEX_PROCESS_SNAPSHOT";val calls=Root.calls
+    ck("invalid package refused",XposedRuntimeInspector.inspect(mod, listOf("com.whatsapp;id")),null)
     ck("invalid input never reaches shell",Root.calls,calls)
-    ck("partial report refuses multiple packages",XposedRuntimeInspector.inspect(listOf("com.whatsapp","com.whatsapp.w4b")),null)
-    Root.output="PID|com.whatsapp|123\nPID|com.whatsapp.w4b|456\nEND|WAEX_PROCESS_SNAPSHOT"
-    ck("both identities present",XposedRuntimeInspector.inspect(listOf("com.whatsapp","com.whatsapp.w4b"))!!.runningPids.size,2)
+    ck("partial report refuses multiple packages",XposedRuntimeInspector.inspect(mod, listOf("com.whatsapp","com.whatsapp.w4b")),null)
+    Root.output="PID|com.whatsapp|23456|123\nPID|com.whatsapp.w4b|23456|456\nEND|WAEX_PROCESS_SNAPSHOT"
+    ck("both identities present",XposedRuntimeInspector.inspect(mod, listOf("com.whatsapp","com.whatsapp.w4b"))!!.runningPids.size,2)
     var immutable=false
     try{(snap.runningPids as MutableMap).clear()}catch(_:UnsupportedOperationException){immutable=true}
     ck("observations immutable",immutable,true)
-    ck("empty request neutral",XposedRuntimeInspector.inspect(emptyList())!!.runningPids.size,0)
+    ck("empty request neutral",XposedRuntimeInspector.inspect(mod, emptyList())!!.runningPids.size,0)
+    val beforeRejectedScope=Root.calls
+    mod.applicationInfo.uid=1012345
+    mod.packageManager.uid=1023456
+    Root.output="PID|com.whatsapp|1023456|123\nEND|WAEX_PROCESS_SNAPSHOT"
+    ck("foreign manager context is refused",XposedRuntimeInspector.inspect(mod,listOf("com.whatsapp")),null)
+    ck("foreign context never reaches root",Root.calls,beforeRejectedScope)
+    android.os.Process.uid=1012345
+    mod.packageManager.uid=23456
+    ck("foreign package UID is refused",XposedRuntimeInspector.inspect(mod,listOf("com.whatsapp")),null)
+    ck("foreign package never reaches root",Root.calls,beforeRejectedScope)
+    mod.packageManager.uid=1023456
+    Root.output="PID|com.whatsapp|1023456|123\nEND|WAEX_PROCESS_SNAPSHOT"
+    ck("same profile exact UID is accepted",XposedRuntimeInspector.inspect(mod,listOf("com.whatsapp"))?.pidsFor("com.whatsapp",1000),setOf(123))
+    Root.output="PID|com.whatsapp|23456|123\nEND|WAEX_PROCESS_SNAPSHOT"
+    ck("foreign returned UID cannot be evidence",XposedRuntimeInspector.inspect(mod,listOf("com.whatsapp")),null)
+    ck("foreign result clears cached proof",XposedRuntimeInspector.cached(),null)
+    mod.packageManager.wrongPackage=true
+    val wrongPackageCalls=Root.calls
+    ck("mismatched package metadata is refused",XposedRuntimeInspector.inspect(mod,listOf("com.whatsapp")),null)
+    ck("mismatched metadata never reaches root",Root.calls,wrongPackageCalls)
+    mod.packageManager.wrongPackage=false;mod.packageManager.fail=true
+    ck("missing package metadata is unknown",XposedRuntimeInspector.inspect(mod,listOf("com.whatsapp")),null)
+    mod.packageManager.fail=false;mod.applicationInfo.uid=12345;mod.packageManager.uid=23456;android.os.Process.uid=12345
     val app=HookedAppInfo("com.whatsapp","WhatsApp","2.26.40.76",true,true,lastActiveTime=10000,runtimeStatus="READY",bridgeStatus="PROVIDER",processObservedAtElapsed=1000)
     fun card(a:HookedAppInfo,d:D=D.BUILTIN_RULE)=TargetRuntimePresentation.card(a,true,d)
     ck("current complete",card(app).severity,S.OK)
@@ -191,19 +219,19 @@ fun main(args:Array<String>){
 
     // Complete-looking final PID tokens are not completion evidence without the sentinel.
     Root.fail=false;Root.advance=0;SystemClock.time=1000
-    Root.output="PID|com.whatsapp|42\nEND|WAEX_PROCESS_SNAPSHOT\n"
-    ck("finished probe accepted",XposedRuntimeInspector.inspect(listOf("com.whatsapp"))!=null,true)
-    Root.output="PID|com.whatsapp|42"
-    ck("missing terminal record is unknown",XposedRuntimeInspector.inspect(listOf("com.whatsapp")),null)
+    Root.output="PID|com.whatsapp|23456|42\nEND|WAEX_PROCESS_SNAPSHOT\n"
+    ck("finished probe accepted",XposedRuntimeInspector.inspect(mod, listOf("com.whatsapp"))!=null,true)
+    Root.output="PID|com.whatsapp|23456|42"
+    ck("missing terminal record is unknown",XposedRuntimeInspector.inspect(mod, listOf("com.whatsapp")),null)
     ck("truncated new probe removes cached proof",XposedRuntimeInspector.cached(),null)
-    Root.output="PID|com.whatsapp|42\nEND|WAEX_PROCESS_SNAPSHOT\n"
+    Root.output="PID|com.whatsapp|23456|42\nEND|WAEX_PROCESS_SNAPSHOT\n"
     Root.advance=4000
-    val slow=XposedRuntimeInspector.inspect(listOf("com.whatsapp"))!!
+    val slow=XposedRuntimeInspector.inspect(mod, listOf("com.whatsapp"))!!
     ck("probe age starts before command",slow.observedAtElapsed,1000L)
     SystemClock.time=26001
     ck("slow probe cannot extend validity",XposedRuntimeInspector.cached(),null)
     SystemClock.time=1000;Root.advance=25001
-    ck("probe expiring during collection rejected",XposedRuntimeInspector.inspect(listOf("com.whatsapp")),null)
+    ck("probe expiring during collection rejected",XposedRuntimeInspector.inspect(mod, listOf("com.whatsapp")),null)
     SystemClock.time=1000;Root.advance=0
     ck("custom allowance card is not verified",TargetRuntimePresentation.card(app,true,D.CUSTOM_RULE).severity,S.REVIEW)
     ck("custom allowance summary not verified",sum(listOf(app),D.CUSTOM_RULE).healthy,false)

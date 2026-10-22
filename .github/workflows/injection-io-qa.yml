@@ -1,0 +1,60 @@
+name: Injection diagnostics and authoritative preference ordering
+
+on:
+  push:
+    branches: [main, 'integration/preview-current-main-*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Require and exercise complete public startup and preference classes
+        shell: bash
+        run: |
+          set -euo pipefail
+          kotlinc -version
+          test -f app/src/main/java/com/waenhancer/xposed/core/RuntimeReportDispatcher.java
+          test -f app/src/main/java/com/waenhancer/config/PreferenceSyncPolicy.java
+          mkdir -p "$RUNNER_TEMP/waex-injection-io"
+          python3 qa/test_runtime_report_queue.py | tee "$RUNNER_TEMP/waex-injection-io/queue.log"
+          python3 qa/test_injection_io_runtime.py --out "$RUNNER_TEMP/waex-injection-io/startup"
+          python3 qa/test_preference_sync_runtime.py --out "$RUNNER_TEMP/waex-injection-io/preferences"
+          python3 qa/mutate_injection_io.py --out "$RUNNER_TEMP/waex-injection-io/startup-mutations"
+          python3 qa/mutate_preference_sync.py --out "$RUNNER_TEMP/waex-injection-io/preference-mutations"
+          python3 qa/test_bridge_contract.py
+          python3 qa/test_bridge_ordering.py
+          python3 qa/test_provider_scope.py
+          python3 qa/test_provider_derived_keys.py
+          python3 qa/test_startup_reconciliation.py
+      - name: Preserve source identities and execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: waex-injection-io-evidence
+          path: |
+            ${{ runner.temp }}/waex-injection-io/**/*.json
+            ${{ runner.temp }}/waex-injection-io/**/*.log
+          if-no-files-found: error
+          retention-days: 14

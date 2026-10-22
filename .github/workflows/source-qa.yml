@@ -365,3 +365,41 @@ jobs:
           path: ${{ runner.temp }}/waex-stability/*/evidence
           retention-days: 14
           if-no-files-found: error
+
+  runtime-profile-framework:
+    name: Runtime process identity / Android API 24, 28 and 34
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify bounded dependency recovery and complete profile inspector
+        shell: bash
+        run: |
+          set -euo pipefail
+          kotlinc -version
+          mvn -version
+          python3 qa/test_maven_dependencies.py --out "$RUNNER_TEMP/waex-runtime-dependencies"
+          python3 qa/android_runtime_profile_test.py --out "$RUNNER_TEMP/waex-runtime-profile" --maven-repo "$RUNNER_TEMP/waex-runtime-profile-m2"
+      - name: Preserve source identities and Android profile results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-profile-framework-evidence
+          path: |
+            ${{ runner.temp }}/waex-runtime-profile/*.json
+            ${{ runner.temp }}/waex-runtime-profile/*.log
+            ${{ runner.temp }}/waex-runtime-dependencies/*.json
+            ${{ runner.temp }}/waex-runtime-dependencies/test_*/*.json
+            ${{ runner.temp }}/waex-runtime-dependencies/test_*/*.log
+          retention-days: 14
+          if-no-files-found: error

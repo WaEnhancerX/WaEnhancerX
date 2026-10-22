@@ -13,6 +13,8 @@ public final class TestProviderDerivedKeyPolicy {
             "hooked_whatsapp_packages", "injected_hooks_com.whatsapp",
             "injected_hooks_time_com.whatsapp", "last_active_com.whatsapp",
             "runtime_boot_com.whatsapp", "runtime_status_com.whatsapp",
+            "runtime_pid_com.whatsapp", "runtime_pid_com.whatsapp.w4b",
+            "runtime_pid_com.example.clone", "runtime_pid_",
             "runtime_error_com.whatsapp", "bridge_status_com.whatsapp",
             "active_xposed_api_version"
         }) check(!ProviderDerivedKeyPolicy.allowsGenericWrite(key), "protected key accepted: " + key);

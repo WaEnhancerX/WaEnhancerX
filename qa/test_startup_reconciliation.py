@@ -33,7 +33,7 @@ C={
  'active framework recorder': 'active_xposed_framework' in main and 'detectActiveFramework()' in main,
  'signed restart': 'appContext.registerReceiver(receiver, filter, RESTART_PERMISSION' in main,
  'exact restart match': 'packageName.equals(pkg)' in main,
- 'live preferences': 'com.waenhancer.action.PREFERENCES_CHANGED' in main and 'bridgeClient.syncPreferences();' in main,
+ 'live preferences': 'com.waenhancer.action.PREFERENCES_CHANGED' in main and 'bridgeClient.requestRefresh();' in main,
  'restart prompt isolated': 'RestartPromptController.initialize(bridgeClient);' in main and 'Restart prompt setup failed:' in main,
  'update sheet isolated': 'WhatsAppUpdateSheet.init(bridgeClient);' in main and 'WhatsApp update-sheet setup failed:' in main,
  'injection toast isolated': 'showInjectionToastOnFirstVisibleActivity();' in main and 'Injection toast unavailable:' in main,
