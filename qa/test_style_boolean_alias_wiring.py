@@ -16,7 +16,10 @@ for key in ('segundos', 'novaconfig', 'igstatus', 'verify_blocked_contact'):
 assert 'StyleBooleanAliasPolicy.canonicalKey(key)' in styles
 assert 'preferenceManager.getBoolean(canonicalKey, legacyDefault)' in styles
 assert 'preferenceManager.putBooleans(changes)' in styles
-assert 'mapOf(canonicalKey to value, "voice_status_enhancement" to value)' in styles
+assert 'val changes = mapOf(canonicalKey to value)' in styles
+# Upstream moved the audio-status route out of Styles; its media settings remain separate.
+styles_keys = styles.split("val stylesKeys = remember {", 1)[1].split("val settingsState", 1)[0]
+assert '"send_audio_as_voice_status"' not in styles_keys
 assert 'settingsState[key] = preferenceManager.getBoolean(canonicalKey, value)' in styles
 assert 'Unable to save setting' in styles
 assert 'preferenceManager.putBoolean(StyleBooleanAliasPolicy.canonicalKey(key), value)' not in styles

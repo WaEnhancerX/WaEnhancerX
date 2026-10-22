@@ -143,6 +143,7 @@ public final class CallRecordingHook extends BaseFeature {
             }));
             prefs.registerOnSharedPreferenceChangeListener(enabledListener);
             ready.set(true);
+            logDiagnostic("hooks installed; enabled=" + isEnabled(ENABLED, false));
         } catch (RuntimeException | LinkageError failure) {
             // A failed attempt never becomes active, even if removing a callback fails.
             for (int index = registered.size() - 1; index >= 0; index--) {
@@ -245,6 +246,7 @@ public final class CallRecordingHook extends BaseFeature {
     private synchronized void startRecorder(Session expected) {
         if (!canRecord(expected)) return;
         if (!recording.compareAndSet(false, true)) return;
+        boolean started = false;
         try {
             RecordingFormat format = RecordingFormat.from(prefs.getString("call_recording_format", "m4a"));
             String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
@@ -261,7 +263,10 @@ public final class CallRecordingHook extends BaseFeature {
             if (destination == null) throw new IllegalStateException("Could not open output file");
 
             boolean preferCallAudio = prefs.getBoolean("call_recording_use_root", false);
-            int[] sources = preferCallAudio
+            boolean allowMicrophoneFallback = prefs.getBoolean("call_recording_allow_mic_fallback", true);
+            int[] sources = preferCallAudio && !allowMicrophoneFallback
+                    ? new int[]{MediaRecorder.AudioSource.VOICE_CALL}
+                    : preferCallAudio
                     ? new int[]{MediaRecorder.AudioSource.VOICE_CALL,
                     MediaRecorder.AudioSource.VOICE_COMMUNICATION, MediaRecorder.AudioSource.MIC}
                     : new int[]{MediaRecorder.AudioSource.VOICE_COMMUNICATION,
@@ -271,21 +276,59 @@ public final class CallRecordingHook extends BaseFeature {
                 if (!canRecord(expected)) throw new RecordingCancelledException();
                 try {
                     recorder = createRecorder(source, destination.getFileDescriptor(), format, expected);
+                    started = true;
+                    logAudioSource(expected, source, sources[0], null);
                     return;
                 } catch (RecordingCancelledException cancelled) {
                     throw cancelled;
-                } catch (Throwable failure) {
+                } catch (Exception | LinkageError failure) {
                     lastError = failure;
                     releaseRecorder(false);
+                    logAudioSource(expected, source, sources[0], failure);
                 }
             }
             throw new IllegalStateException("No supported audio source", lastError);
-        } catch (Throwable failure) {
+        } catch (Exception | LinkageError failure) {
             if (!(failure instanceof RecordingCancelledException)) {
-                XposedBridge.log(TAG + " start failed: " + failure.getClass().getSimpleName());
+                logOnce(expected, 64, "start failed: " + failure.getClass().getSimpleName());
             }
-            recording.set(false);
-            closeDestination(true);
+        } finally {
+            // Fatal VM errors still release the destination and propagate to the worker.
+            if (!started) {
+                recording.set(false);
+                closeDestination(true);
+            }
+        }
+    }
+
+    /** At most one success and one failure per source, plus one start failure per call. */
+    private void logAudioSource(Session expected, int source, int preferredSource, Throwable failure) {
+        int index = source == MediaRecorder.AudioSource.VOICE_CALL ? 0
+                : source == MediaRecorder.AudioSource.VOICE_COMMUNICATION ? 1 : 2;
+        int flag = 1 << (index + (failure == null ? 3 : 0));
+        String sourceName = source == MediaRecorder.AudioSource.VOICE_CALL ? "VOICE_CALL"
+                : source == MediaRecorder.AudioSource.VOICE_COMMUNICATION ? "VOICE_COMMUNICATION" : "MIC";
+        String result = failure == null
+                ? "started; source=" + sourceName + "; fallback=" + (source != preferredSource)
+                    + "; remote_audio=unverified"
+                : "source failed; source=" + sourceName + "; error=" + failure.getClass().getSimpleName();
+        logOnce(expected, flag, result);
+    }
+
+    private void logOnce(Session expected, int flag, String message) {
+        synchronized (sessionLock) {
+            if ((expected.diagnostics & flag) != 0) return;
+            expected.diagnostics |= flag;
+        }
+        // No call identity, contact, output path, exception message or audio enters this log.
+        logDiagnostic(message);
+    }
+
+    private static void logDiagnostic(String message) {
+        try {
+            XposedBridge.log(TAG + " " + message);
+        } catch (RuntimeException | LinkageError ignored) {
+            // A diagnostic sink failure must not release a working source or trigger fallback.
         }
     }
 
@@ -387,6 +430,7 @@ public final class CallRecordingHook extends BaseFeature {
     private static final class Session {
         final WeakReference<Object> owner;
         final String callId;
+        int diagnostics;
 
         Session(Object owner, String callId) {
             this.owner = new WeakReference<>(owner);

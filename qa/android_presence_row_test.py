@@ -141,7 +141,8 @@ def main():
         if not shutil.which(tool): raise RuntimeError('Required tool missing: '+tool)
     (args.out/'pom.xml').write_text(POM)
     deps=args.out/'deps'; deps.mkdir(exist_ok=True)
-    run(['mvn','-B','-f',str(args.out/'pom.xml'),'org.apache.maven.plugins:maven-dependency-plugin:3.8.1:copy-dependencies',
+    from maven_dependencies import resolve_dependencies
+    resolve_dependencies(['mvn','-B','-f',str(args.out/'pom.xml'),'org.apache.maven.plugins:maven-dependency-plugin:3.8.1:copy-dependencies',
          '-DoutputDirectory='+str(deps)],args.out/'dependencies.log',timeout=600)
     for archive in deps.glob('*.aar'):
         with zipfile.ZipFile(archive) as z:

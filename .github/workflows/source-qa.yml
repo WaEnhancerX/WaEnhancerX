@@ -49,6 +49,26 @@ jobs:
           fi
           kotlinc -version
 
+      - name: Verify bounded Maven dependency recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_maven_dependencies.py --out "$RUNNER_TEMP/waex-maven-recovery"
+
+      - name: Upload Maven dependency recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maven-dependency-recovery-evidence
+          path: |
+            ${{ runner.temp }}/waex-maven-recovery/result.json
+            ${{ runner.temp }}/waex-maven-recovery/test_*/*.log
+            ${{ runner.temp }}/waex-maven-recovery/test_*/*retry.json
+            ${{ runner.temp }}/waex-maven-recovery/test_*/calls.jsonl
+            ${{ runner.temp }}/waex-maven-recovery/test_*/config.json
+          retention-days: 14
+          if-no-files-found: error
+
       - name: Parse all production Java and Kotlin files (no Android SDK)
         shell: bash
         run: |
@@ -73,18 +93,53 @@ jobs:
             qa/test_media_preference_sync.py
             qa/test_dnd_preference_policy.py
             qa/test_dex_negative_cache.py
+            qa/test_android24_compatibility.py
             qa/test_restart_safety.py
             qa/test_hook_return_types.py
             qa/test_monet_wiring.py
             qa/test_catalog_source.py
             qa/test_catalog_apk.py
             qa/test_catalog_resource_keep.py
+            qa/test_edit_history_identity.py
+            qa/test_edit_history_adapter_binding.py
+            qa/test_edit_history_diff_budget.py
           )
           for test_script in "${tests[@]}"; do
             echo "::group::$test_script"
             python3 "$test_script"
             echo '::endgroup::'
           done
+
+      - name: Verify public Spanish Latin America resources and runtime lookup
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f qa/localization_support.py
+          test -f qa/test_es419_localization.py
+          test -f qa/test_es419_runtime.py
+          python3 qa/test_es419_localization.py
+          python3 qa/test_es419_runtime.py
+
+      - name: Verify exact and alternate call-ending event contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_call_recording_event_contract.py --out "$RUNNER_TEMP/call-ending-contract-qa"
+          python3 qa/test_call_recording_lifecycle.py --host-variant typed-ending --out "$RUNNER_TEMP/call-recording-typed-qa"
+
+      - name: Upload call-ending contract evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: call-ending-contract-evidence
+          path: |
+            ${{ runner.temp }}/call-ending-contract-qa/result.json
+            ${{ runner.temp }}/call-ending-contract-qa/**/compile*.log
+            ${{ runner.temp }}/call-ending-contract-qa/**/behavior.log
+            ${{ runner.temp }}/call-recording-typed-qa/source-identity.json
+            ${{ runner.temp }}/call-recording-typed-qa/*.log
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Require tests for merged runtime and resource contracts
         shell: bash
@@ -102,6 +157,10 @@ jobs:
           if grep -q 'updateAndGetTransition(' "$store"; then
             test -f qa/test_presence_invalidation.py
             test -f qa/test_presence_state_invalidation.py
+          fi
+          if [[ -f app/src/main/java/com/waenhancer/xposed/features/automation/PresenceToastsHook.java ]]; then
+            test -f qa/test_receipt_observation.py
+            test -f qa/fixtures/receipt_observation/ReceiptObservationFixture.java.in
           fi
           if grep -q 'putPublicString("seentick", nextPlacement)' "$ui"; then
             test -f qa/test_manual_seen_tick_persistence.py
@@ -136,6 +195,10 @@ jobs:
           if grep -q 'release failed:' app/src/main/java/com/waenhancer/xposed/features/media/CallRecordingHook.java; then
             test -f qa/test_recorder_cleanup.py
           fi
+          if [[ -f app/src/main/java/com/waenhancer/xposed/features/media/CallRecordingEventContract.java ]]; then
+            test -f qa/test_call_recording_lifecycle.py
+            test -f qa/fixtures/CallRecordingLifecycleChecks.java
+          fi
 
       - name: Require regression tests for scoped export and identity changes
         shell: bash
@@ -168,8 +231,10 @@ jobs:
             qa/test_backup_alias_policy.py \
             qa/test_settings_backup_binary_roundtrip.py \
             qa/test_settings_backup_json.py \
+            qa/test_aosp_json_source_fetch.py \
             qa/test_feature_preference_schema_coverage.py \
             qa/test_catalog_schema_alias_contract.py \
+            qa/test_slovenian_locale.py \
             qa/test_style_boolean_alias_wiring.py \
             qa/test_style_non_boolean_guard.py \
             qa/test_private_hook_logs.py \
@@ -180,12 +245,15 @@ jobs:
             qa/test_manual_blue_tick_ui.py \
             qa/test_manual_seen_tick_persistence.py \
             qa/test_receipt_job_execution_contract.py \
+            qa/test_selected_upstream_hardening.py \
             qa/test_played_receipt_dispatch_contract.py \
+            qa/test_receipt_observation.py \
             qa/test_presence_event_contract.py \
             qa/test_presence_state_replay.py \
             qa/test_presence_invalidation.py \
             qa/test_presence_state_invalidation.py \
             qa/test_archived_chats_entry.py \
+            qa/test_deleted_indicator_bridge.py \
             qa/test_deleted_indicator_preference_types.py \
             qa/test_proximity_event_isolation.py \
             qa/test_proximity_ui_wiring.py \
@@ -204,6 +272,7 @@ jobs:
             qa/test_runtime_observation_clock.py \
             qa/test_filter_work.py \
             qa/test_recorder_cleanup.py \
+            qa/test_call_recording_lifecycle.py \
             qa/test_gallery_export.py \
             qa/test_contact_identity.py \
             qa/test_db_migrations.py; do
@@ -363,5 +432,43 @@ jobs:
         with:
           name: stability-framework-evidence
           path: ${{ runner.temp }}/waex-stability/*/evidence
+          retention-days: 14
+          if-no-files-found: error
+
+  call-recording-audio-framework:
+    name: Call recording / explicit microphone fallback and source diagnostics
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Require complete recorder and preference regression fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          kotlinc -version
+          mvn -version
+          test -f qa/android_call_recording_audio_test.py
+          test -f qa/fixtures/CallRecordingAudioAndroidTest.java
+          test -f qa/maven_dependencies.py
+      - name: Exercise 78 call audio and persistence cases on Android API 24, 28 and 34
+        run: python3 qa/android_call_recording_audio_test.py --out "$RUNNER_TEMP/waex-call-recording-audio"
+      - name: Preserve source identities, dependency hashes and Android results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: call-recording-audio-framework-evidence
+          path: |
+            ${{ runner.temp }}/waex-call-recording-audio/*.json
+            ${{ runner.temp }}/waex-call-recording-audio/*.log
           retention-days: 14
           if-no-files-found: error

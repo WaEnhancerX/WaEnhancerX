@@ -11,6 +11,7 @@ import com.whatsapp.infra.core.jid.UserJid;
 import de.robv.android.xposed.XposedBridge;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -107,7 +108,24 @@ public class CallRecordingLifecycleChecks {
             XposedBridge.fire(host,"fieldstatsReady",new Class<?>[]{WamCall.class,UserJid.class,boolean.class,boolean.class},new WamCall(),new UserJid(),last,realtime);
         }
         void ending() throws Throwable {
-            XposedBridge.fire(host,"callEnding",new Class<?>[]{CallLogInfo.class,int.class,String.class,String.class},new CallLogInfo(),0,"private time-series path","private log path");
+            Method event = null;
+            for (var entry : XposedBridge.hooks.entrySet()) {
+                if (!"callEnding".equals(entry.getKey().getName()) || entry.getValue().isEmpty()) continue;
+                if (event != null) throw new AssertionError("Multiple ending events were installed");
+                event = entry.getKey();
+            }
+            if (event == null) throw new AssertionError("No ending event was installed");
+            Class<?>[] types = event.getParameterTypes();
+            Object[] arguments = new Object[types.length];
+            for (int index = 0; index < types.length; index++) {
+                if (types[index] == CallLogInfo.class) arguments[index] = new CallLogInfo();
+                else if (types[index] == int.class) arguments[index] = 0;
+                else if (types[index] == long.class) arguments[index] = 0L;
+                else if (types[index] == boolean.class) arguments[index] = true;
+                else if (types[index] == String.class) arguments[index] = "private event detail";
+                else throw new AssertionError("Ending fixture has an unspecified argument type");
+            }
+            XposedBridge.fire(host,"callEnding",types,arguments);
         }
         public void close() { scheduler.shutdownNow();MediaRecorder.prepareRelease=null;MediaRecorder.prepareEntered=null; }
     }
