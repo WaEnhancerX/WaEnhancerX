@@ -312,6 +312,37 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
+  interface-scale-framework:
+    name: Interface size / complete theme / Android density and font scale
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Require whole-theme scaling and accessibility regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f qa/fixtures/InterfaceScaleThemeTest.kt
+          python3 qa/verify_interface_scale_framework.py --out "$RUNNER_TEMP/waex-interface-scale"
+      - name: Preserve source identities, dependency hashes and framework results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: interface-scale-framework-evidence
+          path: ${{ runner.temp }}/waex-interface-scale/evidence
+          retention-days: 14
+          if-no-files-found: error
+
   stability-framework:
     name: Stability / real Android Views and Compose runtime
     runs-on: ubuntu-24.04

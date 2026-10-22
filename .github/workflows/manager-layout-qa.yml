@@ -1,0 +1,109 @@
+name: Manager translated labels and large-text layout
+
+on:
+  push:
+    branches: [main, 'integration/preview-current-main-*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install and verify the project Kotlin 2.0.20 compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/waex-manager-layout-toolchain" "$RUNNER_TEMP/waex-manager-layout" <<'PYKOTLIN'
+          import hashlib, io, json, os, stat, subprocess, sys, urllib.request, zipfile
+          from pathlib import Path, PurePosixPath
+          destination, evidence = map(Path, sys.argv[1:])
+          evidence.mkdir(parents=True, exist_ok=True)
+          url = 'https://github.com/JetBrains/kotlin/releases/download/v2.0.20/kotlin-compiler-2.0.20.zip'
+          expected = '5f5d2a8ad6a718a002acd0775b67a9e27035872fdbd4b0791e3cb3ea00095931'
+          archive_limit, expanded_limit = 128 * 1024 * 1024, 384 * 1024 * 1024
+          with urllib.request.urlopen(url, timeout=45) as response:
+              archive = response.read(archive_limit + 1)
+          if len(archive) > archive_limit or hashlib.sha256(archive).hexdigest() != expected:
+              raise RuntimeError('Kotlin compiler archive size or SHA-256 mismatch')
+          destination.mkdir(parents=True, exist_ok=False)
+          with zipfile.ZipFile(io.BytesIO(archive)) as bundle:
+              members = bundle.infolist()
+              if len(members) > 4096 or sum(item.file_size for item in members) > expanded_limit:
+                  raise RuntimeError('Kotlin compiler expansion exceeds the bounded distribution size')
+              seen = set()
+              for item in members:
+                  relative = PurePosixPath(item.filename)
+                  mode = item.external_attr >> 16
+                  if (relative.is_absolute() or '..' in relative.parts or not relative.parts
+                          or relative.parts[0] != 'kotlinc' or '\\' in item.filename
+                          or item.file_size > archive_limit or item.flag_bits & 1
+                          or stat.S_IFMT(mode) not in (0, stat.S_IFREG, stat.S_IFDIR)
+                          or relative in seen):
+                      raise RuntimeError('Unsafe or duplicate Kotlin archive member: ' + item.filename)
+                  seen.add(relative)
+              for item in members:
+                  relative = PurePosixPath(item.filename)
+                  target = destination.joinpath(*relative.parts)
+                  if item.is_dir():
+                      target.mkdir(parents=True, exist_ok=True)
+                  else:
+                      target.parent.mkdir(parents=True, exist_ok=True)
+                      data = bundle.read(item)
+                      if len(data) != item.file_size:
+                          raise RuntimeError('Kotlin archive entry size mismatch')
+                      with target.open('xb') as output:
+                          output.write(data)
+                      target.chmod(0o755 if relative.parts[:2] == ('kotlinc', 'bin') else 0o644)
+          kotlin_home = (destination / 'kotlinc').resolve()
+          compiler = kotlin_home / 'bin/kotlinc'
+          version = subprocess.run([str(compiler), '-version'], text=True,
+              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True, timeout=30).stdout
+          if 'kotlinc-jvm 2.0.20 ' not in version:
+              raise RuntimeError('The compiler must be exactly Kotlin 2.0.20: ' + version)
+          (evidence / 'kotlin-version.log').write_text(version)
+          (evidence / 'toolchain.json').write_text(json.dumps({'url': url, 'sha256': expected,
+              'bytes': len(archive), 'kotlin_version': '2.0.20', 'compiler': str(compiler)}, indent=2) + '\n')
+          with Path(os.environ['GITHUB_ENV']).open('a') as environment:
+              environment.write('KOTLIN_HOME=' + str(kotlin_home) + '\n')
+          with Path(os.environ['GITHUB_PATH']).open('a') as path_file:
+              path_file.write(str(kotlin_home / 'bin') + '\n')
+          PYKOTLIN
+      - name: Measure production layout fragments with actual Compose and native text
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(command -v kotlinc)" = "$KOTLIN_HOME/bin/kotlinc"
+          test -f qa/android_media_preview_test.py
+          test -f qa/maven_dependencies.py
+          python3 qa/android_manager_layout_test.py --out "$RUNNER_TEMP/waex-manager-layout/run"
+      - name: Preserve source identities and execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: waex-manager-layout-evidence
+          path: |
+            ${{ runner.temp }}/waex-manager-layout/**/*.json
+            ${{ runner.temp }}/waex-manager-layout/**/*.log
+          if-no-files-found: error
+          retention-days: 14
