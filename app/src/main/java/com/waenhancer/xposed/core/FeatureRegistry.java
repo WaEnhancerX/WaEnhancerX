@@ -48,6 +48,7 @@ import com.waenhancer.xposed.features.privacy.AntiViewOnceHook;
 import com.waenhancer.xposed.features.privacy.AutoNextStatusHook;
 import com.waenhancer.xposed.features.privacy.BlueOnReplyHook;
 import com.waenhancer.xposed.features.privacy.CallPrivacyHook;
+import com.waenhancer.xposed.features.privacy.CallTypeControllerHook;
 import com.waenhancer.xposed.features.privacy.CustomPrivacyHook;
 import com.waenhancer.xposed.features.privacy.DndModeHook;
 import com.waenhancer.xposed.features.privacy.FreezeLastSeenHook;
@@ -141,6 +142,7 @@ public final class FeatureRegistry {
         addFeature(HideReceiptsHook.class, "Privacy", () -> new HideReceiptsHook(context, classLoader, prefs));
         addFeature(BlueOnReplyHook.class, "Privacy", () -> new BlueOnReplyHook(context, classLoader, prefs));
         addFeature(CallPrivacyHook.class, "Privacy", () -> new CallPrivacyHook(context, classLoader, prefs));
+        addFeature(CallTypeControllerHook.class, "Privacy", () -> new CallTypeControllerHook(context, classLoader, prefs));
         addFeature(AntiRevokeHook.class, "Privacy", () -> new AntiRevokeHook(context, classLoader, prefs));
         addFeature(HideForwardedTagHook.class, "Privacy", () -> new HideForwardedTagHook(context, classLoader, prefs));
         addFeature(CustomPrivacyHook.class, "Privacy", () -> new CustomPrivacyHook(context, classLoader, prefs));

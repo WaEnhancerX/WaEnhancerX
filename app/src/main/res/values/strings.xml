@@ -206,6 +206,11 @@
     <string name="feat_group_admin_tools_desc">Show an admin icon next to the name of the user who is the group admin</string>
     <string name="feat_call_type_controller_title">Enable selection of call type</string>
     <string name="feat_call_type_controller_desc">Show an option to select whether you want a call via phone or WhatsApp</string>
+    <string name="call_type_dialog_title">Choose call type</string>
+    <string name="call_type_dialog_message">Call %1$s using:</string>
+    <string name="call_type_phone">Phone</string>
+    <string name="call_type_dialer_unavailable">A phone app could not be opened. You can choose WhatsApp or cancel.</string>
+    <string name="call_type_whatsapp_failed">The WhatsApp call could not be started.</string>
     <string name="feat_status_text_composer_title">Custom colors for text status</string>
     <string name="feat_status_text_composer_desc">Press and hold on the color selector in the status to customize it</string>
     <string name="feat_status_downloader_title">Download and Share Status</string>

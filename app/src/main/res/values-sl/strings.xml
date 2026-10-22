@@ -198,6 +198,11 @@
     <string name="feat_group_admin_tools_desc">Prikazovanje ikone skrbnika poleg imena uporabnika, ki je skrbnik skupine</string>
     <string name="feat_call_type_controller_title">Omogoči izbiro vrste klica</string>
     <string name="feat_call_type_controller_desc">Prikazovanje možnosti izbire, ali želiš klic prek telefona ali WhatsApp-a</string>
+    <string name="call_type_dialog_title">Izberi vrsto klica</string>
+    <string name="call_type_dialog_message">Pokliči %1$s prek:</string>
+    <string name="call_type_phone">Telefon</string>
+    <string name="call_type_dialer_unavailable">Telefonske aplikacije ni bilo mogoče odpreti. Izbereš lahko WhatsApp ali prekličeš.</string>
+    <string name="call_type_whatsapp_failed">Klica prek WhatsAppa ni bilo mogoče začeti.</string>
     <string name="feat_status_text_composer_title">Prilagojene barve za besedilni status</string>
     <string name="feat_status_text_composer_desc">Za prilagajanje statusa, pritisni in drži na izbirnik barv</string>
     <string name="feat_status_downloader_title">Prenesi in deli status</string>

@@ -19,6 +19,7 @@ These checks are **diagnostics**, not evidence that WhatsApp hooks are working. 
 | `test_hook_return_types.py` | Python 3 and JDK | Hook return/parameter contract checks |
 | `test_host_class_relocations.py` | Python 3 and a **locally supplied** WhatsApp APK | Exact host class definitions for a known version (expected to change across WhatsApp releases) |
 | `test_monet_wiring.py` | Python 3 | Source-level dynamic-theme wiring, not UI instrumentation |
+| `android_call_type_test.py` | JDK, Kotlin, Python 3 and Maven; public dependencies bootstrap automatically | Complete phone/WhatsApp selector and installer on Android 24/28/34 with explicit host/Xposed fixtures; see `CALL_TYPE_ACCEPTANCE.md` |
 
 Other tests introduced by still-open PRs are not part of upstream `main` until merged. Do not assume that unmerged scripts are available from this branch.
 

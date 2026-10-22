@@ -197,6 +197,11 @@
     <string name="feat_group_admin_tools_desc">"Agrega un icono junto al nombre de quien administra el grupo"</string>
     <string name="feat_call_type_controller_title">"Elegir el tipo de llamada"</string>
     <string name="feat_call_type_controller_desc">"Permite elegir entre una llamada telefónica y una llamada de WhatsApp"</string>
+    <string name="call_type_dialog_title">Elegir el tipo de llamada</string>
+    <string name="call_type_dialog_message">Llamar a %1$s mediante:</string>
+    <string name="call_type_phone">Teléfono</string>
+    <string name="call_type_dialer_unavailable">No se pudo abrir una aplicación de teléfono. Puedes elegir WhatsApp o cancelar.</string>
+    <string name="call_type_whatsapp_failed">No se pudo iniciar la llamada de WhatsApp.</string>
     <string name="feat_status_text_composer_title">"Colores personalizados para estados de texto"</string>
     <string name="feat_status_text_composer_desc">"Mantén presionado el selector de color del estado para personalizarlo"</string>
     <string name="feat_status_downloader_title">"Descargar y compartir estados"</string>
