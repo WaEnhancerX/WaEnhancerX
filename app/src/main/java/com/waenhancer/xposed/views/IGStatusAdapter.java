@@ -94,7 +94,9 @@ public class IGStatusAdapter extends ArrayAdapter<Object> {
 
         Object item = IGStatusHook.items.get(position);
         ViewHolder holder;
-        if (convertView == null) {
+        // A shrinking snapshot can return the plain placeholder above. When
+        // that position appears again it must get a real holder before rebinding.
+        if (convertView == null || !(convertView.getTag() instanceof ViewHolder)) {
             holder = new ViewHolder();
             convertView = createItemView(holder);
             convertView.setTag(holder);

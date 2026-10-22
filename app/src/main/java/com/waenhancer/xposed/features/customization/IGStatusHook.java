@@ -27,7 +27,9 @@ import org.luckypray.dexkit.result.MethodData;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -40,7 +42,7 @@ public class IGStatusHook extends BaseFeature {
     private static final String TAG = "[WAEX][IGStatus]";
 
     public static final CopyOnWriteArrayList<Object> items = new CopyOnWriteArrayList<>();
-    private static final List<IGStatusView> statusContainers = new ArrayList<>();
+    private static final List<WeakReference<IGStatusView>> statusContainers = new ArrayList<>();
 
     public IGStatusHook(@NonNull Context context,
                         @NonNull ClassLoader classLoader,
@@ -126,7 +128,7 @@ public class IGStatusHook extends BaseFeature {
                         } else {
                             statusContainer.setLayoutParams(new ViewGroup.LayoutParams(
                                     ViewGroup.LayoutParams.MATCH_PARENT, heightPx));
-                            attachRecyclerHeaderWhenReady(fragment, listChild, statusContainer, 0);
+                            attachRecyclerHeaderWhenReady(fragment, listChild, statusContainer);
                         }
 
                         int id = 0;
@@ -139,21 +141,8 @@ public class IGStatusHook extends BaseFeature {
                             } catch (Throwable ignored) {}
                         }
 
-                        synchronized (statusContainers) {
-                            IGStatusView existing = null;
-                            for (IGStatusView sc : statusContainers) {
-                                if (sc.fragmentId == id) {
-                                    existing = sc;
-                                    break;
-                                }
-                            }
-                            if (existing != null) {
-                                statusContainer.setAdapter(existing.getAdapter());
-                                statusContainers.remove(existing);
-                            }
-                            statusContainer.fragmentId = id;
-                            statusContainers.add(statusContainer);
-                        }
+                        statusContainer.fragmentId = id;
+                        trackStatusContainer(statusContainer);
 
                         // Attach initial adapter
                         Class<?> targetStatusInfo = statusInfoClass != null ? statusInfoClass : Object.class;
@@ -268,26 +257,109 @@ public class IGStatusHook extends BaseFeature {
     }
 
     private static void updateAllContainers() {
+        List<IGStatusView> attachedContainers = new ArrayList<>();
         synchronized (statusContainers) {
-            for (IGStatusView view : statusContainers) {
-                if (view != null) {
-                    view.updateList();
+            for (Iterator<WeakReference<IGStatusView>> iterator = statusContainers.iterator(); iterator.hasNext();) {
+                IGStatusView view = iterator.next().get();
+                if (view == null) {
+                    iterator.remove();
+                } else if (view.isAttachedToWindow()) {
+                    attachedContainers.add(view);
                 }
             }
+        }
+        for (IGStatusView view : attachedContainers) view.updateList();
+    }
+
+    private static void trackStatusContainer(IGStatusView view) {
+        registerStatusContainer(view);
+        view.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override public void onViewAttachedToWindow(View attached) {
+                registerStatusContainer((IGStatusView) attached);
+            }
+            @Override public void onViewDetachedFromWindow(View detached) {
+                synchronized (statusContainers) {
+                    statusContainers.removeIf(reference -> reference.get() == null || reference.get() == detached);
+                }
+            }
+        });
+    }
+
+    private static void registerStatusContainer(IGStatusView view) {
+        synchronized (statusContainers) {
+            statusContainers.removeIf(reference -> {
+                IGStatusView previous = reference.get();
+                return previous == null || previous == view || previous.fragmentId == view.fragmentId;
+            });
+            statusContainers.add(new WeakReference<>(view));
         }
     }
 
     private static void attachRecyclerHeaderWhenReady(
-            Object fragment, View scrollingView, IGStatusView header, int attempt) {
-        scrollingView.post(() -> {
-            if (!header.isAttachedToWindow() && tryAttachRecyclerHeader(fragment, scrollingView, header)) {
+            Object fragment, View scrollingView, IGStatusView header) {
+        RecyclerHeaderAttachment attachment = new RecyclerHeaderAttachment(fragment, scrollingView, header);
+        scrollingView.addOnAttachStateChangeListener(attachment);
+        if (scrollingView.isAttachedToWindow()) attachment.onViewAttachedToWindow(scrollingView);
+    }
+
+    /** Retries follow the scrolling View's attachment lifecycle. */
+    private static final class RecyclerHeaderAttachment implements Runnable, View.OnAttachStateChangeListener {
+        private final WeakReference<Object> fragment;
+        private final WeakReference<View> scrollingView;
+        // Keep a not-yet-inserted header alive while its owner View is alive.
+        private IGStatusView header;
+        private int attempts;
+        private boolean posted;
+
+        RecyclerHeaderAttachment(Object fragment, View scrollingView, IGStatusView header) {
+            this.fragment = new WeakReference<>(fragment);
+            this.scrollingView = new WeakReference<>(scrollingView);
+            this.header = header;
+        }
+
+        @Override public void onViewAttachedToWindow(View view) {
+            attempts = 0;
+            schedule(view, 0L);
+        }
+
+        @Override public void onViewDetachedFromWindow(View view) {
+            view.removeCallbacks(this);
+            posted = false;
+        }
+
+        private void schedule(View view, long delay) {
+            if (header == null || posted) return;
+            posted = true;
+            if (!view.postDelayed(this, delay)) posted = false;
+        }
+
+        private void finish(View view) {
+            view.removeCallbacks(this);
+            view.removeOnAttachStateChangeListener(this);
+            posted = false;
+            header = null;
+            fragment.clear();
+        }
+
+        @Override public void run() {
+            posted = false;
+            View view = scrollingView.get();
+            Object owner = fragment.get();
+            if (view == null || header == null) return;
+            Activity activity = header.getContext() instanceof Activity ? (Activity) header.getContext() : null;
+            if (owner == null || (activity != null && (activity.isFinishing() || activity.isDestroyed()))) {
+                finish(view);
                 return;
             }
-            if (!header.isAttachedToWindow() && attempt < 30) {
-                scrollingView.postDelayed(() -> attachRecyclerHeaderWhenReady(
-                        fragment, scrollingView, header, attempt + 1), 100L);
+            if (!view.isAttachedToWindow()) return;
+            if (header.isAttachedToWindow() || tryAttachRecyclerHeader(owner, view, header)) {
+                finish(view);
+            } else if (++attempts < 31) {
+                schedule(view, 100L);
+            } else {
+                finish(view);
             }
-        });
+        }
     }
 
     /** Adds the stories row through WhatsApp's HeaderFooterRecyclerViewAdapter controller. */

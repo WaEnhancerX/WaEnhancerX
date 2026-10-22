@@ -1,6 +1,7 @@
 package com.waenhancer.xposed.views;
 
 import android.content.Context;
+import android.content.res.Configuration;
 import android.database.DataSetObserver;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
@@ -11,6 +12,8 @@ import android.view.ViewParent;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ListAdapter;
+
+import java.util.ArrayList;
 
 /**
  * Adapter-backed horizontal row implemented on top of Android's native scroller.
@@ -23,6 +26,14 @@ public class HorizontalListView extends HorizontalScrollView {
     private final LinearLayout content;
     private final int touchSlop;
     private ListAdapter adapter;
+    private boolean attached;
+    private boolean observerRegistered;
+    private boolean refreshPosted;
+    private boolean discardChildren;
+    private final ArrayList<Integer> childTypes = new ArrayList<>();
+    private Configuration boundConfiguration;
+    private boolean restoreScrollAfterLayout;
+    private int scrollBeforeRefresh;
     private float downX;
     private float downY;
     private int reconcileAttempts;
@@ -33,7 +44,7 @@ public class HorizontalListView extends HorizontalScrollView {
 
             int adapterCount = adapter != null ? adapter.getCount() : 0;
             if (content.getChildCount() != adapterCount) {
-                rebuildChildren();
+                refreshData();
             }
 
             // WhatsApp can publish the status snapshot shortly after this row
@@ -44,6 +55,14 @@ public class HorizontalListView extends HorizontalScrollView {
         }
     };
 
+    private final Runnable refreshChildren = () -> {
+        synchronized (HorizontalListView.this) {
+            refreshPosted = false;
+            if (!attached) return;
+        }
+        rebuildChildren();
+    };
+
     private final DataSetObserver dataObserver = new DataSetObserver() {
         @Override
         public void onChanged() {
@@ -52,6 +71,9 @@ public class HorizontalListView extends HorizontalScrollView {
 
         @Override
         public void onInvalidated() {
+            synchronized (HorizontalListView.this) {
+                discardChildren = true;
+            }
             refreshData();
         }
     };
@@ -86,46 +108,99 @@ public class HorizontalListView extends HorizontalScrollView {
             refreshData();
             return;
         }
-        if (adapter != null) {
+        if (adapter != null && observerRegistered) {
             adapter.unregisterDataSetObserver(dataObserver);
+            observerRegistered = false;
         }
         adapter = newAdapter;
-        if (adapter != null) {
+        synchronized (this) {
+            discardChildren = true;
+        }
+        if (adapter != null && attached) {
             adapter.registerDataSetObserver(dataObserver);
+            observerRegistered = true;
         }
         refreshData();
     }
 
-    public void refreshData() {
-        post(this::rebuildChildren);
+    public synchronized void refreshData() {
+        // Notifications can arrive in bursts or while a header is detached.
+        // Attachment always refreshes the latest data, without retaining one
+        // runnable and rebuilding every row for each obsolete notification.
+        if (!attached || refreshPosted) return;
+        refreshPosted = true;
+        if (!post(refreshChildren)) refreshPosted = false;
     }
 
     private void rebuildChildren() {
-        int oldScrollX = getScrollX();
+        ListAdapter currentAdapter = adapter;
+        int previousCount = content.getChildCount();
+        View[] previousChildren = new View[previousCount];
+        int[] previousTypes = new int[previousCount];
+        boolean mayReuse;
+        synchronized (this) {
+            mayReuse = !discardChildren;
+            discardChildren = false;
+        }
+        Configuration configuration = getResources().getConfiguration();
+        mayReuse &= boundConfiguration != null && boundConfiguration.equals(configuration);
+        boundConfiguration = new Configuration(configuration);
+        for (int index = 0; index < previousCount; index++) {
+            previousChildren[index] = content.getChildAt(index);
+            previousTypes[index] = index < childTypes.size() ? childTypes.get(index) : -1;
+        }
+        if (!restoreScrollAfterLayout) scrollBeforeRefresh = getScrollX();
+        restoreScrollAfterLayout = true;
         content.removeAllViews();
+        childTypes.clear();
 
-        if (adapter != null) {
-            for (int position = 0; position < adapter.getCount(); position++) {
-                View child = adapter.getView(position, null, content);
+        if (currentAdapter != null) {
+            int count = currentAdapter.getCount();
+            for (int position = 0; position < count; position++) {
+                if (adapter != currentAdapter) {
+                    refreshData();
+                    break;
+                }
+                int viewType = currentAdapter.getItemViewType(position);
+                View reusable = mayReuse && position < previousCount && viewType >= 0
+                        && previousTypes[position] == viewType ? previousChildren[position] : null;
+                View child = currentAdapter.getView(position, reusable, content);
                 ViewGroup.LayoutParams params = child.getLayoutParams();
                 if (params == null) {
                     params = new LinearLayout.LayoutParams(
                             LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT);
                 }
                 content.addView(child, params);
+                childTypes.add(viewType);
             }
         }
 
         content.requestLayout();
         requestLayout();
         invalidate();
-        post(() -> scrollTo(Math.min(oldScrollX,
-                Math.max(0, content.getWidth() - getWidth())), 0));
+    }
+
+    @Override
+    protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+        super.onLayout(changed, left, top, right, bottom);
+        if (restoreScrollAfterLayout) {
+            restoreScrollAfterLayout = false;
+            int viewport = getWidth() - getPaddingLeft() - getPaddingRight();
+            scrollTo(Math.max(0, Math.min(scrollBeforeRefresh,
+                    Math.max(0, content.getWidth() - viewport))), 0);
+        }
     }
 
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
+        synchronized (this) {
+            attached = true;
+        }
+        if (adapter != null && !observerRegistered) {
+            adapter.registerDataSetObserver(dataObserver);
+            observerRegistered = true;
+        }
         refreshData();
         reconcileAttempts = 0;
         removeCallbacks(reconcileChildren);
@@ -134,6 +209,18 @@ public class HorizontalListView extends HorizontalScrollView {
 
     @Override
     protected void onDetachedFromWindow() {
+        synchronized (this) {
+            attached = false;
+            refreshPosted = false;
+        }
+        removeCallbacks(refreshChildren);
+        // Do not hold the refresh lock while calling into the adapter: an
+        // observer notification may arrive from another thread at this point.
+        if (adapter != null && observerRegistered) {
+            adapter.unregisterDataSetObserver(dataObserver);
+            observerRegistered = false;
+        }
+        restoreScrollAfterLayout = false;
         removeCallbacks(reconcileChildren);
         super.onDetachedFromWindow();
     }

@@ -9,6 +9,21 @@ public class IGStatusView extends FrameLayout {
     public HorizontalListView mStatusListView;
     public ListAdapter mStatusAdapter;
     public int fragmentId = 0;
+    private boolean attached;
+    private boolean updatePosted;
+    private final Runnable updateAdapter = () -> {
+        synchronized (IGStatusView.this) {
+            updatePosted = false;
+            if (!attached) return;
+        }
+        if (mStatusAdapter instanceof android.widget.BaseAdapter) {
+            ((android.widget.BaseAdapter) mStatusAdapter).notifyDataSetChanged();
+        } else if (mStatusListView != null) {
+            mStatusListView.refreshData();
+        }
+        requestLayout();
+        invalidate();
+    };
 
     public IGStatusView(Context context) {
         super(context);
@@ -24,18 +39,28 @@ public class IGStatusView extends FrameLayout {
 
     public void setAdapter(ListAdapter adapter) {
         this.mStatusAdapter = adapter;
-        if (adapter != null && mStatusListView != null) {
+        if (mStatusListView != null) {
             mStatusListView.setAdapter(adapter);
-            mStatusListView.refreshData();
         }
     }
 
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
-        if (mStatusListView != null && mStatusAdapter != null) {
-            mStatusListView.refreshData();
+        synchronized (this) {
+            attached = true;
         }
+        updateList();
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        synchronized (this) {
+            attached = false;
+            removeCallbacks(updateAdapter);
+            updatePosted = false;
+        }
+        super.onDetachedFromWindow();
     }
 
     @Override
@@ -49,15 +74,9 @@ public class IGStatusView extends FrameLayout {
         }
     }
 
-    public void updateList() {
-        post(() -> {
-            if (mStatusAdapter instanceof android.widget.BaseAdapter) {
-                ((android.widget.BaseAdapter) mStatusAdapter).notifyDataSetChanged();
-            } else if (mStatusListView != null) {
-                mStatusListView.refreshData();
-            }
-            requestLayout();
-            invalidate();
-        });
+    public synchronized void updateList() {
+        if (!attached || updatePosted) return;
+        updatePosted = true;
+        if (!post(updateAdapter)) updatePosted = false;
     }
 }
