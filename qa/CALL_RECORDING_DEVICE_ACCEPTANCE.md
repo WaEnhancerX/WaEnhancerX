@@ -13,6 +13,25 @@ in the supplied WhatsApp 2.26.40.76 APK. The optional `--dexkit-jar` and
 that check does not execute its native search. These checks establish the
 reviewed source contract, not compatibility with every host version or device.
 
+## Ending-event overload regression checks
+
+`python3 qa/test_call_recording_event_contract.py` compiles the complete production
+event contract and checks 20 declaration variants for each of the two supported
+callback packages in isolated class loaders (40 Java reflection cases). It checks
+the verified exact signature, a unique typed alternative, unrelated overloads,
+wrong return/static/native/abstract contracts, same-suffix classes from another
+package, and ambiguous typed alternatives. An exact, usable signature takes
+precedence; otherwise exactly one usable instance `void` method beginning with
+the expected `CallLogInfo` class is required. A first-match or suffix-only result
+does not establish the lifetime of a call.
+
+`python3 qa/test_call_recording_lifecycle.py --host-variant typed-ending` repeats
+the complete recorder lifecycle with a controlled alternate trailing-argument
+signature. The fixture dispatches the method actually registered by the hook and
+checks that its original arguments/result remain unchanged. This demonstrates
+source handling of that declaration shape; it does not identify another supported
+WhatsApp release. Run the on-device acceptance below for every actual host version.
+
 ## Run on each supported device/build combination
 
 Record the module commit, Debug/Release build identity, WhatsApp version,

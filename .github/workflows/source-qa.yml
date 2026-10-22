@@ -86,6 +86,27 @@ jobs:
             echo '::endgroup::'
           done
 
+      - name: Verify exact and alternate call-ending event contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_call_recording_event_contract.py --out "$RUNNER_TEMP/call-ending-contract-qa"
+          python3 qa/test_call_recording_lifecycle.py --host-variant typed-ending --out "$RUNNER_TEMP/call-recording-typed-qa"
+
+      - name: Upload call-ending contract evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: call-ending-contract-evidence
+          path: |
+            ${{ runner.temp }}/call-ending-contract-qa/result.json
+            ${{ runner.temp }}/call-ending-contract-qa/**/compile*.log
+            ${{ runner.temp }}/call-ending-contract-qa/**/behavior.log
+            ${{ runner.temp }}/call-recording-typed-qa/source-identity.json
+            ${{ runner.temp }}/call-recording-typed-qa/*.log
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Require tests for merged runtime and resource contracts
         shell: bash
         run: |
