@@ -51,14 +51,18 @@ object UniversalVersionValidator {
             val resources = moduleContext.resources
             val id = resources.getIdentifier("universal_supported_versions", "array", MODULE_PACKAGE)
                 .takeIf { it != 0 } ?: R.array.universal_supported_versions
-            val resName = try { resources.getResourceName(id) } catch (_: Throwable) { null }
+            val resName = try { resources.getResourceName(id) } catch (_: RuntimeException) { null }
             if (resName != "$MODULE_PACKAGE:array/universal_supported_versions") {
                 return STATIC_BUILTIN_RULES
             }
             val rules = resources.getStringArray(id).map { it.trim() }
             val syntax = Regex("[0-9]+(?:\\.[0-9]+)+(?:\\.(?:xx|\\*))?", RegexOption.IGNORE_CASE)
             rules.takeIf { it.isNotEmpty() && it.all(syntax::matches) } ?: STATIC_BUILTIN_RULES
-        } catch (_: Throwable) {
+        } catch (_: RuntimeException) {
+            STATIC_BUILTIN_RULES
+        } catch (_: PackageManager.NameNotFoundException) {
+            STATIC_BUILTIN_RULES
+        } catch (_: LinkageError) {
             STATIC_BUILTIN_RULES
         }
     }

@@ -264,9 +264,9 @@ public class HookProvider extends ContentProvider {
                 boolean fromMe = extras.getBoolean("fromMe", false);
                 boolean isGroup = extras.getBoolean("isGroup", false);
 
-                PreservedMessageStore.getInstance(context)
-                        .insertPreservedMessage(jid, contactName, senderName, msgId, text, timestamp, fromMe, isGroup);
-                return Bundle.EMPTY;
+                boolean saved = PreservedMessageStore.getInstance(context)
+                        .tryInsertPreservedMessage(jid, contactName, senderName, msgId, text, timestamp, fromMe, isGroup);
+                return writeResult(saved);
             }
 
             return null;

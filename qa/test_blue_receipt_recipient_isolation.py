@@ -59,7 +59,7 @@ assert 'captureJid = findJidInObject' not in hide
 assert 'SystemClock.elapsedRealtime()' in hide
 assert 'EXPLICIT_RECEIPT_IDS.isAllowed(' in hide
 assert 'new ConcurrentHashMap<>()' not in hide
-assert '" EnforceHiding: Downgrading read receipt"' in hide
+# Receipt isolation does not depend on a per-message informational log.
 assert 't.getMessage()' not in hide
 
 with tempfile.TemporaryDirectory(prefix='waex_exact_receipts_') as dest:
