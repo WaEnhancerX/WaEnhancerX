@@ -15,6 +15,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  media-preview-framework:
+    name: Media preview / Android session and cancellation lifecycle
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Require the complete production fixture and public toolchain
+        run: |
+          set -euo pipefail
+          kotlinc -version
+          mvn -version
+          test -f qa/fixtures/media_preview/MediaPreviewLifecycleTest.java
+      - name: Exercise replacement, dismissal, stale callbacks and bounded work
+        run: python3 qa/android_media_preview_test.py --out "$RUNNER_TEMP/waex-media-preview" --maven-repo "$RUNNER_TEMP/waex-media-preview-m2"
+      - name: Preserve source identities, compiler output and Android results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: media-preview-framework-evidence
+          path: |
+            ${{ runner.temp }}/waex-media-preview/*.json
+            ${{ runner.temp }}/waex-media-preview/*.log
+          retention-days: 14
+          if-no-files-found: error
+
   source-and-jvm:
     name: JDK 21 / Python 3.11 / Kotlin syntax
     runs-on: ubuntu-24.04
@@ -48,6 +80,26 @@ jobs:
             exit 1
           fi
           kotlinc -version
+
+      - name: Verify bounded Maven dependency recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_maven_dependencies.py --out "$RUNNER_TEMP/waex-maven-recovery"
+
+      - name: Upload Maven dependency recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maven-dependency-recovery-evidence
+          path: |
+            ${{ runner.temp }}/waex-maven-recovery/result.json
+            ${{ runner.temp }}/waex-maven-recovery/test_*/*.log
+            ${{ runner.temp }}/waex-maven-recovery/test_*/*retry.json
+            ${{ runner.temp }}/waex-maven-recovery/test_*/calls.jsonl
+            ${{ runner.temp }}/waex-maven-recovery/test_*/config.json
+          retention-days: 14
+          if-no-files-found: error
 
       - name: Parse all production Java and Kotlin files (no Android SDK)
         shell: bash
