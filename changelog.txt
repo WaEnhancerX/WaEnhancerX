@@ -46,7 +46,7 @@
 
 
 [Notes]
-![Upcoming WhatsApp floating bottom bar](https://raw.githubusercontent.com/WaEnhancerX/WaEnhancerX/main/samples/upcoming-floating-bar.jpeg)
+![Upcoming WhatsApp floating bottom bar](https://raw.githubusercontent.com/WaEnhancerX/WaEnhancerX/main/samples/upcoming-whatsapp-floating-bar.jpeg)
 
 - Floating bar new features are inspired from WhatsApp's soon upcoming update of Floating bottom bar design.
 - You can enjoy the same experience before WhatsApp even launches in beta. 
