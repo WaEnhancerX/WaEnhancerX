@@ -11,6 +11,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.TextButton
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -53,6 +54,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -62,6 +64,9 @@ import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.waenhancer.core.transcription.TranscriptionRequestHandler
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateDpAsState
@@ -138,10 +143,28 @@ fun AutomationTaskerScreen() {
 
     // Audio & AI states
     var voiceTranscriptionEnabled by remember { mutableStateOf(preferenceManager.getBoolean("voice_transcription", true)) }
-    var transcriptionProvider by remember { mutableStateOf(preferenceManager.getString("transcription_provider", "Groq")) } // "Groq" | "AssemblyAI"
+    var transcriptionProvider by remember { mutableStateOf(preferenceManager.getString("transcription_provider", "Groq")) } // "Groq" | "AssemblyAI" | "Custom"
+    var customUrl by remember { mutableStateOf(preferenceManager.getString("custom_transcription_url", "")) }
+    var customKey by remember { mutableStateOf(preferenceManager.getString("custom_transcription_key", "")) }
+    var customModel by remember { mutableStateOf(preferenceManager.getString("custom_transcription_model", "")) }
+    var autoTranscribe by remember { mutableStateOf(preferenceManager.getBoolean("voice_transcription_auto", false)) }
+    var transcriptButton by remember { mutableStateOf(preferenceManager.getBoolean("voice_note_transcript_button", true)) }
+    var dictationButton by remember { mutableStateOf(preferenceManager.getBoolean("voice_dictation_button", true)) }
     var showProviderDropdown by remember { mutableStateOf(false) }
     var assemblyKey by remember { mutableStateOf(preferenceManager.getString("assembly_key", "")) }
-    var assemblyStatus by remember { mutableStateOf("idle") } // "idle" | "verifying" | "ok" | "fail"
+    var connectionStatus by remember { mutableStateOf("idle") } // "idle" | "verifying" | "ok" | "fail"
+    var connectionError by remember { mutableStateOf("") }
+    var discoveringModels by remember { mutableStateOf(false) }
+    var discoveredModels by remember { mutableStateOf(emptyList<String>()) }
+    var showModelDropdown by remember { mutableStateOf(false) }
+    var discoveryError by remember { mutableStateOf("") }
+    var transcriptionLanguage by remember { mutableStateOf(preferenceManager.getString("transcription_language", "")) }
+    var showLanguageDropdown by remember { mutableStateOf(false) }
+    val transcriptionLanguages = listOf(
+        "" to UiText.get(R.string.waex_ui_automatic, "Automatic"),
+        "sk" to "Slovenčina", "cs" to "Čeština", "en" to "English", "de" to "Deutsch",
+        "hu" to "Magyar", "pl" to "Polski", "uk" to "Українська", "es" to "Español"
+    )
     var groqKey by remember { mutableStateOf(preferenceManager.getString("groq_key", "")) }
 
 
@@ -487,6 +510,87 @@ fun AutomationTaskerScreen() {
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = UiText.get(R.string.waex_ui_transcribe_automatically, "Transcribe automatically"),
+                                        style = typography.bodyMd,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = colors.onSurface
+                                    )
+                                    Text(
+                                        text = UiText.get(R.string.waex_ui_off_each_new_voice_note_sent_or_receiv, "Off: each new voice note, sent or received, gets a notification with a Transcribe button."),
+                                        style = typography.labelSm,
+                                        color = colors.onSurfaceVariant
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                StitchSwitch(
+                                    checked = autoTranscribe,
+                                    onCheckedChange = {
+                                        autoTranscribe = it
+                                        preferenceManager.putBoolean("voice_transcription_auto", it)
+                                    }
+                                )
+                            }
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = UiText.get(R.string.waex_ui_transcript_button_on_voice_notes, "Transcript button on voice notes"),
+                                        style = typography.bodyMd,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = colors.onSurface
+                                    )
+                                    Text(
+                                        text = UiText.get(R.string.waex_ui_shows_next_to_the_time_of_voice_notes, "Shows 📝 next to the time of voice notes in chats. Tap it to read the transcript."),
+                                        style = typography.labelSm,
+                                        color = colors.onSurfaceVariant
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                StitchSwitch(
+                                    checked = transcriptButton,
+                                    onCheckedChange = {
+                                        transcriptButton = it
+                                        preferenceManager.putBoolean("voice_note_transcript_button", it)
+                                    }
+                                )
+                            }
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = UiText.get(R.string.waex_ui_dictation_button, "Dictation button"),
+                                        style = typography.bodyMd,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = colors.onSurface
+                                    )
+                                    Text(
+                                        text = UiText.get(R.string.waex_ui_adds_to_the_message_field_tap_to_recor, "Adds 🎙️ to the message field. Tap to record, tap again to insert the text."),
+                                        style = typography.labelSm,
+                                        color = colors.onSurfaceVariant
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                StitchSwitch(
+                                    checked = dictationButton,
+                                    onCheckedChange = {
+                                        dictationButton = it
+                                        preferenceManager.putBoolean("voice_dictation_button", it)
+                                    }
+                                )
+                            }
+
                             // Provider Dropdown selection
                             Column {
                                 Text(
@@ -513,12 +617,13 @@ fun AutomationTaskerScreen() {
                                         expanded = showProviderDropdown,
                                         onDismissRequest = { showProviderDropdown = false }
                                     ) {
-                                        listOf("Groq", "AssemblyAI").forEach { provider ->
+                                        listOf("Groq", "AssemblyAI", "Custom", "Local").forEach { provider ->
                                             DropdownMenuItem(
                                                 text = { Text(text = provider, style = typography.bodyMd) },
                                                 onClick = {
                                                     transcriptionProvider = provider
                                                     preferenceManager.putString("transcription_provider", provider)
+                                                    connectionStatus = "idle"
                                                     showProviderDropdown = false
                                                 }
                                             )
@@ -551,6 +656,7 @@ fun AutomationTaskerScreen() {
                                             onValueChange = {
                                                 groqKey = it
                                                 preferenceManager.putString("groq_key", it)
+                                                connectionStatus = "idle"
                                             },
                                             singleLine = true,
                                             visualTransformation = PasswordVisualTransformation(),
@@ -563,6 +669,84 @@ fun AutomationTaskerScreen() {
                                             modifier = Modifier.fillMaxWidth()
                                         )
                                     }
+                                }
+                            } else if (transcriptionProvider == "Local") {
+                                LocalModelsSection(language = transcriptionLanguage)
+                            } else if (transcriptionProvider == "Custom") {
+                                Text(
+                                    text = UiText.get(R.string.waex_ui_uses_the_openai_audio_transcriptions_r, "Uses the OpenAI /audio/transcriptions request format."),
+                                    style = typography.labelSm,
+                                    color = colors.onSurfaceVariant
+                                )
+                                TranscriptionTextField(
+                                    label = UiText.get(R.string.waex_ui_custom_endpoint_url, "Custom Endpoint URL"),
+                                    value = customUrl,
+                                    onValueChange = {
+                                        customUrl = it
+                                        preferenceManager.putString("custom_transcription_url", it.trim())
+                                        connectionStatus = "idle"
+                                    }
+                                )
+                                TranscriptionTextField(
+                                    label = UiText.get(R.string.waex_ui_custom_api_key, "Custom API Key"),
+                                    value = customKey,
+                                    onValueChange = {
+                                        customKey = it
+                                        preferenceManager.putString("custom_transcription_key", it)
+                                        connectionStatus = "idle"
+                                    },
+                                    isSecret = true
+                                )
+                                TranscriptionTextField(
+                                    label = UiText.get(R.string.waex_ui_model_name, "Model Name"),
+                                    value = customModel,
+                                    onValueChange = {
+                                        customModel = it
+                                        preferenceManager.putString("custom_transcription_model", it.trim())
+                                    }
+                                )
+                                // Model discovery: GET <base>/models with the saved URL and key.
+                                Box {
+                                    TextButton(
+                                        onClick = {
+                                            discoveringModels = true
+                                            discoveryError = ""
+                                            coroutineScope.launch {
+                                                val result = withContext(Dispatchers.IO) {
+                                                    runCatching { TranscriptionRequestHandler.listCustomModels(context.applicationContext) }
+                                                }
+                                                discoveringModels = false
+                                                result.onSuccess {
+                                                    discoveredModels = it
+                                                    showModelDropdown = it.isNotEmpty()
+                                                }.onFailure { discoveryError = it.message ?: "Failed" }
+                                            }
+                                        },
+                                        enabled = !discoveringModels && customUrl.isNotBlank()
+                                    ) {
+                                        Text(
+                                            if (discoveringModels) UiText.get(R.string.waex_ui_searching, "Searching…")
+                                            else UiText.get(R.string.waex_ui_find_models, "Find models")
+                                        )
+                                    }
+                                    DropdownMenu(
+                                        expanded = showModelDropdown,
+                                        onDismissRequest = { showModelDropdown = false }
+                                    ) {
+                                        discoveredModels.forEach { model ->
+                                            DropdownMenuItem(
+                                                text = { Text(text = model, style = typography.bodyMd) },
+                                                onClick = {
+                                                    customModel = model
+                                                    preferenceManager.putString("custom_transcription_model", model)
+                                                    showModelDropdown = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                                if (discoveryError.isNotEmpty()) {
+                                    Text(text = discoveryError, style = typography.labelSm, color = colors.error)
                                 }
                             } else {
                                 Column {
@@ -586,7 +770,7 @@ fun AutomationTaskerScreen() {
                                             value = assemblyKey,
                                             onValueChange = {
                                                 assemblyKey = it
-                                                assemblyStatus = "idle"
+                                                connectionStatus = "idle"
                                                 preferenceManager.putString("assembly_key", it)
                                             },
                                             singleLine = true,
@@ -601,19 +785,67 @@ fun AutomationTaskerScreen() {
                                         )
                                     }
                                 }
+                            }
 
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            // Spoken language: a fixed language is more accurate than detection
+                            Column {
+                                Text(
+                                    text = UiText.get(R.string.waex_ui_transcription_language, "Transcription language"),
+                                    style = typography.labelSm,
+                                    color = colors.onSurfaceVariant,
+                                    modifier = Modifier.padding(bottom = 6.dp)
+                                )
+                                Box {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(44.dp)
+                                            .clip(radius.mdShape)
+                                            .background(colors.surface)
+                                            .border(1.dp, colors.outlineVariant, radius.mdShape)
+                                            .clickable { showLanguageDropdown = true }
+                                            .padding(horizontal = 12.dp),
+                                        contentAlignment = Alignment.CenterStart
                                     ) {
-                                        Text(text = UiText.get(R.string.waex_ui_connection_status, "Connection Status"), style = typography.bodyMd, color = colors.onSurfaceVariant)
-                                        if (assemblyStatus == "ok") {
+                                        Text(
+                                            text = transcriptionLanguages.firstOrNull { it.first == transcriptionLanguage }?.second
+                                                ?: UiText.get(R.string.waex_ui_automatic, "Automatic"),
+                                            style = typography.bodyMd,
+                                            color = colors.onSurface
+                                        )
+                                    }
+                                    DropdownMenu(
+                                        expanded = showLanguageDropdown,
+                                        onDismissRequest = { showLanguageDropdown = false }
+                                    ) {
+                                        transcriptionLanguages.forEach { (code, label) ->
+                                            DropdownMenuItem(
+                                                text = { Text(text = label, style = typography.bodyMd) },
+                                                onClick = {
+                                                    transcriptionLanguage = code
+                                                    preferenceManager.putString("transcription_language", code)
+                                                    showLanguageDropdown = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Connection test: sends one second of silence with the current settings
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(text = UiText.get(R.string.waex_ui_connection_status, "Connection Status"), style = typography.bodyMd, color = colors.onSurfaceVariant)
+                                    when (connectionStatus) {
+                                        "ok" -> {
                                             Icon(
                                                 imageVector = WaexIcons.Success,
                                                 contentDescription = null,
@@ -621,37 +853,89 @@ fun AutomationTaskerScreen() {
                                                 modifier = Modifier.size(13.dp)
                                             )
                                             Text(text = UiText.get(R.string.waex_ui_connected, "Connected"), style = typography.labelSm, color = Color(0xFF22C55E), fontWeight = FontWeight.Bold)
-                                        } else if (assemblyStatus == "verifying") {
-                                            CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 1.5.dp, color = colors.primary)
                                         }
-                                    }
-                                    Button(
-                                        onClick = {
-                                            if (assemblyKey.isEmpty()) return@Button
-                                            assemblyStatus = "verifying"
-                                            coroutineScope.launch {
-                                                delay(800)
-                                                assemblyStatus = "ok"
-                                            }
-                                        },
-                                        enabled = assemblyKey.isNotEmpty() && assemblyStatus != "verifying",
-                                        shape = radius.mdShape,
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = colors.primary,
-                                            contentColor = colors.onPrimary
-                                        ),
-                                        modifier = Modifier.height(36.dp)
-                                    ) {
-                                        Text(text = UiText.get(R.string.waex_ui_test, "Test"), style = typography.bodyMd)
+                                        "fail" -> Text(text = UiText.get(R.string.waex_ui_connection_failed, "Connection failed"), style = typography.labelSm, color = colors.error, fontWeight = FontWeight.Bold)
+                                        "verifying" -> CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 1.5.dp, color = colors.primary)
                                     }
                                 }
+                                Button(
+                                    onClick = {
+                                        connectionStatus = "verifying"
+                                        connectionError = ""
+                                        coroutineScope.launch {
+                                            val error = withContext(Dispatchers.IO) {
+                                                TranscriptionRequestHandler.testConnection(context.applicationContext)
+                                            }
+                                            connectionStatus = if (error == null) "ok" else "fail"
+                                            connectionError = error ?: ""
+                                        }
+                                    },
+                                    enabled = connectionStatus != "verifying",
+                                    shape = radius.mdShape,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = colors.primary,
+                                        contentColor = colors.onPrimary
+                                    ),
+                                    modifier = Modifier.height(36.dp)
+                                ) {
+                                    Text(text = UiText.get(R.string.waex_ui_test, "Test"), style = typography.bodyMd)
+                                }
                             }
+                            if (connectionStatus == "fail" && connectionError.isNotEmpty()) {
+                                Text(text = connectionError, style = typography.labelSm, color = colors.error)
+                            }
+
+                            TranscriptionLogSection()
                         }
                     }
                 }
             }
         }
         Spacer(modifier = Modifier.height(100.dp))
+    }
+}
+
+@Composable
+private fun TranscriptionTextField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    isSecret: Boolean = false
+) {
+    val colors = WaexTheme.colors
+    val typography = WaexTheme.typography
+    val radius = WaexTheme.radius
+    Column {
+        Text(
+            text = label,
+            style = typography.labelSm,
+            color = colors.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 6.dp)
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp)
+                .clip(radius.mdShape)
+                .background(colors.surface)
+                .border(1.dp, colors.outlineVariant, radius.mdShape)
+                .padding(horizontal = 12.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                visualTransformation = if (isSecret) PasswordVisualTransformation() else VisualTransformation.None,
+                textStyle = typography.bodyMd.copy(
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 13.sp,
+                    color = colors.onSurface
+                ),
+                cursorBrush = SolidColor(colors.primary),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 }
 

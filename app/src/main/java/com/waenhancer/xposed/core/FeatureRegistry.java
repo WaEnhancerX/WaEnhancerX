@@ -49,6 +49,9 @@ import com.waenhancer.xposed.features.media.MediaQualityBypassHook;
 import com.waenhancer.xposed.features.media.ProfilePhotoDownloadHook;
 import com.waenhancer.xposed.features.media.ProximitySensorHook;
 import com.waenhancer.xposed.features.media.StatusDownloadHook;
+import com.waenhancer.xposed.features.media.VoiceDictationHook;
+import com.waenhancer.xposed.features.media.VoiceNoteRowTranscriptHook;
+import com.waenhancer.xposed.features.media.VoiceNoteTranscriptionHook;
 import com.waenhancer.xposed.features.privacy.AlwaysOnlineHook;
 import com.waenhancer.xposed.features.privacy.AntiDisappearingMessagesHook;
 import com.waenhancer.xposed.features.privacy.AntiRevokeHook;
@@ -392,6 +395,15 @@ public final class FeatureRegistry {
         registerFeature(ProfilePhotoDownloadHook.class, "Media",
                 () -> prefs.getBoolean("download_profile", false),
                 () -> new ProfilePhotoDownloadHook(context, classLoader, prefs));
+
+        registerFeature(VoiceNoteTranscriptionHook.class, "Media",
+                () -> new VoiceNoteTranscriptionHook(context, classLoader, prefs));
+
+        registerFeature(VoiceNoteRowTranscriptHook.class, "Media",
+                () -> new VoiceNoteRowTranscriptHook(context, classLoader, prefs));
+
+        registerFeature(VoiceDictationHook.class, "Media",
+                () -> new VoiceDictationHook(context, classLoader, prefs));
 
         try {
             AudioToVoiceStatusFeature.install(context, classLoader, prefs);

@@ -81,3 +81,6 @@
     public static boolean isModuleActive();
 }
 
+
+# On-device transcription: libwaexwhisper.so binds to these JNI names.
+-keep class com.waenhancer.core.transcription.local.WhisperNative { native <methods>; }

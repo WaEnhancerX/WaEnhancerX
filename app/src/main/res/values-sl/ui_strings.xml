@@ -1046,4 +1046,59 @@ Znova zaženite WhatsApp, da uporabite spremembe?"</string>
     <string name="waex_ui_hma_reason_preset">"Skrito s HMA prednastavitvijo \"xposed\""</string>
     <string name="waex_ui_deleted_a_status">"izbrisal status"</string>
     <string name="waex_ui_restarting_whatsapp_short">"Znova se začenja WhatsApp…"</string>
+    <string name="waex_ui_adds_to_the_message_field_tap_to_recor" formatted="false">"V polje za sporočilo doda 🎙️. Tapnite za snemanje, tapnite znova za vstavljanje besedila."</string>
+    <string name="waex_ui_automatic" formatted="false">"Samodejno"</string>
+    <string name="waex_ui_clear" formatted="false">"jasno"</string>
+    <string name="waex_ui_connection_failed" formatted="false">"Povezava ni uspela"</string>
+    <string name="waex_ui_copy" formatted="false">"Kopiraj"</string>
+    <string name="waex_ui_could_not_start_recording" formatted="false">"Snemanja ni bilo mogoče začeti."</string>
+    <string name="waex_ui_custom_api_key" formatted="false">"Ključ po meri API"</string>
+    <string name="waex_ui_custom_endpoint_url" formatted="false">"URL končne točke po meri"</string>
+    <string name="waex_ui_dictation_button" formatted="false">"Gumb za narekovanje"</string>
+    <string name="waex_ui_find_models" formatted="false">"Poiščite modele"</string>
+    <string name="waex_ui_hide" formatted="false">"Skrij se"</string>
+    <string name="waex_ui_log_copied" formatted="false">"Dnevnik je kopiran"</string>
+    <string name="waex_ui_model_name" formatted="false">"Ime modela"</string>
+    <string name="waex_ui_new_voice_note" formatted="false">"Nova glasovna beležka"</string>
+    <string name="waex_ui_no_entries_yet" formatted="false">"Ni še vnosov."</string>
+    <string name="waex_ui_no_speech_detected" formatted="false">"Ni zaznanega govora."</string>
+    <string name="waex_ui_off_each_new_voice_note_sent_or_receiv" formatted="false">"Izklopljeno: vsaka nova glasovna opomba, poslana ali prejeta, prejme obvestilo z gumbom za prepis."</string>
+    <string name="waex_ui_recording_tap_to_stop" formatted="false">"Snemanje ... tapnite ⏹️ za ustavitev."</string>
+    <string name="waex_ui_recording_too_short" formatted="false">"Posnetek je prekratek."</string>
+    <string name="waex_ui_refresh" formatted="false">"Osveži"</string>
+    <string name="waex_ui_searching" formatted="false">"Iskanje ..."</string>
+    <string name="waex_ui_show" formatted="false">"Prikaži"</string>
+    <string name="waex_ui_shows_next_to_the_time_of_voice_notes" formatted="false">"Prikaže 📝 poleg časa glasovnih zapiskov v klepetih. Tapnite ga, da preberete prepis."</string>
+    <string name="waex_ui_steps_and_errors_only_transcripts_and" formatted="false">"Samo koraki in napake. Prepisi in besedilo sporočil se nikoli ne beležijo."</string>
+    <string name="waex_ui_tap_transcribe_to_turn_it_into_text" formatted="false">"Tapnite Prepis, da ga spremenite v besedilo."</string>
+    <string name="waex_ui_transcribe" formatted="false">"Prepis"</string>
+    <string name="waex_ui_transcribe_automatically" formatted="false">"Samodejni prepis"</string>
+    <string name="waex_ui_transcribing_voice_note" formatted="false">"Prepis glasovne opombe ..."</string>
+    <string name="waex_ui_transcript_button_on_voice_notes" formatted="false">"Gumb za prepis na glasovnih zapiskih"</string>
+    <string name="waex_ui_transcript_copied" formatted="false">"Prepis kopiran"</string>
+    <string name="waex_ui_transcription_failed" formatted="false">"Prepis ni uspel"</string>
+    <string name="waex_ui_transcription_language" formatted="false">"Transkripcijski jezik"</string>
+    <string name="waex_ui_transcription_log" formatted="false">"Prepisovalni dnevnik"</string>
+    <string name="waex_ui_uses_the_openai_audio_transcriptions_r" formatted="false">"Uporablja obliko zahteve OpenAI /audio/transcriptions."</string>
+    <string name="waex_ui_voice_note_is_too_long_to_transcribe" formatted="false">"Glasovni zapis je predolg za prepis."</string>
+    <string name="waex_ui_voice_note_transcript" formatted="false">"Prepis glasovne opombe"</string>
+    <string name="waex_ui_waex_voice_transcripts" formatted="false">"WAEX glasovni prepisi"</string>
+    <string name="waex_ui_whatsapp_needs_microphone_access_to_di" formatted="false">"WhatsApp potrebuje dostop do mikrofona za narekovanje."</string>
+    <string name="waex_ui_balanced_speed_and_accuracy" formatted="false">"Uravnotežena hitrost in natančnost"</string>
+    <string name="waex_ui_cancel" formatted="false">"Prekliči"</string>
+    <string name="waex_ui_delete" formatted="false">"Izbriši"</string>
+    <string name="waex_ui_download_suggested_model" formatted="false">"Prenesite predlagani model"</string>
+    <string name="waex_ui_english_only_more_accurate_for_english" formatted="false">"Samo angleščina: bolj natančno za angleščino"</string>
+    <string name="waex_ui_fast_fair_accuracy" formatted="false">"Hitro, poštena natančnost"</string>
+    <string name="waex_ui_fastest_lowest_accuracy" formatted="false">"Najhitrejši, najmanjša natančnost"</string>
+    <string name="waex_ui_in_use" formatted="false">"V uporabi"</string>
+    <string name="waex_ui_may_be_too_heavy_for_this_phone" formatted="false">"Morda pretežak za ta telefon"</string>
+    <string name="waex_ui_most_accurate_slow" formatted="false">"Najbolj natančno, počasi"</string>
+    <string name="waex_ui_on_device_models" formatted="false">"Modeli v napravi"</string>
+    <string name="waex_ui_on_device_transcription_isn_t_availabl" formatted="false">"Prepisovanje v napravi ni na voljo v tem telefonu"</string>
+    <string name="waex_ui_runs_on_your_phone_nothing_is_uploaded" formatted="false">"Deluje na vašem telefonu, nič se ne naloži. Večji modeli so natančnejši, a počasnejši."</string>
+    <string name="waex_ui_selected_download_it_to_start_using_it" formatted="false">"Izbrano: prenesite ga, da ga začnete uporabljati."</string>
+    <string name="waex_ui_suggested" formatted="false">"Predlagano"</string>
+    <string name="waex_ui_tap_a_model_to_choose_it_the_suggested" formatted="false">"Tapnite model, da ga izberete. Predlagani se uporablja, dokler ne izberete drugega."</string>
+    <string name="waex_ui_this_phone" formatted="false">"Ta telefon"</string>
 </resources>

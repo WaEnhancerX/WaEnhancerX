@@ -1031,4 +1031,59 @@
     <string name="waex_ui_hma_reason_preset">Hidden by HMA \"xposed\" preset</string>
     <string name="waex_ui_deleted_a_status">" deleted a status"</string>
     <string name="waex_ui_restarting_whatsapp_short">Restarting WhatsApp…</string>
+    <string name="waex_ui_adds_to_the_message_field_tap_to_recor" formatted="false">"Adds 🎙️ to the message field. Tap to record, tap again to insert the text."</string>
+    <string name="waex_ui_automatic" formatted="false">"Automatic"</string>
+    <string name="waex_ui_clear" formatted="false">"Clear"</string>
+    <string name="waex_ui_connection_failed" formatted="false">"Connection failed"</string>
+    <string name="waex_ui_copy" formatted="false">"Copy"</string>
+    <string name="waex_ui_could_not_start_recording" formatted="false">"Could not start recording."</string>
+    <string name="waex_ui_custom_api_key" formatted="false">"Custom API Key"</string>
+    <string name="waex_ui_custom_endpoint_url" formatted="false">"Custom Endpoint URL"</string>
+    <string name="waex_ui_dictation_button" formatted="false">"Dictation button"</string>
+    <string name="waex_ui_find_models" formatted="false">"Find models"</string>
+    <string name="waex_ui_hide" formatted="false">"Hide"</string>
+    <string name="waex_ui_log_copied" formatted="false">"Log copied"</string>
+    <string name="waex_ui_model_name" formatted="false">"Model Name"</string>
+    <string name="waex_ui_new_voice_note" formatted="false">"New voice note"</string>
+    <string name="waex_ui_no_entries_yet" formatted="false">"No entries yet."</string>
+    <string name="waex_ui_no_speech_detected" formatted="false">"No speech detected."</string>
+    <string name="waex_ui_off_each_new_voice_note_sent_or_receiv" formatted="false">"Off: each new voice note, sent or received, gets a notification with a Transcribe button."</string>
+    <string name="waex_ui_recording_tap_to_stop" formatted="false">"Recording… tap ⏹️ to stop."</string>
+    <string name="waex_ui_recording_too_short" formatted="false">"Recording too short."</string>
+    <string name="waex_ui_refresh" formatted="false">"Refresh"</string>
+    <string name="waex_ui_searching" formatted="false">"Searching…"</string>
+    <string name="waex_ui_show" formatted="false">"Show"</string>
+    <string name="waex_ui_shows_next_to_the_time_of_voice_notes" formatted="false">"Shows 📝 next to the time of voice notes in chats. Tap it to read the transcript."</string>
+    <string name="waex_ui_steps_and_errors_only_transcripts_and" formatted="false">"Steps and errors only. Transcripts and message text are never logged."</string>
+    <string name="waex_ui_tap_transcribe_to_turn_it_into_text" formatted="false">"Tap Transcribe to turn it into text."</string>
+    <string name="waex_ui_transcribe" formatted="false">"Transcribe"</string>
+    <string name="waex_ui_transcribe_automatically" formatted="false">"Transcribe automatically"</string>
+    <string name="waex_ui_transcribing_voice_note" formatted="false">"Transcribing voice note…"</string>
+    <string name="waex_ui_transcript_button_on_voice_notes" formatted="false">"Transcript button on voice notes"</string>
+    <string name="waex_ui_transcript_copied" formatted="false">"Transcript copied"</string>
+    <string name="waex_ui_transcription_failed" formatted="false">"Transcription failed"</string>
+    <string name="waex_ui_transcription_language" formatted="false">"Transcription language"</string>
+    <string name="waex_ui_transcription_log" formatted="false">"Transcription log"</string>
+    <string name="waex_ui_uses_the_openai_audio_transcriptions_r" formatted="false">"Uses the OpenAI /audio/transcriptions request format."</string>
+    <string name="waex_ui_voice_note_is_too_long_to_transcribe" formatted="false">"Voice note is too long to transcribe."</string>
+    <string name="waex_ui_voice_note_transcript" formatted="false">"Voice note transcript"</string>
+    <string name="waex_ui_waex_voice_transcripts" formatted="false">"WAEX voice transcripts"</string>
+    <string name="waex_ui_whatsapp_needs_microphone_access_to_di" formatted="false">"WhatsApp needs microphone access to dictate."</string>
+    <string name="waex_ui_balanced_speed_and_accuracy" formatted="false">"Balanced speed and accuracy"</string>
+    <string name="waex_ui_cancel" formatted="false">"Cancel"</string>
+    <string name="waex_ui_delete" formatted="false">"Delete"</string>
+    <string name="waex_ui_download_suggested_model" formatted="false">"Download suggested model"</string>
+    <string name="waex_ui_english_only_more_accurate_for_english" formatted="false">"English only: more accurate for English"</string>
+    <string name="waex_ui_fast_fair_accuracy" formatted="false">"Fast, fair accuracy"</string>
+    <string name="waex_ui_fastest_lowest_accuracy" formatted="false">"Fastest, lowest accuracy"</string>
+    <string name="waex_ui_in_use" formatted="false">"In use"</string>
+    <string name="waex_ui_may_be_too_heavy_for_this_phone" formatted="false">"May be too heavy for this phone"</string>
+    <string name="waex_ui_most_accurate_slow" formatted="false">"Most accurate, slow"</string>
+    <string name="waex_ui_on_device_models" formatted="false">"On-device models"</string>
+    <string name="waex_ui_on_device_transcription_isn_t_availabl" formatted="false">"On-device transcription isn't available on this phone"</string>
+    <string name="waex_ui_runs_on_your_phone_nothing_is_uploaded" formatted="false">"Runs on your phone, nothing is uploaded. Larger models are more accurate but slower."</string>
+    <string name="waex_ui_selected_download_it_to_start_using_it" formatted="false">"Selected: download it to start using it."</string>
+    <string name="waex_ui_suggested" formatted="false">"Suggested"</string>
+    <string name="waex_ui_tap_a_model_to_choose_it_the_suggested" formatted="false">"Tap a model to choose it. The suggested one is used until you pick another."</string>
+    <string name="waex_ui_this_phone" formatted="false">"This phone"</string>
 </resources>

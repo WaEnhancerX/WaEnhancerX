@@ -1046,4 +1046,59 @@ Redémarrer WhatsApp pour appliquer les modifications ?"</string>
     <string name="waex_ui_hma_reason_preset">"Masqué par le préréglage HMA \"xposed\""</string>
     <string name="waex_ui_deleted_a_status">"supprimé un statut"</string>
     <string name="waex_ui_restarting_whatsapp_short">"Redémarrage de WhatsApp…"</string>
+    <string name="waex_ui_adds_to_the_message_field_tap_to_recor" formatted="false">"Ajoute 🎙️ au champ de message. Appuyez pour enregistrer, appuyez à nouveau pour insérer le texte."</string>
+    <string name="waex_ui_automatic" formatted="false">"Automatique"</string>
+    <string name="waex_ui_clear" formatted="false">"Effacer"</string>
+    <string name="waex_ui_connection_failed" formatted="false">"La connexion a échoué"</string>
+    <string name="waex_ui_copy" formatted="false">"Copier"</string>
+    <string name="waex_ui_could_not_start_recording" formatted="false">"Impossible de démarrer l'enregistrement."</string>
+    <string name="waex_ui_custom_api_key" formatted="false">"Clé API personnalisée"</string>
+    <string name="waex_ui_custom_endpoint_url" formatted="false">"URL de point de terminaison personnalisée"</string>
+    <string name="waex_ui_dictation_button" formatted="false">"Bouton de dictée"</string>
+    <string name="waex_ui_find_models" formatted="false">"Trouver des modèles"</string>
+    <string name="waex_ui_hide" formatted="false">"Masquer"</string>
+    <string name="waex_ui_log_copied" formatted="false">"Journal copié"</string>
+    <string name="waex_ui_model_name" formatted="false">"Nom du modèle"</string>
+    <string name="waex_ui_new_voice_note" formatted="false">"Nouvelle note vocale"</string>
+    <string name="waex_ui_no_entries_yet" formatted="false">"Aucune entrée pour l'instant."</string>
+    <string name="waex_ui_no_speech_detected" formatted="false">"Aucune parole détectée."</string>
+    <string name="waex_ui_off_each_new_voice_note_sent_or_receiv" formatted="false">"Désactivé : chaque nouvelle note vocale, envoyée ou reçue, reçoit une notification avec un bouton Trancrire."</string>
+    <string name="waex_ui_recording_tap_to_stop" formatted="false">"Enregistrement… appuyez sur ⏹️ pour arrêter."</string>
+    <string name="waex_ui_recording_too_short" formatted="false">"Enregistrement trop court."</string>
+    <string name="waex_ui_refresh" formatted="false">"Actualiser"</string>
+    <string name="waex_ui_searching" formatted="false">"Recherche…"</string>
+    <string name="waex_ui_show" formatted="false">"Afficher"</string>
+    <string name="waex_ui_shows_next_to_the_time_of_voice_notes" formatted="false">"Affiche 📝 à côté de l'heure des notes vocales dans les chats. Appuyez dessus pour lire la transcription."</string>
+    <string name="waex_ui_steps_and_errors_only_transcripts_and" formatted="false">"Étapes et erreurs uniquement. Les transcriptions et le texte des messages ne sont jamais enregistrés."</string>
+    <string name="waex_ui_tap_transcribe_to_turn_it_into_text" formatted="false">"Appuyez sur Transcrire pour le transformer en texte."</string>
+    <string name="waex_ui_transcribe" formatted="false">"Transcrire"</string>
+    <string name="waex_ui_transcribe_automatically" formatted="false">"Transcrire automatiquement"</string>
+    <string name="waex_ui_transcribing_voice_note" formatted="false">"Transcription d'une note vocale…"</string>
+    <string name="waex_ui_transcript_button_on_voice_notes" formatted="false">"Bouton de transcription sur les notes vocales"</string>
+    <string name="waex_ui_transcript_copied" formatted="false">"Transcription copiée"</string>
+    <string name="waex_ui_transcription_failed" formatted="false">"Échec de la transcription"</string>
+    <string name="waex_ui_transcription_language" formatted="false">"Langue de transcription"</string>
+    <string name="waex_ui_transcription_log" formatted="false">"Journal de transcription"</string>
+    <string name="waex_ui_uses_the_openai_audio_transcriptions_r" formatted="false">"Utilise le format de requête OpenAI /audio/transcriptions."</string>
+    <string name="waex_ui_voice_note_is_too_long_to_transcribe" formatted="false">"La note vocale est trop longue à transcrire."</string>
+    <string name="waex_ui_voice_note_transcript" formatted="false">"Transcription de la note vocale"</string>
+    <string name="waex_ui_waex_voice_transcripts" formatted="false">"WAEX transcriptions vocales"</string>
+    <string name="waex_ui_whatsapp_needs_microphone_access_to_di" formatted="false">"WhatsApp a besoin d'un accès au microphone pour dicter."</string>
+    <string name="waex_ui_balanced_speed_and_accuracy" formatted="false">"Vitesse et précision équilibrées"</string>
+    <string name="waex_ui_cancel" formatted="false">"Annuler"</string>
+    <string name="waex_ui_delete" formatted="false">"Supprimer"</string>
+    <string name="waex_ui_download_suggested_model" formatted="false">"Télécharger le modèle suggéré"</string>
+    <string name="waex_ui_english_only_more_accurate_for_english" formatted="false">"Anglais uniquement : plus précis pour l’anglais"</string>
+    <string name="waex_ui_fast_fair_accuracy" formatted="false">"Précision rapide et équitable"</string>
+    <string name="waex_ui_fastest_lowest_accuracy" formatted="false">"Précision la plus rapide et la plus faible"</string>
+    <string name="waex_ui_in_use" formatted="false">"En cours d'utilisation"</string>
+    <string name="waex_ui_may_be_too_heavy_for_this_phone" formatted="false">"Peut-être trop lourd pour ce téléphone"</string>
+    <string name="waex_ui_most_accurate_slow" formatted="false">"Le plus précis, lent"</string>
+    <string name="waex_ui_on_device_models" formatted="false">"Modèles sur appareil"</string>
+    <string name="waex_ui_on_device_transcription_isn_t_availabl" formatted="false">"La transcription sur l'appareil n'est pas disponible sur ce téléphone"</string>
+    <string name="waex_ui_runs_on_your_phone_nothing_is_uploaded" formatted="false">"Fonctionne sur votre téléphone, rien n'est téléchargé. Les modèles plus grands sont plus précis mais plus lents."</string>
+    <string name="waex_ui_selected_download_it_to_start_using_it" formatted="false">"Sélectionné : téléchargez-le pour commencer à l'utiliser."</string>
+    <string name="waex_ui_suggested" formatted="false">"Suggéré"</string>
+    <string name="waex_ui_tap_a_model_to_choose_it_the_suggested" formatted="false">"Appuyez sur un modèle pour le choisir. Celui suggéré est utilisé jusqu'à ce que vous en choisissiez un autre."</string>
+    <string name="waex_ui_this_phone" formatted="false">"Ce téléphone"</string>
 </resources>

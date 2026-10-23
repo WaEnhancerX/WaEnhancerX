@@ -1046,4 +1046,59 @@ Değişiklikleri uygulamak için WhatsApp yeniden başlatılsın mı?"</string>
     <string name="waex_ui_hma_reason_preset">"HMA \"xposed\" ön ayarı ile gizlendi"</string>
     <string name="waex_ui_deleted_a_status">"bir durumu sildi"</string>
     <string name="waex_ui_restarting_whatsapp_short">"WhatsApp yeniden başlatılıyor…"</string>
+    <string name="waex_ui_adds_to_the_message_field_tap_to_recor" formatted="false">"Mesaj alanına 🎙️ eklenir. Kaydetmek için dokunun, metni eklemek için tekrar dokunun."</string>
+    <string name="waex_ui_automatic" formatted="false">"Otomatik"</string>
+    <string name="waex_ui_clear" formatted="false">"Temizle"</string>
+    <string name="waex_ui_connection_failed" formatted="false">"Bağlantı başarısız oldu"</string>
+    <string name="waex_ui_copy" formatted="false">"Kopyala"</string>
+    <string name="waex_ui_could_not_start_recording" formatted="false">"Kayıt başlatılamadı."</string>
+    <string name="waex_ui_custom_api_key" formatted="false">"Özel API Anahtarı"</string>
+    <string name="waex_ui_custom_endpoint_url" formatted="false">"Özel Uç Nokta URL'si"</string>
+    <string name="waex_ui_dictation_button" formatted="false">"Dikte düğmesi"</string>
+    <string name="waex_ui_find_models" formatted="false">"Modelleri bul"</string>
+    <string name="waex_ui_hide" formatted="false">"Gizle"</string>
+    <string name="waex_ui_log_copied" formatted="false">"Günlük kopyalandı"</string>
+    <string name="waex_ui_model_name" formatted="false">"Model Adı"</string>
+    <string name="waex_ui_new_voice_note" formatted="false">"Yeni sesli not"</string>
+    <string name="waex_ui_no_entries_yet" formatted="false">"Henüz giriş yok."</string>
+    <string name="waex_ui_no_speech_detected" formatted="false">"Konuşma algılanmadı."</string>
+    <string name="waex_ui_off_each_new_voice_note_sent_or_receiv" formatted="false">"Kapalı: Gönderilen veya alınan her yeni sesli not, Metne Yaz düğmesini içeren bir bildirim alır."</string>
+    <string name="waex_ui_recording_tap_to_stop" formatted="false">"Kaydediliyor… durdurmak için ⏹️'a dokunun."</string>
+    <string name="waex_ui_recording_too_short" formatted="false">"Kayıt çok kısa."</string>
+    <string name="waex_ui_refresh" formatted="false">"Yenile"</string>
+    <string name="waex_ui_searching" formatted="false">"Aranıyor…"</string>
+    <string name="waex_ui_show" formatted="false">"Göster"</string>
+    <string name="waex_ui_shows_next_to_the_time_of_voice_notes" formatted="false">"Sohbetlerdeki sesli notların zamanının yanında 📝 işaretini gösterir. Metni okumak için buna dokunun."</string>
+    <string name="waex_ui_steps_and_errors_only_transcripts_and" formatted="false">"Yalnızca adımlar ve hatalar. Transkriptler ve mesaj metni hiçbir zaman günlüğe kaydedilmez."</string>
+    <string name="waex_ui_tap_transcribe_to_turn_it_into_text" formatted="false">"Metne dönüştürmek için Metne Dönüştür'e dokunun."</string>
+    <string name="waex_ui_transcribe" formatted="false">"Metne dönüştür"</string>
+    <string name="waex_ui_transcribe_automatically" formatted="false">"Otomatik olarak metne dönüştür"</string>
+    <string name="waex_ui_transcribing_voice_note" formatted="false">"Sesli not yazıya aktarılıyor…"</string>
+    <string name="waex_ui_transcript_button_on_voice_notes" formatted="false">"Sesli notlardaki transkript düğmesi"</string>
+    <string name="waex_ui_transcript_copied" formatted="false">"Transkript kopyalandı"</string>
+    <string name="waex_ui_transcription_failed" formatted="false">"Transkripsiyon başarısız oldu"</string>
+    <string name="waex_ui_transcription_language" formatted="false">"Transkripsiyon dili"</string>
+    <string name="waex_ui_transcription_log" formatted="false">"Transkripsiyon günlüğü"</string>
+    <string name="waex_ui_uses_the_openai_audio_transcriptions_r" formatted="false">"OpenAI /audio/transcriptions istek formatını kullanır."</string>
+    <string name="waex_ui_voice_note_is_too_long_to_transcribe" formatted="false">"Sesli not yazıya dökülemeyecek kadar uzun."</string>
+    <string name="waex_ui_voice_note_transcript" formatted="false">"Sesli not metni"</string>
+    <string name="waex_ui_waex_voice_transcripts" formatted="false">"WAEX ses transkriptleri"</string>
+    <string name="waex_ui_whatsapp_needs_microphone_access_to_di" formatted="false">"WhatsApp'nin dikte edebilmesi için mikrofon erişimine ihtiyacı var."</string>
+    <string name="waex_ui_balanced_speed_and_accuracy" formatted="false">"Dengeli hız ve doğruluk"</string>
+    <string name="waex_ui_cancel" formatted="false">"İptal"</string>
+    <string name="waex_ui_delete" formatted="false">"Sil"</string>
+    <string name="waex_ui_download_suggested_model" formatted="false">"Önerilen modeli indir"</string>
+    <string name="waex_ui_english_only_more_accurate_for_english" formatted="false">"Yalnızca İngilizce: İngilizce için daha doğru"</string>
+    <string name="waex_ui_fast_fair_accuracy" formatted="false">"Hızlı, adil doğruluk"</string>
+    <string name="waex_ui_fastest_lowest_accuracy" formatted="false">"En hızlı, en düşük doğruluk"</string>
+    <string name="waex_ui_in_use" formatted="false">"Kullanımda"</string>
+    <string name="waex_ui_may_be_too_heavy_for_this_phone" formatted="false">"Bu telefon için çok ağır olabilir"</string>
+    <string name="waex_ui_most_accurate_slow" formatted="false">"En doğru, yavaş"</string>
+    <string name="waex_ui_on_device_models" formatted="false">"Cihaz üstü modeller"</string>
+    <string name="waex_ui_on_device_transcription_isn_t_availabl" formatted="false">"Bu telefonda cihaz üzerinde çeviri yazı kullanılamıyor"</string>
+    <string name="waex_ui_runs_on_your_phone_nothing_is_uploaded" formatted="false">"Telefonunuzda çalışır, hiçbir şey yüklenmez. Daha büyük modeller daha doğrudur ancak daha yavaştır."</string>
+    <string name="waex_ui_selected_download_it_to_start_using_it" formatted="false">"Seçildi: kullanmaya başlamak için indirin."</string>
+    <string name="waex_ui_suggested" formatted="false">"Önerilen"</string>
+    <string name="waex_ui_tap_a_model_to_choose_it_the_suggested" formatted="false">"Seçmek için bir modele dokunun. Önerilen, siz başka bir tane seçinceye kadar kullanılır."</string>
+    <string name="waex_ui_this_phone" formatted="false">"Bu telefon"</string>
 </resources>
