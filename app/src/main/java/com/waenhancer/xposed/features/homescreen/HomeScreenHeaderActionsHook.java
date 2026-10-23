@@ -11,6 +11,8 @@ import android.content.ContextWrapper;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.drawable.Drawable;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -30,8 +32,14 @@ import com.waenhancer.xposed.features.privacy.ArchivedChatsPreferencePolicy;
 import java.util.Collections;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.lang.ref.WeakReference;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
@@ -66,7 +74,14 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
     private static final int MENU_ID_LOCKED        = 0x7EAE0008;
     private static final AtomicLong LAST_ARCHIVE_OPEN_MS = new AtomicLong(-1L);
     private static final AtomicBoolean TITLE_LONG_PRESS_HOOKED = new AtomicBoolean(false);
-    private static final AtomicBoolean RESTART_SCHEDULED = new AtomicBoolean(false);
+    private static final AtomicReference<PendingRestart> RESTART_SCHEDULED = new AtomicReference<>();
+    private static final Handler RESTART_MAIN = new Handler(Looper.getMainLooper());
+    private static final ThreadPoolExecutor RESTART_WRITER = new ThreadPoolExecutor(
+            1, 1, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(1), task -> {
+                Thread thread = new Thread(task, "WAEX-HeaderRestart");
+                thread.setDaemon(true);
+                return thread;
+            });
     private final Set<View> archiveTitleViews = Collections.synchronizedSet(
             Collections.newSetFromMap(new WeakHashMap<>()));
     private long lastArchiveTitleTapMs = -1L;
@@ -756,19 +771,143 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
     // Force restart
     // -------------------------------------------------------------------------
 
-    /**
-     * Force-closes WhatsApp and relaunches it:
-     * Uses Intent.makeRestartActivityTask to relaunch the activity task, followed by Process.killProcess/System.exit(0).
-     */
+    /** Defer manual restart until the current menu callback has returned. */
     private void forceRestartWhatsApp(Activity activity) {
-        if (activity == null) return;
-        if (!RESTART_SCHEDULED.compareAndSet(false, true)) return;
+        scheduleRestart(activity, null);
+    }
+
+    private void saveAndRestart(Activity activity, String key, boolean value) {
+        scheduleRestart(activity, prefs.edit().putBoolean(key, value));
+    }
+
+    private static boolean canRestart(Activity activity) {
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()
+                || activity.getWindow() == null) return false;
+        View decor = activity.getWindow().getDecorView();
+        return decor != null && decor.isAttachedToWindow();
+    }
+
+    private static void scheduleRestart(Activity activity, SharedPreferences.Editor change) {
+        if (!canRestart(activity)) return;
+        PendingRestart previous = RESTART_SCHEDULED.get();
+        if (previous != null && !canRestart(previous.activity.get())) previous.cancel();
+        PendingRestart request = new PendingRestart(activity);
+        if (!RESTART_SCHEDULED.compareAndSet(null, request)) {
+            if (change != null) {
+                Toast.makeText(activity,
+                        UiText.get(R.string.waex_ui_restart_pending_change_not_saved_v37,
+                                "A restart is already pending. This change was not saved; try again afterward."),
+                        Toast.LENGTH_LONG).show();
+            }
+            return;
+        }
+        try {
+            activity.getWindow().getDecorView().addOnAttachStateChangeListener(request);
+            if (change == null) {
+                request.postResult(true);
+            } else {
+                // Commit the actual edit off the UI thread. The injected bridge
+                // acknowledges this write; neither a delay nor an empty commit
+                // guarantees that a previously queued apply() reached the provider.
+                request.writeTask = RESTART_WRITER.submit(() -> {
+                    boolean saved = false;
+                    try {
+                        saved = change.commit();
+                    } catch (RuntimeException failure) {
+                        XposedBridge.log(TAG + " Restart preference write failed: "
+                                + failure.getClass().getSimpleName());
+                    } finally {
+                        request.postResult(saved);
+                    }
+                });
+            }
+        } catch (RuntimeException failure) {
+            request.cancel();
+            showRestartUnavailable(activity);
+        }
+    }
+
+    private static void showRestartUnavailable(Activity activity) {
         Toast.makeText(activity,
-                UiText.get(R.string.waex_ui_restarting_whatsapp_short, "Restarting WhatsApp…"),
-                Toast.LENGTH_SHORT).show();
-        activity.getWindow().getDecorView().postDelayed(
-                () -> com.waenhancer.xposed.utils.WhatsAppProcessRestarter.restart(activity),
-                350L);
+                UiText.get(R.string.waex_ui_restart_operation_unavailable_1da7ab39,
+                        "Restart operation unavailable"), Toast.LENGTH_SHORT).show();
+    }
+
+    /** A queued callback or preference write must not keep its former Activity alive. */
+    private static final class PendingRestart implements Runnable, View.OnAttachStateChangeListener {
+        private final WeakReference<Activity> activity;
+        private final WeakReference<View> decor;
+        private volatile Future<?> writeTask;
+        private boolean saved;
+
+        PendingRestart(Activity activity) {
+            this.activity = new WeakReference<>(activity);
+            this.decor = new WeakReference<>(activity.getWindow().getDecorView());
+        }
+
+        void postResult(boolean saved) {
+            if (RESTART_SCHEDULED.get() != this) return;
+            this.saved = saved;
+            try {
+                if (RESTART_MAIN.post(this)) return;
+            } catch (RuntimeException ignored) { }
+            Activity current = activity.get();
+            cancel();
+            XposedBridge.log(TAG + " Could not enqueue restart");
+            if (Looper.myLooper() == Looper.getMainLooper() && canRestart(current)) {
+                showRestartUnavailable(current);
+            }
+        }
+
+        @Override public void run() {
+            if (RESTART_SCHEDULED.get() != this) return;
+            Activity current = activity.get();
+            try {
+                if (!canRestart(current)) return;
+                if (!saved) {
+                    Toast.makeText(current,
+                            UiText.get(R.string.waex_ui_unable_to_save_setting_d9dcb19d,
+                                    "Unable to save setting"), Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                current.invalidateOptionsMenu();
+                Toast.makeText(current,
+                        UiText.get(R.string.waex_ui_restarting_whatsapp_short, "Restarting WhatsApp…"),
+                        Toast.LENGTH_SHORT).show();
+                com.waenhancer.xposed.utils.WhatsAppProcessRestarter.restart(current);
+            } catch (RuntimeException failure) {
+                XposedBridge.log(TAG + " Restart failed: " + failure.getClass().getSimpleName());
+                if (canRestart(current)) showRestartUnavailable(current);
+            } finally {
+                cancel();
+            }
+        }
+
+        void cancel() {
+            RESTART_SCHEDULED.compareAndSet(this, null);
+            RESTART_MAIN.removeCallbacks(this);
+            Future<?> task = writeTask;
+            if (task != null) task.cancel(true);
+            RESTART_WRITER.purge();
+            activity.clear();
+            if (Looper.myLooper() == Looper.getMainLooper()) {
+                removeListener();
+            } else {
+                try {
+                    if (RESTART_MAIN.post(this::removeListener)) return;
+                } catch (RuntimeException ignored) { }
+                decor.clear();
+            }
+        }
+
+        private void removeListener() {
+            View view = decor.get();
+            decor.clear();
+            if (view != null) view.removeOnAttachStateChangeListener(this);
+        }
+
+        @Override public void onViewAttachedToWindow(View view) { }
+        @Override public void onViewDetachedFromWindow(View view) { cancel(); }
     }
 
     // -------------------------------------------------------------------------
@@ -783,11 +922,8 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
                     .setTitle(UiText.get(R.string.waex_ui_activate_ghost_mode_2481d3ff, "Activate Ghost Mode?"))
                     .setMessage(UiText.get(R.string.waex_ui_ghost_mode_hides_your_online_status_fr_aef9e9dc, "Ghost Mode hides your online status, freezes last seen, and silences typing & read receipts from all contacts.\n\nRestart WhatsApp to apply changes?"))
                     .setPositiveButton(UiText.get(R.string.waex_ui_activate_restart_017ecc0d, "Activate & Restart"), (d, w) -> {
-                        prefs.edit().putBoolean("ghostmode_active", true).apply();
-                        Toast.makeText(activity, UiText.get(R.string.waex_ui_ghost_mode_activated_970ac067, "Ghost Mode Activated"), Toast.LENGTH_SHORT).show();
-                        activity.invalidateOptionsMenu();
                         d.dismiss();
-                        forceRestartWhatsApp(activity);
+                        saveAndRestart(activity, "ghostmode_active", true);
                     })
                     .setNegativeButton(UiText.get(R.string.action_cancel, "Cancel"), (d, w) -> d.dismiss())
                     .show();
@@ -797,11 +933,8 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
                     .setTitle(UiText.get(R.string.waex_ui_deactivate_ghost_mode_ae52c22b, "Deactivate Ghost Mode?"))
                     .setMessage(UiText.get(R.string.waex_ui_deactivating_restores_your_normal_onli_e7fff0e3, "Deactivating restores your normal online visibility, typing indicators, and read receipts.\n\nRestart WhatsApp to apply changes?"))
                     .setPositiveButton(UiText.get(R.string.waex_ui_deactivate_restart_5f1c0ebe, "Deactivate & Restart"), (d, w) -> {
-                        prefs.edit().putBoolean("ghostmode_active", false).apply();
-                        Toast.makeText(activity, UiText.get(R.string.waex_ui_ghost_mode_deactivated_7b9d7043, "Ghost Mode Deactivated"), Toast.LENGTH_SHORT).show();
-                        activity.invalidateOptionsMenu();
                         d.dismiss();
-                        forceRestartWhatsApp(activity);
+                        saveAndRestart(activity, "ghostmode_active", false);
                     })
                     .setNegativeButton(UiText.get(R.string.action_cancel, "Cancel"), (d, w) -> d.dismiss())
                     .show();
@@ -816,11 +949,8 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
                     .setTitle(UiText.get(R.string.waex_ui_freeze_last_seen_200aea50, "Activate Freeze Last Seen?"))
                     .setMessage(UiText.get(R.string.waex_ui_locks_your_last_seen_timestamp_so_cont_3c49d617, "Locks your last seen timestamp so contacts won't see when you're active.\n\nRestart WhatsApp to apply changes?"))
                     .setPositiveButton(UiText.get(R.string.waex_ui_freeze_restart_bfdfd4fc, "Freeze & Restart"), (d, w) -> {
-                        prefs.edit().putBoolean("freeze_last_seen_active", true).apply();
-                        Toast.makeText(activity, UiText.get(R.string.waex_ui_last_seen_frozen_263b4306, "Last Seen Frozen"), Toast.LENGTH_SHORT).show();
-                        activity.invalidateOptionsMenu();
                         d.dismiss();
-                        forceRestartWhatsApp(activity);
+                        saveAndRestart(activity, "freeze_last_seen_active", true);
                     })
                     .setNegativeButton(UiText.get(R.string.action_cancel, "Cancel"), (d, w) -> d.dismiss())
                     .show();
@@ -830,11 +960,8 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
                     .setTitle(UiText.get(R.string.waex_ui_unfreeze_last_seen_2b755d69, "Deactivate Freeze Last Seen?"))
                     .setMessage(UiText.get(R.string.waex_ui_whatsapp_will_resume_updating_your_las_13fe4e9d, "WhatsApp will resume updating your last seen timestamp normally.\n\nRestart WhatsApp to apply changes?"))
                     .setPositiveButton(UiText.get(R.string.waex_ui_unfreeze_restart_482e080f, "Unfreeze & Restart"), (d, w) -> {
-                        prefs.edit().putBoolean("freeze_last_seen_active", false).apply();
-                        Toast.makeText(activity, UiText.get(R.string.waex_ui_last_seen_unfrozen_9b59cac2, "Last Seen Unfrozen"), Toast.LENGTH_SHORT).show();
-                        activity.invalidateOptionsMenu();
                         d.dismiss();
-                        forceRestartWhatsApp(activity);
+                        saveAndRestart(activity, "freeze_last_seen_active", false);
                     })
                     .setNegativeButton(UiText.get(R.string.action_cancel, "Cancel"), (d, w) -> d.dismiss())
                     .show();
@@ -848,18 +975,14 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
                 ? "WhatsApp will resume normal incoming notifications.\n\nRestart WhatsApp to apply changes?"
                 : "DND Mode mutes all incoming WhatsApp notifications.\n\nRestart WhatsApp to apply changes?";
         String action = active ? "Deactivate & Restart" : "Activate & Restart";
-        String toast = active ? "DND Mode Deactivated" : "DND Mode Activated";
 
         new WaexBottomSheet(activity)
                 .asBottomSheet()
                 .setTitle(title)
                 .setMessage(message)
                 .setPositiveButton(action, (d, w) -> {
-                    prefs.edit().putBoolean("dnd_mode", !active).apply();
-                    Toast.makeText(activity, toast, Toast.LENGTH_SHORT).show();
-                    activity.invalidateOptionsMenu();
                     d.dismiss();
-                    forceRestartWhatsApp(activity);
+                    saveAndRestart(activity, "dnd_mode", !active);
                 })
                 .setNegativeButton("Cancel", (d, w) -> d.dismiss())
                 .show();

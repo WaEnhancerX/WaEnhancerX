@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="waex_ui_restart_pending_change_not_saved_v37">Ponovni zagon že čaka na izvedbo. Ta sprememba ni bila shranjena; poskusi znova pozneje.</string>
+</resources>

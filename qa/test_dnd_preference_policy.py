@@ -40,7 +40,7 @@ for name, text in [("hook", hook), ("header", header), ("sheet", sheet), ("priva
     assert "DndPreferencePolicy.isEnabled(" in text, f"{name} bypasses tested DND policy"
 assert header.count("promptDndModeSheet(") == 4, "all DND menu paths must defer to confirmation"
 assert 'isEnabled(PREF_KEY, false) || isEnabled("dndmode", false)' not in hook
-assert header.count('putBoolean("dnd_mode", !active)') == 1
+assert header.count('saveAndRestart(activity, "dnd_mode", !active)') == 1
 assert 'putBoolean("dnd_mode"' not in sheet, "quick sheet must not mutate DND before confirmation"
 assert 'putBoolean("ghostmode_active"' not in sheet, "quick sheet must not mutate Ghost Mode before confirmation"
 assert 'putBoolean("freeze_last_seen_active"' not in sheet, "quick sheet must not mutate Freeze before confirmation"
