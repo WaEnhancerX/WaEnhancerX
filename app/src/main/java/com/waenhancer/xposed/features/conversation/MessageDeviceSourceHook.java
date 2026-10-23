@@ -137,7 +137,9 @@ public class MessageDeviceSourceHook extends BaseFeature {
                         if (message == null) return;
                         String messageId = extractMessageId(message);
                         if (messageId != null && !messageId.isEmpty()) {
-                            int devId = extractDeviceId(message);
+                            // The sender's device JID travels with the incoming stanza, which is
+                            // usually another argument than the stored message.
+                            int devId = extractDeviceIdFromArgs(param.args, message);
                             if (devId >= 0) {
                                 MessageDeviceSourceStore.getInstance(context).upsertDeviceId(messageId, devId);
                             }
@@ -410,8 +412,12 @@ public class MessageDeviceSourceHook extends BaseFeature {
     }
 
     private void attachClickToast(TextView textView, int deviceId) {
-        if (deviceId < 0) {
-            textView.setOnClickListener(null);
+        // Unknown device: leave the view alone; clearing it would also remove listeners other
+        // features put on this timestamp.
+        if (deviceId < 0) return;
+        // Voice notes use their timestamp for the transcript sheet (VoiceNoteRowTranscriptHook,
+        // #110); keep that tap. Matched by field name so this has no compile-time dependency.
+        if (XposedHelpers.getAdditionalInstanceField(textView, "waex_stt_file") != null) {
             return;
         }
 
@@ -556,7 +562,7 @@ public class MessageDeviceSourceHook extends BaseFeature {
 
                 try {
                     String raw = (String) XposedHelpers.callMethod(deviceJid, "getRawString");
-                    int dev = parseDeviceIdFromRawString(raw);
+                    int dev = parseDeviceIdFromRawString(raw, true);
                     if (dev >= 0) return dev;
                 } catch (Throwable ignored) {}
             }
@@ -572,8 +578,10 @@ public class MessageDeviceSourceHook extends BaseFeature {
                     String name = val.getClass().getName();
                     if (name.contains("Jid") || name.contains("jid")) {
                         try {
+                            // Only an explicit ":device" counts here: a plain contact JID in some
+                            // other field must not be reported as "sent from the phone".
                             String raw = (String) XposedHelpers.callMethod(val, "getRawString");
-                            int dev = parseDeviceIdFromRawString(raw);
+                            int dev = parseDeviceIdFromRawString(raw, false);
                             if (dev >= 0) return dev;
                         } catch (Throwable ignored) {}
                     }
@@ -607,19 +615,54 @@ public class MessageDeviceSourceHook extends BaseFeature {
         return null;
     }
 
-    private static int parseDeviceIdFromRawString(String raw) {
+    /**
+     * Device number from a WhatsApp JID string, {@code user[.agent][:device]@server}, e.g.
+     * {@code 421900123456:2@s.whatsapp.net} or {@code 123456789012345:3@lid}. Device 0 is the
+     * phone. Without ":device" a device JID means the phone; any other JID says nothing.
+     */
+    static int parseDeviceIdFromRawString(String raw, boolean isDeviceJid) {
         if (raw == null) return -1;
-        try {
-            int dotIdx = raw.indexOf('.');
-            int atIdx = raw.indexOf('@');
-            if (dotIdx != -1 && atIdx != -1 && dotIdx < atIdx) {
-                String devPart = raw.substring(dotIdx + 1, atIdx);
-                int colonIdx = devPart.indexOf(':');
-                if (colonIdx != -1) {
-                    devPart = devPart.substring(0, colonIdx);
+        int at = raw.indexOf('@');
+        String user = at >= 0 ? raw.substring(0, at) : raw;
+        int colon = user.lastIndexOf(':');
+        if (colon < 0) return isDeviceJid && !user.isEmpty() ? 0 : -1;
+        String device = user.substring(colon + 1);
+        if (device.isEmpty() || device.length() > 4) return -1;
+        for (int i = 0; i < device.length(); i++) {
+            if (!Character.isDigit(device.charAt(i))) return -1;
+        }
+        return Integer.parseInt(device);
+    }
+
+    /** Sender device from incoming-message arguments: device JIDs first, then their fields. */
+    private int extractDeviceIdFromArgs(Object[] args, Object message) {
+        if (args != null) {
+            if (deviceJidClass == null) resolveMessageClasses();
+            for (Object arg : args) {
+                if (arg == null || arg == message) continue;
+                if (deviceJidClass != null && deviceJidClass.isInstance(arg)) {
+                    int dev = deviceNumberOf(arg);
+                    if (dev >= 0) return dev;
                 }
-                return Integer.parseInt(devPart);
             }
+            for (Object arg : args) {
+                if (arg == null || arg == message || arg instanceof String || arg.getClass().isPrimitive()) continue;
+                int dev = extractDeviceId(arg);
+                if (dev >= 0) return dev;
+            }
+        }
+        return extractDeviceId(message);
+    }
+
+    private int deviceNumberOf(Object deviceJid) {
+        try {
+            return (Integer) XposedHelpers.callMethod(deviceJid, "getDevice");
+        } catch (Throwable ignored) {}
+        try {
+            return parseDeviceIdFromRawString((String) XposedHelpers.callMethod(deviceJid, "getRawString"), true);
+        } catch (Throwable ignored) {}
+        try {
+            return parseDeviceIdFromRawString(String.valueOf(deviceJid), true);
         } catch (Throwable ignored) {}
         return -1;
     }
