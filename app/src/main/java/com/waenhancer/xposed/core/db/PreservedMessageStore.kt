@@ -18,7 +18,10 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
 ) {
     companion object {
         private const val DATABASE_NAME = "waex_preserved_messages.db"
-        private const val DATABASE_VERSION = 3
+        // Version 3 has existed with two UNIQUE-key layouts. Version 4 was also
+        // published in the compatibility candidate. Both remain readable without
+        // rebuilding the table; keep the version monotonic across those builds.
+        private const val DATABASE_VERSION = 4
         const val TABLE_NAME = "preserved_messages"
 
         const val COL_ID = "_id"
@@ -42,7 +45,7 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
         }
     }
 
-    data class StoredMessage(
+    data class StoredMessage @JvmOverloads constructor(
         val id: String,
         val jid: String,
         val chatName: String,
@@ -50,7 +53,8 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
         val text: String,
         val timestamp: Long,
         val isFromMe: Boolean,
-        val isGroup: Boolean
+        val isGroup: Boolean,
+        val storageId: Long = 0L
     )
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -84,10 +88,9 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
                 db.execSQL("ALTER TABLE $TABLE_NAME ADD COLUMN $COL_SENDER_NAME TEXT")
             }
         }
-    }
-
-    override fun onDowngrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Prevent SQLiteException when downgrading from v3 to v2
+        // The readable columns of v2, both historical v3 layouts, and v4 are
+        // compatible. Preserve their row IDs, indexes, constraints and sequence.
+        // Let SQLiteOpenHelper reject an unknown future version by default.
     }
 
     fun insertPreservedMessage(
@@ -135,7 +138,8 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
                 db.update(TABLE_NAME, updateCv, "$COL_JID = ?", arrayOf(jid))
             }
         } catch (t: Throwable) {
-            android.util.Log.e("WAEX:PreservedStore", "insertPreservedMessage failed: ${t.javaClass.simpleName}: ${t.message}", t)
+            // SQLite exception messages and stacks can contain message values.
+            android.util.Log.e("WAEX:PreservedStore", "insertPreservedMessage failed: ${t.javaClass.simpleName}")
         }
     }
 
@@ -145,7 +149,7 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
             val db = readableDatabase
             val cursor: Cursor? = db.query(
                 TABLE_NAME,
-                arrayOf(COL_MSG_ID, COL_JID, COL_NAME, COL_SENDER_NAME, COL_TEXT, COL_TIMESTAMP, COL_FROM_ME, COL_IS_GROUP),
+                arrayOf(COL_MSG_ID, COL_JID, COL_NAME, COL_SENDER_NAME, COL_TEXT, COL_TIMESTAMP, COL_FROM_ME, COL_IS_GROUP, COL_ID),
                 null, null, null, null,
                 "$COL_TIMESTAMP ASC"
             )
@@ -170,7 +174,8 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
                             text = text,
                             timestamp = timestamp,
                             isFromMe = isFromMe,
-                            isGroup = isGroup
+                            isGroup = isGroup,
+                            storageId = it.getLong(8)
                         )
                     )
                 }

@@ -296,7 +296,9 @@ private fun loadRealPreservedChats(context: Context): List<PreservedChat> {
             UiText.get(R.string.waex_ui_preserved_9d31b48b, "Preserved")
         }
         val msg = PreservedMessage(
-            id = "${if (rec.isFromMe) 1 else 0}:${rec.id}",
+            // SQLite permits several NULL logical IDs even under a UNIQUE key.
+            // Use the physical row identity so each preserved message can render.
+            id = rec.storageId.toString(),
             text = rec.text.ifBlank { UiText.get(R.string.waex_ui_preserved_message_547f6da1, "Preserved message") },
             timestamp = dateTimeStr,
             isFromMe = rec.isFromMe,
