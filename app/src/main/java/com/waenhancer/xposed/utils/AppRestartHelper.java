@@ -101,9 +101,11 @@ public final class AppRestartHelper {
                             RestartTargetPolicy.forceStopCommand(packageName, supported)) != null;
                     boolean startedByRoot = false;
                     if (stoppedByRoot) {
+                        String component = launchIntent.getComponent() != null
+                                ? launchIntent.getComponent().flattenToShortString() : null;
                         String output = runRootCommand(
-                                RestartTargetPolicy.launchCommand(packageName, supported));
-                        startedByRoot = RestartTargetPolicy.reportsMonkeyLaunch(output);
+                                RestartTargetPolicy.launchCommand(packageName, component, supported));
+                        startedByRoot = RestartTargetPolicy.reportsRootLaunch(output);
                     }
                     if (startedByRoot) {
                         RESTART_PENDING.set(false);
@@ -165,15 +167,18 @@ public final class AppRestartHelper {
                             ? Collections.emptySet() : new LinkedHashSet<>(discovered);
 
                     for (String packageName : targets) {
+                        Intent targetLaunch = appContext.getPackageManager().getLaunchIntentForPackage(packageName);
                         if (!RestartTargetPolicy.isSupportedTarget(packageName, targets)
-                                || appContext.getPackageManager().getLaunchIntentForPackage(packageName) == null) {
+                                || targetLaunch == null) {
                             continue;
                         }
 
                         boolean stoppedByRoot = runRootCommand(
                                 RestartTargetPolicy.forceStopCommand(packageName, targets)) != null;
                         if (stoppedByRoot) {
-                            runRootCommand(RestartTargetPolicy.launchCommand(packageName, targets));
+                            String component = targetLaunch.getComponent() != null
+                                    ? targetLaunch.getComponent().flattenToShortString() : null;
+                            runRootCommand(RestartTargetPolicy.launchCommand(packageName, component, targets));
                         } else {
                             Intent restart = new Intent(RESTART_ACTION);
                             restart.setPackage(packageName);
