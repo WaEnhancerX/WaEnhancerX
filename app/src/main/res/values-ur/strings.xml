@@ -201,8 +201,8 @@
     <string name="feat_status_text_composer_desc">اپنی مرضی کے مطابق کرنے کے لیے اسٹیٹس میں کلر سلیکٹر کو دبائیں اور پکڑیں۔</string>
     <string name="feat_status_downloader_title">اسٹیٹس ڈاؤن لوڈ اور شیئر کریں۔</string>
     <string name="feat_status_downloader_desc">اسٹیٹس کو شیئر کرنے اور ڈاؤن لوڈ کرنے کے لیے دو بٹن دکھاتا ہے۔</string>
-    <string name="feat_media_upload_quality_title">ایچ ڈی کوالٹی کی تصاویر اور ویڈیوز</string>
-    <string name="feat_media_upload_quality_desc">ڈیفالٹ کے ذریعے ایچ ڈی کوالٹی میں تصاویر اور ویڈیوز بھیجیں۔</string>
+    <string name="feat_media_upload_quality_title">اصل معیار کی تصاویر اور ویڈیوز</string>
+    <string name="feat_media_upload_quality_desc">اصل معیار میں تصاویر اور ویڈیوز بھیجیں</string>
     <string name="feat_send_audio_as_voice_status_title">آڈیو ٹو وائس اسٹیٹس</string>
     <string name="feat_send_audio_as_voice_status_desc">ایک مقامی آڈیو فائل چنیں اور اسے آواز کی حیثیت کے طور پر شائع کریں۔</string>
     <string name="feat_status_video_splitter_title">اسٹیٹس ویڈیو سپلٹر</string>

@@ -201,8 +201,8 @@
     <string name="feat_status_text_composer_desc">स्थिति को अनुकूलित करने के लिए रंग चयनकर्ता को दबाकर रखें</string>
     <string name="feat_status_downloader_title">स्थिति डाउनलोड करें और साझा करें</string>
     <string name="feat_status_downloader_desc">स्टेटस साझा करने और डाउनलोड करने के लिए दो बटन दिखाता है</string>
-    <string name="feat_media_upload_quality_title">एचडी गुणवत्ता वाली छवियां और वीडियो</string>
-    <string name="feat_media_upload_quality_desc">डिफ़ॉल्ट रूप से चित्र और वीडियो एचडी गुणवत्ता में भेजें</string>
+    <string name="feat_media_upload_quality_title">मूल गुणवत्ता में चित्र और वीडियो</string>
+    <string name="feat_media_upload_quality_desc">चित्र और वीडियो मूल गुणवत्ता में भेजें</string>
     <string name="feat_send_audio_as_voice_status_title">ऑडियो से वॉयस स्थिति</string>
     <string name="feat_send_audio_as_voice_status_desc">एक स्थानीय ऑडियो फ़ाइल चुनें और इसे ध्वनि स्थिति के रूप में प्रकाशित करें</string>
     <string name="feat_status_video_splitter_title">स्टेटस वीडियो स्प्लिटर</string>

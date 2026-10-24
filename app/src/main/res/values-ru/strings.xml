@@ -201,8 +201,8 @@
     <string name="feat_status_text_composer_desc">Нажмите и удерживайте переключатель цвета в статусе, чтобы настроить его.</string>
     <string name="feat_status_downloader_title">Статус загрузки и публикации</string>
     <string name="feat_status_downloader_desc">Показывает две кнопки для обмена и статуса загрузки.</string>
-    <string name="feat_media_upload_quality_title">Изображения и видео HD-качества</string>
-    <string name="feat_media_upload_quality_desc">По умолчанию отправляйте изображения и видео в HD-качестве.</string>
+    <string name="feat_media_upload_quality_title">Изображения и видео в исходном качестве</string>
+    <string name="feat_media_upload_quality_desc">Отправляйте изображения и видео в исходном качестве</string>
     <string name="feat_send_audio_as_voice_status_title">Статус аудио в голос</string>
     <string name="feat_send_audio_as_voice_status_desc">Выберите локальный аудиофайл и опубликуйте его как голосовой статус.</string>
     <string name="feat_status_video_splitter_title">Статус видеоразделителя</string>

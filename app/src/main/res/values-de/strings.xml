@@ -201,8 +201,8 @@
     <string name="feat_status_text_composer_desc">Halten Sie die Farbauswahl im Status gedrückt, um sie anzupassen</string>
     <string name="feat_status_downloader_title">Download- und Freigabestatus</string>
     <string name="feat_status_downloader_desc">Zeigt zwei Schaltflächen zum Teilen und Herunterladen des Status an</string>
-    <string name="feat_media_upload_quality_title">Bilder und Videos in HD-Qualität</string>
-    <string name="feat_media_upload_quality_desc">Senden Sie Bilder und Videos standardmäßig in HD-Qualität</string>
+    <string name="feat_media_upload_quality_title">Bilder und Videos in Originalqualität</string>
+    <string name="feat_media_upload_quality_desc">Bilder und Videos in Originalqualität senden</string>
     <string name="feat_send_audio_as_voice_status_title">Audio-to-Voice-Status</string>
     <string name="feat_send_audio_as_voice_status_desc">Wählen Sie eine lokale Audiodatei aus und veröffentlichen Sie sie als Sprachstatus</string>
     <string name="feat_status_video_splitter_title">Status-Video-Splitter</string>

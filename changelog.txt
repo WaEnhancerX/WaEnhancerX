@@ -5,6 +5,7 @@
 
 [Improvements]
 - Improved Restart WhatsApp button to not turn on Auto Rotate.
+- Send original quality images and videos
 
 [Fixed]
 
