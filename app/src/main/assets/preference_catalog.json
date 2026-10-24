@@ -193,7 +193,8 @@
       "seen_tick_customization",
       "floating_bottom_bar",
       "unlock_premium_customization",
-      "custom_filters"
+      "custom_filters",
+      "custom_ab_props"
     ],
     "proKeys": [
       "unlock_premium_customization"

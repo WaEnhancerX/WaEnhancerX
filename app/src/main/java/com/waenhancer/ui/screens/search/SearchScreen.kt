@@ -36,6 +36,10 @@ import com.waenhancer.ui.navigation.Screen
 
 typealias SearchablePreference = FeatureItem
 
+private val preferenceSearchAliases = mapOf(
+    "chat_filters" to "chat search display search bar search icon hide search no search chatfilter"
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen() {
@@ -63,7 +67,8 @@ fun SearchScreen() {
                 val locDesc = LocalizationHelper.getDesc(context, pref)
                 val locSec = LocalizationHelper.getSection(context, pref)
                 val locTab = LocalizationHelper.getTabTitle(context, pref.tabId)
-                val haystack = "$locTitle $locDesc $locSec $locTab ${pref.key}".lowercase()
+                val aliases = preferenceSearchAliases[pref.key].orEmpty()
+                val haystack = "$locTitle $locDesc $locSec $locTab ${pref.key} $aliases".lowercase()
                 terms.all { term -> haystack.contains(term) }
             }
         }

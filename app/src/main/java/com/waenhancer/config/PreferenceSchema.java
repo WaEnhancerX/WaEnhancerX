@@ -159,6 +159,8 @@ public final class PreferenceSchema {
         add(entries, "css_test_value", Type.STRING, Sensitivity.RUNTIME, Store.PUBLIC);
         add(entries, "css_theme", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "custom_action_bar_color", Type.INT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "custom_ab_props", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "custom_ab_props_items", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "custom_css", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "custom_css_theme", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "custom_dpi", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);

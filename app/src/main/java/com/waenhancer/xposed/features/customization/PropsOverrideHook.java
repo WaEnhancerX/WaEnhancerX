@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.licensing.customprops.CustomAbPropsRuntime;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.callbacks.XCallback;
@@ -20,6 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /** Central, type-safe registry for WhatsApp MobileConfig/AB property overrides. */
 public final class PropsOverrideHook extends BaseFeature {
     private static final String TAG = "[WAEX][PropsOverride]";
+    private static boolean hookInstalled;
 
     public static final ConcurrentHashMap<Integer, Boolean> BOOLEANS = new ConcurrentHashMap<>();
     public static final ConcurrentHashMap<Integer, Integer> INTEGERS = new ConcurrentHashMap<>();
@@ -36,16 +38,26 @@ public final class PropsOverrideHook extends BaseFeature {
 
     @Override
     public void hook() {
-        Method booleanGetter = findFallbackGetter("waex_props_boolean_method", "Unknown BooleanField");
-        Method integerGetter = findFallbackGetter("waex_props_integer_method", "Unknown IntField");
-        Method resolver = findCentralResolver(booleanGetter);
-        if (resolver != null) {
-            hookPropertyMethod(resolver);
-            return;
+        synchronized (PropsOverrideHook.class) {
+            if (hookInstalled) return;
+            Method booleanGetter = findFallbackGetter("waex_props_boolean_method", "Unknown BooleanField");
+            Method integerGetter = findFallbackGetter("waex_props_integer_method", "Unknown IntField");
+            Method floatGetter = findFallbackGetter("waex_props_float_method", "Unknown FloatField");
+            Method stringGetter = findFallbackGetter("waex_props_string_method", "Unknown StringField");
+            Method resolver = findCentralResolver(booleanGetter);
+            if (resolver != null) {
+                hookInstalled = hookPropertyMethod(resolver);
+                if (hookInstalled) XposedBridge.log(TAG + " Installed central resolver: "
+                        + resolver.getDeclaringClass().getName() + "#" + resolver.getName());
+                return;
+            }
+            XposedBridge.log(TAG + " Central resolver unavailable; installing fallback getters");
+            boolean hooked = hookPropertyMethod(booleanGetter);
+            hooked |= hookPropertyMethod(integerGetter);
+            hooked |= hookPropertyMethod(floatGetter);
+            hooked |= hookPropertyMethod(stringGetter);
+            hookInstalled = hooked;
         }
-        XposedBridge.log(TAG + " Central resolver unavailable; installing fallback getters");
-        hookPropertyMethod(booleanGetter);
-        hookPropertyMethod(integerGetter);
     }
 
     /** Applies a declarative early MobileConfig boolean override from the feature registry. */
@@ -101,19 +113,27 @@ public final class PropsOverrideHook extends BaseFeature {
         return selected;
     }
 
-    private static void hookPropertyMethod(Method method) {
-        if (method == null) return;
+    private static boolean hookPropertyMethod(Method method) {
+        if (method == null) return false;
         final int idIndex = lastPrimitiveIntParameter(method);
-        if (idIndex < 0) return;
+        if (idIndex < 0) return false;
         XposedBridge.hookMethod(method, new XC_MethodHook(XCallback.PRIORITY_HIGHEST) {
             @Override protected void afterHookedMethod(MethodHookParam param) {
                 if (param.hasThrowable()) return;
                 if (param.args == null || idIndex >= param.args.length
                         || !(param.args[idIndex] instanceof Integer)) return;
                 Object override = resolveOverride((Integer) param.args[idIndex], param.getResult());
+                int propertyId = (Integer) param.args[idIndex];
+                if (CustomAbPropsRuntime.shouldLogObservation(propertyId)) {
+                    Object original = param.getResult();
+                    XposedBridge.log(TAG + " Observed custom id=" + propertyId
+                            + " originalType=" + (original == null ? "null" : original.getClass().getName())
+                            + " overrideType=" + (override == null ? "none" : override.getClass().getName()));
+                }
                 if (override != null) param.setResult(override);
             }
         });
+        return true;
     }
 
     private static int lastPrimitiveIntParameter(Method method) {

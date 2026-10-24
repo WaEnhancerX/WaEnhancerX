@@ -1,16 +1,42 @@
 package com.waenhancer.xposed;
 
-import com.waenhancer.app.R;
-import com.waenhancer.utils.UiText;
-
+import android.app.Activity;
+import android.app.Application;
 import android.annotation.SuppressLint;
+import android.content.BroadcastReceiver;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.ContextWrapper;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Process;
+import android.widget.Toast;
+
+import com.waenhancer.app.R;
+import com.waenhancer.config.PreferenceStores;
+import com.waenhancer.licensing.customprops.CustomAbPropsRuntime;
+import com.waenhancer.utils.UiText;
+import com.waenhancer.utils.WhatsAppPackageDetector;
 import com.waenhancer.xposed.bridge.client.PreferenceBridgeClient;
 import com.waenhancer.xposed.core.FeatureRegistry;
+import com.waenhancer.xposed.core.RestartPromptController;
+import com.waenhancer.xposed.core.VersionGuard;
+import com.waenhancer.xposed.core.components.WaexBottomSheet;
+import com.waenhancer.xposed.features.customization.PropsOverrideHook;
+import com.waenhancer.xposed.features.updates.WhatsAppUpdateSheet;
+import com.waenhancer.xposed.utils.ActivityTracker;
 import com.waenhancer.xposed.utils.ModuleStatus;
+
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.Locale;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.IXposedHookZygoteInit;
 import de.robv.android.xposed.XC_MethodHook;
@@ -19,30 +45,6 @@ import de.robv.android.xposed.XSharedPreferences;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
-import java.util.concurrent.atomic.AtomicBoolean;
-import android.app.Activity;
-import android.app.Application;
-import android.content.BroadcastReceiver;
-import android.content.ClipData;
-import android.content.ClipboardManager;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.net.Uri;
-import android.os.Build;
-import android.os.Process;
-import android.widget.Toast;
-import com.waenhancer.config.PreferenceStores;
-import com.waenhancer.utils.WhatsAppPackageDetector;
-import com.waenhancer.xposed.core.RestartPromptController;
-import com.waenhancer.xposed.core.VersionGuard;
-import com.waenhancer.xposed.core.components.WaexBottomSheet;
-import com.waenhancer.xposed.features.updates.WhatsAppUpdateSheet;
-import com.waenhancer.xposed.utils.ActivityTracker;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.Locale;
-
-
 
 /**
  * Main Xposed Entry point for Wa Enhancer X.
@@ -182,6 +184,22 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                                 sPreferenceBridge = new PreferenceBridgeClient(
                                                         context, preloadedPrefs, true);
                                             }
+                                        }
+                                    }
+                                    PreferenceBridgeClient earlyBridge = sPreferenceBridge;
+                                    if (earlyBridge != null) {
+                                        earlyBridge.awaitInitialSync();
+                                        if (CustomAbPropsRuntime.loadInto(
+                                                earlyBridge,
+                                                PropsOverrideHook.BOOLEANS,
+                                                PropsOverrideHook.INTEGERS,
+                                                PropsOverrideHook.FLOATS,
+                                                PropsOverrideHook.STRINGS)) {
+                                            // Arbitrary MobileConfig values may be cached before
+                                            // Application.onCreate. Install the same typed registry
+                                            // used by built-in props during attach instead.
+                                            new PropsOverrideHook(context, lpparam.classLoader,
+                                                    earlyBridge).hook();
                                         }
                                     }
                                 } catch (Throwable t) {

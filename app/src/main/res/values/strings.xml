@@ -271,6 +271,8 @@
     <string name="feat_filter_items_desc">Remove or customize WhatsApp views matching specific IDs (Gone, Change Color, Opacity, Resize)</string>
     <string name="feat_custom_filters_title">Filter Items By ID</string>
     <string name="feat_custom_filters_desc">Remove or customize WhatsApp views matching specific IDs (Gone, Change Color, Opacity, Resize)</string>
+    <string name="feat_custom_ab_props_title">Custom AB Properties</string>
+    <string name="feat_custom_ab_props_desc">Override typed WhatsApp AB properties by property ID at startup</string>
     <string name="feat_dotonline_title">Show Online Dot in Conversation List</string>
     <string name="feat_dotonline_desc">Show a green online dot on home screen</string>
     <string name="feat_showonlinetext_title">Show Online/Last seen in Conversation List</string>
@@ -279,8 +281,8 @@
     <string name="feat_typing_online_toasts_desc">Show a toast when a contact is online</string>
     <string name="feat_channels_enhancements_title">Remove Channel Recomendations</string>
     <string name="feat_channels_enhancements_desc">Remove Channel Recomendations from tab Status</string>
-    <string name="feat_chat_filters_title">Enable filter chats for type</string>
-    <string name="feat_chat_filters_desc">Show options to filter chats for groups, contacts and unseen messages</string>
+    <string name="feat_chat_filters_title">Chat search display</string>
+    <string name="feat_chat_filters_desc">Choose whether WhatsApp shows no search, a search icon, or the full search bar</string>
     <string name="feat_hide_ui_tabs_title">Hide Tabs on Home</string>
     <string name="feat_hide_ui_tabs_desc">Hide tabs on the home screen such as Updates, Communities and Calls</string>
     <string name="feat_instagram_status_layout_title">Enable IGStatus on Home Screen</string>

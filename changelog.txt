@@ -1,65 +1,18 @@
 [Added]
-- Added support for version 2.26.43.xx
-- Time Format (12/24 hours) for timestamp
-- In-App Screenshot / Screen Recording restrictions bypass
-- Send seen to specific Status
-  - Seen button in status view reply bar (Experimental)
-- Added module settings for Hooking method (Lightweight, Balanced, Maximum Capability, Customized)
+- Custom A/B Props support
+- Search bar style
+
 
 [Improvements]
-- Removed obsolete Facebook Grid and Compact List status layouts
-- Enhanced Download Profile Picture with optional "Save Duplicates" confirmation
-- Enhanced Download Status with optional "Save Duplicates" confirmation
-- Improved Floating bottom navigation customization
-- Hooks injection Optimized
-- Flexible removal of Meta AI
-  - Remove Home FAB 
-  - Remove Meta AI entry points
-  - Block Meta AI chat
-- Improved bootloader spoofer with support of play integrity to avoid WhatsApp Ban / Unverfied app issue (Experimental) 
-  
+- Improved Restart WhatsApp button to not turn on Auto Rotate.
 
 [Fixed]
-- Send blue ticks
-- Blue ticks on reply
-- Remove Meta AI
 
 
-[Feature: Floating bottom bar]
-- Horizontal Inner Padding
-- Selector type: Default, Oval
-- Selector Color
-- Hide Tab Labels (Icons Only)
-- Other improvements
-
-[Feature: Hooking Method]
-- Hooking method is a new feature that allows you to hook WhatsApp in different ways. 
-- You can choose between 3 different hooking methods:
-  - Balanced: Hooking some features on Startup, some features on demand (lazy injecting) for a balance between battery consumption and compatibility.
-  - Maximum: Hooking every feature on Startup for maximum compatibility.
-  - Lightweight (Pro): Hooking minimal features on Startup and more features on demand (lazy injecting) for minimum battery consumption.
-  - Customized (Pro): You can customize the hooking method for each feature.
-
-[Feature: Bootloader Spoofer]
-- Introduced Play Integrity & Roadblock Bypass: Intercepts WhatsApp's aggressive device integrity checks and suppresses unofficial app verification roadblock screens dynamically.
-- Tested on latest WhatsApp beta release (2.26.43.2). If your environment requires strict hardware-backed attestation for SMS/registration verification, ensure your device passes Device Integrity (e.g., using a valid keybox via Bootloader Spoofer or tools like PlayIntegrityFix/TEESimulator).
 
 
 [Notes]
-![Upcoming WhatsApp floating bottom bar](https://raw.githubusercontent.com/WaEnhancerX/WaEnhancerX/main/samples/upcoming-whatsapp-floating-bar.jpeg)
-
-- Floating bar new features are inspired from WhatsApp's soon upcoming update of Floating bottom bar design.
-- You can enjoy the same experience before WhatsApp even launches in beta. 
-- Use these values to get a similar experince:
-  - Horizontal Inner Padding: 5dp
-  - Vertical Inner Padding: 0dp
-  - Selector type: Oval
-  - Selector Color: App Default or by your choice (with 30% opacity)
-  - Hide Tab Labels (Icons Only): True
-  - Icon Size: 26dp
-  - Shadow: Enabled
-  - Selected/Unselected Icon color: App Default or by your choice.
 
 
 [Community contribution]
-- Thanks to @TheKillerMax for valuable contributions in this update.
+- Thanks to .... for valuable contributions in this update.

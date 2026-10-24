@@ -104,6 +104,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.waenhancer.app.R
 import com.waenhancer.core.preferences.WaexPreferenceManager
+import com.waenhancer.licensing.customprops.CustomAbPropEditorScreen
+import com.waenhancer.licensing.customprops.CustomAbPropsScreen
 import com.waenhancer.notices.NoticeItem
 import com.waenhancer.notices.NoticeRepository
 import com.waenhancer.ui.components.NoticeBottomSheet
@@ -162,6 +164,10 @@ class WaexNavController(initialScreen: Screen = Screen.MainDashboard) {
         }
         if (preferenceKey == "filter_items" || preferenceKey == "custom_filters") {
             navigateTo(Screen.FilterItems)
+            return
+        }
+        if (preferenceKey == "custom_ab_props") {
+            navigateTo(Screen.CustomAbProps)
             return
         }
         val rootScreen = when (tabIndex) {
@@ -1009,6 +1015,8 @@ fun WaexAppNavigation(
     onClearAllContacts: () -> Unit = {},
     onUpdateContact: (ContactPrivacy) -> Unit = {}
 ) {
+    val navController = LocalWaexNavController.current
+    val preferenceManager = LocalWaexPreferenceManager.current
     when (currentScreen) {
         Screen.MainDashboard -> MainDashboardScreen(
             licenseState = licenseState,
@@ -1051,6 +1059,16 @@ fun WaexAppNavigation(
         Screen.ManageDevices -> ManageDevicesScreen()
         Screen.FloatingBottomBarCustomizer -> FloatingBottomBarCustomizerScreen()
         Screen.FilterItems -> FilterItemsScreen()
+        Screen.CustomAbProps -> CustomAbPropsScreen(
+            prefs = preferenceManager,
+            onBack = navController::popBack,
+            onEdit = { index -> navController.navigateTo(Screen.CustomAbPropEditor(index)) }
+        )
+        is Screen.CustomAbPropEditor -> CustomAbPropEditorScreen(
+            index = currentScreen.index,
+            prefs = preferenceManager,
+            onBack = navController::popBack
+        )
         is Screen.InjectedHooks -> InjectedHooksScreen(packageName = currentScreen.packageName, appName = currentScreen.appName)
     }
 }

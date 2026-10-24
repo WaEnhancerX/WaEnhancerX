@@ -12,6 +12,15 @@ import com.waenhancer.hooking.HookingEngine.FeaturePolicy;
 import com.waenhancer.hooking.HookingEngine.Installation;
 import com.waenhancer.hooking.LazyHookCoordinator;
 import com.waenhancer.hooking.ScreenScopedFeature;
+import com.waenhancer.licensing.customprops.CustomAbPropsRuntime;
+import com.waenhancer.licensing.features.AudioToVoiceStatusFeature;
+import com.waenhancer.licensing.features.BootloaderSpooferFeature;
+import com.waenhancer.licensing.features.FileSizeSpooferFeature;
+import com.waenhancer.licensing.features.MessageBomberFeature;
+import com.waenhancer.licensing.features.NewChatFeature;
+import com.waenhancer.licensing.features.PlayIntegrityBypassHook;
+import com.waenhancer.licensing.features.StatusSplitterFeature;
+import com.waenhancer.licensing.features.UnlockWaPlusFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.xposed.utils.ActivityTracker;
 import com.waenhancer.xposed.features.automation.PresenceToastsHook;
@@ -66,24 +75,17 @@ import com.waenhancer.xposed.features.privacy.HideReceiptsHook;
 import com.waenhancer.xposed.features.privacy.LockedChatsEnhancerHook;
 import com.waenhancer.xposed.features.privacy.ScreenshotRestrictionBypassHook;
 import com.waenhancer.xposed.features.privacy.TypingPrivacyHook;
-import com.waenhancer.licensing.features.PlayIntegrityBypassHook;
-import com.waenhancer.licensing.features.AudioToVoiceStatusFeature;
-import com.waenhancer.licensing.features.BootloaderSpooferFeature;
-import com.waenhancer.licensing.features.FileSizeSpooferFeature;
-import com.waenhancer.licensing.features.MessageBomberFeature;
-import com.waenhancer.licensing.features.NewChatFeature;
-import com.waenhancer.licensing.features.StatusSplitterFeature;
-import com.waenhancer.licensing.features.UnlockWaPlusFeature;
 import de.robv.android.xposed.XposedBridge;
 import org.json.JSONArray;
 import org.json.JSONObject;
+
 import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
 import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Orchestrates and registers all modular hooks in WAEX and reports injected status.
@@ -593,6 +595,13 @@ public final class FeatureRegistry {
                         + error.getClass().getSimpleName());
             }
         }
+        // User entries are applied last intentionally, allowing an explicit custom value to win.
+        CustomAbPropsRuntime.loadInto(
+                prefs,
+                PropsOverrideHook.BOOLEANS,
+                PropsOverrideHook.INTEGERS,
+                PropsOverrideHook.FLOATS,
+                PropsOverrideHook.STRINGS);
     }
 
     private void install(FeatureEntry entry) {

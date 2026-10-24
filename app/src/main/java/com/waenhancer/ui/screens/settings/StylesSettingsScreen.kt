@@ -112,7 +112,7 @@ fun StylesSettingsScreen() {
         listOf(
             "bubble_colors", "custom_theme", "custom_time_format", "custom_toolbar",
             "custom_view_dpi", "seen_tick_customization", "floating_bottom_bar",
-            "unlock_premium_customization", "custom_filters",
+            "unlock_premium_customization", "custom_filters", "custom_ab_props",
             "dotonline", "showonlinetext", "typing_online_toasts",
             "metaai", "channels_enhancements", "chat_filters", "hide_ui_tabs",
             "instagram_status_layout", "status_style", "separate_groups_tabs", "quick_home_menu",
@@ -388,6 +388,19 @@ fun StylesSettingsScreen() {
                                                 Icon(
                                                     imageVector = WaexIcons.Settings,
                                                     contentDescription = UiText.get(R.string.waex_ui_configure_filter_items, "Configure Filter Items"),
+                                                    tint = colors.primary,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+                                        if (item.key == "custom_ab_props") {
+                                            IconButton(
+                                                onClick = { navController.navigateTo(Screen.CustomAbProps) },
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = WaexIcons.Settings,
+                                                    contentDescription = "Configure Custom AB Properties",
                                                     tint = colors.primary,
                                                     modifier = Modifier.size(20.dp)
                                                 )
