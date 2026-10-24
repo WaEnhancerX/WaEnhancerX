@@ -467,12 +467,19 @@ public class HideReceiptsHook extends BaseFeature {
                         if (param.getResult() == null) return;
                         Object node = param.getResult();
 
+                        String type = getAttributeValue(node, "type");
+                        boolean isReadReceipt = "read".equals(type);
+                        // A receipt node can also carry retry/recovery, own-device sync,
+                        // played or future protocol messages. Only an ordinary delivery
+                        // receipt (no type) or an explicit read receipt belongs to these
+                        // two privacy controls. Preserve all other nodes and their sts.
+                        if (type != null && !isReadReceipt) return;
+
                         String to = getAttributeValue(node, "to");
                         String participant = getAttributeValue(node, "participant");
-                        String type = getAttributeValue(node, "type");
                         String messageId = getAttributeValue(node, "id");
 
-                        boolean isStatusStanza = isStatusTarget(to, participant) || "readstatus".equals(type);
+                        boolean isStatusStanza = isStatusTarget(to, participant);
 
                         if (isStatusStanza) {
                             // Status view receipts are suppressed via incoming interceptor and SendReadReceiptJob.
@@ -492,7 +499,7 @@ public class HideReceiptsHook extends BaseFeature {
                         if (ExplicitReadReceiptPolicy.maySend(type, target, messageId,
                                 hideDelivery, EXPLICIT_RECEIPT_IDS,
                                 SystemClock.elapsedRealtime())) return;
-                        boolean hideRead = shouldHideReadReceipt(target);
+                        boolean hideRead = isReadReceipt && shouldHideReadReceipt(target);
 
                         if (hideDelivery) {
                             applyHideDelivery(node);
@@ -939,13 +946,9 @@ public class HideReceiptsHook extends BaseFeature {
     }
 
     private boolean isStatusTarget(String jid, String participant) {
-        if (jid != null && (jid.equals("status@broadcast") || jid.contains("status") || jid.contains("broadcast"))) {
-            return true;
-        }
-        if (participant != null && (participant.contains("status") || participant.contains("broadcast"))) {
-            return true;
-        }
-        return false;
+        // Numeric broadcast-list recipients are ordinary conversations. Matching
+        // the namespace or a substring would apply status privacy to their jobs.
+        return "status@broadcast".equals(jid) || "status@broadcast".equals(participant);
     }
 
     private boolean shouldHideStatusView(String target) {

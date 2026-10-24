@@ -1,0 +1,53 @@
+name: Receipt privacy and control stanza preservation
+
+on:
+  push:
+    branches: [main, 'integration/preview-current-main-*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exercise complete receipt hook callbacks and negative controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          kotlinc -version
+          python3 qa/test_receipt_stanza_runtime.py --out "$RUNNER_TEMP/waex-receipt-stanza/candidate"
+          python3 qa/mutate_receipt_stanzas.py --out "$RUNNER_TEMP/waex-receipt-stanza/mutations"
+          python3 qa/test_receipt_job_execution_contract.py
+          python3 qa/test_played_receipt_dispatch_contract.py
+          python3 qa/test_blue_receipt_recipient_isolation.py
+          python3 qa/test_receipt_observation.py
+      - name: Preserve source identities and execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: waex-receipt-stanza-evidence
+          path: |
+            ${{ runner.temp }}/waex-receipt-stanza/**/*.json
+            ${{ runner.temp }}/waex-receipt-stanza/**/*.log
+          if-no-files-found: error
+          retention-days: 14
