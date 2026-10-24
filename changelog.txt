@@ -1,5 +1,5 @@
 [Added]
-- Custom A/B Props support
+- Custom A/B Props support: Override WhatsApp AB properties
 - Search bar style
 
 
