@@ -586,6 +586,8 @@ public final class FeatureRegistry {
         PropsOverrideHook.setBooleanOverride(6251, metaAiFullyDisabled, false);
         PropsOverrideHook.setBooleanOverride(8026, metaAiFullyDisabled, false);
         PropsOverrideHook.setBooleanOverride(14886, metaAiFullyDisabled, false);
+        MediaQualityBypassHook.configurePropertyOverrides(
+                prefs.getBoolean("imagequality", false));
         for (FeatureEntry entry : features) {
             if (entry.policy == null || entry.policy.preHook == null || !isEntryEnabled(entry)) continue;
             try {
