@@ -37,6 +37,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import com.waenhancer.ui.components.WaexTopBar
 import com.waenhancer.ui.components.StitchSwitch
 import com.waenhancer.ui.designsystem.WaexTheme
@@ -53,6 +54,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.BorderStroke
 import com.waenhancer.utils.InternalLabels
+import com.waenhancer.utils.MagiskDenylistDiagnostics
 
 @Composable
 fun SystemHealthScreen() {
@@ -69,6 +71,9 @@ fun SystemHealthScreen() {
     var refreshTrigger by remember { mutableIntStateOf(0) }
     var runtimeSnapshot by remember {
         mutableStateOf(XposedRuntimeInspector.cached())
+    }
+    var denylistReport by remember {
+        mutableStateOf<MagiskDenylistDiagnostics.DenylistReport?>(MagiskDenylistDiagnostics.cached())
     }
     var showHookToast by remember {
         mutableStateOf(preferences.getBoolean("show_hook_toast", true))
@@ -88,6 +93,10 @@ fun SystemHealthScreen() {
             XposedRuntimeInspector.inspect(packages)
         }
         runtimeSnapshot = refreshed
+        val denylist = withContext(Dispatchers.IO) {
+            MagiskDenylistDiagnostics.checkDenylistStatus(context, packages, forceRefresh = refreshTrigger > 0)
+        }
+        denylistReport = denylist
     }
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -147,7 +156,13 @@ fun SystemHealthScreen() {
                     UiText.get(R.string.waex_ui_device, "Device") to data.device,
                     UiText.get(R.string.waex_ui_supported_abis, "Supported ABIs") to data.abis,
                     UiText.get(R.string.waex_ui_kernel, "Kernel") to data.kernel,
-                    "SELinux" to InternalLabels.text(data.selinux)
+                    "SELinux" to InternalLabels.text(data.selinux),
+                    stringResource(R.string.diag_label_denylist) to when (denylistReport?.state) {
+                        MagiskDenylistDiagnostics.DenylistState.BLOCKING_TARGETS -> stringResource(R.string.diag_denylist_blocked)
+                        MagiskDenylistDiagnostics.DenylistState.CLEAN -> stringResource(R.string.diag_denylist_clean)
+                        MagiskDenylistDiagnostics.DenylistState.NOT_ACTIVE -> stringResource(R.string.diag_denylist_not_active)
+                        MagiskDenylistDiagnostics.DenylistState.CHECKING, null -> stringResource(R.string.diag_denylist_checking)
+                    }
                 ), colors.primary)
 
                 DiagnosticCard(
