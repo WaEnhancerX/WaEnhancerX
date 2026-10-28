@@ -21,6 +21,7 @@ import com.waenhancer.xposed.core.devkit.DexSearchEngine
 import com.waenhancer.xposed.features.automation.PresenceStateStore
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
+import de.robv.android.xposed.XposedHelpers
 import org.luckypray.dexkit.query.FindMethod
 import org.luckypray.dexkit.query.enums.StringMatchType
 import org.luckypray.dexkit.query.matchers.MethodMatcher
@@ -33,7 +34,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
-/** Renders process-local presence events on currently bound conversation rows. */
+/** Renders online presence indicators (green dot on contact avatar) on conversation rows. */
 class OnlinePresenceIndicatorsHook(
     context: Context,
     classLoader: ClassLoader,
@@ -42,8 +43,6 @@ class OnlinePresenceIndicatorsHook(
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val visibleRows = Collections.synchronizedMap(WeakHashMap<View, String>())
-    // Weak values matter: an overlay's parent retains its host row on Android.
-    private val rowOverlays = Collections.synchronizedMap(WeakHashMap<View, WeakReference<FrameLayout>>())
     private val pendingBindings = Collections.synchronizedMap(WeakHashMap<View, Any>())
     private val refreshPending = AtomicBoolean()
     private val showDot = isEnabled("dotonline", false)
@@ -57,7 +56,7 @@ class OnlinePresenceIndicatorsHook(
         if (!showDot && !showText) return
         try {
             val bindMethod = DexSearchEngine.getInstance().findMethodWithCache(
-                context, classLoader, "waex_conversation_row_bind_presence_v2"
+                context, classLoader, "waex_conversation_row_bind_presence_v3"
             ) { bridge, loader ->
                 bridge.findMethod(
                     FindMethod.create().matcher(
@@ -74,14 +73,15 @@ class OnlinePresenceIndicatorsHook(
             }
 
             subscriptionMethod = DexSearchEngine.getInstance().findMethodWithCache(
-                context, classLoader, "waex_presence_subscription_sender_v3"
+                context, classLoader, "waex_presence_subscription_sender_v4"
             ) { bridge, loader ->
                 val target = bridge.findMethod(FindMethod.create().matcher(MethodMatcher.create().addUsingString(
                     "app/send-presence-subscription jid=", StringMatchType.Contains
                 ))).firstOrNull()
-                target?.callers?.firstOrNull { it.paramCount == 4 }?.getMethodInstance(loader)
+                target?.callers?.firstOrNull()?.getMethodInstance(loader)
                     ?: target?.getMethodInstance(loader)
             }
+
             subscriptionMethod?.let { method ->
                 XposedBridge.hookAllConstructors(method.declaringClass, object : XC_MethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
@@ -92,12 +92,8 @@ class OnlinePresenceIndicatorsHook(
 
             XposedBridge.hookMethod(bindMethod, object : XC_MethodHook() {
                 override fun afterHookedMethod(param: MethodHookParam) {
-                    // Never reflectively stringify private contact objects for unused diagnostics.
                     val row = findConversationRow(param.thisObject)
                     val jid = findJid(param.args, 3)
-                    if ((row == null || jid == null) && bindDiagnostics.getAndIncrement() < 5) {
-                        val hasContactId = jid != null
-                    }
                     if (row == null) return
                     if (param.hasThrowable() || jid == null || jid.contains("@g.us")) {
                         queueBindRow(row, null)
@@ -105,8 +101,8 @@ class OnlinePresenceIndicatorsHook(
                     }
                     val contact = param.args?.firstOrNull()
                     subscriptionMethod?.let { method ->
-                        if (contact != null && method.parameterTypes.size == 4) {
-                            findObjectOfType(contact, method.parameterTypes[0], 4, HashSet())?.let {
+                        if (contact != null) {
+                            findObjectOfType(contact, method.parameterTypes.firstOrNull() ?: Any::class.java, 4, HashSet())?.let {
                                 recordIdentityAlias(
                                     PresenceStateStore.normalize(it.toString()),
                                     PresenceStateStore.normalize(jid)
@@ -114,7 +110,7 @@ class OnlinePresenceIndicatorsHook(
                             }
                         }
                     }
-                    requestPresence(contact)
+                    requestPresence(contact, jid)
                     queueBindRow(row, PresenceStateStore.normalize(jid))
                 }
             })
@@ -125,7 +121,6 @@ class OnlinePresenceIndicatorsHook(
     }
 
     private fun queuePresenceRefresh() {
-        // A burst of repeated observations needs one repaint, not an unbounded Handler queue.
         if (!refreshPending.compareAndSet(false, true)) return
         if (!mainHandler.post {
             refreshPending.set(false)
@@ -144,7 +139,6 @@ class OnlinePresenceIndicatorsHook(
         val token = Any()
         synchronized(pendingBindings) {
             pendingBindings[row] = token
-            // Invalidate before a queued observation can reuse the previous contact's row.
             visibleRows.remove(row)
         }
         val weakRow = WeakReference(row)
@@ -165,8 +159,6 @@ class OnlinePresenceIndicatorsHook(
     }
 
     private fun stateForRow(jid: String): PresenceStateStore.State? {
-        // These are only explicit identity links recorded from the existing host path.
-        // Never infer a phone/LID mapping by stripping a suffix or comparing prefixes.
         val keys = linkedSetOf(jid)
         identityAliases.entries.forEach { (alias, canonical) ->
             if (canonical == jid) keys.add(alias)
@@ -175,50 +167,67 @@ class OnlinePresenceIndicatorsHook(
     }
 
     private fun bindRow(row: View, jid: String) {
-        val group = row as? ViewGroup ?: return
-        ensureOverlay(group)
+        ensureDotView(row)
+        ensureTextView(row)
         visibleRows[row] = jid
         row.setTag(TAG_BOUND_JID, jid)
         render(row, stateForRow(jid))
     }
 
-    private fun requestPresence(contact: Any?) {
+    private fun requestPresence(contact: Any?, jid: String?) {
         val method = subscriptionMethod ?: return
-        val receiver = subscriptionReceiver ?: return
-        if (contact == null || method.parameterTypes.size != 4) return
-        val jidObject = findObjectOfType(contact, method.parameterTypes[0], 4, HashSet()) ?: return
-        val key = jidObject.toString()
+        val receiver = subscriptionReceiver
+        val key = jid ?: return
         val now = SystemClock.uptimeMillis()
         val previous = subscriptions[key]
         if (previous != null && now - previous < 30_000L) return
         recordSubscription(key, now)
+
         try {
-            val tokenType = method.parameterTypes[2]
-            val tokenConstructor = tokenType.declaredConstructors.firstOrNull()
-            val token = tokenConstructor?.let { constructor ->
-                constructor.isAccessible = true
-                val values = constructor.parameterTypes.map { type ->
-                    when {
-                        !type.isPrimitive -> null
-                        type == Boolean::class.javaPrimitiveType -> false
-                        type == Byte::class.javaPrimitiveType -> 0.toByte()
-                        type == Short::class.javaPrimitiveType -> 0.toShort()
-                        type == Int::class.javaPrimitiveType -> 0
-                        type == Long::class.javaPrimitiveType -> 0L
-                        type == Float::class.javaPrimitiveType -> 0f
-                        type == Double::class.javaPrimitiveType -> 0.0
-                        type == Char::class.javaPrimitiveType -> '\u0000'
-                        else -> null
-                    }
-                }.toTypedArray()
-                constructor.newInstance(*values)
+            val params = method.parameterTypes
+            val jidArg = if (params.isNotEmpty()) {
+                if (params[0].isInstance(contact)) contact
+                else findObjectOfType(contact, params[0], 4, HashSet())
+            } else null
+
+            if (jidArg != null) {
+                method.isAccessible = true
+                if (params.size == 1) {
+                    method.invoke(receiver, jidArg)
+                } else if (params.size == 4) {
+                    val tokenType = params[2]
+                    val token = createDefaultInstance(tokenType)
+                    method.invoke(receiver, jidArg, null, token, receiver)
+                }
             }
-            method.isAccessible = true
-            method.invoke(null, jidObject, null, token, receiver)
         } catch (t: Throwable) {
             if (subscriptionDiagnostics.getAndIncrement() < 5) {
-                XposedBridge.log("[WAEX][OnlinePresence] Presence request failed: ${t.javaClass.simpleName}")
+                XposedBridge.log("[WAEX][OnlinePresence] Presence request error: ${t.javaClass.simpleName}")
             }
+        }
+    }
+
+    private fun createDefaultInstance(type: Class<*>): Any? {
+        return try {
+            val constructor = type.declaredConstructors.firstOrNull() ?: return null
+            constructor.isAccessible = true
+            val args = constructor.parameterTypes.map { p ->
+                when {
+                    !p.isPrimitive -> null
+                    p == Boolean::class.javaPrimitiveType -> false
+                    p == Byte::class.javaPrimitiveType -> 0.toByte()
+                    p == Short::class.javaPrimitiveType -> 0.toShort()
+                    p == Int::class.javaPrimitiveType -> 0
+                    p == Long::class.javaPrimitiveType -> 0L
+                    p == Float::class.javaPrimitiveType -> 0f
+                    p == Double::class.javaPrimitiveType -> 0.0
+                    p == Char::class.javaPrimitiveType -> '\u0000'
+                    else -> null
+                }
+            }.toTypedArray()
+            constructor.newInstance(*args)
+        } catch (_: Throwable) {
+            null
         }
     }
 
@@ -239,80 +248,96 @@ class OnlinePresenceIndicatorsHook(
         return null
     }
 
-    private fun ensureOverlay(row: ViewGroup): FrameLayout {
-        rowOverlays[row]?.get()?.let { return it }
-        val overlay = FrameLayout(row.context).apply {
-            id = ID_OVERLAY
-            isClickable = false
-            isFocusable = false
-            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-        }
-        if (showDot) {
-            overlay.addView(View(row.context).apply {
+    /**
+     * Attaches green dot directly to the contact avatar container (contact_selector).
+     * Positions precisely on the bottom-right of the avatar circle with border stroke.
+     */
+    private fun ensureDotView(row: View): View? {
+        if (!showDot) return null
+        val resources = row.resources
+        val packageName = row.context.packageName
+        val contactSelectorId = resources.getIdentifier("contact_selector", "id", packageName)
+        val container = if (contactSelectorId != 0) row.findViewById<ViewGroup>(contactSelectorId) else null
+        val targetGroup = container ?: (row as? ViewGroup) ?: return null
+
+        var dot = targetGroup.findViewById<View>(ID_DOT)
+        if (dot == null) {
+            dot = View(row.context).apply {
                 id = ID_DOT
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
-                    setColor(Color.rgb(37, 211, 102))
-                    setStroke(dp(2), Color.rgb(18, 27, 31))
+                    setColor(Color.rgb(37, 211, 102)) // WhatsApp online green #25D366
+                    setStroke(dp(2), Color.rgb(18, 27, 31)) // Dark boundary ring
                 }
                 visibility = View.GONE
-            }, FrameLayout.LayoutParams(dp(14), dp(14), Gravity.START or Gravity.TOP).apply {
-                marginStart = dp(53)
-                topMargin = dp(7)
-            })
+                isClickable = false
+                isFocusable = false
+            }
+            val size = dp(14)
+            if (targetGroup is FrameLayout) {
+                val params = FrameLayout.LayoutParams(size, size, Gravity.BOTTOM or Gravity.END).apply {
+                    marginEnd = dp(4)
+                    bottomMargin = dp(4)
+                }
+                targetGroup.addView(dot, params)
+            } else {
+                targetGroup.addView(dot, ViewGroup.LayoutParams(size, size))
+            }
         }
-        if (showText) {
-            overlay.addView(TextView(row.context).apply {
-                id = ID_TEXT
-                textSize = 12f
-                setTextColor(Color.rgb(37, 211, 102))
-                gravity = Gravity.END or Gravity.CENTER_VERTICAL
-                visibility = View.GONE
-            }, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(24), Gravity.END or Gravity.TOP).apply {
-                marginEnd = dp(12)
-                topMargin = dp(28)
-            })
-        }
-        row.overlay.add(overlay)
-        val updateBounds = {
-            layoutOverlay(row, overlay)
-        }
-        row.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateBounds() }
-        row.post { updateBounds() }
-        rowOverlays[row] = WeakReference(overlay)
-        return overlay
+        return dot
     }
 
-    private fun layoutOverlay(row: View, overlay: FrameLayout) {
-        // ViewGroupOverlay does not perform the normal measurement/layout pass for us.
-        overlay.layoutDirection = row.layoutDirection
-        overlay.measure(
-            View.MeasureSpec.makeMeasureSpec(row.width.coerceAtLeast(0), View.MeasureSpec.EXACTLY),
-            View.MeasureSpec.makeMeasureSpec(row.height.coerceAtLeast(0), View.MeasureSpec.EXACTLY)
-        )
-        overlay.layout(0, 0, row.width, row.height)
-        overlay.invalidate()
+    private fun ensureTextView(row: View): TextView? {
+        if (!showText) return null
+        val group = row as? ViewGroup ?: return null
+        var text = group.findViewById<TextView>(ID_TEXT)
+        if (text == null) {
+            text = TextView(row.context).apply {
+                id = ID_TEXT
+                textSize = 11.5f
+                setTextColor(Color.rgb(37, 211, 102))
+                visibility = View.GONE
+                isClickable = false
+            }
+            if (group is FrameLayout) {
+                val params = FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(20), Gravity.END or Gravity.TOP).apply {
+                    marginEnd = dp(14)
+                    topMargin = dp(32)
+                }
+                group.addView(text, params)
+            } else {
+                group.addView(text)
+            }
+        }
+        return text
     }
 
     private fun render(row: View, state: PresenceStateStore.State?) {
-        val overlay = rowOverlays[row]?.get() ?: return
-        overlay.findViewById<View>(ID_DOT)?.visibility = if (state?.known == true && state.online) View.VISIBLE else View.GONE
-        overlay.findViewById<TextView>(ID_TEXT)?.let { text ->
+        val dot = row.findViewById<View>(ID_DOT)
+        val text = row.findViewById<TextView>(ID_TEXT)
+
+        val isOnline = state?.known == true && state.online
+        dot?.visibility = if (isOnline) View.VISIBLE else View.GONE
+
+        text?.let { tv ->
             when {
-                state == null || !state.known -> { text.text = ""; text.visibility = View.GONE }
-                state.online -> { text.text = UiText.get(R.string.waex_ui_online, "online"); text.visibility = View.VISIBLE }
+                state == null || !state.known -> {
+                    tv.text = ""
+                    tv.visibility = View.GONE
+                }
+                state.online -> {
+                    tv.text = UiText.get(R.string.waex_ui_online, "online")
+                    tv.visibility = View.VISIBLE
+                }
                 else -> {
                     val time = DateFormat.getTimeFormat(row.context).format(state.changedAtMillis)
-                    text.text = UiText.get(R.string.waex_ui_last_seen_1_s, "last seen %1\$s", time)
-                    text.visibility = View.VISIBLE
+                    tv.text = UiText.get(R.string.waex_ui_last_seen_1_s, "last seen %1\$s", time)
+                    tv.visibility = View.VISIBLE
                 }
             }
         }
-        layoutOverlay(row, overlay)
     }
 
-    /** Finds the bound conversation row rather than whichever View happens to be the first
-     * field on WhatsApp's filler object (currently that first field is the home search bar). */
     private fun findConversationRow(value: Any?): View? {
         val candidates = ArrayList<View>()
         collectViews(value, 4, Collections.newSetFromMap(WeakHashMap()), candidates)
@@ -397,7 +422,6 @@ class OnlinePresenceIndicatorsHook(
         if (identityAliases.size >= MAX_TRACKED_IDENTITIES && !identityAliases.containsKey(alias)) {
             identityAliases.clear()
         }
-        // A conflicting link is not evidence that two different rows are one contact.
         identityAliases.compute(alias) { _, previous ->
             if (previous == null || previous == jid) jid else ""
         }
@@ -406,7 +430,6 @@ class OnlinePresenceIndicatorsHook(
 
     companion object {
         private const val MAX_TRACKED_IDENTITIES = 2048
-        private const val ID_OVERLAY = 0x7f0f7a10
         private const val ID_DOT = 0x7f0f7a11
         private const val ID_TEXT = 0x7f0f7a12
         private const val TAG_BOUND_JID = 0x7f0f7a13
