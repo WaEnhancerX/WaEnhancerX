@@ -3,28 +3,23 @@ package com.waenhancer.ui.components
 import com.waenhancer.app.R
 import com.waenhancer.utils.UiText
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Surface
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.statusBarsPadding
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import androidx.compose.ui.text.TextStyle
 
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WaexTopBar(
     title: String,
@@ -35,55 +30,32 @@ fun WaexTopBar(
 ) {
     val colors = WaexTheme.colors
     val typography = WaexTheme.typography
-    val spacing = WaexTheme.spacing
-
-    Surface(
+    TopAppBar(
+        title = {
+            Text(
+                text = title,
+                style = titleStyle ?: typography.headlineMd,
+                color = colors.onSurface
+            )
+        },
         modifier = modifier.fillMaxWidth(),
-        color = colors.background.copy(alpha = 0.96f),
-        tonalElevation = 2.dp
-    ) {
-        Column(modifier = Modifier.statusBarsPadding()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .padding(horizontal = spacing.stackSm),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-
-
-
-                if (onBackClick != null) {
-                    IconButton(
-                        onClick = onBackClick,
-                        modifier = Modifier.align(Alignment.CenterVertically)
-                    ) {
-                        Icon(
-                            imageVector = WaexIcons.Back,
-                            contentDescription = UiText.get(R.string.action_back, "Back"),
-                            tint = colors.onSurface
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(spacing.stackSm))
-                } else {
-                    Spacer(modifier = Modifier.width(spacing.stackMd))
-                }
-                Text(
-                    text = title,
-                    style = titleStyle ?: typography.headlineMd,
-                    color = colors.onSurface,
-                    modifier = Modifier
-                        .weight(1f)
-                        .align(Alignment.CenterVertically)
-                )
-                if (actions != null) {
-                    Row(
-                        modifier = Modifier.align(Alignment.CenterVertically),
-                        verticalAlignment = Alignment.CenterVertically,
-                        content = actions
+        navigationIcon = {
+            if (onBackClick != null) {
+                IconButton(onClick = onBackClick) {
+                    Icon(
+                        imageVector = WaexIcons.Back,
+                        contentDescription = UiText.get(R.string.action_back, "Back")
                     )
                 }
             }
-        }
-    }
+        },
+        actions = { actions?.invoke(this) },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = colors.background,
+            scrolledContainerColor = colors.surfaceContainer,
+            navigationIconContentColor = colors.onSurface,
+            actionIconContentColor = colors.onSurfaceVariant,
+            titleContentColor = colors.onSurface
+        )
+    )
 }

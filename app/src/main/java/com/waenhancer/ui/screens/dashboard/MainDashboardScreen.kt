@@ -290,45 +290,50 @@ fun MainDashboardScreen(
         ) {
             // Module Status & Core Target Card
             Surface(
-                shape = radius.cardShape,
-                color = colors.surface,
-                border = BorderStroke(
-                    1.dp,
-                    if (hasTargetReview) colors.error.copy(alpha = 0.5f) else colors.outline
-                ),
+                shape = radius.bentoCardShape,
+                color = if (!isModuleActive || hasTargetReview) colors.errorContainer else colors.surfaceContainer,
+                tonalElevation = 2.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    // Header row: Status Dot + Title + Changelog pill
+                Column(modifier = Modifier.padding(20.dp)) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(10.dp)
-                                .clip(CircleShape)
+                                .size(44.dp)
+                                .clip(radius.mdShape)
                                 .background(
                                     when {
-                                        !isModuleActive -> colors.error
-                                        hasTargetReview -> colors.error
-                                        else -> colors.primary
+                                        !isModuleActive || hasTargetReview -> colors.error
+                                        else -> colors.primaryContainer
                                     }
-                                )
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = WaexIcons.ShieldHeart,
+                                contentDescription = null,
+                                tint = when {
+                                    !isModuleActive || hasTargetReview -> colors.onError
+                                    else -> colors.primary
+                                },
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(14.dp))
                         Text(
                             text = when {
                                 !isModuleActive -> stringResource(R.string.module_inactive_version, moduleVersion)
                                 hasTargetReview -> stringResource(R.string.module_active_version, "$moduleVersion • ${stringResource(R.string.diag_status_review_required)}")
                                 else -> stringResource(R.string.module_active_version, moduleVersion)
                             },
-                            style = typography.bodyMd,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 12.sp,
+                            style = typography.titleLg,
+                            fontWeight = FontWeight.Bold,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
-                            color = if (hasTargetReview) colors.error else colors.onSurface,
+                            color = if (!isModuleActive || hasTargetReview) colors.onErrorContainer else colors.onSurface,
                             modifier = Modifier.weight(1f)
                         )
 
@@ -336,10 +341,9 @@ fun MainDashboardScreen(
                         Box(
                             modifier = Modifier
                                 .clip(radius.smShape)
-                                .background(colors.surfaceDim)
-                                .border(1.dp, colors.outlineVariant, radius.smShape)
+                                .background(colors.surfaceContainerHighest)
                                 .clickable { navController.navigateTo(Screen.Changelog) }
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
                         ) {
                             Text(
                                 text = stringResource(R.string.title_changelog),
@@ -350,9 +354,7 @@ fun MainDashboardScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
-                    HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
 
                     // Target Apps: Vertical List of Cards with App Icon, Title, Package Name, Status Dot, Injected Hooks Badge, and Restart Action
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -594,8 +596,8 @@ fun MainDashboardScreen(
             // Quick Backup & Maintenance Row
             Surface(
                 shape = radius.cardShape,
-                color = colors.surface,
-                border = BorderStroke(1.dp, colors.outline),
+                color = colors.surfaceContainer,
+                tonalElevation = 1.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -610,7 +612,7 @@ fun MainDashboardScreen(
                             onClick = startBackup,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(42.dp),
+                                .height(48.dp),
                             shape = radius.buttonShape,
                             border = BorderStroke(1.dp, colors.outlineVariant),
                             colors = ButtonDefaults.outlinedButtonColors(
@@ -630,7 +632,7 @@ fun MainDashboardScreen(
                             onClick = startRestore,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(42.dp),
+                                .height(48.dp),
                             shape = radius.buttonShape,
                             border = BorderStroke(1.dp, colors.outlineVariant),
                             colors = ButtonDefaults.outlinedButtonColors(
@@ -653,12 +655,12 @@ fun MainDashboardScreen(
                         onClick = { showResetSettingsDialog = true },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(42.dp),
+                            .height(48.dp),
                         shape = radius.buttonShape,
                         border = BorderStroke(1.dp, colors.error.copy(alpha = 0.55f)),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = colors.errorContainer.copy(alpha = 0.2f),
-                            contentColor = colors.error
+                            containerColor = colors.errorContainer,
+                            contentColor = colors.onErrorContainer
                         ),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                     ) {
@@ -666,7 +668,7 @@ fun MainDashboardScreen(
                             Icon(
                                 imageVector = WaexIcons.Clear,
                                 contentDescription = null,
-                                tint = colors.error,
+                                tint = colors.onErrorContainer,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -674,7 +676,7 @@ fun MainDashboardScreen(
                                 text = stringResource(R.string.reset_settings_btn),
                                 style = typography.bodyMd,
                                 fontWeight = FontWeight.Medium,
-                                color = colors.error
+                                color = colors.onErrorContainer
                             )
                         }
                     }

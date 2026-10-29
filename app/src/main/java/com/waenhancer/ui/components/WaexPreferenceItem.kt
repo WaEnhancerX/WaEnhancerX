@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -32,6 +33,7 @@ fun WaexPreferenceItem(
     val colors = WaexTheme.colors
     val typography = WaexTheme.typography
     val spacing = WaexTheme.spacing
+    val radius = WaexTheme.radius
 
     val itemModifier = if (onClick != null) {
         modifier
@@ -49,10 +51,26 @@ fun WaexPreferenceItem(
             ),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            if (icon != null) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(colors.secondaryContainer, radius.mdShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = colors.onSecondaryContainer,
+                        modifier = Modifier.size(21.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(spacing.gutter))
+            }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    style = typography.bodyLg,
+                    style = typography.titleMd,
                     color = colors.onSurface
                 )
                 if (description != null) {

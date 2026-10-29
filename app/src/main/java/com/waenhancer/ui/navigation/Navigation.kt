@@ -42,6 +42,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -378,7 +381,8 @@ fun MainContainerScreen() {
                 if (showParentTopBar) {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        color = colors.surface
+                        color = colors.background,
+                        tonalElevation = 2.dp
                     ) {
                         Column(
                             modifier = Modifier.statusBarsPadding()
@@ -428,12 +432,12 @@ fun MainContainerScreen() {
                                 // License Chip directly attached to title
                                 val chipBg = when (licenseState) {
                                     "pro" -> colors.primaryContainer
-                                    "trial" -> Color(0xFFFFF8E1)
+                                    "trial" -> colors.warningContainer
                                     else -> colors.surfaceDim
                                 }
                                 val chipText = when (licenseState) {
                                     "pro" -> colors.primary
-                                    "trial" -> Color(0xFFFFB300)
+                                    "trial" -> colors.onWarningContainer
                                     else -> colors.onSurfaceVariant
                                 }
                                 val chipLabel = when (licenseState) {
@@ -599,134 +603,57 @@ fun MainContainerScreen() {
                             }
 
                         }
-                        HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
                     }
                 }
             }
         },
         bottomBar = {
             if (isRoot) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.Transparent)
-                        .navigationBarsPadding()
-                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 6.dp)
+                NavigationBar(
+                    containerColor = colors.surfaceContainer,
+                    contentColor = colors.onSurface,
+                    tonalElevation = 3.dp
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = colors.surface,
-                        border = BorderStroke(1.dp, colors.outlineVariant),
-                        shadowElevation = 6.dp,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(66.dp)
-                    ) {
-                        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                            val totalWidth = maxWidth
-                            val columnWidth = totalWidth / 5
-                            val pillWidth = 36.dp
-
-                            val activeIndex = when (currentScreen) {
-                                Screen.MainDashboard -> 0
-                                Screen.GlobalPrivacySettings -> 1
-                                Screen.MediaStatusHub -> 2
-                                Screen.AutomationTasker -> 3
-                                Screen.StylesSettings -> 4
-                                else -> 0
-                            }
-
-                            val targetOffset = (columnWidth * activeIndex) + (columnWidth - pillWidth) / 2
-                            val animatedOffset by animateDpAsState(
-                                targetValue = targetOffset,
-                                animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                    stiffness = Spring.StiffnessMedium
-                                ),
-                                label = "tab_highlighter_offset"
-                            )
-
-                            // Sliding highlighter pill
-                            Box(
-                                modifier = Modifier
-                                    .padding(top = 8.dp)
-                                    .offset(x = animatedOffset)
-                                    .size(width = pillWidth, height = 20.dp)
-                                    .clip(CircleShape)
-                                    .background(colors.primaryContainer)
-                            )
-
-                            Row(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceAround
-                            ) {
-                                BottomTab.values().forEach { tab ->
-                                    val active = when (currentScreen) {
-                                        Screen.MainDashboard -> tab == BottomTab.HOME
-                                        Screen.GlobalPrivacySettings -> tab == BottomTab.PRIVACY
-                                        Screen.MediaStatusHub -> tab == BottomTab.MEDIA
-                                        Screen.AutomationTasker -> tab == BottomTab.AUTOMATION
-                                        Screen.StylesSettings -> tab == BottomTab.STYLES
-                                        else -> tab == BottomTab.HOME
-                                    }
-
-                                    val contentColor by animateColorAsState(
-                                        targetValue = if (active) colors.primary else colors.onSurfaceVariant,
-                                        animationSpec = tween(durationMillis = 200),
-                                        label = "tab_content_color"
-                                    )
-
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center,
-                                        modifier = Modifier
-                                            .fillMaxHeight()
-                                            .weight(1f)
-                                            .clickable {
-                                                val pageIndex = when (tab) {
-                                                    BottomTab.HOME -> 0
-                                                    BottomTab.PRIVACY -> 1
-                                                    BottomTab.MEDIA -> 2
-                                                    BottomTab.AUTOMATION -> 3
-                                                    BottomTab.STYLES -> 4
-                                                }
-                                                coroutineScope.launch {
-                                                    pagerState.animateScrollToPage(pageIndex)
-                                                }
-                                            }
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(width = 40.dp, height = 24.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = tab.icon,
-                                                contentDescription = stringResource(tab.labelRes),
-                                                tint = contentColor,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                        }
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = stringResource(tab.labelRes),
-                                            style = typography.labelSm,
-                                            fontWeight = FontWeight.Medium,
-                                            color = contentColor,
-                                            fontSize = 10.sp,
-                                            lineHeight = 10.sp,
-                                            textAlign = TextAlign.Center,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis,
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 2.dp)
-                                        )
-                                    }
-                                }
-                            }
+                    BottomTab.entries.forEachIndexed { pageIndex, tab ->
+                        val selected = when (currentScreen) {
+                            Screen.MainDashboard -> tab == BottomTab.HOME
+                            Screen.GlobalPrivacySettings -> tab == BottomTab.PRIVACY
+                            Screen.MediaStatusHub -> tab == BottomTab.MEDIA
+                            Screen.AutomationTasker -> tab == BottomTab.AUTOMATION
+                            Screen.StylesSettings -> tab == BottomTab.STYLES
+                            else -> false
                         }
+                        NavigationBarItem(
+                            selected = selected,
+                            onClick = {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(pageIndex)
+                                }
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = tab.icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = stringResource(tab.labelRes),
+                                    style = typography.labelSm,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            },
+                            alwaysShowLabel = true,
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = colors.primary,
+                                selectedTextColor = colors.onSurface,
+                                indicatorColor = colors.primaryContainer,
+                                unselectedIconColor = colors.onSurfaceVariant,
+                                unselectedTextColor = colors.onSurfaceVariant
+                            )
+                        )
                     }
                 }
             }
@@ -738,7 +665,7 @@ fun MainContainerScreen() {
                     .fillMaxSize()
                     .padding(
                         top = if (isRoot) paddingValues.calculateTopPadding() else 0.dp,
-                        bottom = if (isRoot) 0.dp else 0.dp
+                        bottom = if (isRoot) paddingValues.calculateBottomPadding() else 0.dp
                     )
             ) {
 
