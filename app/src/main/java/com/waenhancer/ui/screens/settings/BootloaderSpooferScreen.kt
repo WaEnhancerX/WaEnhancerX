@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import com.waenhancer.licensing.features.BootloaderSpooferFeature
 import com.waenhancer.ui.components.StitchSwitch
 import com.waenhancer.ui.components.WaexTopBar
+import com.waenhancer.ui.components.WaexModalBottomSheet
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
@@ -123,10 +124,10 @@ fun BootloaderSpooferScreen() {
             val managedReady = updated.isNotBlank()
             val statusColor = when {
                 syncing -> colors.primary
-                custom && customReady -> Color(0xFF10B981)
-                !custom && managedReady -> Color(0xFF10B981)
+                custom && customReady -> colors.success
+                !custom && managedReady -> colors.success
                 syncError.isNotBlank() -> colors.error
-                else -> Color(0xFFF59E0B)
+                else -> colors.warning
             }
             Surface(shape = radius.bentoCardShape, color = statusColor.copy(alpha = 0.09f),
                 border = BorderStroke(1.dp, statusColor.copy(alpha = 0.35f)), modifier = Modifier.fillMaxWidth()) {
@@ -252,12 +253,12 @@ private fun VerificationSheet(
     val radius = WaexTheme.radius
     val scoreColor = when {
         isLoading || report == null -> colors.onSurfaceVariant
-        report.totalScore >= 85 -> Color(0xFF10B981)
-        report.totalScore >= 60 -> Color(0xFFF59E0B)
+        report.totalScore >= 85 -> colors.success
+        report.totalScore >= 60 -> colors.warning
         else -> colors.error
     }
 
-    ModalBottomSheet(
+    WaexModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = colors.surface,
         shape = radius.bottomSheetShape,
@@ -524,13 +525,13 @@ private fun AuditCard(title: String, score: Int, maximum: Int, checks: List<Pair
                         modifier = Modifier
                             .size(18.dp)
                             .clip(CircleShape)
-                            .background(if (passed) Color(0xFF10B981).copy(alpha = 0.15f) else colors.error.copy(alpha = 0.15f)),
+                            .background(if (passed) colors.successContainer else colors.errorContainer),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = if (passed) WaexIcons.Check else WaexIcons.Clear,
                             contentDescription = null,
-                            tint = if (passed) Color(0xFF10B981) else colors.error,
+                            tint = if (passed) colors.onSuccessContainer else colors.onErrorContainer,
                             modifier = Modifier.size(11.dp)
                         )
                     }

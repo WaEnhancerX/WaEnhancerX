@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -34,6 +33,7 @@ import com.waenhancer.ui.components.BuildTypeSelectionSheet
 import com.waenhancer.ui.components.UpdateDownloadSheet
 import com.waenhancer.ui.components.WaexTopBar
 import com.waenhancer.ui.designsystem.WaexTheme
+import com.waenhancer.ui.components.WaexCircularProgressIndicator
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
 import com.waenhancer.app.BuildConfig
@@ -133,7 +133,7 @@ fun ReleaseDetailsScreen(tagName: String) {
                 Spacer(Modifier.height(16.dp))
                 Button(onClick = { retry++ }) { Text(UiText.get(R.string.waex_ui_try_again, "Try again")) }
             }
-            else -> Box(Modifier.fillMaxSize().padding(insets), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = colors.primary) }
+            else -> Box(Modifier.fillMaxSize().padding(insets), contentAlignment = Alignment.Center) { WaexCircularProgressIndicator(color = colors.primary) }
         }
     }
 

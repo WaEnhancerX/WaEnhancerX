@@ -37,7 +37,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
+import com.waenhancer.ui.components.WaexModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -376,7 +376,7 @@ fun SupportedVersionsScreen() {
 
     // App Selection Sheet for Adding Version Rule
     if (showSelectAppDialog) {
-        ModalBottomSheet(
+        WaexModalBottomSheet(
             onDismissRequest = { showSelectAppDialog = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = colors.surface,
@@ -492,8 +492,8 @@ private fun AppVersionStatusCard(
         border = BorderStroke(
             1.dp,
             if (!isInstalled) colors.outlineVariant
-            else if (isSupported) Color(0xFF10B981).copy(alpha = 0.4f)
-            else Color(0xFFF59E0B).copy(alpha = 0.5f)
+            else if (isSupported) colors.success.copy(alpha = 0.55f)
+            else colors.warning.copy(alpha = 0.6f)
         ),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -544,8 +544,8 @@ private fun AppVersionStatusCard(
                     shape = radius.smShape,
                     color = when {
                         !isInstalled -> colors.outlineVariant.copy(alpha = 0.3f)
-                        isSupported -> Color(0xFF10B981).copy(alpha = 0.15f)
-                        else -> Color(0xFFF59E0B).copy(alpha = 0.15f)
+                        isSupported -> colors.successContainer
+                        else -> colors.warningContainer
                     }
                 ) {
                     Text(
@@ -561,8 +561,8 @@ private fun AppVersionStatusCard(
                         fontWeight = FontWeight.Bold,
                         color = when {
                             !isInstalled -> colors.onSurfaceVariant
-                            isSupported -> Color(0xFF10B981)
-                            else -> Color(0xFFF59E0B)
+                            isSupported -> colors.onSuccessContainer
+                            else -> colors.onWarningContainer
                         },
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
@@ -575,8 +575,8 @@ private fun AppVersionStatusCard(
                 Button(
                     onClick = onAddCurrentClick,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFF59E0B),
-                        contentColor = Color.Black
+                        containerColor = colors.warning,
+                        contentColor = colors.onWarning
                     ),
                     shape = radius.smShape,
                     modifier = Modifier.fillMaxWidth().height(36.dp),

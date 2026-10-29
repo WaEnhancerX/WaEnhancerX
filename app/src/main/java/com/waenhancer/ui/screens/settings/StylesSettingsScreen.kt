@@ -36,6 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.waenhancer.config.FeatureCatalog
 import com.waenhancer.config.FeatureItem
 import com.waenhancer.ui.components.StitchSwitch
+import com.waenhancer.ui.components.WaexModalBottomSheet
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
@@ -664,7 +665,7 @@ private fun TextValueEditorDialog(
     val colors = WaexTheme.colors
     val radius = WaexTheme.radius
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(
+    WaexModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.surface,
@@ -725,7 +726,7 @@ private fun ChoiceValueEditorDialog(
     var selected by remember(title, selectedValue) { mutableStateOf(selectedValue) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    ModalBottomSheet(
+    WaexModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.surface,
@@ -853,7 +854,7 @@ private fun MultiChoiceValueEditorDialog(
     val selected = remember(title, selectedValues) { mutableStateListOf<String>().apply { addAll(selectedValues) } }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    ModalBottomSheet(
+    WaexModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.surface,

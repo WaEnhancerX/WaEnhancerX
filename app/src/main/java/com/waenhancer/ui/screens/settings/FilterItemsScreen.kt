@@ -33,6 +33,7 @@ import com.waenhancer.model.FilterItem
 import com.waenhancer.ui.components.WaexColorPickerDialog
 import com.waenhancer.ui.components.WaexConfirmationBottomSheet
 import com.waenhancer.ui.components.WaexEmptyState
+import com.waenhancer.ui.components.WaexModalBottomSheet
 import com.waenhancer.ui.components.WaexTopBar
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
@@ -380,7 +381,7 @@ private fun FilterEditBottomSheet(
         FilterItem.BEHAVIOR_RESIZE to UiText.get(R.string.waex_ui_resize_pro, "Resize (Pro)")
     )
 
-    ModalBottomSheet(
+    WaexModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.surface,
@@ -421,7 +422,7 @@ private fun FilterEditBottomSheet(
                 label = { Text(UiText.get(R.string.waex_ui_filter_view_id, "Filter View ID")) },
                 placeholder = { Text(UiText.get(R.string.waex_ui_e_g_conversation_row_date, "e.g. conversation_row_date")) },
                 isError = idError != null,
-                supportingText = idError?.let { { Text(it, color = Color.Red) } },
+                supportingText = idError?.let { { Text(it, color = colors.error) } },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 shape = radius.defaultShape

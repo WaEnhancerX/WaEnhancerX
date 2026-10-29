@@ -987,7 +987,7 @@ fun GlobalPrivacySettingsScreen(
                                                     val parsedCurrentColor = try {
                                                         Color(AndroidColor.parseColor(deletedMessageColor))
                                                     } catch (_: Throwable) {
-                                                        Color(0xFFEF4444)
+                                                        colors.error
                                                     }
                                                     Box(
                                                         modifier = Modifier

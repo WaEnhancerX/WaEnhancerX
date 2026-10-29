@@ -1,13 +1,11 @@
 package com.waenhancer.ui.components
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.waenhancer.ui.designsystem.WaexTheme
 
    @Composable
@@ -23,16 +21,15 @@ import com.waenhancer.ui.designsystem.WaexTheme
        Surface(
            modifier = modifier,
            shape = radius.cardShape,
-           color = colors.surfaceContainerLow,
-           border = BorderStroke(1.dp, colors.outlineVariant),
+           color = colors.surfaceContainer,
            shadowElevation = elevation.card
        ) {
            val contentModifier = if (onClick != null) {
                Modifier
                    .clickable(onClick = onClick)
-                   .padding(20.dp)
+                   .padding(WaexTheme.spacing.stackLg)
            } else {
-               Modifier.padding(20.dp)
+               Modifier.padding(WaexTheme.spacing.stackLg)
            }
            Box(modifier = contentModifier) {
                content()

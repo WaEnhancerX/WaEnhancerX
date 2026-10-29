@@ -36,7 +36,6 @@ import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -62,6 +61,7 @@ import com.waenhancer.ui.components.StitchSwitch
 import com.waenhancer.ui.components.WaexTopBar
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
+import com.waenhancer.ui.components.WaexLinearProgressIndicator
 import com.waenhancer.ui.navigation.LocalIsPro
 import com.waenhancer.ui.navigation.LocalOnActivatePro
 import com.waenhancer.ui.navigation.LocalWaexNavController
@@ -166,13 +166,13 @@ fun HookingModeHelpScreen() {
                         modifier = Modifier
                             .size(34.dp)
                             .clip(radius.smShape)
-                            .background(Color(0xFF10B981).copy(alpha = 0.12f)),
+                            .background(colors.successContainer),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Shield,
                             contentDescription = null,
-                            tint = Color(0xFF10B981),
+                            tint = colors.onSuccessContainer,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -890,14 +890,14 @@ private fun HookingProfileCard(
                             Box(
                                 modifier = Modifier
                                     .clip(radius.smShape)
-                                    .background(Color(0xFF10B981).copy(alpha = 0.14f))
+                                    .background(colors.successContainer)
                                     .padding(horizontal = 7.dp, vertical = 2.dp)
                             ) {
                                 Text(
                                     text = "ACTIVE",
                                     style = typography.labelSm,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF10B981),
+                                    color = colors.onSuccessContainer,
                                     fontSize = 11.sp
                                 )
                             }
@@ -961,16 +961,15 @@ private fun HookingProfileCard(
                         )
                     }
 
-                    LinearProgressIndicator(
+                    WaexLinearProgressIndicator(
                         progress = { animatedProgress },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp)),
+                            .height(12.dp),
                         color = when {
-                            ramFraction <= 0.35f -> Color(0xFF10B981)
+                            ramFraction <= 0.35f -> colors.success
                             ramFraction <= 0.60f -> colors.primary
-                            else -> Color(0xFFF59E0B)
+                            else -> colors.warning
                         },
                         trackColor = colors.outlineVariant
                     )
@@ -997,7 +996,7 @@ private fun HookingProfileCard(
                                 Icon(
                                     imageVector = Icons.Rounded.CheckCircle,
                                     contentDescription = null,
-                                    tint = Color(0xFF10B981),
+                                    tint = colors.success,
                                     modifier = Modifier
                                         .padding(top = 2.dp)
                                         .size(14.dp)

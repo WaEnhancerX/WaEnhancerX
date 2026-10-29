@@ -43,7 +43,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
+import com.waenhancer.ui.components.WaexModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -481,8 +481,8 @@ fun AboutScreen() {
                         Box(
                             modifier = Modifier
                                 .clip(CircleShape)
-                                .background(if (isDebugCandidate) Color(0xFFF59E0B).copy(alpha = 0.15f) else colors.surfaceDim)
-                                .border(1.dp, if (isDebugCandidate) Color(0xFFF59E0B).copy(alpha = 0.35f) else colors.outlineVariant, CircleShape)
+                                .background(if (isDebugCandidate) colors.warningContainer else colors.surfaceDim)
+                                .border(1.dp, if (isDebugCandidate) colors.warning else colors.outlineVariant, CircleShape)
                                 .padding(horizontal = 8.dp, vertical = 2.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -490,7 +490,7 @@ fun AboutScreen() {
                                 text = if (isDebugCandidate) stringResource(R.string.build_variant_debug) else stringResource(R.string.build_variant_release),
                                 style = typography.labelSm,
                                 fontWeight = FontWeight.SemiBold,
-                                color = if (isDebugCandidate) Color(0xFFF59E0B) else colors.onSurfaceVariant,
+                                color = if (isDebugCandidate) colors.onWarningContainer else colors.onSurfaceVariant,
                                 fontSize = 11.sp
                             )
                         }
@@ -502,19 +502,19 @@ fun AboutScreen() {
                     Box(
                         modifier = Modifier
                             .clip(CircleShape)
-                            .background(Color(0xFF10B981).copy(alpha = 0.12f))
-                            .border(1.dp, Color(0xFF10B981).copy(alpha = 0.5f), CircleShape)
+                            .background(colors.successContainer)
+                            .border(1.dp, colors.success, CircleShape)
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = "✦ ",
-                                color = Color(0xFF10B981),
+                                color = colors.onSuccessContainer,
                                 fontSize = 10.sp
                             )
                             Text(
                                 text = UiText.get(R.string.waex_ui_maintainer, "MAINTAINER"),
-                                color = Color(0xFF10B981),
+                                color = colors.onSuccessContainer,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 1.2.sp
@@ -788,7 +788,7 @@ fun AboutScreen() {
     if (selectedUserForSheet != null) {
         val user = selectedUserForSheet!!
 
-        ModalBottomSheet(
+        WaexModalBottomSheet(
             onDismissRequest = { selectedUserForSheet = null },
             sheetState = sheetState,
             containerColor = colors.surface,
@@ -1100,7 +1100,7 @@ fun AboutScreen() {
                                             text = "+ ${format.format(stats.linesAdded)}",
                                             style = typography.bodyLg,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF10B981)
+                                            color = colors.success
                                         )
                                     }
 
@@ -1119,7 +1119,7 @@ fun AboutScreen() {
                                             text = "- ${format.format(stats.linesDeleted)}",
                                             style = typography.bodyLg,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFFEF4444)
+                                            color = colors.error
                                         )
                                     }
                                 }

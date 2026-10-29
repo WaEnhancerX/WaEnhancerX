@@ -120,13 +120,13 @@ fun TaskerHistoryScreen() {
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(CircleShape)
-                                .background(if (isSent) colors.primary.copy(alpha = 0.12f) else Color(0xFF22C55E).copy(alpha = 0.12f)),
+                                .background(if (isSent) colors.primaryContainer else colors.successContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = if (isSent) WaexIcons.Play else WaexIcons.Notifications,
                                 contentDescription = null,
-                                tint = if (isSent) colors.primary else Color(0xFF22C55E),
+                                tint = if (isSent) colors.primary else colors.onSuccessContainer,
                                 modifier = Modifier.size(18.dp)
                             )
                         }

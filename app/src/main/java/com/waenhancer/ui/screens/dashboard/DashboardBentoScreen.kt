@@ -226,13 +226,13 @@ fun DashboardBentoScreen() {
                         Box(
                             modifier = Modifier
                                 .size(16.dp)
-                                .background(Color(0xFF10B981), CircleShape)
+                                .background(colors.success, CircleShape)
                         ) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .alpha(alphaAnim)
-                                    .background(Color(0xFF10B981), CircleShape)
+                                    .background(colors.success, CircleShape)
                                     .border(2.dp, Color.White, CircleShape)
                             )
                         }
@@ -252,7 +252,7 @@ fun DashboardBentoScreen() {
                             Icon(
                                 imageVector = WaexIcons.Success,
                                 contentDescription = null,
-                                tint = Color(0xFF10B981),
+                                tint = colors.success,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -266,7 +266,7 @@ fun DashboardBentoScreen() {
                             Icon(
                                 imageVector = WaexIcons.Success,
                                 contentDescription = null,
-                                tint = Color(0xFF10B981),
+                                tint = colors.success,
                                 modifier = Modifier.size(18.dp)
                                 )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -280,7 +280,7 @@ fun DashboardBentoScreen() {
                             Icon(
                                 imageVector = WaexIcons.Success,
                                 contentDescription = null,
-                                tint = Color(0xFF10B981),
+                                tint = colors.success,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -294,7 +294,7 @@ fun DashboardBentoScreen() {
                             Icon(
                                 imageVector = WaexIcons.Success,
                                 contentDescription = null,
-                                tint = Color(0xFF10B981),
+                                tint = colors.success,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))

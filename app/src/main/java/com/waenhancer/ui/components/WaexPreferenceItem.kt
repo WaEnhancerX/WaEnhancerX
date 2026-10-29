@@ -1,14 +1,15 @@
 package com.waenhancer.ui.components
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,7 +45,7 @@ fun WaexPreferenceItem(
         Row(
             modifier = Modifier.padding(
                 horizontal = spacing.gutter,
-                vertical = spacing.stackMd
+                vertical = spacing.stackLg
             ),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -70,10 +71,12 @@ fun WaexPreferenceItem(
             }
         }
         if (showDivider) {
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = spacing.gutter),
-                thickness = 1.dp,
-                color = colors.outlineVariant
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = spacing.gutter)
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(colors.outlineVariant.copy(alpha = 0.55f))
             )
         }
     }

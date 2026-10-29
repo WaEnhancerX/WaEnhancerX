@@ -47,7 +47,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
+import com.waenhancer.ui.components.WaexModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -575,7 +575,7 @@ fun StargazersScreen() {
     }
 
     selectedStargazer?.let { stargazer ->
-        ModalBottomSheet(
+        WaexModalBottomSheet(
             onDismissRequest = { selectedStargazer = null },
             containerColor = colors.surface,
             contentColor = colors.onSurface,
@@ -775,7 +775,7 @@ fun StargazersScreen() {
     }
 
     if (showSupportSheet) {
-        ModalBottomSheet(
+        WaexModalBottomSheet(
             onDismissRequest = { showSupportSheet = false },
             sheetState = supportSheetState,
             containerColor = colors.surface,

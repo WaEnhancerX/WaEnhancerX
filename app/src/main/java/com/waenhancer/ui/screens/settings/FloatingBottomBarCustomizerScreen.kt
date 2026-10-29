@@ -37,6 +37,7 @@ import com.waenhancer.ui.components.WaexProChip
 import com.waenhancer.ui.components.WaexSectionHeader
 import com.waenhancer.ui.components.WaexTopBar
 import com.waenhancer.ui.components.WaexColorPickerDialog
+import com.waenhancer.ui.components.WaexModalBottomSheet
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalIsPro
@@ -1058,7 +1059,7 @@ private fun SliderItem(
     }
 
     if (showValueEditor) {
-        ModalBottomSheet(
+        WaexModalBottomSheet(
             onDismissRequest = { showValueEditor = false },
             containerColor = colors.surface
         ) {

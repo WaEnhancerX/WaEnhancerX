@@ -23,7 +23,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -38,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
+import com.waenhancer.ui.components.WaexCircularProgressIndicator
 
 enum class RootAccessState { Checking, Required, Granted }
 
@@ -73,7 +73,7 @@ fun RootAccessRequirementScreen(
             contentAlignment = Alignment.Center
         ) {
             if (checking) {
-                CircularProgressIndicator(
+                WaexCircularProgressIndicator(
                     modifier = Modifier.size(34.dp),
                     color = colors.primary,
                     strokeWidth = 3.dp

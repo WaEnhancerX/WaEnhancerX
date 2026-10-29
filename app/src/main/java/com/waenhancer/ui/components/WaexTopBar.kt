@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -40,7 +39,8 @@ fun WaexTopBar(
 
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = colors.surface
+        color = colors.background.copy(alpha = 0.96f),
+        tonalElevation = 2.dp
     ) {
         Column(modifier = Modifier.statusBarsPadding()) {
             Row(
@@ -84,10 +84,6 @@ fun WaexTopBar(
                     )
                 }
             }
-            HorizontalDivider(
-                thickness = 1.dp,
-                color = colors.outlineVariant
-            )
         }
     }
 }

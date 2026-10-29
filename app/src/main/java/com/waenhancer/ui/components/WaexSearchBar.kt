@@ -3,7 +3,6 @@ package com.waenhancer.ui.components
 import com.waenhancer.app.R
 import com.waenhancer.utils.UiText
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,10 +41,10 @@ fun WaexSearchBar(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .height(48.dp),
-        shape = radius.mdShape,
-        color = colors.surfaceContainerLow,
-        border = BorderStroke(1.dp, colors.outlineVariant)
+            .height(56.dp),
+        shape = radius.fullShape,
+        color = colors.surfaceContainerHigh,
+        tonalElevation = if (query.isNotEmpty()) 2.dp else 0.dp
     ) {
         Row(
             modifier = Modifier.padding(horizontal = spacing.stackSm),

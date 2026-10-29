@@ -46,7 +46,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -81,6 +80,7 @@ import com.waenhancer.core.preferences.WaexPreferenceManager
 import com.waenhancer.ui.components.StitchSwitch
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
+import com.waenhancer.ui.components.WaexLinearProgressIndicator
 import com.waenhancer.ui.designsystem.InterfaceSize
 import com.waenhancer.update.UpdateDownloader
 import dagger.hilt.android.AndroidEntryPoint
@@ -617,21 +617,19 @@ fun PermissionsScreen(
                                     text = UiText.get(R.string.waex_ui_1_s_of_2_s_granted, "%1\$s of %2\$s Granted", grantedCount, totalCount),
                                     style = typography.labelSm,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (allGranted) Color(0xFF22C55E) else colors.primary
+                                    color = if (allGranted) colors.success else colors.primary
                                 )
                             }
 
                             Spacer(modifier = Modifier.height(10.dp))
 
-                            LinearProgressIndicator(
+                            WaexLinearProgressIndicator(
                                 progress = { animatedProgress },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(8.dp)
-                                    .clip(CircleShape),
-                                color = if (allGranted) Color(0xFF22C55E) else colors.primary,
-                                trackColor = colors.outlineVariant.copy(alpha = 0.4f),
-                                strokeCap = StrokeCap.Round
+                                .height(12.dp),
+                                color = if (allGranted) colors.success else colors.primary,
+                                trackColor = colors.surfaceContainerHighest
                             )
                         }
                     }
@@ -646,12 +644,12 @@ fun PermissionsScreen(
                     label = "card_bg"
                 )
                 val iconBg by animateColorAsState(
-                    targetValue = if (isGranted) Color(0xFF22C55E).copy(alpha = 0.15f) else colors.primaryContainer,
+                    targetValue = if (isGranted) colors.successContainer else colors.primaryContainer,
                     animationSpec = tween(300),
                     label = "icon_bg"
                 )
                 val iconTint by animateColorAsState(
-                    targetValue = if (isGranted) Color(0xFF22C55E) else colors.primary,
+                    targetValue = if (isGranted) colors.success else colors.primary,
                     animationSpec = tween(300),
                     label = "icon_tint"
                 )
@@ -661,7 +659,7 @@ fun PermissionsScreen(
                     color = cardBg,
                     border = BorderStroke(
                         1.dp,
-                        if (isGranted) Color(0xFF22C55E).copy(alpha = 0.35f) else colors.outlineVariant
+                        if (isGranted) colors.success.copy(alpha = 0.55f) else colors.outlineVariant
                     ),
                     modifier = Modifier
                         .fillMaxWidth()

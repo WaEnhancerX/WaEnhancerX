@@ -10,9 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -113,7 +111,7 @@ fun UpdateDownloadSheet(
         }
     }
 
-    ModalBottomSheet(
+    WaexModalBottomSheet(
         onDismissRequest = {},
         sheetState = sheetState,
         containerColor = colors.surfaceContainer
@@ -126,7 +124,7 @@ fun UpdateDownloadSheet(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(UiText.get(R.string.waex_ui_downloading_update, "Downloading update"), style = typography.headlineMd, fontWeight = FontWeight.Bold, color = colors.onSurface)
-            LinearProgressIndicator(
+            WaexLinearProgressIndicator(
                 progress = { downloadProgress / 100f },
                 modifier = Modifier.fillMaxWidth(),
                 color = colors.primary,

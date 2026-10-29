@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,6 +40,7 @@ import androidx.compose.ui.res.stringResource
 import com.waenhancer.ui.components.WaexTopBar
 import com.waenhancer.ui.components.StitchSwitch
 import com.waenhancer.ui.designsystem.WaexTheme
+import com.waenhancer.ui.components.WaexCircularProgressIndicator
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
@@ -127,7 +127,7 @@ fun SystemHealthScreen() {
     ) { insets ->
         val data = diagnostics
         if (data == null) {
-            Column(Modifier.fillMaxSize().padding(insets), Arrangement.Center, Alignment.CenterHorizontally) { CircularProgressIndicator(color = colors.primary) }
+            Column(Modifier.fillMaxSize().padding(insets), Arrangement.Center, Alignment.CenterHorizontally) { WaexCircularProgressIndicator(color = colors.primary) }
         } else {
             val reportedApps = remember(data, refreshTrigger, runtimeSnapshot) {
                 WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot)
@@ -149,7 +149,7 @@ fun SystemHealthScreen() {
                     UiText.get(R.string.waex_ui_framework_version, "Framework version") to (data.framework.version ?: UiText.get(R.string.waex_ui_not_available_label, "Not available")),
                     UiText.get(R.string.waex_ui_xposed_api, "Xposed API") to (data.framework.api?.toString() ?: UiText.get(R.string.waex_ui_not_reported_yet, "Not reported yet")),
                     UiText.get(R.string.waex_ui_root_allowed, "Root allowed") to if (data.rootAllowed) UiText.get(R.string.waex_ui_yes, "Yes") else UiText.get(R.string.waex_ui_no, "No")
-                ), if (data.moduleActive) Color(0xFF10B981) else colors.error)
+                ), if (data.moduleActive) colors.success else colors.error)
 
                 DiagnosticCard(UiText.get(R.string.waex_ui_device_environment, "Device Environment"), listOf(
                     "Android" to "${data.androidVersion} (API ${data.sdk})",

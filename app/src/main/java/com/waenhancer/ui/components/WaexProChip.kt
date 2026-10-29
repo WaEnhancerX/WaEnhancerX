@@ -90,29 +90,29 @@ fun WaexProChip(
         val lockedBgBrush = if (isDark) {
             Brush.horizontalGradient(
                 listOf(
-                    Color(0xFF451A03).copy(alpha = 0.85f),
-                    Color(0xFF78350F).copy(alpha = 0.65f)
+                    colors.warningContainer,
+                    colors.surfaceContainerHigh
                 )
             )
         } else {
             Brush.horizontalGradient(
                 listOf(
-                    Color(0xFFFEF3C7),
-                    Color(0xFFFDE68A)
+                    colors.warningContainer,
+                    colors.surfaceContainerHigh
                 )
             )
         }
 
         val lockedBorderColor = if (isDark) {
-            Color(0xFFF59E0B).copy(alpha = 0.45f)
+            colors.warning.copy(alpha = 0.45f)
         } else {
-            Color(0xFFF59E0B).copy(alpha = 0.5f)
+            colors.warning.copy(alpha = 0.5f)
         }
 
         val lockedContentColor = if (isDark) {
-            Color(0xFFFBBF24)
+            colors.onWarningContainer
         } else {
-            Color(0xFFB45309)
+            colors.onWarningContainer
         }
 
         Row(

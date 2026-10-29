@@ -27,7 +27,7 @@ import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
+import com.waenhancer.ui.components.WaexModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -204,7 +204,7 @@ fun ModuleSettingsScreen() {
         val modes = listOf("System", "Light", "Dark") +
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) listOf("Monet") else emptyList()
 
-        ModalBottomSheet(
+        WaexModalBottomSheet(
             onDismissRequest = { showThemeSheet = false },
             sheetState = sheetState,
             containerColor = colors.surface,
@@ -286,7 +286,7 @@ fun ModuleSettingsScreen() {
 
     if (showHookingModeSheet) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(
+        WaexModalBottomSheet(
             onDismissRequest = { showHookingModeSheet = false },
             sheetState = sheetState,
             containerColor = colors.surface,
@@ -348,7 +348,7 @@ fun ModuleSettingsScreen() {
     if (showLanguageSheet) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-        ModalBottomSheet(
+        WaexModalBottomSheet(
             onDismissRequest = { showLanguageSheet = false },
             sheetState = sheetState,
             containerColor = colors.surface,

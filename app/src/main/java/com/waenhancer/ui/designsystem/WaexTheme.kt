@@ -153,7 +153,9 @@ fun WaexTheme(
             outline = colors.outline,
             outlineVariant = colors.outlineVariant,
             error = colors.error,
-            onError = colors.onError
+            onError = colors.onError,
+            errorContainer = colors.errorContainer,
+            onErrorContainer = colors.onErrorContainer
         )
     } else {
         lightColorScheme(
@@ -181,7 +183,9 @@ fun WaexTheme(
             outline = colors.outline,
             outlineVariant = colors.outlineVariant,
             error = colors.error,
-            onError = colors.onError
+            onError = colors.onError,
+            errorContainer = colors.errorContainer,
+            onErrorContainer = colors.onErrorContainer
         )
     }
 

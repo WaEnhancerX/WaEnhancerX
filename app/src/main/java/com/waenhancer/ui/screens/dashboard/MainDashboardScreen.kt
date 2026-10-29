@@ -48,7 +48,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
+import com.waenhancer.ui.components.WaexModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -294,7 +294,7 @@ fun MainDashboardScreen(
                 color = colors.surface,
                 border = BorderStroke(
                     1.dp,
-                    if (hasTargetReview) Color(0xFFEF4444).copy(alpha = 0.5f) else colors.outline
+                    if (hasTargetReview) colors.error.copy(alpha = 0.5f) else colors.outline
                 ),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -311,7 +311,7 @@ fun MainDashboardScreen(
                                 .background(
                                     when {
                                         !isModuleActive -> colors.error
-                                        hasTargetReview -> Color(0xFFEF4444)
+                                        hasTargetReview -> colors.error
                                         else -> colors.primary
                                     }
                                 )
@@ -328,7 +328,7 @@ fun MainDashboardScreen(
                             fontSize = 12.sp,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
-                            color = if (hasTargetReview) Color(0xFFEF4444) else colors.onSurface,
+                            color = if (hasTargetReview) colors.error else colors.onSurface,
                             modifier = Modifier.weight(1f)
                         )
 
@@ -378,7 +378,7 @@ fun MainDashboardScreen(
                                 color = colors.surfaceDim,
                                 border = BorderStroke(
                                     1.dp,
-                                    if (app.isInstalled && !isVersionSupported) Color(0xFFEF4444).copy(alpha = 0.4f) else colors.outlineVariant
+                                    if (app.isInstalled && !isVersionSupported) colors.error.copy(alpha = 0.4f) else colors.outlineVariant
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -890,7 +890,7 @@ private fun TargetCompatibilityBottomSheet(
     // True when isYellow but all apps are already hooked — means custom version rule, not "not yet opened"
     val isCustomRuleYellow = isYellow && installedTargets.isNotEmpty() && installedTargets.all { it.isHooked }
 
-    ModalBottomSheet(
+    WaexModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.surface,
@@ -931,9 +931,9 @@ private fun TargetCompatibilityBottomSheet(
 
             // Status Banner explaining why it is yellow / unconfirmed
             val bannerColor = when {
-                isRed -> Color(0xFFEF4444)
-                isYellow -> Color(0xFFF59E0B)
-                else -> Color(0xFF10B981)
+                isRed -> colors.error
+                isYellow -> colors.warning
+                else -> colors.success
             }
 
             Surface(
@@ -1003,7 +1003,7 @@ private fun TargetCompatibilityBottomSheet(
                         WhatsAppPackageDetector.getAppIcon(context, app.packageName)
                     }
                     val isAppReady = app.isHooked && app.runtimeStatus == "READY" && app.bridgeStatus == "PROVIDER"
-                    val itemColor = if (isAppReady) Color(0xFF10B981) else Color(0xFFF59E0B)
+                    val itemColor = if (isAppReady) colors.success else colors.warning
 
                     Surface(
                         shape = radius.smShape,
@@ -1182,7 +1182,7 @@ private fun HmaDetailsBottomSheet(
 
     var targetToConfirm by remember { mutableStateOf<HmaDiagnostics.TargetIsolationDetail?>(null) }
 
-    ModalBottomSheet(
+    WaexModalBottomSheet(
         onDismissRequest = { if (!isFixing) onDismiss() },
         sheetState = sheetState,
         containerColor = colors.surface,
@@ -1320,14 +1320,14 @@ private fun HmaDetailsBottomSheet(
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = Color(0xFFEF4444).copy(alpha = 0.15f),
+                                color = colors.errorContainer,
                                 modifier = Modifier.size(26.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = WaexIcons.Clear,
                                         contentDescription = null,
-                                        tint = Color(0xFFEF4444),
+                                        tint = colors.onErrorContainer,
                                         modifier = Modifier.size(15.dp)
                                     )
                                 }
@@ -1398,14 +1398,14 @@ private fun HmaDetailsBottomSheet(
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = Color(0xFF10B981).copy(alpha = 0.15f),
+                                color = colors.successContainer,
                                 modifier = Modifier.size(26.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = WaexIcons.Check,
                                         contentDescription = null,
-                                        tint = Color(0xFF10B981),
+                                        tint = colors.onSuccessContainer,
                                         modifier = Modifier.size(15.dp)
                                     )
                                 }
@@ -1478,7 +1478,7 @@ private fun DenylistDetailsBottomSheet(
     var targetToConfirm by remember { mutableStateOf<MagiskDenylistDiagnostics.DenylistedTarget?>(null) }
     var confirmFixAll by remember { mutableStateOf(false) }
 
-    ModalBottomSheet(
+    WaexModalBottomSheet(
         onDismissRequest = { if (!isFixing) onDismiss() },
         sheetState = sheetState,
         containerColor = colors.surface,
@@ -1717,14 +1717,14 @@ private fun DenylistDetailsBottomSheet(
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = Color(0xFFEF4444).copy(alpha = 0.15f),
+                                color = colors.errorContainer,
                                 modifier = Modifier.size(26.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = WaexIcons.Clear,
                                         contentDescription = null,
-                                        tint = Color(0xFFEF4444),
+                                        tint = colors.onErrorContainer,
                                         modifier = Modifier.size(15.dp)
                                     )
                                 }
@@ -1804,14 +1804,14 @@ private fun DenylistDetailsBottomSheet(
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = Color(0xFF10B981).copy(alpha = 0.15f),
+                                color = colors.successContainer,
                                 modifier = Modifier.size(26.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = WaexIcons.Check,
                                         contentDescription = null,
-                                        tint = Color(0xFF10B981),
+                                        tint = colors.onSuccessContainer,
                                         modifier = Modifier.size(15.dp)
                                     )
                                 }
@@ -1913,9 +1913,9 @@ private fun DashboardDiagnosticsCard(
             val isWarning = !isCriticalError && (targetSummary.healthy == null || (diagnostics != null && diagnostics.framework.name == "Not detected"))
 
             val healthColor = when {
-                isCriticalError -> Color(0xFFEF4444)
-                isWarning -> Color(0xFFF59E0B)
-                else -> Color(0xFF10B981)
+                isCriticalError -> colors.error
+                isWarning -> colors.warning
+                else -> colors.success
             }
 
             Row(
@@ -2191,9 +2191,9 @@ private fun DashboardDiagnosticRow(
                 Surface(
                     shape = CircleShape,
                     color = when (healthy) {
-                        true -> Color(0xFF10B981).copy(alpha = 0.15f)
-                        false -> Color(0xFFEF4444).copy(alpha = 0.15f)
-                        null -> Color(0xFFF59E0B).copy(alpha = 0.15f)
+                        true -> colors.successContainer
+                        false -> colors.errorContainer
+                        null -> colors.warningContainer
                     },
                     modifier = Modifier
                         .size(24.dp)
@@ -2211,7 +2211,7 @@ private fun DashboardDiagnosticRow(
                                 Icon(
                                     imageVector = WaexIcons.Check,
                                     contentDescription = value,
-                                    tint = Color(0xFF10B981),
+                                    tint = colors.onSuccessContainer,
                                     modifier = Modifier.size(15.dp)
                                 )
                             }
@@ -2219,7 +2219,7 @@ private fun DashboardDiagnosticRow(
                                 Icon(
                                     imageVector = WaexIcons.Clear,
                                     contentDescription = value,
-                                    tint = Color(0xFFEF4444),
+                                    tint = colors.onErrorContainer,
                                     modifier = Modifier.size(15.dp)
                                 )
                             }
@@ -2227,7 +2227,7 @@ private fun DashboardDiagnosticRow(
                                 Icon(
                                     imageVector = WaexIcons.Help,
                                     contentDescription = value,
-                                    tint = Color(0xFFF59E0B),
+                                    tint = colors.onWarningContainer,
                                     modifier = Modifier.size(15.dp)
                                 )
                             }

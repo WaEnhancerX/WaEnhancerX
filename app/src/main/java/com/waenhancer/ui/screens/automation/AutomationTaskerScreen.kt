@@ -617,10 +617,10 @@ fun AutomationTaskerScreen() {
                                             Icon(
                                                 imageVector = WaexIcons.Success,
                                                 contentDescription = null,
-                                                tint = Color(0xFF22C55E),
+                                                tint = colors.success,
                                                 modifier = Modifier.size(13.dp)
                                             )
-                                            Text(text = UiText.get(R.string.waex_ui_connected, "Connected"), style = typography.labelSm, color = Color(0xFF22C55E), fontWeight = FontWeight.Bold)
+                                            Text(text = UiText.get(R.string.waex_ui_connected, "Connected"), style = typography.labelSm, color = colors.success, fontWeight = FontWeight.Bold)
                                         } else if (assemblyStatus == "verifying") {
                                             CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 1.5.dp, color = colors.primary)
                                         }

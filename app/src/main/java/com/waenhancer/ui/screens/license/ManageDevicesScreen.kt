@@ -37,7 +37,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
+import com.waenhancer.ui.components.WaexModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -411,17 +411,17 @@ fun ManageDevicesScreen() {
                                     }
                                     Surface(
                                         shape = CircleShape,
-                                        color = if (linkedCount >= deviceLimit) Color(0xFFFF9800).copy(alpha = 0.15f) else colors.primaryContainer,
+                                        color = if (linkedCount >= deviceLimit) colors.warningContainer else colors.primaryContainer,
                                         border = BorderStroke(
                                             1.dp,
-                                            if (linkedCount >= deviceLimit) Color(0xFFFF9800).copy(alpha = 0.4f) else colors.primary.copy(alpha = 0.3f)
+                                            if (linkedCount >= deviceLimit) colors.warning.copy(alpha = 0.6f) else colors.primary.copy(alpha = 0.3f)
                                         )
                                     ) {
                                         Text(
                                             text = if (linkedCount >= deviceLimit) UiText.get(R.string.waex_ui_limit_full, "Limit Full") else UiText.get(R.string.waex_ui_available, "Available"),
                                             style = typography.labelSm,
                                             fontWeight = FontWeight.Bold,
-                                            color = if (linkedCount >= deviceLimit) Color(0xFFFF9800) else colors.primary,
+                                            color = if (linkedCount >= deviceLimit) colors.onWarningContainer else colors.primary,
                                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                                             fontSize = 11.sp
                                         )
@@ -484,7 +484,7 @@ fun ManageDevicesScreen() {
             val isCurrent = targetDevice.isCurrent
             val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-            ModalBottomSheet(
+            WaexModalBottomSheet(
                 onDismissRequest = {
                     if (!isUnlinking) deviceToUnlink = null
                 },

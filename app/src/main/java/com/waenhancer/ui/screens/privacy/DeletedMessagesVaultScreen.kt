@@ -477,14 +477,14 @@ private fun WhatsAppChatListItem(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFFEF4444).copy(alpha = 0.12f))
+                                .background(colors.errorContainer)
                                 .padding(horizontal = 7.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = "${chat.messages.size}",
                                 style = typography.labelSm,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFEF4444)
+                                color = colors.onErrorContainer
                             )
                         }
                     }

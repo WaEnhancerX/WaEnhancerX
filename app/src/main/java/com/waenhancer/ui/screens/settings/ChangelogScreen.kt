@@ -190,7 +190,7 @@ fun ChangelogScreen() {
                             }
                             if (installed || release.tagName == availableUpdate?.tagName) {
                                 Row(Modifier.padding(top = 8.dp)) {
-                                    if (installed) Badge(UiText.get(R.string.waex_ui_installed, "Installed"), Color(0xFF10B981))
+                                    if (installed) Badge(UiText.get(R.string.waex_ui_installed, "Installed"), colors.success)
                                     if (release.tagName == availableUpdate?.tagName) Badge(UiText.get(R.string.waex_ui_update, "Update"), colors.primary)
                                 }
                             }

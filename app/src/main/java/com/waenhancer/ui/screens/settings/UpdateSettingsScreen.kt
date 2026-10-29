@@ -25,7 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
+import com.waenhancer.ui.components.WaexModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -286,7 +286,7 @@ fun UpdateSettingsScreen() {
         val isFrequency = selectionType == "frequency"
         val options = if (isFrequency) updateFrequencyOptions() else ignoredUpdateOptions()
         val selectedValue = if (isFrequency) updateFrequency else ignoredBehavior
-        ModalBottomSheet(
+        WaexModalBottomSheet(
             onDismissRequest = { selector = null },
             sheetState = sheetState,
             containerColor = colors.surface,
