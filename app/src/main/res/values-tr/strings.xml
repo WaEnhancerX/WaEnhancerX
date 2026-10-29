@@ -12,6 +12,7 @@
     <string name="go_to_telegram">Telegram Kanalı</string>
     <string name="go_to_github">GitHub Sorunları</string>
     <string name="contributors">Katkıda Bulunanlar</string>
+    <string name="contributor">Katkıda Bulunan</string>
     <string name="stargazers_title">Destekçilerimiz</string>
     <string name="stargazers_thank_you">WaEnhancerX\'i desteklediğiniz için teşekkür ederiz</string>
     <string name="stargazers_message">Her yıldız daha fazla kişinin projeyi keşfetmesine yardımcı oluyor. Bu duvar desteğini gösteren herkes içindir.</string>

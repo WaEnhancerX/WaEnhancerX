@@ -12,6 +12,7 @@
     <string name="go_to_telegram">Telegram-канал</string>
     <string name="go_to_github">Проблемы с GitHub</string>
     <string name="contributors">Участники</string>
+    <string name="contributor">Участник</string>
     <string name="stargazers_title">Наши сторонники</string>
     <string name="stargazers_thank_you">Спасибо за поддержку WaEnhancerX</string>
     <string name="stargazers_message">Каждая звезда помогает большему количеству людей узнать о проекте. Эта стена для всех, кто оказал поддержку.</string>

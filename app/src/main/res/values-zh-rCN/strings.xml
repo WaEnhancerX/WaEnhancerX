@@ -12,6 +12,7 @@
     <string name="go_to_telegram">Telegram 频道</string>
     <string name="go_to_github">GitHub 问题反馈</string>
     <string name="contributors">贡献者</string>
+    <string name="contributor">贡献者</string>
     <string name="stargazers_title">支持者</string>
     <string name="stargazers_thank_you">感谢你支持 WaEnhancerX</string>
     <string name="stargazers_message">每一颗星标都能帮助更多人发现这个项目。这里展示所有给予支持的人。</string>

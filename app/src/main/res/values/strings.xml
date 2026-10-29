@@ -13,6 +13,7 @@
     <string name="go_to_telegram">Telegram Channel</string>
     <string name="go_to_github">GitHub Issues</string>
     <string name="contributors">Contributors</string>
+    <string name="contributor">Contributor</string>
     <string name="stargazers_title">Our Supporters</string>
     <string name="stargazers_thank_you">Thank you for supporting WaEnhancerX</string>
     <string name="stargazers_message">Every star helps more people discover the project. This wall is for everyone who has shown their support.</string>

@@ -13,6 +13,7 @@
     <string name="go_to_telegram">Telegram kanal</string>
     <string name="go_to_github">GitHub težave</string>
     <string name="contributors">Sodelavci</string>
+    <string name="contributor">Sodelavec</string>
     <string name="stargazers_title">Naši podporniki</string>
     <string name="stargazers_thank_you">Hvala za podporo za WaEnhancer X</string>
     <string name="stargazers_message">Vsaka zvezdica pomaga več ljudem odkriti projekt. Ta stena je namenjena vsem, ki so izkazali svojo podporo.</string>

@@ -69,7 +69,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
+
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -558,7 +558,7 @@ fun StargazersScreen() {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             imageVector = Icons.Rounded.VolunteerActivism,
-                                            contentDescription = stringResource(R.string.contributors),
+                                            contentDescription = stringResource(R.string.contributor),
                                             tint = colors.primary,
                                             modifier = Modifier.size(13.dp)
                                         )
@@ -658,7 +658,7 @@ fun StargazersScreen() {
                                             contentColor = colors.onSurface
                                         ) {
                                             Text(
-                                                text = stringResource(R.string.contributors),
+                                                text = stringResource(R.string.contributor),
                                                 style = typography.labelSm,
                                                 fontWeight = FontWeight.Medium
                                             )
@@ -679,7 +679,7 @@ fun StargazersScreen() {
                                         Box(contentAlignment = Alignment.Center) {
                                             Icon(
                                                 imageVector = Icons.Rounded.VolunteerActivism,
-                                                contentDescription = stringResource(R.string.contributors),
+                                                contentDescription = stringResource(R.string.contributor),
                                                 tint = colors.primary,
                                                 modifier = Modifier.size(13.dp)
                                             )
@@ -1074,47 +1074,63 @@ private fun parseStargazerProfile(json: String, fallbackLogin: String): Stargaze
 }
 
 @Composable
-private fun StargazerProfileShimmer() {
+private fun stargazerShimmerBrush(): androidx.compose.ui.graphics.Brush {
     val colors = WaexTheme.colors
-    val transition = rememberInfiniteTransition(label = "profile shimmer")
-    val alpha by transition.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 0.75f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 800),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "profile shimmer alpha"
+    val shimmerColors = listOf(
+        colors.surfaceContainerHighest,
+        colors.surfaceContainerHighest.copy(alpha = 0.55f),
+        colors.onSurface.copy(alpha = 0.07f),
+        colors.surfaceContainerHighest.copy(alpha = 0.55f),
+        colors.surfaceContainerHighest
     )
+    val transition = rememberInfiniteTransition(label = "stargazer shimmer")
+    val translateAnim by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1400f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1200, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "stargazer shimmer translate"
+    )
+    return androidx.compose.ui.graphics.Brush.linearGradient(
+        colors = shimmerColors,
+        start = androidx.compose.ui.geometry.Offset(translateAnim - 700f, 0f),
+        end = androidx.compose.ui.geometry.Offset(translateAnim, 0f)
+    )
+}
+
+@Composable
+private fun StargazerProfileShimmer() {
+    val shimmer = stargazerShimmerBrush()
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(120.dp)
-            .alpha(alpha),
+            .height(120.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Surface(
-            color = colors.surfaceContainerHighest,
-            shape = RoundedCornerShape(6.dp),
+        Box(
             modifier = Modifier
                 .fillMaxWidth(0.72f)
                 .height(14.dp)
-        ) {}
-        Surface(
-            color = colors.surfaceContainerHighest,
-            shape = RoundedCornerShape(6.dp),
+                .clip(RoundedCornerShape(6.dp))
+                .background(shimmer)
+        )
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(16.dp)
-        ) {}
-        Surface(
-            color = colors.surfaceContainerHighest,
-            shape = RoundedCornerShape(6.dp),
+                .clip(RoundedCornerShape(6.dp))
+                .background(shimmer)
+        )
+        Box(
             modifier = Modifier
                 .fillMaxWidth(0.86f)
                 .height(16.dp)
-        ) {}
+                .clip(RoundedCornerShape(6.dp))
+                .background(shimmer)
+        )
     }
 }
 
@@ -1122,16 +1138,7 @@ private fun StargazerProfileShimmer() {
 private fun StargazerCardShimmer() {
     val colors = WaexTheme.colors
     val radius = WaexTheme.radius
-    val transition = rememberInfiniteTransition(label = "stargazer card shimmer")
-    val alpha by transition.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 0.75f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 800),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "stargazer card shimmer alpha"
-    )
+    val shimmer = stargazerShimmerBrush()
 
     Surface(
         shape = radius.bentoCardShape,
@@ -1141,23 +1148,23 @@ private fun StargazerCardShimmer() {
     ) {
         Column(
             modifier = Modifier
-                .padding(horizontal = 8.dp, vertical = 14.dp)
-                .alpha(alpha),
+                .padding(horizontal = 8.dp, vertical = 14.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Surface(
-                shape = CircleShape,
-                color = colors.surfaceContainerHighest,
-                modifier = Modifier.size(56.dp)
-            ) {}
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(shimmer)
+            )
             Spacer(Modifier.height(9.dp))
-            Surface(
-                shape = RoundedCornerShape(6.dp),
-                color = colors.surfaceContainerHighest,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth(0.72f)
                     .height(14.dp)
-            ) {}
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(shimmer)
+            )
         }
     }
 }

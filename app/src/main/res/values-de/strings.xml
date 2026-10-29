@@ -12,6 +12,7 @@
     <string name="go_to_telegram">Telegrammkanal</string>
     <string name="go_to_github">GitHub-Probleme</string>
     <string name="contributors">Mitwirkende</string>
+    <string name="contributor">Mitwirkender</string>
     <string name="stargazers_title">Unsere Unterstützer</string>
     <string name="stargazers_thank_you">Vielen Dank für die Unterstützung von WaEnhancerX</string>
     <string name="stargazers_message">Jeder Stern hilft mehr Menschen, das Projekt zu entdecken. Diese Pinnwand ist für alle, die ihre Unterstützung gezeigt haben.</string>

@@ -12,6 +12,7 @@
     <string name="go_to_telegram">Chaîne de télégramme</string>
     <string name="go_to_github">Problèmes avec GitHub</string>
     <string name="contributors">Contributeurs</string>
+    <string name="contributor">Contributeur</string>
     <string name="stargazers_title">Nos partisans</string>
     <string name="stargazers_thank_you">Merci de soutenir WaEnhancerX</string>
     <string name="stargazers_message">Chaque étoile aide davantage de personnes à découvrir le projet. Ce mur est destiné à tous ceux qui ont manifesté leur soutien.</string>

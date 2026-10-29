@@ -13,6 +13,7 @@
     <string name="go_to_telegram">"Canal de Telegram"</string>
     <string name="go_to_github">"Reportes en GitHub"</string>
     <string name="contributors">"Colaboradores"</string>
+    <string name="contributor">"Colaborador"</string>
     <string name="stargazers_title">"Quienes apoyan el proyecto"</string>
     <string name="stargazers_thank_you">"Gracias por apoyar a WaEnhancerX"</string>
     <string name="stargazers_message">"Cada estrella ayuda a que más personas descubran el proyecto. Este espacio reconoce a quienes han mostrado su apoyo."</string>
