@@ -625,16 +625,12 @@ fun MainContainerScreen() {
                         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                             val totalWidth = maxWidth
                             val columnWidth = totalWidth / 5
-                            val pillWidth = 36.dp
+                            // Match the indicator to the 40.dp icon slot rather than the
+                            // icon glyph. This keeps the selected icon visually centered
+                            // inside the thumb across icons with different intrinsic bounds.
+                            val pillWidth = 48.dp
 
-                            val activeIndex = when (currentScreen) {
-                                Screen.MainDashboard -> 0
-                                Screen.GlobalPrivacySettings -> 1
-                                Screen.MediaStatusHub -> 2
-                                Screen.AutomationTasker -> 3
-                                Screen.StylesSettings -> 4
-                                else -> 0
-                            }
+                            val activeIndex = pagerState.currentPage.coerceIn(0, BottomTab.entries.lastIndex)
 
                             val targetOffset = (columnWidth * activeIndex) + (columnWidth - pillWidth) / 2
                             val animatedOffset by animateDpAsState(
@@ -648,9 +644,9 @@ fun MainContainerScreen() {
 
                             Box(
                                 modifier = Modifier
-                                    .padding(top = 8.dp)
+                                    .padding(top = 10.dp)
                                     .offset(x = animatedOffset)
-                                    .size(width = pillWidth, height = 20.dp)
+                                    .size(width = pillWidth, height = 28.dp)
                                     .clip(CircleShape)
                                     .background(colors.primaryContainer)
                             )
@@ -660,15 +656,8 @@ fun MainContainerScreen() {
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceAround
                             ) {
-                                BottomTab.values().forEach { tab ->
-                                    val active = when (currentScreen) {
-                                        Screen.MainDashboard -> tab == BottomTab.HOME
-                                        Screen.GlobalPrivacySettings -> tab == BottomTab.PRIVACY
-                                        Screen.MediaStatusHub -> tab == BottomTab.MEDIA
-                                        Screen.AutomationTasker -> tab == BottomTab.AUTOMATION
-                                        Screen.StylesSettings -> tab == BottomTab.STYLES
-                                        else -> tab == BottomTab.HOME
-                                    }
+                                BottomTab.entries.forEachIndexed { tabIndex, tab ->
+                                    val active = tabIndex == activeIndex
 
                                     val contentColor by animateColorAsState(
                                         targetValue = if (active) colors.primary else colors.onSurfaceVariant,
