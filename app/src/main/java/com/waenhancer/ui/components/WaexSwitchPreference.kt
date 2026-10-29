@@ -60,7 +60,7 @@ fun WaexSwitchPreference(
         trailing = {
             StitchSwitch(
                 checked = checked,
-                onCheckedChange = if (enabled) onCheckedChange else null,
+                onCheckedChange = null,
                 enabled = enabled
             )
         }
