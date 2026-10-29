@@ -159,8 +159,8 @@ dependencies {
 
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
-    // Expressive progress/loading indicators are available from Material 3 1.5.
-    implementation("androidx.compose.material3:material3:1.5.0-alpha29")
+    // Material 3 Expressive wavy progress indicators compatible with AGP 9.0.x and compileSdk 36
+    implementation("androidx.compose.material3:material3:1.5.0-alpha18")
     implementation(libs.androidx.compose.icons.core)
     implementation("androidx.compose.material:material-icons-extended")
     debugImplementation(libs.androidx.compose.ui.tooling)
