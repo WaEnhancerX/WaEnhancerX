@@ -9,6 +9,7 @@ import android.os.Looper
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedButton
@@ -126,7 +127,9 @@ fun UpdateDownloadSheet(
             Text(UiText.get(R.string.waex_ui_downloading_update, "Downloading update"), style = typography.headlineMd, fontWeight = FontWeight.Bold, color = colors.onSurface)
             WaexLinearProgressIndicator(
                 progress = { downloadProgress / 100f },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(12.dp),
                 color = colors.primary,
                 trackColor = colors.surfaceContainerHighest
             )

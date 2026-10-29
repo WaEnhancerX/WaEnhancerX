@@ -8,7 +8,9 @@ import com.waenhancer.utils.UiText
  */
 data class ChangelogSection(
     val title: String,
-    val items: List<String>
+    val items: List<String>,
+    /** Markdown nesting level for each item. Older/native renderers may ignore it. */
+    val itemLevels: List<Int> = emptyList()
 )
 
 object ChangelogParser {
@@ -35,16 +37,18 @@ object ChangelogParser {
 
         var currentTitle: String? = null
         val currentItems = mutableListOf<String>()
+        val currentItemLevels = mutableListOf<Int>()
 
         fun flushCurrent() {
             val title = currentTitle
             if (title != null && currentItems.isNotEmpty()) {
-                sections.add(ChangelogSection(title, currentItems.toList()))
+                sections.add(ChangelogSection(title, currentItems.toList(), currentItemLevels.toList()))
             } else if (title == null && currentItems.isNotEmpty()) {
                 // Intro text or ungrouped text
-                sections.add(ChangelogSection(UiText.get(R.string.waex_ui_overview, "Overview"), currentItems.toList()))
+                sections.add(ChangelogSection(UiText.get(R.string.waex_ui_overview, "Overview"), currentItems.toList(), currentItemLevels.toList()))
             }
             currentItems.clear()
+            currentItemLevels.clear()
         }
 
         for (line in lines) {
@@ -60,14 +64,20 @@ object ChangelogParser {
                     ?: "Highlights").trim()
                 currentTitle = cleanSectionTitle(detected)
             } else {
-                // Extract clean bullet item
-                val cleanItem = trimmedLine
-                    .removePrefix("- ")
-                    .removePrefix("* ")
-                    .removePrefix("• ")
-                    .trim()
+                val leadingWhitespace = line.takeWhile { it == ' ' || it == '\t' }
+                val indentColumns = leadingWhitespace.sumOf { if (it == '\t') 4 else 1 }
+                val bulletMatch = Regex("^(?:[-*+•]|\\d+[.)])\\s+(.+)$").matchEntire(trimmedLine)
+                val cleanItem = (bulletMatch?.groupValues?.get(1) ?: trimmedLine).trim()
+                // Markdown commonly uses either two or four spaces per nested level.
+                // Treat the first indentation step as one child level in both styles.
+                val nestingLevel = if (bulletMatch == null || indentColumns == 0) {
+                    0
+                } else {
+                    ((indentColumns + 3) / 4).coerceIn(1, 3)
+                }
                 if (cleanItem.isNotBlank()) {
                     currentItems.add(cleanItem)
+                    currentItemLevels.add(nestingLevel)
                 }
             }
         }

@@ -20,7 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import com.waenhancer.ui.components.WaexCircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -265,7 +265,7 @@ fun LicenseActivationModal(
                 .height(52.dp)
         ) {
             if (verifyState == "verifying") {
-                CircularProgressIndicator(
+                WaexCircularProgressIndicator(
                     color = colors.onPrimary,
                     modifier = Modifier.size(18.dp),
                     strokeWidth = 2.dp

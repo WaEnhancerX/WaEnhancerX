@@ -37,7 +37,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.HorizontalDivider
@@ -324,7 +323,10 @@ fun ChangelogBodyView(
                 }
                 val expanded = expandedStates[section.title] ?: initiallyExpanded
                 ChangelogSectionRow(
-                    section = section.copy(items = section.items.take(maxItemsPerCategory)),
+                    section = section.copy(
+                        items = section.items.take(maxItemsPerCategory),
+                        itemLevels = section.itemLevels.take(maxItemsPerCategory)
+                    ),
                     expanded = expanded,
                     onToggle = { expandedStates[section.title] = !expanded }
                 )
@@ -373,10 +375,16 @@ private fun ChangelogSectionRow(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                section.items.forEach { item ->
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                section.items.forEachIndexed { itemIndex, item ->
+                    val level = section.itemLevels.getOrElse(itemIndex) { 0 }
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(start = (level * 18).dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
                         Box(
-                            Modifier.padding(top = 7.dp).size(4.dp).background(
+                            Modifier.padding(top = 7.dp).size(if (level == 0) 4.dp else 3.dp).background(
                                 colors.onSurfaceVariant,
                                 CircleShape
                             )

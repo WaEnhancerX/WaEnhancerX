@@ -33,7 +33,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import com.waenhancer.ui.components.WaexCircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -654,7 +654,7 @@ fun ManageDevicesScreen() {
                             enabled = !isUnlinking
                         ) {
                             if (isUnlinking) {
-                                CircularProgressIndicator(
+                                WaexCircularProgressIndicator(
                                     color = Color.White,
                                     modifier = Modifier.size(18.dp),
                                     strokeWidth = 2.dp

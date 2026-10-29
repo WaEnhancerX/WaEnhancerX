@@ -53,7 +53,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.CircularProgressIndicator
+import com.waenhancer.ui.components.WaexCircularProgressIndicator
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
@@ -1282,7 +1282,7 @@ private fun HmaDetailsBottomSheet(
                                     .height(40.dp)
                             ) {
                                 if (isFixing) {
-                                    CircularProgressIndicator(
+                                    WaexCircularProgressIndicator(
                                         modifier = Modifier.size(16.dp),
                                         color = colors.onPrimary,
                                         strokeWidth = 2.dp
@@ -1601,7 +1601,7 @@ private fun DenylistDetailsBottomSheet(
                                     .height(40.dp)
                             ) {
                                 if (isFixing) {
-                                    CircularProgressIndicator(
+                                    WaexCircularProgressIndicator(
                                         modifier = Modifier.size(16.dp),
                                         color = Color.White,
                                         strokeWidth = 2.dp
@@ -1679,7 +1679,7 @@ private fun DenylistDetailsBottomSheet(
                                     .height(40.dp)
                             ) {
                                 if (isFixing) {
-                                    CircularProgressIndicator(
+                                    WaexCircularProgressIndicator(
                                         modifier = Modifier.size(16.dp),
                                         color = colors.onPrimary,
                                         strokeWidth = 2.dp
@@ -1929,7 +1929,7 @@ private fun DashboardDiagnosticsCard(
                     contentAlignment = Alignment.Center
                 ) {
                     if (isDiagnosticsLoading) {
-                        CircularProgressIndicator(
+                        WaexCircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
                             strokeWidth = 2.dp,
                             color = colors.primary
@@ -2168,7 +2168,7 @@ private fun DashboardDiagnosticRow(
         }
 
         if (isLoading) {
-            CircularProgressIndicator(
+            WaexCircularProgressIndicator(
                 modifier = Modifier.size(18.dp),
                 strokeWidth = 2.dp,
                 color = colors.primary

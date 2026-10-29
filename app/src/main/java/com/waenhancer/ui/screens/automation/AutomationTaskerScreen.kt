@@ -28,7 +28,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import com.waenhancer.ui.components.WaexCircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -622,7 +622,7 @@ fun AutomationTaskerScreen() {
                                             )
                                             Text(text = UiText.get(R.string.waex_ui_connected, "Connected"), style = typography.labelSm, color = colors.success, fontWeight = FontWeight.Bold)
                                         } else if (assemblyStatus == "verifying") {
-                                            CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 1.5.dp, color = colors.primary)
+                                            WaexCircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 1.5.dp, color = colors.primary)
                                         }
                                     }
                                     Button(

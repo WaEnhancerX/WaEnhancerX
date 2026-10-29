@@ -38,7 +38,7 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import com.waenhancer.ui.components.WaexCircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -677,7 +677,7 @@ fun AboutScreen() {
                                 .height(90.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(
+                            WaexCircularProgressIndicator(
                                 modifier = Modifier.size(32.dp),
                                 color = colors.primary,
                                 strokeWidth = 3.dp
@@ -839,7 +839,7 @@ fun AboutScreen() {
                                 .height(120.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(
+                            WaexCircularProgressIndicator(
                                 modifier = Modifier.size(28.dp),
                                 color = colors.primary,
                                 strokeWidth = 3.dp
@@ -1047,7 +1047,7 @@ fun AboutScreen() {
                                 .height(120.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(
+                            WaexCircularProgressIndicator(
                                 modifier = Modifier.size(28.dp),
                                 color = colors.primary,
                                 strokeWidth = 3.dp

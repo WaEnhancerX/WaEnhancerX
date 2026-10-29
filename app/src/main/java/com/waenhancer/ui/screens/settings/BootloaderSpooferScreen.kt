@@ -28,6 +28,7 @@ import com.waenhancer.ui.components.StitchSwitch
 import com.waenhancer.ui.components.WaexTopBar
 import com.waenhancer.ui.components.WaexModalBottomSheet
 import com.waenhancer.ui.designsystem.WaexTheme
+import com.waenhancer.ui.components.WaexCircularProgressIndicator
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
 import kotlinx.coroutines.Dispatchers
@@ -133,7 +134,7 @@ fun BootloaderSpooferScreen() {
                 border = BorderStroke(1.dp, statusColor.copy(alpha = 0.35f)), modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    if (syncing) CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp, color = statusColor)
+                    if (syncing) WaexCircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp, color = statusColor)
                     else Surface(Modifier.size(12.dp), shape = CircleShape, color = statusColor) {}
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(when {
@@ -207,7 +208,7 @@ fun BootloaderSpooferScreen() {
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         if (verifying) {
-                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                            WaexCircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
                             Spacer(Modifier.width(8.dp))
                             Text(UiText.get(R.string.waex_ui_verifying_keybox, "Verifying keybox…"))
                         } else {
@@ -337,7 +338,7 @@ private fun VerificationSheet(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            CircularProgressIndicator(
+                            WaexCircularProgressIndicator(
                                 modifier = Modifier.size(36.dp),
                                 strokeWidth = 3.dp,
                                 color = colors.primary

@@ -23,7 +23,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import com.waenhancer.ui.components.WaexCircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -269,7 +269,7 @@ fun LicenseActivationScreen() {
             },
             confirmContent = {
                 if (isRemovingLicense) {
-                    CircularProgressIndicator(
+                    WaexCircularProgressIndicator(
                         modifier = Modifier.size(16.dp),
                         strokeWidth = 2.dp,
                         color = Color.White
@@ -552,7 +552,7 @@ fun LicenseActivationScreen() {
                             enabled = licenseKeyInput.isNotBlank() && !isVerifying
                         ) {
                             if (isVerifying) {
-                                CircularProgressIndicator(
+                                WaexCircularProgressIndicator(
                                     color = colors.onPrimary,
                                     modifier = Modifier.size(18.dp),
                                     strokeWidth = 2.dp
