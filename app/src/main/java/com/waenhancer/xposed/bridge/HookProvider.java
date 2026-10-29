@@ -20,6 +20,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import com.waenhancer.config.PreferenceSchema;
+import com.waenhancer.calls.CallRecordingRecord;
+import com.waenhancer.calls.CallRecordingStore;
 import com.waenhancer.licensing.LicenseManager;
 import com.waenhancer.licensing.ProFeatureGate;
 import com.waenhancer.licensing.features.BootloaderSpooferFeature;
@@ -102,10 +104,34 @@ public class HookProvider extends ContentProvider {
                     Bundle result = new Bundle();
                     result.putParcelable("descriptor", descriptor);
                     result.putString("path", output.getAbsolutePath());
+                    String callId = extras.getString("call_id");
+                    if (callId != null && !callId.isEmpty()) {
+                        CallRecordingStore.get(context).begin(new CallRecordingRecord(
+                                callId,
+                                extras.getString("contact_jid"),
+                                extras.getString("contact_name", "Unknown contact"),
+                                extras.getString("direction", "unknown"),
+                                extras.getString("target_package", "unknown"),
+                                extras.getLong("started_at", System.currentTimeMillis()),
+                                null,
+                                output.getAbsolutePath(),
+                                "recording"));
+                    }
                     return result;
                 } catch (FileNotFoundException ignored) {
                     return null;
                 }
+            }
+
+            if ("finish_call_recording".equals(method)) {
+                if (extras == null) return writeResult(false);
+                String callId = extras.getString("call_id");
+                if (callId == null || callId.isEmpty()) return writeResult(false);
+                CallRecordingStore.get(context).finish(
+                        callId,
+                        extras.getLong("ended_at", System.currentTimeMillis()),
+                        extras.getBoolean("successful", false));
+                return writeResult(true);
             }
 
             if ("delete_call_recording".equals(method)) {
@@ -116,6 +142,8 @@ public class HookProvider extends ContentProvider {
                 if (base == null) base = context.getFilesDir();
                 boolean deleted = !safeName.isEmpty()
                         && new File(new File(base, "CallRecordings"), safeName).delete();
+                String path = new File(new File(base, "CallRecordings"), safeName).getAbsolutePath();
+                CallRecordingStore.get(context).deleteByPath(path);
                 Bundle result = new Bundle();
                 result.putBoolean("deleted", deleted);
                 return result;

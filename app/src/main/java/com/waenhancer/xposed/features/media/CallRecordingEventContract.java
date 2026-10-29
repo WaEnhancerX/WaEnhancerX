@@ -13,11 +13,14 @@ final class CallRecordingEventContract {
     private final Class<?> infoType;
     private final Field callId;
     private final Field callState;
+    private final Method peerJid;
+    private final Method isCaller;
     private final Object active;
     private final Object none;
 
     private CallRecordingEventContract(Method stateChanged, Method soundPortCreated, Method callEnding,
                                        Method currentCallInfo, Field callId, Field callState,
+                                       Method peerJid, Method isCaller,
                                        Object active, Object none) {
         this.stateChanged = stateChanged;
         this.soundPortCreated = soundPortCreated;
@@ -26,6 +29,8 @@ final class CallRecordingEventContract {
         this.infoType = currentCallInfo.getReturnType();
         this.callId = callId;
         this.callState = callState;
+        this.peerJid = peerJid;
+        this.isCaller = isCaller;
         this.active = active;
         this.none = none;
     }
@@ -60,6 +65,8 @@ final class CallRecordingEventContract {
         Method changed = callback.getDeclaredMethod("callStateChanged", stateType, info);
         Method sound = callback.getDeclaredMethod("soundPortCreated", int.class);
         Method ending = resolveCallEndingMethod(callback, info);
+        Method peer = optionalMethod(info, "getPeerJid");
+        Method caller = optionalMethod(info, "isCaller");
         requireVoidMethod(changed);
         requireVoidMethod(sound);
         requireVoidMethod(ending);
@@ -69,7 +76,18 @@ final class CallRecordingEventContract {
         changed.setAccessible(true);
         sound.setAccessible(true);
         ending.setAccessible(true);
-        return new CallRecordingEventContract(changed, sound, ending, currentInfo, id, state, active, none);
+        return new CallRecordingEventContract(changed, sound, ending, currentInfo, id, state,
+                peer, caller, active, none);
+    }
+
+    private static Method optionalMethod(Class<?> owner, String name) {
+        try {
+            Method method = owner.getDeclaredMethod(name);
+            method.setAccessible(true);
+            return method;
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            return null;
+        }
     }
 
     private static Method resolveCallEndingMethod(Class<?> callback, Class<?> info) throws NoSuchMethodException {
@@ -127,7 +145,30 @@ final class CallRecordingEventContract {
         String id = (String) callId.get(info);
         Object state = callState.get(info);
         if (id == null || id.isEmpty() || state == null) return null;
-        return new Snapshot(id, state == active, state == none);
+        String jid = null;
+        boolean outgoing = false;
+        boolean directionKnown = false;
+        try {
+            Object peer = peerJid == null ? null : peerJid.invoke(info);
+            if (peer != null) {
+                try {
+                    Method raw = peer.getClass().getMethod("getRawString");
+                    jid = String.valueOf(raw.invoke(peer));
+                } catch (ReflectiveOperationException ignored) {
+                    jid = peer.toString();
+                }
+            }
+            if (isCaller != null) {
+                Object value = isCaller.invoke(info);
+                if (value instanceof Boolean) {
+                    outgoing = (Boolean) value;
+                    directionKnown = true;
+                }
+            }
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+        }
+        return new Snapshot(id, state == active, state == none, jid,
+                directionKnown ? (outgoing ? "outgoing" : "incoming") : "unknown");
     }
 
     Snapshot current(Object callback) throws ReflectiveOperationException {
@@ -138,11 +179,15 @@ final class CallRecordingEventContract {
         final String callId;
         final boolean active;
         final boolean ended;
+        final String peerJid;
+        final String direction;
 
-        Snapshot(String callId, boolean active, boolean ended) {
+        Snapshot(String callId, boolean active, boolean ended, String peerJid, String direction) {
             this.callId = callId;
             this.active = active;
             this.ended = ended;
+            this.peerJid = peerJid;
+            this.direction = direction;
         }
     }
 }

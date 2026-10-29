@@ -13,6 +13,8 @@ import com.waenhancer.licensing.features.BootloaderSpooferFeature
 import com.waenhancer.utils.LocaleHelper
 import com.waenhancer.utils.WhatsAppPackageDetector
 import com.waenhancer.utils.UiText
+import com.waenhancer.calls.CallRecordingStore
+import java.io.File
 
 @HiltAndroidApp
 class WaexApp : Application() {
@@ -41,6 +43,11 @@ class WaexApp : Application() {
             edit().putString("wae_version_name", installedVersion).apply()
         }
         BootloaderSpooferFeature.syncDefaultKeyboxAsync(this)
+        Thread({
+            getExternalFilesDir(null)?.let { base ->
+                CallRecordingStore.get(this).importSidecars(File(base, "CallRecordings"))
+            }
+        }, "WAEX-RecordingIndex").start()
     }
 
     private fun notifyHookedPackages(changedKey: String?) {
