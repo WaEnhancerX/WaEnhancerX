@@ -7,7 +7,13 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.TextView
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -29,6 +35,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -48,6 +55,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -129,7 +138,10 @@ fun ChangelogScreen() {
         containerColor = colors.background
     ) { insets ->
         when {
-            loading -> Box(Modifier.fillMaxSize().padding(insets), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = colors.primary) }
+            loading -> ChangelogSkeleton(
+                modifier = Modifier.padding(insets),
+                contentPadding = PaddingValues(horizontal = spacing.pageMargin, vertical = 16.dp)
+            )
             error != null -> Column(Modifier.fillMaxSize().padding(insets).padding(spacing.pageMargin), Arrangement.Center, Alignment.CenterHorizontally) {
                 Text(error!!, color = colors.onSurfaceVariant, style = typography.bodyMd)
                 Spacer(Modifier.height(16.dp))
@@ -371,6 +383,170 @@ private fun ChangelogSectionRow(
                         )
                         Spacer(Modifier.width(10.dp))
                         MarkdownText(item, colors.onSurface.toArgb(), maxLines = 4)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun changelogShimmerBrush(targetValue: Float = 1000f): Brush {
+    val shimmerColors = listOf(
+        WaexTheme.colors.surfaceContainerLow.copy(alpha = 0.6f),
+        WaexTheme.colors.surfaceContainerHighest.copy(alpha = 0.9f),
+        WaexTheme.colors.surfaceContainerLow.copy(alpha = 0.6f)
+    )
+    val transition = rememberInfiniteTransition(label = "changelogShimmerTransition")
+    val translateAnimation = transition.animateFloat(
+        initialValue = 0f,
+        targetValue = targetValue,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1100, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "changelogShimmerTranslate"
+    )
+    return Brush.linearGradient(
+        colors = shimmerColors,
+        start = Offset.Zero,
+        end = Offset(x = translateAnimation.value, y = translateAnimation.value)
+    )
+}
+
+@Composable
+fun ChangelogSkeleton(
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(16.dp)
+) {
+    val brush = changelogShimmerBrush()
+    val radius = WaexTheme.radius
+    val colors = WaexTheme.colors
+
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = contentPadding,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        items(3) { index ->
+            Surface(
+                shape = radius.bentoCardShape,
+                color = colors.surfaceContainerLow,
+                border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.6f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(20.dp)) {
+                    // Header row: version name, date, chevron
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Box(
+                                modifier = Modifier
+                                    .width(if (index == 0) 180.dp else 140.dp)
+                                    .height(22.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(brush)
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .width(90.dp)
+                                    .height(13.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(brush)
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(brush)
+                        )
+                    }
+
+                    // Optional badge skeleton on first card (e.g. Installed / Update)
+                    if (index == 0) {
+                        Spacer(Modifier.height(12.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Box(
+                                modifier = Modifier
+                                    .width(68.dp)
+                                    .height(22.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(brush)
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    // Nested container for changelog body
+                    Surface(
+                        shape = radius.bentoCardShape,
+                        color = colors.surfaceDim,
+                        border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.4f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            // Section header
+                            Box(
+                                modifier = Modifier
+                                    .width(110.dp)
+                                    .height(15.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(brush)
+                            )
+                            // Bullet items
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(brush)
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.85f)
+                                        .height(13.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(brush)
+                                )
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(brush)
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.65f)
+                                        .height(13.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(brush)
+                                )
+                            }
+                        }
+                    }
+
+                    // Action button skeleton (Upgrade / Downgrade / Switch)
+                    if (index == 0) {
+                        Spacer(Modifier.height(16.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(40.dp)
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(brush)
+                        )
                     }
                 }
             }

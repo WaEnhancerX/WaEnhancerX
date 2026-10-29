@@ -28,10 +28,18 @@ object MagiskDenylistDiagnostics {
         BLOCKING_TARGETS // WhatsApp packages are on the enforced DenyList
     }
 
+    enum class TargetState {
+        BLOCKED,
+        NOT_DENYLISTED,
+        DENYLIST_NOT_ENFORCED,
+        MAGISK_NOT_ACTIVE
+    }
+
     data class DenylistedTarget(
         val packageName: String,
         val appName: String,
         val isBlocked: Boolean,
+        val state: TargetState,
         val processDetails: String? = null
     )
 
@@ -54,11 +62,14 @@ object MagiskDenylistDiagnostics {
         targetPackages: Collection<String>,
         forceRefresh: Boolean = false
     ): DenylistReport = withContext(Dispatchers.IO) {
+        val requestedPackages = packagesToCheck(targetPackages)
         if (!forceRefresh) {
-            cachedResult.get()?.let { return@withContext it }
+            cachedResult.get()
+                ?.takeIf { cached -> cached.targets.map { it.packageName }.toSet() == requestedPackages }
+                ?.let { return@withContext it }
         }
 
-        val report = runCheck(context.applicationContext, targetPackages)
+        val report = runCheck(context.applicationContext, requestedPackages)
         cachedResult.set(report)
         report
     }
@@ -112,24 +123,29 @@ object MagiskDenylistDiagnostics {
         return found
     }
 
-    private fun runCheck(context: Context, targetPackages: Collection<String>): DenylistReport {
+    private fun packagesToCheck(targetPackages: Collection<String>): Set<String> =
+        (if (targetPackages.isNotEmpty()) targetPackages else DeclaredWhatsAppTargets.packages())
+            .filterTo(linkedSetOf()) { PACKAGE_NAME_PATTERN.matcher(it).matches() }
+
+    private fun runCheck(context: Context, packagesToCheck: Set<String>): DenylistReport {
         if (!isMagiskInstalled()) {
             return DenylistReport(
                 state = DenylistState.NOT_ACTIVE,
                 isMagiskInstalled = false,
-                isDenylistEnforced = false
+                isDenylistEnforced = false,
+                targets = buildTargets(
+                    context = context,
+                    packagesToCheck = packagesToCheck,
+                    blockedPackages = emptySet(),
+                    denylistMap = emptyMap(),
+                    inactiveState = TargetState.MAGISK_NOT_ACTIVE
+                )
             )
         }
 
         val enforced = isDenylistEnforced()
-        val packagesToCheck = if (targetPackages.isNotEmpty()) {
-            targetPackages.toSet()
-        } else {
-            DeclaredWhatsAppTargets.packages()
-        }
-
         val denylistMap = getDenylistedPackages()
-        val blockedPackages = mutableListOf<String>()
+        val blockedPackages = linkedSetOf<String>()
 
         if (denylistMap.isNotEmpty()) {
             for (pkg in packagesToCheck) {
@@ -145,17 +161,13 @@ object MagiskDenylistDiagnostics {
             }
         }
 
-        val targetList = packagesToCheck.map { pkg ->
-            val appLabel = resolveAppLabel(context, pkg)
-            val isBlocked = pkg in blockedPackages
-            val processes = denylistMap[pkg]?.joinToString(", ")?.takeIf { it.isNotBlank() }
-            DenylistedTarget(
-                packageName = pkg,
-                appName = appLabel,
-                isBlocked = isBlocked,
-                processDetails = processes
-            )
-        }
+        val targetList = buildTargets(
+            context = context,
+            packagesToCheck = packagesToCheck,
+            blockedPackages = blockedPackages,
+            denylistMap = denylistMap,
+            inactiveState = if (enforced) TargetState.NOT_DENYLISTED else TargetState.DENYLIST_NOT_ENFORCED
+        )
 
         val state = when {
             !enforced -> DenylistState.NOT_ACTIVE
@@ -167,8 +179,25 @@ object MagiskDenylistDiagnostics {
             state = state,
             isMagiskInstalled = true,
             isDenylistEnforced = enforced,
-            blockedPackages = blockedPackages,
+            blockedPackages = blockedPackages.toList(),
             targets = targetList
+        )
+    }
+
+    private fun buildTargets(
+        context: Context,
+        packagesToCheck: Set<String>,
+        blockedPackages: Set<String>,
+        denylistMap: Map<String, List<String>>,
+        inactiveState: TargetState
+    ): List<DenylistedTarget> = packagesToCheck.map { pkg ->
+        val blocked = pkg in blockedPackages
+        DenylistedTarget(
+            packageName = pkg,
+            appName = resolveAppLabel(context, pkg),
+            isBlocked = blocked,
+            state = if (blocked) TargetState.BLOCKED else inactiveState,
+            processDetails = denylistMap[pkg]?.joinToString(", ")?.takeIf { it.isNotBlank() }
         )
     }
 
@@ -177,10 +206,7 @@ object MagiskDenylistDiagnostics {
      * zygote unmount is reverted on subsequent launch.
      */
     suspend fun fixPackage(context: Context, packageName: String): Boolean = withContext(Dispatchers.IO) {
-        if (!DeclaredWhatsAppTargets.contains(packageName) &&
-            packageName != "com.whatsapp" &&
-            packageName != "com.whatsapp.w4b"
-        ) {
+        if (!PACKAGE_NAME_PATTERN.matcher(packageName).matches()) {
             return@withContext false
         }
 
@@ -222,4 +248,6 @@ object MagiskDenylistDiagnostics {
             }
         }
     }
+
+    private val PACKAGE_NAME_PATTERN = Pattern.compile("[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+")
 }

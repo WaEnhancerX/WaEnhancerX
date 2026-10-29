@@ -387,6 +387,10 @@
     <string name="diag_denylist_fix_all_message">This will remove all detected WhatsApp packages from the Magisk DenyList and force-stop them so Zygisk/LSPosed can hook them on next launch.</string>
     <string name="diag_denylist_fix_success">Removed from Magisk DenyList successfully</string>
     <string name="diag_denylist_fix_failed">Failed to remove from Magisk DenyList</string>
+    <string name="diag_denylist_target_blocked">Blocked by the enforced DenyList</string>
+    <string name="diag_denylist_target_clean">Not present in the enforced DenyList</string>
+    <string name="diag_denylist_target_not_enforced">DenyList enforcement is disabled</string>
+    <string name="diag_denylist_target_magisk_inactive">Magisk is not active</string>
     <string name="diag_label_android">Android</string>
     <string name="diag_label_selinux">SELinux</string>
     <string name="diag_label_root">Root</string>

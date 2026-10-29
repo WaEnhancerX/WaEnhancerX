@@ -227,6 +227,7 @@ fun MainDashboardScreen(
             if (event == Lifecycle.Event.ON_RESUME) {
                 refreshTrigger++
                 diagnosticsRefreshTrigger++
+                denylistRefreshTrigger++
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -234,6 +235,7 @@ fun MainDashboardScreen(
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(c: Context?, intent: Intent?) {
                 refreshTrigger++
+                denylistRefreshTrigger++
             }
         }
         val filter = IntentFilter("com.waenhancer.ACTION_TARGET_APP_ACTIVE")
@@ -1740,6 +1742,13 @@ private fun DenylistDetailsBottomSheet(
                                     style = typography.labelSm,
                                     color = colors.onSurfaceVariant
                                 )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = stringResource(R.string.diag_denylist_target_blocked),
+                                    style = typography.labelSm,
+                                    fontWeight = FontWeight.Medium,
+                                    color = colors.error
+                                )
                                 if (!item.processDetails.isNullOrBlank()) {
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
@@ -1817,6 +1826,21 @@ private fun DenylistDetailsBottomSheet(
                                 )
                                 Text(
                                     text = item.packageName,
+                                    style = typography.labelSm,
+                                    color = colors.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = when (item.state) {
+                                        MagiskDenylistDiagnostics.TargetState.BLOCKED ->
+                                            stringResource(R.string.diag_denylist_target_blocked)
+                                        MagiskDenylistDiagnostics.TargetState.NOT_DENYLISTED ->
+                                            stringResource(R.string.diag_denylist_target_clean)
+                                        MagiskDenylistDiagnostics.TargetState.DENYLIST_NOT_ENFORCED ->
+                                            stringResource(R.string.diag_denylist_target_not_enforced)
+                                        MagiskDenylistDiagnostics.TargetState.MAGISK_NOT_ACTIVE ->
+                                            stringResource(R.string.diag_denylist_target_magisk_inactive)
+                                    },
                                     style = typography.labelSm,
                                     color = colors.onSurfaceVariant
                                 )
