@@ -589,6 +589,7 @@
     <string name="waex_ui_refresh_hooks" formatted="false">"Refresh hooks"</string>
     <string name="waex_ui_refresh_managed_keybox" formatted="false">"Refresh managed keybox"</string>
     <string name="waex_ui_refreshing" formatted="false">"Refreshing…"</string>
+    <string name="waex_ui_refresh" formatted="false">"Refresh"</string>
     <string name="waex_ui_refreshing_managed_keybox" formatted="false">"Refreshing managed keybox"</string>
     <string name="waex_ui_release_details" formatted="false">"Release Details"</string>
     <string name="waex_ui_release" formatted="false">"Release"</string>

@@ -37,13 +37,13 @@ import com.waenhancer.ui.components.WaexCircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import com.waenhancer.ui.components.WaexModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -328,7 +328,26 @@ fun ManageDevicesScreen() {
         topBar = {
             WaexTopBar(
                 title = UiText.get(R.string.waex_ui_connected_devices, "Connected Devices"),
-                onBackClick = { navController.popBack() }
+                onBackClick = { navController.popBack() },
+                actions = {
+                    IconButton(
+                        onClick = { loadDevices(isPull = true) },
+                        enabled = !isRefreshing
+                    ) {
+                        if (isRefreshing) {
+                            WaexCircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = colors.primary,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                imageVector = WaexIcons.Refresh,
+                                contentDescription = UiText.get(R.string.waex_ui_refresh, "Refresh")
+                            )
+                        }
+                    }
+                }
             )
         },
         containerColor = colors.background
@@ -376,67 +395,86 @@ fun ManageDevicesScreen() {
                     }
                 }
             } else {
-                PullToRefreshBox(
-                    isRefreshing = isRefreshing,
-                    onRefresh = { loadDevices(isPull = true) },
+                LazyColumn(
                     modifier = Modifier.fillMaxSize()
+                        .padding(horizontal = spacing.pageMargin),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = spacing.pageMargin),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
                         item {
                             Spacer(modifier = Modifier.height(spacing.stackSm))
-                            // Summary status card
-                            WaexCard(modifier = Modifier.fillMaxWidth()) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(28.dp),
+                                color = if (linkedCount >= deviceLimit) colors.warningContainer else colors.primaryContainer
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(22.dp),
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
                                 ) {
-                                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.Top
+                                    ) {
+                                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            Text(
+                                                text = UiText.get(R.string.waex_ui_active_device_slots, "Active device slots"),
+                                                style = typography.titleMd,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = colors.onSurface
+                                            )
+                                            Text(
+                                                text = if (linkedCount >= deviceLimit) {
+                                                    UiText.get(R.string.waex_ui_limit_full, "Limit full")
+                                                } else {
+                                                    UiText.get(R.string.waex_ui_available, "Available")
+                                                },
+                                                style = typography.bodySm,
+                                                color = colors.onSurfaceVariant
+                                            )
+                                        }
                                         Text(
-                                            text = UiText.get(R.string.waex_ui_active_device_slots, "Active Device Slots"),
-                                            style = typography.labelSm,
-                                            color = colors.onSurfaceVariant
-                                        )
-                                        Text(
-                                            text = UiText.get(R.string.waex_ui_1_s_of_2_s_devices_in_use, "%1\$s of %2\$s devices in use", linkedCount, deviceLimit),
-                                            style = typography.titleMd,
+                                            text = "$linkedCount / $deviceLimit",
+                                            style = typography.displayLg,
                                             fontWeight = FontWeight.Bold,
                                             color = colors.onSurface
                                         )
                                     }
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = if (linkedCount >= deviceLimit) colors.warningContainer else colors.primaryContainer,
-                                        border = BorderStroke(
-                                            1.dp,
-                                            if (linkedCount >= deviceLimit) colors.warning.copy(alpha = 0.6f) else colors.primary.copy(alpha = 0.3f)
-                                        )
-                                    ) {
-                                        Text(
-                                            text = if (linkedCount >= deviceLimit) UiText.get(R.string.waex_ui_limit_full, "Limit Full") else UiText.get(R.string.waex_ui_available, "Available"),
-                                            style = typography.labelSm,
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (linkedCount >= deviceLimit) colors.onWarningContainer else colors.primary,
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                            fontSize = 11.sp
-                                        )
-                                    }
+                                    LinearProgressIndicator(
+                                        progress = {
+                                            if (deviceLimit > 0) {
+                                                (linkedCount.toFloat() / deviceLimit.toFloat()).coerceIn(0f, 1f)
+                                            } else {
+                                                0f
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(8.dp)
+                                            .clip(CircleShape),
+                                        color = if (linkedCount >= deviceLimit) colors.warning else colors.primary,
+                                        trackColor = colors.surface.copy(alpha = 0.55f)
+                                    )
+                                    Text(
+                                        text = UiText.get(
+                                            R.string.waex_ui_1_s_of_2_s_devices_in_use,
+                                            "%1\$s of %2\$s devices in use",
+                                            linkedCount,
+                                            deviceLimit
+                                        ),
+                                        style = typography.bodyMd,
+                                        color = colors.onSurfaceVariant
+                                    )
                                 }
                             }
                         }
 
                         item {
                             Text(
-                                text = UiText.get(R.string.waex_ui_linked_devices, "LINKED DEVICES"),
-                                style = typography.labelSm,
-                                fontWeight = FontWeight.Bold,
-                                color = colors.onSurfaceVariant,
-                                letterSpacing = 1.sp,
+                                text = UiText.get(R.string.waex_ui_linked_devices, "Linked devices"),
+                                style = typography.titleMd,
+                                fontWeight = FontWeight.SemiBold,
+                                color = colors.onSurface,
                                 modifier = Modifier.padding(start = 4.dp, top = 4.dp)
                             )
                         }
@@ -473,7 +511,6 @@ fun ManageDevicesScreen() {
                             )
                             Spacer(modifier = Modifier.height(24.dp))
                         }
-                    }
                 }
             }
         }
@@ -703,14 +740,10 @@ private fun DeviceCardItem(
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
 
-    val borderColor = if (device.isCurrent) colors.primary.copy(alpha = 0.5f) else colors.outlineVariant
-    val containerColor = colors.surface
-
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = radius.cardShape,
-        color = containerColor,
-        border = BorderStroke(1.dp, borderColor)
+        shape = if (device.isCurrent) RoundedCornerShape(28.dp) else RoundedCornerShape(20.dp),
+        color = if (device.isCurrent) colors.primaryContainer else colors.surfaceContainerLow
     ) {
         Row(
             modifier = Modifier
@@ -721,16 +754,15 @@ private fun DeviceCardItem(
         ) {
             // Device Hardware Icon
             Surface(
-                shape = CircleShape,
-                color = if (device.isCurrent) colors.primaryContainer else colors.surfaceContainerLow,
-                border = BorderStroke(1.dp, if (device.isCurrent) colors.primary.copy(alpha = 0.3f) else colors.outlineVariant.copy(alpha = 0.5f)),
-                modifier = Modifier.size(44.dp)
+                shape = RoundedCornerShape(16.dp),
+                color = if (device.isCurrent) colors.primary else colors.surfaceContainerHighest,
+                modifier = Modifier.size(48.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = WaexIcons.Smartphone,
                         contentDescription = null,
-                        tint = if (device.isCurrent) colors.primary else colors.onSurfaceVariant,
+                        tint = if (device.isCurrent) colors.onPrimary else colors.onSurfaceVariant,
                         modifier = Modifier.size(22.dp)
                     )
                 }
@@ -756,9 +788,8 @@ private fun DeviceCardItem(
                     )
                     if (device.isCurrent) {
                         Surface(
-                            shape = CircleShape,
-                            color = colors.primaryContainer,
-                            border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.3f))
+                            shape = radius.smShape,
+                            color = colors.surface.copy(alpha = 0.72f)
                         ) {
                             Text(
                                 text = UiText.get(R.string.waex_ui_this_device, "This Device"),
@@ -785,11 +816,10 @@ private fun DeviceCardItem(
 
             // Unlink Action Button
             Surface(
-                shape = CircleShape,
-                color = Color(0xFFF44336).copy(alpha = 0.1f),
-                border = BorderStroke(1.dp, Color(0xFFF44336).copy(alpha = 0.25f)),
+                shape = radius.buttonShape,
+                color = colors.errorContainer,
                 modifier = Modifier
-                    .clip(CircleShape)
+                    .clip(radius.buttonShape)
                     .clickable { onUnlinkClick() }
             ) {
                 Row(
@@ -800,7 +830,7 @@ private fun DeviceCardItem(
                         text = UiText.get(R.string.waex_ui_unlink, "Unlink"),
                         style = typography.labelSm,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFFF44336),
+                        color = colors.onErrorContainer,
                         fontSize = 12.sp
                     )
                 }
