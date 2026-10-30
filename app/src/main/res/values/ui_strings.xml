@@ -502,6 +502,8 @@
     <string name="waex_ui_no_hidden_read_receipt_to_send" formatted="false">"No hidden read receipt to send"</string>
     <string name="waex_ui_no_injected_hooks_matching_filter" formatted="false">"No injected hooks matching filter"</string>
     <string name="waex_ui_no_internet_connection" formatted="false">"No Internet Connection"</string>
+    <string name="waex_ui_network_unreachable_message" formatted="false">"WAEX couldn\'t reach the service. Check your connection and try again."</string>
+    <string name="waex_ui_network_timeout_message" formatted="false">"The request took too long. Check your connection and try again."</string>
     <string name="waex_ui_no_linked_devices_found_for_this_licen" formatted="false">"No linked devices found for this license."</string>
     <string name="waex_ui_no_message_history_found" formatted="false">"No message history found"</string>
     <string name="waex_ui_no_messages" formatted="false">"No messages"</string>

@@ -100,7 +100,11 @@ fun UpdateDownloadSheet(
                     if (!session.claimTerminal()) return@post
                     mainHandler.removeCallbacks(progressTask)
                     dismiss()
-                    Toast.makeText(context, UiText.get(R.string.waex_ui_download_failed_1_s, "Download failed: %1\$s", error.message), Toast.LENGTH_LONG).show()
+                    if (NetworkErrorCenter.isNetworkError(error)) {
+                        NetworkErrorCenter.show(error)
+                    } else {
+                        Toast.makeText(context, UiText.get(R.string.waex_ui_download_failed_1_s, "Download failed: %1\$s", error.message), Toast.LENGTH_LONG).show()
+                    }
                 }
             }
         }, expectedSha256, expectedSize)

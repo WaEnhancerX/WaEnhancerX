@@ -43,6 +43,7 @@ import com.waenhancer.update.WaexRelease
 import com.waenhancer.update.normalizeVersion
 
 import com.waenhancer.ui.components.WaexEmptyState
+import com.waenhancer.ui.components.NetworkErrorCenter
 import com.waenhancer.ui.designsystem.WaexIcons
 
 @Composable
@@ -78,9 +79,13 @@ fun ReleaseDetailsScreen(tagName: String) {
                     error = UiText.get(R.string.waex_ui_release_not_found, "Release not found.")
                 }
             }
-            .onFailure {
+            .onFailure { failure ->
                 if (release == null) {
-                    error = it.message ?: UiText.get(R.string.waex_ui_unable_to_load_release, "Unable to load release.")
+                    if (NetworkErrorCenter.isNetworkError(failure)) {
+                        NetworkErrorCenter.show(failure) { retry++ }
+                    } else {
+                        error = failure.message ?: UiText.get(R.string.waex_ui_unable_to_load_release, "Unable to load release.")
+                    }
                 }
             }
     }

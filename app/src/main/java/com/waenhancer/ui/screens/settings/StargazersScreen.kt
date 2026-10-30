@@ -93,6 +93,7 @@ import com.waenhancer.app.R
 import com.waenhancer.config.PreferenceStores
 import com.waenhancer.licensing.LicenseManager
 import com.waenhancer.ui.components.WaexTopBar
+import com.waenhancer.ui.components.NetworkErrorCenter
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
@@ -215,9 +216,12 @@ fun StargazersScreen() {
         result.onSuccess { snapshot ->
             stargazers = sortStargazers(context, snapshot.stargazers)
             lastUpdated = formatUpdatedAt(snapshot.updatedAt)
-        }.onFailure {
+        }.onFailure { failure ->
             errorMessage = UiText.get(R.string.waex_ui_we_couldn_t_load_the_supporters_right, "We couldn't load the supporters right now.")
             stargazers = emptyList()
+            if (NetworkErrorCenter.isNetworkError(failure)) {
+                NetworkErrorCenter.show(failure) { refreshKey++ }
+            }
         }
         isLoading = false
     }
@@ -229,7 +233,12 @@ fun StargazersScreen() {
         isLoadingProfile = true
         loadStargazerProfile(context, stargazer.login)
             .onSuccess { selectedProfile = it }
-            .onFailure { profileError = UiText.get(R.string.waex_ui_could_not_load_this_github_profile, "Could not load this GitHub profile.") }
+            .onFailure { failure ->
+                profileError = UiText.get(R.string.waex_ui_could_not_load_this_github_profile, "Could not load this GitHub profile.")
+                if (NetworkErrorCenter.isNetworkError(failure)) {
+                    NetworkErrorCenter.show(failure)
+                }
+            }
         isLoadingProfile = false
     }
 

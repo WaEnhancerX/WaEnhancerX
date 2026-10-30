@@ -10,4 +10,13 @@ final class ComposerSignaturePolicy {
                 && ((view.equals(types[0]) && bundle.equals(types[1]))
                 || (bundle.equals(types[0]) && view.equals(types[1])));
     }
+
+    static boolean acceptsCreateView(String methodName, String returnType, String[] types) {
+        return "onCreateView".equals(methodName)
+                && "android.view.View".equals(returnType)
+                && types != null && types.length == 3
+                && "android.view.LayoutInflater".equals(types[0])
+                && "android.view.ViewGroup".equals(types[1])
+                && "android.os.Bundle".equals(types[2]);
+    }
 }

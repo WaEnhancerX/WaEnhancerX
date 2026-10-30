@@ -1,38 +1,55 @@
 package com.waenhancer.ui.screens.search
 
-import com.waenhancer.utils.UiText
-
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.waenhancer.app.R
 import com.waenhancer.config.FeatureCatalog
 import com.waenhancer.config.FeatureItem
-import com.waenhancer.ui.components.WaexSearchBar
 import com.waenhancer.ui.components.WaexEmptyState
+import com.waenhancer.ui.components.WaexSearchBar
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
-import com.waenhancer.utils.LocalizationHelper
-
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import com.waenhancer.app.R
-import androidx.compose.foundation.BorderStroke
 import com.waenhancer.ui.navigation.Screen
+import com.waenhancer.utils.LocalizationHelper
+import com.waenhancer.utils.UiText
 
 typealias SearchablePreference = FeatureItem
 
@@ -47,62 +64,60 @@ fun SearchScreen() {
     val colors = WaexTheme.colors
     val spacing = WaexTheme.spacing
     val typography = WaexTheme.typography
-    val radius = WaexTheme.radius
     val navController = LocalWaexNavController.current
 
     var query by remember { mutableStateOf("") }
-
-    // Registry of all available preference items sourced from the unified FeatureCatalog
     val preferenceRegistry = FeatureCatalog.ALL_FEATURES
-
-    // Enhanced multi-token search filter: matches all query terms across localized title, desc, section, key
-    val filteredPreferences = remember(query) {
+    val filteredPreferences = remember(query, context) {
         val trimmed = query.trim()
         if (trimmed.isEmpty()) {
             preferenceRegistry
         } else {
             val terms = trimmed.lowercase().split("\\s+".toRegex()).filter { it.isNotEmpty() }
-            preferenceRegistry.filter { pref ->
-                val locTitle = LocalizationHelper.getTitle(context, pref)
-                val locDesc = LocalizationHelper.getDesc(context, pref)
-                val locSec = LocalizationHelper.getSection(context, pref)
-                val locTab = LocalizationHelper.getTabTitle(context, pref.tabId)
-                val aliases = preferenceSearchAliases[pref.key].orEmpty()
-                val haystack = "$locTitle $locDesc $locSec $locTab ${pref.key} $aliases".lowercase()
-                terms.all { term -> haystack.contains(term) }
+            preferenceRegistry.filter { preference ->
+                val haystack = buildString {
+                    append(LocalizationHelper.getTitle(context, preference))
+                    append(' ')
+                    append(LocalizationHelper.getDesc(context, preference))
+                    append(' ')
+                    append(LocalizationHelper.getSection(context, preference))
+                    append(' ')
+                    append(LocalizationHelper.getTabTitle(context, preference.tabId))
+                    append(' ')
+                    append(preference.key)
+                    append(' ')
+                    append(preferenceSearchAliases[preference.key].orEmpty())
+                }.lowercase()
+                terms.all(haystack::contains)
             }
         }
     }
-
-    val groupedPreferences = remember(filteredPreferences) {
+    val groupedPreferences = remember(filteredPreferences, context) {
         filteredPreferences.groupBy { LocalizationHelper.getSection(context, it) }
     }
 
     Scaffold(
         topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = colors.surface
-            ) {
+            Surface(color = colors.background, modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.statusBarsPadding()) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp)
+                            .height(72.dp)
                             .padding(horizontal = spacing.pageMargin),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-
                         IconButton(
-                            onClick = { navController.popBack() },
+                            onClick = navController::popBack,
                             modifier = Modifier
-                                .size(40.dp)
+                                .size(44.dp)
                                 .clip(CircleShape)
+                                .background(colors.surfaceContainerHigh)
                         ) {
                             Icon(
                                 imageVector = WaexIcons.Back,
                                 contentDescription = UiText.get(R.string.action_back, "Back"),
-                                tint = colors.onBackground,
+                                tint = colors.onSurface,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -114,17 +129,15 @@ fun SearchScreen() {
                             modifier = Modifier.weight(1f)
                         )
                     }
-                    HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant.copy(alpha = 0.6f))
                 }
             }
         },
-
         containerColor = colors.background
-    ) { paddingValues ->
+    ) { contentPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .padding(contentPadding)
         ) {
             if (filteredPreferences.isEmpty()) {
                 WaexEmptyState(
@@ -135,116 +148,135 @@ fun SearchScreen() {
                 )
             } else {
                 LazyColumn(
-                    contentPadding = PaddingValues(horizontal = spacing.pageMargin, vertical = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 24.dp)
                 ) {
                     groupedPreferences.forEach { (section, preferences) ->
-                        item(key = "section_$section") {
-                            Text(
-                                text = section,
-                                style = typography.bodyLg,
-                                fontWeight = FontWeight.Bold,
-                                color = colors.primary,
-                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                            )
+                        stickyHeader(key = "section_$section") {
+                            SearchSectionHeader(section)
                         }
-                        items(preferences, key = { it.key }) { pref ->
-                            // Custom badge color per tab category
-                            val (badgeBg, badgeTextColor) = when (pref.tabId) {
-                                "privacy" -> Color(0xFF1E88E5).copy(alpha = 0.12f) to Color(0xFF1E88E5)
-                                "conversation" -> Color(0xFF8E24AA).copy(alpha = 0.12f) to Color(0xFF8E24AA)
-                                "media" -> Color(0xFFFB8C00).copy(alpha = 0.12f) to Color(0xFFFB8C00)
-                                "automation" -> Color(0xFF43A047).copy(alpha = 0.12f) to Color(0xFF43A047)
-                                "styles" -> Color(0xFF00ACC1).copy(alpha = 0.12f) to Color(0xFF00ACC1)
-                                "premium" -> Color(0xFFE53935).copy(alpha = 0.12f) to Color(0xFFE53935)
-                                else -> colors.primaryContainer to colors.primary
-                            }
-
-                            Surface(
-                                shape = radius.bentoCardShape,
-                                color = colors.surfaceDim,
-                                border = BorderStroke(1.dp, colors.outlineVariant),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            if (pref.key == "pro_features_unlock" || pref.key == "license_verification") {
-                                                navController.navigateTo(Screen.LicenseActivation)
-                                            } else {
-                                                navController.navigateToPreference(
-                                                    tabIndex = pref.tabIndex,
-                                                    subTabId = pref.subTabId,
-                                                    preferenceKey = pref.key
-                                                )
-                                            }
-                                        }
-                                        .padding(16.dp)
-                                ) {
-                                    // Floating Tag Badge on top-right of the card
-                                    Box(
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(badgeBg)
-                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                        items(preferences, key = { it.key }) { preference ->
+                            SearchResultRow(
+                                preference = preference,
+                                onClick = {
+                                    if (
+                                        preference.key == "pro_features_unlock" ||
+                                        preference.key == "license_verification"
                                     ) {
-                                        Text(
-                                            text = LocalizationHelper.getTabTitle(context, pref.tabId),
-                                            style = typography.labelSm,
-                                            fontWeight = FontWeight.Bold,
-                                            color = badgeTextColor,
-                                            fontSize = 10.sp
-                                        )
-                                    }
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .padding(end = 64.dp), // Prevent text overlapping the top-right badge
-                                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                                        ) {
-                                            Text(
-                                                text = LocalizationHelper.getTitle(context, pref),
-                                                style = typography.bodyLg,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = colors.onSurface
-                                            )
-                                            Text(
-                                                text = LocalizationHelper.getDesc(context, pref),
-                                                style = typography.bodyMd,
-                                                color = colors.onSurfaceVariant,
-                                                fontSize = 12.sp,
-                                                lineHeight = 17.sp
-                                            )
-                                            Text(
-                                                text = UiText.get(R.string.waex_ui_section_1_s, "Section: %1\$s", LocalizationHelper.getSection(context, pref)),
-                                                style = typography.labelSm,
-                                                color = colors.primary,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                        }
-
-                                        Icon(
-                                            imageVector = WaexIcons.ChevronRight,
-                                            contentDescription = null,
-                                            tint = colors.onSurfaceVariant.copy(alpha = 0.5f),
-                                            modifier = Modifier.size(16.dp)
+                                        navController.navigateTo(Screen.LicenseActivation)
+                                    } else {
+                                        navController.navigateToPreference(
+                                            tabIndex = preference.tabIndex,
+                                            subTabId = preference.subTabId,
+                                            preferenceKey = preference.key
                                         )
                                     }
                                 }
-                            }
+                            )
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SearchSectionHeader(section: String) {
+    val colors = WaexTheme.colors
+    val spacing = WaexTheme.spacing
+    val typography = WaexTheme.typography
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(colors.background)
+            .padding(top = 12.dp)
+    ) {
+        Text(
+            text = section,
+            style = typography.labelLg,
+            fontWeight = FontWeight.SemiBold,
+            color = colors.primary,
+            modifier = Modifier.padding(
+                start = spacing.pageMargin,
+                end = spacing.pageMargin,
+                bottom = 10.dp
+            )
+        )
+        HorizontalDivider(
+            color = colors.outlineVariant,
+            thickness = 1.dp,
+            modifier = Modifier.padding(horizontal = spacing.pageMargin)
+        )
+    }
+}
+
+@Composable
+private fun SearchResultRow(
+    preference: SearchablePreference,
+    onClick: () -> Unit
+) {
+    val context = LocalContext.current
+    val colors = WaexTheme.colors
+    val spacing = WaexTheme.spacing
+    val typography = WaexTheme.typography
+    val radius = WaexTheme.radius
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(start = spacing.pageMargin)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 15.dp, end = spacing.pageMargin, bottom = 15.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Text(
+                    text = LocalizationHelper.getTitle(context, preference),
+                    style = typography.titleMd,
+                    color = colors.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = LocalizationHelper.getDesc(context, preference),
+                    style = typography.bodyMd,
+                    color = colors.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Surface(
+                color = colors.primaryContainer,
+                contentColor = colors.primary,
+                shape = radius.fullShape,
+                modifier = Modifier.widthIn(max = 96.dp)
+            ) {
+                Text(
+                    text = LocalizationHelper.getTabTitle(context, preference.tabId),
+                    style = typography.labelSm,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Icon(
+                imageVector = WaexIcons.ChevronRight,
+                contentDescription = null,
+                tint = colors.outline,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        HorizontalDivider(color = colors.outlineVariant, thickness = 1.dp)
     }
 }

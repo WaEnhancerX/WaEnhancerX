@@ -1,17 +1,16 @@
 package com.waenhancer.xposed.features.customization;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.SharedPreferences;
-import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.EditText;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
+import com.waenhancer.xposed.core.components.NativeColorPickerDialog;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedHelpers;
@@ -21,19 +20,16 @@ import java.lang.reflect.Method;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import org.luckypray.dexkit.query.FindClass;
+import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.enums.StringMatchType;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
+import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.ClassData;
+import org.luckypray.dexkit.result.MethodData;
+import org.luckypray.dexkit.result.MethodDataList;
 
 /** Adds long-press custom colors to both legacy and V2 text-status composers. */
 public final class TextStatusComposerHook extends BaseFeature {
-    private static final int[] COLORS = {
-            Color.WHITE, Color.BLACK, 0xff00a884, 0xff1f7aec, 0xff7c4dff,
-            0xffe91e63, 0xffff5722, 0xffffc107, 0xff4caf50, 0xff607d8b
-    };
-    private static final String[] COLOR_NAMES = {
-            "White", "Black", "Teal", "Blue", "Purple", "Pink", "Orange", "Amber", "Green", "Slate"
-    };
     private volatile Integer customTextColor;
     private volatile Integer customBackgroundColor;
 
@@ -69,11 +65,11 @@ public final class TextStatusComposerHook extends BaseFeature {
     private void hookFragment(Class<?> fragment) {
         for (Method method : fragment.getDeclaredMethods()) {
             Class<?>[] types = method.getParameterTypes();
-            if (!isComposerSignature(types)) continue;
+            if (!isComposerSignature(types) && !isCreateViewSignature(method, types)) continue;
             method.setAccessible(true);
             XposedBridge.hookMethod(method, new XC_MethodHook() {
                 @Override protected void afterHookedMethod(MethodHookParam param) {
-                    View root = null;
+                    View root = param.getResult() instanceof View ? (View) param.getResult() : null;
                     for (Object argument : param.args) if (argument instanceof View) root = (View) argument;
                     if (root != null) configureComposer(root);
                 }
@@ -88,6 +84,13 @@ public final class TextStatusComposerHook extends BaseFeature {
         return ComposerSignaturePolicy.accepts(names);
     }
 
+    private static boolean isCreateViewSignature(Method method, Class<?>[] types) {
+        String[] names = new String[types.length];
+        for (int i = 0; i < types.length; i++) names[i] = types[i].getName();
+        return ComposerSignaturePolicy.acceptsCreateView(
+                method.getName(), method.getReturnType().getName(), names);
+    }
+
     private void configureComposer(View root) {
         customTextColor = null;
         customBackgroundColor = null;
@@ -100,7 +103,8 @@ public final class TextStatusComposerHook extends BaseFeature {
         View textButton = root.findViewById(textButtonId);
         EditText entry = root.findViewById(entryId);
         if (backgroundButton != null) backgroundButton.setOnLongClickListener(v -> {
-            showPicker(activity, color -> {
+            NativeColorPickerDialog.show(activity,
+                    customBackgroundColor != null ? customBackgroundColor : 0xff00a884, color -> {
                 customBackgroundColor = color;
                 activity.getWindow().setBackgroundDrawable(new ColorDrawable(color));
                 setBackground(root, "background", color);
@@ -109,7 +113,8 @@ public final class TextStatusComposerHook extends BaseFeature {
             return true;
         });
         if (textButton != null) textButton.setOnLongClickListener(v -> {
-            showPicker(activity, color -> {
+            NativeColorPickerDialog.show(activity,
+                    customTextColor != null ? customTextColor : 0xffffffff, color -> {
                 customTextColor = color;
                 if (entry != null) entry.setTextColor(color);
             });
@@ -132,6 +137,82 @@ public final class TextStatusComposerHook extends BaseFeature {
                 }
             });
         }
+
+        Method[] consumers = DexSearchEngine.getInstance().findMethodsWithCache(
+                context, classLoader, "waex_text_status_data_consumers_v2", (bridge, loader) -> {
+                    MethodDataList matches = bridge.findMethod(FindMethod.create().matcher(
+                            MethodMatcher.create().addParamType(textData.getName())));
+                    java.util.ArrayList<Method> methods = new java.util.ArrayList<>();
+                    for (MethodData match : matches) {
+                        if (match.isMethod()) methods.add(match.getMethodInstance(loader));
+                    }
+                    return methods.toArray(new Method[0]);
+                });
+        if (consumers != null) {
+            for (Method consumer : consumers) {
+                XposedBridge.hookMethod(consumer, new XC_MethodHook() {
+                    @Override protected void beforeHookedMethod(MethodHookParam param) {
+                        for (Object argument : param.args) {
+                            if (textData.isInstance(argument)) applyColors(argument);
+                        }
+                    }
+                });
+            }
+        }
+
+        Class<?>[] constructorOwners = DexSearchEngine.getInstance().findClassesWithCache(
+                context, classLoader, "waex_text_status_data_constructor_owners_v2", (bridge, loader) -> {
+                    MethodDataList matches = bridge.findMethod(FindMethod.create().matcher(
+                            MethodMatcher.create().name("<init>").addParamType(textData.getName())));
+                    LinkedHashSet<Class<?>> owners = new LinkedHashSet<>();
+                    for (MethodData match : matches) {
+                        if (match.isConstructor()) {
+                            owners.add(match.getConstructorInstance(loader).getDeclaringClass());
+                        }
+                    }
+                    return owners.toArray(new Class<?>[0]);
+                });
+        if (constructorOwners != null) {
+            for (Class<?> owner : constructorOwners) {
+                for (Constructor<?> constructor : owner.getDeclaredConstructors()) {
+                    boolean acceptsTextData = false;
+                    for (Class<?> parameter : constructor.getParameterTypes()) {
+                        if (parameter == textData) {
+                            acceptsTextData = true;
+                            break;
+                        }
+                    }
+                    if (!acceptsTextData) continue;
+                    XposedBridge.hookMethod(constructor, new XC_MethodHook() {
+                        @Override protected void beforeHookedMethod(MethodHookParam param) {
+                            for (Object argument : param.args) {
+                                if (textData.isInstance(argument)) applyColors(argument);
+                            }
+                        }
+                    });
+                }
+            }
+        }
+
+        Method[] producers = DexSearchEngine.getInstance().findMethodsWithCache(
+                context, classLoader, "waex_text_status_data_producers_v2", (bridge, loader) -> {
+                    MethodDataList matches = bridge.findMethod(FindMethod.create().matcher(
+                            MethodMatcher.create().returnType(textData.getName())));
+                    java.util.ArrayList<Method> methods = new java.util.ArrayList<>();
+                    for (MethodData match : matches) {
+                        if (match.isMethod()) methods.add(match.getMethodInstance(loader));
+                    }
+                    return methods.toArray(new Method[0]);
+                });
+        if (producers != null) {
+            for (Method producer : producers) {
+                XposedBridge.hookMethod(producer, new XC_MethodHook() {
+                    @Override protected void afterHookedMethod(MethodHookParam param) {
+                        if (textData.isInstance(param.getResult())) applyColors(param.getResult());
+                    }
+                });
+            }
+        }
     }
 
     private void applyColors(Object data) {
@@ -153,13 +234,6 @@ public final class TextStatusComposerHook extends BaseFeature {
         int id = root.getResources().getIdentifier(resourceName, "id", root.getContext().getPackageName());
         View target = root.findViewById(id);
         if (target != null) target.setBackgroundColor(color);
-    }
-
-    private interface ColorConsumer { void accept(int color); }
-    private static void showPicker(Activity activity, ColorConsumer consumer) {
-        new AlertDialog.Builder(activity).setTitle("Choose color")
-                .setItems(COLOR_NAMES, (dialog, which) -> consumer.accept(COLORS[which]))
-                .setNegativeButton(android.R.string.cancel, null).show();
     }
 
     private static Activity activity(Context context) {

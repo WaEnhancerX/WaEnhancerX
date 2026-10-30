@@ -68,6 +68,7 @@ import com.waenhancer.licensing.LicenseManager
 import com.waenhancer.ui.components.WaexCard
 import com.waenhancer.ui.components.WaexInfoBanner
 import com.waenhancer.ui.components.WaexTopBar
+import com.waenhancer.ui.components.NetworkErrorCenter
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
@@ -301,10 +302,23 @@ fun ManageDevicesScreen() {
             override fun onError(msg: String?) {
                 isLoading = false
                 isRefreshing = false
+                val fallback = UiText.get(
+                    R.string.waex_ui_failed_to_fetch_connected_devices,
+                    "Failed to fetch connected devices."
+                )
                 if (devicesList.isEmpty()) {
-                    errorMessage = msg ?: UiText.get(R.string.waex_ui_failed_to_fetch_connected_devices, "Failed to fetch connected devices.")
-                } else {
-                    Toast.makeText(context, msg ?: UiText.get(R.string.waex_ui_could_not_refresh_devices, "Could not refresh devices."), Toast.LENGTH_SHORT).show()
+                    errorMessage = fallback
+                }
+                if (NetworkErrorCenter.isNetworkError(msg)) {
+                    NetworkErrorCenter.show(msg) {
+                        loadDevices(isPull = devicesList.isNotEmpty())
+                    }
+                } else if (devicesList.isNotEmpty()) {
+                    Toast.makeText(
+                        context,
+                        msg ?: UiText.get(R.string.waex_ui_could_not_refresh_devices, "Could not refresh devices."),
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
         })
@@ -675,7 +689,12 @@ fun ManageDevicesScreen() {
 
                                         override fun onError(msg: String?) {
                                             isUnlinking = false
-                                            unlinkError = msg ?: UiText.get(R.string.waex_ui_unlink_failed_please_try_again, "Unlink failed. Please try again.")
+                                            if (NetworkErrorCenter.isNetworkError(msg)) {
+                                                unlinkError = null
+                                                NetworkErrorCenter.show(msg)
+                                            } else {
+                                                unlinkError = msg ?: UiText.get(R.string.waex_ui_unlink_failed_please_try_again, "Unlink failed. Please try again.")
+                                            }
                                         }
                                     }
                                 )

@@ -14,6 +14,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
@@ -34,7 +35,14 @@ fun WaexSearchBar(
         onValueChange = onQueryChange,
         modifier = modifier.fillMaxWidth(),
         textStyle = typography.bodyLg,
-        placeholder = { androidx.compose.material3.Text(placeholder, style = typography.bodyLg) },
+        placeholder = {
+            androidx.compose.material3.Text(
+                text = placeholder,
+                style = typography.bodyLg,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        },
         leadingIcon = {
             Icon(
                 imageVector = WaexIcons.Search,

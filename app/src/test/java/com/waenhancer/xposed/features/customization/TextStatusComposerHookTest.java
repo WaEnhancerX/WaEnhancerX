@@ -12,5 +12,8 @@ public class TextStatusComposerHookTest {
                 new String[]{"android.os.Bundle", "android.view.View"}));
         assertFalse(ComposerSignaturePolicy.accepts(
                 new String[]{"android.os.Bundle"}));
+        assertTrue(ComposerSignaturePolicy.acceptsCreateView(
+                "onCreateView", "android.view.View",
+                new String[]{"android.view.LayoutInflater", "android.view.ViewGroup", "android.os.Bundle"}));
     }
 }

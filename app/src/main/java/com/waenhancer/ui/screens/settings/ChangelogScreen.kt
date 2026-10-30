@@ -97,6 +97,7 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import com.waenhancer.ui.components.WaexEmptyState
+import com.waenhancer.ui.components.NetworkErrorCenter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -137,6 +138,8 @@ fun ChangelogScreen() {
             val cached = ReleaseRepository.getCachedReleases(context)
             if (cached.isNotEmpty()) {
                 releases = cached
+            } else if (NetworkErrorCenter.isNetworkError(err)) {
+                NetworkErrorCenter.show(err) { reloadKey++ }
             } else {
                 error = err.message ?: UiText.get(R.string.waex_ui_unable_to_load_releases, "Unable to load releases.")
             }
