@@ -13,4 +13,5 @@
     • Link to original contacts and apps
     • Improved UI
     • More reliable detection
-- Improves module's UI
+- Improved module's UI
+- Improved chats pin logic
