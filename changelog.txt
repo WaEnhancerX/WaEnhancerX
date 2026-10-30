@@ -13,14 +13,3 @@
     • Improved UI
     • More reliable detection
 - Improves module's UI
-
-[Fixed]
-
-    
-
-
-[Notes]
-
-
-[Community contribution]
-- Thanks to .... for valuable contributions in this update.

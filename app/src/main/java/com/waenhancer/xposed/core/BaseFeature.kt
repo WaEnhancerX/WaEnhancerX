@@ -42,6 +42,7 @@ abstract class BaseFeature(
             }
         }
         installedHooks.clear()
+        ViewHookDispatcher.unregister(this)
         HookRegistrar.unregisterOwner(this)
     }
 

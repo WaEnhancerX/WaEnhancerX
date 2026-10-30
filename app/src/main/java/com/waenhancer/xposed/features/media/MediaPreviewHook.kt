@@ -47,6 +47,7 @@ import android.widget.Toast
 import android.widget.VideoView
 import androidx.core.graphics.drawable.DrawableCompat
 import com.waenhancer.xposed.core.BaseFeature
+import com.waenhancer.xposed.core.ViewHookDispatcher
 import com.waenhancer.xposed.core.db.MessageStore
 import com.waenhancer.xposed.core.devkit.DexSearchEngine
 import com.waenhancer.xposed.utils.HKDFv3
@@ -208,13 +209,11 @@ class MediaPreviewHook(
                 ))).firstOrNull()?.getInstance(loader)
             }
             if (mediaRowClass != null) {
-                XposedBridge.hookAllMethods(View::class.java, "onAttachedToWindow", object : XC_MethodHook() {
-                    override fun afterHookedMethod(param: MethodHookParam) {
-                        val view = param.thisObject as? ViewGroup ?: return
-                        if (!mediaRowClass.isInstance(view)) return
-                        view.postDelayed({ installAffordanceFallback(view) }, 200L)
-                    }
-                })
+                ViewHookDispatcher.onAttached(this) { attached ->
+                    val view = attached as? ViewGroup ?: return@onAttached
+                    if (!mediaRowClass.isInstance(view)) return@onAttached
+                    view.postDelayed({ installAffordanceFallback(view) }, 200L)
+                }
             }
         } catch (t: Throwable) {
             XposedBridge.log("[WAEX][MediaPreview] Secondary bubble hook error: ${t.javaClass.simpleName}")

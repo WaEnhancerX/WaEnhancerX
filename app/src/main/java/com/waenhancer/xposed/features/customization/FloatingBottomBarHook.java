@@ -705,13 +705,14 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
             rootView.addView(container, rootParams);
 
             ViewGroup.LayoutParams containerLp = container.getLayoutParams();
-            if (containerLp != null) {
+            if (containerLp != null && containerLp.height != pillHeight) {
                 containerLp.height = pillHeight;
                 container.setLayoutParams(containerLp);
             }
 
             ViewGroup.LayoutParams barLp = bar.getLayoutParams();
-            if (barLp != null) {
+            if (barLp != null && (barLp.width != ViewGroup.LayoutParams.MATCH_PARENT
+                    || barLp.height != pillHeight)) {
                 barLp.width = ViewGroup.LayoutParams.MATCH_PARENT;
                 barLp.height = pillHeight;
                 bar.setLayoutParams(barLp);
@@ -721,7 +722,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                 View child = bar.getChildAt(i);
                 if (child instanceof ViewGroup) {
                     ViewGroup.LayoutParams childLp = child.getLayoutParams();
-                    if (childLp != null) {
+                    if (childLp != null && childLp.height != ViewGroup.LayoutParams.MATCH_PARENT) {
                         childLp.height = ViewGroup.LayoutParams.MATCH_PARENT;
                         child.setLayoutParams(childLp);
                     }
@@ -1954,8 +1955,12 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
             if (id <= 0) continue;
             View fab = rootView.findViewById(id);
             if (fab != null) {
-                fab.setTranslationY(totalOffset);
-                fab.bringToFront();
+                if (fab.getTranslationY() != totalOffset) fab.setTranslationY(totalOffset);
+                ViewParent parent = fab.getParent();
+                if (parent instanceof ViewGroup) {
+                    ViewGroup group = (ViewGroup) parent;
+                    if (group.indexOfChild(fab) != group.getChildCount() - 1) fab.bringToFront();
+                }
             }
         }
     }

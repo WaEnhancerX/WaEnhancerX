@@ -12,6 +12,7 @@ import android.view.ViewTreeObserver
 import com.waenhancer.licensing.features.FilterItemsProFeature
 import com.waenhancer.model.FilterItem
 import com.waenhancer.xposed.core.BaseFeature
+import com.waenhancer.xposed.core.ViewHookDispatcher
 import com.waenhancer.xposed.utils.ActivityTracker
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
@@ -65,24 +66,12 @@ class FilterItemsHook(
                 }
             )
 
-            XposedHelpers.findAndHookMethod(
-                View::class.java,
-                "setFlags",
-                Int::class.javaPrimitiveType,
-                Int::class.javaPrimitiveType,
-                object : XC_MethodHook() {
-                    override fun beforeHookedMethod(param: MethodHookParam) {
-                        val flags = param.args[0] as Int
-                        val mask = param.args[1] as Int
-                        if ((mask and visibilityMask) == 0) return
-                        val view = param.thisObject as? View ?: return
-                        val item = targetMap[view.id]
-                        if (item != null && FilterItem.BEHAVIOR_GONE == item.behavior) {
-                            param.args[0] = (flags and visibilityMask.inv()) or View.GONE
-                        }
-                    }
-                }
-            )
+            ViewHookDispatcher.onSetFlags(this) { view, flags, mask ->
+                if ((mask and visibilityMask) == 0) flags
+                else if (targetMap[view.id]?.behavior == FilterItem.BEHAVIOR_GONE)
+                    (flags and visibilityMask.inv()) or View.GONE
+                else flags
+            }
 
             XposedHelpers.findAndHookMethod(
                 View::class.java,

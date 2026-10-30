@@ -418,22 +418,14 @@ public class ChatLimitsBypassHook extends BaseFeature {
 
             if (multiSelectionLimitInfoClass != null) {
                 for (Constructor<?> constructor : multiSelectionLimitInfoClass.getDeclaredConstructors()) {
+                    final Class<?>[] parameterTypes = constructor.getParameterTypes();
                     XposedBridge.hookMethod(constructor, new XC_MethodHook() {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam param) {
                             if (!isForwardLimitBypassEnabled()) {
                                 return;
                             }
-                            if (param.args != null && param.args.length > 0) {
-                                // If first argument is Integer/int limit (e.g. older versions or constructor(int limit, ...)):
-                                if (param.args[0] instanceof Integer) {
-                                    param.args[0] = Integer.MAX_VALUE;
-                                }
-                                // In modern versions: constructor(Integer num, int limit, int stringRes, boolean z, ...)
-                                if (param.args.length >= 2 && param.args[1] instanceof Integer) {
-                                    param.args[1] = Integer.MAX_VALUE;
-                                }
-                            }
+                            ForwardLimitPolicy.removeLimits(parameterTypes, param.args);
                         }
                     });
                 }

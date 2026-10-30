@@ -37,8 +37,12 @@ android {
         }
 
         val devGh = project.findProperty("DEV_GH")?.toString()?.trim() ?: "mubashardev"
+        val gitSha = (project.findProperty("GIT_SHA")?.toString()
+            ?: System.getenv("GITHUB_SHA") ?: "unknown").take(12)
         buildConfigField("String", "DEV_GH", "\"$devGh\"")
         buildConfigField("String", "GH_DEV", "\"$devGh\"")
+        buildConfigField("String", "GIT_SHA", "\"$gitSha\"")
+        buildConfigField("String", "MAPPING_ID", "\"${configuredVersionCode}-$gitSha\"")
     }
 
     signingConfigs {

@@ -22,17 +22,19 @@ final class PendingReadReceiptStore<T> {
         this.maxPerRecipient = maxPerRecipient;
     }
 
-    synchronized void add(String recipient, T job) {
+    /** Adds one item and returns the oldest evicted item, if this recipient was at capacity. */
+    synchronized T add(String recipient, T job) {
         Objects.requireNonNull(recipient, "recipient");
         Objects.requireNonNull(job, "job");
         if (recipient.isEmpty()) throw new IllegalArgumentException("Empty recipient");
         ArrayDeque<T> pending = queues.computeIfAbsent(recipient, key -> new ArrayDeque<>());
-        if (pending.size() == maxPerRecipient) pending.removeFirst();
+        T evicted = pending.size() == maxPerRecipient ? pending.removeFirst() : null;
         pending.addLast(job);
         while (queues.size() > maxRecipients) {
             String eldest = queues.keySet().iterator().next();
             queues.remove(eldest);
         }
+        return evicted;
     }
 
     /** Return a stable view for dispatch; entries remain held until acknowledged. */

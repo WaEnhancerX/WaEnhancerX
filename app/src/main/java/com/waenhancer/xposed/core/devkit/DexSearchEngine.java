@@ -15,6 +15,8 @@ public final class DexSearchEngine {
 
     private static volatile DexSearchEngine sInstance;
     private DexKitBridge mBridge;
+    private int leases;
+    private boolean closePending;
 
     static {
         try {
@@ -60,6 +62,18 @@ public final class DexSearchEngine {
                 XposedBridge.log("[WAEX] Failed to initialize DexKitBridge: " + t.getMessage());
             }
         }
+    }
+
+    /** Keeps the native bridge alive across one complete feature-resolution transaction. */
+    public synchronized void acquireLease() {
+        leases++;
+        closePending = false;
+    }
+
+    /** Releases a feature-resolution lease and honors a close requested while it was active. */
+    public synchronized void releaseLease() {
+        if (leases > 0) leases--;
+        if (leases == 0 && closePending) closeNow();
     }
 
     @Nullable
@@ -140,12 +154,21 @@ public final class DexSearchEngine {
     }
 
     public synchronized void close() {
+        if (leases > 0) {
+            closePending = true;
+            return;
+        }
+        closeNow();
+    }
+
+    private void closeNow() {
         if (mBridge != null) {
             try {
                 mBridge.close();
             } catch (Throwable ignored) {}
             mBridge = null;
         }
+        closePending = false;
     }
 
     @FunctionalInterface

@@ -5,6 +5,7 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import com.waenhancer.config.PreferenceStores
+import com.waenhancer.app.BuildConfig
 import com.waenhancer.update.UpdateDownloader
 import com.waenhancer.xposed.utils.AppRestartHelper
 import com.waenhancer.xposed.utils.ModuleStatus
@@ -15,6 +16,8 @@ data class FrameworkInfo(val name: String, val packageName: String?, val version
 data class SystemDiagnostics(
     val moduleVersion: String,
     val moduleVersionCode: Long,
+    val buildCommit: String,
+    val mappingId: String,
     val moduleActive: Boolean,
     val framework: FrameworkInfo,
     val rootAllowed: Boolean,
@@ -60,6 +63,8 @@ object SystemDiagnosticsReader {
         return SystemDiagnostics(
             moduleVersion = own.versionName.orEmpty(),
             moduleVersionCode = if (Build.VERSION.SDK_INT >= 28) own.longVersionCode else @Suppress("DEPRECATION") own.versionCode.toLong(),
+            buildCommit = BuildConfig.GIT_SHA,
+            mappingId = BuildConfig.MAPPING_ID,
             moduleActive = active,
             framework = FrameworkInfo(
                 name = runtimeFramework ?: manager?.first

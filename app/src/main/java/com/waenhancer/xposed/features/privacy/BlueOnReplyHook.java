@@ -14,6 +14,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.xposed.core.db.HideSeenStore;
 import com.waenhancer.xposed.features.homescreen.MenuIconLoader;
 import com.waenhancer.xposed.utils.ActivityTracker;
 import de.robv.android.xposed.XC_MethodHook;
@@ -50,13 +51,15 @@ public class BlueOnReplyHook extends BaseFeature {
 
     private static final String TAG = "[WAEX][BlueOnReply]";
     private static final String PREF_KEY = "blueonreply";
+    private static final int MAX_MANUAL_READ_JOBS = 50;
     // Bound retained constructor arguments and never route one chat's read receipts to another.
     private static final PendingReadReceiptStore<ReadJobRecipe> PENDING_JOBS =
-            new PendingReadReceiptStore<>(128, 64);
+            new PendingReadReceiptStore<>(128, MAX_MANUAL_READ_JOBS);
     private static volatile Constructor<?> sendReadConstructor;
     private static volatile Method enqueueJobMethod;
     private static volatile Class<?> managerClass;
     private static volatile Object jobManager;
+    private static volatile Context appContext;
     private static final int MENU_SEND_BLUE_TICK = 0x7EAE0012;
     private static final Map<String, ReadJobRecipe> PENDING_STATUS_RECEIPTS = new LinkedHashMap<>();
     // Status player wrappers do not always retain the MessageKey. Keep the most recently
@@ -77,6 +80,7 @@ public class BlueOnReplyHook extends BaseFeature {
 
     public BlueOnReplyHook(@NonNull Context context, @NonNull ClassLoader classLoader, @NonNull SharedPreferences prefs) {
         super(context, classLoader, prefs);
+        appContext = context.getApplicationContext();
     }
 
     @Override
@@ -217,7 +221,7 @@ public class BlueOnReplyHook extends BaseFeature {
             return;
         }
         PendingChatReceipt pending = (PendingChatReceipt) value;
-        PENDING_JOBS.add(pending.recipient, pending.recipe);
+        markEvictedHandled(pending.recipient, PENDING_JOBS.add(pending.recipient, pending.recipe));
         XposedHelpers.removeAdditionalInstanceField(job, PENDING_CHAT_RECEIPT);
     }
 
@@ -284,7 +288,21 @@ public class BlueOnReplyHook extends BaseFeature {
                 ctor, typedJid, new String[]{messageId});
         if (args == null) return;
         ReadJobRecipe recipe = new ReadJobRecipe(ctor, args);
-        PENDING_JOBS.add(key, recipe);
+        markEvictedHandled(key, PENDING_JOBS.add(key, recipe));
+    }
+
+    private static void markEvictedHandled(String recipient, ReadJobRecipe evicted) {
+        Context context = appContext;
+        if (context == null || evicted == null) return;
+        for (Object argument : evicted.arguments) {
+            if (!(argument instanceof String[])) continue;
+            for (String id : (String[]) argument) {
+                if (id != null && !id.isEmpty()) {
+                    HideSeenStore.getInstance(context).updateViewedMessageAsync(
+                            recipient, id, HideSeenStore.TYPE_READ, true);
+                }
+            }
+        }
     }
 
     /**

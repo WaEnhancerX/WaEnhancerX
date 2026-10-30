@@ -20,6 +20,10 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * Locked Chats Enhancer Hook:
@@ -163,6 +167,7 @@ public class LockedChatsEnhancerHook extends BaseFeature {
                 }
             });
 
+            final Field lockedChatsField = selectLockedChatsField(chatCacheClass);
             Method loadedContactsMethod = engine.findMethodWithCache(
                     context,
                     classLoader,
@@ -182,33 +187,87 @@ public class LockedChatsEnhancerHook extends BaseFeature {
                 XposedBridge.hookMethod(loadedContactsMethod, new XC_MethodHook() {
                     @Override
                     protected void beforeHookedMethod(MethodHookParam param) {
-                        if (!isFeatureEnabled() || chatCacheInstance == null) return;
+                        if (!isFeatureEnabled() || chatCacheInstance == null || lockedChatsField == null) return;
                         try {
                             if (param.args.length > 0 && param.args[0] != null) {
                                 Object argObj = param.args[0];
-                                Object listObj = XposedHelpers.getObjectField(argObj, "A01");
+                                Field listField = findListField(argObj.getClass());
+                                if (listField == null) return;
+                                Object listObj = listField.get(argObj);
                                 if (listObj instanceof List) {
-                                    List<?> list = (List<?>) listObj;
-                                    // Safely filter out locked chats if HashSet is available
-                                    Field[] fields = chatCacheClass.getDeclaredFields();
-                                    for (Field f : fields) {
-                                        if (f.getType().equals(HashSet.class)) {
-                                            f.setAccessible(true);
-                                            Object setObj = f.get(chatCacheInstance);
-                                            if (setObj instanceof HashSet) {
-                                                HashSet<?> lockedSet = (HashSet<?>) setObj;
-                                                if (!lockedSet.isEmpty()) {
-                                                    ((List<?>) list).removeIf(lockedSet::contains);
-                                                }
-                                            }
-                                        }
-                                    }
+                                    Object setObj = lockedChatsField.get(chatCacheInstance);
+                                    if (!(setObj instanceof Collection) || ((Collection<?>) setObj).isEmpty()) return;
+                                    Set<String> lockedIds = LockedContactFilterPolicy.collectIds(
+                                            (Collection<?>) setObj, LockedChatsEnhancerHook::identityStrings);
+                                    List<?> filtered = LockedContactFilterPolicy.withoutLockedContacts(
+                                            (List<?>) listObj, lockedIds, LockedChatsEnhancerHook::identityStrings);
+                                    listField.set(argObj, filtered);
                                 }
                             }
                         } catch (Throwable ignored) {}
                     }
                 });
             }
+        }
+    }
+
+    private static Field selectLockedChatsField(Class<?> type) {
+        List<Field> candidates = new ArrayList<>();
+        for (Class<?> current = type; current != null && current != Object.class; current = current.getSuperclass()) {
+            for (Field field : current.getDeclaredFields()) {
+                if (HashSet.class.isAssignableFrom(field.getType()) || Set.class.isAssignableFrom(field.getType())) {
+                    field.setAccessible(true);
+                    candidates.add(field);
+                }
+            }
+        }
+        if (candidates.isEmpty()) return null;
+        return candidates.size() > 1 ? candidates.get(1) : candidates.get(0);
+    }
+
+    private static Field findListField(Class<?> type) {
+        Field fallback = null;
+        for (Class<?> current = type; current != null && current != Object.class; current = current.getSuperclass()) {
+            for (Field field : current.getDeclaredFields()) {
+                if (!List.class.isAssignableFrom(field.getType())) continue;
+                field.setAccessible(true);
+                if ("A01".equals(field.getName())) return field;
+                if (fallback == null) fallback = field;
+            }
+        }
+        return fallback;
+    }
+
+    private static Collection<String> identityStrings(Object value) {
+        if (value == null) return Collections.emptyList();
+        LinkedHashSet<String> ids = new LinkedHashSet<>();
+        addIdentity(ids, value);
+        // Contact wrappers generally contain one typed JID. Inspect shallow fields only.
+        for (Class<?> type = value.getClass(); type != null && type != Object.class; type = type.getSuperclass()) {
+            for (Field field : type.getDeclaredFields()) {
+                if (field.getType().isPrimitive() || field.getType() == String.class) continue;
+                try {
+                    field.setAccessible(true);
+                    addIdentity(ids, field.get(value));
+                } catch (Throwable ignored) {}
+            }
+        }
+        return ids;
+    }
+
+    private static void addIdentity(Set<String> ids, Object value) {
+        if (value == null) return;
+        try {
+            Object raw = XposedHelpers.callMethod(value, "getRawString");
+            if (raw != null) ids.add(raw.toString());
+        } catch (Throwable ignored) {}
+        String text = String.valueOf(value);
+        if (text.contains("@")) ids.add(text);
+        for (String method : new String[]{"getPhoneNumber", "getUser", "getUserRawString", "getPhoneRawString"}) {
+            try {
+                Object result = XposedHelpers.callMethod(value, method);
+                if (result != null) ids.add(result.toString());
+            } catch (Throwable ignored) {}
         }
     }
 }

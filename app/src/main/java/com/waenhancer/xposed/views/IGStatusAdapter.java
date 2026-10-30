@@ -18,6 +18,8 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.text.TextPaint;
 import android.text.TextUtils;
+import android.os.SystemClock;
+import android.util.LruCache;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -45,6 +47,10 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
@@ -57,6 +63,25 @@ import android.graphics.Shader;
 public class IGStatusAdapter extends ArrayAdapter<Object> {
 
     private static final String TAG = "[WAEX][IGStatusAdapter]";
+    private static final long PHOTO_TTL_MS = 5 * 60 * 1000L;
+    private static final LruCache<String, CachedBitmap> PHOTO_CACHE = new LruCache<>(64);
+    private static final Set<String> PHOTO_LOADS = ConcurrentHashMap.newKeySet();
+    private static final ExecutorService PHOTO_EXECUTOR = Executors.newSingleThreadExecutor(r -> {
+        Thread thread = new Thread(r, "WAEX-IGStatusPhoto");
+        thread.setDaemon(true);
+        return thread;
+    });
+
+    private static final class CachedBitmap {
+        final Bitmap bitmap;
+        final long loadedAt;
+        CachedBitmap(Bitmap bitmap, long loadedAt) {
+            this.bitmap = bitmap;
+            this.loadedAt = loadedAt;
+        }
+    }
+
+    private interface DrawableLoader { Drawable load(); }
 
     private final Class<?> statusInfoClazz;
     private final Class<?> contactStatusThumbnailClazz;
@@ -356,6 +381,7 @@ public class IGStatusAdapter extends ArrayAdapter<Object> {
         TextView nameView;
         boolean isMyStatus = false;
         String targetJid = null;
+        String photoBindingKey = null;
 
         void bindMyStatus() {
             this.isMyStatus = true;
@@ -366,17 +392,10 @@ public class IGStatusAdapter extends ArrayAdapter<Object> {
             }
             if (nameView != null) nameView.setText(UiText.get(R.string.waex_ui_my_status, "My Status"));
 
-            Drawable preview = hasActive ? loadMyLatestStatusPreview() : null;
-            if (preview != null && photoView != null) {
-                photoView.setImageDrawable(toCircleDrawable(preview));
-            } else {
-                Drawable myPhoto = loadMyPhoto();
-                if (myPhoto != null && photoView != null) {
-                    photoView.setImageDrawable(toCircleDrawable(myPhoto));
-                } else if (photoView != null) {
-                    photoView.setImageDrawable(createDefaultAvatarDrawable());
-                }
-            }
+            bindPhotoAsync(this, "my_status:" + hasActive, () -> {
+                Drawable preview = hasActive ? loadMyLatestStatusPreview() : null;
+                return preview != null ? preview : loadMyPhoto();
+            });
         }
 
         void bindItem(Object item) {
@@ -403,13 +422,43 @@ public class IGStatusAdapter extends ArrayAdapter<Object> {
             String resolvedName = jid != null ? ContactNameResolver.INSTANCE.resolveName(getContext(), jid, null, null) : "Contact";
             if (nameView != null) nameView.setText(resolvedName);
 
-            Drawable contactPhoto = jid != null ? loadContactPhoto(jid) : null;
-            if (contactPhoto != null && photoView != null) {
-                photoView.setImageDrawable(toCircleDrawable(contactPhoto));
-            } else if (photoView != null) {
-                photoView.setImageDrawable(createDefaultAvatarDrawable());
-            }
+            final String photoJid = jid;
+            bindPhotoAsync(this, photoJid == null ? "contact:unknown" : "contact:" + photoJid,
+                    () -> photoJid == null ? null : loadContactPhoto(photoJid));
         }
+    }
+
+    private void bindPhotoAsync(ViewHolder holder, String key, DrawableLoader loader) {
+        holder.photoBindingKey = key;
+        CachedBitmap cached;
+        synchronized (PHOTO_CACHE) { cached = PHOTO_CACHE.get(key); }
+        long now = SystemClock.elapsedRealtime();
+        if (cached != null && now - cached.loadedAt < PHOTO_TTL_MS) {
+            holder.photoView.setImageDrawable(toCircleDrawable(
+                    new BitmapDrawable(getContext().getResources(), cached.bitmap)));
+            return;
+        }
+        holder.photoView.setImageDrawable(createDefaultAvatarDrawable());
+        if (!PHOTO_LOADS.add(key)) return;
+        PHOTO_EXECUTOR.execute(() -> {
+            try {
+                Drawable drawable = loader.load();
+                Bitmap bitmap = drawable instanceof BitmapDrawable
+                        ? ((BitmapDrawable) drawable).getBitmap() : null;
+                if (bitmap == null) return;
+                synchronized (PHOTO_CACHE) {
+                    PHOTO_CACHE.put(key, new CachedBitmap(bitmap, SystemClock.elapsedRealtime()));
+                }
+                holder.photoView.post(() -> {
+                    if (key.equals(holder.photoBindingKey)) {
+                        holder.photoView.setImageDrawable(toCircleDrawable(
+                                new BitmapDrawable(getContext().getResources(), bitmap)));
+                    }
+                });
+            } finally {
+                PHOTO_LOADS.remove(key);
+            }
+        });
     }
 
     private Drawable loadMyLatestStatusPreview() {

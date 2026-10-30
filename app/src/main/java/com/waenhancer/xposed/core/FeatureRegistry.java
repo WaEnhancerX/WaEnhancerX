@@ -49,6 +49,7 @@ import com.waenhancer.xposed.features.customization.NewSettingsStyleHook;
 import com.waenhancer.xposed.features.customization.PropsOverrideHook;
 import com.waenhancer.xposed.features.customization.SeparateGroupsHook;
 import com.waenhancer.xposed.features.customization.StatusStyleHook;
+import com.waenhancer.xposed.features.customization.TextStatusComposerHook;
 import com.waenhancer.xposed.features.homescreen.ChatListCustomizationsHook;
 import com.waenhancer.xposed.features.homescreen.HomeScreenHeaderActionsHook;
 import com.waenhancer.xposed.features.media.CallRecordingHook;
@@ -462,6 +463,10 @@ public final class FeatureRegistry {
                 () -> !"1".equals(prefs.getString("status_style", "1")),
                 () -> new StatusStyleHook(context, classLoader, prefs));
 
+        registerFeature(TextStatusComposerHook.class, "Customization",
+                () -> prefs.getBoolean("status_text_composer", false),
+                () -> new TextStatusComposerHook(context, classLoader, prefs));
+
         registerFeature(PropsOverrideHook.class, "Core",
                 () -> new PropsOverrideHook(context, classLoader, prefs));
 
@@ -618,6 +623,8 @@ public final class FeatureRegistry {
             return;
         }
         if (!entry.installationStarted.compareAndSet(false, true)) return;
+        DexSearchEngine dexSearchEngine = DexSearchEngine.getInstance();
+        dexSearchEngine.acquireLease();
         try {
             entry.feature = entry.factory.create();
             entry.name = entry.feature.getName();
@@ -637,8 +644,9 @@ public final class FeatureRegistry {
             XposedBridge.log("[WAEX] Error initializing feature [" + entry.name + "]: " + entry.error);
             XposedBridge.log(t);
         } finally {
+            dexSearchEngine.releaseLease();
             if (entry.installation != Installation.STARTUP) {
-                DexSearchEngine.getInstance().close();
+                dexSearchEngine.close();
             }
             reportInjectedHooks(reportingContext, reportingPackage);
         }

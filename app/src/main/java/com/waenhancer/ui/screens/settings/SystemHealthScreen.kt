@@ -143,7 +143,9 @@ fun SystemHealthScreen() {
             ) {
                 DiagnosticCard(UiText.get(R.string.waex_ui_module_framework, "Module & Framework"), listOf(
                     UiText.get(R.string.waex_ui_module_status, "Module status") to if (data.moduleActive) UiText.get(R.string.diag_status_active, "Active") else UiText.get(R.string.diag_status_inactive, "Inactive"),
-                    UiText.get(R.string.waex_ui_module_version, "Module version") to "${data.moduleVersion} (${data.moduleVersionCode})",
+            UiText.get(R.string.waex_ui_module_version, "Module version") to "${data.moduleVersion} (${data.moduleVersionCode})",
+            "Build commit" to data.buildCommit,
+            "Mapping ID" to data.mappingId,
                     UiText.get(R.string.waex_ui_xposed_framework, "Xposed framework") to InternalLabels.text(data.framework.name),
                     UiText.get(R.string.waex_ui_framework_package, "Framework package") to (data.framework.packageName ?: UiText.get(R.string.waex_ui_not_available_label, "Not available")),
                     UiText.get(R.string.waex_ui_framework_version, "Framework version") to (data.framework.version ?: UiText.get(R.string.waex_ui_not_available_label, "Not available")),
