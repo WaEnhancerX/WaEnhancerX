@@ -6,6 +6,7 @@ import com.waenhancer.utils.UiText;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.util.SparseIntArray;
 import android.view.MenuItem;
 
 import androidx.annotation.NonNull;
@@ -36,6 +37,7 @@ import android.app.Activity;
 import com.waenhancer.xposed.utils.ActivityTracker;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /** Adds a dedicated Groups home tab and filters the Chats/Groups fragment data sets. */
 public final class SeparateGroupsHook extends BaseFeature {
@@ -45,6 +47,9 @@ public final class SeparateGroupsHook extends BaseFeature {
 
     private static final ArrayList<Integer> tabs = new ArrayList<>();
     private static final WeakHashMap<Object, Integer> fragmentTabs = new WeakHashMap<>();
+    private static final WeakHashMap<Object, int[]> unreadCounts = new WeakHashMap<>();
+    private static final WeakHashMap<Object, Object> emptyBadges = new WeakHashMap<>();
+    private static final WeakHashMap<Object, Boolean> hookedBadgeRenderers = new WeakHashMap<>();
 
     /** Returns the active conversation pager tab, or -1 while a non-conversation tab is resumed. */
     public static int getResumedConversationTab() {
@@ -85,6 +90,7 @@ public final class SeparateGroupsHook extends BaseFeature {
         hookFragments(getTab, conversations);
         hookTabName(getTab);
         hookTabIcon(engine);
+        hookUnreadBadges(engine);
 
         refreshCurrentHomeActivity();
     }
@@ -271,5 +277,211 @@ public final class SeparateGroupsHook extends BaseFeature {
                 });
             }
         } catch (Throwable t) { XposedBridge.log(TAG + " icon hook unavailable: " + t); }
+    }
+
+    /**
+     * WA only publishes one unread counter for home tab 200. Tab 500 is injected by WAEX, so
+     * its badge is never calculated by the stock delegate. We retain WA's own unread JID set,
+     * split it by server, then reuse the stock badge renderer for both tab positions.
+     */
+    private void hookUnreadBadges(DexSearchEngine engine) {
+        try {
+            Method scheduler = engine.findMethodWithCache(context, classLoader,
+                    "separate_groups.badge_scheduler", (bridge, loader) -> {
+                        var result = bridge.findMethod(FindMethod.create().matcher(MethodMatcher.create()
+                                .addUsingString("HomeTabBarDelegate/updateNavigationMenuAndBadges skipped", StringMatchType.Contains)));
+                        return result.isEmpty() ? null : result.get(0).getMethodInstance(loader);
+                    });
+            if (scheduler == null) return;
+            Class<?> delegate = scheduler.getDeclaringClass();
+            Method updateCount = null;
+            for (Method method : delegate.getDeclaredMethods()) {
+                Class<?>[] types = method.getParameterTypes();
+                if (Modifier.isStatic(method.getModifiers()) && method.getReturnType() == void.class
+                        && types.length == 3 && types[0] == delegate
+                        && types[1] == int.class && types[2] == int.class) {
+                    method.setAccessible(true);
+                    updateCount = method;
+                    break;
+                }
+            }
+            if (updateCount == null) {
+                XposedBridge.log(TAG + " unread badge bridge unavailable: update method missing");
+                return;
+            }
+            XposedBridge.hookMethod(updateCount, new XC_MethodHook() {
+                @Override protected void beforeHookedMethod(MethodHookParam param) {
+                    if ((int) param.args[1] != CHATS || !isSeparateGroupsEnabled()) return;
+                    Object tabDelegate = param.args[0];
+                    if (tabDelegate == null) return;
+                    int[] counts = splitUnreadCounts(tabDelegate, (int) param.args[2]);
+                    synchronized (unreadCounts) { unreadCounts.put(tabDelegate, counts); }
+                    XposedBridge.log(TAG + " unread split: chats=" + counts[0] + " groups=" + counts[1]);
+                    installBadgeRenderer(tabDelegate);
+                }
+            });
+            XposedBridge.log(TAG + " installed unread badge bridge");
+        } catch (Throwable error) {
+            XposedBridge.log(TAG + " unread badge bridge unavailable: " + error);
+        }
+    }
+
+    private void installBadgeRenderer(Object delegate) {
+        try {
+            Object renderer = null;
+            for (Field field : delegate.getClass().getDeclaredFields()) {
+                field.setAccessible(true);
+                Object value = field.get(delegate);
+                if (value == null) continue;
+                for (Method method : value.getClass().getDeclaredMethods()) {
+                    Class<?>[] types = method.getParameterTypes();
+                    if (!Modifier.isStatic(method.getModifiers()) && method.getReturnType() == void.class
+                            && types.length == 3 && Context.class.isAssignableFrom(types[0])
+                            && types[2] == int.class) {
+                        renderer = value;
+                        break;
+                    }
+                }
+                if (renderer != null) break;
+            }
+            if (renderer == null) return;
+            synchronized (hookedBadgeRenderers) {
+                if (hookedBadgeRenderers.containsKey(renderer)) return;
+                hookedBadgeRenderers.put(renderer, true);
+            }
+            Method render = null;
+            for (Method method : renderer.getClass().getDeclaredMethods()) {
+                Class<?>[] types = method.getParameterTypes();
+                if (!Modifier.isStatic(method.getModifiers()) && method.getReturnType() == void.class
+                        && types.length == 3 && Context.class.isAssignableFrom(types[0])
+                        && types[2] == int.class) {
+                    method.setAccessible(true);
+                    render = method;
+                    break;
+                }
+            }
+            if (render == null) return;
+            final Object badgeRenderer = renderer;
+            final Method renderMethod = render;
+            XposedBridge.hookMethod(render, new XC_MethodHook() {
+                @Override protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                    if (!isSeparateGroupsEnabled()) return;
+                    Object badge = param.args[1];
+                    int renderedIndex = (int) param.args[2];
+                    int chatsIndex = tabIndex(badgeRenderer, CHATS);
+                    int groupsIndex = tabIndex(badgeRenderer, GROUPS);
+                    if (renderedIndex != chatsIndex) {
+                        if (badge != null && !isNumericBadge(badge)) {
+                            synchronized (emptyBadges) { emptyBadges.put(badgeRenderer, badge); }
+                        }
+                        return;
+                    }
+                    int[] counts;
+                    synchronized (unreadCounts) { counts = unreadCounts.get(delegate); }
+                    if (counts == null) return;
+                    renderBadge(renderMethod, badgeRenderer, param.args[0], badge, chatsIndex, counts[0]);
+                    renderBadge(renderMethod, badgeRenderer, param.args[0], badge, groupsIndex, counts[1]);
+                }
+            });
+            XposedBridge.log(TAG + " installed unread badge renderer");
+        } catch (Throwable error) {
+            XposedBridge.log(TAG + " unable to install unread renderer: " + error);
+        }
+    }
+
+    private int[] splitUnreadCounts(Object delegate, int fallbackTotal) {
+        int groups = 0;
+        int individuals = 0;
+        try {
+            Object provider = readField(delegate, "A05");
+            Method get = provider != null ? provider.getClass().getMethod("BQJ") : null;
+            Object manager = get != null ? get.invoke(provider) : null;
+            Method unread = manager != null ? manager.getClass().getMethod("A0W") : null;
+            Object result = unread != null ? unread.invoke(manager) : null;
+            if (result instanceof Set) {
+                for (Object jid : (Set<?>) result) {
+                    if (isGroupJid(jid)) groups++; else individuals++;
+                }
+                return new int[]{individuals, groups};
+            }
+        } catch (Throwable error) {
+            XposedBridge.log(TAG + " unread JID split fallback: " + error.getClass().getSimpleName());
+        }
+        return new int[]{fallbackTotal, 0};
+    }
+
+    private boolean isGroupJid(Object jid) {
+        if (jid == null) return false;
+        try {
+            Object server = XposedHelpers.callMethod(jid, "getServer");
+            return "g.us".equals(server) || "broadcast".equals(server);
+        } catch (Throwable ignored) {
+            String value = String.valueOf(jid);
+            return value.contains("@g.us") || value.contains("@broadcast");
+        }
+    }
+
+    private int tabIndex(Object renderer, int tabId) {
+        try {
+            for (Field field : renderer.getClass().getDeclaredFields()) {
+                if (!SparseIntArray.class.isAssignableFrom(field.getType())) continue;
+                field.setAccessible(true);
+                SparseIntArray map = (SparseIntArray) field.get(renderer);
+                if (map != null) return map.get(tabId, -1);
+            }
+        } catch (Throwable ignored) { }
+        return -1;
+    }
+
+    private void renderBadge(Method render, Object renderer, Object context, Object prototype,
+                             int index, int count) throws Throwable {
+        if (index < 0) return;
+        Object badge = count > 0 ? numericBadge(prototype, count) : emptyBadge(renderer);
+        if (badge == null) return;
+        de.robv.android.xposed.XposedBridge.invokeOriginalMethod(
+                render, renderer, new Object[]{context, badge, index});
+    }
+
+    private Object numericBadge(Object prototype, int count) {
+        try {
+            if (!isNumericBadge(prototype)) return null;
+            Field innerField = prototype.getClass().getDeclaredFields()[0];
+            innerField.setAccessible(true);
+            Object inner = innerField.get(prototype);
+            Constructor<?> innerConstructor = inner.getClass().getDeclaredConstructor(int.class);
+            innerConstructor.setAccessible(true);
+            Constructor<?> badgeConstructor = prototype.getClass().getDeclaredConstructors()[0];
+            badgeConstructor.setAccessible(true);
+            return badgeConstructor.newInstance(innerConstructor.newInstance(count), null);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private boolean isNumericBadge(Object badge) {
+        if (badge == null) return false;
+        try {
+            Object inner = readField(badge, "A00");
+            return inner != null && inner.getClass().getDeclaredConstructor(int.class) != null;
+        } catch (Throwable ignored) { return false; }
+    }
+
+    private Object emptyBadge(Object renderer) {
+        synchronized (emptyBadges) { return emptyBadges.get(renderer); }
+    }
+
+    private Object readField(Object target, String name) throws IllegalAccessException {
+        for (Class<?> type = target.getClass(); type != null && type != Object.class; type = type.getSuperclass()) {
+            try {
+                Field field = type.getDeclaredField(name);
+                field.setAccessible(true);
+                return field.get(target);
+            } catch (NoSuchFieldException ignored) { }
+        }
+        return null;
+    }
+
+    private boolean isSeparateGroupsEnabled() {
+        return prefs.getBoolean("separate_groups_tabs", false) || prefs.getBoolean("separategroups", false);
     }
 }

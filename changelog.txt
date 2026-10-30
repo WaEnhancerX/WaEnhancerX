@@ -3,6 +3,8 @@
 - Custom A/B Props support: Override WhatsApp AB properties
 - Search bar style
 
+[Fixes]
+- Fixed Unread chats counter not showing on Groups tab in latest version
 
 [Improvements]
 - Improved Restart WhatsApp button to not turn on Auto Rotate.
