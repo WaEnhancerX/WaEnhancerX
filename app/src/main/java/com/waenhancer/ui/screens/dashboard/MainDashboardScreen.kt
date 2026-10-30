@@ -323,19 +323,36 @@ fun MainDashboardScreen(
                             )
                         }
                         Spacer(modifier = Modifier.width(14.dp))
-                        Text(
-                            text = when {
-                                !isModuleActive -> stringResource(R.string.module_inactive_version, moduleVersion)
-                                hasTargetReview -> stringResource(R.string.module_active_version, "$moduleVersion • ${stringResource(R.string.diag_status_review_required)}")
-                                else -> stringResource(R.string.module_active_version, moduleVersion)
-                            },
-                            style = typography.titleLg,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            color = if (!isModuleActive || hasTargetReview) colors.onErrorContainer else colors.onSurface,
-                            modifier = Modifier.weight(1f)
-                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(
+                                    if (isModuleActive) R.string.module_active else R.string.module_inactive
+                                ),
+                                style = typography.titleLg,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = if (!isModuleActive || hasTargetReview) colors.onErrorContainer else colors.onSurface
+                            )
+                            Text(
+                                text = buildString {
+                                    append("v")
+                                    append(moduleVersion)
+                                    if (hasTargetReview) {
+                                        append(" • ")
+                                        append(context.getString(R.string.diag_status_review_required))
+                                    }
+                                },
+                                style = typography.bodySm,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = if (!isModuleActive || hasTargetReview) {
+                                    colors.onErrorContainer
+                                } else {
+                                    colors.onSurfaceVariant
+                                }
+                            )
+                        }
 
 
                         Box(

@@ -38,6 +38,7 @@ android {
 
         val devGh = project.findProperty("DEV_GH")?.toString()?.trim() ?: "mubashardev"
         buildConfigField("String", "DEV_GH", "\"$devGh\"")
+        buildConfigField("String", "GH_DEV", "\"$devGh\"")
     }
 
     signingConfigs {

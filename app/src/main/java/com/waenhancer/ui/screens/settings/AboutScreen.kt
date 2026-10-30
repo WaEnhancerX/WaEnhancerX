@@ -8,6 +8,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.widget.ImageView
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -63,6 +64,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -434,113 +436,72 @@ fun AboutScreen() {
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // App Branding Header Card (CollapsingToolbar style in WaEnhancer)
+            // Hallmark · redesign: full · scope: app · genre: editorial · theme: WAEX brand
+            // Critique: replace the repeated card stack with an identity masthead and a credits-led reading rhythm.
             Surface(
-                shape = radius.bentoCardShape,
-                color = colors.surfaceContainerLow,
-                border = BorderStroke(1.dp, colors.outlineVariant),
+                shape = RoundedCornerShape(28.dp),
+                color = colors.primaryContainer,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(
+                Row(
                     modifier = Modifier.padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalArrangement = Arrangement.spacedBy(18.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // App Launcher Icon
-                    Image(
-                        painter = painterResource(id = R.drawable.ic_app_logo),
-                        contentDescription = UiText.get(R.string.waex_ui_app_logo, "App Logo"),
+                    AndroidView(
+                        factory = { imageContext ->
+                            ImageView(imageContext).apply {
+                                setImageResource(R.mipmap.ic_launcher_round)
+                                scaleType = ImageView.ScaleType.CENTER_CROP
+                                contentDescription = UiText.get(R.string.waex_ui_app_logo, "App Logo")
+                            }
+                        },
                         modifier = Modifier
-                            .size(88.dp)
-                            .clip(RoundedCornerShape(12.dp))
+                            .size(76.dp)
+                            .clip(CircleShape)
                     )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(
-                        text = stringResource(R.string.app_name),
-                        style = typography.headlineMd,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.onSurface,
-                        letterSpacing = (-0.5).sp
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    // Module Version and Candidate Badge
-                    val isDebugCandidate = BuildConfig.DEBUG
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "v${BuildConfig.VERSION_NAME}",
-                            style = typography.bodyMd,
-                            fontWeight = FontWeight.Medium,
-                            color = colors.onSurfaceVariant
+                            text = stringResource(R.string.app_name),
+                            style = typography.displayLgMobile,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.onSurface
                         )
-                        Box(
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .background(if (isDebugCandidate) colors.warningContainer else colors.surfaceDim)
-                                .border(1.dp, if (isDebugCandidate) colors.warning else colors.outlineVariant, CircleShape)
-                                .padding(horizontal = 8.dp, vertical = 2.dp),
-                            contentAlignment = Alignment.Center
+                        Text(
+                            text = stringResource(R.string.maintainer),
+                            style = typography.bodyMd,
+                            color = colors.onSurfaceVariant,
+                            lineHeight = 20.sp
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                text = if (isDebugCandidate) stringResource(R.string.build_variant_debug) else stringResource(R.string.build_variant_release),
+                                text = "v${BuildConfig.VERSION_NAME}",
                                 style = typography.labelSm,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (isDebugCandidate) colors.onWarningContainer else colors.onSurfaceVariant,
-                                fontSize = 11.sp
+                                fontWeight = FontWeight.Medium,
+                                color = colors.onSurfaceVariant
+                            )
+                            Text(
+                                text = if (BuildConfig.DEBUG) stringResource(R.string.build_variant_debug) else stringResource(R.string.build_variant_release),
+                                style = typography.labelSm,
+                                color = colors.onSurfaceVariant
                             )
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Maintainer Pill Badge - mubashardev
-                    Box(
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(colors.successContainer)
-                            .border(1.dp, colors.success, CircleShape)
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "✦ ",
-                                color = colors.onSuccessContainer,
-                                fontSize = 10.sp
-                            )
-                            Text(
-                                text = UiText.get(R.string.waex_ui_maintainer, "MAINTAINER"),
-                                color = colors.onSuccessContainer,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.2.sp
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = stringResource(R.string.maintainer),
-                        style = typography.bodyLg,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.onSurface
-                    )
                 }
             }
 
             // Card 1: About Description
             Surface(
-                shape = radius.bentoCardShape,
-                color = colors.surfaceContainerLow,
-                border = BorderStroke(1.dp, colors.outlineVariant),
+                color = colors.background,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
+                Column(modifier = Modifier.padding(vertical = 4.dp)) {
                     Text(
                         text = stringResource(R.string.about_section_title),
                         style = typography.headlineMd,
@@ -554,17 +515,17 @@ fun AboutScreen() {
                         color = colors.onSurfaceVariant,
                         lineHeight = 22.sp
                     )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    HorizontalDivider(color = colors.outlineVariant)
                 }
             }
 
             // Card 2: Installation Instructions
             Surface(
-                shape = radius.bentoCardShape,
-                color = colors.surfaceContainerLow,
-                border = BorderStroke(1.dp, colors.outlineVariant),
+                color = colors.background,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
+                Column(modifier = Modifier.padding(vertical = 4.dp)) {
                     Text(
                         text = stringResource(R.string.installation),
                         style = typography.headlineMd,
@@ -578,6 +539,8 @@ fun AboutScreen() {
                         color = colors.onSurfaceVariant,
                         lineHeight = 22.sp
                     )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    HorizontalDivider(color = colors.outlineVariant)
                 }
             }
 
@@ -606,7 +569,7 @@ fun AboutScreen() {
                         onClick = { openUrl("https://t.me/WaEnhancerX") },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(42.dp),
+                            .height(48.dp),
                         shape = radius.buttonShape,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = colors.primary,
@@ -631,7 +594,7 @@ fun AboutScreen() {
                         onClick = { openUrl("https://github.com/WaEnhancerX/WaEnhancerX/issues") },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(42.dp),
+                            .height(48.dp),
                         shape = radius.buttonShape,
                         border = BorderStroke(1.dp, colors.outlineVariant),
                         colors = ButtonDefaults.outlinedButtonColors(
@@ -657,7 +620,6 @@ fun AboutScreen() {
             Surface(
                 shape = radius.bentoCardShape,
                 color = colors.surfaceContainerLow,
-                border = BorderStroke(1.dp, colors.outlineVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
@@ -668,20 +630,24 @@ fun AboutScreen() {
                         color = colors.onSurface
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     if (isLoadingContributors) {
-                        Box(
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(90.dp),
-                            contentAlignment = Alignment.Center
+                                .height(72.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            WaexCircularProgressIndicator(
-                                modifier = Modifier.size(32.dp),
-                                color = colors.primary,
-                                strokeWidth = 3.dp
-                            )
+                            repeat(4) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(CircleShape)
+                                        .background(colors.surfaceContainerHighest)
+                                )
+                            }
                         }
                     } else if (contributors.isEmpty()) {
                         Text(
@@ -690,33 +656,46 @@ fun AboutScreen() {
                             color = colors.onSurfaceVariant
                         )
                     } else {
-                        // 3-Column Grid matching WaEnhancer
                         FlowRow(
                             modifier = Modifier.fillMaxWidth(),
-                            maxItemsInEachRow = 3,
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                            maxItemsInEachRow = 4,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
                             contributors.forEach { contributor ->
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     modifier = Modifier
-                                        .width(90.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .clickable {
-                                            loadUserProfile(contributor)
-                                        }
-                                        .padding(8.dp)
+                                        .width(72.dp)
+                                        .clickable { loadUserProfile(contributor) }
+                                        .padding(vertical = 8.dp, horizontal = 4.dp)
                                 ) {
-                                    AsyncAvatarImage(
-                                        url = contributor.avatarUrl,
-                                        contentDescription = contributor.login,
-                                        modifier = Modifier
-                                            .size(56.dp)
-                                            .clip(CircleShape)
-                                            .border(1.5.dp, colors.outlineVariant, CircleShape)
-                                    )
-                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Box {
+                                        AsyncAvatarImage(
+                                            url = contributor.avatarUrl,
+                                            contentDescription = contributor.login,
+                                            modifier = Modifier
+                                                .size(48.dp)
+                                                .clip(CircleShape)
+                                                .border(1.dp, colors.outlineVariant, CircleShape)
+                                        )
+                                        if (contributor.login.equals(BuildConfig.GH_DEV, ignoreCase = true)) {
+                                            Surface(
+                                                modifier = Modifier.align(Alignment.BottomCenter),
+                                                shape = CircleShape,
+                                                color = colors.primary,
+                                                contentColor = colors.onPrimary
+                                            ) {
+                                                Text(
+                                                    text = "Dev",
+                                                    style = typography.labelSm,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(7.dp))
                                     Text(
                                         text = contributor.login,
                                         style = typography.labelSm,
@@ -734,12 +713,10 @@ fun AboutScreen() {
 
             // Card 5: Support
             Surface(
-                shape = radius.bentoCardShape,
-                color = colors.surfaceContainerLow,
-                border = BorderStroke(1.dp, colors.outlineVariant),
+                color = colors.background,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
+                Column(modifier = Modifier.padding(vertical = 4.dp)) {
                     Text(
                         text = stringResource(R.string.support),
                         style = typography.headlineMd,
@@ -753,17 +730,17 @@ fun AboutScreen() {
                         color = colors.onSurfaceVariant,
                         lineHeight = 22.sp
                     )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    HorizontalDivider(color = colors.outlineVariant)
                 }
             }
 
             // Card 6: License & Disclaimer
             Surface(
-                shape = radius.bentoCardShape,
-                color = colors.surfaceContainerLow,
-                border = BorderStroke(1.dp, colors.outlineVariant),
+                color = colors.background,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
+                Column(modifier = Modifier.padding(vertical = 4.dp)) {
                     Text(
                         text = stringResource(R.string.license),
                         style = typography.headlineMd,
