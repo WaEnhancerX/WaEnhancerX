@@ -17,6 +17,7 @@ import de.robv.android.xposed.XposedHelpers;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import org.luckypray.dexkit.query.FindClass;
@@ -64,6 +65,8 @@ public final class TextStatusComposerHook extends BaseFeature {
 
     private void hookFragment(Class<?> fragment) {
         for (Method method : fragment.getDeclaredMethods()) {
+            int mod = method.getModifiers();
+            if (Modifier.isAbstract(mod) || Modifier.isNative(mod)) continue;
             Class<?>[] types = method.getParameterTypes();
             if (!isComposerSignature(types) && !isCreateViewSignature(method, types)) continue;
             method.setAccessible(true);
@@ -124,7 +127,7 @@ public final class TextStatusComposerHook extends BaseFeature {
 
     private void hookTextDataConstruction() {
         Class<?> textData = DexSearchEngine.getInstance().findClassWithCache(
-                context, classLoader, "waex_text_status_data_class_v2", (bridge, loader) -> {
+                context, classLoader, "waex_text_status_data_class_v3", (bridge, loader) -> {
                     ClassData data = bridge.findClass(FindClass.create().matcher(
                             ClassMatcher.create().addUsingString("TextData;"))).firstOrNull();
                     return data == null ? null : data.getInstance(loader);
@@ -139,17 +142,25 @@ public final class TextStatusComposerHook extends BaseFeature {
         }
 
         Method[] consumers = DexSearchEngine.getInstance().findMethodsWithCache(
-                context, classLoader, "waex_text_status_data_consumers_v2", (bridge, loader) -> {
+                context, classLoader, "waex_text_status_data_consumers_v3", (bridge, loader) -> {
                     MethodDataList matches = bridge.findMethod(FindMethod.create().matcher(
                             MethodMatcher.create().addParamType(textData.getName())));
                     java.util.ArrayList<Method> methods = new java.util.ArrayList<>();
                     for (MethodData match : matches) {
-                        if (match.isMethod()) methods.add(match.getMethodInstance(loader));
+                        if (match.isMethod()) {
+                            Method m = match.getMethodInstance(loader);
+                            int mod = m.getModifiers();
+                            if (!Modifier.isAbstract(mod) && !Modifier.isNative(mod)) {
+                                methods.add(m);
+                            }
+                        }
                     }
                     return methods.toArray(new Method[0]);
                 });
         if (consumers != null) {
             for (Method consumer : consumers) {
+                int mod = consumer.getModifiers();
+                if (Modifier.isAbstract(mod) || Modifier.isNative(mod)) continue;
                 XposedBridge.hookMethod(consumer, new XC_MethodHook() {
                     @Override protected void beforeHookedMethod(MethodHookParam param) {
                         for (Object argument : param.args) {
@@ -161,7 +172,7 @@ public final class TextStatusComposerHook extends BaseFeature {
         }
 
         Class<?>[] constructorOwners = DexSearchEngine.getInstance().findClassesWithCache(
-                context, classLoader, "waex_text_status_data_constructor_owners_v2", (bridge, loader) -> {
+                context, classLoader, "waex_text_status_data_constructor_owners_v3", (bridge, loader) -> {
                     MethodDataList matches = bridge.findMethod(FindMethod.create().matcher(
                             MethodMatcher.create().name("<init>").addParamType(textData.getName())));
                     LinkedHashSet<Class<?>> owners = new LinkedHashSet<>();
@@ -195,17 +206,25 @@ public final class TextStatusComposerHook extends BaseFeature {
         }
 
         Method[] producers = DexSearchEngine.getInstance().findMethodsWithCache(
-                context, classLoader, "waex_text_status_data_producers_v2", (bridge, loader) -> {
+                context, classLoader, "waex_text_status_data_producers_v3", (bridge, loader) -> {
                     MethodDataList matches = bridge.findMethod(FindMethod.create().matcher(
                             MethodMatcher.create().returnType(textData.getName())));
                     java.util.ArrayList<Method> methods = new java.util.ArrayList<>();
                     for (MethodData match : matches) {
-                        if (match.isMethod()) methods.add(match.getMethodInstance(loader));
+                        if (match.isMethod()) {
+                            Method m = match.getMethodInstance(loader);
+                            int mod = m.getModifiers();
+                            if (!Modifier.isAbstract(mod) && !Modifier.isNative(mod)) {
+                                methods.add(m);
+                            }
+                        }
                     }
                     return methods.toArray(new Method[0]);
                 });
         if (producers != null) {
             for (Method producer : producers) {
+                int mod = producer.getModifiers();
+                if (Modifier.isAbstract(mod) || Modifier.isNative(mod)) continue;
                 XposedBridge.hookMethod(producer, new XC_MethodHook() {
                     @Override protected void afterHookedMethod(MethodHookParam param) {
                         if (textData.isInstance(param.getResult())) applyColors(param.getResult());

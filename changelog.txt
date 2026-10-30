@@ -1,4 +1,5 @@
 [Added]
+- Added support for version 2.26.43.xx
 - Custom A/B Props support: Override WhatsApp AB properties
 - Search bar style
 
