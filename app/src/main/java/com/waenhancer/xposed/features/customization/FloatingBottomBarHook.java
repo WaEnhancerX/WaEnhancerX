@@ -951,6 +951,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
 
     private static void formatBadgeViews(ViewGroup tabItem, View iconContainer, float density) {
         if (tabItem == null) return;
+        final View badgeIconContainer = iconContainer;
         List<View> badgeViews = new ArrayList<>();
         findBadgeViewsRecursive(tabItem, badgeViews);
 
@@ -971,8 +972,11 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
             }
 
             if (hasTextNumber) {
-                if (iconContainer != null) {
-                    alignBadgeToIconTopRight(badge, iconContainer, density, false);
+                if (badgeIconContainer != null) {
+                    alignBadgeToIconTopRight(badge, badgeIconContainer, density, false);
+                    // WhatsApp lays out this badge after the tab item. Re-apply on the next
+                    // frame so a freshly visible badge is positioned from its final bounds.
+                    badge.post(() -> alignBadgeToIconTopRight(badge, badgeIconContainer, density, false));
                 }
                 continue;
             }
@@ -997,8 +1001,11 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                 iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
             }
 
-            if (iconContainer != null) {
-                alignBadgeToIconTopRight(badge, iconContainer, density, true);
+            if (badgeIconContainer != null) {
+                alignBadgeToIconTopRight(badge, badgeIconContainer, density, true);
+                // The unseen-status indicator is added lazily and its initial bounds are 0,0.
+                // In floating mode that left it at the top of the pill instead of on the icon.
+                badge.post(() -> alignBadgeToIconTopRight(badge, badgeIconContainer, density, true));
             }
         }
     }
