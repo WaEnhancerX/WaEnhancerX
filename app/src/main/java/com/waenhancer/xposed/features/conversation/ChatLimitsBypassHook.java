@@ -46,112 +46,15 @@ public class ChatLimitsBypassHook extends BaseFeature {
         hookRevokeTimeLimit();
     }
 
-    private static final int PINNED_CHATS_EXPANDED_LIMIT = 60;
-    private static final String SYNC_HANDLER_TAG = "SyncResponseHandler";
-
     private void hookPinnedLimit() {
         // Install these hooks regardless of the startup preference snapshot. WAEX settings may be
         // refreshed after WhatsApp starts; every callback below gates its behavior dynamically.
         try {
             XposedBridge.log(TAG + " Installing pinned-chat compatibility hooks; enabled="
                     + isPinnedLimitBypassEnabled());
-            // Do not hook boot-class collection constructors here. They run for practically every
-            // WhatsApp collection allocation and previously caused main-thread stalls/ANRs once
-            // this feature was active. Current pinning code is handled at its own workflow methods.
-            Method chatPinLimitMethod = DexSearchEngine.getInstance().findMethodWithCache(
-                    context,
-                    classLoader,
-                    "waex_pinned_in_chat_limit_getter_v2",
-                    (bridge, loader) -> {
-                        // Strategy A: WA Business uses full log string with class/method path.
-                        MethodData pinSelectedCaller = bridge.findMethod(FindMethod.create()
-                                .matcher(MethodMatcher.create()
-                                        .addUsingString(
-                                                "ConversationPinHelper/pinSelectedJids max=",
-                                                StringMatchType.Contains
-                                        )
-                                )
-                        ).firstOrNull();
-                        Method structuralMatch = findSelfTypedStaticIntInvoke(pinSelectedCaller, loader);
-                        if (structuralMatch != null) {
-                            return structuralMatch;
-                        }
-
-                        // Strategy B: Regular WA may use a shorter log string without the class prefix.
-                        MethodData pinSelectedCallerShort = bridge.findMethod(FindMethod.create()
-                                .matcher(MethodMatcher.create()
-                                        .addUsingString("pinSelectedJids max=", StringMatchType.Contains)
-                                )
-                        ).firstOrNull();
-                        Method structuralMatchShort = findSelfTypedStaticIntInvoke(pinSelectedCallerShort, loader);
-                        if (structuralMatchShort != null) {
-                            return structuralMatchShort;
-                        }
-
-                        // Strategy C: Look for any method that logs about pinning and calls a static int getter.
-                        MethodData pinCallerAny = bridge.findMethod(FindMethod.create()
-                                .matcher(MethodMatcher.create()
-                                        .addUsingString("pinSelectedJids", StringMatchType.Contains)
-                                )
-                        ).firstOrNull();
-                        Method structuralMatchAny = findSelfTypedStaticIntInvoke(pinCallerAny, loader);
-                        if (structuralMatchAny != null) {
-                            return structuralMatchAny;
-                        }
-
-                        // Strategy D (legacy WA Business fallback): R.string resource ID 3732.
-                        MethodData legacy = bridge.findMethod(FindMethod.create()
-                                .matcher(MethodMatcher.create()
-                                        .addUsingNumber(3732)
-                                        .returnType(int.class)
-                                )
-                        ).firstOrNull();
-                        if (legacy != null) return legacy.getMethodInstance(loader);
-
-                        // Strategy E: Search for a no-arg static int method whose name contains
-                        // "max" or "limit" invoked from a method that contains "pinned" string.
-                        MethodData pinnedStringCaller = bridge.findMethod(FindMethod.create()
-                                .matcher(MethodMatcher.create()
-                                        .addUsingString("pinned", StringMatchType.Contains)
-                                        .returnType(void.class)
-                                )
-                        ).firstOrNull();
-                        if (pinnedStringCaller != null) {
-                            for (MethodData invoked : pinnedStringCaller.getInvokes()) {
-                                if (!invoked.isMethod()) continue;
-                                try {
-                                    Method candidate = invoked.getMethodInstance(loader);
-                                    if (candidate.getReturnType() == int.class
-                                            && Modifier.isStatic(candidate.getModifiers())
-                                            && candidate.getParameterTypes().length == 0) {
-                                        String methodName = candidate.getName().toLowerCase();
-                                        if (methodName.contains("max") || methodName.contains("limit")) {
-                                            return candidate;
-                                        }
-                                    }
-                                } catch (Throwable ignored) {}
-                            }
-                        }
-
-                        return null;
-                    }
-            );
-
-            if (chatPinLimitMethod != null) {
-                logResolved("limit-getter", chatPinLimitMethod);
-                XposedBridge.hookMethod(chatPinLimitMethod, new XC_MethodHook() {
-                    @Override
-                    protected void beforeHookedMethod(MethodHookParam param) {
-                        if (isPinnedLimitBypassEnabled()) {
-                            param.setResult(PINNED_CHATS_EXPANDED_LIMIT);
-                        }
-                    }
-                });
-            } else {
-                XposedBridge.log(TAG + " Resolver miss: limit-getter (continuing with workflow hooks)");
-            }
-
-            // 3. ChatSettingsStore setPin: Prevent server sync from resetting or unpinning excess chats
+            // Current WhatsApp has no standalone pin-limit getter. The limit is calculated inside
+            // the pin/trim runnables, found below using durable log anchors.
+            // ChatSettingsStore#setPin is only suppressed while the exact sync handler runs.
             Method setPinMethod = DexSearchEngine.getInstance().findMethodWithCache(
                     context,
                     classLoader,
@@ -180,9 +83,6 @@ public class ChatLimitsBypassHook extends BaseFeature {
                 XposedBridge.hookMethod(setPinMethod, new XC_MethodHook() {
                     @Override
                     protected void beforeHookedMethod(MethodHookParam param) {
-                        if (isPinnedLimitBypassEnabled() && isCalledFrom(SYNC_HANDLER_TAG)) {
-                            param.setResult(null);
-                        }
                     }
                 });
             } else {
@@ -193,7 +93,8 @@ public class ChatLimitsBypassHook extends BaseFeature {
             final ThreadLocal<Boolean> trimmingPinnedChats = new ThreadLocal<>();
             final ThreadLocal<Boolean> applyingPinSync = new ThreadLocal<>();
 
-            // 4. Hook getPinnedJids / QUERY_CHAT_SETTINGS to provide wrapped PinnedChatMap
+            // This map is consulted by the exact pin/trim branches. Hide existing pins only
+            // within those short scopes; never alter the normal conversation list result.
             Method pinnedHashSetMethod = DexSearchEngine.getInstance().findMethodWithCache(
                     context,
                     classLoader,
@@ -247,40 +148,6 @@ public class ChatLimitsBypassHook extends BaseFeature {
                             param.setResult(filtered);
                             return;
                         }
-                        PinnedChatMap<Object, Object> pinnedMap;
-                        if (originalMap instanceof PinnedChatMap) {
-                            pinnedMap = (PinnedChatMap<Object, Object>) originalMap;
-                        } else {
-                            pinnedMap = new PinnedChatMap<>(originalMap);
-                            param.setResult(pinnedMap);
-                        }
-
-                        pinnedMap.setMaxLimit(PINNED_CHATS_EXPANDED_LIMIT);
-
-                        Object hostInstance = param.thisObject != null ? param.thisObject
-                                : (param.args.length > 0 ? param.args[0] : null);
-
-                        if (hostInstance != null) {
-                            Set<Object> originalKeys = originalMap.keySet();
-                            Class<?> currentClass = hostInstance.getClass();
-                            while (currentClass != null && currentClass != Object.class) {
-                                for (Field field : currentClass.getDeclaredFields()) {
-                                    if (Set.class.isAssignableFrom(field.getType())) {
-                                        try {
-                                            field.setAccessible(true);
-                                            Object fieldValue = field.get(hostInstance);
-                                            if (fieldValue == originalKeys) {
-                                                PinnedChatMap.PinnedKeySet<Object> newKeySet =
-                                                        (PinnedChatMap.PinnedKeySet<Object>) pinnedMap.keySet();
-                                                newKeySet.setIteratorSuppressed(false);
-                                                field.set(hostInstance, newKeySet);
-                                            }
-                                        } catch (Throwable ignored) {}
-                                    }
-                                }
-                                currentClass = currentClass.getSuperclass();
-                            }
-                        }
                     }
                 });
             } else {
@@ -291,70 +158,6 @@ public class ChatLimitsBypassHook extends BaseFeature {
             // three, and hide the existing pins only while WhatsApp trims "excess" entries.
             hookModernPinnedWorkflow(activePinBatch, trimmingPinnedChats, applyingPinSync,
                     setPinMethod);
-
-            // 5. Hook ConversationPinHelper / pinSelectedJids filter method
-            Method pinFilterMethod = DexSearchEngine.getInstance().findMethodWithCache(
-                    context,
-                    classLoader,
-                    "waex_pinned_selection_filter",
-                    (bridge, loader) -> {
-                        MethodData md = bridge.findMethod(FindMethod.create()
-                                .matcher(MethodMatcher.create()
-                                        .addUsingString("pinSelectedJids", StringMatchType.Contains)
-                                )
-                        ).firstOrNull();
-                        if (md == null) return null;
-
-                        for (MethodData invoke : md.getInvokes()) {
-                            if (!invoke.isMethod()) continue;
-                            try {
-                                Method instance = invoke.getMethodInstance(loader);
-                                if (Set.class.isAssignableFrom(instance.getReturnType())
-                                        && instance.getParameterTypes().length == 2
-                                        && Iterable.class.isAssignableFrom(instance.getParameterTypes()[0])
-                                        && Set.class.isAssignableFrom(instance.getParameterTypes()[1])) {
-                                    return instance;
-                                }
-                            } catch (Throwable ignored) {}
-                        }
-                        return null;
-                    }
-            );
-
-            if (pinFilterMethod != null) {
-                logResolved("selection-filter", pinFilterMethod);
-                XposedBridge.hookMethod(pinFilterMethod, new XC_MethodHook() {
-                    @Override
-                    @SuppressWarnings("unchecked")
-                    protected void afterHookedMethod(MethodHookParam param) {
-                        if (!isPinnedLimitBypassEnabled()) {
-                            return;
-                        }
-                        if (param.args.length > 0 && !(param.args[0] instanceof PinnedChatMap.PinnedKeySet)) {
-                            return;
-                        }
-
-                        Object res = param.getResult();
-                        if (!(res instanceof Set)) {
-                            return;
-                        }
-
-                        Set<Object> originalSet = (Set<Object>) res;
-                        PinnedChatMap<Object, Object> pinnedMap = new PinnedChatMap<>();
-                        pinnedMap.setMaxLimit(PINNED_CHATS_EXPANDED_LIMIT);
-                        for (Object item : originalSet) {
-                            pinnedMap.put(item, item);
-                        }
-
-                        PinnedChatMap.PinnedKeySet<Object> newKeySet =
-                                (PinnedChatMap.PinnedKeySet<Object>) pinnedMap.keySet();
-                        newKeySet.setIteratorSuppressed(false);
-                        param.setResult(newKeySet);
-                    }
-                });
-            } else {
-                XposedBridge.log(TAG + " Resolver miss: selection-filter (optional)");
-            }
 
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Error setting up pinned limit bypass: " + t.getMessage());
@@ -396,7 +199,9 @@ public class ChatLimitsBypassHook extends BaseFeature {
             if (trim != null) logResolved("trim-excess", trim);
             if (trim != null) XposedBridge.hookMethod(trim, new XC_MethodHook() {
                 @Override protected void beforeHookedMethod(MethodHookParam param) {
-                    if (isPinnedLimitBypassEnabled()) trimmingPinnedChats.set(true);
+                    if (isPinnedLimitBypassEnabled() && isRunnableBranch(param.thisObject, 22)) {
+                        trimmingPinnedChats.set(true);
+                    }
                 }
                 @Override protected void afterHookedMethod(MethodHookParam param) {
                     trimmingPinnedChats.remove();
@@ -412,12 +217,13 @@ public class ChatLimitsBypassHook extends BaseFeature {
             if (pinSelected != null) logResolved("pin-selected", pinSelected);
             if (pinSelected != null) XposedBridge.hookMethod(pinSelected, new XC_MethodHook() {
                 @Override protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                    if (!isPinnedLimitBypassEnabled() || param.thisObject == null) return;
+                    if (!isPinnedLimitBypassEnabled() || !isRunnableBranch(param.thisObject, 4)) return;
                     Field selectionField = findSelectedJidsField(param.thisObject);
                     if (selectionField == null) return;
                     @SuppressWarnings("unchecked") Set<Object> selection =
                             (Set<Object>) selectionField.get(param.thisObject);
                     if (selection == null || selection.isEmpty()) return;
+                    XposedBridge.log(TAG + " pin-selected branch: selection=" + selection.size());
                     if (selection.size() <= 3) {
                         activePinBatch.set(new LinkedHashSet<>(selection));
                         return;
@@ -498,7 +304,6 @@ public class ChatLimitsBypassHook extends BaseFeature {
         for (Class<?> current = owner.getClass(); current != null && current != Object.class;
              current = current.getSuperclass()) {
             for (Field field : current.getDeclaredFields()) {
-                if (!Set.class.isAssignableFrom(field.getType())) continue;
                 try {
                     field.setAccessible(true);
                     Object value = field.get(owner);
@@ -520,35 +325,20 @@ public class ChatLimitsBypassHook extends BaseFeature {
         return null;
     }
 
-    private static Method findSelfTypedStaticIntInvoke(MethodData caller, ClassLoader loader) {
-        if (caller == null) {
-            return null;
-        }
-        for (MethodData invoked : caller.getInvokes()) {
-            if (!invoked.isMethod()) {
-                continue;
-            }
-            try {
-                Method candidate = invoked.getMethodInstance(loader);
-                Class<?>[] parameters = candidate.getParameterTypes();
-                if (candidate.getReturnType() == int.class
-                        && Modifier.isStatic(candidate.getModifiers())
-                        && parameters.length == 1
-                        && parameters[0] == candidate.getDeclaringClass()) {
-                    return candidate;
-                }
-            } catch (Throwable ignored) {}
-        }
-        return null;
-    }
-
-    private static boolean isCalledFrom(String targetClassName) {
-        StackTraceElement[] trace = Thread.currentThread().getStackTrace();
-        int maxFrames = Math.min(trace.length, 25);
-        for (int i = 0; i < maxFrames; i++) {
-            StackTraceElement frame = trace[i];
-            if (frame.getClassName().contains(targetClassName)) {
-                return true;
+    /**
+     * String anchors resolve a shared synthetic Runnable#run method. Its selector is the only
+     * stable way to confine the hook to the anchored branch instead of every runnable action.
+     */
+    private static boolean isRunnableBranch(Object runnable, int branch) {
+        if (runnable == null) return false;
+        for (Class<?> current = runnable.getClass(); current != null && current != Object.class;
+             current = current.getSuperclass()) {
+            for (Field field : current.getDeclaredFields()) {
+                if (field.getType() != int.class) continue;
+                try {
+                    field.setAccessible(true);
+                    if (field.getInt(runnable) == branch) return true;
+                } catch (Throwable ignored) { }
             }
         }
         return false;
