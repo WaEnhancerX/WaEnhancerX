@@ -46,6 +46,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LoadingIndicator
 import com.waenhancer.ui.components.WaexModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -70,6 +71,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.LocalContext
@@ -169,6 +172,7 @@ fun StargazersScreen() {
     var searchQuery by remember { mutableStateOf("") }
     val confettiProgress = remember { Animatable(0f) }
     val supportSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val pullToRefreshState = rememberPullToRefreshState()
     val scope = rememberCoroutineScope()
     val filteredStargazers = remember(stargazers, searchQuery) {
         val query = searchQuery.trim()
@@ -289,6 +293,41 @@ fun StargazersScreen() {
         PullToRefreshBox(
             isRefreshing = isLoading && refreshKey > 0,
             onRefresh = { refreshKey++ },
+            state = pullToRefreshState,
+            indicator = {
+                val isRefreshing = isLoading && refreshKey > 0
+                if (isRefreshing || pullToRefreshState.distanceFraction > 0f) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = 12.dp)
+                            .size(52.dp)
+                            .shadow(6.dp, RoundedCornerShape(18.dp)),
+                        shape = RoundedCornerShape(18.dp),
+                        color = colors.primaryContainer,
+                        contentColor = colors.primary
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            if (isRefreshing) {
+                                LoadingIndicator(
+                                    modifier = Modifier.size(30.dp),
+                                    color = colors.primary
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = WaexIcons.Refresh,
+                                    contentDescription = UiText.get(R.string.waex_ui_refresh, "Refresh"),
+                                    modifier = Modifier
+                                        .size(22.dp)
+                                        .graphicsLayer {
+                                            rotationZ = 180f * pullToRefreshState.distanceFraction.coerceIn(0f, 1f)
+                                        }
+                                )
+                            }
+                        }
+                    }
+                }
+            },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(scaffoldPadding)
@@ -323,7 +362,7 @@ fun StargazersScreen() {
                             }
                         },
                         singleLine = true,
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(20.dp)
                     )
                 }
             }
@@ -335,25 +374,25 @@ fun StargazersScreen() {
                     exit = fadeOut(tween(200)) + shrinkVertically(animationSpec = tween(250))
                 ) {
                     Surface(
-                        shape = radius.bentoCardShape,
-                        color = colors.surfaceContainerLow,
-                        border = BorderStroke(1.dp, colors.outlineVariant),
+                        shape = RoundedCornerShape(28.dp),
+                        color = colors.primaryContainer,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
                             modifier = Modifier.padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                            horizontalAlignment = Alignment.Start
                         ) {
                             Surface(
-                                shape = CircleShape,
-                                color = colors.primary.copy(alpha = 0.12f),
-                                modifier = Modifier.size(56.dp)
+                                shape = RoundedCornerShape(18.dp),
+                                color = colors.primary,
+                                contentColor = colors.onPrimary,
+                                modifier = Modifier.size(58.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = WaexIcons.Premium,
                                         contentDescription = null,
-                                        tint = colors.primary,
+                                        tint = colors.onPrimary,
                                         modifier = Modifier.size(28.dp)
                                     )
                                 }
@@ -364,14 +403,14 @@ fun StargazersScreen() {
                                 style = typography.headlineMd,
                                 fontWeight = FontWeight.Bold,
                                 color = colors.onSurface,
-                                textAlign = TextAlign.Center
+                                textAlign = TextAlign.Start
                             )
                             Spacer(Modifier.height(8.dp))
                             Text(
                                 text = stringResource(R.string.stargazers_message),
                                 style = typography.bodyMd,
                                 color = colors.onSurfaceVariant,
-                                textAlign = TextAlign.Center
+                                textAlign = TextAlign.Start
                             )
                             if (stargazers.isNotEmpty()) {
                                 Spacer(Modifier.height(14.dp))
@@ -379,7 +418,7 @@ fun StargazersScreen() {
                                     text = UiText.get(R.string.waex_ui_1_s_supporters_and_counting, "%1\$s supporters and counting", stargazers.size),
                                     style = typography.bodyLg,
                                     fontWeight = FontWeight.Bold,
-                                    color = colors.primary
+                                    color = colors.onSurface
                                 )
                                 if (lastUpdated.isNotEmpty()) {
                                     Spacer(Modifier.height(6.dp))
@@ -387,7 +426,7 @@ fun StargazersScreen() {
                                         text = stringResource(R.string.stargazers_last_updated, lastUpdated),
                                         style = typography.bodyMd,
                                         color = colors.onSurfaceVariant,
-                                        textAlign = TextAlign.Center
+                                        textAlign = TextAlign.Start
                                     )
                                 }
                             }
@@ -487,9 +526,8 @@ fun StargazersScreen() {
                 items(filteredStargazers, key = { it.login }) { stargazer ->
                     val isDev = stargazer.login.equals(BuildConfig.DEV_GH.trim(), ignoreCase = true)
                     Surface(
-                        shape = radius.bentoCardShape,
+                        shape = RoundedCornerShape(22.dp),
                         color = colors.surfaceContainerLow,
-                        border = BorderStroke(1.dp, colors.outlineVariant),
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
