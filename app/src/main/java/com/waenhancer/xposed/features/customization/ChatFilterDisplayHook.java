@@ -100,6 +100,7 @@ public final class ChatFilterDisplayHook extends BaseFeature {
                 "com.whatsapp.home.ui.HomeActivity", classLoader);
         if (home == null) home = XposedHelpers.findClassIfExists("com.whatsapp.HomeActivity", classLoader);
         if (home == null) return;
+        final Class<?> homeActivity = home;
         int searchItemId = context.getResources().getIdentifier(
                 "menuitem_search", "id", context.getPackageName());
         if (searchItemId == 0) return;
@@ -112,8 +113,14 @@ public final class ChatFilterDisplayHook extends BaseFeature {
 
         // Keep this visibility hook as a fallback for versions where the construction method or
         // current-page field cannot be resolved, and to guarantee that mode 0 remains hidden.
-        XposedBridge.hookAllMethods(home, "onPrepareOptionsMenu", new XC_MethodHook() {
+        Method prepareMenu = findHierarchyMethod(home, "onPrepareOptionsMenu", Menu.class);
+        if (prepareMenu == null) {
+            XposedBridge.log(TAG + " Home menu preparation callback not found");
+            return;
+        }
+        XposedBridge.hookMethod(prepareMenu, new XC_MethodHook() {
             @Override protected void afterHookedMethod(MethodHookParam param) {
+                if (!homeActivity.isInstance(param.thisObject)) return;
                 if (param.args.length == 0 || !(param.args[0] instanceof Menu)) return;
                 MenuItem item = ((Menu) param.args[0]).findItem(searchItemId);
                 if (item != null) item.setVisible("1".equals(mode));
@@ -126,12 +133,17 @@ public final class ChatFilterDisplayHook extends BaseFeature {
             MethodData target = null;
             var results = engine.getBridge().findMethod(FindMethod.create().matcher(
                     MethodMatcher.create()
-                            .declaredClass(home.getName())
                             .addUsingNumber(searchItemId)
                             .addUsingNumber(200)
                             .paramCount(1)
                             .addParamType(Menu.class)));
-            if (!results.isEmpty()) target = results.get(0);
+            for (MethodData candidate : results) {
+                Method candidateMethod = candidate.getMethodInstance(classLoader);
+                if (candidateMethod.getDeclaringClass().isAssignableFrom(home)) {
+                    target = candidate;
+                    break;
+                }
+            }
             if (target == null) {
                 XposedBridge.log(TAG + " Search-menu construction method not found");
                 return;
@@ -167,6 +179,16 @@ public final class ChatFilterDisplayHook extends BaseFeature {
         } catch (Throwable error) {
             XposedBridge.log(TAG + " Search-menu creation hook unavailable: " + error);
         }
+    }
+
+    private static Method findHierarchyMethod(Class<?> leaf, String name, Class<?>... parameters) {
+        for (Class<?> current = leaf; current != null && current != Object.class;
+             current = current.getSuperclass()) {
+            try {
+                return current.getDeclaredMethod(name, parameters);
+            } catch (NoSuchMethodException ignored) {}
+        }
+        return null;
     }
 
     private Field findCurrentPageField(MethodData method, Class<?> declaringClass) {

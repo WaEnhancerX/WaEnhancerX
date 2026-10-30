@@ -312,11 +312,10 @@ public final class FeatureRegistry {
                 () -> new CopyStatusTextHook(context, classLoader, prefs));
 
         registerFeature(ChatLimitsBypassHook.class, "Conversation",
-                () -> prefs.getBoolean("unlimited_pinned_chats", false)
-                        || prefs.getBoolean("pinnedlimit", false)
-                        || prefs.getBoolean("chat_limits_bypass", false)
-                        || prefs.getBoolean("removeforwardlimit", false)
-                        || prefs.getBoolean("revokeallmessages", false),
+                // Install the callbacks even when the startup preference snapshot is empty.
+                // Public preferences arrive through the provider after WhatsApp has started on
+                // some LSPosed builds; a disabled-at-registration feature can never become live.
+                () -> true,
                 () -> new ChatLimitsBypassHook(context, classLoader, prefs));
 
         registerFeature(DoubleTapReactionHook.class, "Conversation",

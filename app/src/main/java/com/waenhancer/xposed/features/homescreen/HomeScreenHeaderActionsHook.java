@@ -41,6 +41,7 @@ import org.luckypray.dexkit.query.matchers.ClassMatcher;
 import org.luckypray.dexkit.result.ClassData;
 import com.waenhancer.xposed.utils.WhatsAppProcessRestarter;
 import java.util.Locale;
+import java.lang.reflect.Method;
 
 /**
  * Home Screen Header Actions Hook:
@@ -109,6 +110,7 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
             XC_MethodHook menuPopulateHook = new XC_MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
+                    if (!homeActivityClass.isInstance(param.thisObject)) return;
                     if (param.args.length > 0 && param.args[0] instanceof Menu) {
                         Menu menu = (Menu) param.args[0];
                         Activity activity = (param.thisObject instanceof Activity)
@@ -119,23 +121,28 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
                 }
             };
 
-            XposedBridge.hookAllMethods(homeActivityClass, "onCreateOptionsMenu", menuPopulateHook);
-            XposedBridge.hookAllMethods(homeActivityClass, "onPrepareOptionsMenu", menuPopulateHook);
+            hookHierarchyMethod(homeActivityClass, "onCreateOptionsMenu",
+                    new Class<?>[] { Menu.class }, menuPopulateHook);
+            hookHierarchyMethod(homeActivityClass, "onPrepareOptionsMenu",
+                    new Class<?>[] { Menu.class }, menuPopulateHook);
 
             attachHomeTitleLongPressHook(homeActivityClass);
 
-            XposedBridge.hookAllMethods(homeActivityClass, "onPostResume", new XC_MethodHook() {
+            hookHierarchyMethod(homeActivityClass, "onPostResume", new Class<?>[0], new XC_MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
+                    if (!homeActivityClass.isInstance(param.thisObject)) return;
                     if (param.thisObject instanceof Activity) {
                         scheduleHomeTitleLongPress((Activity) param.thisObject);
                     }
                 }
             });
 
-            XposedBridge.hookAllMethods(homeActivityClass, "onOptionsItemSelected", new XC_MethodHook() {
+            hookHierarchyMethod(homeActivityClass, "onOptionsItemSelected",
+                    new Class<?>[] { MenuItem.class }, new XC_MethodHook() {
                 @Override
                 protected void beforeHookedMethod(MethodHookParam param) {
+                    if (!homeActivityClass.isInstance(param.thisObject)) return;
                     if (param.args.length > 0 && param.args[0] instanceof MenuItem) {
                         MenuItem item = (MenuItem) param.args[0];
                         if (handleItemSelected(item, param.thisObject)) {
@@ -146,9 +153,11 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
             });
 
             // Also hook onMenuItemSelected — WhatsApp sometimes routes action bar taps here directly
-            XposedBridge.hookAllMethods(homeActivityClass, "onMenuItemSelected", new XC_MethodHook() {
+            hookHierarchyMethod(homeActivityClass, "onMenuItemSelected",
+                    new Class<?>[] { int.class, MenuItem.class }, new XC_MethodHook() {
                 @Override
                 protected void beforeHookedMethod(MethodHookParam param) {
+                    if (!homeActivityClass.isInstance(param.thisObject)) return;
                     // param.args[0] = featureId (int), param.args[1] = MenuItem
                     if (param.args.length > 1 && param.args[1] instanceof MenuItem) {
                         MenuItem item = (MenuItem) param.args[1];
@@ -162,6 +171,27 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Error attaching hooks: " + t.getMessage());
         }
+    }
+
+    /**
+     * WhatsApp 2.26 moved several HomeActivity callbacks to an obfuscated base activity.
+     * XposedBridge.hookAllMethods only examines methods declared by the supplied class, so
+     * silently attaching it to HomeActivity no longer observes those inherited callbacks.
+     */
+    private void hookHierarchyMethod(Class<?> leaf, String name, Class<?>[] parameters,
+                                     XC_MethodHook callback) throws NoSuchMethodException {
+        Class<?> current = leaf;
+        while (current != null && current != Object.class) {
+            try {
+                Method method = current.getDeclaredMethod(name, parameters);
+                XposedBridge.hookMethod(method, callback);
+                XposedBridge.log(TAG + " Hooked " + name + " on " + current.getName());
+                return;
+            } catch (NoSuchMethodException ignored) {
+                current = current.getSuperclass();
+            }
+        }
+        throw new NoSuchMethodException(leaf.getName() + "#" + name);
     }
 
     /**
@@ -213,11 +243,23 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
     private void installHomeTitleLongPress(View root, Activity activity) {
         View title = findExactToolbarLogo(activity);
         if (title == null) title = findHomeTitle(root, activity);
-        if (title == null || !archiveTitleViews.add(title)) return;
-        title.setLongClickable(true);
-        title.setOnLongClickListener(clicked -> openLongPressDestination(activity));
-        title.setClickable(true);
-        title.setOnClickListener(clicked -> handleArchiveTitleTap(activity));
+        if (title != null && archiveTitleViews.add(title)) {
+            title.setLongClickable(true);
+            title.setOnLongClickListener(clicked -> openLongPressDestination(activity));
+            title.setClickable(true);
+            title.setOnClickListener(clicked -> handleArchiveTitleTap(activity));
+        }
+
+        // Also attach to title's immediate parent (which holds WA Business logo/title)
+        if (title != null && title.getParent() instanceof View) {
+            View parent = (View) title.getParent();
+            if (archiveTitleViews.add(parent)) {
+                parent.setLongClickable(true);
+                parent.setOnLongClickListener(clicked -> openLongPressDestination(activity));
+                parent.setClickable(true);
+                parent.setOnClickListener(clicked -> handleArchiveTitleTap(activity));
+            }
+        }
     }
 
     private synchronized void handleArchiveTitleTap(Activity activity) {
@@ -242,11 +284,11 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
     }
 
     private boolean openLongPressDestination(Activity activity) {
-        if (isArchivedHidden() && isArchiveTitleLongPressEnabled()) {
+        if (isArchiveTitleLongPressEnabled()) {
             openArchivedConversations(activity);
             return true;
         }
-        if (isHideLockedChatsEnabled() && isLockedTitleLongPressEnabled()) {
+        if (isLockedTitleLongPressEnabled()) {
             openLockedConversations(activity);
             return true;
         }
@@ -254,14 +296,13 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
     }
 
     private boolean hasTripleTapDestination() {
-        return (isArchivedHidden() && isArchiveTitleTripleTapEnabled())
-                || (isHideLockedChatsEnabled() && isLockedTitleTripleTapEnabled());
+        return isArchiveTitleTripleTapEnabled() || isLockedTitleTripleTapEnabled();
     }
 
     private void openTripleTapDestination(Activity activity) {
-        if (isArchivedHidden() && isArchiveTitleTripleTapEnabled()) {
+        if (isArchiveTitleTripleTapEnabled()) {
             openArchivedConversations(activity);
-        } else if (isHideLockedChatsEnabled() && isLockedTitleTripleTapEnabled()) {
+        } else if (isLockedTitleTripleTapEnabled()) {
             openLockedConversations(activity);
         }
     }
@@ -710,7 +751,7 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
 
     /** Launch only the verified in-package WhatsApp archive Activity. */
     private void openArchivedConversations(Activity activity) {
-        if (!isArchivedHidden() || activity.isFinishing() || activity.isDestroyed()) return;
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
         long now = SystemClock.elapsedRealtime();
         long previous = LAST_ARCHIVE_OPEN_MS.get();
         if (previous >= 0L && now >= previous && now - previous < 800L) return;
@@ -724,7 +765,9 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
                         Toast.LENGTH_SHORT).show();
                 return;
             }
-            activity.startActivity(new Intent(activity, archived));
+            Intent intent = new Intent(activity, archived);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            activity.startActivity(intent);
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Cannot open archived chats: " + t.getClass().getSimpleName());
             Toast.makeText(activity, UiText.get(R.string.waex_ui_could_not_open_archived_chats, "Could not open archived chats"), Toast.LENGTH_SHORT).show();
@@ -733,7 +776,7 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
 
     /** Launch only the verified in-package WhatsApp locked-conversations Activity. */
     private void openLockedConversations(Activity activity) {
-        if (!isHideLockedChatsEnabled() || activity.isFinishing() || activity.isDestroyed()) return;
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
         long now = SystemClock.elapsedRealtime();
         long previous = LAST_ARCHIVE_OPEN_MS.get();
         if (previous >= 0L && now >= previous && now - previous < 800L) return;
@@ -747,7 +790,9 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
                         Toast.LENGTH_SHORT).show();
                 return;
             }
-            activity.startActivity(new Intent(activity, locked));
+            Intent intent = new Intent(activity, locked);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            activity.startActivity(intent);
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Cannot open locked chats: " + t.getClass().getSimpleName());
             Toast.makeText(activity, UiText.get(R.string.waex_ui_could_not_open_locked_chats, "Could not open locked chats"), Toast.LENGTH_SHORT).show();
