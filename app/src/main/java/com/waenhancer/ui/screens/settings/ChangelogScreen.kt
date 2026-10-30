@@ -5,6 +5,7 @@ import com.waenhancer.utils.UiText
 
 import android.content.Intent
 import android.net.Uri
+import android.util.TypedValue
 import android.widget.TextView
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -62,6 +63,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.text.util.LinkifyCompat
 import androidx.core.util.PatternsCompat
@@ -84,7 +86,6 @@ import io.noties.markwon.html.HtmlPlugin
 import java.text.SimpleDateFormat
 import java.util.Locale
 import android.content.Context
-import androidx.compose.foundation.BorderStroke
 import com.waenhancer.update.normalizeVersion
 import com.waenhancer.utils.InternalLabels
 import java.text.DateFormat
@@ -152,14 +153,76 @@ fun ChangelogScreen() {
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 if (releases.isEmpty()) item { Text(UiText.get(R.string.waex_ui_no_releases_found, "No releases found."), color = colors.onSurfaceVariant) }
+                if (releases.isNotEmpty()) {
+                    item {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(28.dp),
+                            color = if (availableUpdate != null) colors.primaryContainer else colors.surfaceContainerHigh
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(22.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    modifier = Modifier.size(54.dp),
+                                    shape = RoundedCornerShape(18.dp),
+                                    color = if (availableUpdate != null) colors.primary else colors.surfaceContainerHighest,
+                                    contentColor = if (availableUpdate != null) colors.onPrimary else colors.onSurface
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = if (availableUpdate != null) WaexIcons.SystemUpdate else WaexIcons.Success,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(27.dp)
+                                        )
+                                    }
+                                }
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                                ) {
+                                    Text(
+                                        text = if (availableUpdate != null) {
+                                            UiText.get(R.string.waex_ui_update, "Update")
+                                        } else {
+                                            UiText.get(R.string.waex_ui_installed, "Installed")
+                                        },
+                                        style = typography.titleMd,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = colors.onSurface
+                                    )
+                                    Text(
+                                        text = if (availableUpdate != null) availableUpdate.version else installedVersion,
+                                        style = typography.displayLg,
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.onSurface
+                                    )
+                                    Text(
+                                        text = UiText.get(
+                                            R.string.waex_ui_changelog_releases,
+                                            "Changelog & Releases"
+                                        ),
+                                        style = typography.bodySm,
+                                        color = colors.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
                 items(releases, key = { it.tagName }) { release ->
                     val installed = release.version.equals(normalizeVersion(installedVersion), true)
                     val comparison = ReleaseRepository.versionCode(release.version).compareTo(ReleaseRepository.versionCode(installedVersion))
                     val allowDowngrade = preferences.getBoolean("downgrades_enabled", false)
                     Surface(
-                        shape = radius.bentoCardShape,
-                        color = colors.surfaceContainerLow,
-                        border = BorderStroke(1.dp, colors.outlineVariant),
+                        shape = RoundedCornerShape(if (installed || release.tagName == availableUpdate?.tagName) 28.dp else 20.dp),
+                        color = when {
+                            release.tagName == availableUpdate?.tagName -> colors.primaryContainer
+                            installed -> colors.surfaceContainerHigh
+                            else -> colors.surfaceContainerLow
+                        },
                         modifier = Modifier.fillMaxWidth().clickable { navController.navigateTo(Screen.ReleaseDetails(release.tagName)) }
                     ) {
                         Column(Modifier.padding(20.dp)) {
@@ -175,8 +238,7 @@ fun ChangelogScreen() {
                                     Text(
                                         formatReleaseDate(release.publishedAt),
                                         style = typography.bodyMd,
-                                        color = colors.onSurfaceVariant,
-                                        fontSize = 12.sp
+                                        color = colors.onSurfaceVariant
                                     )
                                 }
                                 IconButton(onClick = { navController.navigateTo(Screen.ReleaseDetails(release.tagName)) }) {
@@ -195,12 +257,8 @@ fun ChangelogScreen() {
                             }
                             Spacer(Modifier.height(14.dp))
                             Surface(
-                                shape = radius.bentoCardShape,
-                                color = colors.surfaceDim,
-                                border = BorderStroke(
-                                    1.dp,
-                                    colors.outlineVariant.copy(alpha = 0.5f)
-                                ),
+                                shape = RoundedCornerShape(16.dp),
+                                color = colors.surface.copy(alpha = 0.72f),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 ChangelogBodyView(
@@ -240,7 +298,10 @@ fun ChangelogScreen() {
                                             }
                                         }
                                     },
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp),
+                                    shape = radius.buttonShape
                                 ) {
                                     val buttonText = when {
                                         canSwitchMode -> if (BuildConfig.DEBUG) UiText.get(R.string.waex_l10n_switch_release, "Switch to Release") else UiText.get(R.string.waex_l10n_switch_debug, "Switch to Debug")
@@ -428,7 +489,6 @@ fun ChangelogSkeleton(
     contentPadding: PaddingValues = PaddingValues(16.dp)
 ) {
     val brush = changelogShimmerBrush()
-    val radius = WaexTheme.radius
     val colors = WaexTheme.colors
 
     LazyColumn(
@@ -438,9 +498,8 @@ fun ChangelogSkeleton(
     ) {
         items(3) { index ->
             Surface(
-                shape = radius.bentoCardShape,
+                shape = RoundedCornerShape(if (index == 0) 28.dp else 20.dp),
                 color = colors.surfaceContainerLow,
-                border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.6f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(Modifier.padding(20.dp)) {
@@ -492,9 +551,8 @@ fun ChangelogSkeleton(
 
                     // Nested container for changelog body
                     Surface(
-                        shape = radius.bentoCardShape,
-                        color = colors.surfaceDim,
-                        border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.4f)),
+                        shape = RoundedCornerShape(16.dp),
+                        color = colors.surface.copy(alpha = 0.72f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
@@ -569,11 +627,14 @@ internal fun MarkdownText(
     maxLines: Int = Int.MAX_VALUE,
     modifier: Modifier = Modifier
 ) {
+    val density = LocalDensity.current
+    val typography = WaexTheme.typography
+    val textSizePx = with(density) { typography.bodyMd.fontSize.toPx() }
     AndroidView(
         factory = { context ->
             TextView(context).apply {
                 setTextColor(textColor)
-                textSize = 14f
+                setTextSize(TypedValue.COMPLEX_UNIT_PX, textSizePx)
                 setLineSpacing(0f, 1.18f)
                 this.maxLines = maxLines
                 tag = Markwon.builder(context).usePlugin(HtmlPlugin.create()).build()
@@ -581,6 +642,7 @@ internal fun MarkdownText(
         },
         update = { view ->
             view.setTextColor(textColor)
+            view.setTextSize(TypedValue.COMPLEX_UNIT_PX, textSizePx)
             view.maxLines = maxLines
             (view.tag as Markwon).setMarkdown(view, markdown.trim())
             LinkifyCompat.addLinks(view, PatternsCompat.WEB_URL, null)

@@ -658,17 +658,17 @@ fun AboutScreen() {
                     } else {
                         FlowRow(
                             modifier = Modifier.fillMaxWidth(),
-                            maxItemsInEachRow = 4,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            maxItemsInEachRow = 5,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
                             contributors.forEach { contributor ->
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                Box(
                                     modifier = Modifier
-                                        .width(72.dp)
-                                        .clickable { loadUserProfile(contributor) }
-                                        .padding(vertical = 8.dp, horizontal = 4.dp)
+                                        .size(58.dp)
+                                        .clip(CircleShape)
+                                        .clickable { loadUserProfile(contributor) },
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     Box {
                                         AsyncAvatarImage(
@@ -695,15 +695,6 @@ fun AboutScreen() {
                                             }
                                         }
                                     }
-                                    Spacer(modifier = Modifier.height(7.dp))
-                                    Text(
-                                        text = contributor.login,
-                                        style = typography.labelSm,
-                                        fontWeight = FontWeight.Medium,
-                                        color = colors.onSurface,
-                                        textAlign = TextAlign.Center,
-                                        maxLines = 1
-                                    )
                                 }
                             }
                         }
