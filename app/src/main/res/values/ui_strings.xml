@@ -747,6 +747,8 @@
     <string name="waex_ui_unable_to_execute_the_root_installer" formatted="false">"Unable to execute the root installer"</string>
     <string name="waex_ui_unable_to_load_release" formatted="false">"Unable to load release."</string>
     <string name="waex_ui_unable_to_load_releases" formatted="false">"Unable to load releases."</string>
+    <string name="waex_ui_github_rate_limited" formatted="false">"GitHub Rate Limit Exceeded"</string>
+    <string name="waex_ui_github_rate_limited_desc" formatted="false">"GitHub API limit reached. Pull to refresh or try again in a few minutes."</string>
     <string name="waex_ui_unable_to_remove_the_license_please_tr" formatted="false">"Unable to remove the license. Please try again."</string>
     <string name="waex_ui_unable_to_save_setting" formatted="false">"Unable to save setting"</string>
     <string name="waex_ui_unavailable" formatted="false">"Unavailable"</string>

@@ -42,6 +42,9 @@ import com.waenhancer.update.WaexAsset
 import com.waenhancer.update.WaexRelease
 import com.waenhancer.update.normalizeVersion
 
+import com.waenhancer.ui.components.WaexEmptyState
+import com.waenhancer.ui.designsystem.WaexIcons
+
 @Composable
 fun ReleaseDetailsScreen(tagName: String) {
     val nav = LocalWaexNavController.current
@@ -50,7 +53,13 @@ fun ReleaseDetailsScreen(tagName: String) {
     val colors = WaexTheme.colors
     val typography = WaexTheme.typography
     val spacing = WaexTheme.spacing
-    var release by remember(tagName) { mutableStateOf<WaexRelease?>(null) }
+    val initialCached = remember(tagName) {
+        ReleaseRepository.getCachedReleases(context).firstOrNull {
+            it.tagName.equals(tagName, true) || it.name.equals(tagName, true) ||
+                it.version.equals(normalizeVersion(tagName), true)
+        }
+    }
+    var release by remember(tagName) { mutableStateOf<WaexRelease?>(initialCached) }
     var error by remember(tagName) { mutableStateOf<String?>(null) }
     var retry by remember { mutableStateOf(0) }
     var showBuildSelection by remember { mutableStateOf(false) }
@@ -61,9 +70,19 @@ fun ReleaseDetailsScreen(tagName: String) {
     }
     LaunchedEffect(tagName, retry) {
         error = null
-        runCatching { ReleaseRepository.fetchRelease(tagName) }
-            .onSuccess { release = it; if (it == null) error = UiText.get(R.string.waex_ui_release_not_found, "Release not found.") }
-            .onFailure { error = it.message ?: UiText.get(R.string.waex_ui_unable_to_load_release, "Unable to load release.") }
+        runCatching { ReleaseRepository.fetchRelease(tagName, context) }
+            .onSuccess {
+                if (it != null) {
+                    release = it
+                } else if (release == null) {
+                    error = UiText.get(R.string.waex_ui_release_not_found, "Release not found.")
+                }
+            }
+            .onFailure {
+                if (release == null) {
+                    error = it.message ?: UiText.get(R.string.waex_ui_unable_to_load_release, "Unable to load release.")
+                }
+            }
     }
     Scaffold(topBar = { WaexTopBar(UiText.get(R.string.waex_ui_release_details, "Release Details"), onBackClick = { nav.popBack() }) }, containerColor = colors.background) { insets ->
         val item = release
@@ -128,10 +147,31 @@ fun ReleaseDetailsScreen(tagName: String) {
                     }
                 }
             }
-            error != null -> Column(Modifier.fillMaxSize().padding(insets).padding(spacing.pageMargin), Arrangement.Center, Alignment.CenterHorizontally) {
-                Text(error!!, color = colors.onSurfaceVariant)
-                Spacer(Modifier.height(16.dp))
-                Button(onClick = { retry++ }) { Text(UiText.get(R.string.waex_ui_try_again, "Try again")) }
+            error != null -> {
+                val isRateLimit = error?.contains("rate limit", ignoreCase = true) == true
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(insets)
+                        .padding(spacing.pageMargin),
+                    contentAlignment = Alignment.Center
+                ) {
+                    WaexEmptyState(
+                        title = if (isRateLimit) {
+                            UiText.get(R.string.waex_ui_github_rate_limited, "GitHub Rate Limit Exceeded")
+                        } else {
+                            UiText.get(R.string.waex_ui_unable_to_load_release, "Unable to load release.")
+                        },
+                        description = if (isRateLimit) {
+                            UiText.get(R.string.waex_ui_github_rate_limited_desc, "GitHub API limit reached. Pull to refresh or try again in a few minutes.")
+                        } else {
+                            error.orEmpty()
+                        },
+                        icon = if (isRateLimit) WaexIcons.Warning else WaexIcons.Info,
+                        actionText = UiText.get(R.string.waex_ui_try_again, "Try again"),
+                        onActionClick = { retry++ }
+                    )
+                }
             }
             else -> Box(Modifier.fillMaxSize().padding(insets), contentAlignment = Alignment.Center) { WaexCircularProgressIndicator(color = colors.primary) }
         }

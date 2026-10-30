@@ -56,7 +56,7 @@ object UpdateCheckCoordinator {
         scope.launch {
             try {
                 val installed = app.packageManager.getPackageInfo(app.packageName, 0).versionName ?: "0"
-                val releases = ReleaseRepository.fetchReleases()
+                val releases = ReleaseRepository.fetchReleases(app)
                 prefs.edit().putLong("update_last_check", now).apply()
                 val release = ReleaseRepository.findUpdate(releases, installed)
                 if (release == null) {

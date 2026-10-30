@@ -90,6 +90,15 @@ import com.waenhancer.update.normalizeVersion
 import com.waenhancer.utils.InternalLabels
 import java.text.DateFormat
 
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
+import com.waenhancer.ui.components.WaexEmptyState
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChangelogScreen() {
     val navController = LocalWaexNavController.current
@@ -99,8 +108,11 @@ fun ChangelogScreen() {
     val spacing = WaexTheme.spacing
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
-    var releases by remember { mutableStateOf<List<WaexRelease>>(emptyList()) }
-    var loading by remember { mutableStateOf(true) }
+    val pullToRefreshState = rememberPullToRefreshState()
+    val initialCachedReleases = remember { ReleaseRepository.getCachedReleases(context) }
+    var releases by remember { mutableStateOf<List<WaexRelease>>(initialCachedReleases) }
+    var loading by remember { mutableStateOf(initialCachedReleases.isEmpty()) }
+    var isRefreshing by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var reloadKey by remember { mutableStateOf(0) }
     var buildSelectionRelease by remember { mutableStateOf<WaexRelease?>(null) }
@@ -111,12 +123,26 @@ fun ChangelogScreen() {
     }
 
     LaunchedEffect(reloadKey) {
-        loading = true
+        if (releases.isEmpty()) {
+            loading = true
+        } else {
+            isRefreshing = true
+        }
         error = null
-        runCatching { ReleaseRepository.fetchReleases() }
-            .onSuccess { releases = it }
-            .onFailure { error = it.message ?: UiText.get(R.string.waex_ui_unable_to_load_releases, "Unable to load releases.") }
+        runCatching {
+            ReleaseRepository.fetchReleases(context, forceRefresh = reloadKey > 0)
+        }.onSuccess { fetched ->
+            releases = fetched
+        }.onFailure { err ->
+            val cached = ReleaseRepository.getCachedReleases(context)
+            if (cached.isNotEmpty()) {
+                releases = cached
+            } else {
+                error = err.message ?: UiText.get(R.string.waex_ui_unable_to_load_releases, "Unable to load releases.")
+            }
+        }
         loading = false
+        isRefreshing = false
     }
 
     val availableUpdate = ReleaseRepository.findUpdate(
@@ -137,21 +163,82 @@ fun ChangelogScreen() {
         },
         containerColor = colors.background
     ) { insets ->
-        when {
-            loading -> ChangelogSkeleton(
-                modifier = Modifier.padding(insets),
-                contentPadding = PaddingValues(horizontal = spacing.pageMargin, vertical = 16.dp)
-            )
-            error != null -> Column(Modifier.fillMaxSize().padding(insets).padding(spacing.pageMargin), Arrangement.Center, Alignment.CenterHorizontally) {
-                Text(error!!, color = colors.onSurfaceVariant, style = typography.bodyMd)
-                Spacer(Modifier.height(16.dp))
-                Button(onClick = { reloadKey++ }) { Text(UiText.get(R.string.waex_ui_try_again, "Try again")) }
-            }
-            else -> LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(insets),
-                contentPadding = PaddingValues(horizontal = spacing.pageMargin, vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { reloadKey++ },
+            state = pullToRefreshState,
+            indicator = {
+                if (isRefreshing || pullToRefreshState.distanceFraction > 0f) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = 12.dp)
+                            .size(52.dp)
+                            .shadow(6.dp, RoundedCornerShape(18.dp)),
+                        shape = RoundedCornerShape(18.dp),
+                        color = colors.primaryContainer,
+                        contentColor = colors.primary
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            if (isRefreshing) {
+                                LoadingIndicator(
+                                    modifier = Modifier.size(30.dp),
+                                    color = colors.primary
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = WaexIcons.Refresh,
+                                    contentDescription = UiText.get(R.string.waex_ui_refresh, "Refresh"),
+                                    modifier = Modifier
+                                        .size(22.dp)
+                                        .graphicsLayer {
+                                            rotationZ = 180f * pullToRefreshState.distanceFraction.coerceIn(0f, 1f)
+                                        }
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(insets)
+        ) {
+            when {
+                loading -> ChangelogSkeleton(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = spacing.pageMargin, vertical = 16.dp)
+                )
+                error != null && releases.isEmpty() -> {
+                    val isRateLimit = error?.contains("rate limit", ignoreCase = true) == true
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = spacing.pageMargin, vertical = 32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        WaexEmptyState(
+                            title = if (isRateLimit) {
+                                UiText.get(R.string.waex_ui_github_rate_limited, "GitHub Rate Limit Exceeded")
+                            } else {
+                                UiText.get(R.string.waex_ui_unable_to_load_releases, "Unable to load releases.")
+                            },
+                            description = if (isRateLimit) {
+                                UiText.get(R.string.waex_ui_github_rate_limited_desc, "GitHub API limit reached. Pull to refresh or try again in a few minutes.")
+                            } else {
+                                error.orEmpty()
+                            },
+                            icon = if (isRateLimit) WaexIcons.Warning else WaexIcons.Info,
+                            actionText = UiText.get(R.string.waex_ui_try_again, "Try again"),
+                            onActionClick = { reloadKey++ }
+                        )
+                    }
+                }
+                else -> LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = spacing.pageMargin, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
                 if (releases.isEmpty()) item { Text(UiText.get(R.string.waex_ui_no_releases_found, "No releases found."), color = colors.onSurfaceVariant) }
                 if (releases.isNotEmpty()) {
                     item {
@@ -308,7 +395,7 @@ fun ChangelogScreen() {
                                         comparison > 0 -> UiText.get(R.string.waex_ui_upgrade, "Upgrade")
                                         else -> UiText.get(R.string.waex_ui_downgrade, "Downgrade")
                                     }
-                                    Text(buttonText)
+                                Text(buttonText)
                                 }
                             }
                         }
@@ -317,6 +404,7 @@ fun ChangelogScreen() {
             }
         }
     }
+}
 
     buildSelectionRelease?.let { rel ->
         BuildTypeSelectionSheet(
