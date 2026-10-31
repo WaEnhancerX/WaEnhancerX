@@ -61,6 +61,8 @@ public final class PreferenceSchema {
         }
     }
 
+    public static final String KEY_FORCE_TARGET_DEBUGGABLE = "force_target_debuggable";
+
     private static final Map<String, Entry> ENTRIES;
     private static final Set<String> EXPORTABLE;
     private static final Set<String> PUBLIC_KEYS;
@@ -68,6 +70,7 @@ public final class PreferenceSchema {
 
     static {
         Map<String, Entry> entries = new LinkedHashMap<>();
+        add(entries, KEY_FORCE_TARGET_DEBUGGABLE, Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "active_xposed_api_version", Type.INT, Sensitivity.RUNTIME, Store.PUBLIC);
         add(entries, "active_xposed_framework", Type.STRING, Sensitivity.RUNTIME, Store.PUBLIC);
         add(entries, "admin_emoji", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);

@@ -23,7 +23,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Language
+import com.waenhancer.app.BuildConfig
+import com.waenhancer.config.PreferenceSchema
+import com.waenhancer.ui.components.BannerType
+import com.waenhancer.ui.components.StitchSwitch
+import com.waenhancer.ui.components.WaexInfoBanner
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -195,6 +201,46 @@ fun ModuleSettingsScreen() {
                     icon = Icons.Rounded.Language,
                     onClick = { showLanguageSheet = true }
                 )
+            }
+
+            // 5. Developer Options (Debug build only)
+            if (BuildConfig.DEBUG) {
+                var forceTargetDebuggable by remember {
+                    mutableStateOf(preferences.getBoolean(PreferenceSchema.KEY_FORCE_TARGET_DEBUGGABLE, false))
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "DEVELOPER OPTIONS",
+                        style = WaexTheme.typography.labelSm,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.primary,
+                        letterSpacing = 0.5.sp,
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
+                    ModuleSettingsSwitchTile(
+                        title = "Make target apps debuggable",
+                        description = "Forces JDWP debugger and debug flags on all target WhatsApp applications. Make sure Wa Enhancer X module has System Framework scope enabled in LSPosed/Xposed.",
+                        icon = Icons.Rounded.BugReport,
+                        checked = forceTargetDebuggable,
+                        onCheckedChange = { isChecked ->
+                            forceTargetDebuggable = isChecked
+                            preferences.putBoolean(PreferenceSchema.KEY_FORCE_TARGET_DEBUGGABLE, isChecked)
+                        }
+                    )
+                    if (forceTargetDebuggable) {
+                        WaexInfoBanner(
+                            title = "Xposed Scope & Restart Required",
+                            message = "Make sure the Wa Enhancer X module has 'System Framework' (android) enabled under its scope in LSPosed/Xposed. Then force-stop and restart WhatsApp for debugging to take effect.",
+                            bannerType = BannerType.INFO
+                        )
+                    }
+                    WaexInfoBanner(
+                        title = "Developer Notice",
+                        message = "This option is strictly for developers only. Enabling it allows external debuggers to attach to WhatsApp, which can make your app vulnerable and expose active memory. Only turn this on if you know what it means and need it for development.",
+                        bannerType = BannerType.WARNING
+                    )
+                }
             }
         }
     }
@@ -641,6 +687,65 @@ private fun ModuleSettingsTile(
             )
         }
     }
+    }
+}
+
+@Composable
+private fun ModuleSettingsSwitchTile(
+    title: String,
+    description: String,
+    icon: ImageVector,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    val colors = WaexTheme.colors
+    val typography = WaexTheme.typography
+
+    Surface(
+        shape = WaexTheme.radius.cardShape,
+        color = colors.surfaceContainerLow,
+        border = BorderStroke(1.dp, colors.outlineVariant),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(colors.primary.copy(alpha = 0.14f), WaexTheme.radius.mdShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = colors.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = typography.bodyMd,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.onSurface
+                )
+                Text(
+                    text = description,
+                    style = typography.bodySm,
+                    color = colors.onSurfaceVariant
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            StitchSwitch(
+                checked = checked,
+                onCheckedChange = onCheckedChange
+            )
+        }
     }
 }
 

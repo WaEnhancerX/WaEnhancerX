@@ -18,7 +18,11 @@ import android.os.Process;
 import android.widget.Toast;
 import java.lang.reflect.Field;
 
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
+import com.waenhancer.app.BuildConfig;
 import com.waenhancer.app.R;
+import com.waenhancer.config.PreferenceSchema;
 import com.waenhancer.config.PreferenceStores;
 import com.waenhancer.licensing.customprops.CustomAbPropsRuntime;
 import com.waenhancer.utils.UiText;
@@ -95,6 +99,121 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
         String packageName = lpparam.packageName;
         if (packageName == null) return;
+
+        // System Framework Hook (Developer Options: JDWP debugger for target WhatsApp packages)
+        if ("android".equals(packageName)) {
+            if (BuildConfig.DEBUG) {
+                try {
+                    XC_MethodHook startHook = new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) {
+                            try {
+                                if (param.args == null || param.args.length < 6) return;
+                                Object arg1 = param.args[1];
+                                String processName = arg1 instanceof String ? (String) arg1 : null;
+                                if (processName != null && WhatsAppPackageDetector.isWhatsAppPackageName(processName)) {
+                                    XSharedPreferences prefs = getPrefs();
+                                    if (prefs != null) {
+                                        prefs.reload();
+                                        if (prefs.getBoolean(PreferenceSchema.KEY_FORCE_TARGET_DEBUGGABLE, false)) {
+                                            int runtimeFlags = ((Number) param.args[5]).intValue();
+                                            param.args[5] = runtimeFlags | 1; // 1 = Zygote.DEBUG_ENABLE_JDWP
+                                            XposedBridge.log("[WAEX] Debugger (JDWP) enabled for: " + processName);
+                                        }
+                                    }
+                                }
+                            } catch (Throwable t) {
+                                XposedBridge.log("[WAEX] Process start hook error: " + t.getMessage());
+                            }
+                        }
+                    };
+
+                    XposedBridge.hookAllMethods(Process.class, "start", startHook);
+
+                    try {
+                        Class<?> processListClass = XposedHelpers.findClass("com.android.server.am.ProcessList", lpparam.classLoader);
+                        XposedBridge.hookAllMethods(processListClass, "startProcessLocked", new XC_MethodHook() {
+                            @Override
+                            protected void beforeHookedMethod(MethodHookParam param) {
+                                try {
+                                    if (param.args == null) return;
+                                    for (Object arg : param.args) {
+                                        if (arg == null) continue;
+                                        if (arg.getClass().getName().contains("ProcessRecord")) {
+                                            ApplicationInfo info = (ApplicationInfo) XposedHelpers.getObjectField(arg, "info");
+                                            if (info != null && info.packageName != null && WhatsAppPackageDetector.isWhatsAppPackageName(info.packageName)) {
+                                                XSharedPreferences prefs = getPrefs();
+                                                if (prefs != null) {
+                                                    prefs.reload();
+                                                    if (prefs.getBoolean(PreferenceSchema.KEY_FORCE_TARGET_DEBUGGABLE, false)) {
+                                                        info.flags |= ApplicationInfo.FLAG_DEBUGGABLE;
+                                                        XposedBridge.log("[WAEX] ProcessList: forced FLAG_DEBUGGABLE on ProcessRecord." + info.packageName);
+                                                    }
+                                                }
+                                            }
+                                        } else if (arg instanceof ApplicationInfo) {
+                                            ApplicationInfo ai = (ApplicationInfo) arg;
+                                            if (ai.packageName != null && WhatsAppPackageDetector.isWhatsAppPackageName(ai.packageName)) {
+                                                XSharedPreferences prefs = getPrefs();
+                                                if (prefs != null) {
+                                                    prefs.reload();
+                                                    if (prefs.getBoolean(PreferenceSchema.KEY_FORCE_TARGET_DEBUGGABLE, false)) {
+                                                        ai.flags |= ApplicationInfo.FLAG_DEBUGGABLE;
+                                                        XposedBridge.log("[WAEX] ProcessList: forced FLAG_DEBUGGABLE on ApplicationInfo." + ai.packageName);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                } catch (Throwable t) {
+                                    XposedBridge.log("[WAEX] ProcessList hook error: " + t.getMessage());
+                                }
+                            }
+                        });
+                    } catch (Throwable t) {
+                        XposedBridge.log("[WAEX] Failed to hook ProcessList: " + t.getMessage());
+                    }
+
+                    try {
+                        Class<?> amsClass = XposedHelpers.findClass("com.android.server.am.ActivityManagerService", lpparam.classLoader);
+                        XC_MethodHook amsHook = new XC_MethodHook() {
+                            @Override
+                            protected void beforeHookedMethod(MethodHookParam param) {
+                                try {
+                                    if (param.args == null) return;
+                                    for (Object arg : param.args) {
+                                        if (arg instanceof ApplicationInfo) {
+                                            ApplicationInfo ai = (ApplicationInfo) arg;
+                                            if (ai.packageName != null && WhatsAppPackageDetector.isWhatsAppPackageName(ai.packageName)) {
+                                                XSharedPreferences prefs = getPrefs();
+                                                if (prefs != null) {
+                                                    prefs.reload();
+                                                    if (prefs.getBoolean(PreferenceSchema.KEY_FORCE_TARGET_DEBUGGABLE, false)) {
+                                                        ai.flags |= ApplicationInfo.FLAG_DEBUGGABLE;
+                                                        XposedBridge.log("[WAEX] AMS: forced FLAG_DEBUGGABLE on " + ai.packageName);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                } catch (Throwable t) {
+                                    XposedBridge.log("[WAEX] AMS hook error: " + t.getMessage());
+                                }
+                            }
+                        };
+                        XposedBridge.hookAllMethods(amsClass, "startProcessLocked", amsHook);
+
+                        Class<?> amsLocalClass = XposedHelpers.findClass("com.android.server.am.ActivityManagerService$LocalService", lpparam.classLoader);
+                        XposedBridge.hookAllMethods(amsLocalClass, "startProcess", amsHook);
+                    } catch (Throwable t) {
+                        XposedBridge.log("[WAEX] Failed to hook AMS: " + t.getMessage());
+                    }
+                } catch (Throwable t) {
+                    XposedBridge.log("[WAEX] Failed to register system debug hooks: " + t.getMessage());
+                }
+            }
+            return;
+        }
 
         // 1. Self Hook: verify module active inside WaEnhancerX UI
         if (packageName.equals(PACKAGE_MANAGER)) {
@@ -178,6 +297,21 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                             @Override
                             protected void afterHookedMethod(MethodHookParam param) {
                                 Context context = (Context) param.thisObject;
+                                if (BuildConfig.DEBUG) {
+                                    try {
+                                        boolean isDebuggableRequested = (preloadedPrefs != null
+                                                && preloadedPrefs.getBoolean(PreferenceSchema.KEY_FORCE_TARGET_DEBUGGABLE, false));
+                                        if (isDebuggableRequested) {
+                                            context.getApplicationInfo().flags |= ApplicationInfo.FLAG_DEBUGGABLE;
+                                            try {
+                                                android.webkit.WebView.setWebContentsDebuggingEnabled(true);
+                                            } catch (Throwable ignored) {}
+                                            XposedBridge.log("[WAEX] Forced FLAG_DEBUGGABLE on " + lpparam.packageName);
+                                        }
+                                    } catch (Throwable t) {
+                                        XposedBridge.log("[WAEX] Error setting debuggable flag: " + t.getMessage());
+                                    }
+                                }
                                 try {
                                     if (sPreferenceBridge == null) {
                                         synchronized (MainHook.class) {

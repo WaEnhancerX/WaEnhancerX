@@ -228,6 +228,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
 
     private void notifyChange() {
         try {
+            PreferenceStores.makePublicStoreReadable(context);
             context.getContentResolver().notifyChange(PREFS_URI, null);
         } catch (Throwable ignored) {}
     }
