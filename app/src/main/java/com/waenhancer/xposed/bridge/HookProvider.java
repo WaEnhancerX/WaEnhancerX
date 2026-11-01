@@ -22,6 +22,7 @@ import java.util.Set;
 import com.waenhancer.config.PreferenceSchema;
 import com.waenhancer.calls.CallRecordingRecord;
 import com.waenhancer.calls.CallRecordingStore;
+import com.waenhancer.core.transcription.TranscriptionRequestHandler;
 import com.waenhancer.licensing.LicenseManager;
 import com.waenhancer.licensing.ProFeatureGate;
 import com.waenhancer.licensing.features.BootloaderSpooferFeature;
@@ -294,6 +295,18 @@ public class HookProvider extends ContentProvider {
                 ArrayList<Bundle> operations = extras.getParcelableArrayList("operations");
                 return applyPreferenceChanges(context, prefs, callerUid,
                         extras.getBoolean("clear", false), operations);
+            }
+
+            if (TranscriptionRequestHandler.METHOD.equals(method) && extras != null) {
+                return TranscriptionRequestHandler.handle(context, extras);
+            }
+
+            if (TranscriptionRequestHandler.METHOD_READY.equals(method)) {
+                return TranscriptionRequestHandler.ready(context);
+            }
+
+            if (TranscriptionRequestHandler.METHOD_LOG.equals(method) && extras != null) {
+                return TranscriptionRequestHandler.log(context, extras);
             }
 
             if ("record_preserved_message".equals(method) && extras != null) {

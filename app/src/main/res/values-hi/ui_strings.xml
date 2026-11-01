@@ -1046,4 +1046,59 @@
     <string name="waex_ui_hma_reason_preset">"एचएमए \"एक्सपोज़्ड\" प्रीसेट द्वारा छिपाया गया"</string>
     <string name="waex_ui_deleted_a_status">"एक स्थिति हटा दी गई"</string>
     <string name="waex_ui_restarting_whatsapp_short">"पुनः आरंभ हो रहा है WhatsApp…"</string>
+    <string name="waex_ui_adds_to_the_message_field_tap_to_recor" formatted="false">"संदेश फ़ील्ड में 🎙️ जोड़ता है। रिकॉर्ड करने के लिए टैप करें, टेक्स्ट डालने के लिए दोबारा टैप करें।"</string>
+    <string name="waex_ui_automatic" formatted="false">"स्वचालित"</string>
+    <string name="waex_ui_clear" formatted="false">"स्पष्ट"</string>
+    <string name="waex_ui_connection_failed" formatted="false">"कनेक्शन विफल"</string>
+    <string name="waex_ui_copy" formatted="false">"प्रतिलिपि"</string>
+    <string name="waex_ui_could_not_start_recording" formatted="false">"रिकॉर्डिंग प्रारंभ नहीं हो सकी."</string>
+    <string name="waex_ui_custom_api_key" formatted="false">"कस्टम API कुंजी"</string>
+    <string name="waex_ui_custom_endpoint_url" formatted="false">"कस्टम समापनबिंदु यूआरएल"</string>
+    <string name="waex_ui_dictation_button" formatted="false">"डिक्टेशन बटन"</string>
+    <string name="waex_ui_find_models" formatted="false">"मॉडल खोजें"</string>
+    <string name="waex_ui_hide" formatted="false">"छिपाओ"</string>
+    <string name="waex_ui_log_copied" formatted="false">"लॉग कॉपी किया गया"</string>
+    <string name="waex_ui_model_name" formatted="false">"मॉडल का नाम"</string>
+    <string name="waex_ui_new_voice_note" formatted="false">"नया वॉयस नोट"</string>
+    <string name="waex_ui_no_entries_yet" formatted="false">"अभी तक कोई प्रविष्टि नहीं."</string>
+    <string name="waex_ui_no_speech_detected" formatted="false">"कोई भाषण नहीं मिला."</string>
+    <string name="waex_ui_off_each_new_voice_note_sent_or_receiv" formatted="false">"बंद: भेजे गए या प्राप्त किए गए प्रत्येक नए वॉयस नोट को ट्रांसक्राइब बटन के साथ एक अधिसूचना मिलती है।"</string>
+    <string name="waex_ui_recording_tap_to_stop" formatted="false">"रिकॉर्डिंग... रोकने के लिए ⏹️ टैप करें।"</string>
+    <string name="waex_ui_recording_too_short" formatted="false">"रिकॉर्डिंग बहुत छोटी है."</string>
+    <string name="waex_ui_refresh" formatted="false">"ताज़ा करें"</string>
+    <string name="waex_ui_searching" formatted="false">"खोज रहा हूँ..."</string>
+    <string name="waex_ui_show" formatted="false">"दिखाओ"</string>
+    <string name="waex_ui_shows_next_to_the_time_of_voice_notes" formatted="false">"चैट में वॉयस नोट्स के समय के आगे 📝 दिखाता है। प्रतिलेख पढ़ने के लिए इसे टैप करें।"</string>
+    <string name="waex_ui_steps_and_errors_only_transcripts_and" formatted="false">"केवल चरण और त्रुटियाँ। प्रतिलेख और संदेश पाठ कभी भी लॉग नहीं किए जाते हैं।"</string>
+    <string name="waex_ui_tap_transcribe_to_turn_it_into_text" formatted="false">"इसे टेक्स्ट में बदलने के लिए ट्रांसक्राइब पर टैप करें।"</string>
+    <string name="waex_ui_transcribe" formatted="false">"प्रतिलेखन"</string>
+    <string name="waex_ui_transcribe_automatically" formatted="false">"स्वचालित रूप से प्रतिलेखित करें"</string>
+    <string name="waex_ui_transcribing_voice_note" formatted="false">"ध्वनि नोट का प्रतिलेखन किया जा रहा है..."</string>
+    <string name="waex_ui_transcript_button_on_voice_notes" formatted="false">"वॉयस नोट्स पर ट्रांसक्रिप्ट बटन"</string>
+    <string name="waex_ui_transcript_copied" formatted="false">"प्रतिलेख की प्रतिलिपि बनाई गई"</string>
+    <string name="waex_ui_transcription_failed" formatted="false">"प्रतिलेखन विफल रहा"</string>
+    <string name="waex_ui_transcription_language" formatted="false">"प्रतिलेखन भाषा"</string>
+    <string name="waex_ui_transcription_log" formatted="false">"प्रतिलेखन लॉग"</string>
+    <string name="waex_ui_uses_the_openai_audio_transcriptions_r" formatted="false">"OpenAI /ऑडियो/ट्रांसक्रिप्शन अनुरोध प्रारूप का उपयोग करता है।"</string>
+    <string name="waex_ui_voice_note_is_too_long_to_transcribe" formatted="false">"वॉइस नोट को ट्रांसक्राइब करने के लिए बहुत लंबा है।"</string>
+    <string name="waex_ui_voice_note_transcript" formatted="false">"ध्वनि नोट प्रतिलेख"</string>
+    <string name="waex_ui_waex_voice_transcripts" formatted="false">"WAEX आवाज प्रतिलेख"</string>
+    <string name="waex_ui_whatsapp_needs_microphone_access_to_di" formatted="false">"WhatsApp को निर्देश देने के लिए माइक्रोफ़ोन पहुंच की आवश्यकता है।"</string>
+    <string name="waex_ui_balanced_speed_and_accuracy" formatted="false">"संतुलित गति और सटीकता"</string>
+    <string name="waex_ui_cancel" formatted="false">"रद्द करें"</string>
+    <string name="waex_ui_delete" formatted="false">"हटाएँ"</string>
+    <string name="waex_ui_download_suggested_model" formatted="false">"सुझाया गया मॉडल डाउनलोड करें"</string>
+    <string name="waex_ui_english_only_more_accurate_for_english" formatted="false">"केवल अंग्रेज़ी: अंग्रेज़ी के लिए अधिक सटीक"</string>
+    <string name="waex_ui_fast_fair_accuracy" formatted="false">"तेज़, निष्पक्ष सटीकता"</string>
+    <string name="waex_ui_fastest_lowest_accuracy" formatted="false">"सबसे तेज़, सबसे कम सटीकता"</string>
+    <string name="waex_ui_in_use" formatted="false">"प्रयोग में है"</string>
+    <string name="waex_ui_may_be_too_heavy_for_this_phone" formatted="false">"इस फ़ोन के लिए बहुत भारी हो सकता है"</string>
+    <string name="waex_ui_most_accurate_slow" formatted="false">"सबसे सटीक, धीमा"</string>
+    <string name="waex_ui_on_device_models" formatted="false">"ऑन-डिवाइस मॉडल"</string>
+    <string name="waex_ui_on_device_transcription_isn_t_availabl" formatted="false">"इस फ़ोन पर ऑन-डिवाइस ट्रांस्क्रिप्शन उपलब्ध नहीं है"</string>
+    <string name="waex_ui_runs_on_your_phone_nothing_is_uploaded" formatted="false">"आपके फ़ोन पर चलता है, कुछ भी अपलोड नहीं होता है. बड़े मॉडल अधिक सटीक लेकिन धीमे होते हैं।"</string>
+    <string name="waex_ui_selected_download_it_to_start_using_it" formatted="false">"चयनित: इसका उपयोग शुरू करने के लिए इसे डाउनलोड करें।"</string>
+    <string name="waex_ui_suggested" formatted="false">"सुझाव दिया"</string>
+    <string name="waex_ui_tap_a_model_to_choose_it_the_suggested" formatted="false">"किसी मॉडल को चुनने के लिए उस पर टैप करें। सुझाए गए का उपयोग तब तक किया जाता है जब तक आप दूसरा नहीं चुन लेते।"</string>
+    <string name="waex_ui_this_phone" formatted="false">"यह फ़ोन"</string>
 </resources>
