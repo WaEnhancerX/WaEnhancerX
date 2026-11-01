@@ -1055,7 +1055,6 @@
     <string name="waex_ui_off_each_new_voice_note_sent_or_receiv" formatted="false">"Off: each new voice note, sent or received, gets a notification with a Transcribe button."</string>
     <string name="waex_ui_recording_tap_to_stop" formatted="false">"Recording… tap ⏹️ to stop."</string>
     <string name="waex_ui_recording_too_short" formatted="false">"Recording too short."</string>
-    <string name="waex_ui_refresh" formatted="false">"Refresh"</string>
     <string name="waex_ui_searching" formatted="false">"Searching…"</string>
     <string name="waex_ui_show" formatted="false">"Show"</string>
     <string name="waex_ui_shows_next_to_the_time_of_voice_notes" formatted="false">"Shows 📝 next to the time of voice notes in chats. Tap it to read the transcript."</string>
