@@ -1044,7 +1044,7 @@
     <string name="waex_ui_could_not_start_recording" formatted="false">"Could not start recording."</string>
     <string name="waex_ui_custom_api_key" formatted="false">"Custom API Key"</string>
     <string name="waex_ui_custom_endpoint_url" formatted="false">"Custom Endpoint URL"</string>
-    <string name="waex_ui_dictation_button" formatted="false">"Dictation button"</string>
+    <string name="waex_ui_dictation_button" formatted="false">"Dictation button [Experimental]"</string>
     <string name="waex_ui_find_models" formatted="false">"Find models"</string>
     <string name="waex_ui_hide" formatted="false">"Hide"</string>
     <string name="waex_ui_log_copied" formatted="false">"Log copied"</string>

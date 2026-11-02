@@ -563,7 +563,7 @@ fun AutomationTaskerScreen() {
                                     verticalArrangement = Arrangement.spacedBy(2.dp)
                                 ) {
                                     Text(
-                                        text = UiText.get(R.string.waex_ui_dictation_button, "Dictation button"),
+                                        text = UiText.get(R.string.waex_ui_dictation_button, "Dictation button [Experimental]"),
                                         style = typography.bodyMd,
                                         fontWeight = FontWeight.SemiBold,
                                         color = colors.onSurface
