@@ -114,9 +114,17 @@ public final class VoiceDictationHook extends BaseFeature {
         if (drawables[2] != null && !(drawables[2] instanceof GlyphDrawable)) return; // Not ours to replace.
         if (XposedHelpers.getAdditionalInstanceField(field, FIELD_ATTACHED) == null) {
             XposedHelpers.setAdditionalInstanceField(field, FIELD_ATTACHED, Boolean.TRUE);
+            attachTouchListener(field);
             hookTouches(field.getClass());
         }
         if (state == State.IDLE || recordingField.get() != field) setGlyph(field, MIC);
+    }
+
+    private void attachTouchListener(EditText field) {
+        field.setOnTouchListener((v, event) -> {
+            if (disabled.get() || !(v instanceof EditText)) return false;
+            return onFieldTouch((EditText) v, event);
+        });
     }
 
     private void retryAttach(Activity activity, int attempt) {
@@ -166,18 +174,33 @@ public final class VoiceDictationHook extends BaseFeature {
     private void hookTouches(Class<?> fieldClass) {
         if (!hookedFieldClasses.add(fieldClass)) return;
         try {
-            Method onTouchEvent = XposedHelpers.findMethodBestMatch(fieldClass, "onTouchEvent", MotionEvent.class);
-            XposedBridge.hookMethod(onTouchEvent, new XC_MethodHook() {
-                @Override
-                protected void beforeHookedMethod(MethodHookParam param) {
-                    if (!(param.thisObject instanceof EditText) || disabled.get()) return;
-                    EditText field = (EditText) param.thisObject;
-                    if (XposedHelpers.getAdditionalInstanceField(field, FIELD_ATTACHED) == null) return;
-                    boolean[] consumed = new boolean[1];
-                    safe(() -> consumed[0] = onFieldTouch(field, (MotionEvent) param.args[0])).run();
-                    if (consumed[0]) param.setResult(true);
-                }
-            });
+            Method onTouchEvent = null;
+            try {
+                onTouchEvent = fieldClass.getMethod("onTouchEvent", MotionEvent.class);
+            } catch (Throwable ignored) {}
+            if (onTouchEvent == null) {
+                try {
+                    onTouchEvent = XposedHelpers.findMethodExactIfExists(fieldClass, "onTouchEvent", MotionEvent.class);
+                } catch (Throwable ignored) {}
+            }
+            if (onTouchEvent == null) {
+                try {
+                    onTouchEvent = XposedHelpers.findMethodBestMatch(fieldClass, "onTouchEvent", MotionEvent.class);
+                } catch (Throwable ignored) {}
+            }
+            if (onTouchEvent != null) {
+                XposedBridge.hookMethod(onTouchEvent, new XC_MethodHook() {
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam param) {
+                        if (!(param.thisObject instanceof EditText) || disabled.get()) return;
+                        EditText field = (EditText) param.thisObject;
+                        if (XposedHelpers.getAdditionalInstanceField(field, FIELD_ATTACHED) == null) return;
+                        boolean[] consumed = new boolean[1];
+                        safe(() -> consumed[0] = onFieldTouch(field, (MotionEvent) param.args[0])).run();
+                        if (consumed[0]) param.setResult(true);
+                    }
+                });
+            }
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Touch hook unavailable: " + t.getClass().getSimpleName());
         }
@@ -189,8 +212,10 @@ public final class VoiceDictationHook extends BaseFeature {
         if (!(button instanceof GlyphDrawable)) return false;
         boolean pressed = XposedHelpers.getAdditionalInstanceField(field, FIELD_PRESSED) != null;
         float x = event.getX();
-        boolean inside = x >= field.getWidth() - field.getTotalPaddingRight()
-                && x <= field.getWidth() - field.getPaddingRight() + 8;
+        // Allow a generous touch hit area on the right side of the EditText
+        int rightBoundary = field.getWidth();
+        int leftBoundary = Math.max(0, rightBoundary - Math.max(field.getTotalPaddingRight(), dp(field.getContext(), 48)));
+        boolean inside = x >= leftBoundary && x <= rightBoundary;
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
                 if (!inside) return false;
@@ -208,6 +233,11 @@ public final class VoiceDictationHook extends BaseFeature {
             default:
                 return pressed;
         }
+    }
+
+    private static int dp(Context ctx, int dp) {
+        return Math.round(android.util.TypedValue.applyDimension(
+                android.util.TypedValue.COMPLEX_UNIT_DIP, dp, ctx.getResources().getDisplayMetrics()));
     }
 
     // ─── Recording and transcribing ─────────────────────────────────────

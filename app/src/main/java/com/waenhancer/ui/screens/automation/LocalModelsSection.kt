@@ -33,8 +33,10 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Surface
@@ -75,6 +77,7 @@ import kotlin.math.sin
  * download progress indicators, and device capability masthead.
  */
 @Composable
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 fun LocalModelsSection(language: String = "") {
     val context = LocalContext.current
     val preferenceManager = LocalWaexPreferenceManager.current
@@ -372,17 +375,17 @@ fun LocalModelsSection(language: String = "") {
                             }
                         }
 
-                        // Wave download progress
+                        // Official Material 3 Expressive wavy download progress
                         if (isDownloading && progress != null) {
                             val fraction = if (progress.totalBytes > 0)
-                                progress.downloadedBytes.toFloat() / progress.totalBytes else 0f
-                            WaveProgressBar(
-                                progress = fraction,
-                                waveColor = colors.primary,
-                                trackColor = colors.outlineVariant.copy(alpha = 0.25f),
+                                (progress.downloadedBytes.toFloat() / progress.totalBytes).coerceIn(0f, 1f) else 0f
+                            LinearWavyProgressIndicator(
+                                progress = { fraction },
+                                color = colors.primary,
+                                trackColor = colors.surfaceContainerHighest,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(top = 2.dp)
+                                    .padding(top = 4.dp, bottom = 2.dp)
                             )
                         }
                     }
@@ -441,100 +444,6 @@ fun LocalModelsSection(language: String = "") {
     }
 }
 
-/**
- * Material 3 Expressive wave progress bar.
- *
- * - Two sine waves (primary + secondary at half amplitude & 90° phase offset) for depth
- * - Amplitude envelope: ramps up from the left edge and damps near the fill head
- *   so the wave "emerges" from zero and "dies" cleanly at the progress frontier
- * - Pill-shaped (fully rounded) track in M3 surfaceContainerHighest style
- * - No text, no borders — pure kinetic motion
- */
-@Composable
-private fun WaveProgressBar(
-    progress: Float,
-    waveColor: Color,
-    trackColor: Color,
-    modifier: Modifier = Modifier
-) {
-    val animatedProgress by animateFloatAsState(
-        targetValue = progress.coerceIn(0f, 1f),
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
-        label = "waveProgress"
-    )
-
-    val infiniteTransition = rememberInfiniteTransition(label = "wavePhase")
-    // Primary wave phase: scrolls left-to-right
-    val phase by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = (2f * Math.PI).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1400, easing = LinearEasing)
-        ),
-        label = "wavePhase"
-    )
-
-    Canvas(
-        modifier = modifier
-            .clip(RoundedCornerShape(50))
-            .height(6.dp)
-    ) {
-        val w = size.width
-        val h = size.height
-        val fillX = w * animatedProgress
-
-        // ── Track ────────────────────────────────────────────────────────
-        drawRect(color = trackColor, size = size)
-
-        if (animatedProgress <= 0f) return@Canvas
-
-        // ── Wave parameters ───────────────────────────────────────────────
-        val maxAmp   = h * 0.42f          // max peak amplitude
-        val freq     = 3.2f               // number of full cycles across the fill width
-        val steps    = 180                // path resolution
-
-        val wavePath = Path()
-        var first = true
-
-        for (i in 0..steps) {
-            val t  = i / steps.toFloat()  // 0..1 along fillX
-            val x  = t * fillX
-
-            // Envelope: smooth ramp-up from left (0→1 over first 15%) and
-            // smooth damp near the frontier (1→0 over last 20%)
-            val leftRamp  = (t / 0.15f).coerceIn(0f, 1f)
-            val rightDamp = ((1f - t) / 0.20f).coerceIn(0f, 1f)
-            val envelope  = leftRamp * rightDamp
-
-            // Primary wave + secondary wave at half amplitude & 90° offset
-            val primary   = sin((t * freq * 2f * Math.PI.toFloat()) + phase)
-            val secondary = sin((t * freq * 2f * Math.PI.toFloat()) + phase + Math.PI.toFloat() / 2f) * 0.45f
-            val y = (h / 2f) - maxAmp * envelope * (primary + secondary).toFloat()
-
-            if (first) { wavePath.moveTo(x, y); first = false }
-            else wavePath.lineTo(x, y)
-        }
-
-        // Close fill path along bottom
-        wavePath.lineTo(fillX, h)
-        wavePath.lineTo(0f, h)
-        wavePath.close()
-
-        drawPath(path = wavePath, color = waveColor)
-
-        // ── Leading-edge soft glow ─────────────────────────────────────────
-        if (animatedProgress < 0.98f) {
-            drawCircle(
-                color = waveColor.copy(alpha = 0.4f),
-                radius = h * 0.65f,
-                center = Offset(fillX, h / 2f)
-            )
-        }
-    }
-}
 
 /** One line about speed and accuracy for each model size. */
 private fun hint(model: LocalModels.Model): String {
