@@ -158,13 +158,6 @@ fun AutomationTaskerScreen() {
     var discoveredModels by remember { mutableStateOf(emptyList<String>()) }
     var showModelDropdown by remember { mutableStateOf(false) }
     var discoveryError by remember { mutableStateOf("") }
-    var transcriptionLanguage by remember { mutableStateOf(preferenceManager.getString("transcription_language", "")) }
-    var showLanguageDropdown by remember { mutableStateOf(false) }
-    val transcriptionLanguages = listOf(
-        "" to UiText.get(R.string.waex_ui_automatic, "Automatic"),
-        "sk" to "Slovenčina", "cs" to "Čeština", "en" to "English", "de" to "Deutsch",
-        "hu" to "Magyar", "pl" to "Polski", "uk" to "Українська", "es" to "Español"
-    )
     var groqKey by remember { mutableStateOf(preferenceManager.getString("groq_key", "")) }
 
 
@@ -549,7 +542,7 @@ fun AutomationTaskerScreen() {
                                         color = colors.onSurface
                                     )
                                     Text(
-                                        text = UiText.get(R.string.waex_ui_shows_next_to_the_time_of_voice_notes, "Shows 📝 next to the time of voice notes in chats. Tap it to read the transcript."),
+                                        text = "Adds a CC icon next to the timestamp on each voice note bubble. Tap the CC icon to transcribe that message.",
                                         style = typography.labelSm,
                                         color = colors.onSurfaceVariant
                                     )
@@ -576,7 +569,7 @@ fun AutomationTaskerScreen() {
                                         color = colors.onSurface
                                     )
                                     Text(
-                                        text = UiText.get(R.string.waex_ui_adds_to_the_message_field_tap_to_recor, "Adds 🎙️ to the message field. Tap to record, tap again to insert the text."),
+                                        text = "Adds a 🎙️ to the message text field. Tap to record speech, tap again to insert it as text.",
                                         style = typography.labelSm,
                                         color = colors.onSurfaceVariant
                                     )
@@ -591,42 +584,59 @@ fun AutomationTaskerScreen() {
                                 )
                             }
 
-                            // Provider Dropdown selection
-                            Column {
+
+                            // Provider Segmented / Pill selection
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
                                 Text(
-                                    text = UiText.get(R.string.waex_ui_ai_transcription_provider, "AI Transcription Provider"),
+                                    text = UiText.get(R.string.waex_ui_ai_transcription_provider, "AI Transcription Engine"),
                                     style = typography.labelSm,
-                                    color = colors.onSurfaceVariant,
-                                    modifier = Modifier.padding(bottom = 6.dp)
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = colors.onSurfaceVariant
                                 )
-                                Box {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(44.dp)
-                                            .clip(radius.mdShape)
-                                            .background(colors.surface)
-                                            .border(1.dp, colors.outlineVariant, radius.mdShape)
-                                            .clickable { showProviderDropdown = true }
-                                            .padding(horizontal = 12.dp),
-                                        contentAlignment = Alignment.CenterStart
-                                    ) {
-                                        Text(text = transcriptionProvider, style = typography.bodyMd, color = colors.onSurface)
-                                    }
-                                    DropdownMenu(
-                                        expanded = showProviderDropdown,
-                                        onDismissRequest = { showProviderDropdown = false }
-                                    ) {
-                                        listOf("Groq", "AssemblyAI", "Custom", "Local").forEach { provider ->
-                                            DropdownMenuItem(
-                                                text = { Text(text = provider, style = typography.bodyMd) },
-                                                onClick = {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    listOf(
+                                        "Local" to "Device",
+                                        "Groq" to "Groq",
+                                        "AssemblyAI" to "Assembly",
+                                        "Custom" to "Custom"
+                                    ).forEach { (provider, label) ->
+                                        val isSelected = transcriptionProvider == provider
+                                        Surface(
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = if (isSelected) colors.primary else colors.surfaceContainerLow,
+                                            border = androidx.compose.foundation.BorderStroke(
+                                                1.dp,
+                                                if (isSelected) colors.primary else colors.outlineVariant.copy(alpha = 0.5f)
+                                            ),
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(38.dp)
+                                                .clickable {
                                                     transcriptionProvider = provider
                                                     preferenceManager.putString("transcription_provider", provider)
                                                     connectionStatus = "idle"
-                                                    showProviderDropdown = false
                                                 }
-                                            )
+                                        ) {
+                                            Box(
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = label,
+                                                    style = typography.labelSm,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                    color = if (isSelected) colors.onPrimary else colors.onSurface,
+                                                    maxLines = 1
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -671,7 +681,7 @@ fun AutomationTaskerScreen() {
                                     }
                                 }
                             } else if (transcriptionProvider == "Local") {
-                                LocalModelsSection(language = transcriptionLanguage)
+                                LocalModelsSection()
                             } else if (transcriptionProvider == "Custom") {
                                 Text(
                                     text = UiText.get(R.string.waex_ui_uses_the_openai_audio_transcriptions_r, "Uses the OpenAI /audio/transcriptions request format."),
@@ -783,51 +793,6 @@ fun AutomationTaskerScreen() {
                                             cursorBrush = SolidColor(colors.primary),
                                             modifier = Modifier.fillMaxWidth()
                                         )
-                                    }
-                                }
-                            }
-
-                            // Spoken language: a fixed language is more accurate than detection
-                            Column {
-                                Text(
-                                    text = UiText.get(R.string.waex_ui_transcription_language, "Transcription language"),
-                                    style = typography.labelSm,
-                                    color = colors.onSurfaceVariant,
-                                    modifier = Modifier.padding(bottom = 6.dp)
-                                )
-                                Box {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(44.dp)
-                                            .clip(radius.mdShape)
-                                            .background(colors.surface)
-                                            .border(1.dp, colors.outlineVariant, radius.mdShape)
-                                            .clickable { showLanguageDropdown = true }
-                                            .padding(horizontal = 12.dp),
-                                        contentAlignment = Alignment.CenterStart
-                                    ) {
-                                        Text(
-                                            text = transcriptionLanguages.firstOrNull { it.first == transcriptionLanguage }?.second
-                                                ?: UiText.get(R.string.waex_ui_automatic, "Automatic"),
-                                            style = typography.bodyMd,
-                                            color = colors.onSurface
-                                        )
-                                    }
-                                    DropdownMenu(
-                                        expanded = showLanguageDropdown,
-                                        onDismissRequest = { showLanguageDropdown = false }
-                                    ) {
-                                        transcriptionLanguages.forEach { (code, label) ->
-                                            DropdownMenuItem(
-                                                text = { Text(text = label, style = typography.bodyMd) },
-                                                onClick = {
-                                                    transcriptionLanguage = code
-                                                    preferenceManager.putString("transcription_language", code)
-                                                    showLanguageDropdown = false
-                                                }
-                                            )
-                                        }
                                     }
                                 }
                             }

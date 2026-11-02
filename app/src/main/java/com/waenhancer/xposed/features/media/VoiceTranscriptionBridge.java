@@ -176,10 +176,15 @@ final class VoiceTranscriptionBridge {
         return sReady;
     }
 
-    @Nullable
     static String cached(@NonNull File audio) {
         synchronized (TRANSCRIPTS) {
             return TRANSCRIPTS.get(cacheKey(audio));
+        }
+    }
+
+    static void invalidateCache(@NonNull File audio) {
+        synchronized (TRANSCRIPTS) {
+            TRANSCRIPTS.remove(cacheKey(audio));
         }
     }
 

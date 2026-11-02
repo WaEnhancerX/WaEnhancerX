@@ -378,7 +378,7 @@ public final class PreferenceSchema {
         add(entries, "custom_transcription_url", Type.STRING, Sensitivity.PRIVATE_SETTING, Store.PRIVATE);
         add(entries, "custom_transcription_key", Type.STRING, Sensitivity.SECRET, Store.PRIVATE);
         add(entries, "custom_transcription_model", Type.STRING, Sensitivity.PRIVATE_SETTING, Store.PRIVATE);
-        add(entries, "transcription_language", Type.STRING, Sensitivity.PRIVATE_SETTING, Store.PRIVATE);
+        add(entries, "transcription_language", Type.STRING, Sensitivity.RUNTIME, Store.PUBLIC);
         add(entries, "local_model", Type.STRING, Sensitivity.PRIVATE_SETTING, Store.PRIVATE);
         add(entries, "typearchive", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "archive_open_via_menu", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
