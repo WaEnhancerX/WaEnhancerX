@@ -2,9 +2,11 @@
 - Added support for version 2.26.43.xx
 - Custom A/B Props support: Override WhatsApp AB properties
 - Search bar style
+- AI audio transcription with multiple models (Offline + Custom API)
 
 [Fixes]
 - Fixed Unread chats counter not showing on Groups tab in latest version
+- Fixed Status tabs indicator position
 
 [Improvements]
 - Improved Restart WhatsApp button to not turn on Auto Rotate.
@@ -17,3 +19,13 @@
     • More reliable detection
 - Improved module's UI
 - Improved chats pin logic
+
+
+[Feature: AI Audio Transcription]
+- Local whisper models (Offline)
+- Custom API support (Web API)
+- Multiple models support
+- Download models locally
+
+[Community contribution]
+- Thanks to @Tttim0o for valuable contributions in this update.

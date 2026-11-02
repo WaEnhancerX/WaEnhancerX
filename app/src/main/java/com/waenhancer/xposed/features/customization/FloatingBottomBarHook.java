@@ -102,6 +102,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
     private static final WeakHashMap<ViewGroup, ViewTreeObserver.OnPreDrawListener> ovalGeometryGuards = new WeakHashMap<>();
     private static final WeakHashMap<ViewGroup, ViewTreeObserver.OnPreDrawListener> selectorColorGuards = new WeakHashMap<>();
     private static final WeakHashMap<ViewGroup, ViewTreeObserver.OnPreDrawListener> iconColorGuards = new WeakHashMap<>();
+    private static final WeakHashMap<ViewGroup, ViewTreeObserver.OnPreDrawListener> statusBadgeGuards = new WeakHashMap<>();
     private static final WeakHashMap<ImageView, ColorStateList> originalIconTints = new WeakHashMap<>();
     private static final WeakHashMap<ViewGroup, Integer> forcedSelectedTabs = new WeakHashMap<>();
     private static final WeakHashMap<View, Boolean> renderedSelectedTabs = new WeakHashMap<>();
@@ -946,7 +947,63 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
             labelsGroup.setTranslationY(labelOffsetY);
         }
 
-        formatBadgeViews(tabItem, iconContainer, density);
+        alignNativeStatusBadge(tabItem, iconContainer);
+
+        // Keep WhatsApp's native badge/indicator implementation intact.  In particular, the
+        // status tab's unseen indicator is not an ordinary unread badge: recursively finding
+        // views named "indicator" and moving/replacing them here caused that indicator to be
+        // copied visually onto the chat/group tabs and also made badge updates depend on the
+        // floating-bar relayout/filter pass.  The floating bar only changes the tab geometry;
+        // WhatsApp remains responsible for badge visibility, filtering, and placement.
+    }
+
+    /**
+     * The native Updates badge is laid out against WhatsApp's original 56dp tab height. The
+     * floating bar makes the tab taller, but WhatsApp does not recompute this sibling badge, so
+     * it remains above the icon. Keep the native drawable and visibility; only follow the icon's
+     * final vertical position for the Updates tab.
+     */
+    private static void alignNativeStatusBadge(ViewGroup tabItem, View iconContainer) {
+        if (tabItem == null || iconContainer == null || !isUpdatesTab(tabItem)) return;
+        View badge = findViewByResourceName(tabItem, "bottom_nav_indicator_badge");
+        if (badge == null || badge.getVisibility() != View.VISIBLE) return;
+
+        int targetTop = Math.round(iconContainer.getTop() + iconContainer.getTranslationY());
+        int offset = targetTop - badge.getTop();
+        if (Math.abs(badge.getTranslationY() - offset) > 0.5f) {
+            badge.setTranslationY(offset);
+        }
+        badge.post(() -> {
+            if (badge.getVisibility() == View.VISIBLE) {
+                int currentTarget = Math.round(iconContainer.getTop() + iconContainer.getTranslationY());
+                badge.setTranslationY(currentTarget - badge.getTop());
+            }
+        });
+    }
+
+    private static boolean isUpdatesTab(View view) {
+        CharSequence description = view.getContentDescription();
+        return description != null && ("Updates".contentEquals(description)
+                || "Status".contentEquals(description));
+    }
+
+    private static View findViewByResourceName(View view, String resourceName) {
+        if (view == null) return null;
+        if (view.getId() != View.NO_ID) {
+            try {
+                if (resourceName.equals(view.getResources().getResourceEntryName(view.getId()))) {
+                    return view;
+                }
+            } catch (Throwable ignored) {}
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                View found = findViewByResourceName(group.getChildAt(i), resourceName);
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 
     private static void formatBadgeViews(ViewGroup tabItem, View iconContainer, float density) {
@@ -1375,6 +1432,60 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
             installIconColorGuard(bar);
         }
         applyPresetTabIndicators(bar, density);
+        installStatusBadgeGuard(bar, density);
+    }
+
+    private static void installStatusBadgeGuard(ViewGroup bar, float density) {
+        if (statusBadgeGuards.containsKey(bar)) return;
+        ViewTreeObserver.OnPreDrawListener guard = () -> {
+            alignStatusBadgesInBar(bar, density);
+            return true;
+        };
+        statusBadgeGuards.put(bar, guard);
+        bar.getViewTreeObserver().addOnPreDrawListener(guard);
+        bar.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override public void onViewAttachedToWindow(View view) {}
+
+            @Override public void onViewDetachedFromWindow(View view) {
+                ViewTreeObserver observer = view.getViewTreeObserver();
+                if (observer.isAlive()) observer.removeOnPreDrawListener(guard);
+                statusBadgeGuards.remove(bar);
+                view.removeOnAttachStateChangeListener(this);
+            }
+        });
+    }
+
+    private static void alignStatusBadgesInBar(ViewGroup bar, float density) {
+        for (int i = 0; i < bar.getChildCount(); i++) {
+            View child = bar.getChildAt(i);
+            if (!(child instanceof ViewGroup)) continue;
+            ViewGroup menu = (ViewGroup) child;
+            for (int j = 0; j < menu.getChildCount(); j++) {
+                View tab = menu.getChildAt(j);
+                if (!(tab instanceof ViewGroup) || !isUpdatesTab(tab)) continue;
+                View iconContainer = findViewByResourceName(tab, "navigation_bar_item_icon_container");
+                View iconView = findViewByResourceName(tab, "navigation_bar_item_icon_view");
+                View badge = findViewByResourceName(tab, "bottom_nav_indicator_badge");
+                if (iconContainer == null || iconView == null || badge == null
+                        || badge.getVisibility() != View.VISIBLE) continue;
+
+                // Match the native Chats badge using window coordinates. Local getTop()/getLeft()
+                // omit runtime tab translations, which made the Status dot stay at its original
+                // screen position after switching between Chats, Groups, and Updates.
+                int[] iconLocation = new int[2];
+                int[] badgeLocation = new int[2];
+                iconView.getLocationOnScreen(iconLocation);
+                badge.getLocationOnScreen(badgeLocation);
+                // Anchor the badge's top edge to the icon's top edge. With the native 24dp
+                // badge this places its center over the icon's top-right corner, matching the
+                // Chats badge instead of leaving the dot inside the icon.
+                int targetTop = Math.round(iconLocation[1]);
+                int targetLeft = Math.round(iconLocation[0] + iconView.getWidth()
+                        - (10f * density) - (badge.getWidth() / 2f));
+                badge.setTranslationY(badge.getTranslationY() + targetTop - badgeLocation[1]);
+                badge.setTranslationX(badge.getTranslationX() + targetLeft - badgeLocation[0]);
+            }
+        }
     }
 
     private static void applyCustomIconColors(ViewGroup bar) {
