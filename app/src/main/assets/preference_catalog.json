@@ -158,7 +158,8 @@
     "keys": [
       "download_view_once",
       "media_preview",
-      "download_profile"
+      "download_profile",
+      "parallel_downloading"
     ]
   },
   {

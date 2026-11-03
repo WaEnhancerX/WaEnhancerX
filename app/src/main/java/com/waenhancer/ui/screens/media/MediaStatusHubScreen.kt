@@ -26,6 +26,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import kotlin.math.roundToInt
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -108,7 +111,8 @@ fun MediaStatusHubScreen() {
             "statusdowload", "status_downloader", "videoquality", "imagequality",
             "media_upload_quality", "send_audio_as_voice_status", "status_video_splitter", "file_size_spoofer",
             "download_profile", "download_video_note",
-            "downloadviewonce", "download_view_once", "media_preview", "enable_media_preview"
+            "downloadviewonce", "download_view_once", "media_preview", "enable_media_preview",
+            "parallel_downloading"
         )
     }
 
@@ -139,6 +143,9 @@ fun MediaStatusHubScreen() {
     var saveStatusDuplicates by remember(preferenceManager) {
         mutableStateOf(preferenceManager.getBoolean("status_download_save_duplicates", true))
     }
+    var parallelConnections by remember(preferenceManager) {
+        mutableStateOf(preferenceManager.getInt("parallel_downloading_connections", 4))
+    }
 
     // Refresh after returning from another settings screen (e.g. the Calls hub).
     // Never auto-migrate a legacy call_recording=true value into the recorder key:
@@ -149,6 +156,7 @@ fun MediaStatusHubScreen() {
                 mediaKeys.forEach { key -> settingsState[key] = readMediaKey(key) }
                 saveProfileDuplicates = preferenceManager.getBoolean("download_profile_save_duplicates", true)
                 saveStatusDuplicates = preferenceManager.getBoolean("status_download_save_duplicates", true)
+                parallelConnections = preferenceManager.getInt("parallel_downloading_connections", 4)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -449,6 +457,95 @@ fun MediaStatusHubScreen() {
                                                         "status_download_save_duplicates", true
                                                     )
                                                 }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            if (item.key == "parallel_downloading" && (settingsState[item.key] ?: false)) {
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = colors.surfaceDim.copy(alpha = 0.6f),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 12.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.parallel_downloading_connections_title),
+                                                style = typography.labelSm,
+                                                fontWeight = FontWeight.Bold,
+                                                color = colors.primary
+                                            )
+                                            Text(
+                                                text = if (parallelConnections == 4) {
+                                                    "$parallelConnections connections (Recommended)"
+                                                } else {
+                                                    "$parallelConnections connections"
+                                                },
+                                                style = typography.labelSm,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = colors.primary
+                                            )
+                                        }
+                                        Text(
+                                            text = stringResource(R.string.parallel_downloading_connections_desc),
+                                            style = typography.labelSm,
+                                            color = colors.onSurfaceVariant
+                                        )
+
+                                        var sliderValue by remember(parallelConnections) {
+                                            mutableStateOf(parallelConnections.toFloat())
+                                        }
+
+                                        Slider(
+                                            value = sliderValue,
+                                            onValueChange = { sliderValue = it },
+                                            onValueChangeFinished = {
+                                                val count = sliderValue.roundToInt().coerceIn(2, 8)
+                                                sliderValue = count.toFloat()
+                                                preferenceManager.putInt("parallel_downloading_connections", count)
+                                                parallelConnections = count
+                                            },
+                                            valueRange = 2f..8f,
+                                            steps = 5,
+                                            colors = SliderDefaults.colors(
+                                                thumbColor = colors.primary,
+                                                activeTrackColor = colors.primary,
+                                                inactiveTrackColor = colors.outlineVariant
+                                            ),
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = "2 (Min)",
+                                                style = typography.labelSm,
+                                                color = colors.onSurfaceVariant
+                                            )
+                                            Text(
+                                                text = "4 (Recommended)",
+                                                style = typography.labelSm,
+                                                color = if (parallelConnections == 4) colors.primary else colors.onSurfaceVariant,
+                                                fontWeight = if (parallelConnections == 4) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                            Text(
+                                                text = "8 (Max)",
+                                                style = typography.labelSm,
+                                                color = colors.onSurfaceVariant
                                             )
                                         }
                                     }

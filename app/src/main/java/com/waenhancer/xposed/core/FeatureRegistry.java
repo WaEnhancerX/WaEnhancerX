@@ -56,6 +56,7 @@ import com.waenhancer.xposed.features.media.CallRecordingHook;
 import com.waenhancer.xposed.features.media.DownloadViewOnceHook;
 import com.waenhancer.xposed.features.media.MediaPreviewHook;
 import com.waenhancer.xposed.features.media.MediaQualityBypassHook;
+import com.waenhancer.xposed.features.media.ParallelDownloadingHook;
 import com.waenhancer.xposed.features.media.ProfilePhotoDownloadHook;
 import com.waenhancer.xposed.features.media.ProximitySensorHook;
 import com.waenhancer.xposed.features.media.StatusDownloadHook;
@@ -380,6 +381,10 @@ public final class FeatureRegistry {
 
         registerFeature(MediaQualityBypassHook.class, "Media",
                 () -> new MediaQualityBypassHook(context, classLoader, prefs));
+
+        registerFeature(ParallelDownloadingHook.class, "Media",
+                () -> prefs.getBoolean("parallel_downloading", false),
+                () -> new ParallelDownloadingHook(context, classLoader, prefs));
 
         registerFeature(MediaPreviewHook.class, "Media",
                 () -> prefs.getBoolean("media_preview", prefs.getBoolean("enable_media_preview", true)),

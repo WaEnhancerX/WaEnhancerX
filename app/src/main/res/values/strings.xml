@@ -229,6 +229,13 @@
     <string name="feat_call_recording_desc">Record incoming and outgoing calls (Voice &amp; Video) as audio</string>
     <string name="feat_download_profile_title">Download Profile Photo</string>
     <string name="feat_download_profile_desc">Download full-resolution profile pictures directly</string>
+    <string name="feat_parallel_downloading_title">Parallel Downloading</string>
+    <string name="feat_parallel_downloading_desc">Download large media and files over several concurrent connections at once</string>
+    <string name="parallel_downloading_connections_title">PARALLEL CONNECTIONS</string>
+    <string name="parallel_downloading_connections_desc">Select the number of concurrent connections used per download</string>
+    <string name="parallel_downloading_2">2 connections</string>
+    <string name="parallel_downloading_4">4 connections (Recommended)</string>
+    <string name="parallel_downloading_8">8 connections</string>
     <string name="profile_photo_already_saved">Profile photo already saved</string>
     <string name="profile_photo_saving">PROFILE PHOTO SAVING</string>
     <string name="save_profile_duplicates">Save duplicates</string>
