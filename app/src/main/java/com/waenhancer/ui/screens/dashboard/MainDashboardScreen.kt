@@ -103,6 +103,8 @@ import com.waenhancer.utils.SystemDiagnosticsReader
 import com.waenhancer.utils.UniversalVersionValidator
 import com.waenhancer.utils.WhatsAppPackageDetector
 import com.waenhancer.utils.XposedRuntimeInspector
+import com.waenhancer.utils.LsposedScopeReader
+import com.waenhancer.utils.LsposedScopeSnapshot
 import com.waenhancer.utils.TargetRuntimePresentation
 import com.waenhancer.ui.components.rememberRuntimeObservationClock
 import com.waenhancer.xposed.utils.AppRestartHelper
@@ -165,6 +167,7 @@ fun MainDashboardScreen(
     var runtimeSnapshot by remember {
         mutableStateOf(XposedRuntimeInspector.cached())
     }
+    var scopeSnapshot by remember { mutableStateOf<LsposedScopeSnapshot?>(null) }
     var systemDiagnostics by remember {
         mutableStateOf(SystemDiagnosticsReader.cached())
     }
@@ -184,8 +187,10 @@ fun MainDashboardScreen(
     }
 
     LaunchedEffect(refreshTrigger) {
+        val liveScope = withContext(Dispatchers.IO) { LsposedScopeReader.read(context) }
+        scopeSnapshot = liveScope
         val packages = withContext(Dispatchers.IO) {
-            WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot)
+            WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot, liveScope)
                 .filter { it.isInstalled }.map { it.packageName }
         }
         val refreshed = withContext(Dispatchers.IO) {
@@ -194,27 +199,29 @@ fun MainDashboardScreen(
         runtimeSnapshot = refreshed
     }
 
-    LaunchedEffect(hmaRefreshTrigger) {
+    LaunchedEffect(hmaRefreshTrigger, scopeSnapshot) {
         val targets = withContext(Dispatchers.IO) {
-            WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot)
+            WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot, scopeSnapshot)
                 .filter { it.isInstalled }.map { it.packageName }
         }
         val report = HmaDiagnostics.checkHmaStatus(
             context = context,
             targetPackages = targets,
+            scopeSnapshot = scopeSnapshot,
             forceRefresh = hmaRefreshTrigger > 0
         )
         hmaStatus = report
     }
 
-    LaunchedEffect(denylistRefreshTrigger) {
+    LaunchedEffect(denylistRefreshTrigger, scopeSnapshot) {
         val targets = withContext(Dispatchers.IO) {
-            WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot)
+            WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot, scopeSnapshot)
                 .filter { it.isInstalled }.map { it.packageName }
         }
         val report = MagiskDenylistDiagnostics.checkDenylistStatus(
             context = context,
             targetPackages = targets,
+            scopeSnapshot = scopeSnapshot,
             forceRefresh = denylistRefreshTrigger > 0
         )
         denylistStatus = report
@@ -254,8 +261,8 @@ fun MainDashboardScreen(
     }
 
     // Dynamic WhatsApp Packages & Clones Detector
-    val reportedApps = remember(refreshTrigger, runtimeSnapshot) {
-        WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot)
+    val reportedApps = remember(refreshTrigger, runtimeSnapshot, scopeSnapshot) {
+        WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot, scopeSnapshot)
     }
     val observationTime = rememberRuntimeObservationClock()
     val detectedApps = reportedApps.map {
@@ -800,6 +807,7 @@ fun MainDashboardScreen(
         if (showHmaDetailSheet && hmaStatus != null) {
             HmaDetailsBottomSheet(
                 report = hmaStatus!!,
+                visiblePackages = detectedApps.filter { it.isInstalled && it.inLsposedScope && it.isHooked }.map { it.packageName }.toSet(),
                 isFixing = isFixingHma,
                 onFixTarget = { targetPkg ->
                     isFixingHma = true
@@ -830,6 +838,7 @@ fun MainDashboardScreen(
         if (showDenylistDetailSheet && denylistStatus != null) {
             DenylistDetailsBottomSheet(
                 report = denylistStatus!!,
+                visiblePackages = detectedApps.filter { it.isInstalled && it.inLsposedScope && it.isHooked }.map { it.packageName }.toSet(),
                 isFixing = isFixingDenylist,
                 onFixTarget = { targetPkg ->
                     isFixingDenylist = true
@@ -1187,6 +1196,7 @@ private fun TargetCompatibilityBottomSheet(
 @Composable
 private fun HmaDetailsBottomSheet(
     report: HmaDiagnostics.HmaReport,
+    visiblePackages: Set<String>,
     onFixTarget: (String) -> Unit,
     isFixing: Boolean = false,
     onDismiss: () -> Unit
@@ -1196,8 +1206,8 @@ private fun HmaDetailsBottomSheet(
     val radius = WaexTheme.radius
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    val activeTargets = remember(report) { report.targetDetails.filter { it.isBlocking } }
-    val cleanTargets = remember(report) { report.targetDetails.filter { !it.isBlocking } }
+    val activeTargets = remember(report, visiblePackages) { report.targetDetails.filter { it.isBlocking && it.packageName in visiblePackages } }
+    val cleanTargets = remember(report, visiblePackages) { report.targetDetails.filter { !it.isBlocking && it.packageName in visiblePackages } }
 
     var targetToConfirm by remember { mutableStateOf<HmaDiagnostics.TargetIsolationDetail?>(null) }
 
@@ -1481,6 +1491,7 @@ private fun HmaDetailsBottomSheet(
 @Composable
 private fun DenylistDetailsBottomSheet(
     report: MagiskDenylistDiagnostics.DenylistReport,
+    visiblePackages: Set<String>,
     onFixTarget: (String) -> Unit,
     onFixAll: (List<String>) -> Unit,
     isFixing: Boolean = false,
@@ -1491,8 +1502,8 @@ private fun DenylistDetailsBottomSheet(
     val radius = WaexTheme.radius
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    val blockedTargets = remember(report) { report.targets.filter { it.isBlocked } }
-    val cleanTargets = remember(report) { report.targets.filter { !it.isBlocked } }
+    val blockedTargets = remember(report, visiblePackages) { report.targets.filter { it.isBlocked && it.packageName in visiblePackages } }
+    val cleanTargets = remember(report, visiblePackages) { report.targets.filter { !it.isBlocked && it.packageName in visiblePackages } }
 
     var targetToConfirm by remember { mutableStateOf<MagiskDenylistDiagnostics.DenylistedTarget?>(null) }
     var confirmFixAll by remember { mutableStateOf(false) }

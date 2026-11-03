@@ -48,6 +48,8 @@ import com.waenhancer.utils.SystemDiagnostics
 import com.waenhancer.utils.SystemDiagnosticsReader
 import com.waenhancer.utils.WhatsAppPackageDetector
 import com.waenhancer.utils.XposedRuntimeInspector
+import com.waenhancer.utils.LsposedScopeReader
+import com.waenhancer.utils.LsposedScopeSnapshot
 import com.waenhancer.utils.TargetRuntimePresentation
 import com.waenhancer.ui.components.rememberRuntimeObservationClock
 import kotlinx.coroutines.Dispatchers
@@ -72,6 +74,7 @@ fun SystemHealthScreen() {
     var runtimeSnapshot by remember {
         mutableStateOf(XposedRuntimeInspector.cached())
     }
+    var scopeSnapshot by remember { mutableStateOf<LsposedScopeSnapshot?>(null) }
     var denylistReport by remember {
         mutableStateOf<MagiskDenylistDiagnostics.DenylistReport?>(MagiskDenylistDiagnostics.cached())
     }
@@ -82,11 +85,11 @@ fun SystemHealthScreen() {
         mutableStateOf(preferences.getBoolean("show_restart_sheet", true))
     }
     LaunchedEffect(refreshTrigger) {
+        val liveScope = withContext(Dispatchers.IO) { LsposedScopeReader.read(context) }
+        scopeSnapshot = liveScope
         diagnostics = withContext(Dispatchers.IO) { SystemDiagnosticsReader.read(context) }
-    }
-    LaunchedEffect(refreshTrigger) {
         val packages = withContext(Dispatchers.IO) {
-            WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot)
+            WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot, liveScope)
                 .filter { it.isInstalled }.map { it.packageName }
         }
         val refreshed = withContext(Dispatchers.IO) {
@@ -94,7 +97,9 @@ fun SystemHealthScreen() {
         }
         runtimeSnapshot = refreshed
         val denylist = withContext(Dispatchers.IO) {
-            MagiskDenylistDiagnostics.checkDenylistStatus(context, packages, forceRefresh = refreshTrigger > 0)
+            MagiskDenylistDiagnostics.checkDenylistStatus(
+                context, packages, liveScope, forceRefresh = refreshTrigger > 0
+            )
         }
         denylistReport = denylist
     }
@@ -129,8 +134,8 @@ fun SystemHealthScreen() {
         if (data == null) {
             Column(Modifier.fillMaxSize().padding(insets), Arrangement.Center, Alignment.CenterHorizontally) { WaexCircularProgressIndicator(color = colors.primary) }
         } else {
-            val reportedApps = remember(data, refreshTrigger, runtimeSnapshot) {
-                WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot)
+            val reportedApps = remember(data, refreshTrigger, runtimeSnapshot, scopeSnapshot) {
+                WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot, scopeSnapshot)
                     .filter { it.isInstalled }
             }
             val observationTime = rememberRuntimeObservationClock()

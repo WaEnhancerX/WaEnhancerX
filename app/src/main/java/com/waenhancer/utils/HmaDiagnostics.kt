@@ -58,18 +58,19 @@ object HmaDiagnostics {
     suspend fun checkHmaStatus(
         context: Context,
         targetPackages: Collection<String>,
+        scopeSnapshot: LsposedScopeSnapshot? = null,
         forceRefresh: Boolean = false
     ): HmaReport = withContext(Dispatchers.IO) {
         if (!forceRefresh) {
             cachedResult.get()?.let { return@withContext it }
         }
 
-        val report = runCheck(context.applicationContext, targetPackages)
+        val report = runCheck(context.applicationContext, targetPackages, scopeSnapshot)
         cachedResult.set(report)
         report
     }
 
-    private fun runCheck(context: Context, targetPackages: Collection<String>): HmaReport {
+    private fun runCheck(context: Context, targetPackages: Collection<String>, scopeSnapshot: LsposedScopeSnapshot?): HmaReport {
         if (!isHmaInstalledAndActive(context)) {
             return HmaReport(HmaState.NOT_ACTIVE)
         }
@@ -83,11 +84,11 @@ object HmaDiagnostics {
         val currentPackage = context.packageName
         val moduleSignatures = setOf(currentPackage, "com.waenhancer", "com.waenhancer.debug")
 
-        // Packages to check: target packages passed in plus DeclaredWhatsAppTargets if targetPackages is empty
-        val packagesToCheck = if (targetPackages.isNotEmpty()) {
-            targetPackages.toSet()
-        } else {
-            DeclaredWhatsAppTargets.packages()
+        // Empty means no live scoped targets. Never fall back to every installed/declared app:
+        // scope is the security boundary for this diagnostic.
+        val liveScope = (scopeSnapshot ?: LsposedScopeReader.read(context)).packages
+        val packagesToCheck = targetPackages.filterTo(linkedSetOf()) {
+            it in DeclaredWhatsAppTargets.packages() && it in liveScope
         }
 
         val details = mutableListOf<TargetIsolationDetail>()
@@ -303,6 +304,8 @@ object HmaDiagnostics {
      * when whitelist mode is enabled).
      */
     suspend fun fixTargetIsolation(context: Context, targetPackage: String): Boolean = withContext(Dispatchers.IO) {
+        if (!DeclaredWhatsAppTargets.contains(targetPackage) ||
+            !LsposedScopeReader.read(context).contains(targetPackage)) return@withContext false
         // Force-stop HMA and any related processes BEFORE reading/modifying configuration
         forceStopHmaApps(context)
 

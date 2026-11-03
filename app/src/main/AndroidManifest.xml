@@ -5,6 +5,10 @@
         android:name="com.waenhancer.permission.RESTART_TARGET"
         android:protectionLevel="signature" />
     <uses-permission android:name="com.waenhancer.permission.RESTART_TARGET" />
+    <permission
+        android:name="com.waenhancer.permission.MODULE_STATUS"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="com.waenhancer.permission.MODULE_STATUS" />
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />

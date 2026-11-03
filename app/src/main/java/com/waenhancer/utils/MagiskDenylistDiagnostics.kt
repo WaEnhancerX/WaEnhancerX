@@ -60,9 +60,11 @@ object MagiskDenylistDiagnostics {
     suspend fun checkDenylistStatus(
         context: Context,
         targetPackages: Collection<String>,
+        scopeSnapshot: LsposedScopeSnapshot? = null,
         forceRefresh: Boolean = false
     ): DenylistReport = withContext(Dispatchers.IO) {
-        val requestedPackages = packagesToCheck(targetPackages)
+        val liveScope = (scopeSnapshot ?: LsposedScopeReader.read(context)).packages
+        val requestedPackages = packagesToCheck(targetPackages, liveScope)
         if (!forceRefresh) {
             cachedResult.get()
                 ?.takeIf { cached -> cached.targets.map { it.packageName }.toSet() == requestedPackages }
@@ -123,9 +125,10 @@ object MagiskDenylistDiagnostics {
         return found
     }
 
-    private fun packagesToCheck(targetPackages: Collection<String>): Set<String> =
-        (if (targetPackages.isNotEmpty()) targetPackages else DeclaredWhatsAppTargets.packages())
-            .filterTo(linkedSetOf()) { PACKAGE_NAME_PATTERN.matcher(it).matches() }
+    private fun packagesToCheck(targetPackages: Collection<String>, liveScope: Set<String>): Set<String> =
+        targetPackages.filterTo(linkedSetOf()) {
+            DeclaredWhatsAppTargets.contains(it) && it in liveScope && PACKAGE_NAME_PATTERN.matcher(it).matches()
+        }
 
     private fun runCheck(context: Context, packagesToCheck: Set<String>): DenylistReport {
         if (!isMagiskInstalled()) {
@@ -206,7 +209,9 @@ object MagiskDenylistDiagnostics {
      * zygote unmount is reverted on subsequent launch.
      */
     suspend fun fixPackage(context: Context, packageName: String): Boolean = withContext(Dispatchers.IO) {
-        if (!PACKAGE_NAME_PATTERN.matcher(packageName).matches()) {
+        if (!DeclaredWhatsAppTargets.contains(packageName) ||
+            !LsposedScopeReader.read(context).contains(packageName) ||
+            !PACKAGE_NAME_PATTERN.matcher(packageName).matches()) {
             return@withContext false
         }
 
