@@ -16,11 +16,6 @@ import org.luckypray.dexkit.query.matchers.MethodMatcher
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 
-/**
- * Modern Native WhatsApp Dialog & WDS (WhatsApp Design System) component wrapper.
- * Dynamically resolves and uses WhatsApp's native Material & WDS dialog builders
- * to ensure all in-app prompts and dialogs look 100% native to WhatsApp.
- */
 class NativeWhatsAppDialog(private val context: Context) {
 
     private var nativeBuilderInstance: Any? = null

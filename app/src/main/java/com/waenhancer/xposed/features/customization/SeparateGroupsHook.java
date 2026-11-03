@@ -48,7 +48,6 @@ public final class SeparateGroupsHook extends BaseFeature {
     private static final ArrayList<Integer> tabs = new ArrayList<>();
     private static final WeakHashMap<Object, Integer> fragmentTabs = new WeakHashMap<>();
     private static final WeakHashMap<Object, int[]> unreadCounts = new WeakHashMap<>();
-    private static final WeakHashMap<Object, Object> emptyBadges = new WeakHashMap<>();
     private static final WeakHashMap<Object, Boolean> hookedBadgeRenderers = new WeakHashMap<>();
 
     /** Returns the active conversation pager tab, or -1 while a non-conversation tab is resumed. */
@@ -371,9 +370,10 @@ public final class SeparateGroupsHook extends BaseFeature {
                     int chatsIndex = tabIndex(badgeRenderer, CHATS);
                     int groupsIndex = tabIndex(badgeRenderer, GROUPS);
                     if (renderedIndex != chatsIndex) {
-                        if (badge != null && !isNumericBadge(badge)) {
-                            synchronized (emptyBadges) { emptyBadges.put(badgeRenderer, badge); }
-                        }
+                        // Non-numeric badges are used by WhatsApp for the Status tab's
+                        // unseen-state dot. They are tab-specific and must never be reused for
+                        // Chats/Groups; doing so made the same dot appear on both injected
+                        // conversation tabs, especially when their unread count was zero.
                         return;
                     }
                     int[] counts;
@@ -436,8 +436,9 @@ public final class SeparateGroupsHook extends BaseFeature {
     private void renderBadge(Method render, Object renderer, Object context, Object prototype,
                              int index, int count) throws Throwable {
         if (index < 0) return;
-        Object badge = count > 0 ? numericBadge(prototype, count) : emptyBadge(renderer);
-        if (badge == null) return;
+        // A zero count must clear the conversation-tab badge. Reusing an "empty" badge object
+        // from another tab leaks the Status indicator into Chats/Groups.
+        Object badge = count > 0 ? numericBadge(prototype, count) : null;
         de.robv.android.xposed.XposedBridge.invokeOriginalMethod(
                 render, renderer, new Object[]{context, badge, index});
     }
@@ -464,10 +465,6 @@ public final class SeparateGroupsHook extends BaseFeature {
             Object inner = readField(badge, "A00");
             return inner != null && inner.getClass().getDeclaredConstructor(int.class) != null;
         } catch (Throwable ignored) { return false; }
-    }
-
-    private Object emptyBadge(Object renderer) {
-        synchronized (emptyBadges) { return emptyBadges.get(renderer); }
     }
 
     private Object readField(Object target, String name) throws IllegalAccessException {

@@ -43,6 +43,18 @@ android {
         buildConfigField("String", "GH_DEV", "\"$devGh\"")
         buildConfigField("String", "GIT_SHA", "\"$gitSha\"")
         buildConfigField("String", "MAPPING_ID", "\"${configuredVersionCode}-$gitSha\"")
+
+        // On-device transcription (whisper.cpp) is built for 64-bit ARM only. This filter
+        // applies to the CMake build alone; prebuilt libraries keep all their ABIs.
+        externalNativeBuild {
+            cmake {
+                abiFilters += "arm64-v8a"
+                arguments += listOf(
+                    "-DANDROID_STL=c++_shared", // several native libraries share one C++ runtime
+                    "-DCMAKE_BUILD_TYPE=Release" // debug APKs too: unoptimised whisper.cpp is ~20x slower
+                )
+            }
+        }
     }
 
     signingConfigs {
@@ -115,6 +127,14 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    ndkVersion = "27.0.12077973"
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 
     packaging {

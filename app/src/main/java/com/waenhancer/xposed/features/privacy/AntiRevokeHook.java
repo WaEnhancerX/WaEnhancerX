@@ -827,26 +827,6 @@ public class AntiRevokeHook extends BaseFeature {
                     currentAdapter = adapter;
                     final ListAdapter boundAdapter = adapter;
                     final ListAdapter underlyingAdapter = getUnderlyingAdapter(adapter);
-                    HideAntiRevokeProFeature.attachAdapterItemHooks(
-                            boundAdapter, underlyingAdapter, classLoader, prefs,
-                            new HideAntiRevokeProFeature.MessageBridge() {
-                                @Nullable
-                                @Override
-                                public String getMessageKeyId(@Nullable Object message) {
-                                    return getOriginalOrCurrentKeyId(message);
-                                }
-
-                                @Override
-                                public long getRevokedTimestamp(@Nullable String keyId) {
-                                    return AntiRevokeHook.this.getRevokedTimestamp(keyId);
-                                }
-
-                                @Override
-                                public boolean isAntiRevokeAvailable() {
-                                    return isAntiRevokeEnabled() || isPreserveOwnRevokeEnabled();
-                                }
-                            });
-
                     try {
                         Method getViewMethod = findConcreteAdapterGetView(boundAdapter.getClass());
 
@@ -1914,6 +1894,7 @@ public class AntiRevokeHook extends BaseFeature {
 
     private void resetRowDecoration(@NonNull ViewGroup rowView) {
         try {
+            HideAntiRevokeProFeature.resetDeletedMessageLayout(rowView);
             rowView.setVisibility(View.VISIBLE);
             Context rowContext = rowView.getContext();
             int dateId = rowContext.getResources().getIdentifier("date", "id", rowContext.getPackageName());

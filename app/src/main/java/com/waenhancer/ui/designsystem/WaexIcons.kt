@@ -56,6 +56,8 @@ object WaexIcons {
     val Clear = Icons.Rounded.Clear
     val Share = Icons.Rounded.Share
     val Refresh = Icons.Rounded.Refresh
+    val Download = Icons.Rounded.SystemUpdate
+    val DownloadDone = Icons.Rounded.CheckCircle
 
     // Stitch specific icons
     val ShieldHeart = Icons.Rounded.CheckCircle // using CheckCircle as verified badge/shield

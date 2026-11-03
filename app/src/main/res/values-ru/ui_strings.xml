@@ -1046,4 +1046,59 @@
     <string name="waex_ui_hma_reason_preset">"Скрыт с помощью пресета HMA \"xposed\""</string>
     <string name="waex_ui_deleted_a_status">"удалил статус"</string>
     <string name="waex_ui_restarting_whatsapp_short">"Перезапуск WhatsApp…"</string>
+    <string name="waex_ui_adds_to_the_message_field_tap_to_recor" formatted="false">"Добавляет 🎙️ в поле сообщения. Нажмите, чтобы записать, нажмите еще раз, чтобы вставить текст."</string>
+    <string name="waex_ui_automatic" formatted="false">"Автоматический"</string>
+    <string name="waex_ui_clear" formatted="false">"Очистить"</string>
+    <string name="waex_ui_connection_failed" formatted="false">"Соединение не удалось"</string>
+    <string name="waex_ui_copy" formatted="false">"Копировать"</string>
+    <string name="waex_ui_could_not_start_recording" formatted="false">"Не удалось начать запись."</string>
+    <string name="waex_ui_custom_api_key" formatted="false">"Пользовательский ключ API"</string>
+    <string name="waex_ui_custom_endpoint_url" formatted="false">"Пользовательский URL-адрес конечной точки"</string>
+    <string name="waex_ui_dictation_button" formatted="false">"Кнопка диктовки"</string>
+    <string name="waex_ui_find_models" formatted="false">"Найти модели"</string>
+    <string name="waex_ui_hide" formatted="false">"Скрыть"</string>
+    <string name="waex_ui_log_copied" formatted="false">"Журнал скопирован"</string>
+    <string name="waex_ui_model_name" formatted="false">"Название модели"</string>
+    <string name="waex_ui_new_voice_note" formatted="false">"Новая голосовая заметка"</string>
+    <string name="waex_ui_no_entries_yet" formatted="false">"Пока нет записей."</string>
+    <string name="waex_ui_no_speech_detected" formatted="false">"Речь не обнаружена."</string>
+    <string name="waex_ui_off_each_new_voice_note_sent_or_receiv" formatted="false">"Выкл.: каждая новая голосовая заметка, отправленная или полученная, получает уведомление с кнопкой «Транскрибировать»."</string>
+    <string name="waex_ui_recording_tap_to_stop" formatted="false">"Запись… нажмите ⏹️, чтобы остановить."</string>
+    <string name="waex_ui_recording_too_short" formatted="false">"Запись слишком короткая."</string>
+    <string name="waex_ui_refresh" formatted="false">"Обновить"</string>
+    <string name="waex_ui_searching" formatted="false">"Поиск…"</string>
+    <string name="waex_ui_show" formatted="false">"Показать"</string>
+    <string name="waex_ui_shows_next_to_the_time_of_voice_notes" formatted="false">"Показывает 📝 рядом со временем голосовых заметок в чатах. Нажмите на него, чтобы прочитать стенограмму."</string>
+    <string name="waex_ui_steps_and_errors_only_transcripts_and" formatted="false">"Только шаги и ошибки. Стенограммы и текст сообщений никогда не протоколируются."</string>
+    <string name="waex_ui_tap_transcribe_to_turn_it_into_text" formatted="false">"Нажмите «Транскрибировать», чтобы превратить его в текст."</string>
+    <string name="waex_ui_transcribe" formatted="false">"Расшифровать"</string>
+    <string name="waex_ui_transcribe_automatically" formatted="false">"Транскрибировать автоматически"</string>
+    <string name="waex_ui_transcribing_voice_note" formatted="false">"Расшифровка голосовой заметки…"</string>
+    <string name="waex_ui_transcript_button_on_voice_notes" formatted="false">"Кнопка «Расшифровка» в голосовых заметках"</string>
+    <string name="waex_ui_transcript_copied" formatted="false">"Стенограмма скопирована."</string>
+    <string name="waex_ui_transcription_failed" formatted="false">"Транскрипция не удалась"</string>
+    <string name="waex_ui_transcription_language" formatted="false">"Язык транскрипции"</string>
+    <string name="waex_ui_transcription_log" formatted="false">"Журнал транскрипции"</string>
+    <string name="waex_ui_uses_the_openai_audio_transcriptions_r" formatted="false">"Использует формат запроса OpenAI /audio/transscriptions."</string>
+    <string name="waex_ui_voice_note_is_too_long_to_transcribe" formatted="false">"Голосовая заметка слишком длинная для расшифровки."</string>
+    <string name="waex_ui_voice_note_transcript" formatted="false">"Расшифровка голосовой заметки"</string>
+    <string name="waex_ui_waex_voice_transcripts" formatted="false">"WAEX голосовые расшифровки"</string>
+    <string name="waex_ui_whatsapp_needs_microphone_access_to_di" formatted="false">"WhatsApp требуется доступ к микрофону для диктовки."</string>
+    <string name="waex_ui_balanced_speed_and_accuracy" formatted="false">"Сбалансированная скорость и точность"</string>
+    <string name="waex_ui_cancel" formatted="false">"Отмена"</string>
+    <string name="waex_ui_delete" formatted="false">"Удалить"</string>
+    <string name="waex_ui_download_suggested_model" formatted="false">"Скачать предложенную модель"</string>
+    <string name="waex_ui_english_only_more_accurate_for_english" formatted="false">"Только английский: более точно для английского языка"</string>
+    <string name="waex_ui_fast_fair_accuracy" formatted="false">"Быстрая и справедливая точность"</string>
+    <string name="waex_ui_fastest_lowest_accuracy" formatted="false">"Самая быстрая, самая низкая точность"</string>
+    <string name="waex_ui_in_use" formatted="false">"В использовании"</string>
+    <string name="waex_ui_may_be_too_heavy_for_this_phone" formatted="false">"Может быть слишком тяжелым для этого телефона"</string>
+    <string name="waex_ui_most_accurate_slow" formatted="false">"Самый точный, медленный"</string>
+    <string name="waex_ui_on_device_models" formatted="false">"Модели на устройстве"</string>
+    <string name="waex_ui_on_device_transcription_isn_t_availabl" formatted="false">"Транскрипция на устройстве недоступна на этом телефоне."</string>
+    <string name="waex_ui_runs_on_your_phone_nothing_is_uploaded" formatted="false">"Запускается на телефоне, ничего не загружается. Большие модели более точны, но медленнее."</string>
+    <string name="waex_ui_selected_download_it_to_start_using_it" formatted="false">"Выбрано: загрузите его, чтобы начать использовать."</string>
+    <string name="waex_ui_suggested" formatted="false">"Предлагается"</string>
+    <string name="waex_ui_tap_a_model_to_choose_it_the_suggested" formatted="false">"Нажмите модель, чтобы выбрать ее. Предложенный вариант используется до тех пор, пока вы не выберете другой."</string>
+    <string name="waex_ui_this_phone" formatted="false">"Этот телефон"</string>
 </resources>
