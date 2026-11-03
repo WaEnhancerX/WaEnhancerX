@@ -106,6 +106,10 @@ public final class HookRegistrar {
         public Field findFieldIfExists(Class<?> clazz, String fieldName) {
             return XposedHelpers.findFieldIfExists(clazz, fieldName);
         }
+        /** Parameter types, e.g. {@code int.class}. Without this overload they were matched as argument values. */
+        public Method findMethodBestMatch(Class<?> clazz, String methodName, Class<?>... parameterTypes) {
+            return XposedHelpers.findMethodBestMatch(clazz, methodName, parameterTypes);
+        }
         public Method findMethodBestMatch(Class<?> clazz, String methodName, Object... args) {
             return XposedHelpers.findMethodBestMatch(clazz, methodName, args);
         }
