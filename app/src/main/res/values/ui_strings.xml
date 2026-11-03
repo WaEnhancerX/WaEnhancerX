@@ -235,7 +235,6 @@
     <string name="waex_ui_deleted_message_prefix" formatted="false">"🚫 Deleted • "</string>
     <string name="waex_ui_deleted_at" formatted="false">"Deleted at: "</string>
     <string name="waex_ui_deleted_icon" formatted="false">"Deleted Icon 🚫"</string>
-    <string name="waex_ui_native_deleted_layout" formatted="false">WhatsApp Deleted Layout</string>
     <string name="waex_ui_developer" formatted="false">"Developer"</string>
     <string name="waex_ui_device" formatted="false">"Device"</string>
     <string name="waex_ui_device_attestation" formatted="false">"DEVICE ATTESTATION"</string>

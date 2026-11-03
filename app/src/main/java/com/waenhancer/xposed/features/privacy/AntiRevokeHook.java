@@ -827,19 +827,6 @@ public class AntiRevokeHook extends BaseFeature {
                     currentAdapter = adapter;
                     final ListAdapter boundAdapter = adapter;
                     final ListAdapter underlyingAdapter = getUnderlyingAdapter(adapter);
-                    HideAntiRevokeProFeature.attachAdapterItemHooks(
-                            boundAdapter, underlyingAdapter, classLoader, prefs,
-                            new HideAntiRevokeProFeature.MessageBridge() {
-                                @Override public String getMessageKeyId(Object message) {
-                                    return getOriginalOrCurrentKeyId(message);
-                                }
-                                @Override public long getRevokedTimestamp(String keyId) {
-                                    return AntiRevokeHook.this.getRevokedTimestamp(keyId);
-                                }
-                                @Override public boolean isAntiRevokeAvailable() {
-                                    return isAntiRevokeEnabled() || isPreserveOwnRevokeEnabled();
-                                }
-                            });
                     try {
                         Method getViewMethod = findConcreteAdapterGetView(boundAdapter.getClass());
 
@@ -875,6 +862,10 @@ public class AntiRevokeHook extends BaseFeature {
                                 }
                                 if (item == null) return;
 
+                                if (HideAntiRevokeProFeature.isHiddenForActiveConversation(prefs)) {
+                                    HideAntiRevokeProFeature.observeNativeDeletedRow(row, item);
+                                }
+
                                 String keyId = getOriginalOrCurrentKeyId(item);
                                 if (keyId != null) {
                                     XposedHelpers.setAdditionalInstanceField(row, "waex_key_id", keyId);
@@ -885,7 +876,13 @@ public class AntiRevokeHook extends BaseFeature {
 
                                 long deletedTs = getRevokedTimestamp(keyId);
                                 if (deletedTs > 0) {
-                                    if (!HideAntiRevokeProFeature.isNativeIndicator(prefs)) {
+                                    if (HideAntiRevokeProFeature.isHiddenForActiveConversation(prefs)) {
+                                        ViewGroup nativeRevokedRow = HideAntiRevokeProFeature.renderDeletedMessageRow(
+                                                row, item, keyId, deletedTs, classLoader);
+                                        XposedHelpers.setAdditionalInstanceField(
+                                                nativeRevokedRow, "waex_key_id", keyId);
+                                        p.setResult(nativeRevokedRow);
+                                    } else {
                                         decorateRevokedRow(row, deletedTs);
                                     }
                                 } else {
