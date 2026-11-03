@@ -909,7 +909,11 @@ fun GlobalPrivacySettingsScreen(
                                                     .padding(4.dp),
                                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                                             ) {
-                                                listOf("2" to UiText.get(R.string.waex_ui_deleted_icon, "Deleted Icon 🚫"), "1" to UiText.get(R.string.waex_ui_text_deleted, "Text \"Deleted\"")).forEach { (valKey, title) ->
+                                                listOf(
+                                                    "3" to UiText.get(R.string.waex_ui_native_deleted_layout, "WhatsApp Deleted Layout"),
+                                                    "2" to UiText.get(R.string.waex_ui_deleted_icon, "Deleted Icon 🚫"),
+                                                    "1" to UiText.get(R.string.waex_ui_text_deleted, "Text \"Deleted\"")
+                                                ).forEach { (valKey, title) ->
                                                     val isSelected = currentIndicator == valKey
                                                     Box(
                                                         modifier = Modifier
