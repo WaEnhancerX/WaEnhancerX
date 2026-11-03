@@ -261,7 +261,7 @@ fun MainDashboardScreen(
     }
 
     // Dynamic WhatsApp Packages & Clones Detector
-    val reportedApps = remember(refreshTrigger, runtimeSnapshot) {
+    val reportedApps = remember(refreshTrigger, runtimeSnapshot, scopeSnapshot) {
         WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot, scopeSnapshot)
     }
     val observationTime = rememberRuntimeObservationClock()

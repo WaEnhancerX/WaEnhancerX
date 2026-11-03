@@ -227,7 +227,16 @@ object WhatsAppPackageDetector {
         discoveredPackages.addAll(getSupportedPackages(context))
 
         val isGlobalModuleActive = ModuleStatus.isModuleActive()
-        val scope = scopeSnapshot ?: LsposedScopeReader.read(context)
+        // This method is also called from Compose remember blocks. Never launch a root shell
+        // synchronously on the UI thread. The resume coroutine supplies the live snapshot;
+        // before it arrives, fail closed and render no targets.
+        val scope = scopeSnapshot ?: LsposedScopeSnapshot(
+            modulePackage = MODULE_PACKAGE,
+            packages = emptySet(),
+            frameworkReachable = false,
+            source = LsposedScopeSnapshot.Source.UNAVAILABLE,
+            error = "Scope check pending"
+        )
 
         // 2. Read packages that have been hooked by Xposed runtime
         var hookedSet: Set<String>? = null

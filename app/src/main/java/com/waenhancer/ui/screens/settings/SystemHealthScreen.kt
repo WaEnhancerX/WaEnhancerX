@@ -134,7 +134,7 @@ fun SystemHealthScreen() {
         if (data == null) {
             Column(Modifier.fillMaxSize().padding(insets), Arrangement.Center, Alignment.CenterHorizontally) { WaexCircularProgressIndicator(color = colors.primary) }
         } else {
-            val reportedApps = remember(data, refreshTrigger, runtimeSnapshot) {
+            val reportedApps = remember(data, refreshTrigger, runtimeSnapshot, scopeSnapshot) {
                 WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot, scopeSnapshot)
                     .filter { it.isInstalled }
             }
