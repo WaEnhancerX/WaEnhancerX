@@ -118,7 +118,8 @@ public final class InternalLabels {
             case "FilterItems": return UiText.get(R.string.waex_ui_filteritems, "FilterItems");
             case "Custom Privacy (Per-Contact)": return UiText.get(R.string.waex_ui_custom_privacy_per_contact, "Custom Privacy (Per-Contact)");
             case "Chat Filter Display": return UiText.get(R.string.waex_ui_chat_filter_display_feature, "Chat Filter Display");
-            case "Seconds on Timestamp": return UiText.get(R.string.waex_ui_seconds_on_timestamp, "Seconds on Timestamp");
+            case "Custom Timestamp":
+            case "Seconds on Timestamp": return UiText.get(R.string.feat_custom_time_format_title, "Custom Timestamp");
             case "Enable IGStatus on Home Screen": return UiText.get(R.string.waex_ui_enable_igstatus_on_home_screen, "Enable IGStatus on Home Screen");
             case "New Settings Style": return UiText.get(R.string.waex_ui_new_settings_style, "New Settings Style");
             case "Separate Chats and Groups": return UiText.get(R.string.waex_ui_separate_chats_and_groups, "Separate Chats and Groups");

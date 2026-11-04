@@ -743,7 +743,7 @@ fun HookingModeHelpScreen() {
                     )
                     HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.5f))
                     ComparisonTableRow(
-                        label = "Seconds on Timestamp",
+                        label = "Custom Timestamp",
                         light = "Lazy",
                         balanced = "Startup",
                         max = "Startup"

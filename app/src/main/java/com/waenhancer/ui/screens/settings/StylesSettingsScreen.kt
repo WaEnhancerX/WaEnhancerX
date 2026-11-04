@@ -51,6 +51,10 @@ import com.waenhancer.ui.navigation.LocalIsPro
 import com.waenhancer.ui.navigation.LocalOnActivatePro
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
 import com.waenhancer.ui.navigation.Screen
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun StylesSettingsScreen() {
@@ -108,6 +112,17 @@ fun StylesSettingsScreen() {
     }
     var blockMetaAiChat by remember {
         mutableStateOf(preferenceManager.getBoolean("metaai_block_chat", true))
+    }
+    var showTimestampFormatSheet by remember { mutableStateOf(false) }
+    var showModifyTextSheet by remember { mutableStateOf(false) }
+    var timestampFormat by remember(typedValueRevision) {
+        mutableStateOf(preferenceManager.getString("timestamp_format", "HH:mm a") ?: "HH:mm a")
+    }
+    var timestampCustomPattern by remember(typedValueRevision) {
+        mutableStateOf(preferenceManager.getString("timestamp_custom_pattern", "HH:mm a") ?: "HH:mm a")
+    }
+    var timestampCustomText by remember(typedValueRevision) {
+        mutableStateOf(preferenceManager.getString("timestamp_custom_text", "\${t}") ?: "\${t}")
     }
     val stylesKeys = remember {
         listOf(
@@ -459,16 +474,17 @@ fun StylesSettingsScreen() {
                                     }
                                 )
                             }
-                            if (item.key == "custom_time_format") {
+                            if (item.key == "custom_time_format" && (settingsState[item.key] == true)) {
                                 HorizontalDivider(
                                     thickness = 1.dp,
                                     color = colors.outlineVariant.copy(alpha = 0.4f),
                                     modifier = Modifier.padding(start = 32.dp)
                                 )
+                                // Sub-pref 1: Timestamp format
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable { typedEditorKey = "timestamp_time_format" }
+                                        .clickable { showTimestampFormatSheet = true }
                                         .padding(start = 32.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -477,15 +493,17 @@ fun StylesSettingsScreen() {
                                         verticalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
                                         Text(
-                                            text = UiText.get(R.string.timestamp_time_format_title, "Time format"),
+                                            text = UiText.get(R.string.timestamp_format_title, "Timestamp format"),
                                             style = typography.bodyLg,
                                             fontWeight = FontWeight.Medium,
                                             color = colors.onSurface
                                         )
                                         Text(
-                                            text = if (preferenceManager.getBoolean("ampm", false))
-                                                UiText.get(R.string.timestamp_time_format_12_hour, "12-hour clock (3:45:30 PM)")
-                                            else UiText.get(R.string.timestamp_time_format_24_hour, "24-hour clock (15:45:30)"),
+                                            text = if (timestampFormat == "Custom Pattern") {
+                                                if (timestampCustomPattern.isNotBlank()) "Custom Pattern ($timestampCustomPattern)" else "Custom Pattern"
+                                            } else {
+                                                timestampFormat
+                                            },
                                             style = typography.bodyMd,
                                             color = colors.onSurfaceVariant,
                                             fontSize = 12.sp
@@ -494,7 +512,100 @@ fun StylesSettingsScreen() {
                                     Icon(
                                         imageVector = WaexIcons.ChevronRight,
                                         contentDescription = UiText.get(R.string.waex_ui_configure_1_s, "Configure %1\$s",
-                                            UiText.get(R.string.timestamp_time_format_title, "Time format")),
+                                            UiText.get(R.string.timestamp_format_title, "Timestamp format")),
+                                        tint = colors.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                // Custom pattern input field appears right after the format pref when Custom Pattern is selected
+                                if (timestampFormat == "Custom Pattern") {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 32.dp, end = 16.dp, bottom = 12.dp)
+                                    ) {
+                                        var patternInput by remember(timestampCustomPattern) { mutableStateOf(timestampCustomPattern) }
+                                        val isPatternValid = remember(patternInput) {
+                                            if (patternInput.isBlank()) false else try {
+                                                DateTimeFormatter.ofPattern(patternInput.trim())
+                                                true
+                                            } catch (t: Throwable) {
+                                                false
+                                            }
+                                        }
+                                        OutlinedTextField(
+                                            value = patternInput,
+                                            onValueChange = { input ->
+                                                patternInput = input
+                                                if (input.isNotBlank()) {
+                                                    try {
+                                                        DateTimeFormatter.ofPattern(input.trim())
+                                                        preferenceManager.putPublicString("timestamp_custom_pattern", input.trim())
+                                                        timestampCustomPattern = input.trim()
+                                                    } catch (ignored: Throwable) {}
+                                                }
+                                            },
+                                            label = { Text(UiText.get(R.string.timestamp_custom_pattern_label, "Custom Pattern")) },
+                                            placeholder = { Text(UiText.get(R.string.timestamp_custom_pattern_hint, "e.g. HH:mm a, dd/MM HH:mm:ss")) },
+                                            isError = !isPatternValid && patternInput.isNotEmpty(),
+                                            supportingText = {
+                                                if (!isPatternValid && patternInput.isNotEmpty()) {
+                                                    Text(UiText.get(R.string.timestamp_invalid_pattern, "Invalid date/time pattern"), color = colors.error)
+                                                } else if (isPatternValid) {
+                                                    val sample = remember(patternInput) {
+                                                        try {
+                                                            DateTimeFormatter.ofPattern(patternInput.trim(), Locale.getDefault())
+                                                                .withZone(ZoneId.systemDefault())
+                                                                .format(Instant.now())
+                                                        } catch (e: Throwable) { "" }
+                                                    }
+                                                    if (sample.isNotEmpty()) {
+                                                        Text("Preview: $sample", color = colors.primary)
+                                                    }
+                                                }
+                                            },
+                                            singleLine = true,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
+                                }
+
+                                HorizontalDivider(
+                                    thickness = 1.dp,
+                                    color = colors.outlineVariant.copy(alpha = 0.4f),
+                                    modifier = Modifier.padding(start = 32.dp)
+                                )
+
+                                // Sub-pref 2: Modify text
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { showModifyTextSheet = true }
+                                        .padding(start = 32.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = UiText.get(R.string.timestamp_modify_text_title, "Modify text"),
+                                            style = typography.bodyLg,
+                                            fontWeight = FontWeight.Medium,
+                                            color = colors.onSurface
+                                        )
+                                        Text(
+                                            text = timestampCustomText,
+                                            style = typography.bodyMd,
+                                            color = colors.onSurfaceVariant,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = WaexIcons.ChevronRight,
+                                        contentDescription = UiText.get(R.string.waex_ui_configure_1_s, "Configure %1\$s",
+                                            UiText.get(R.string.timestamp_modify_text_title, "Modify text")),
                                         tint = colors.primary,
                                         modifier = Modifier.size(20.dp)
                                     )
@@ -519,6 +630,43 @@ fun StylesSettingsScreen() {
             onSaved = {
                 typedValueRevision++
                 typedEditorKey = null
+            }
+        )
+    }
+
+    if (showTimestampFormatSheet) {
+        ChoiceValueEditorDialog(
+            title = UiText.get(R.string.timestamp_format_title, "Timestamp format"),
+            selectedValue = timestampFormat,
+            choices = listOf(
+                "HH:mm a" to "HH:mm a (default)",
+                "HH:mm:ss" to "HH:mm:ss",
+                "HH:mm:ss.SSS" to "HH:mm:ss.SSS",
+                "h:mm:ss a" to "h:mm:ss a",
+                "h:mm:ss.SSS a" to "h:mm:ss.SSS a",
+                "Custom Pattern" to "Custom Pattern"
+            ),
+            onDismiss = { showTimestampFormatSheet = false },
+            onSave = { selected ->
+                preferenceManager.putPublicString("timestamp_format", selected)
+                timestampFormat = selected
+                showTimestampFormatSheet = false
+                typedValueRevision++
+            }
+        )
+    }
+
+    if (showModifyTextSheet) {
+        ModifyTimestampTextSheet(
+            initialText = timestampCustomText,
+            selectedFormat = timestampFormat,
+            customPattern = timestampCustomPattern,
+            onDismiss = { showModifyTextSheet = false },
+            onSave = { savedText ->
+                preferenceManager.putPublicString("timestamp_custom_text", savedText)
+                timestampCustomText = savedText
+                showModifyTextSheet = false
+                typedValueRevision++
             }
         )
     }
@@ -568,7 +716,7 @@ private fun TypedStyleEditorDialog(
     }
     when (key) {
         "timestamp_time_format" -> ChoiceValueEditorDialog(
-            title = UiText.get(R.string.timestamp_time_format_title, "Time format"),
+            title = UiText.get(R.string.timestamp_format_title, "Time format"),
             selectedValue = if (preferenceManager.getBoolean("ampm", false)) "12" else "24",
             choices = listOf(
                 "12" to UiText.get(R.string.timestamp_time_format_12_hour, "12-hour clock (3:45:30 PM)"),
@@ -960,6 +1108,178 @@ private fun MultiChoiceValueEditorDialog(
             TextButton(
                 onClick = onDismiss,
                 modifier = Modifier.fillMaxWidth().height(44.dp),
+                shape = radius.fullShape
+            ) {
+                Text(
+                    text = UiText.get(R.string.action_cancel, "Cancel"),
+                    fontWeight = FontWeight.Medium,
+                    color = colors.onSurfaceVariant,
+                    fontSize = 14.sp
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ModifyTimestampTextSheet(
+    initialText: String,
+    selectedFormat: String,
+    customPattern: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    val colors = WaexTheme.colors
+    val typography = WaexTheme.typography
+    val radius = WaexTheme.radius
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var textValue by remember(initialText) { mutableStateOf(initialText.ifEmpty { "\${t}" }) }
+
+    val effectivePattern = remember(selectedFormat, customPattern) {
+        if (selectedFormat == "Custom Pattern") {
+            customPattern.ifBlank { "HH:mm a" }
+        } else {
+            selectedFormat.ifBlank { "HH:mm a" }
+        }
+    }
+
+    val formattedTimestamp = remember(effectivePattern) {
+        try {
+            DateTimeFormatter.ofPattern(effectivePattern, Locale.getDefault())
+                .withZone(ZoneId.systemDefault())
+                .format(Instant.now())
+        } catch (e: Throwable) {
+            try {
+                DateTimeFormatter.ofPattern("HH:mm a", Locale.getDefault())
+                    .withZone(ZoneId.systemDefault())
+                    .format(Instant.now())
+            } catch (ignored: Throwable) {
+                "12:00 PM"
+            }
+        }
+    }
+
+    val livePreview = remember(textValue, formattedTimestamp) {
+        if (textValue.contains("\${t}")) {
+            textValue.replace("\${t}", formattedTimestamp)
+        } else {
+            textValue
+        }
+    }
+
+    WaexModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = colors.surface,
+        shape = radius.bottomSheetShape,
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(top = 10.dp, bottom = 6.dp)
+                    .size(width = 36.dp, height = 4.dp)
+                    .clip(CircleShape)
+                    .background(colors.outlineVariant.copy(alpha = 0.6f))
+            )
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .imePadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Instructions on top of sheet
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = UiText.get(R.string.timestamp_modify_text_title, "Modify text"),
+                    style = typography.headlineMd,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.onSurface
+                )
+                Text(
+                    text = UiText.get(
+                        R.string.timestamp_modify_text_instructions,
+                        "Use \${t} as the timestamp variable according to your selected format. You can add any text before and after \${t}, or enter custom text."
+                    ),
+                    style = typography.bodyMd,
+                    color = colors.onSurfaceVariant
+                )
+            }
+
+            // Input field
+            OutlinedTextField(
+                value = textValue,
+                onValueChange = { textValue = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = false,
+                label = { Text("Timestamp Text") },
+                placeholder = { Text("\${t}") },
+                trailingIcon = {
+                    if (!textValue.contains("\${t}")) {
+                        TextButton(onClick = {
+                            textValue = if (textValue.isEmpty()) "\${t}" else "$textValue \${t}"
+                        }) {
+                            Text("+\${t}", color = colors.primary, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            )
+
+            // Gap
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Preview under it with a gap
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(colors.surfaceContainerHighest.copy(alpha = 0.5f))
+                    .border(1.dp, colors.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = UiText.get(R.string.timestamp_modify_text_preview, "Preview"),
+                    style = typography.labelLg,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.primary
+                )
+                Text(
+                    text = livePreview.ifEmpty { "(empty)" },
+                    style = typography.bodyLg,
+                    fontWeight = FontWeight.Medium,
+                    color = colors.onSurface
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Save button
+            Button(
+                onClick = { onSave(textValue) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                shape = radius.fullShape,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = colors.primary,
+                    contentColor = colors.onPrimary
+                )
+            ) {
+                Text(UiText.get(R.string.action_save, "Save"), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            }
+
+            // Cancel button
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp),
                 shape = radius.fullShape
             ) {
                 Text(
