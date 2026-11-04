@@ -30,4 +30,4 @@
 - Download models locally
 
 [Community contribution]
-- Thanks to @Tttim0o for valuable contributions in this update.
+- Thanks to @Tttim0o for valuable contributions in audio transcription.
