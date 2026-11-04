@@ -6,6 +6,7 @@
 - Search bar style
 - AI audio transcription with multiple models (Offline + Custom API)
 - Custom Timestamp
+- Device Default Emojis: Use device default system emojis (iOS, Samsung, Google) instead of WhatsApp's built-in emojis in both WhatsApp and WhatsApp Business
 
 [Fixes]
 - Fixed Unread chats counter not showing on Groups tab in latest version

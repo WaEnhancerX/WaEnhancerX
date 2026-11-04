@@ -35,6 +35,7 @@ import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.InstallMobile
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.Mood
 import androidx.compose.material.icons.rounded.PhoneAndroid
 
 object WaexIcons {
@@ -64,6 +65,7 @@ object WaexIcons {
     val Security = Icons.Rounded.Security
     val Image = Icons.Rounded.Image
     val Palette = Icons.Rounded.Palette
+    val Mood = Icons.Rounded.Mood
     val AutoAwesome = Icons.Rounded.AutoAwesome
     val GridView = Icons.Rounded.GridView
     val Extension = Icons.Rounded.Extension

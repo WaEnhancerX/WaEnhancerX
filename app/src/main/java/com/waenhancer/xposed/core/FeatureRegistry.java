@@ -15,6 +15,7 @@ import com.waenhancer.hooking.ScreenScopedFeature;
 import com.waenhancer.licensing.customprops.CustomAbPropsRuntime;
 import com.waenhancer.licensing.features.AudioToVoiceStatusFeature;
 import com.waenhancer.licensing.features.BootloaderSpooferFeature;
+import com.waenhancer.licensing.features.DeviceDefaultEmojisFeature;
 import com.waenhancer.licensing.features.FileSizeSpooferFeature;
 import com.waenhancer.licensing.features.MessageBomberFeature;
 import com.waenhancer.licensing.features.NewChatFeature;
@@ -321,6 +322,15 @@ public final class FeatureRegistry {
                 // some LSPosed builds; a disabled-at-registration feature can never become live.
                 () -> true,
                 () -> new ChatLimitsBypassHook(context, classLoader, prefs));
+
+        try {
+            DeviceDefaultEmojisFeature.install(context, classLoader, prefs);
+            features.add(new FeatureEntry("Device Default Emojis", "DeviceDefaultEmojisFeature", "Conversation", "ACTIVE"));
+        } catch (Throwable t) {
+            FeatureEntry entry = new FeatureEntry("Device Default Emojis", "DeviceDefaultEmojisFeature", "Conversation", "FAILED");
+            entry.error = t.getMessage();
+            features.add(entry);
+        }
 
         registerFeature(DoubleTapReactionHook.class, "Conversation",
                 () -> prefs.getBoolean("doubletap2like", false),

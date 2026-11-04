@@ -195,6 +195,8 @@
     <string name="feat_doubletap2like_desc">Activates the possibility of double-clicking on the message to react it</string>
     <string name="feat_doubletap2like_emoji_title">Custom Reaction Emoji</string>
     <string name="feat_doubletap2like_emoji_desc">Change the default emoji sent when double-clicking on a message</string>
+    <string name="feat_disable_defemojis_title">Use Device Default Emojis</string>
+    <string name="feat_disable_defemojis_desc">Use system emojis (iOS, Samsung, Google) instead of WhatsApp\'s built-in emojis</string>
     <string name="feat_jump_to_first_message_title">Jump to First Message</string>
     <string name="feat_jump_to_first_message_desc">Add a button to skip the first message in the conversations screen</string>
     <string name="feat_copy_status_text_title">Enable Copy Status</string>
