@@ -5,6 +5,7 @@
 - Custom A/B Props support: Override WhatsApp AB properties
 - Search bar style
 - AI audio transcription with multiple models (Offline + Custom API)
+- Custom Timestamp
 
 [Fixes]
 - Fixed Unread chats counter not showing on Groups tab in latest version
@@ -29,6 +30,12 @@
 - Custom API support (Web API)
 - Multiple models support
 - Download models locally
+
+[Feature: Custom Timestamp]
+- Preset time formats (HH:mm a, HH:mm:ss, HH:mm:ss.SSS, h:mm:ss a, h:mm:ss.SSS a)
+- Custom format patterns supporting date and time
+- Modify timestamp text with ${t} variable
+- Live preview for custom patterns and text templates
 
 [Community contribution]
 - Thanks to @Tttim0o for valuable contributions in audio transcription.
