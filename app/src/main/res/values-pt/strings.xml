@@ -120,8 +120,6 @@
     <string name="feat_hideonceseen_desc">Oculta que você abriu uma foto ou vídeo de visualização única</string>
     <string name="feat_anti_revoke_title">Mensagens anti-revogação</string>
     <string name="feat_anti_revoke_desc">As mensagens não serão excluídas para você</string>
-    <string name="feat_hide_anti_revoke_title">Adicionar ocultar anti-revogação ao menu de bate-papo</string>
-    <string name="feat_hide_anti_revoke_desc">Adicionar opção ao menu de conversa para ocultar mensagens excluídas desse bate-papo</string>
     <string name="feat_preserve_own_revoke_title">Manter minhas mensagens revogadas</string>
     <string name="feat_preserve_own_revoke_desc">Mantenha sua cópia local após Excluir para todos enquanto a exclui para destinatários</string>
     <string name="feat_antirevokestatus_title">Status anti-exclusão</string>

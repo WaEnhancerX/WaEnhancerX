@@ -140,7 +140,7 @@ fun GlobalPrivacySettingsScreen(
             "stealth_status_view", "autonext_status", "toast_viewed_status",
             "anti_view_once", "downloadviewonce", "download_view_once",
             "bypass_screenshot_restriction",
-            "anti_revoke", "hide_anti_revoke", "preserve_own_revoke", "antirevokestatus", "antidisappearing", "toastdeleted", "toast_viewed_message",
+            "anti_revoke", "show_as_deleted", "preserve_own_revoke", "antirevokestatus", "antidisappearing", "toastdeleted", "toast_viewed_message",
             "locked_chats_enhancer", "typearchive", "dnd_mode", "hide_chats", "custom_privacy",
             "message_bomber", "anti_edit_messages", "message_device_source", "revokeallmessages", "hide_forwarded_tag", "removeforwardlimit",
             "sticker_confirm_alert", "removeseemore", "stamp_copied_message", "doubletap2like",
@@ -878,6 +878,7 @@ fun GlobalPrivacySettingsScreen(
                             if ((item.key == "anti_revoke" && (settingsState["anti_revoke"] == true)) ||
                                 (item.key == "antirevokestatus" && (settingsState["antirevokestatus"] == true) && (settingsState["anti_revoke"] != true))) {
                                 val currentIndicator = preferenceManager.getString("anti_revoke_indicator", "2")
+                                val isShowAsDeleted = preferenceManager.getBoolean("show_as_deleted", false)
                                 val isColorEnabled = preferenceManager.getBoolean("anti_revoke_color_enabled", true)
 
                                 Surface(
@@ -893,53 +894,7 @@ fun GlobalPrivacySettingsScreen(
                                             .padding(12.dp),
                                         verticalArrangement = Arrangement.spacedBy(14.dp)
                                     ) {
-                                        // Section 1: Indicator Style with Segmented Control
-                                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                            Text(
-                                                text = UiText.get(R.string.waex_ui_indicator_style, "INDICATOR STYLE"),
-                                                style = typography.labelSm,
-                                                fontWeight = FontWeight.Bold,
-                                                color = colors.primary
-                                            )
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .clip(RoundedCornerShape(10.dp))
-                                                    .background(colors.surface)
-                                                    .padding(4.dp),
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                            ) {
-                                                listOf("2" to UiText.get(R.string.waex_ui_deleted_icon, "Deleted Icon 🚫"), "1" to UiText.get(R.string.waex_ui_text_deleted, "Text \"Deleted\"")).forEach { (valKey, title) ->
-                                                    val isSelected = currentIndicator == valKey
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .weight(1f)
-                                                            .clip(RoundedCornerShape(8.dp))
-                                                            .background(if (isSelected) colors.primary else Color.Transparent)
-                                                            .clickable {
-                                                                preferenceManager.putInt("anti_revoke_indicator", valKey.toInt())
-                                                                settingsState["anti_revoke_indicator_dummy"] = !(settingsState["anti_revoke_indicator_dummy"] ?: false)
-                                                             }
-                                                            .padding(vertical = 8.dp),
-                                                        contentAlignment = Alignment.Center
-                                                    ) {
-                                                        Text(
-                                                            text = title,
-                                                            style = typography.labelSm,
-                                                            color = if (isSelected) colors.onPrimary else colors.onSurfaceVariant,
-                                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        HorizontalDivider(
-                                            color = colors.outlineVariant.copy(alpha = 0.5f),
-                                            thickness = 0.5.dp
-                                        )
-
-                                        // Section 2: Color Deleted Messages Switch
+                                        // Section 1: Show as Deleted Message Switch
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -947,68 +902,153 @@ fun GlobalPrivacySettingsScreen(
                                         ) {
                                             Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                                 Text(
-                                                    text = UiText.get(R.string.waex_ui_color_deleted_text_indicator, "Color Deleted Text & Indicator"),
+                                                    text = UiText.get(R.string.waex_ui_show_as_deleted, "Show as Deleted Message"),
                                                     style = typography.bodyMd,
                                                     color = colors.onSurface,
                                                     fontWeight = FontWeight.Medium
                                                 )
                                                 Text(
-                                                    text = UiText.get(R.string.waex_ui_apply_custom_color_to_deleted_message, "Apply custom color to deleted message/status and time"),
+                                                    text = UiText.get(R.string.waex_ui_show_as_deleted_desc, "Display deleted messages using WhatsApp's native deleted message layout"),
                                                     style = typography.labelSm,
                                                     color = colors.onSurfaceVariant
                                                 )
                                             }
                                             StitchSwitch(
-                                                checked = isColorEnabled,
+                                                checked = isShowAsDeleted,
                                                 onCheckedChange = { checked ->
-                                                    preferenceManager.putBoolean("anti_revoke_color_enabled", checked)
-                                                    settingsState["anti_revoke_color_enabled"] = checked
+                                                    preferenceManager.putBoolean("show_as_deleted", checked)
+                                                    settingsState["show_as_deleted"] = checked
                                                     settingsState["anti_revoke_indicator_dummy"] = !(settingsState["anti_revoke_indicator_dummy"] ?: false)
                                                 }
                                             )
                                         }
 
-                                        // Section 3: Color Picker Trigger (only when Color Deleted Messages is ON)
-                                        if (isColorEnabled) {
+                                        if (!isShowAsDeleted) {
+                                            HorizontalDivider(
+                                                color = colors.outlineVariant.copy(alpha = 0.5f),
+                                                thickness = 0.5.dp
+                                            )
+
+                                            // Section 2: Indicator Style with Segmented Control
+                                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                Text(
+                                                    text = UiText.get(R.string.waex_ui_indicator_style, "INDICATOR STYLE"),
+                                                    style = typography.labelSm,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = colors.primary
+                                                )
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clip(RoundedCornerShape(10.dp))
+                                                        .background(colors.surface)
+                                                        .padding(4.dp),
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    listOf(
+                                                        "2" to UiText.get(R.string.waex_ui_deleted_icon, "Deleted Icon 🚫"),
+                                                        "1" to UiText.get(R.string.waex_ui_text_deleted, "Text \"Deleted\"")
+                                                    ).forEach { (valKey, title) ->
+                                                        val isSelected = currentIndicator == valKey
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .weight(1f)
+                                                                .clip(RoundedCornerShape(8.dp))
+                                                                .background(if (isSelected) colors.primary else Color.Transparent)
+                                                                .clickable {
+                                                                    preferenceManager.putInt("anti_revoke_indicator", valKey.toInt())
+                                                                    settingsState["anti_revoke_indicator_dummy"] = !(settingsState["anti_revoke_indicator_dummy"] ?: false)
+                                                                }
+                                                                .padding(vertical = 8.dp),
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Text(
+                                                                text = title,
+                                                                style = typography.labelSm,
+                                                                color = if (isSelected) colors.onPrimary else colors.onSurfaceVariant,
+                                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            HorizontalDivider(
+                                                color = colors.outlineVariant.copy(alpha = 0.5f),
+                                                thickness = 0.5.dp
+                                            )
+
+                                            // Section 3: Color Deleted Messages Switch
                                             Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .clip(RoundedCornerShape(10.dp))
-                                                    .background(colors.surface)
-                                                    .clickable { showColorPickerDialog = true }
-                                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                                modifier = Modifier.fillMaxWidth(),
                                                 horizontalArrangement = Arrangement.SpaceBetween,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                                ) {
-                                                    val parsedCurrentColor = try {
-                                                        Color(AndroidColor.parseColor(deletedMessageColor))
-                                                    } catch (_: Throwable) {
-                                                        colors.error
-                                                    }
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(24.dp)
-                                                            .clip(CircleShape)
-                                                            .background(parsedCurrentColor)
-                                                            .border(1.5.dp, colors.outline, CircleShape)
-                                                    )
+                                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                                     Text(
-                                                        text = UiText.get(R.string.waex_ui_indicator_text_color, "Indicator & Text Color"),
+                                                        text = UiText.get(R.string.waex_ui_color_deleted_text_indicator, "Color Deleted Text & Indicator"),
                                                         style = typography.bodyMd,
                                                         color = colors.onSurface,
                                                         fontWeight = FontWeight.Medium
                                                     )
+                                                    Text(
+                                                        text = UiText.get(R.string.waex_ui_apply_custom_color_to_deleted_message, "Apply custom color to deleted message/status and time"),
+                                                        style = typography.labelSm,
+                                                        color = colors.onSurfaceVariant
+                                                    )
                                                 }
-                                                Text(
-                                                    text = deletedMessageColor.uppercase(),
-                                                    style = typography.labelSm,
-                                                    color = colors.primary,
-                                                    fontWeight = FontWeight.Bold
+                                                StitchSwitch(
+                                                    checked = isColorEnabled,
+                                                    onCheckedChange = { checked ->
+                                                        preferenceManager.putBoolean("anti_revoke_color_enabled", checked)
+                                                        settingsState["anti_revoke_color_enabled"] = checked
+                                                        settingsState["anti_revoke_indicator_dummy"] = !(settingsState["anti_revoke_indicator_dummy"] ?: false)
+                                                    }
                                                 )
+                                            }
+
+                                            // Section 4: Color Picker Trigger (only when Color Deleted Messages is ON)
+                                            if (isColorEnabled) {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clip(RoundedCornerShape(10.dp))
+                                                        .background(colors.surface)
+                                                        .clickable { showColorPickerDialog = true }
+                                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                                    ) {
+                                                        val parsedCurrentColor = try {
+                                                            Color(AndroidColor.parseColor(deletedMessageColor))
+                                                        } catch (_: Throwable) {
+                                                            colors.error
+                                                        }
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(24.dp)
+                                                                .clip(CircleShape)
+                                                                .background(parsedCurrentColor)
+                                                                .border(1.5.dp, colors.outline, CircleShape)
+                                                        )
+                                                        Text(
+                                                            text = UiText.get(R.string.waex_ui_indicator_text_color, "Indicator & Text Color"),
+                                                            style = typography.bodyMd,
+                                                            color = colors.onSurface,
+                                                            fontWeight = FontWeight.Medium
+                                                        )
+                                                    }
+                                                    Text(
+                                                        text = deletedMessageColor.uppercase(),
+                                                        style = typography.labelSm,
+                                                        color = colors.primary,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
                                             }
                                         }
                                     }

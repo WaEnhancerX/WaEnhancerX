@@ -120,8 +120,6 @@
     <string name="feat_hideonceseen_desc">查看一次性媒体后，不让发送者知道你已查看</string>
     <string name="feat_anti_revoke_title">保留他人删除的消息</string>
     <string name="feat_anti_revoke_desc">他人选择“对所有人删除”后，仍在本机保留消息</string>
-    <string name="feat_hide_anti_revoke_title">显示隐藏已删除消息的菜单项</string>
-    <string name="feat_hide_anti_revoke_desc">在聊天菜单中添加选项，用于隐藏当前聊天中保留的已删除消息</string>
     <string name="feat_preserve_own_revoke_title">保留自己对所有人删除的消息</string>
     <string name="feat_preserve_own_revoke_desc">选择“对所有人删除”后，仍在本机保留该消息</string>
     <string name="feat_antirevokestatus_title">动态防删除</string>

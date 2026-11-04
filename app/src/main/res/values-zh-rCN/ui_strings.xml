@@ -880,7 +880,6 @@
     <string name="waex_ui_typing_privacy" formatted="false">"输入隐私"</string>
     <string name="waex_ui_hide_read_receipts" formatted="false">"隐藏已读回执"</string>
     <string name="waex_ui_anti_edit_messages" formatted="false">"反编辑消息"</string>
-    <string name="waex_ui_hide_anti_revoke" formatted="false">"隐藏反撤回"</string>
     <string name="waex_ui_message_device_source" formatted="false">"消息设备来源"</string>
     <string name="waex_ui_minor_fixes" formatted="false">"小修复"</string>
     <string name="waex_ui_preserve_delete_for_me" formatted="false">"保留“为我删除”"</string>

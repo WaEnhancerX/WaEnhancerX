@@ -55,7 +55,6 @@
     "tabId": "privacy",
     "keys": [
       "anti_revoke",
-      "hide_anti_revoke",
       "preserve_own_revoke",
       "antirevokestatus",
       "antidisappearing",

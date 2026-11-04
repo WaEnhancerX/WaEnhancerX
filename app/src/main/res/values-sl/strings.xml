@@ -121,8 +121,6 @@
     <string name="feat_hideonceseen_desc">Skrije, da je bila vsebina Ogledano enkrat ogledana</string>
     <string name="feat_anti_revoke_title">Zaščita pred preklicem sporočil</string>
     <string name="feat_anti_revoke_desc">Sporočila se ti ne bodo izbrisala</string>
-    <string name="feat_hide_anti_revoke_title">Dodaj Skrij zaščito pred preklicem v meni klepeta</string>
-    <string name="feat_hide_anti_revoke_desc">Dodajanje možnosti v meni klepeta, da se izbrisana sporočila za ta klepet skrijejo</string>
     <string name="feat_preserve_own_revoke_title">Ohrani moja preklicana sporočila</string>
     <string name="feat_preserve_own_revoke_desc">Ohranjevanje lokalne kopije po izbrisanju za vse, medtem ko se sporočila izbrišejo za prejemnike</string>
     <string name="feat_antirevokestatus_title">Zaščita pred izbrisom statusa</string>

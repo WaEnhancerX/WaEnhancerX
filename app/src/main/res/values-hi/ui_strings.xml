@@ -880,7 +880,6 @@
     <string name="waex_ui_typing_privacy" formatted="false">"टाइपिंग गोपनीयता"</string>
     <string name="waex_ui_hide_read_receipts" formatted="false">"पढ़ी गई रसीदें छुपाएं"</string>
     <string name="waex_ui_anti_edit_messages" formatted="false">"विरोधी संपादन संदेश"</string>
-    <string name="waex_ui_hide_anti_revoke" formatted="false">"एंटी रिवोक छुपाएं"</string>
     <string name="waex_ui_message_device_source" formatted="false">"संदेश डिवाइस स्रोत"</string>
     <string name="waex_ui_minor_fixes" formatted="false">"मामूली सुधार"</string>
     <string name="waex_ui_preserve_delete_for_me" formatted="false">"मेरे लिए डिलीट सुरक्षित रखें"</string>

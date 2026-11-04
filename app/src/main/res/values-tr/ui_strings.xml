@@ -880,7 +880,6 @@ Değişiklikleri uygulamak için WhatsApp yeniden başlatılsın mı?"</string>
     <string name="waex_ui_typing_privacy" formatted="false">"Yazma Gizliliği"</string>
     <string name="waex_ui_hide_read_receipts" formatted="false">"Okundu Bilgilerini Gizle"</string>
     <string name="waex_ui_anti_edit_messages" formatted="false">"Mesaj Düzenlemeye Karşı"</string>
-    <string name="waex_ui_hide_anti_revoke" formatted="false">"Geri Almayı Gizle"</string>
     <string name="waex_ui_message_device_source" formatted="false">"Mesaj Cihaz Kaynağı"</string>
     <string name="waex_ui_minor_fixes" formatted="false">"Küçük Düzeltmeler"</string>
     <string name="waex_ui_preserve_delete_for_me" formatted="false">"Benim İçin Silmeyi Koruma"</string>

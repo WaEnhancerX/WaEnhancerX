@@ -880,7 +880,6 @@ Redémarrer WhatsApp pour appliquer les modifications ?"</string>
     <string name="waex_ui_typing_privacy" formatted="false">"Confidentialité de saisie"</string>
     <string name="waex_ui_hide_read_receipts" formatted="false">"Masquer les accusés de lecture"</string>
     <string name="waex_ui_anti_edit_messages" formatted="false">"Messages anti-modification"</string>
-    <string name="waex_ui_hide_anti_revoke" formatted="false">"Masquer l'anti-révocation"</string>
     <string name="waex_ui_message_device_source" formatted="false">"Source du périphérique de message"</string>
     <string name="waex_ui_minor_fixes" formatted="false">"Corrections mineures"</string>
     <string name="waex_ui_preserve_delete_for_me" formatted="false">"Conserver la suppression pour moi"</string>

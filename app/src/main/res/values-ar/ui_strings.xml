@@ -880,7 +880,6 @@
     <string name="waex_ui_typing_privacy" formatted="false">"خصوصية الكتابة"</string>
     <string name="waex_ui_hide_read_receipts" formatted="false">"إخفاء إيصالات القراءة"</string>
     <string name="waex_ui_anti_edit_messages" formatted="false">"مكافحة تحرير الرسائل"</string>
-    <string name="waex_ui_hide_anti_revoke" formatted="false">"إخفاء مكافحة الإبطال"</string>
     <string name="waex_ui_message_device_source" formatted="false">"مصدر جهاز الرسالة"</string>
     <string name="waex_ui_minor_fixes" formatted="false">"إصلاحات طفيفة"</string>
     <string name="waex_ui_preserve_delete_for_me" formatted="false">"الحفاظ على الحذف بالنسبة لي"</string>

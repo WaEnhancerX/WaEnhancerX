@@ -135,7 +135,7 @@ public final class InternalLabels {
             case "Typing Privacy": return UiText.get(R.string.waex_ui_typing_privacy, "Typing Privacy");
             case "Hide Read Receipts": return UiText.get(R.string.waex_ui_hide_read_receipts, "Hide Read Receipts");
             case "Anti Edit Messages": return UiText.get(R.string.waex_ui_anti_edit_messages, "Anti Edit Messages");
-            case "Hide Anti Revoke": return UiText.get(R.string.waex_ui_hide_anti_revoke, "Hide Anti Revoke");
+            case "Show as Deleted Message": return UiText.get(R.string.waex_ui_show_as_deleted, "Show as Deleted Message");
             case "Message Device Source": return UiText.get(R.string.waex_ui_message_device_source, "Message Device Source");
             case "Minor Fixes": return UiText.get(R.string.waex_ui_minor_fixes, "Minor Fixes");
             case "Preserve Delete For Me": return UiText.get(R.string.waex_ui_preserve_delete_for_me, "Preserve Delete For Me");

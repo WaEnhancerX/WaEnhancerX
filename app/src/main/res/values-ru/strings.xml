@@ -120,8 +120,6 @@
     <string name="feat_hideonceseen_desc">Скрывает факт открытия вами фото или видео с однократным просмотром</string>
     <string name="feat_anti_revoke_title">Сообщения о запрете отзыва</string>
     <string name="feat_anti_revoke_desc">Сообщения не будут удалены у вас</string>
-    <string name="feat_hide_anti_revoke_title">Добавлена функция «Скрыть защиту от отзыва» в меню чата.</string>
-    <string name="feat_hide_anti_revoke_desc">Добавьте в меню чата опцию, чтобы скрыть удаленные сообщения для этого чата.</string>
     <string name="feat_preserve_own_revoke_title">Сохранить мои отозванные сообщения</string>
     <string name="feat_preserve_own_revoke_desc">Сохраните локальную копию после удаления для всех, удалив ее для получателей.</string>
     <string name="feat_antirevokestatus_title">Статус защиты от удаления</string>

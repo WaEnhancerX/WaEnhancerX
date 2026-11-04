@@ -880,7 +880,6 @@ Znova zaženite WhatsApp, da uporabite spremembe?"</string>
     <string name="waex_ui_typing_privacy" formatted="false">"Zasebnost tipkanja"</string>
     <string name="waex_ui_hide_read_receipts" formatted="false">"Skrij potrdila o branju"</string>
     <string name="waex_ui_anti_edit_messages" formatted="false">"Anti urejanje sporočil"</string>
-    <string name="waex_ui_hide_anti_revoke" formatted="false">"Skrij Anti razveljavitev"</string>
     <string name="waex_ui_message_device_source" formatted="false">"Vir naprave sporočila"</string>
     <string name="waex_ui_minor_fixes" formatted="false">"Manjši popravki"</string>
     <string name="waex_ui_preserve_delete_for_me" formatted="false">"Ohrani Izbriši zame"</string>

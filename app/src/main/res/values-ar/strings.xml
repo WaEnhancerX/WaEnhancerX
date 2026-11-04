@@ -120,8 +120,6 @@
     <string name="feat_hideonceseen_desc">إخفاء إشعار فتح وسائط العرض لمرة واحدة عن الطرف الآخر</string>
     <string name="feat_anti_revoke_title">رسائل مكافحة الإبطال</string>
     <string name="feat_anti_revoke_desc">لن يتم حذف الرسائل لك</string>
-    <string name="feat_hide_anti_revoke_title">إضافة خاصية إخفاء الإبطال إلى قائمة الدردشة</string>
-    <string name="feat_hide_anti_revoke_desc">إضافة خيار لقائمة المحادثات لإخفاء الرسائل المحذوفة لتلك الدردشة</string>
     <string name="feat_preserve_own_revoke_title">احتفظ برسائلي الملغاة</string>
     <string name="feat_preserve_own_revoke_desc">احتفظ بنسختك المحلية بعد الحذف للجميع أثناء حذفها للمستلمين</string>
     <string name="feat_antirevokestatus_title">حالة مكافحة الحذف</string>

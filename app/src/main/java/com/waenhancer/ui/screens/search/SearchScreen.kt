@@ -54,7 +54,8 @@ import com.waenhancer.utils.UiText
 typealias SearchablePreference = FeatureItem
 
 private val preferenceSearchAliases = mapOf(
-    "chat_filters" to "chat search display search bar search icon hide search no search chatfilter"
+    "chat_filters" to "chat search display search bar search icon hide search no search chatfilter",
+    "anti_revoke" to "show as deleted native deleted message layout"
 )
 
 @OptIn(ExperimentalMaterial3Api::class)

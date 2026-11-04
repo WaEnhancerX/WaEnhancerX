@@ -880,7 +880,6 @@
     <string name="waex_ui_typing_privacy" formatted="false">"ٹائپنگ پرائیویسی"</string>
     <string name="waex_ui_hide_read_receipts" formatted="false">"ریڈ ریسپٹس چھپائیں"</string>
     <string name="waex_ui_anti_edit_messages" formatted="false">"اینٹی ایڈٹ میسیجز"</string>
-    <string name="waex_ui_hide_anti_revoke" formatted="false">"اینٹی ریووکو چھپائیں"</string>
     <string name="waex_ui_message_device_source" formatted="false">"میسیج ڈیوائس سورس"</string>
     <string name="waex_ui_minor_fixes" formatted="false">"چھوٹی مرمتیں"</string>
     <string name="waex_ui_preserve_delete_for_me" formatted="false">"میرے لیے ڈیلیٹ برقرار رکھیں"</string>

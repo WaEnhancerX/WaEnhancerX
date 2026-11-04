@@ -120,8 +120,6 @@
     <string name="feat_hideonceseen_desc">ایک بار دیکھے جانے والے فوٹو یا ویڈیو کو کھولنے پر بھیجنے والے کو معلوم ہونے سے روکتا ہے</string>
     <string name="feat_anti_revoke_title">منسوخی مخالف پیغامات</string>
     <string name="feat_anti_revoke_desc">آپ کے پیغامات کو حذف نہیں کیا جائے گا۔</string>
-    <string name="feat_hide_anti_revoke_title">چیٹ مینو میں Hide Anti-Revoke شامل کریں۔</string>
-    <string name="feat_hide_anti_revoke_desc">اس چیٹ کے لیے حذف شدہ پیغامات کو چھپانے کے لیے گفتگو کے مینو میں آپشن شامل کریں۔</string>
     <string name="feat_preserve_own_revoke_title">میرے منسوخ شدہ پیغامات رکھیں</string>
     <string name="feat_preserve_own_revoke_desc">وصول کنندگان کے لیے حذف کرتے وقت اپنی مقامی کاپی ڈیلیٹ فار ایورین کے بعد اپنے پاس رکھیں</string>
     <string name="feat_antirevokestatus_title">اینٹی ڈیلیٹ اسٹیٹس</string>

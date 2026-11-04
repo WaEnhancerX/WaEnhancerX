@@ -135,8 +135,6 @@
     <string name="feat_hideonceseen_desc">Hide that view one media has been seen</string>
     <string name="feat_anti_revoke_title">Anti-Revoke Messages</string>
     <string name="feat_anti_revoke_desc">Messages will not be deleted for you</string>
-    <string name="feat_hide_anti_revoke_title">Add Hide Anti-Revoke to Chat Menu</string>
-    <string name="feat_hide_anti_revoke_desc">Add option to conversation menu to hide deleted messages for that chat</string>
     <string name="feat_preserve_own_revoke_title">Keep My Revoked Messages</string>
     <string name="feat_preserve_own_revoke_desc">Keep your local copy after Delete for Everyone while deleting it for recipients</string>
     <string name="feat_antirevokestatus_title">Anti-Delete Status</string>

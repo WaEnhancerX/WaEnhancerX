@@ -120,8 +120,6 @@
     <string name="feat_hideonceseen_desc">"Oculta que abriste una foto o un video de una sola vista"</string>
     <string name="feat_anti_revoke_title">"Conservar mensajes eliminados"</string>
     <string name="feat_anti_revoke_desc">"Conserva tu copia de los mensajes que otras personas eliminan"</string>
-    <string name="feat_hide_anti_revoke_title">"Agregar la opción de ocultar mensajes eliminados"</string>
-    <string name="feat_hide_anti_revoke_desc">"Agrega al menú de la conversación una opción para ocultar sus mensajes eliminados"</string>
     <string name="feat_preserve_own_revoke_title">"Conservar mis mensajes eliminados para todos"</string>
     <string name="feat_preserve_own_revoke_desc">"Conserva tu copia local al usar Eliminar para todos, sin impedir que se elimine la de los destinatarios"</string>
     <string name="feat_antirevokestatus_title">"Conservar estados eliminados"</string>

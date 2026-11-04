@@ -852,7 +852,6 @@
     <string name="waex_ui_typing_privacy" formatted="false">"Privacidad del indicador de escritura"</string>
     <string name="waex_ui_hide_read_receipts" formatted="false">"Ocultar confirmaciones de lectura"</string>
     <string name="waex_ui_anti_edit_messages" formatted="false">"Historial de ediciones"</string>
-    <string name="waex_ui_hide_anti_revoke" formatted="false">"Ocultar indicador de eliminación"</string>
     <string name="waex_ui_message_device_source" formatted="false">"Dispositivo de origen del mensaje"</string>
     <string name="waex_ui_minor_fixes" formatted="false">"Correcciones menores"</string>
     <string name="waex_ui_preserve_delete_for_me" formatted="false">"Conservar mensajes eliminados para mí"</string>

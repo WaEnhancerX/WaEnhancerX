@@ -880,7 +880,6 @@
     <string name="waex_ui_typing_privacy" formatted="false">"Приватность набора текста"</string>
     <string name="waex_ui_hide_read_receipts" formatted="false">"Скрывать отметки о прочтении"</string>
     <string name="waex_ui_anti_edit_messages" formatted="false">"Анти-редактирование сообщений"</string>
-    <string name="waex_ui_hide_anti_revoke" formatted="false">"Скрывать анти-отзыв"</string>
     <string name="waex_ui_message_device_source" formatted="false">"Источник устройства сообщения"</string>
     <string name="waex_ui_minor_fixes" formatted="false">"Мелкие исправления"</string>
     <string name="waex_ui_preserve_delete_for_me" formatted="false">"Сохранять 'Удалить для меня'"</string>

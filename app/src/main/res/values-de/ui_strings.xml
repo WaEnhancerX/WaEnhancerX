@@ -880,7 +880,6 @@ WhatsApp neu starten, um die Änderungen zu übernehmen?"</string>
     <string name="waex_ui_typing_privacy" formatted="false">"Privatsphäre eingeben"</string>
     <string name="waex_ui_hide_read_receipts" formatted="false">"Lesebestätigungen ausblenden"</string>
     <string name="waex_ui_anti_edit_messages" formatted="false">"Anti-Nachrichten bearbeiten"</string>
-    <string name="waex_ui_hide_anti_revoke" formatted="false">"Anti-Widerruf ausblenden"</string>
     <string name="waex_ui_message_device_source" formatted="false">"Quelle des Nachrichtengeräts"</string>
     <string name="waex_ui_minor_fixes" formatted="false">"Kleinere Korrekturen"</string>
     <string name="waex_ui_preserve_delete_for_me" formatted="false">"Für mich löschen"</string>

@@ -120,8 +120,6 @@
     <string name="feat_hideonceseen_desc">Empêche l\'expéditeur de savoir que vous avez ouvert une photo ou vidéo à vue unique</string>
     <string name="feat_anti_revoke_title">Messages anti-révocation</string>
     <string name="feat_anti_revoke_desc">Les messages ne seront pas supprimés pour vous</string>
-    <string name="feat_hide_anti_revoke_title">Ajouter Masquer l\'anti-révocation au menu de discussion</string>
-    <string name="feat_hide_anti_revoke_desc">Ajouter une option au menu de conversation pour masquer les messages supprimés pour cette discussion</string>
     <string name="feat_preserve_own_revoke_title">Conserver mes messages révoqués</string>
     <string name="feat_preserve_own_revoke_desc">Conservez votre copie locale après la suppression pour tout le monde tout en la supprimant pour les destinataires</string>
     <string name="feat_antirevokestatus_title">Statut anti-suppression</string>

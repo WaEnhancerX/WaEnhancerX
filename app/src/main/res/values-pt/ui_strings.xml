@@ -880,7 +880,6 @@ Reiniciar WhatsApp para aplicar as alterações?"</string>
     <string name="waex_ui_typing_privacy" formatted="false">"Digitando privacidade"</string>
     <string name="waex_ui_hide_read_receipts" formatted="false">"Ocultar recibos de leitura"</string>
     <string name="waex_ui_anti_edit_messages" formatted="false">"Mensagens anti-edição"</string>
-    <string name="waex_ui_hide_anti_revoke" formatted="false">"Ocultar anti-revogação"</string>
     <string name="waex_ui_message_device_source" formatted="false">"Fonte do dispositivo de mensagem"</string>
     <string name="waex_ui_minor_fixes" formatted="false">"Pequenas correções"</string>
     <string name="waex_ui_preserve_delete_for_me" formatted="false">"Preservar Excluir para mim"</string>

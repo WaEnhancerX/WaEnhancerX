@@ -120,8 +120,6 @@
     <string name="feat_hideonceseen_desc">व्यू वन्स फ़ोटो या वीडियो देखने पर प्रेषक को पता नहीं चलने देता</string>
     <string name="feat_anti_revoke_title">निरस्तीकरण विरोधी संदेश</string>
     <string name="feat_anti_revoke_desc">आपके लिए संदेश हटाए नहीं जाएंगे</string>
-    <string name="feat_hide_anti_revoke_title">चैट मेनू में हाईड एंटी-रिवोक जोड़ें</string>
-    <string name="feat_hide_anti_revoke_desc">उस चैट के लिए हटाए गए संदेशों को छिपाने के लिए वार्तालाप मेनू में विकल्प जोड़ें</string>
     <string name="feat_preserve_own_revoke_title">मेरे निरस्त किए गए संदेश रखें</string>
     <string name="feat_preserve_own_revoke_desc">सभी के लिए हटाएं के बाद प्राप्तकर्ताओं के लिए हटाते समय अपनी स्थानीय प्रतिलिपि रखें</string>
     <string name="feat_antirevokestatus_title">एंटी-डिलीट स्थिति</string>

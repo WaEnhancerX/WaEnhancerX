@@ -870,7 +870,8 @@
     <string name="waex_ui_typing_privacy" formatted="false">"Typing Privacy"</string>
     <string name="waex_ui_hide_read_receipts" formatted="false">"Hide Read Receipts"</string>
     <string name="waex_ui_anti_edit_messages" formatted="false">"Anti Edit Messages"</string>
-    <string name="waex_ui_hide_anti_revoke" formatted="false">"Hide Anti Revoke"</string>
+    <string name="waex_ui_show_as_deleted" formatted="false">"Show as Deleted Message"</string>
+    <string name="waex_ui_show_as_deleted_desc" formatted="false">"Display deleted messages using WhatsApp\'s native deleted message layout"</string>
     <string name="waex_ui_message_device_source" formatted="false">"Message Device Source"</string>
     <string name="waex_ui_minor_fixes" formatted="false">"Minor Fixes"</string>
     <string name="waex_ui_preserve_delete_for_me" formatted="false">"Preserve Delete For Me"</string>

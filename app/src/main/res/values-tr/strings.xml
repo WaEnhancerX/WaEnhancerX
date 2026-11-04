@@ -120,8 +120,6 @@
     <string name="feat_hideonceseen_desc">Bir kez görüntülenen bir fotoğraf veya videoyu açtığınızı gizler</string>
     <string name="feat_anti_revoke_title">İptal Engelleme Mesajları</string>
     <string name="feat_anti_revoke_desc">Mesajlar sizin için silinmeyecek</string>
-    <string name="feat_hide_anti_revoke_title">Sohbet Menüsüne İptal Engellemeyi Gizle Ekle</string>
-    <string name="feat_hide_anti_revoke_desc">Söz konusu sohbet için silinen mesajları gizlemek üzere sohbet menüsüne seçenek ekleyin</string>
     <string name="feat_preserve_own_revoke_title">İptal Edilen Mesajlarımı Sakla</string>
     <string name="feat_preserve_own_revoke_desc">Yerel kopyanızı Herkes için Sil\'den sonra alıcılar için silerken saklayın</string>
     <string name="feat_antirevokestatus_title">Silinmeyi Önleme Durumu</string>

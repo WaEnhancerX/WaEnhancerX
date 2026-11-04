@@ -211,6 +211,36 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
         return list
     }
 
+    fun getPreservedMessageByMsgId(msgId: String): StoredMessage? {
+        if (msgId.isBlank()) return null
+        try {
+            val db = readableDatabase
+            db.query(
+                TABLE_NAME,
+                arrayOf(COL_MSG_ID, COL_JID, COL_NAME, COL_SENDER_NAME, COL_TEXT, COL_TIMESTAMP, COL_FROM_ME, COL_IS_GROUP, COL_ID),
+                "$COL_MSG_ID = ?",
+                arrayOf(msgId),
+                null, null, null, "1"
+            ).use { cursor ->
+                if (cursor != null && cursor.moveToFirst()) {
+                    val hasSenderCol = cursor.columnCount >= 8
+                    return StoredMessage(
+                        id = cursor.getString(0) ?: "",
+                        jid = cursor.getString(1) ?: "",
+                        chatName = cursor.getString(2) ?: "",
+                        senderName = if (hasSenderCol) (cursor.getString(3) ?: "") else "",
+                        text = cursor.getString(4) ?: "",
+                        timestamp = cursor.getLong(5),
+                        isFromMe = cursor.getInt(6) == 1,
+                        isGroup = cursor.getInt(7) == 1,
+                        storageId = cursor.getLong(8)
+                    )
+                }
+            }
+        } catch (_: Throwable) {}
+        return null
+    }
+
     fun getContactNameByJid(jid: String): String? {
         val exact = ContactIdentityPolicy.canonicalJid(jid) ?: return null
         try {

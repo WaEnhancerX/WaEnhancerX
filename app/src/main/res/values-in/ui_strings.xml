@@ -880,7 +880,6 @@ Mulai ulang WhatsApp untuk menerapkan perubahan?"</string>
     <string name="waex_ui_typing_privacy" formatted="false">"Privasi Pengetikan"</string>
     <string name="waex_ui_hide_read_receipts" formatted="false">"Sembunyikan Tanda Terima Telah Dibaca"</string>
     <string name="waex_ui_anti_edit_messages" formatted="false">"Pesan Anti Edit"</string>
-    <string name="waex_ui_hide_anti_revoke" formatted="false">"Sembunyikan Anti Pencabutan"</string>
     <string name="waex_ui_message_device_source" formatted="false">"Sumber Perangkat Pesan"</string>
     <string name="waex_ui_minor_fixes" formatted="false">"Perbaikan Kecil"</string>
     <string name="waex_ui_preserve_delete_for_me" formatted="false">"Pertahankan Hapus Untuk Saya"</string>
