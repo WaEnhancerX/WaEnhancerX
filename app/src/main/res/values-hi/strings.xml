@@ -388,9 +388,6 @@
     <string name="diag_target_sheet_custom_rule_warning">सभी ऐप्स इंजेक्ट और सक्रिय हैं। एक कस्टम संस्करण नियम प्रभावी है; इस संस्करण के साथ अनुकूलता आधिकारिक रूप से सत्यापित नहीं की गई है।</string>
     <string name="feat_bypass_screenshot_restriction_title">स्क्रीनशॉट की अनुमति दें</string>
     <string name="feat_bypass_screenshot_restriction_desc">पूरे WhatsApp में स्क्रीनशॉट और स्क्रीन रिकॉर्डिंग की अनुमति दें</string>
-    <string name="timestamp_time_format_title">समय प्रारूप</string>
-    <string name="timestamp_time_format_12_hour">12 घंटे की घड़ी (3:45:30 PM)</string>
-    <string name="timestamp_time_format_24_hour">24 घंटे की घड़ी (15:45:30)</string>
     <string name="waex_ui_selected_icon_color">चयनित आइकन रंग</string>
     <string name="waex_ui_unselected_icon_color">अचयनित आइकन रंग</string>
     <string name="waex_ui_using_app_default_color">ऐप का डिफ़ॉल्ट रंग उपयोग कर रहे हैं</string>

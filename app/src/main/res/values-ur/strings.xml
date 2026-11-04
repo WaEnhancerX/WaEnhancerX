@@ -388,9 +388,6 @@
     <string name="diag_target_sheet_custom_rule_warning">تمام ایپس انجیکٹ اور فعال ہیں۔ ایک حسب ضرورت ورژن قانون نافذ ہے؛ اس ورژن کے ساتھ مطابقت سرکاری طور پر تصدیق نہیں کی گئی۔</string>
     <string name="feat_bypass_screenshot_restriction_title">اسکرین شاٹ کی اجازت دیں</string>
     <string name="feat_bypass_screenshot_restriction_desc">پورے واٹس ایپ میں اسکرین شاٹ اور اسکرین ریکارڈنگ کی اجازت دیں</string>
-    <string name="timestamp_time_format_title">وقت کا فارمیٹ</string>
-    <string name="timestamp_time_format_12_hour">12 گھنٹے کی گھڑی (3:45:30 PM)</string>
-    <string name="timestamp_time_format_24_hour">24 گھنٹے کی گھڑی (15:45:30)</string>
     <string name="waex_ui_selected_icon_color">منتخب آئیکن کا رنگ</string>
     <string name="waex_ui_unselected_icon_color">غیر منتخب آئیکن کا رنگ</string>
     <string name="waex_ui_using_app_default_color">ایپ کا ڈیفالٹ رنگ استعمال ہو رہا ہے</string>

@@ -82,7 +82,6 @@ public final class PreferenceSchema {
         add(entries, "waex_sim_enabled", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "waex_sim_trigger", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "waex_sim_kind", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
-        add(entries, "ampm", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "animation_emojis", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "animation_list", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "antidisappearing", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);

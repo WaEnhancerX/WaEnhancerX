@@ -388,9 +388,6 @@
     <string name="diag_target_sheet_custom_rule_warning">Toutes les applications sont injectées et actives. Une règle de version personnalisée est en vigueur ; la compatibilité avec cette version n\'a pas été officiellement vérifiée.</string>
     <string name="feat_bypass_screenshot_restriction_title">Autoriser les captures d\'écran</string>
     <string name="feat_bypass_screenshot_restriction_desc">Autoriser les captures d\'écran et l\'enregistrement d\'écran dans toute l\'application WhatsApp</string>
-    <string name="timestamp_time_format_title">Format de l\'heure</string>
-    <string name="timestamp_time_format_12_hour">Horloge 12 heures (3:45:30 PM)</string>
-    <string name="timestamp_time_format_24_hour">Horloge 24 heures (15:45:30)</string>
     <string name="waex_ui_selected_icon_color">Couleur de l\'icône sélectionnée</string>
     <string name="waex_ui_unselected_icon_color">Couleur de l\'icône non sélectionnée</string>
     <string name="waex_ui_using_app_default_color">Utilisation de la couleur par défaut de l\'application</string>

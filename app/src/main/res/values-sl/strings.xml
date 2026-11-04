@@ -389,9 +389,6 @@
     <string name="diag_target_sheet_custom_rule_warning">Vse aplikacije so vbrizgane in aktivne. Velja pravilo po meri za verzijo; združljivost s to verzijo ni bila uradno preverjena.</string>
     <string name="feat_bypass_screenshot_restriction_title">Dovoli posnetke zaslona</string>
     <string name="feat_bypass_screenshot_restriction_desc">Dovoli posnetke zaslona in snemanje zaslona v celotnem WhatsApp</string>
-    <string name="timestamp_time_format_title">Format ure</string>
-    <string name="timestamp_time_format_12_hour">12-urna ura (3:45:30 PM)</string>
-    <string name="timestamp_time_format_24_hour">24-urna ura (15:45:30)</string>
     <string name="waex_ui_selected_icon_color">Barva izbranih ikon</string>
     <string name="waex_ui_unselected_icon_color">Barva neizbranih ikon</string>
     <string name="waex_ui_using_app_default_color">Uporablja privzeto barvo aplikacije</string>

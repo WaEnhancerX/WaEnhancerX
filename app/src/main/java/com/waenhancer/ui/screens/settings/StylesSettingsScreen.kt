@@ -715,16 +715,6 @@ private fun TypedStyleEditorDialog(
         }
     }
     when (key) {
-        "timestamp_time_format" -> ChoiceValueEditorDialog(
-            title = UiText.get(R.string.timestamp_format_title, "Time format"),
-            selectedValue = if (preferenceManager.getBoolean("ampm", false)) "12" else "24",
-            choices = listOf(
-                "12" to UiText.get(R.string.timestamp_time_format_12_hour, "12-hour clock (3:45:30 PM)"),
-                "24" to UiText.get(R.string.timestamp_time_format_24_hour, "24-hour clock (15:45:30)")
-            ),
-            onDismiss = onDismiss,
-            onSave = { completeSave(preferenceManager.putBooleans(mapOf("ampm" to (it == "12")))) }
-        )
         "custom_theme" -> TextValueEditorDialog(
             title = UiText.get(R.string.feat_custom_theme_title, "Custom Theme CSS"),
             description = UiText.get(R.string.waex_ui_style_whatsapp_views_using_ids_widget, "Style WhatsApp views using IDs, widget types, scoped activities, and common CSS properties. Restart WhatsApp after saving."),
