@@ -23,6 +23,11 @@ object LsposedScopeReader {
     private const val MODULE = "com.waenhancer"
     private val packageToken = Regex("\\b[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z0-9_]+)+\\b")
 
+    @Volatile
+    private var lastSnapshot: LsposedScopeSnapshot? = null
+
+    fun cached(): LsposedScopeSnapshot? = lastSnapshot
+
     fun read(context: Context): LsposedScopeSnapshot {
         val declared = DeclaredWhatsAppTargets.packages()
         val copy = File(context.cacheDir, CACHE)
@@ -35,8 +40,8 @@ object LsposedScopeReader {
             "echo WAEX_LSPOSED_DB_OK; else echo WAEX_LSPOSED_DB_MISSING; fi"
         val rootResult = runCatching { AppRestartHelper.runRootCommand(command).orEmpty() }.getOrDefault("")
         if (!rootResult.contains("WAEX_LSPOSED_DB_OK") || !copy.exists()) {
-            return LsposedScopeSnapshot(MODULE, emptySet(), false, LsposedScopeSnapshot.Source.UNAVAILABLE,
-                "LSPosed scope database unavailable")
+            return (lastSnapshot ?: LsposedScopeSnapshot(MODULE, emptySet(), false, LsposedScopeSnapshot.Source.UNAVAILABLE,
+                "LSPosed scope database unavailable")).also { if (lastSnapshot == null) lastSnapshot = it }
         }
         return try {
             val packages = LinkedHashSet<String>()
@@ -78,10 +83,14 @@ object LsposedScopeReader {
                     }
                 }
             }
-            LsposedScopeSnapshot(MODULE, packages, true, LsposedScopeSnapshot.Source.DATABASE)
+            LsposedScopeSnapshot(MODULE, packages, true, LsposedScopeSnapshot.Source.DATABASE).also {
+                lastSnapshot = it
+            }
         } catch (e: Throwable) {
-            LsposedScopeSnapshot(MODULE, emptySet(), true, LsposedScopeSnapshot.Source.UNAVAILABLE,
-                "Could not parse LSPosed scope: ${e.javaClass.simpleName}")
+            (lastSnapshot ?: LsposedScopeSnapshot(MODULE, emptySet(), true, LsposedScopeSnapshot.Source.UNAVAILABLE,
+                "Could not parse LSPosed scope: ${e.javaClass.simpleName}")).also {
+                if (lastSnapshot == null) lastSnapshot = it
+            }
         } finally {
             listOf(copy, wal, shm).forEach { runCatching { it.delete() } }
         }

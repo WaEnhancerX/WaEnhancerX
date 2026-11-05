@@ -228,9 +228,8 @@ object WhatsAppPackageDetector {
 
         val isGlobalModuleActive = ModuleStatus.isModuleActive()
         // This method is also called from Compose remember blocks. Never launch a root shell
-        // synchronously on the UI thread. The resume coroutine supplies the live snapshot;
-        // before it arrives, fail closed and render no targets.
-        val scope = scopeSnapshot ?: LsposedScopeSnapshot(
+        // synchronously on the UI thread. Use the passed scopeSnapshot or last known cached scope.
+        val scope = scopeSnapshot ?: LsposedScopeReader.cached() ?: LsposedScopeSnapshot(
             modulePackage = MODULE_PACKAGE,
             packages = emptySet(),
             frameworkReachable = false,

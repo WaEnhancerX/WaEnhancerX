@@ -167,7 +167,7 @@ fun MainDashboardScreen(
     var runtimeSnapshot by remember {
         mutableStateOf(XposedRuntimeInspector.cached())
     }
-    var scopeSnapshot by remember { mutableStateOf<LsposedScopeSnapshot?>(null) }
+    var scopeSnapshot by remember { mutableStateOf<LsposedScopeSnapshot?>(LsposedScopeReader.cached()) }
     var systemDiagnostics by remember {
         mutableStateOf(SystemDiagnosticsReader.cached())
     }
