@@ -227,6 +227,14 @@ public class HookProvider extends ContentProvider {
 
             if ("get_all_preferences".equals(method)) {
                 var all = new HashMap<String, Object>(prefs.getAll());
+                String targetPackage = targetPackageForCaller(context, callerUid);
+                if (targetPackage != null && "Per Target App".equals(prefs.getString("module_config_mode", "Universal"))) {
+                    initializeTarget(prefs, targetPackage);
+                    for (Map.Entry<String, Object> entry : new HashMap<>(all).entrySet()) {
+                        String scoped = targetPackage + ":" + entry.getKey();
+                        if (prefs.contains(scoped)) all.put(entry.getKey(), prefs.getAll().get(scoped));
+                    }
+                }
                 all.put("waex_pro_active", "ACTIVE".equalsIgnoreCase(
                         LicenseManager.getProStatus(context)));
                 // Keybox material is private at rest and is exposed only in this in-memory IPC
@@ -419,10 +427,15 @@ public class HookProvider extends ContentProvider {
                     && !isEntitledBoolean(context, key)) return writeResult(false);
         }
 
+        String targetPackage = targetPackageForCaller(context, callerUid);
+        boolean scoped = targetPackage != null
+                && "Per Target App".equals(prefs.getString("module_config_mode", "Universal"));
+
         SharedPreferences.Editor editor = prefs.edit();
         if (clear) editor.clear();
         for (Bundle op : operations) {
             String key = op.getString("key");
+            if (scoped && !"module_config_mode".equals(key)) key = targetPackage + ":" + key;
             switch (op.getString("type")) {
                 case "remove": editor.remove(key); break;
                 case "string": editor.putString(key, op.getString("value")); break;
@@ -442,6 +455,33 @@ public class HookProvider extends ContentProvider {
                     Uri.parse("content://" + AUTHORITY + "/preferences"), null);
         }
         return writeResult(committed);
+    }
+
+    private String targetPackageForCaller(Context context, int uid) {
+        String[] packages = context.getPackageManager().getPackagesForUid(uid);
+        if (packages == null) return null;
+        for (String pkg : packages) if (WhatsAppPackageDetector.isWhatsAppPackageName(pkg)) return pkg;
+        return null;
+    }
+
+    private void initializeTarget(SharedPreferences prefs, String packageName) {
+        SharedPreferences.Editor editor = prefs.edit();
+        boolean changed = false;
+        for (PreferenceSchema.Entry entry : PreferenceSchema.all().values()) {
+            if (entry.store != PreferenceSchema.Store.PUBLIC) continue;
+            String scoped = packageName + ":" + entry.key;
+            if (!prefs.contains(scoped) && prefs.contains(entry.key)) {
+                Object value = prefs.getAll().get(entry.key);
+                if (value instanceof Boolean) editor.putBoolean(scoped, (Boolean) value);
+                else if (value instanceof String) editor.putString(scoped, (String) value);
+                else if (value instanceof Integer) editor.putInt(scoped, (Integer) value);
+                else if (value instanceof Long) editor.putLong(scoped, (Long) value);
+                else if (value instanceof Float) editor.putFloat(scoped, (Float) value);
+                else if (value instanceof Set<?>) editor.putStringSet(scoped, new HashSet<>((Set<String>) value));
+                changed = true;
+            }
+        }
+        if (changed) editor.commit();
     }
 
     private boolean isEntitledBoolean(Context context, String key) {

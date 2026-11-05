@@ -64,6 +64,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -468,6 +469,8 @@ fun MainContainerScreen() {
     }
 
     var selectedPackage by remember { mutableStateOf(targetPackages.first()) }
+    // Update synchronously before any preference-backed screen is composed.
+    preferenceManager.setTargetPackage(selectedPackage)
     LaunchedEffect(visibleTargetApps) {
         if (visibleTargetApps.isNotEmpty() && visibleTargetApps.none { it.packageName == selectedPackage }) {
             selectedPackage = visibleTargetApps.first().packageName
@@ -988,6 +991,7 @@ fun MainContainerScreen() {
             ) {
 
                 val isForward = navController.isLastTransitionForward
+                key(selectedPackage) {
                 AnimatedContent(
                     targetState = if (currentScreen.isRootScreen) Screen.MainDashboard else currentScreen,
                     transitionSpec = {
@@ -1126,6 +1130,7 @@ fun MainContainerScreen() {
                             }
                         )
                     }
+                }
                 }
             }
         }

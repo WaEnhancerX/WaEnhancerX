@@ -21,15 +21,61 @@ import java.util.Set;
 public final class WaexPreferenceManager implements CustomAbPropsStore {
 
     private final Context context;
+    private volatile String targetPackage;
+
+    private static final String MODE_KEY = "module_config_mode";
+    private static final String PER_TARGET_MODE = "Per Target App";
 
     @Inject
     public WaexPreferenceManager(@ApplicationContext Context context) {
         this.context = context;
     }
 
-    private SharedPreferences getStore(String key) {
-        return PreferenceStores.storeFor(context, key);
+    /** Selects the target whose settings are edited by the UI. */
+    public void setTargetPackage(String packageName) {
+        targetPackage = packageName;
+        if (packageName != null && PER_TARGET_MODE.equals(rawString(MODE_KEY, "Universal"))) {
+            initializeTarget(packageName);
+        }
     }
+
+    private String rawString(String key, String fallback) {
+        return PreferenceStores.publicStore(context).getString(key, fallback);
+    }
+
+    /** Package names are part of the key so old universal settings remain intact. */
+    public String resolvedKey(String key) {
+        if (key == null || MODE_KEY.equals(key) || targetPackage == null
+                || !PER_TARGET_MODE.equals(rawString(MODE_KEY, "Universal"))) return key;
+        return targetPackage + ":" + key;
+    }
+
+    private void initializeTarget(String packageName) {
+        SharedPreferences universal = PreferenceStores.publicStore(context);
+        SharedPreferences.Editor editor = universal.edit();
+        boolean changed = false;
+        for (PreferenceSchema.Entry entry : PreferenceSchema.all().values()) {
+            if (entry.store != PreferenceSchema.Store.PUBLIC) continue;
+            String scoped = packageName + ":" + entry.key;
+            if (!universal.contains(scoped) && universal.contains(entry.key)) {
+                Object value = universal.getAll().get(entry.key);
+                if (value instanceof Boolean) editor.putBoolean(scoped, (Boolean) value);
+                else if (value instanceof String) editor.putString(scoped, (String) value);
+                else if (value instanceof Integer) editor.putInt(scoped, (Integer) value);
+                else if (value instanceof Long) editor.putLong(scoped, (Long) value);
+                else if (value instanceof Float) editor.putFloat(scoped, (Float) value);
+                else if (value instanceof Set<?>) editor.putStringSet(scoped, new LinkedHashSet<>((Set<String>) value));
+                changed = true;
+            }
+        }
+        if (changed) editor.commit();
+    }
+
+    private SharedPreferences getStore(String key) {
+        return PreferenceStores.storeFor(context, resolvedKey(key));
+    }
+
+    private String key(String key) { return resolvedKey(key); }
 
     private boolean isPublicStore(String key) {
         PreferenceSchema.Entry entry = PreferenceSchema.entry(key);
@@ -39,10 +85,10 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
     @Override
     public boolean getBoolean(String key, boolean defaultValue) {
         try {
-            return getStore(key).getBoolean(key, defaultValue);
+            return getStore(key).getBoolean(key(key), defaultValue);
         } catch (ClassCastException e) {
             try {
-                Object allVal = getStore(key).getAll().get(key);
+                Object allVal = getStore(key).getAll().get(key(key));
                 if (allVal instanceof Boolean) {
                     return (Boolean) allVal;
                 } else if (allVal instanceof String) {
@@ -62,7 +108,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
 
     @Override
     public void putBoolean(String key, boolean value) {
-        getStore(key).edit().putBoolean(key, value).commit();
+        getStore(key).edit().putBoolean(key(key), value).commit();
         if (isPublicStore(key)) {
             notifyChange();
         }
@@ -101,7 +147,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
     @Override
     public String getString(String key, String defaultValue) {
         try {
-            return getStore(key).getString(key, defaultValue);
+        return getStore(key).getString(key(key), defaultValue);
         } catch (ClassCastException e) {
             try {
                 Object allVal = getStore(key).getAll().get(key);
@@ -114,7 +160,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
 
     @Override
     public void putString(String key, String value) {
-        getStore(key).edit().putString(key, value).commit();
+        getStore(key).edit().putString(key(key), value).commit();
         if (isPublicStore(key)) {
             notifyChange();
         }
@@ -165,7 +211,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
 
     public Set<String> getStringSet(String key, Set<String> defaultValue) {
         try {
-            Set<String> value = getStore(key).getStringSet(key, defaultValue);
+            Set<String> value = getStore(key).getStringSet(key(key), defaultValue);
             return value == null ? defaultValue : new LinkedHashSet<>(value);
         } catch (ClassCastException ignored) {
             return defaultValue;
@@ -173,36 +219,36 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
     }
 
     public void putStringSet(String key, Set<String> value) {
-        getStore(key).edit().putStringSet(key, new LinkedHashSet<>(value)).commit();
+        getStore(key).edit().putStringSet(key(key), new LinkedHashSet<>(value)).commit();
         if (isPublicStore(key)) {
             notifyChange();
         }
     }
 
     public int getInt(String key, int defaultValue) {
-        return getStore(key).getInt(key, defaultValue);
+        return getStore(key).getInt(key(key), defaultValue);
     }
 
     public void putInt(String key, int value) {
-        getStore(key).edit().putInt(key, value).commit();
+        getStore(key).edit().putInt(key(key), value).commit();
         if (isPublicStore(key)) {
             notifyChange();
         }
     }
 
     public float getFloat(String key, float defaultValue) {
-        return getStore(key).getFloat(key, defaultValue);
+        return getStore(key).getFloat(key(key), defaultValue);
     }
 
     public void putFloat(String key, float value) {
-        getStore(key).edit().putFloat(key, value).commit();
+        getStore(key).edit().putFloat(key(key), value).commit();
         if (isPublicStore(key)) {
             notifyChange();
         }
     }
 
     public void remove(String key) {
-        getStore(key).edit().remove(key).commit();
+        getStore(key).edit().remove(key(key)).commit();
         if (isPublicStore(key)) {
             notifyChange();
         }
