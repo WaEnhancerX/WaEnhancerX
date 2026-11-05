@@ -483,7 +483,7 @@ fun MainContainerScreen() {
                 ModalDrawerSheet(
                     drawerContainerColor = colors.surface,
                     drawerContentColor = colors.onSurface,
-                    modifier = Modifier.width(310.dp)
+                    modifier = Modifier.width(260.dp)
                 ) {
                     Column(
                         modifier = Modifier
@@ -498,23 +498,23 @@ fun MainContainerScreen() {
                             Column(
                                 modifier = Modifier
                                     .statusBarsPadding()
-                                    .padding(horizontal = 24.dp, vertical = 20.dp)
+                                    .padding(horizontal = 18.dp, vertical = 18.dp)
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     Image(
                                         painter = painterResource(R.drawable.ic_app_logo),
                                         contentDescription = "WaEnhancerX Logo",
                                         modifier = Modifier
-                                            .size(48.dp)
-                                            .clip(RoundedCornerShape(12.dp))
+                                            .size(42.dp)
+                                            .clip(RoundedCornerShape(10.dp))
                                     )
                                     Column {
                                         Text(
                                             text = "WaEnhancerX",
-                                            style = typography.titleLg,
+                                            style = typography.titleMd,
                                             fontWeight = FontWeight.Bold,
                                             color = colors.onSurface
                                         )
