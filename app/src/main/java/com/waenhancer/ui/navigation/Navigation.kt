@@ -73,6 +73,14 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.waenhancer.utils.WhatsAppPackageDetector
+import com.waenhancer.utils.LsposedScopeReader
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
@@ -404,9 +412,35 @@ fun MainContainerScreen() {
         val icon: androidx.compose.ui.graphics.ImageBitmap?
     )
 
-    val targetAppList = remember(context) {
+    var resumeTrigger by remember { mutableStateOf(0) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                resumeTrigger++
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    var scopedPackages by remember { mutableStateOf<Set<String>>(emptySet()) }
+    LaunchedEffect(resumeTrigger) {
+        withContext(Dispatchers.IO) {
+            val liveScope = LsposedScopeReader.read(context)
+            val detected = WhatsAppPackageDetector.detectWhatsAppApps(context, null, liveScope)
+            val scoped = detected.filter { it.isInstalled && it.inLsposedScope }.map { it.packageName }.toSet()
+            withContext(Dispatchers.Main) {
+                scopedPackages = scoped
+            }
+        }
+    }
+
+    val visibleTargetApps = remember(scopedPackages) {
         val pm = context.packageManager
-        targetPackages.map { pkg ->
+        scopedPackages.map { pkg ->
             // Priority 1: Exact launcher activity label (the title appearing on the user's home screen)
             val launcherLabel = runCatching {
                 val launchIntent = pm.getLaunchIntentForPackage(pkg)
@@ -432,7 +466,13 @@ fun MainContainerScreen() {
             TargetAppInfo(packageName = pkg, label = label, icon = icon)
         }
     }
+
     var selectedPackage by remember { mutableStateOf(targetPackages.first()) }
+    LaunchedEffect(visibleTargetApps) {
+        if (visibleTargetApps.isNotEmpty() && visibleTargetApps.none { it.packageName == selectedPackage }) {
+            selectedPackage = visibleTargetApps.first().packageName
+        }
+    }
     var showTargetMenu by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -682,104 +722,120 @@ fun MainContainerScreen() {
                                         )
                                     }
                                 } else {
-                                    // Per Target App Mode: Dropdown of target apps only, no "All Scoped Apps"
-                                    val currentTarget = targetAppList.find { it.packageName == selectedPackage }
-                                        ?: targetAppList.firstOrNull()
-                                    val currentLabel = currentTarget?.label ?: fallbackNames[selectedPackage].orEmpty()
-                                    val currentIcon = currentTarget?.icon
+                                    // Per Target App Mode: Dropdown of target apps only (scoped only)
+                                    val currentTarget = visibleTargetApps.find { it.packageName == selectedPackage }
+                                        ?: visibleTargetApps.firstOrNull()
 
-                                    Box(modifier = Modifier.align(Alignment.CenterVertically)) {
-                                        Row(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(colors.surfaceContainer)
-                                                .clickable { showTargetMenu = true }
-                                                .padding(horizontal = 8.dp, vertical = 5.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    if (visibleTargetApps.isEmpty() || currentTarget == null) {
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = colors.surfaceContainer,
+                                            modifier = Modifier.align(Alignment.CenterVertically)
                                         ) {
-                                            if (currentIcon != null) {
-                                                Image(
-                                                    bitmap = currentIcon,
-                                                    contentDescription = null,
-                                                    modifier = Modifier
-                                                        .size(18.dp)
-                                                        .clip(RoundedCornerShape(4.dp))
-                                                )
-                                            }
                                             Text(
-                                                text = currentLabel,
+                                                text = "No Scoped App",
                                                 style = typography.labelSm,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = colors.primary,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                            Icon(
-                                                imageVector = WaexIcons.ArrowDropDown,
-                                                contentDescription = null,
-                                                tint = colors.primary,
-                                                modifier = Modifier.size(18.dp)
+                                                color = colors.onSurfaceVariant,
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
                                             )
                                         }
+                                    } else {
+                                        val currentLabel = currentTarget.label
+                                        val currentIcon = currentTarget.icon
 
-                                        DropdownMenu(
-                                            expanded = showTargetMenu,
-                                            onDismissRequest = { showTargetMenu = false },
-                                            modifier = Modifier.background(colors.surface)
-                                        ) {
-                                            targetAppList.forEach { target ->
-                                                val isSelected = selectedPackage == target.packageName
-                                                DropdownMenuItem(
-                                                    leadingIcon = {
-                                                        if (target.icon != null) {
-                                                            Image(
-                                                                bitmap = target.icon,
-                                                                contentDescription = null,
-                                                                modifier = Modifier
-                                                                    .size(24.dp)
-                                                                    .clip(RoundedCornerShape(6.dp))
-                                                            )
-                                                        } else {
-                                                            Icon(
-                                                                imageVector = WaexIcons.Layers,
-                                                                contentDescription = null,
-                                                                tint = if (isSelected) colors.primary else colors.onSurfaceVariant,
-                                                                modifier = Modifier.size(24.dp)
-                                                            )
-                                                        }
-                                                    },
-                                                    text = {
-                                                        Column {
-                                                            Text(
-                                                                text = target.label,
-                                                                style = typography.bodyMd,
-                                                                color = if (isSelected) colors.primary else colors.onSurface,
-                                                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                                                            )
-                                                            Text(
-                                                                text = target.packageName,
-                                                                style = typography.labelSm,
-                                                                color = colors.onSurfaceVariant,
-                                                                fontSize = 11.sp
-                                                            )
-                                                        }
-                                                    },
-                                                    trailingIcon = {
-                                                        if (isSelected) {
-                                                            Icon(
-                                                                imageVector = WaexIcons.Check,
-                                                                contentDescription = null,
-                                                                tint = colors.primary,
-                                                                modifier = Modifier.size(18.dp)
-                                                            )
-                                                        }
-                                                    },
-                                                    onClick = {
-                                                        selectedPackage = target.packageName
-                                                        showTargetMenu = false
-                                                    }
+                                        Box(modifier = Modifier.align(Alignment.CenterVertically)) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(colors.surfaceContainer)
+                                                    .clickable { showTargetMenu = true }
+                                                    .padding(horizontal = 8.dp, vertical = 5.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                if (currentIcon != null) {
+                                                    Image(
+                                                        bitmap = currentIcon,
+                                                        contentDescription = null,
+                                                        modifier = Modifier
+                                                            .size(18.dp)
+                                                            .clip(RoundedCornerShape(4.dp))
+                                                    )
+                                                }
+                                                Text(
+                                                    text = currentLabel,
+                                                    style = typography.labelSm,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = colors.primary,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
                                                 )
+                                                Icon(
+                                                    imageVector = WaexIcons.ArrowDropDown,
+                                                    contentDescription = null,
+                                                    tint = colors.primary,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+
+                                            DropdownMenu(
+                                                expanded = showTargetMenu,
+                                                onDismissRequest = { showTargetMenu = false },
+                                                modifier = Modifier.background(colors.surface)
+                                            ) {
+                                                visibleTargetApps.forEach { target ->
+                                                    val isSelected = selectedPackage == target.packageName
+                                                    DropdownMenuItem(
+                                                        leadingIcon = {
+                                                            if (target.icon != null) {
+                                                                Image(
+                                                                    bitmap = target.icon,
+                                                                    contentDescription = null,
+                                                                    modifier = Modifier
+                                                                        .size(24.dp)
+                                                                        .clip(RoundedCornerShape(6.dp))
+                                                                )
+                                                            } else {
+                                                                Icon(
+                                                                    imageVector = WaexIcons.Layers,
+                                                                    contentDescription = null,
+                                                                    tint = if (isSelected) colors.primary else colors.onSurfaceVariant,
+                                                                    modifier = Modifier.size(24.dp)
+                                                                )
+                                                            }
+                                                        },
+                                                        text = {
+                                                            Column {
+                                                                Text(
+                                                                    text = target.label,
+                                                                    style = typography.bodyMd,
+                                                                    color = if (isSelected) colors.primary else colors.onSurface,
+                                                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                                                                )
+                                                                Text(
+                                                                    text = target.packageName,
+                                                                    style = typography.labelSm,
+                                                                    color = colors.onSurfaceVariant,
+                                                                    fontSize = 11.sp
+                                                                )
+                                                            }
+                                                        },
+                                                        trailingIcon = {
+                                                            if (isSelected) {
+                                                                Icon(
+                                                                    imageVector = WaexIcons.Check,
+                                                                    contentDescription = null,
+                                                                    tint = colors.primary,
+                                                                    modifier = Modifier.size(18.dp)
+                                                                )
+                                                            }
+                                                        },
+                                                        onClick = {
+                                                            selectedPackage = target.packageName
+                                                            showTargetMenu = false
+                                                        }
+                                                    )
+                                                }
                                             }
                                         }
                                     }
