@@ -87,11 +87,11 @@ fun SupportedVersionsScreen() {
 
     val prefs = remember(context) { PreferenceStores.publicStore(context) }
 
-    var isCustomizeEnabled by remember {
+    var isCustomizeEnabled by remember(prefManager.targetEpoch) {
         mutableStateOf(prefManager.getBoolean("customize_supported_versions", false))
     }
 
-    var isBypassEnabled by remember {
+    var isBypassEnabled by remember(prefManager.targetEpoch) {
         mutableStateOf(prefManager.getBoolean("bypass_version_check", false))
     }
 

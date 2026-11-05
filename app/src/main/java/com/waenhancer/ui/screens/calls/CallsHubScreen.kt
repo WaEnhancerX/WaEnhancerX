@@ -155,13 +155,13 @@ fun CallsHubScreen() {
         }
         mutableStateOf(if (raw == "true") "1" else if (raw == "false") "0" else (raw ?: "0"))
     }
-    var callRejectType by remember { mutableStateOf(prefManager.getString("call_type", "no_internet") ?: "no_internet") }
-    var callInfoEnabled by remember { mutableStateOf(prefManager.getBoolean("call_info", false)) }
+    var callRejectType by remember(prefManager.targetEpoch) { mutableStateOf(prefManager.getString("call_type", "no_internet") ?: "no_internet") }
+    var callInfoEnabled by remember(prefManager.targetEpoch) { mutableStateOf(prefManager.getBoolean("call_info", false)) }
 
     // Call Recording State
-    var callRecordingEnabled by remember { mutableStateOf(prefManager.getBoolean("call_recording_enabled", false)) }
-    var preferCallAudio by remember { mutableStateOf(prefManager.getBoolean("call_recording_use_root", false)) }
-    var audioFormat by remember { mutableStateOf(prefManager.getString("call_recording_format", "m4a") ?: "m4a") }
+    var callRecordingEnabled by remember(prefManager.targetEpoch) { mutableStateOf(prefManager.getBoolean("call_recording_enabled", false)) }
+    var preferCallAudio by remember(prefManager.targetEpoch) { mutableStateOf(prefManager.getBoolean("call_recording_use_root", false)) }
+    var audioFormat by remember(prefManager.targetEpoch) { mutableStateOf(prefManager.getString("call_recording_format", "m4a") ?: "m4a") }
 
     // Recordings list state
     val recordingsList = remember { mutableStateListOf<RecordedCallItem>() }

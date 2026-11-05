@@ -75,7 +75,7 @@ import com.waenhancer.ui.navigation.Screen
 
 
 @Composable
-fun MediaStatusHubScreen() {
+fun MediaStatusHubScreen(targetEpoch: Int = 0) {
     val colors = WaexTheme.colors
     val spacing = WaexTheme.spacing
     val typography = WaexTheme.typography
@@ -132,18 +132,18 @@ fun MediaStatusHubScreen() {
         return preferenceManager.getBoolean(key, fallback)
     }
 
-    val settingsState = remember(preferenceManager) {
+    val settingsState = remember(preferenceManager, targetEpoch) {
         mutableStateMapOf<String, Boolean>().apply {
             mediaKeys.forEach { key -> put(key, readMediaKey(key)) }
         }
     }
-    var saveProfileDuplicates by remember(preferenceManager) {
+    var saveProfileDuplicates by remember(preferenceManager, targetEpoch) {
         mutableStateOf(preferenceManager.getBoolean("download_profile_save_duplicates", true))
     }
-    var saveStatusDuplicates by remember(preferenceManager) {
+    var saveStatusDuplicates by remember(preferenceManager, targetEpoch) {
         mutableStateOf(preferenceManager.getBoolean("status_download_save_duplicates", true))
     }
-    var parallelConnections by remember(preferenceManager) {
+    var parallelConnections by remember(preferenceManager, targetEpoch) {
         mutableStateOf(preferenceManager.getInt("parallel_downloading_connections", 4))
     }
 

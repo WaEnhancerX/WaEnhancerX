@@ -69,13 +69,13 @@ fun UpdateSettingsScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var autoCheckUpdates by remember { mutableStateOf(prefManager.getBoolean("update_auto_check", true)) }
-    var allowDowngrades by remember { mutableStateOf(prefManager.getBoolean("downgrades_enabled", false)) }
-    var rootAutoInstall by remember { mutableStateOf(prefManager.getBoolean("root_auto_install", false)) }
-    var updateFrequency by remember { mutableStateOf(prefManager.getString("update_frequency", "daily")) }
-    var checkModuleOpen by remember { mutableStateOf(prefManager.getBoolean("update_check_module_open", true)) }
-    var checkWhatsAppOpen by remember { mutableStateOf(prefManager.getBoolean("update_check_whatsapp_open", true)) }
-    var ignoredBehavior by remember { mutableStateOf(prefManager.getString("update_ignored_behavior", "next_release")) }
+    var autoCheckUpdates by remember(prefManager.targetEpoch) { mutableStateOf(prefManager.getBoolean("update_auto_check", true)) }
+    var allowDowngrades by remember(prefManager.targetEpoch) { mutableStateOf(prefManager.getBoolean("downgrades_enabled", false)) }
+    var rootAutoInstall by remember(prefManager.targetEpoch) { mutableStateOf(prefManager.getBoolean("root_auto_install", false)) }
+    var updateFrequency by remember(prefManager.targetEpoch) { mutableStateOf(prefManager.getString("update_frequency", "daily")) }
+    var checkModuleOpen by remember(prefManager.targetEpoch) { mutableStateOf(prefManager.getBoolean("update_check_module_open", true)) }
+    var checkWhatsAppOpen by remember(prefManager.targetEpoch) { mutableStateOf(prefManager.getBoolean("update_check_whatsapp_open", true)) }
+    var ignoredBehavior by remember(prefManager.targetEpoch) { mutableStateOf(prefManager.getString("update_ignored_behavior", "next_release")) }
     var selector by remember { mutableStateOf<String?>(null) }
 
     Scaffold(

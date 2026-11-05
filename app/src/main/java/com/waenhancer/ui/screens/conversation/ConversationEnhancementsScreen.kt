@@ -45,7 +45,7 @@ import com.waenhancer.ui.components.WaexEmojiPickerDialog
 import com.waenhancer.ui.components.WaexPreferenceItem
 
 @Composable
-fun ConversationEnhancementsScreen() {
+fun ConversationEnhancementsScreen(targetEpoch: Int = 0) {
     val navController = LocalWaexNavController.current
     val preferenceManager = LocalWaexPreferenceManager.current
     val isPro = LocalIsPro.current
@@ -86,13 +86,14 @@ fun ConversationEnhancementsScreen() {
         )
     }
 
-    val stateMap = remember {
+    val stateMap = remember(targetEpoch) {
         mutableStateMapOf<String, Boolean>().apply {
             convKeys.forEach { key ->
                 put(key, preferenceManager.getBoolean(key, false))
             }
         }
     }
+
 
     val onToggle: (String, Boolean) -> Unit = { key, value ->
         stateMap[key] = value

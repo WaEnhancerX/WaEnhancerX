@@ -86,7 +86,8 @@ import com.waenhancer.ui.screens.media.MediaQuickSettingPolicy
 
 @Composable
 fun GlobalPrivacySettingsScreen(
-    onOpenModal: (String) -> Unit
+    onOpenModal: (String) -> Unit,
+    targetEpoch: Int = 0
 ) {
     val colors = WaexTheme.colors
     val spacing = WaexTheme.spacing
@@ -201,7 +202,7 @@ fun GlobalPrivacySettingsScreen(
         preferenceManager.getBoolean(key, false)
     }
 
-    val settingsState = remember(preferenceManager) {
+    val settingsState = remember(preferenceManager, targetEpoch) {
         mutableStateMapOf<String, Boolean>().apply {
             privacyKeys.forEach { key ->
                 var boolVal = if (key == "downloadviewonce" || key == "download_view_once") {

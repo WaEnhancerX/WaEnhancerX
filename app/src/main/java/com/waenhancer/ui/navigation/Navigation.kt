@@ -64,7 +64,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -991,7 +990,6 @@ fun MainContainerScreen() {
             ) {
 
                 val isForward = navController.isLastTransitionForward
-                key(selectedPackage) {
                 AnimatedContent(
                     targetState = if (currentScreen.isRootScreen) Screen.MainDashboard else currentScreen,
                     transitionSpec = {
@@ -1042,6 +1040,7 @@ fun MainContainerScreen() {
                             Box(modifier = Modifier.fillMaxSize()) {
                                 WaexAppNavigation(
                                     currentScreen = pageScreen,
+                                    targetEpoch = preferenceManager.targetEpoch,
                                     licenseState = licenseState,
                                     onOpenModal = { activeModal = it },
                                     onActivatePro = {
@@ -1088,6 +1087,7 @@ fun MainContainerScreen() {
                     } else {
                         WaexAppNavigation(
                             currentScreen = screenToShow,
+                            targetEpoch = preferenceManager.targetEpoch,
                             licenseState = licenseState,
                             onOpenModal = { activeModal = it },
                             onActivatePro = {
@@ -1130,7 +1130,6 @@ fun MainContainerScreen() {
                             }
                         )
                     }
-                }
                 }
             }
         }
@@ -1258,6 +1257,7 @@ fun MainContainerScreen() {
 @Composable
 fun WaexAppNavigation(
     currentScreen: Screen,
+    targetEpoch: Int,
     licenseState: String,
     onOpenModal: (String) -> Unit,
     onActivatePro: () -> Unit,
@@ -1266,29 +1266,35 @@ fun WaexAppNavigation(
     onClearAllContacts: () -> Unit = {},
     onUpdateContact: (ContactPrivacy) -> Unit = {}
 ) {
+    // Keep this composable subscribed to target changes without keying/recreating
+    // the screen tree (scroll and tab state must remain shared).
+    targetEpoch
     val navController = LocalWaexNavController.current
     val preferenceManager = LocalWaexPreferenceManager.current
     when (currentScreen) {
         Screen.MainDashboard -> MainDashboardScreen(
+            targetEpoch = targetEpoch,
             licenseState = licenseState,
             onOpenModal = onOpenModal
         )
         Screen.DashboardBento -> MainDashboardScreen(
+            targetEpoch = targetEpoch,
             licenseState = licenseState,
             onOpenModal = onOpenModal
         )
         Screen.SystemHealth -> SystemHealthScreen()
         Screen.BootloaderSpoofer -> BootloaderSpooferScreen()
         Screen.GlobalPrivacySettings -> GlobalPrivacySettingsScreen(
-            onOpenModal = onOpenModal
+            onOpenModal = onOpenModal,
+            targetEpoch = targetEpoch
         )
-        Screen.ConversationEnhancements -> ConversationEnhancementsScreen()
-        Screen.MediaStatusHub -> MediaStatusHubScreen()
-        Screen.AutomationTasker -> AutomationTaskerScreen()
+        Screen.ConversationEnhancements -> ConversationEnhancementsScreen(targetEpoch = targetEpoch)
+        Screen.MediaStatusHub -> MediaStatusHubScreen(targetEpoch = targetEpoch)
+        Screen.AutomationTasker -> AutomationTaskerScreen(targetEpoch = targetEpoch)
         Screen.AudioTranscription -> AudioTranscriptionScreen()
         Screen.LicenseActivation -> LicenseActivationScreen()
         Screen.Search -> SearchScreen()
-        Screen.StylesSettings -> StylesSettingsScreen()
+        Screen.StylesSettings -> StylesSettingsScreen(targetEpoch = targetEpoch)
         Screen.PerContactPrivacyList -> PerContactPrivacyListScreen(
             contacts = contactPrivacyList,
             onClearContact = onClearContact,

@@ -91,7 +91,7 @@ import com.waenhancer.ui.navigation.Screen
 
 
 @Composable
-fun AutomationTaskerScreen() {
+fun AutomationTaskerScreen(targetEpoch: Int = 0) {
     val colors = WaexTheme.colors
     val spacing = WaexTheme.spacing
     val typography = WaexTheme.typography
@@ -139,26 +139,26 @@ fun AutomationTaskerScreen() {
     val preferenceManager = LocalWaexPreferenceManager.current
 
     // Automation states
-    var taskerIntegrationEnabled by remember { mutableStateOf(preferenceManager.getBoolean("tasker_integration", false)) }
+    var taskerIntegrationEnabled by remember(targetEpoch) { mutableStateOf(preferenceManager.getBoolean("tasker_integration", false)) }
 
     // Audio & AI states
-    var voiceTranscriptionEnabled by remember { mutableStateOf(preferenceManager.getBoolean("voice_transcription", true)) }
-    var transcriptionProvider by remember { mutableStateOf(preferenceManager.getString("transcription_provider", "Groq")) } // "Groq" | "AssemblyAI" | "Custom"
-    var customUrl by remember { mutableStateOf(preferenceManager.getString("custom_transcription_url", "")) }
-    var customKey by remember { mutableStateOf(preferenceManager.getString("custom_transcription_key", "")) }
-    var customModel by remember { mutableStateOf(preferenceManager.getString("custom_transcription_model", "")) }
-    var autoTranscribe by remember { mutableStateOf(preferenceManager.getBoolean("voice_transcription_auto", false)) }
-    var transcriptButton by remember { mutableStateOf(preferenceManager.getBoolean("voice_note_transcript_button", true)) }
-    var dictationButton by remember { mutableStateOf(preferenceManager.getBoolean("voice_dictation_button", true)) }
+    var voiceTranscriptionEnabled by remember(targetEpoch) { mutableStateOf(preferenceManager.getBoolean("voice_transcription", true)) }
+    var transcriptionProvider by remember(targetEpoch) { mutableStateOf(preferenceManager.getString("transcription_provider", "Groq")) } // "Groq" | "AssemblyAI" | "Custom"
+    var customUrl by remember(targetEpoch) { mutableStateOf(preferenceManager.getString("custom_transcription_url", "")) }
+    var customKey by remember(targetEpoch) { mutableStateOf(preferenceManager.getString("custom_transcription_key", "")) }
+    var customModel by remember(targetEpoch) { mutableStateOf(preferenceManager.getString("custom_transcription_model", "")) }
+    var autoTranscribe by remember(targetEpoch) { mutableStateOf(preferenceManager.getBoolean("voice_transcription_auto", false)) }
+    var transcriptButton by remember(targetEpoch) { mutableStateOf(preferenceManager.getBoolean("voice_note_transcript_button", true)) }
+    var dictationButton by remember(targetEpoch) { mutableStateOf(preferenceManager.getBoolean("voice_dictation_button", true)) }
     var showProviderDropdown by remember { mutableStateOf(false) }
-    var assemblyKey by remember { mutableStateOf(preferenceManager.getString("assembly_key", "")) }
+    var assemblyKey by remember(targetEpoch) { mutableStateOf(preferenceManager.getString("assembly_key", "")) }
     var connectionStatus by remember { mutableStateOf("idle") } // "idle" | "verifying" | "ok" | "fail"
     var connectionError by remember { mutableStateOf("") }
     var discoveringModels by remember { mutableStateOf(false) }
     var discoveredModels by remember { mutableStateOf(emptyList<String>()) }
     var showModelDropdown by remember { mutableStateOf(false) }
     var discoveryError by remember { mutableStateOf("") }
-    var groqKey by remember { mutableStateOf(preferenceManager.getString("groq_key", "")) }
+    var groqKey by remember(targetEpoch) { mutableStateOf(preferenceManager.getString("groq_key", "")) }
 
 
     Column(

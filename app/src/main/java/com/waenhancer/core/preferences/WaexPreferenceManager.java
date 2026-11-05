@@ -22,6 +22,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
 
     private final Context context;
     private volatile String targetPackage;
+    private volatile int targetEpoch;
 
     private static final String MODE_KEY = "module_config_mode";
     private static final String PER_TARGET_MODE = "Per Target App";
@@ -33,11 +34,16 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
 
     /** Selects the target whose settings are edited by the UI. */
     public void setTargetPackage(String packageName) {
+        if (java.util.Objects.equals(targetPackage, packageName)) return;
         targetPackage = packageName;
+        targetEpoch++;
         if (packageName != null && PER_TARGET_MODE.equals(rawString(MODE_KEY, "Universal"))) {
             initializeTarget(packageName);
         }
     }
+
+    /** Changes when the active target changes; preference screens use it to refresh controls only. */
+    public int getTargetEpoch() { return targetEpoch; }
 
     private String rawString(String key, String fallback) {
         return PreferenceStores.publicStore(context).getString(key, fallback);
@@ -134,7 +140,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
             }
             SharedPreferences.Editor editor = PreferenceStores.publicStore(context).edit();
             for (Map.Entry<String, Boolean> change : batch.entrySet()) {
-                editor.putBoolean(change.getKey(), change.getValue());
+                editor.putBoolean(resolvedKey(change.getKey()), change.getValue());
             }
             if (!editor.commit()) return false;
             notifyChange();
@@ -174,7 +180,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
     public boolean putPublicString(String key, String value) {
         if (value == null || !isPublicType(key, PreferenceSchema.Type.STRING)) return false;
         try {
-            if (!PreferenceStores.publicStore(context).edit().putString(key, value).commit()) {
+            if (!PreferenceStores.publicStore(context).edit().putString(resolvedKey(key), value).commit()) {
                 return false;
             }
             notifyChange();
@@ -193,7 +199,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
                 if (!(element instanceof String)) return false;
                 snapshot.add((String) element);
             }
-            if (!PreferenceStores.publicStore(context).edit().putStringSet(key, snapshot).commit()) {
+            if (!PreferenceStores.publicStore(context).edit().putStringSet(resolvedKey(key), snapshot).commit()) {
                 return false;
             }
             notifyChange();

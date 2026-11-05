@@ -122,7 +122,8 @@ import android.os.Build
 @Composable
 fun MainDashboardScreen(
     licenseState: String,
-    onOpenModal: (String) -> Unit
+    onOpenModal: (String) -> Unit,
+    targetEpoch: Int = 0
 ) {
     val navController = LocalWaexNavController.current
     val colors = WaexTheme.colors

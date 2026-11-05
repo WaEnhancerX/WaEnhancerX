@@ -57,7 +57,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @Composable
-fun StylesSettingsScreen() {
+fun StylesSettingsScreen(targetEpoch: Int = 0) {
     val colors = WaexTheme.colors
     val spacing = WaexTheme.spacing
     val typography = WaexTheme.typography
@@ -104,24 +104,24 @@ fun StylesSettingsScreen() {
     }
 
     val preferenceManager = LocalWaexPreferenceManager.current
-    var removeMetaAiHomeFab by remember {
+    var removeMetaAiHomeFab by remember(targetEpoch) {
         mutableStateOf(preferenceManager.getBoolean("metaai_remove_home_fab", true))
     }
-    var removeMetaAiEntryPoints by remember {
+    var removeMetaAiEntryPoints by remember(targetEpoch) {
         mutableStateOf(preferenceManager.getBoolean("metaai_remove_entry_points", true))
     }
-    var blockMetaAiChat by remember {
+    var blockMetaAiChat by remember(targetEpoch) {
         mutableStateOf(preferenceManager.getBoolean("metaai_block_chat", true))
     }
     var showTimestampFormatSheet by remember { mutableStateOf(false) }
     var showModifyTextSheet by remember { mutableStateOf(false) }
-    var timestampFormat by remember(typedValueRevision) {
+    var timestampFormat by remember(targetEpoch, typedValueRevision) {
         mutableStateOf(preferenceManager.getString("timestamp_format", "HH:mm a") ?: "HH:mm a")
     }
-    var timestampCustomPattern by remember(typedValueRevision) {
+    var timestampCustomPattern by remember(targetEpoch, typedValueRevision) {
         mutableStateOf(preferenceManager.getString("timestamp_custom_pattern", "HH:mm a") ?: "HH:mm a")
     }
-    var timestampCustomText by remember(typedValueRevision) {
+    var timestampCustomText by remember(targetEpoch, typedValueRevision) {
         mutableStateOf(preferenceManager.getString("timestamp_custom_text", "\${t}") ?: "\${t}")
     }
     val stylesKeys = remember {
@@ -137,7 +137,7 @@ fun StylesSettingsScreen() {
         )
     }
 
-    val settingsState = remember {
+    val settingsState = remember(targetEpoch) {
         mutableStateMapOf<String, Boolean>().apply {
             stylesKeys.forEach { key ->
                 if (StyleNonBooleanPreferencePolicy.requiresDedicatedEditor(key)) {
