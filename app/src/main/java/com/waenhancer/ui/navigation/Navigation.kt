@@ -47,6 +47,19 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.NavigationDrawerItemDefaults
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.drawable.toBitmap
+import com.waenhancer.app.BuildConfig
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -290,6 +303,7 @@ fun MainContainerScreen() {
 
     val pagerState = rememberPagerState { 5 }
     val coroutineScope = rememberCoroutineScope()
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     // PagerState is saveable, so Android can restore the previously selected tab after an
     // Activity recreation. The in-memory controller starts at Home, though. Do not let the
     // restored pager page overwrite that controller before it has performed its first sync.
@@ -298,7 +312,9 @@ fun MainContainerScreen() {
     var lastBackPressTime by remember { mutableStateOf(0L) }
 
     BackHandler(enabled = true) {
-        if (activeModal != null) {
+        if (drawerState.isOpen) {
+            coroutineScope.launch { drawerState.close() }
+        } else if (activeModal != null) {
             activeModal = null
         } else if (!isRoot) {
             navController.popBack()
@@ -361,7 +377,7 @@ fun MainContainerScreen() {
     }
 
     val title = when (currentScreen) {
-        Screen.MainDashboard -> "WaEnhancerX"
+        Screen.MainDashboard -> "WAEX"
         Screen.SystemHealth -> stringResource(R.string.title_system_health)
         Screen.BootloaderSpoofer -> stringResource(R.string.title_bootloader_spoofer)
         Screen.GlobalPrivacySettings -> stringResource(R.string.nav_controls)
@@ -369,10 +385,219 @@ fun MainContainerScreen() {
         Screen.AutomationTasker -> stringResource(R.string.nav_automation)
         Screen.StylesSettings -> stringResource(R.string.nav_styles)
         Screen.PerContactPrivacyList -> stringResource(R.string.title_per_contact_privacy)
-        else -> "WaEnhancerX"
+        else -> "WAEX"
     }
 
+    // Config Mode & Target App Selection
+    val configMode = preferenceManager.getString("module_config_mode", "Universal")
+    val isPerTargetApp = configMode == "Per Target App"
+
+    val targetPackages = listOf("com.whatsapp", "com.whatsapp.w4b")
+    val fallbackNames = mapOf(
+        "com.whatsapp" to stringResource(R.string.target_whatsapp),
+        "com.whatsapp.w4b" to "WA Business"
+    )
+
+    data class TargetAppInfo(
+        val packageName: String,
+        val label: String,
+        val icon: androidx.compose.ui.graphics.ImageBitmap?
+    )
+
+    val targetAppList = remember(context) {
+        val pm = context.packageManager
+        targetPackages.map { pkg ->
+            // Priority 1: Exact launcher activity label (the title appearing on the user's home screen)
+            val launcherLabel = runCatching {
+                val launchIntent = pm.getLaunchIntentForPackage(pkg)
+                if (launchIntent != null) {
+                    val resolveInfo = pm.resolveActivity(launchIntent, 0)
+                    resolveInfo?.loadLabel(pm)?.toString()?.takeIf { it.isNotBlank() }
+                } else null
+            }.getOrNull()
+
+            // Priority 2: General application label from ApplicationInfo
+            val appLabel = runCatching {
+                val appInfo = pm.getApplicationInfo(pkg, 0)
+                pm.getApplicationLabel(appInfo).toString().takeIf { it.isNotBlank() }
+            }.getOrNull()
+
+            // Priority 3: Built-in localized fallback name
+            val label = launcherLabel ?: appLabel ?: fallbackNames[pkg].orEmpty()
+
+            val icon = runCatching {
+                pm.getApplicationIcon(pkg).toBitmap(64, 64).asImageBitmap()
+            }.getOrNull()
+
+            TargetAppInfo(packageName = pkg, label = label, icon = icon)
+        }
+    }
+    var selectedPackage by remember { mutableStateOf(targetPackages.first()) }
+    var showTargetMenu by remember { mutableStateOf(false) }
+
     Box(modifier = Modifier.fillMaxSize()) {
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            gesturesEnabled = isRoot,
+            drawerContent = {
+                ModalDrawerSheet(
+                    drawerContainerColor = colors.surface,
+                    drawerContentColor = colors.onSurface,
+                    modifier = Modifier.width(310.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        // Header
+                        Surface(
+                            color = colors.surfaceContainer,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .statusBarsPadding()
+                                    .padding(horizontal = 24.dp, vertical = 20.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                                ) {
+                                    Image(
+                                        painter = painterResource(R.drawable.ic_app_logo),
+                                        contentDescription = "WaEnhancerX Logo",
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                    )
+                                    Column {
+                                        Text(
+                                            text = "WaEnhancerX",
+                                            style = typography.titleLg,
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.onSurface
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Text(
+                                                text = "v${BuildConfig.VERSION_NAME}",
+                                                style = typography.bodySm,
+                                                color = colors.onSurfaceVariant
+                                            )
+
+                                            // License Plan Chip inside Drawer Header
+                                            val chipBg = when (licenseState) {
+                                                "pro" -> colors.primaryContainer
+                                                "trial" -> colors.warningContainer
+                                                else -> colors.surfaceDim
+                                            }
+                                            val chipText = when (licenseState) {
+                                                "pro" -> colors.primary
+                                                "trial" -> colors.onWarningContainer
+                                                else -> colors.onSurfaceVariant
+                                            }
+                                            val chipLabel = when (licenseState) {
+                                                "pro" -> UiText.get(R.string.pro_feature_tag, "Pro")
+                                                "trial" -> UiText.get(R.string.waex_ui_trial, "Trial")
+                                                else -> UiText.get(R.string.waex_ui_free, "Free")
+                                            }
+
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(CircleShape)
+                                                    .background(chipBg)
+                                                    .border(1.dp, chipText.copy(alpha = 0.2f), CircleShape)
+                                                    .clickable {
+                                                        coroutineScope.launch { drawerState.close() }
+                                                        navController.navigateTo(Screen.LicenseActivation)
+                                                    }
+                                                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = chipLabel,
+                                                    style = typography.labelSm,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = chipText,
+                                                    fontSize = 10.sp
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Navigation Items moved from 3-dot menu
+                        NavigationDrawerItem(
+                            label = { Text(text = stringResource(R.string.stargazers_title), style = typography.bodyMd) },
+                            icon = { Icon(WaexIcons.Premium, contentDescription = null, tint = colors.primary, modifier = Modifier.size(20.dp)) },
+                            selected = currentScreen == Screen.Stargazers,
+                            onClick = {
+                                coroutineScope.launch { drawerState.close() }
+                                navController.navigateTo(Screen.Stargazers)
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+
+                        NavigationDrawerItem(
+                            label = { Text(text = stringResource(R.string.module_settings_title), style = typography.bodyMd) },
+                            icon = { Icon(WaexIcons.Settings, contentDescription = null, tint = colors.primary, modifier = Modifier.size(20.dp)) },
+                            selected = currentScreen == Screen.ModuleSettings,
+                            onClick = {
+                                coroutineScope.launch { drawerState.close() }
+                                navController.navigateTo(Screen.ModuleSettings)
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+
+                        NavigationDrawerItem(
+                            label = { Text(text = stringResource(R.string.title_supported_versions), style = typography.bodyMd) },
+                            icon = { Icon(WaexIcons.Layers, contentDescription = null, tint = colors.primary, modifier = Modifier.size(20.dp)) },
+                            selected = currentScreen == Screen.SupportedVersions,
+                            onClick = {
+                                coroutineScope.launch { drawerState.close() }
+                                navController.navigateTo(Screen.SupportedVersions)
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+
+                        NavigationDrawerItem(
+                            label = { Text(text = stringResource(R.string.title_bootloader_spoofer), style = typography.bodyMd) },
+                            icon = { Icon(WaexIcons.Security, contentDescription = null, tint = colors.primary, modifier = Modifier.size(20.dp)) },
+                            selected = currentScreen == Screen.BootloaderSpoofer,
+                            onClick = {
+                                coroutineScope.launch { drawerState.close() }
+                                navController.navigateTo(Screen.BootloaderSpoofer)
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp),
+                            color = colors.outlineVariant.copy(alpha = 0.5f)
+                        )
+
+                        NavigationDrawerItem(
+                            label = { Text(text = stringResource(R.string.about_title), style = typography.bodyMd) },
+                            icon = { Icon(WaexIcons.Info, contentDescription = null, tint = colors.primary, modifier = Modifier.size(20.dp)) },
+                            selected = currentScreen == Screen.About,
+                            onClick = {
+                                coroutineScope.launch { drawerState.close() }
+                                navController.navigateTo(Screen.About)
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+                    }
+                }
+            }
+        ) {
         Scaffold(
             topBar = {
                 if (showParentTopBar) {
@@ -408,58 +633,159 @@ fun MainContainerScreen() {
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(12.dp))
-                            }
-
-                            // Title + License Chip grouped together
-                            Row(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .align(Alignment.CenterVertically),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = title,
-                                    style = typography.headlineMd,
-                                    fontWeight = FontWeight.Bold,
-                                    color = colors.onBackground
-                                )
-
-                                Spacer(modifier = Modifier.width(8.dp))
-
-                                // License Chip directly attached to title
-                                val chipBg = when (licenseState) {
-                                    "pro" -> colors.primaryContainer
-                                    "trial" -> colors.warningContainer
-                                    else -> colors.surfaceDim
-                                }
-                                val chipText = when (licenseState) {
-                                    "pro" -> colors.primary
-                                    "trial" -> colors.onWarningContainer
-                                    else -> colors.onSurfaceVariant
-                                }
-                                val chipLabel = when (licenseState) {
-                                    "pro" -> UiText.get(R.string.pro_feature_tag, "Pro")
-                                    "trial" -> UiText.get(R.string.waex_ui_trial, "Trial")
-                                    else -> UiText.get(R.string.waex_ui_free, "Free")
-                                }
-
-                                Box(
+                            } else {
+                                IconButton(
+                                    onClick = {
+                                        coroutineScope.launch { drawerState.open() }
+                                    },
                                     modifier = Modifier
+                                        .size(36.dp)
                                         .clip(CircleShape)
-                                        .background(chipBg)
-                                        .border(1.dp, chipText.copy(alpha = 0.2f), CircleShape)
-                                        .clickable { navController.navigateTo(Screen.LicenseActivation) }
-                                        .padding(horizontal = 8.dp, vertical = 3.dp),
-                                    contentAlignment = Alignment.Center
+                                        .align(Alignment.CenterVertically)
                                 ) {
-                                    Text(
-                                        text = chipLabel,
-                                        style = typography.labelSm,
-                                        fontWeight = FontWeight.Medium,
-                                        color = chipText,
-                                        fontSize = 11.sp
+                                    Icon(
+                                        imageVector = WaexIcons.Menu,
+                                        contentDescription = stringResource(R.string.navigation_drawer_open),
+                                        tint = colors.onBackground,
+                                        modifier = Modifier.size(22.dp)
                                     )
                                 }
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+
+                            // Screen Title
+                            Text(
+                                text = title,
+                                style = typography.headlineMd,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.onBackground,
+                                modifier = Modifier.align(Alignment.CenterVertically)
+                            )
+
+                            Spacer(modifier = Modifier.weight(1f))
+
+                            // Target App Indicator / Dropdown Switcher based on Config Mode
+                            if (isRoot) {
+                                if (!isPerTargetApp) {
+                                    // Universal Mode: simply says "Universal", non-dropdown
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = colors.surfaceContainer,
+                                        modifier = Modifier.align(Alignment.CenterVertically)
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.config_mode_universal),
+                                            style = typography.labelSm,
+                                            fontWeight = FontWeight.Medium,
+                                            color = colors.primary,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                        )
+                                    }
+                                } else {
+                                    // Per Target App Mode: Dropdown of target apps only, no "All Scoped Apps"
+                                    val currentTarget = targetAppList.find { it.packageName == selectedPackage }
+                                        ?: targetAppList.firstOrNull()
+                                    val currentLabel = currentTarget?.label ?: fallbackNames[selectedPackage].orEmpty()
+                                    val currentIcon = currentTarget?.icon
+
+                                    Box(modifier = Modifier.align(Alignment.CenterVertically)) {
+                                        Row(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(colors.surfaceContainer)
+                                                .clickable { showTargetMenu = true }
+                                                .padding(horizontal = 8.dp, vertical = 5.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            if (currentIcon != null) {
+                                                Image(
+                                                    bitmap = currentIcon,
+                                                    contentDescription = null,
+                                                    modifier = Modifier
+                                                        .size(18.dp)
+                                                        .clip(RoundedCornerShape(4.dp))
+                                                )
+                                            }
+                                            Text(
+                                                text = currentLabel,
+                                                style = typography.labelSm,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = colors.primary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Icon(
+                                                imageVector = WaexIcons.ArrowDropDown,
+                                                contentDescription = null,
+                                                tint = colors.primary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+
+                                        DropdownMenu(
+                                            expanded = showTargetMenu,
+                                            onDismissRequest = { showTargetMenu = false },
+                                            modifier = Modifier.background(colors.surface)
+                                        ) {
+                                            targetAppList.forEach { target ->
+                                                val isSelected = selectedPackage == target.packageName
+                                                DropdownMenuItem(
+                                                    leadingIcon = {
+                                                        if (target.icon != null) {
+                                                            Image(
+                                                                bitmap = target.icon,
+                                                                contentDescription = null,
+                                                                modifier = Modifier
+                                                                    .size(24.dp)
+                                                                    .clip(RoundedCornerShape(6.dp))
+                                                            )
+                                                        } else {
+                                                            Icon(
+                                                                imageVector = WaexIcons.Layers,
+                                                                contentDescription = null,
+                                                                tint = if (isSelected) colors.primary else colors.onSurfaceVariant,
+                                                                modifier = Modifier.size(24.dp)
+                                                            )
+                                                        }
+                                                    },
+                                                    text = {
+                                                        Column {
+                                                            Text(
+                                                                text = target.label,
+                                                                style = typography.bodyMd,
+                                                                color = if (isSelected) colors.primary else colors.onSurface,
+                                                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                                                            )
+                                                            Text(
+                                                                text = target.packageName,
+                                                                style = typography.labelSm,
+                                                                color = colors.onSurfaceVariant,
+                                                                fontSize = 11.sp
+                                                            )
+                                                        }
+                                                    },
+                                                    trailingIcon = {
+                                                        if (isSelected) {
+                                                            Icon(
+                                                                imageVector = WaexIcons.Check,
+                                                                contentDescription = null,
+                                                                tint = colors.primary,
+                                                                modifier = Modifier.size(18.dp)
+                                                            )
+                                                        }
+                                                    },
+                                                    onClick = {
+                                                        selectedPackage = target.packageName
+                                                        showTargetMenu = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.width(8.dp))
                             }
 
                             IconButton(
@@ -475,130 +801,6 @@ fun MainContainerScreen() {
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
-
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            var showMoreMenu by remember { mutableStateOf(false) }
-                            Box(
-                                modifier = Modifier.align(Alignment.CenterVertically)
-                            ) {
-                                IconButton(
-                                    onClick = { showMoreMenu = true },
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = WaexIcons.MoreVert,
-                                        contentDescription = UiText.get(R.string.waex_ui_more_options, "More Options"),
-                                        tint = colors.onBackground,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-
-                                }
-
-                                DropdownMenu(
-                                    expanded = showMoreMenu,
-                                    onDismissRequest = { showMoreMenu = false },
-                                    modifier = Modifier.background(colors.surface)
-                                ) {
-                                    DropdownMenuItem(
-                                        text = {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = WaexIcons.Premium,
-                                                    contentDescription = null,
-                                                    tint = colors.primary,
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                                Text(text = stringResource(R.string.stargazers_title), style = typography.bodyMd, color = colors.onSurface)
-                                            }
-                                        },
-                                        onClick = {
-                                            showMoreMenu = false
-                                            navController.navigateTo(Screen.Stargazers)
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = WaexIcons.Settings,
-                                                    contentDescription = null,
-                                                    tint = colors.primary,
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                                Text(text = stringResource(R.string.module_settings_title), style = typography.bodyMd, color = colors.onSurface)
-                                            }
-                                        },
-                                        onClick = {
-                                            showMoreMenu = false
-                                            navController.navigateTo(Screen.ModuleSettings)
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = WaexIcons.Layers,
-                                                    contentDescription = null,
-                                                    tint = colors.primary,
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                                Text(text = stringResource(R.string.title_supported_versions), style = typography.bodyMd, color = colors.onSurface)
-                                            }
-                                        },
-                                        onClick = {
-                                            showMoreMenu = false
-                                            navController.navigateTo(Screen.SupportedVersions)
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = {
-                                            Row(verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                Icon(WaexIcons.Security, contentDescription = null,
-                                                    tint = colors.primary, modifier = Modifier.size(16.dp))
-                                                Text(text = stringResource(R.string.title_bootloader_spoofer), style = typography.bodyMd, color = colors.onSurface)
-                                            }
-                                        },
-                                        onClick = {
-                                            showMoreMenu = false
-                                            navController.navigateTo(Screen.BootloaderSpoofer)
-                                        }
-                                    )
-                                    HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant.copy(alpha = 0.5f))
-                                    DropdownMenuItem(
-                                        text = {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = WaexIcons.Info,
-                                                    contentDescription = null,
-                                                    tint = colors.primary,
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                                Text(text = stringResource(R.string.about_title), style = typography.bodyMd, color = colors.onSurface)
-                                            }
-                                        },
-                                        onClick = {
-                                            showMoreMenu = false
-                                            navController.navigateTo(Screen.About)
-                                        }
-                                    )
-                                }
-                            }
-
                         }
                     }
                 }
@@ -870,6 +1072,7 @@ fun MainContainerScreen() {
                     }
                 }
             }
+        }
         }
 
         // Animated Overlay Modals

@@ -37,8 +37,12 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Mood
 import androidx.compose.material.icons.rounded.PhoneAndroid
+import androidx.compose.material.icons.rounded.Menu
+import androidx.compose.material.icons.rounded.ArrowDropDown
 
 object WaexIcons {
+    val Menu = Icons.Rounded.Menu
+    val ArrowDropDown = Icons.Rounded.ArrowDropDown
     val Back = Icons.AutoMirrored.Rounded.ArrowBack
     val ChevronRight = Icons.Rounded.ChevronRight
     val Info = Icons.Rounded.Info

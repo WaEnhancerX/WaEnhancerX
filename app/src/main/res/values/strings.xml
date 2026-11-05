@@ -443,4 +443,13 @@
     <string name="waex_ui_selected_icon_color">Selected Icon Color</string>
     <string name="waex_ui_unselected_icon_color">Unselected Icon Color</string>
     <string name="waex_ui_using_app_default_color">Using app default color</string>
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="config_mode_title">Config Mode</string>
+    <string name="config_mode_desc">Configure preferences globally or separately for each target app</string>
+    <string name="config_mode_universal">Universal</string>
+    <string name="config_mode_universal_desc">Apply the same preferences across all scoped WhatsApp apps.</string>
+    <string name="config_mode_per_target_app">Per Target App</string>
+    <string name="config_mode_per_target_app_desc">Customize features and preferences independently for each target app.</string>
+    <string name="target_whatsapp">WhatsApp</string>
+    <string name="target_whatsapp_business">WhatsApp Business</string>
 </resources>

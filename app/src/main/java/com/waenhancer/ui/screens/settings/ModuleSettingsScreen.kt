@@ -94,6 +94,10 @@ fun ModuleSettingsScreen() {
     var showThemeSheet by remember { mutableStateOf(false) }
     var showLanguageSheet by remember { mutableStateOf(false) }
     var showHookingModeSheet by remember { mutableStateOf(false) }
+    var showConfigModeSheet by remember { mutableStateOf(false) }
+    var configMode by remember {
+        mutableStateOf(preferences.getString("module_config_mode", "Universal"))
+    }
     var hookingMode by remember {
         mutableStateOf(HookingModePolicy.normalize(
             preferences.getString(HookingModePolicy.KEY, HookingModePolicy.BALANCED),
@@ -140,6 +144,14 @@ fun ModuleSettingsScreen() {
                     onHelpClick = { navController.navigateTo(Screen.HookingModeHelp) },
                     icon = WaexIcons.AutoMode,
                     onClick = { showHookingModeSheet = true }
+                )
+                ModuleSettingsTile(
+                    title = stringResource(R.string.config_mode_title),
+                    description = stringResource(R.string.config_mode_desc),
+                    value = configMode,
+                    valueAsBadge = true,
+                    icon = WaexIcons.Layers,
+                    onClick = { showConfigModeSheet = true }
                 )
             }
 
@@ -384,6 +396,95 @@ fun ModuleSettingsScreen() {
                             }
                             Text(option.third, style = WaexTheme.typography.bodySm,
                                 color = colors.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showConfigModeSheet) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val configModes = listOf(
+            Triple(
+                "Universal",
+                stringResource(R.string.config_mode_universal),
+                stringResource(R.string.config_mode_universal_desc)
+            ),
+            Triple(
+                "Per Target App",
+                stringResource(R.string.config_mode_per_target_app),
+                stringResource(R.string.config_mode_per_target_app_desc)
+            )
+        )
+
+        WaexModalBottomSheet(
+            onDismissRequest = { showConfigModeSheet = false },
+            sheetState = sheetState,
+            containerColor = colors.surface,
+            shape = WaexTheme.radius.bottomSheetShape,
+            dragHandle = {
+                Box(
+                    Modifier
+                        .padding(top = 10.dp, bottom = 6.dp)
+                        .size(width = 36.dp, height = 4.dp)
+                        .background(colors.outlineVariant, RoundedCornerShape(2.dp))
+                )
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.config_mode_title),
+                    style = WaexTheme.typography.titleLg,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.onSurface,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+                configModes.forEach { mode ->
+                    val selected = mode.first == configMode
+                    Surface(
+                        shape = WaexTheme.radius.cardShape,
+                        color = if (selected) colors.primary.copy(alpha = 0.12f) else colors.surfaceContainerLow,
+                        border = BorderStroke(1.dp, if (selected) colors.primary else colors.outlineVariant),
+                        modifier = Modifier.fillMaxWidth().clickable {
+                            configMode = mode.first
+                            preferences.putString("module_config_mode", mode.first)
+                            showConfigModeSheet = false
+                        }
+                    ) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = mode.second,
+                                    style = WaexTheme.typography.bodyLg,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = colors.onSurface,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                if (selected) {
+                                    Icon(
+                                        imageVector = WaexIcons.Check,
+                                        contentDescription = null,
+                                        tint = colors.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = mode.third,
+                                style = WaexTheme.typography.bodySm,
+                                color = colors.onSurfaceVariant
+                            )
                         }
                     }
                 }
