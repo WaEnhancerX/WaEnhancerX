@@ -29,16 +29,28 @@ public final class PreferenceRestartTracker {
             return;
         }
         if (!preferences.getBoolean(SHOW_RESTART_SHEET, true)) return;
-        if (!requiresRestart(key)) return;
+        String trackingKey = unscopedKey(key);
+        if (!requiresRestart(trackingKey)) return;
 
         Set<String> pending = new LinkedHashSet<>(preferences.getStringSet(
                 PENDING_CHANGES, Collections.emptySet()));
         // Store the stable key and resolve its current UI title when the sheet is built.
-        pending.add(key);
+        pending.add(trackingKey);
         preferences.edit()
                 .putStringSet(PENDING_CHANGES, pending)
                 .putBoolean(NEED_RESTART, true)
                 .apply();
+    }
+
+    /** Per-target preferences are stored as package:key but restart metadata is universal. */
+    @Nullable
+    private static String unscopedKey(@Nullable String key) {
+        if (key == null) return null;
+        int separator = key.indexOf(':');
+        if (separator > 0 && separator < key.length() - 1) {
+            return key.substring(separator + 1);
+        }
+        return key;
     }
 
     public static boolean requiresRestart(@Nullable String key) {
