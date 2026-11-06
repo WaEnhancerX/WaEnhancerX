@@ -30,6 +30,29 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
     @Inject
     public WaexPreferenceManager(@ApplicationContext Context context) {
         this.context = context;
+        disableShowAsDeletedForExistingUsers();
+    }
+
+    /** Native deleted-row rendering is parked; migrate old enabled values off immediately. */
+    private void disableShowAsDeletedForExistingUsers() {
+        try {
+            SharedPreferences store = PreferenceStores.publicStore(context);
+            Map<String, ?> values = store.getAll();
+            SharedPreferences.Editor editor = store.edit();
+            boolean changed = false;
+            for (String key : values.keySet()) {
+                if ("show_as_deleted".equals(key) || key.endsWith(":show_as_deleted")) {
+                    Object value = values.get(key);
+                    if (Boolean.TRUE.equals(value)) {
+                        editor.putBoolean(key, false);
+                        changed = true;
+                    }
+                }
+            }
+            if (changed) editor.commit();
+        } catch (Throwable ignored) {
+            // Preference migration must never prevent the settings screen from opening.
+        }
     }
 
     /** Selects the target whose settings are edited by the UI. */

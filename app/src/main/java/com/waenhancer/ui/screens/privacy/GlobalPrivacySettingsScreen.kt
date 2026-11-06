@@ -278,7 +278,7 @@ fun GlobalPrivacySettingsScreen(
     }
 
     var showColorPickerDialog by remember { mutableStateOf(false) }
-    var deletedMessageColor by remember(preferenceManager) {
+    var deletedMessageColor by remember(preferenceManager, targetEpoch) {
         // The persisted preference has schema type INT; older releases wrote hex text.
         mutableStateOf(
             DeletedIndicatorPreferencePolicy.toColorHex(
@@ -878,7 +878,8 @@ fun GlobalPrivacySettingsScreen(
                             // If anti_revoke or antirevokestatus is enabled, show indicator choice chips and color sub-preferences
                             if ((item.key == "anti_revoke" && (settingsState["anti_revoke"] == true)) ||
                                 (item.key == "antirevokestatus" && (settingsState["antirevokestatus"] == true) && (settingsState["anti_revoke"] != true))) {
-                                val currentIndicator = preferenceManager.getString("anti_revoke_indicator", "2")
+                                val currentIndicator = preferenceManager
+                                    .getInt("anti_revoke_indicator", 2).toString()
                                 val isShowAsDeleted = preferenceManager.getBoolean("show_as_deleted", false)
                                 val isColorEnabled = preferenceManager.getBoolean("anti_revoke_color_enabled", true)
 
@@ -909,18 +910,15 @@ fun GlobalPrivacySettingsScreen(
                                                     fontWeight = FontWeight.Medium
                                                 )
                                                 Text(
-                                                    text = UiText.get(R.string.waex_ui_show_as_deleted_desc, "Display deleted messages using WhatsApp's native deleted message layout"),
+                                                text = "Coming soon — native deleted-message layout is temporarily disabled",
                                                     style = typography.labelSm,
                                                     color = colors.onSurfaceVariant
                                                 )
                                             }
                                             StitchSwitch(
-                                                checked = isShowAsDeleted,
-                                                onCheckedChange = { checked ->
-                                                    preferenceManager.putBoolean("show_as_deleted", checked)
-                                                    settingsState["show_as_deleted"] = checked
-                                                    settingsState["anti_revoke_indicator_dummy"] = !(settingsState["anti_revoke_indicator_dummy"] ?: false)
-                                                }
+                                                checked = false,
+                                                onCheckedChange = null,
+                                                enabled = false
                                             )
                                         }
 
