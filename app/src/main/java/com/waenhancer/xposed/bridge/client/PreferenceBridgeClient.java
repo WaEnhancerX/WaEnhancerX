@@ -9,6 +9,7 @@ import android.os.Handler;
 import android.os.Looper;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import com.waenhancer.config.PreferenceRestartTracker;
 import de.robv.android.xposed.XSharedPreferences;
 import de.robv.android.xposed.XposedBridge;
 import java.util.ArrayList;
@@ -276,6 +277,14 @@ public final class PreferenceBridgeClient implements SharedPreferences {
             if (key != null && key.startsWith(prefix) && key.length() > prefix.length()) {
                 resolved.put(key.substring(prefix.length()), entry.getValue());
             }
+        }
+        resolved.put(PreferenceRestartTracker.NEED_RESTART,
+                Boolean.TRUE.equals(source.get(prefix + PreferenceRestartTracker.NEED_RESTART)));
+        Object pending = source.get(prefix + PreferenceRestartTracker.PENDING_CHANGES);
+        if (pending instanceof Set<?>) {
+            resolved.put(PreferenceRestartTracker.PENDING_CHANGES, pending);
+        } else {
+            resolved.remove(PreferenceRestartTracker.PENDING_CHANGES);
         }
         return resolved;
     }

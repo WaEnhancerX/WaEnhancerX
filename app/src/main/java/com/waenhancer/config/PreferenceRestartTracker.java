@@ -19,32 +19,59 @@ public final class PreferenceRestartTracker {
 
     public static synchronized void onPreferenceChanged(
             @NonNull SharedPreferences preferences, @Nullable String key) {
-        if (SHOW_RESTART_SHEET.equals(key)) {
-            if (!preferences.getBoolean(SHOW_RESTART_SHEET, true)) {
+        if (key == null) return;
+        String targetPkg = targetPackage(key);
+        String trackingKey = unscopedKey(key);
+
+        String needRestartKey = scopedKey(targetPkg, NEED_RESTART);
+        String pendingChangesKey = scopedKey(targetPkg, PENDING_CHANGES);
+        String showRestartSheetKey = scopedKey(targetPkg, SHOW_RESTART_SHEET);
+
+        if (SHOW_RESTART_SHEET.equals(trackingKey)) {
+            boolean enabled = preferences.getBoolean(key, preferences.getBoolean(SHOW_RESTART_SHEET, true));
+            if (!enabled) {
                 preferences.edit()
-                        .putBoolean(NEED_RESTART, false)
-                        .remove(PENDING_CHANGES)
+                        .putBoolean(needRestartKey, false)
+                        .remove(pendingChangesKey)
                         .apply();
             }
             return;
         }
-        if (!preferences.getBoolean(SHOW_RESTART_SHEET, true)) return;
-        String trackingKey = unscopedKey(key);
+
+        boolean showSheet = preferences.getBoolean(showRestartSheetKey, preferences.getBoolean(SHOW_RESTART_SHEET, true));
+        if (!showSheet) return;
         if (!requiresRestart(trackingKey)) return;
 
         Set<String> pending = new LinkedHashSet<>(preferences.getStringSet(
-                PENDING_CHANGES, Collections.emptySet()));
+                pendingChangesKey, Collections.emptySet()));
         // Store the stable key and resolve its current UI title when the sheet is built.
         pending.add(trackingKey);
         preferences.edit()
-                .putStringSet(PENDING_CHANGES, pending)
-                .putBoolean(NEED_RESTART, true)
+                .putStringSet(pendingChangesKey, pending)
+                .putBoolean(needRestartKey, true)
                 .apply();
     }
 
-    /** Per-target preferences are stored as package:key but restart metadata is universal. */
+    /** Extracts package name from scoped key e.g. "com.whatsapp:anti_revoke" -> "com.whatsapp". */
     @Nullable
-    private static String unscopedKey(@Nullable String key) {
+    public static String targetPackage(@Nullable String key) {
+        if (key == null) return null;
+        int separator = key.indexOf(':');
+        if (separator > 0 && separator < key.length() - 1) {
+            return key.substring(0, separator);
+        }
+        return null;
+    }
+
+    /** Builds target-scoped or universal preference key. */
+    @NonNull
+    public static String scopedKey(@Nullable String targetPackage, @NonNull String baseKey) {
+        return (targetPackage == null || targetPackage.isEmpty()) ? baseKey : targetPackage + ":" + baseKey;
+    }
+
+    /** Unscopes per-target preferences stored as package:key. */
+    @Nullable
+    public static String unscopedKey(@Nullable String key) {
         if (key == null) return null;
         int separator = key.indexOf(':');
         if (separator > 0 && separator < key.length() - 1) {

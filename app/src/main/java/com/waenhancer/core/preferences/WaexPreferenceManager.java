@@ -85,7 +85,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
         SharedPreferences.Editor editor = universal.edit();
         boolean changed = false;
         for (PreferenceSchema.Entry entry : PreferenceSchema.all().values()) {
-            if (entry.store != PreferenceSchema.Store.PUBLIC) continue;
+            if (entry.store != PreferenceSchema.Store.PUBLIC || entry.sensitivity == PreferenceSchema.Sensitivity.RUNTIME) continue;
             String scoped = packageName + ":" + entry.key;
             if (!universal.contains(scoped) && universal.contains(entry.key)) {
                 Object value = universal.getAll().get(entry.key);
@@ -168,6 +168,10 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
                 editor.putBoolean(resolvedKey(change.getKey()), change.getValue());
             }
             if (!editor.commit()) return false;
+            for (Map.Entry<String, Boolean> change : batch.entrySet()) {
+                PreferenceRestartTracker.onPreferenceChanged(
+                        PreferenceStores.publicStore(context), resolvedKey(change.getKey()));
+            }
             notifyChange();
             return true;
         } catch (RuntimeException ignored) {
@@ -209,6 +213,8 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
             if (!PreferenceStores.publicStore(context).edit().putString(resolvedKey(key), value).commit()) {
                 return false;
             }
+            PreferenceRestartTracker.onPreferenceChanged(
+                    PreferenceStores.publicStore(context), resolvedKey(key));
             notifyChange();
             return true;
         } catch (RuntimeException ignored) {
@@ -228,6 +234,8 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
             if (!PreferenceStores.publicStore(context).edit().putStringSet(resolvedKey(key), snapshot).commit()) {
                 return false;
             }
+            PreferenceRestartTracker.onPreferenceChanged(
+                    PreferenceStores.publicStore(context), resolvedKey(key));
             notifyChange();
             return true;
         } catch (RuntimeException ignored) {

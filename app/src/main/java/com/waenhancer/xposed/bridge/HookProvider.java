@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import com.waenhancer.config.PreferenceRestartTracker;
 import com.waenhancer.config.PreferenceSchema;
 import com.waenhancer.calls.CallRecordingRecord;
 import com.waenhancer.calls.CallRecordingStore;
@@ -230,9 +231,20 @@ public class HookProvider extends ContentProvider {
                 String targetPackage = targetPackageForCaller(context, callerUid);
                 if (targetPackage != null && "Per Target App".equals(prefs.getString("module_config_mode", "Universal"))) {
                     initializeTarget(prefs, targetPackage);
-                    for (Map.Entry<String, Object> entry : new HashMap<>(all).entrySet()) {
-                        String scoped = targetPackage + ":" + entry.getKey();
-                        if (prefs.contains(scoped)) all.put(entry.getKey(), prefs.getAll().get(scoped));
+                    String prefix = targetPackage + ":";
+                    for (Map.Entry<String, ?> entry : prefs.getAll().entrySet()) {
+                        String key = entry.getKey();
+                        if (key != null && key.startsWith(prefix) && key.length() > prefix.length()) {
+                            all.put(key.substring(prefix.length()), entry.getValue());
+                        }
+                    }
+                    all.put(PreferenceRestartTracker.NEED_RESTART,
+                            Boolean.TRUE.equals(prefs.getAll().get(prefix + PreferenceRestartTracker.NEED_RESTART)));
+                    Object pendingChanges = prefs.getAll().get(prefix + PreferenceRestartTracker.PENDING_CHANGES);
+                    if (pendingChanges instanceof Set<?>) {
+                        all.put(PreferenceRestartTracker.PENDING_CHANGES, pendingChanges);
+                    } else {
+                        all.remove(PreferenceRestartTracker.PENDING_CHANGES);
                     }
                 }
                 all.put("waex_pro_active", "ACTIVE".equalsIgnoreCase(
@@ -468,7 +480,7 @@ public class HookProvider extends ContentProvider {
         SharedPreferences.Editor editor = prefs.edit();
         boolean changed = false;
         for (PreferenceSchema.Entry entry : PreferenceSchema.all().values()) {
-            if (entry.store != PreferenceSchema.Store.PUBLIC) continue;
+            if (entry.store != PreferenceSchema.Store.PUBLIC || entry.sensitivity == PreferenceSchema.Sensitivity.RUNTIME) continue;
             String scoped = packageName + ":" + entry.key;
             if (!prefs.contains(scoped) && prefs.contains(entry.key)) {
                 Object value = prefs.getAll().get(entry.key);
