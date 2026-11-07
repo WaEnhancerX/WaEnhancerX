@@ -52,9 +52,9 @@ fun BootloaderSpooferScreen() {
     val scope = rememberCoroutineScope()
     var enabled by remember { mutableStateOf(prefs.getBoolean(BootloaderSpooferFeature.ENABLED, true)) }
     var custom by remember { mutableStateOf(prefs.getBoolean(BootloaderSpooferFeature.CUSTOM_ENABLED, false)) }
-    var customReady by remember { mutableStateOf(prefs.getString(BootloaderSpooferFeature.CUSTOM_XML, "").isNotBlank()) }
-    var updated by remember { mutableStateOf(prefs.getString(BootloaderSpooferFeature.LAST_UPDATED, "")) }
-    var syncError by remember { mutableStateOf(prefs.getString(BootloaderSpooferFeature.LAST_ERROR, "")) }
+    var customReady by remember { mutableStateOf(BootloaderSpooferFeature.getCustomKeyboxXml(context).isNotBlank()) }
+    var updated by remember { mutableStateOf(BootloaderSpooferFeature.getLastUpdated(context)) }
+    var syncError by remember { mutableStateOf(BootloaderSpooferFeature.getLastError(context)) }
     var syncing by remember { mutableStateOf(false) }
     var verifying by remember { mutableStateOf(false) }
     var report by remember { mutableStateOf<BootloaderSpooferFeature.VerificationReport?>(null) }
@@ -80,11 +80,24 @@ fun BootloaderSpooferScreen() {
         verifying = true
         if (autoOpen) showReport = true
         scope.launch {
-            val selectedXml = withContext(Dispatchers.IO) {
-                prefs.getString(
-                    if (forCustom) BootloaderSpooferFeature.CUSTOM_XML
-                    else BootloaderSpooferFeature.DEFAULT_XML, ""
-                )
+            var selectedXml = withContext(Dispatchers.IO) {
+                if (forCustom) BootloaderSpooferFeature.getCustomKeyboxXml(context)
+                else BootloaderSpooferFeature.getManagedKeyboxXml(context)
+            }
+            if (!forCustom && selectedXml.isBlank()) {
+                val syncResult = withContext(Dispatchers.IO) {
+                    try {
+                        BootloaderSpooferFeature.syncDefaultKeybox(context)
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+                if (syncResult != null) {
+                    updated = syncResult
+                    selectedXml = withContext(Dispatchers.IO) {
+                        BootloaderSpooferFeature.getManagedKeyboxXml(context)
+                    }
+                }
             }
             report = withContext(Dispatchers.Default) {
                 BootloaderSpooferFeature.verify(context, selectedXml, !forCustom)
@@ -92,28 +105,6 @@ fun BootloaderSpooferScreen() {
             reportSource = if (forCustom) "custom" else "managed"
             reportCachedAt = System.currentTimeMillis()
             verifying = false
-        }
-    }
-
-    val importer = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        scope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    val xml = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
-                        ?: error(UiText.get(R.string.waex_ui_could_not_read_the_selected_file, "Could not read the selected file"))
-                    require(xml.length <= 2_000_000) { UiText.get(R.string.waex_ui_keybox_file_is_too_large, "Keybox file is too large") }
-                    BootloaderSpooferFeature.parse(xml)
-                    prefs.putString(BootloaderSpooferFeature.CUSTOM_XML, xml)
-                }
-            }.onSuccess {
-                customReady = true
-                custom = true
-                prefs.putBoolean(BootloaderSpooferFeature.CUSTOM_ENABLED, true)
-                // Invalidate cache so next verify runs fresh for the new custom keybox.
-                reportSource = ""
-                Toast.makeText(context, UiText.get(R.string.waex_ui_custom_keybox_imported, "Custom keybox imported"), Toast.LENGTH_SHORT).show()
-            }.onFailure { Toast.makeText(context, UiText.get(R.string.waex_ui_invalid_keybox_1_s, "Invalid keybox: %1\$s", it.message), Toast.LENGTH_LONG).show() }
         }
     }
 
@@ -145,6 +136,34 @@ fun BootloaderSpooferScreen() {
                     ).show()
                 }
             }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (BootloaderSpooferFeature.getManagedKeyboxXml(context).isBlank()) {
+            refreshManagedKeybox()
+        }
+    }
+
+    val importer = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val xml = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                        ?: error(UiText.get(R.string.waex_ui_could_not_read_the_selected_file, "Could not read the selected file"))
+                    require(xml.length <= 2_000_000) { UiText.get(R.string.waex_ui_keybox_file_is_too_large, "Keybox file is too large") }
+                    BootloaderSpooferFeature.parse(xml)
+                    BootloaderSpooferFeature.saveCustomKeyboxXml(context, xml)
+                }
+            }.onSuccess {
+                customReady = true
+                custom = true
+                prefs.putBoolean(BootloaderSpooferFeature.CUSTOM_ENABLED, true)
+                // Invalidate cache so next verify runs fresh for the new custom keybox.
+                reportSource = ""
+                Toast.makeText(context, UiText.get(R.string.waex_ui_custom_keybox_imported, "Custom keybox imported"), Toast.LENGTH_SHORT).show()
+            }.onFailure { Toast.makeText(context, UiText.get(R.string.waex_ui_invalid_keybox_1_s, "Invalid keybox: %1\$s", it.message), Toast.LENGTH_LONG).show() }
         }
     }
 

@@ -47,9 +47,18 @@ public final class PreferenceStores {
         return context.getSharedPreferences(storeName, Context.MODE_PRIVATE);
     }
 
+    private static String stripTargetPrefix(String key) {
+        if (key == null) return null;
+        int colon = key.indexOf(':');
+        if (colon != -1 && colon < key.length() - 1) {
+            return key.substring(colon + 1);
+        }
+        return key;
+    }
+
     /** Which store a key belongs to according to the schema; public when the key is unknown. */
     public static SharedPreferences storeFor(Context context, String key) {
-        PreferenceSchema.Entry entry = PreferenceSchema.entry(key);
+        PreferenceSchema.Entry entry = PreferenceSchema.entry(stripTargetPrefix(key));
         if (entry != null && entry.store == PreferenceSchema.Store.PRIVATE) {
             return privateStore(context);
         }
@@ -60,7 +69,7 @@ public final class PreferenceStores {
      * Reads a key from the store the schema assigns it, falling back to the other store.
      */
     public static Object read(Context context, String key) {
-        PreferenceSchema.Entry entry = PreferenceSchema.entry(key);
+        PreferenceSchema.Entry entry = PreferenceSchema.entry(stripTargetPrefix(key));
         boolean privateFirst = entry != null && entry.store == PreferenceSchema.Store.PRIVATE;
         SharedPreferences first = privateFirst ? privateStore(context) : publicStore(context);
         SharedPreferences second = privateFirst ? publicStore(context) : privateStore(context);
