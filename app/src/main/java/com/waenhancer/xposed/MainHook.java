@@ -72,11 +72,13 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
     private static volatile String sRuntimeStatus = "INJECTED";
     private static volatile String sBridgeStatus = "PENDING";
     private static volatile String sRuntimeError;
+    public static volatile String sModulePath;
     private String mModulePath;
 
     @Override
     public void initZygote(StartupParam startupParam) throws Throwable {
         mModulePath = startupParam.modulePath;
+        sModulePath = startupParam.modulePath;
     }
 
     public static synchronized XSharedPreferences getPrefs() {

@@ -115,10 +115,23 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
     @Override
     public boolean getBoolean(String key, boolean defaultValue) {
         try {
-            return getStore(key).getBoolean(key(key), defaultValue);
+            SharedPreferences store = getStore(key);
+            String resolved = key(key);
+            if (store.contains(resolved)) {
+                return store.getBoolean(resolved, defaultValue);
+            }
+            if (!resolved.equals(key) && store.contains(key)) {
+                return store.getBoolean(key, defaultValue);
+            }
+            return defaultValue;
         } catch (ClassCastException e) {
             try {
-                Object allVal = getStore(key).getAll().get(key(key));
+                SharedPreferences store = getStore(key);
+                String resolved = key(key);
+                Object allVal = store.getAll().get(resolved);
+                if (allVal == null && !resolved.equals(key)) {
+                    allVal = store.getAll().get(key);
+                }
                 if (allVal instanceof Boolean) {
                     return (Boolean) allVal;
                 } else if (allVal instanceof String) {

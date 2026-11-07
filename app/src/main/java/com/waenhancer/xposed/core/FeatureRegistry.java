@@ -324,7 +324,9 @@ public final class FeatureRegistry {
                 () -> new ChatLimitsBypassHook(context, classLoader, prefs));
 
         try {
-            DeviceDefaultEmojisFeature.install(context, classLoader, prefs);
+            DeviceDefaultEmojisFeature.install(context, classLoader, prefs,
+                    (cacheKey, query) -> DexSearchEngine.getInstance().findClassWithCache(
+                            context, classLoader, cacheKey, query::execute));
             features.add(new FeatureEntry("Device Default Emojis", "DeviceDefaultEmojisFeature", "Conversation", "ACTIVE"));
         } catch (Throwable t) {
             FeatureEntry entry = new FeatureEntry("Device Default Emojis", "DeviceDefaultEmojisFeature", "Conversation", "FAILED");

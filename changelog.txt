@@ -1,6 +1,5 @@
 [Added]
 - Added support for version upto 2.26.44.xx
-- Show as Deleted Message: Option to display revoked messages using WhatsApp's authentic native Type-15 deleted message layout; when disabled, messages are displayed with the selected deleted indicator (🚫 Icon or Text "Deleted")
 - Parallel Downloading: Multi-connection acceleration for downloading large photos, videos, and documents
 - Custom A/B Props support: Override WhatsApp AB properties
 - Search bar style

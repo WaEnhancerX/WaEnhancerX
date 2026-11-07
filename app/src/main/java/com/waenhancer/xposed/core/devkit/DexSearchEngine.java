@@ -44,12 +44,30 @@ public final class DexSearchEngine {
             File libFile = new File(nativeLibraryDir, "libdexkit.so");
             if (libFile.exists()) {
                 System.load(libFile.getAbsolutePath());
+                return;
             }
-        } catch (Throwable t) {
-            try {
-                System.loadLibrary("dexkit");
-            } catch (Throwable ignored) {}
-        }
+        } catch (Throwable ignored) {}
+
+        try {
+            String modulePath = com.waenhancer.xposed.MainHook.sModulePath;
+            if (modulePath != null) {
+                File baseApk = new File(modulePath);
+                File parent = baseApk.getParentFile();
+                if (parent != null) {
+                    for (String abi : android.os.Build.SUPPORTED_ABIS) {
+                        File libFile = new File(parent, "lib/" + abi + "/libdexkit.so");
+                        if (libFile.exists()) {
+                            System.load(libFile.getAbsolutePath());
+                            return;
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+
+        try {
+            System.loadLibrary("dexkit");
+        } catch (Throwable ignored) {}
     }
 
     public synchronized void initialize(@NonNull Context context) {
