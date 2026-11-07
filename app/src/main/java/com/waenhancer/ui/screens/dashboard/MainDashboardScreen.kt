@@ -133,7 +133,8 @@ fun MainDashboardScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val preferenceManager = LocalWaexPreferenceManager.current
-    val isModuleActive = remember { ModuleStatus.isModuleActive() }
+    var refreshTrigger by remember { mutableIntStateOf(0) }
+    val isModuleActive = remember(refreshTrigger) { ModuleStatus.isModuleActive() }
 
     val backupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream")
@@ -163,14 +164,13 @@ fun MainDashboardScreen(
         Unit
     }
 
-    var refreshTrigger by remember { mutableIntStateOf(0) }
     var diagnosticsRefreshTrigger by remember { mutableIntStateOf(0) }
     var runtimeSnapshot by remember {
         mutableStateOf(XposedRuntimeInspector.cached())
     }
     var scopeSnapshot by remember { mutableStateOf<LsposedScopeSnapshot?>(LsposedScopeReader.cached()) }
     var systemDiagnostics by remember {
-        mutableStateOf(SystemDiagnosticsReader.cached())
+        mutableStateOf(SystemDiagnosticsReader.getOrFastSnapshot(context, isModuleActive))
     }
     var hmaRefreshTrigger by remember { mutableIntStateOf(0) }
     var hmaStatus by remember {
@@ -184,7 +184,7 @@ fun MainDashboardScreen(
     // Target heartbeats arrive every ten seconds. They refresh target evidence, while the
     // root/framework/package inventory only needs a screen resume or an explicit refresh.
     LaunchedEffect(diagnosticsRefreshTrigger) {
-        systemDiagnostics = withContext(Dispatchers.IO) { SystemDiagnosticsReader.read(context) }
+        systemDiagnostics = withContext(Dispatchers.IO) { SystemDiagnosticsReader.read(context, isModuleActive) }
     }
 
     LaunchedEffect(refreshTrigger) {
@@ -234,8 +234,6 @@ fun MainDashboardScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 refreshTrigger++
-                diagnosticsRefreshTrigger++
-                denylistRefreshTrigger++
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -601,6 +599,7 @@ fun MainDashboardScreen(
             }
 
             DashboardDiagnosticsCard(
+                isModuleActive = isModuleActive,
                 diagnostics = systemDiagnostics,
                 targetSummary = targetSummary,
                 hmaReport = hmaStatus,
@@ -1906,6 +1905,7 @@ private fun DenylistDetailsBottomSheet(
 
 @Composable
 private fun DashboardDiagnosticsCard(
+    isModuleActive: Boolean,
     diagnostics: SystemDiagnostics?,
     targetSummary: TargetRuntimePresentation.Summary,
     hmaReport: HmaDiagnostics.HmaReport?,
@@ -1928,17 +1928,16 @@ private fun DashboardDiagnosticsCard(
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            val isDiagnosticsLoading = diagnostics == null ||
-                    hmaReport == null || hmaReport.state == HmaDiagnostics.HmaState.CHECKING ||
-                    denylistReport == null || denylistReport.state == MagiskDenylistDiagnostics.DenylistState.CHECKING
+            val isDiagnosticsLoading = (hmaReport?.state == HmaDiagnostics.HmaState.CHECKING) ||
+                    (denylistReport?.state == MagiskDenylistDiagnostics.DenylistState.CHECKING)
 
             // Determine overall health:
             // Error (Red): module not active, framework not detected when checked, targetSummary is explicitly false, or HMA / DenyList blocking
             // Warning (Yellow): unconfirmed state, target review needed, etc.
             // Healthy (Green): everything healthy and ok
-            val isCriticalError = (diagnostics != null && !diagnostics.moduleActive) ||
-                    (hmaReport != null && hmaReport.state == HmaDiagnostics.HmaState.BLOCKING_TARGETS) ||
-                    (denylistReport != null && denylistReport.state == MagiskDenylistDiagnostics.DenylistState.BLOCKING_TARGETS) ||
+            val isCriticalError = !isModuleActive ||
+                    (hmaReport?.state == HmaDiagnostics.HmaState.BLOCKING_TARGETS) ||
+                    (denylistReport?.state == MagiskDenylistDiagnostics.DenylistState.BLOCKING_TARGETS) ||
                     (targetSummary.healthy == false)
 
             val isWarning = !isCriticalError && (targetSummary.healthy == null || (diagnostics != null && diagnostics.framework.name == "Not detected"))
@@ -2003,19 +2002,24 @@ private fun DashboardDiagnosticsCard(
 
             DashboardDiagnosticRow(
                 label = stringResource(R.string.diag_label_module),
-                value = when (diagnostics?.moduleActive) {
-                    true -> stringResource(R.string.diag_status_active)
-                    false -> stringResource(R.string.diag_status_inactive)
-                    null -> stringResource(R.string.diag_status_checking)
-                },
-                healthy = diagnostics?.moduleActive,
-                isLoading = diagnostics == null
+                value = if (isModuleActive) stringResource(R.string.diag_status_active) else stringResource(R.string.diag_status_inactive),
+                healthy = isModuleActive,
+                isLoading = false
             )
             HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.65f))
+            val frameworkName = diagnostics?.framework?.name
+                ?: if (isModuleActive) {
+                    PreferenceStores.publicStore(LocalContext.current)
+                        .getString("active_xposed_framework", null)
+                        ?.takeIf { it.isNotBlank() } ?: "Xposed-compatible framework"
+                } else {
+                    stringResource(R.string.diag_framework_detecting)
+                }
             DashboardDiagnosticRow(
                 label = stringResource(R.string.diag_label_framework),
-                value = diagnostics?.framework?.name?.let { InternalLabels.text(it) } ?: stringResource(R.string.diag_framework_detecting),
-                healthy = diagnostics?.let { it.moduleActive && it.framework.name != "Not detected" }
+                value = InternalLabels.text(frameworkName),
+                healthy = if (isModuleActive) true else diagnostics?.let { it.moduleActive && it.framework.name != "Not detected" },
+                isLoading = !isModuleActive && diagnostics == null
             )
             HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.65f))
             DashboardDiagnosticRow(

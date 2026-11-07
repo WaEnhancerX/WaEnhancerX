@@ -58,9 +58,24 @@ object UpdateDownloader {
         fun onFailure(error: Exception)
     }
 
-    fun hasRootAccess(): Boolean {
+    @Volatile
+    private var cachedRootAccess: Boolean? = null
+    @Volatile
+    private var lastRootCheckElapsed: Long = 0L
+    private const val ROOT_CACHE_TTL_MS = 60_000L
+
+    fun hasCachedRootAccess(): Boolean? = cachedRootAccess
+
+    fun hasRootAccess(forceRefresh: Boolean = false): Boolean {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (!forceRefresh && cachedRootAccess != null && (now - lastRootCheckElapsed < ROOT_CACHE_TTL_MS)) {
+            return cachedRootAccess!!
+        }
         val output = runRootCommand("id")
-        return output?.let { "uid=0" in it } == true
+        val hasRoot = output?.let { "uid=0" in it } == true
+        cachedRootAccess = hasRoot
+        lastRootCheckElapsed = now
+        return hasRoot
     }
 
     fun downloadApk(

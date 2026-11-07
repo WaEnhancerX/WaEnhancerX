@@ -68,7 +68,7 @@ fun SystemHealthScreen() {
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
     var diagnostics by remember {
-        mutableStateOf(SystemDiagnosticsReader.cached())
+        mutableStateOf(SystemDiagnosticsReader.getOrFastSnapshot(context))
     }
     var refreshTrigger by remember { mutableIntStateOf(0) }
     var runtimeSnapshot by remember {
@@ -131,13 +131,10 @@ fun SystemHealthScreen() {
         containerColor = colors.background
     ) { insets ->
         val data = diagnostics
-        if (data == null) {
-            Column(Modifier.fillMaxSize().padding(insets), Arrangement.Center, Alignment.CenterHorizontally) { WaexCircularProgressIndicator(color = colors.primary) }
-        } else {
-            val reportedApps = remember(data, refreshTrigger, runtimeSnapshot, scopeSnapshot) {
-                WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot, scopeSnapshot)
-                    .filter { it.isInstalled }
-            }
+        val reportedApps = remember(data, refreshTrigger, runtimeSnapshot, scopeSnapshot) {
+            WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot, scopeSnapshot)
+                .filter { it.isInstalled }
+        }
             val observationTime = rememberRuntimeObservationClock()
             val targetApps = reportedApps.map {
                 TargetRuntimePresentation.asOf(it, observationTime.wall, observationTime.elapsed)
@@ -260,8 +257,6 @@ fun SystemHealthScreen() {
             }
         }
     }
-
-}
 
 @Composable
 private fun DiagnosticCard(title: String, entries: List<Pair<String, String>>, accent: Color) {
