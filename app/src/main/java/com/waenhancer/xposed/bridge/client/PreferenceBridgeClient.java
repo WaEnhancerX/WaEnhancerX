@@ -377,7 +377,7 @@ public final class PreferenceBridgeClient implements SharedPreferences {
 
     @Override
     public Map<String, ?> getAll() {
-        return copyValues(memoryCache);
+        return memoryCache;
     }
 
     @Nullable

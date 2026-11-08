@@ -2422,15 +2422,7 @@ public class AntiRevokeHook extends BaseFeature {
         // The native deleted-row presentation depends on the same preserved incoming
         // message marker. Enabling only show_as_deleted must therefore activate the
         // preservation path as well.
-        if (HideAntiRevokeProFeature.isHiddenForActiveConversation(prefs)) return true;
-        try {
-            if (prefs.contains("anti_revoke")) {
-                Object val = prefs.getAll().get("anti_revoke");
-                if (val instanceof Boolean) return (Boolean) val;
-                if (val instanceof String) return !"0".equals(val) && !"false".equalsIgnoreCase((String) val);
-                if (val instanceof Number) return ((Number) val).intValue() != 0;
-            }
-        } catch (Throwable ignored) {}
+        if (HideAntiRevokeProFeature.isEnabled(prefs) && HideAntiRevokeProFeature.isHiddenForActiveConversation(prefs)) return true;
         return isEnabled("anti_revoke", false);
     }
 
@@ -2439,26 +2431,10 @@ public class AntiRevokeHook extends BaseFeature {
     }
 
     private boolean isAntiRevokeStatusEnabled() {
-        try {
-            if (prefs.contains("antirevokestatus")) {
-                Object val = prefs.getAll().get("antirevokestatus");
-                if (val instanceof Boolean) return (Boolean) val;
-                if (val instanceof String) return !"0".equals(val) && !"false".equalsIgnoreCase((String) val);
-                if (val instanceof Number) return ((Number) val).intValue() != 0;
-            }
-        } catch (Throwable ignored) {}
         return isEnabled("antirevokestatus", false);
     }
 
     private boolean isColorDeletedMessagesEnabled() {
-        try {
-            if (prefs.contains("anti_revoke_color_enabled")) {
-                Object val = prefs.getAll().get("anti_revoke_color_enabled");
-                if (val instanceof Boolean) return (Boolean) val;
-                if (val instanceof String) return !"0".equals(val) && !"false".equalsIgnoreCase((String) val);
-                if (val instanceof Number) return ((Number) val).intValue() != 0;
-            }
-        } catch (Throwable ignored) {}
         return isEnabled("anti_revoke_color_enabled", true);
     }
 
