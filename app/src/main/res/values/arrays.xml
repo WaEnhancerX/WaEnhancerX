@@ -66,6 +66,7 @@
     <!-- Universal Supported WhatsApp Versions (Single universal standard across all WhatsApp packages) -->
     <!-- Formatted strictly as 2.xx.xx.xx (e.g. 2.26.37.xx, 2.26.36.xx, 2.26.35.xx) -->
     <string-array name="universal_supported_versions">
+        <item>2.26.45.xx</item>
         <item>2.26.44.xx</item>
         <item>2.26.43.xx</item>
         <item>2.26.42.xx</item>

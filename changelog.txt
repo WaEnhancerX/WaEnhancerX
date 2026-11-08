@@ -1,5 +1,5 @@
 [Added]
-- Added support for version upto 2.26.44.xx
+- Added support for version upto 2.26.45.xx
 - Parallel Downloading: Multi-connection acceleration for downloading large photos, videos, and documents
 - Custom A/B Props support: Override WhatsApp AB properties
 - Search bar style
