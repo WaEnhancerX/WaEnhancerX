@@ -9,13 +9,13 @@ import androidx.compose.ui.unit.dp
 @Immutable
 data class WaexRadius(
     val sm: Dp = 8.dp,
-    val default: Dp = 12.dp,
+    val default: Dp = 10.dp,
     val button: Dp = 9999.dp,
-    val md: Dp = 16.dp,
-    val lg: Dp = 20.dp,
-    val card: Dp = 20.dp,
-    val bentoCard: Dp = 24.dp,
-    val bottomSheet: Dp = 28.dp,
+    val md: Dp = 14.dp,
+    val lg: Dp = 18.dp,
+    val card: Dp = 16.dp,
+    val bentoCard: Dp = 18.dp,
+    val bottomSheet: Dp = 24.dp,
     val full: Dp = 9999.dp
 ) {
 

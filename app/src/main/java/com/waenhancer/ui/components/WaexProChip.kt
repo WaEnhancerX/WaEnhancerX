@@ -17,8 +17,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -32,7 +30,6 @@ fun WaexProChip(
     modifier: Modifier = Modifier
 ) {
     val colors = WaexTheme.colors
-    val isDark = colors.isDark
     val tileCornerShape = RoundedCornerShape(
         topStart = 0.dp,
         topEnd = 0.dp,
@@ -41,41 +38,13 @@ fun WaexProChip(
     )
 
     if (isUnlocked) {
-        // Unlocked Pro Floating Badge
-        val unlockedBgBrush = if (isDark) {
-            Brush.horizontalGradient(
-                listOf(
-                    colors.primary.copy(alpha = 0.28f),
-                    colors.primary.copy(alpha = 0.16f)
-                )
-            )
-        } else {
-            Brush.horizontalGradient(
-                listOf(
-                    colors.primary.copy(alpha = 0.18f),
-                    colors.primary.copy(alpha = 0.10f)
-                )
-            )
-        }
-
-        val unlockedBorderColor = if (isDark) {
-            colors.primary.copy(alpha = 0.45f)
-        } else {
-            colors.primary.copy(alpha = 0.30f)
-        }
-
         Box(
             modifier = modifier
-                .shadow(
-                    elevation = 1.dp,
-                    shape = tileCornerShape,
-                    clip = false
-                )
                 .clip(tileCornerShape)
-                .background(unlockedBgBrush)
+                .background(colors.primary.copy(alpha = 0.12f))
                 .border(
                     width = 1.dp,
-                    color = unlockedBorderColor,
+                    color = colors.primary.copy(alpha = 0.28f),
                     shape = tileCornerShape
                 )
                 .padding(horizontal = 8.dp, vertical = 3.dp),
@@ -92,47 +61,15 @@ fun WaexProChip(
             )
         }
     } else {
-        // Floating Locked Pro Badge (Amber / Gold Accent)
-        val lockedBgBrush = if (isDark) {
-            Brush.horizontalGradient(
-                listOf(
-                    colors.warningContainer,
-                    colors.surfaceContainerHigh
-                )
-            )
-        } else {
-            Brush.horizontalGradient(
-                listOf(
-                    colors.warningContainer,
-                    colors.surfaceContainerHigh
-                )
-            )
-        }
-
-        val lockedBorderColor = if (isDark) {
-            colors.warning.copy(alpha = 0.45f)
-        } else {
-            colors.warning.copy(alpha = 0.5f)
-        }
-
-        val lockedContentColor = if (isDark) {
-            colors.onWarningContainer
-        } else {
-            colors.onWarningContainer
-        }
+        val lockedContentColor = colors.onSurfaceVariant
 
         Row(
             modifier = modifier
-                .shadow(
-                    elevation = 1.5.dp,
-                    shape = tileCornerShape,
-                    clip = false
-                )
                 .clip(tileCornerShape)
-                .background(lockedBgBrush)
+                .background(colors.surfaceContainerHighest)
                 .border(
                     width = 1.dp,
-                    color = lockedBorderColor,
+                    color = colors.outlineVariant,
                     shape = tileCornerShape
                 )
                 .padding(horizontal = 7.dp, vertical = 3.dp),
