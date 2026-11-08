@@ -23,6 +23,8 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.util.concurrent.ConcurrentHashMap;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
@@ -81,6 +83,11 @@ import java.util.regex.Pattern;
 public class AntiRevokeHook extends BaseFeature {
 
     private static final String TAG = "[WAEX][AntiRevoke]";
+    private static final int TAG_DECORATED = 0x57415244; // 'WARD'
+    private static volatile int sDateResId = 0;
+    private static volatile int sMsgTextResId = 0;
+    private static final ConcurrentHashMap<Class<?>, Field> S_CLASS_TO_KEY_FIELD = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Class<?>, Field> S_KEY_CLASS_TO_ID_FIELD = new ConcurrentHashMap<>();
     private final Set<Class<?>> recyclerBindHooks = Collections.synchronizedSet(new LinkedHashSet<>());
     private final Map<String, String> revokedTextKeyCache = Collections.synchronizedMap(new LinkedHashMap<String, String>(64, 0.75f, true) {
         @Override protected boolean removeEldestEntry(Map.Entry<String, String> eldest) { return size() > 128; }
@@ -929,7 +936,9 @@ public class AntiRevokeHook extends BaseFeature {
                             protected void beforeHookedMethod(MethodHookParam p) {
                                 if (p.args != null && p.args.length > 1 && p.args[1] instanceof ViewGroup) {
                                     ViewGroup recycledRow = (ViewGroup) p.args[1];
-                                    resetRowDecoration(recycledRow);
+                                    if (recycledRow.getTag(TAG_DECORATED) != null) {
+                                        resetRowDecoration(recycledRow);
+                                    }
                                 }
                             }
 
@@ -988,6 +997,7 @@ public class AntiRevokeHook extends BaseFeature {
                                         return;
                                     }
 
+                                    row.setTag(TAG_DECORATED, Boolean.TRUE);
                                     if (HideAntiRevokeProFeature.isHiddenForActiveConversation(prefs)) {
                                         // show_as_deleted: return WhatsApp's native revoked row.
                                         // If its private constructor is unavailable, retain the
@@ -1000,12 +1010,8 @@ public class AntiRevokeHook extends BaseFeature {
                                             XposedBridge.log(TAG + " native show-as-deleted failed key="
                                                     + keyId + " error=" + renderFailure.getClass().getSimpleName());
                                         }
-                                        // The XML fallback intentionally mutates the existing
-                                        // convertView and returns the same instance. Do not
-                                        // use identity inequality here: doing so immediately
-                                        // ran decorateRevokedRow over the native revoked root
-                                        // and produced the empty normal bubble again.
                                         if (nativeRevokedRow != null) {
+                                            nativeRevokedRow.setTag(TAG_DECORATED, Boolean.TRUE);
                                             XposedHelpers.setAdditionalInstanceField(
                                                     nativeRevokedRow, "waex_key_id", keyId);
                                             p.setResult(nativeRevokedRow);
@@ -1016,7 +1022,9 @@ public class AntiRevokeHook extends BaseFeature {
                                         decorateRevokedRow(row, deletedTs);
                                     }
                                 } else {
-                                    resetRowDecoration(row);
+                                    if (row.getTag(TAG_DECORATED) != null) {
+                                        resetRowDecoration(row);
+                                    }
                                 }
                             }
                         });
@@ -2045,12 +2053,15 @@ public class AntiRevokeHook extends BaseFeature {
 
     private void decorateRevokedRow(@NonNull ViewGroup rowView, long deletedTimestamp) {
         try {
+            rowView.setTag(TAG_DECORATED, Boolean.TRUE);
             Context rowContext = rowView.getContext();
-            int dateId = rowContext.getResources().getIdentifier("date", "id", rowContext.getPackageName());
-            int messageTextId = rowContext.getResources().getIdentifier("message_text", "id", rowContext.getPackageName());
+            if (sDateResId == 0) {
+                sDateResId = rowContext.getResources().getIdentifier("date", "id", rowContext.getPackageName());
+                sMsgTextResId = rowContext.getResources().getIdentifier("message_text", "id", rowContext.getPackageName());
+            }
 
-            TextView dateTextView = dateId != 0 ? rowView.findViewById(dateId) : null;
-            TextView messageTextView = messageTextId != 0 ? rowView.findViewById(messageTextId) : null;
+            TextView dateTextView = sDateResId != 0 ? rowView.findViewById(sDateResId) : null;
+            TextView messageTextView = sMsgTextResId != 0 ? rowView.findViewById(sMsgTextResId) : null;
 
             // Fallback: if dateTextView is not found by ID, scan rowView recursively
             if (dateTextView == null) {
@@ -2155,15 +2166,19 @@ public class AntiRevokeHook extends BaseFeature {
     }
 
     private void resetRowDecoration(@NonNull ViewGroup rowView) {
+        if (rowView.getTag(TAG_DECORATED) == null) return;
+        rowView.setTag(TAG_DECORATED, null);
         try {
             HideAntiRevokeProFeature.resetDeletedMessageLayout(rowView);
             rowView.setVisibility(View.VISIBLE);
             Context rowContext = rowView.getContext();
-            int dateId = rowContext.getResources().getIdentifier("date", "id", rowContext.getPackageName());
-            int messageTextId = rowContext.getResources().getIdentifier("message_text", "id", rowContext.getPackageName());
+            if (sDateResId == 0) {
+                sDateResId = rowContext.getResources().getIdentifier("date", "id", rowContext.getPackageName());
+                sMsgTextResId = rowContext.getResources().getIdentifier("message_text", "id", rowContext.getPackageName());
+            }
 
-            TextView dateTextView = dateId != 0 ? rowView.findViewById(dateId) : null;
-            TextView messageTextView = messageTextId != 0 ? rowView.findViewById(messageTextId) : null;
+            TextView dateTextView = sDateResId != 0 ? rowView.findViewById(sDateResId) : null;
+            TextView messageTextView = sMsgTextResId != 0 ? rowView.findViewById(sMsgTextResId) : null;
             if (dateTextView == null) {
                 dateTextView = findDateTextViewFallback(rowView);
             }
@@ -2313,21 +2328,22 @@ public class AntiRevokeHook extends BaseFeature {
     private String extractKeyIdFromFMessage(@Nullable Object fMessageObj) {
         if (fMessageObj == null) return null;
         try {
-            // 1. Fast Path: Use cached fields if already discovered
-            if (cachedFMessageKeyField != null && cachedKeyIdField != null
-                    && cachedFMessageKeyField.getDeclaringClass().isInstance(fMessageObj)) {
-                try {
-                    Object keyObj = cachedFMessageKeyField.get(fMessageObj);
-                    if (keyObj != null && cachedKeyIdField.getDeclaringClass().isInstance(keyObj)) {
-                        String id = (String) cachedKeyIdField.get(keyObj);
-                        if (id != null && !id.isEmpty()) return id;
-                    }
-                } catch (Throwable ignored) {
-                    // Adapter items can have multiple runtime shapes; continue with discovery.
-                }
-            }
-
             Class<?> objClass = fMessageObj.getClass();
+
+            // 1. Fast Path: Use cached fields if already discovered
+            Field cachedKField = S_CLASS_TO_KEY_FIELD.get(objClass);
+            if (cachedKField != null) {
+                try {
+                    Object keyObj = cachedKField.get(fMessageObj);
+                    if (keyObj != null) {
+                        Field cachedIdField = S_KEY_CLASS_TO_ID_FIELD.get(keyObj.getClass());
+                        if (cachedIdField != null) {
+                            String id = (String) cachedIdField.get(keyObj);
+                            if (id != null && !id.isEmpty()) return id;
+                        }
+                    }
+                } catch (Throwable ignored) {}
+            }
 
             // 2. Discover Key object inside FMessage
             Class<?> curr = objClass;
@@ -2343,6 +2359,7 @@ public class AntiRevokeHook extends BaseFeature {
 
                     // Inspect fields of val to determine if it is a Key object
                     String keyIdCandidate = null;
+                    Field candidateField = null;
                     boolean hasBoolean = false;
                     boolean hasJidOrObject = false;
 
@@ -2355,7 +2372,7 @@ public class AntiRevokeHook extends BaseFeature {
                             String str = (String) kField.get(val);
                             if (str != null && str.length() >= 1 && !str.contains("@") && !str.contains("/")) {
                                 keyIdCandidate = str;
-                                cachedKeyIdField = kField;
+                                candidateField = kField;
                             }
                         } else if (kType == boolean.class || kType == Boolean.class) {
                             hasBoolean = true;
@@ -2365,7 +2382,12 @@ public class AntiRevokeHook extends BaseFeature {
                     }
 
                     if (keyIdCandidate != null && (hasBoolean || hasJidOrObject)) {
+                        S_CLASS_TO_KEY_FIELD.put(objClass, field);
+                        if (candidateField != null) {
+                            S_KEY_CLASS_TO_ID_FIELD.put(valClass, candidateField);
+                        }
                         cachedFMessageKeyField = field;
+                        cachedKeyIdField = candidateField;
                         return keyIdCandidate;
                     }
                 }

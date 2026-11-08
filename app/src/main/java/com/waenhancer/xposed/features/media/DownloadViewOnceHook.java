@@ -65,7 +65,7 @@ public class DownloadViewOnceHook extends BaseFeature {
 
     @Override
     public void hook() throws Throwable {
-        if (!prefs.getBoolean("downloadviewonce", false)) {
+        if (!isEnabled("downloadviewonce", false)) {
             return;
         }
         initCachedMessageStoreHook();

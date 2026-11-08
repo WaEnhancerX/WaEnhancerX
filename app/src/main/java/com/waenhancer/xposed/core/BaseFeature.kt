@@ -58,7 +58,40 @@ abstract class BaseFeature(
         get() = "General"
 
     protected fun isEnabled(key: String, def: Boolean = false): Boolean {
-        return prefs.getBoolean(key, def)
+        // 1. Direct root key (Universal mode, or bridge-resolved per-target key)
+        if (prefs.contains(key)) {
+            return prefs.getBoolean(key, def)
+        }
+        // 2. Target package scoped key (Per Target App mode: e.g. "com.whatsapp:key", "com.whatsapp.w4b:key")
+        val pkg = context.packageName
+        if (!pkg.isNullOrEmpty() && prefs.contains("$pkg:$key")) {
+            return prefs.getBoolean("$pkg:$key", def)
+        }
+        // 3. Fallback for Universal mode when previously configured per-target
+        val mode = prefs.getString("module_config_mode", "Universal")
+        if ("Universal".equals(mode, ignoreCase = true)) {
+            if (prefs.getBoolean("com.whatsapp:$key", false) ||
+                prefs.getBoolean("com.whatsapp.w4b:$key", false)) {
+                return true
+            }
+        }
+        return def
+    }
+
+    protected fun getStringPref(key: String, def: String?): String? {
+        if (prefs.contains(key)) {
+            return prefs.getString(key, def)
+        }
+        val pkg = context.packageName
+        if (!pkg.isNullOrEmpty() && prefs.contains("$pkg:$key")) {
+            return prefs.getString("$pkg:$key", def)
+        }
+        val mode = prefs.getString("module_config_mode", "Universal")
+        if ("Universal".equals(mode, ignoreCase = true)) {
+            prefs.getString("com.whatsapp:$key", null)?.let { return it }
+            prefs.getString("com.whatsapp.w4b:$key", null)?.let { return it }
+        }
+        return def
     }
 
 }
