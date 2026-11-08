@@ -50,6 +50,10 @@ class FilterItemsHook(
     private val visibilityMask = 0x0000000C
 
     override fun hook() {
+        val filterItemsRaw = prefs.getString("filter_items", null) ?: ""
+        if (filterItemsRaw.isBlank() || filterItemsRaw.trim() == "[]" || !isEnabled("custom_filters", true)) {
+            return
+        }
         try {
             XposedHelpers.findAndHookMethod(
                 View::class.java,

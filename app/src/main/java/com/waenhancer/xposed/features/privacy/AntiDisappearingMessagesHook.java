@@ -43,6 +43,7 @@ public class AntiDisappearingMessagesHook extends BaseFeature {
 
     @Override
     public void hook() throws Throwable {
+        if (!isAntiDisappearingEnabled()) return;
         try {
             hookEphemeralContentValues();
             hookDatabaseEphemeralWrites();
@@ -95,12 +96,11 @@ public class AntiDisappearingMessagesHook extends BaseFeature {
         XposedBridge.hookAllMethods(SQLiteDatabase.class, "insertWithOnConflict", new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
+                if (param.args == null || param.args.length <= 2 || !"message_ephemeral".equals(param.args[0])) return;
                 if (!isAntiDisappearingEnabled()) return;
-                if (param.args.length > 2 && "message_ephemeral".equals(param.args[0])) {
-                    if (param.args[2] instanceof ContentValues) {
-                        ContentValues cv = (ContentValues) param.args[2];
-                        cv.put("expire_timestamp", FAR_FUTURE_EXPIRY_MS);
-                    }
+                if (param.args[2] instanceof ContentValues) {
+                    ContentValues cv = (ContentValues) param.args[2];
+                    cv.put("expire_timestamp", FAR_FUTURE_EXPIRY_MS);
                 }
             }
         });
@@ -109,12 +109,11 @@ public class AntiDisappearingMessagesHook extends BaseFeature {
         XposedBridge.hookAllMethods(SQLiteDatabase.class, "updateWithOnConflict", new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
+                if (param.args == null || param.args.length <= 1 || !"message_ephemeral".equals(param.args[0])) return;
                 if (!isAntiDisappearingEnabled()) return;
-                if (param.args.length > 1 && "message_ephemeral".equals(param.args[0])) {
-                    if (param.args[1] instanceof ContentValues) {
-                        ContentValues cv = (ContentValues) param.args[1];
-                        cv.put("expire_timestamp", FAR_FUTURE_EXPIRY_MS);
-                    }
+                if (param.args[1] instanceof ContentValues) {
+                    ContentValues cv = (ContentValues) param.args[1];
+                    cv.put("expire_timestamp", FAR_FUTURE_EXPIRY_MS);
                 }
             }
         });

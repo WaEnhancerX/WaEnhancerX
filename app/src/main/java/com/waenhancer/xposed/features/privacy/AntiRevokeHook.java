@@ -792,11 +792,11 @@ public class AntiRevokeHook extends BaseFeature {
                                 break;
                             }
                         }
+                    }
                     // WhatsApp Business uses a custom ListAdapter rather than BaseAdapter.
                     // Force its visible rows through getView again so a newly revoked row
                     // switches from the normal bubble to conversation_row_revoked immediately.
                     lv.invalidateViews();
-                }
                 }
 
                 // 2. Notify adapter to rebind dataset
@@ -859,6 +859,8 @@ public class AntiRevokeHook extends BaseFeature {
                         "androidx.recyclerview.widget.RecyclerView$Adapter");
                 XposedBridge.hookAllMethods(adapterClass, "onBindViewHolder", new XC_MethodHook() {
                     @Override protected void beforeHookedMethod(MethodHookParam param) {
+                        Activity activity = ActivityTracker.getCurrentActivity();
+                        if (activity == null || !activity.getClass().getSimpleName().contains("Conversation")) return;
                         if (param.thisObject != null) hookRecyclerBind(param.thisObject);
                     }
                 });
@@ -1069,14 +1071,17 @@ public class AntiRevokeHook extends BaseFeature {
                     XposedBridge.hookMethod(m, new XC_MethodHook() {
                         @Override protected void afterHookedMethod(MethodHookParam hook) {
                             if (!isAntiRevokeEnabled() && !isPreserveOwnRevokeEnabled()) return;
+                            Activity activity = ActivityTracker.getCurrentActivity();
+                            if (activity == null || !activity.getClass().getSimpleName().contains("Conversation")) return;
+                            if (REVOKED_MESSAGES.isEmpty()) return;
                             if (hook.args == null || hook.args.length < 1) return;
                             Object holder = hook.args[0];
                             View itemView = null;
                             try { itemView = (View) XposedHelpers.getObjectField(holder, "itemView"); }
                             catch (Throwable ignored) {}
                             if (!(itemView instanceof ViewGroup)) return;
-                            Object message = findBoundRevokedMessage(holder, new IdentityHashMap<Object, Boolean>(), 0);
-                            if (message == null && hook.args.length > 1 && hook.args[1] instanceof Integer) {
+                            Object message = null;
+                            if (hook.args.length > 1 && hook.args[1] instanceof Integer) {
                                 try {
                                     Object candidate = XposedHelpers.callMethod(adapter, "getItem", (Integer) hook.args[1]);
                                     if (candidate != null && getOriginalOrCurrentKeyId(candidate) != null) message = candidate;

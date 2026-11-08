@@ -520,6 +520,10 @@ public final class FeatureRegistry {
                 () -> new FloatingBottomBarHook(context, classLoader, prefs));
 
         registerFeature(FilterItemsHook.class, "Customization",
+                () -> {
+                    String raw = prefs.getString("filter_items", null);
+                    return raw != null && !raw.trim().isEmpty() && !raw.trim().equals("[]");
+                },
                 () -> new FilterItemsHook(context, classLoader, prefs));
 
         try {
