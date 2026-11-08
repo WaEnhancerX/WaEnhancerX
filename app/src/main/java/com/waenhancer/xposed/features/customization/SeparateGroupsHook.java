@@ -6,6 +6,10 @@ import com.waenhancer.utils.UiText;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.SparseIntArray;
 import android.view.MenuItem;
 
@@ -13,6 +17,7 @@ import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 
 import com.waenhancer.xposed.core.BaseFeature;
+import com.waenhancer.xposed.core.db.MessageStore;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 
 import org.luckypray.dexkit.query.FindClass;
@@ -21,6 +26,7 @@ import org.luckypray.dexkit.query.enums.StringMatchType;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -29,6 +35,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.WeakHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -47,8 +57,24 @@ public final class SeparateGroupsHook extends BaseFeature {
 
     private static final ArrayList<Integer> tabs = new ArrayList<>();
     private static final WeakHashMap<Object, Integer> fragmentTabs = new WeakHashMap<>();
-    private static final WeakHashMap<Object, int[]> unreadCounts = new WeakHashMap<>();
-    private static final WeakHashMap<Object, Boolean> hookedBadgeRenderers = new WeakHashMap<>();
+
+    private static Context sAppContext;
+    private static SharedPreferences sPrefs;
+    private static Method sTabBadgeMethod;
+    private static Class<?> sEmptyBadgeClass;
+    private static Constructor<?> sBadgeWrapperConstructor;
+    private static Constructor<?> sBadgeItemConstructor;
+    private static int sIntIndex = -1;
+    private static int sBadgeIndex = -1;
+    private static int sContextIndex = -1;
+
+    private static final Handler sMainHandler = new Handler(Looper.getMainLooper());
+    private static final ExecutorService sBadgeExecutor = Executors.newSingleThreadExecutor();
+    private static final AtomicLong sBadgeUpdateSeq = new AtomicLong(0);
+    private static final AtomicReference<WeakReference<Object>> sLastBadgeTarget =
+            new AtomicReference<>(new WeakReference<>(null));
+    private static final AtomicReference<WeakReference<Context>> sLastBadgeContext =
+            new AtomicReference<>(new WeakReference<>(null));
 
     /** Returns the active conversation pager tab, or -1 while a non-conversation tab is resumed. */
     public static int getResumedConversationTab() {
@@ -66,6 +92,8 @@ public final class SeparateGroupsHook extends BaseFeature {
     public SeparateGroupsHook(@NonNull Context context, @NonNull ClassLoader classLoader,
                               @NonNull SharedPreferences prefs) {
         super(context, classLoader, prefs);
+        sAppContext = context.getApplicationContext() != null ? context.getApplicationContext() : context;
+        sPrefs = prefs;
     }
 
     @NonNull @Override public String getName() { return "Separate Chats and Groups"; }
@@ -178,6 +206,7 @@ public final class SeparateGroupsHook extends BaseFeature {
                 Object fragment = param.getResult();
                 if (fragment != null && (tab == CHATS || tab == GROUPS)) {
                     synchronized (fragmentTabs) { fragmentTabs.put(fragment, tab); }
+                    refreshBadges();
                 }
             }
         });
@@ -279,206 +308,359 @@ public final class SeparateGroupsHook extends BaseFeature {
     }
 
     /**
-     * WA only publishes one unread counter for home tab 200. Tab 500 is injected by WAEX, so
-     * its badge is never calculated by the stock delegate. We retain WA's own unread JID set,
-     * split it by server, then reuse the stock badge renderer for both tab positions.
+     * Resolves the tab badge controller method and badge model classes using DexKit,
+     * then intercepts the combined conversation tab badge to asynchronously compute and
+     * apply separate unread badges for the Chats tab and Groups tab.
      */
     private void hookUnreadBadges(DexSearchEngine engine) {
         try {
-            Method scheduler = engine.findMethodWithCache(context, classLoader,
-                    "separate_groups.badge_scheduler", (bridge, loader) -> {
+            Method tabBadgeMethod = engine.findMethodWithCache(context, classLoader,
+                    "separate_groups.tab_badge_method", (bridge, loader) -> {
                         var result = bridge.findMethod(FindMethod.create().matcher(MethodMatcher.create()
-                                .addUsingString("HomeTabBarDelegate/updateNavigationMenuAndBadges skipped", StringMatchType.Contains)));
-                        return result.isEmpty() ? null : result.get(0).getMethodInstance(loader);
+                                .addUsingString("Tried to set badge for invalid", StringMatchType.Contains)));
+                        for (var data : result) {
+                            if (data.isMethod()) {
+                                Method m = data.getMethodInstance(loader);
+                                Class<?>[] params = m.getParameterTypes();
+                                boolean hasInt = false;
+                                boolean hasObject = false;
+                                for (Class<?> p : params) {
+                                    if (p == int.class) hasInt = true;
+                                    else if (!p.isPrimitive() && !Context.class.isAssignableFrom(p)) hasObject = true;
+                                }
+                                if (hasInt && hasObject) {
+                                    return m;
+                                }
+                            }
+                        }
+                        return null;
                     });
-            if (scheduler == null) return;
-            Class<?> delegate = scheduler.getDeclaringClass();
-            Method updateCount = null;
-            for (Method method : delegate.getDeclaredMethods()) {
-                Class<?>[] types = method.getParameterTypes();
-                if (Modifier.isStatic(method.getModifiers()) && method.getReturnType() == void.class
-                        && types.length == 3 && types[0] == delegate
-                        && types[1] == int.class && types[2] == int.class) {
-                    method.setAccessible(true);
-                    updateCount = method;
-                    break;
-                }
-            }
-            if (updateCount == null) {
-                XposedBridge.log(TAG + " unread badge bridge unavailable: update method missing");
+
+            if (tabBadgeMethod == null) {
+                XposedBridge.log(TAG + " tab badge method not found");
                 return;
             }
-            XposedBridge.hookMethod(updateCount, new XC_MethodHook() {
-                @Override protected void beforeHookedMethod(MethodHookParam param) {
-                    if ((int) param.args[1] != CHATS || !isSeparateGroupsEnabled()) return;
-                    Object tabDelegate = param.args[0];
-                    if (tabDelegate == null) return;
-                    int[] counts = splitUnreadCounts(tabDelegate, (int) param.args[2]);
-                    synchronized (unreadCounts) { unreadCounts.put(tabDelegate, counts); }
-                    XposedBridge.log(TAG + " unread split: chats=" + counts[0] + " groups=" + counts[1]);
-                    installBadgeRenderer(tabDelegate);
-                }
-            });
-            XposedBridge.log(TAG + " installed unread badge bridge");
-        } catch (Throwable error) {
-            XposedBridge.log(TAG + " unread badge bridge unavailable: " + error);
-        }
-    }
 
-    private void installBadgeRenderer(Object delegate) {
-        try {
-            Object renderer = null;
-            for (Field field : delegate.getClass().getDeclaredFields()) {
-                field.setAccessible(true);
-                Object value = field.get(delegate);
-                if (value == null) continue;
-                for (Method method : value.getClass().getDeclaredMethods()) {
-                    Class<?>[] types = method.getParameterTypes();
-                    if (!Modifier.isStatic(method.getModifiers()) && method.getReturnType() == void.class
-                            && types.length == 3 && Context.class.isAssignableFrom(types[0])
-                            && types[2] == int.class) {
-                        renderer = value;
-                        break;
+            Class<?>[] paramTypes = tabBadgeMethod.getParameterTypes();
+            int tmpInt = -1, tmpBadge = -1, tmpCtx = -1;
+            for (int i = 0; i < paramTypes.length; i++) {
+                if (paramTypes[i] == int.class) {
+                    tmpInt = i;
+                } else if (Context.class.isAssignableFrom(paramTypes[i])) {
+                    tmpCtx = i;
+                } else if (!paramTypes[i].isPrimitive()) {
+                    tmpBadge = i;
+                }
+            }
+
+            if (tmpInt < 0 || tmpBadge < 0) {
+                XposedBridge.log(TAG + " tab badge method parameters unrecognized");
+                return;
+            }
+
+            final int intIndex = tmpInt;
+            final int badgeIndex = tmpBadge;
+            final int contextIndex = tmpCtx;
+            final Class<?> badgeBaseClass = paramTypes[badgeIndex];
+
+            Class<?> emptyBadgeClass = engine.findClassWithCache(context, classLoader,
+                    "separate_groups.empty_badge_class", (bridge, loader) -> {
+                        var subclasses = bridge.findClass(FindClass.create().matcher(ClassMatcher.create()
+                                .superClass(badgeBaseClass.getName())));
+                        for (var data : subclasses) {
+                            Class<?> cls = data.getInstance(loader);
+                            for (Constructor<?> ctor : cls.getDeclaredConstructors()) {
+                                if (ctor.getParameterCount() == 0) {
+                                    return cls;
+                                }
+                            }
+                        }
+                        return null;
+                    });
+
+            Class<?> badgeWrapperClass = engine.findClassWithCache(context, classLoader,
+                    "separate_groups.badge_wrapper_class", (bridge, loader) -> {
+                        var subclasses = bridge.findClass(FindClass.create().matcher(ClassMatcher.create()
+                                .superClass(badgeBaseClass.getName())));
+                        for (var data : subclasses) {
+                            Class<?> cls = data.getInstance(loader);
+                            for (Constructor<?> ctor : cls.getDeclaredConstructors()) {
+                                int count = ctor.getParameterCount();
+                                if (count >= 1 && !ctor.getParameterTypes()[0].isPrimitive()) {
+                                    return cls;
+                                }
+                            }
+                        }
+                        return null;
+                    });
+
+            if (emptyBadgeClass == null || badgeWrapperClass == null) {
+                XposedBridge.log(TAG + " badge classes could not be resolved");
+                return;
+            }
+
+            Constructor<?> foundWrapperCtor = null;
+            for (Constructor<?> ctor : badgeWrapperClass.getDeclaredConstructors()) {
+                int count = ctor.getParameterCount();
+                if (count >= 1 && !ctor.getParameterTypes()[0].isPrimitive()) {
+                    if (foundWrapperCtor == null || count < foundWrapperCtor.getParameterCount()) {
+                        foundWrapperCtor = ctor;
                     }
                 }
-                if (renderer != null) break;
             }
-            if (renderer == null) return;
-            synchronized (hookedBadgeRenderers) {
-                if (hookedBadgeRenderers.containsKey(renderer)) return;
-                hookedBadgeRenderers.put(renderer, true);
+            if (foundWrapperCtor == null) return;
+            foundWrapperCtor.setAccessible(true);
+            final Constructor<?> wrapperCtor = foundWrapperCtor;
+            final Class<?> badgeItemBaseClass = wrapperCtor.getParameterTypes()[0];
+
+            Class<?> badgeItemClass = engine.findClassWithCache(context, classLoader,
+                    "separate_groups.badge_item_class", (bridge, loader) -> {
+                        for (Constructor<?> ctor : badgeItemBaseClass.getDeclaredConstructors()) {
+                            if (ctor.getParameterCount() == 1 && ctor.getParameterTypes()[0] == int.class) {
+                                return badgeItemBaseClass;
+                            }
+                        }
+                        var candidates = bridge.findClass(FindClass.create().matcher(ClassMatcher.create()
+                                .superClass(badgeItemBaseClass.getName())));
+                        for (var data : candidates) {
+                            Class<?> cls = data.getInstance(loader);
+                            for (Constructor<?> ctor : cls.getDeclaredConstructors()) {
+                                if (ctor.getParameterCount() == 1 && ctor.getParameterTypes()[0] == int.class) {
+                                    return cls;
+                                }
+                            }
+                        }
+                        return null;
+                    });
+
+            if (badgeItemClass == null) {
+                XposedBridge.log(TAG + " badge item class could not be resolved");
+                return;
             }
-            Method render = null;
-            for (Method method : renderer.getClass().getDeclaredMethods()) {
-                Class<?>[] types = method.getParameterTypes();
-                if (!Modifier.isStatic(method.getModifiers()) && method.getReturnType() == void.class
-                        && types.length == 3 && Context.class.isAssignableFrom(types[0])
-                        && types[2] == int.class) {
-                    method.setAccessible(true);
-                    render = method;
+
+            Constructor<?> foundItemCtor = null;
+            for (Constructor<?> ctor : badgeItemClass.getDeclaredConstructors()) {
+                if (ctor.getParameterCount() == 1 && ctor.getParameterTypes()[0] == int.class) {
+                    ctor.setAccessible(true);
+                    foundItemCtor = ctor;
                     break;
                 }
             }
-            if (render == null) return;
-            final Object badgeRenderer = renderer;
-            final Method renderMethod = render;
-            XposedBridge.hookMethod(render, new XC_MethodHook() {
-                @Override protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                    if (!isSeparateGroupsEnabled()) return;
-                    Object badge = param.args[1];
-                    int renderedIndex = (int) param.args[2];
-                    int chatsIndex = tabIndex(badgeRenderer, CHATS);
-                    int groupsIndex = tabIndex(badgeRenderer, GROUPS);
+            if (foundItemCtor == null) return;
+            final Constructor<?> itemCtor = foundItemCtor;
+
+            sTabBadgeMethod = tabBadgeMethod;
+            sEmptyBadgeClass = emptyBadgeClass;
+            sBadgeWrapperConstructor = wrapperCtor;
+            sBadgeItemConstructor = itemCtor;
+            sIntIndex = intIndex;
+            sBadgeIndex = badgeIndex;
+            sContextIndex = contextIndex;
+
+            XposedBridge.hookMethod(tabBadgeMethod, new XC_MethodHook() {
+                @Override
+                protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                    if (!isSeparateGroupsActive()) return;
+                    int renderedIndex = (int) param.args[intIndex];
+                    int chatsIndex = tabIndex(CHATS);
                     if (renderedIndex != chatsIndex) {
-                        // Non-numeric badges are used by WhatsApp for the Status tab's
-                        // unseen-state dot. They are tab-specific and must never be reused for
-                        // Chats/Groups; doing so made the same dot appear on both injected
-                        // conversation tabs, especially when their unread count was zero.
                         return;
                     }
-                    int[] counts;
-                    synchronized (unreadCounts) { counts = unreadCounts.get(delegate); }
-                    if (counts == null) return;
-                    renderBadge(renderMethod, badgeRenderer, param.args[0], badge, chatsIndex, counts[0]);
-                    renderBadge(renderMethod, badgeRenderer, param.args[0], badge, groupsIndex, counts[1]);
+
+                    // Cancel default combined badge rendering on Chats tab
+                    param.setResult(null);
+
+                    Object target = param.thisObject;
+                    sLastBadgeTarget.set(new WeakReference<>(target));
+                    if (contextIndex >= 0 && param.args[contextIndex] instanceof Context) {
+                        sLastBadgeContext.set(new WeakReference<>((Context) param.args[contextIndex]));
+                    }
+
+                    scheduleBadgeUpdate(target, contextIndex >= 0 ? param.args[contextIndex] : null);
                 }
             });
-            XposedBridge.log(TAG + " installed unread badge renderer");
-        } catch (Throwable error) {
-            XposedBridge.log(TAG + " unable to install unread renderer: " + error);
+
+            XposedBridge.log(TAG + " successfully hooked tab badge setter");
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " unread badge hook unavailable: " + t);
         }
     }
 
-    private int[] splitUnreadCounts(Object delegate, int fallbackTotal) {
-        int groups = 0;
-        int individuals = 0;
-        try {
-            Object provider = readField(delegate, "A05");
-            Method get = provider != null ? provider.getClass().getMethod("BQJ") : null;
-            Object manager = get != null ? get.invoke(provider) : null;
-            Method unread = manager != null ? manager.getClass().getMethod("A0W") : null;
-            Object result = unread != null ? unread.invoke(manager) : null;
-            if (result instanceof Set) {
-                for (Object jid : (Set<?>) result) {
-                    if (isGroupJid(jid)) groups++; else individuals++;
+    private static void scheduleBadgeUpdate(Object target, Object ctx) {
+        if (target == null || sTabBadgeMethod == null) return;
+        final long seq = sBadgeUpdateSeq.incrementAndGet();
+        sBadgeExecutor.execute(() -> {
+            if (seq < sBadgeUpdateSeq.get()) return;
+            UnreadCounts counts = queryUnreadCountsStatic();
+            if (seq < sBadgeUpdateSeq.get()) return;
+
+            sMainHandler.post(() -> {
+                if (seq < sBadgeUpdateSeq.get()) return;
+                try {
+                    int cIndex = tabIndex(CHATS);
+                    int gIndex = tabIndex(GROUPS);
+
+                    Object emptyBadge = getEmptyBadge(sEmptyBadgeClass);
+                    Object chatsBadge = counts.chats > 0
+                            ? createCountBadge(sBadgeWrapperConstructor, sBadgeItemConstructor, counts.chats)
+                            : emptyBadge;
+                    Object groupsBadge = counts.groups > 0
+                            ? createCountBadge(sBadgeWrapperConstructor, sBadgeItemConstructor, counts.groups)
+                            : emptyBadge;
+
+                    Class<?>[] pTypes = sTabBadgeMethod.getParameterTypes();
+                    if (cIndex >= 0 && chatsBadge != null) {
+                        Object[] args = new Object[pTypes.length];
+                        if (sContextIndex >= 0) args[sContextIndex] = ctx;
+                        args[sIntIndex] = cIndex;
+                        args[sBadgeIndex] = chatsBadge;
+                        de.robv.android.xposed.XposedBridge.invokeOriginalMethod(sTabBadgeMethod, target, args);
+                    }
+                    if (gIndex >= 0 && groupsBadge != null) {
+                        Object[] args = new Object[pTypes.length];
+                        if (sContextIndex >= 0) args[sContextIndex] = ctx;
+                        args[sIntIndex] = gIndex;
+                        args[sBadgeIndex] = groupsBadge;
+                        de.robv.android.xposed.XposedBridge.invokeOriginalMethod(sTabBadgeMethod, target, args);
+                    }
+                } catch (Throwable t) {
+                    XposedBridge.log(TAG + " error applying badges: " + t);
                 }
-                return new int[]{individuals, groups};
+            });
+        });
+    }
+
+    public static void refreshBadges() {
+        Object target = sLastBadgeTarget.get().get();
+        Context ctx = sLastBadgeContext.get().get();
+        if (target != null && sTabBadgeMethod != null) {
+            scheduleBadgeUpdate(target, ctx);
+        }
+    }
+
+    private static Object getEmptyBadge(Class<?> emptyBadgeClass) {
+        if (emptyBadgeClass == null) return null;
+        for (Field f : emptyBadgeClass.getDeclaredFields()) {
+            if (Modifier.isStatic(f.getModifiers()) && emptyBadgeClass.isAssignableFrom(f.getType())) {
+                try {
+                    f.setAccessible(true);
+                    Object val = f.get(null);
+                    if (val != null) return val;
+                } catch (Throwable ignored) {}
             }
-        } catch (Throwable error) {
-            XposedBridge.log(TAG + " unread JID split fallback: " + error.getClass().getSimpleName());
         }
-        return new int[]{fallbackTotal, 0};
-    }
-
-    private boolean isGroupJid(Object jid) {
-        if (jid == null) return false;
-        try {
-            Object server = XposedHelpers.callMethod(jid, "getServer");
-            return "g.us".equals(server) || "broadcast".equals(server);
-        } catch (Throwable ignored) {
-            String value = String.valueOf(jid);
-            return value.contains("@g.us") || value.contains("@broadcast");
-        }
-    }
-
-    private int tabIndex(Object renderer, int tabId) {
-        try {
-            for (Field field : renderer.getClass().getDeclaredFields()) {
-                if (!SparseIntArray.class.isAssignableFrom(field.getType())) continue;
-                field.setAccessible(true);
-                SparseIntArray map = (SparseIntArray) field.get(renderer);
-                if (map != null) return map.get(tabId, -1);
+        for (Constructor<?> ctor : emptyBadgeClass.getDeclaredConstructors()) {
+            if (ctor.getParameterCount() == 0) {
+                try {
+                    ctor.setAccessible(true);
+                    return ctor.newInstance();
+                } catch (Throwable ignored) {}
             }
-        } catch (Throwable ignored) { }
-        return -1;
-    }
-
-    private void renderBadge(Method render, Object renderer, Object context, Object prototype,
-                             int index, int count) throws Throwable {
-        if (index < 0) return;
-        // A zero count must clear the conversation-tab badge. Reusing an "empty" badge object
-        // from another tab leaks the Status indicator into Chats/Groups.
-        Object badge = count > 0 ? numericBadge(prototype, count) : null;
-        de.robv.android.xposed.XposedBridge.invokeOriginalMethod(
-                render, renderer, new Object[]{context, badge, index});
-    }
-
-    private Object numericBadge(Object prototype, int count) {
-        try {
-            if (!isNumericBadge(prototype)) return null;
-            Field innerField = prototype.getClass().getDeclaredFields()[0];
-            innerField.setAccessible(true);
-            Object inner = innerField.get(prototype);
-            Constructor<?> innerConstructor = inner.getClass().getDeclaredConstructor(int.class);
-            innerConstructor.setAccessible(true);
-            Constructor<?> badgeConstructor = prototype.getClass().getDeclaredConstructors()[0];
-            badgeConstructor.setAccessible(true);
-            return badgeConstructor.newInstance(innerConstructor.newInstance(count), null);
-        } catch (Throwable ignored) {
-            return null;
-        }
-    }
-
-    private boolean isNumericBadge(Object badge) {
-        if (badge == null) return false;
-        try {
-            Object inner = readField(badge, "A00");
-            return inner != null && inner.getClass().getDeclaredConstructor(int.class) != null;
-        } catch (Throwable ignored) { return false; }
-    }
-
-    private Object readField(Object target, String name) throws IllegalAccessException {
-        for (Class<?> type = target.getClass(); type != null && type != Object.class; type = type.getSuperclass()) {
-            try {
-                Field field = type.getDeclaredField(name);
-                field.setAccessible(true);
-                return field.get(target);
-            } catch (NoSuchFieldException ignored) { }
         }
         return null;
     }
 
+    private static Object createCountBadge(Constructor<?> wrapperCtor,
+                                           Constructor<?> itemCtor,
+                                           int count) {
+        try {
+            Object item = itemCtor.newInstance(count);
+            Class<?>[] pTypes = wrapperCtor.getParameterTypes();
+            Object[] args = new Object[pTypes.length];
+            args[0] = item;
+            for (int i = 1; i < pTypes.length; i++) {
+                if (pTypes[i] == boolean.class) args[i] = false;
+                else if (pTypes[i] == int.class) args[i] = 0;
+                else if (pTypes[i] == long.class) args[i] = 0L;
+                else args[i] = null;
+            }
+            return wrapperCtor.newInstance(args);
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " createCountBadge failed: " + t);
+            return null;
+        }
+    }
+
+    private static final class UnreadCounts {
+        final int chats;
+        final int groups;
+        UnreadCounts(int chats, int groups) {
+            this.chats = chats;
+            this.groups = groups;
+        }
+    }
+
+    private static UnreadCounts queryUnreadCountsStatic() {
+        if (sAppContext == null) return new UnreadCounts(0, 0);
+        try {
+            SQLiteDatabase db = MessageStore.getInstance(sAppContext).getDatabase();
+            if (db == null || !db.isOpen()) {
+                return new UnreadCounts(0, 0);
+            }
+
+            String[] queries = new String[]{
+                // Query 1: standard modern WhatsApp schema with chat_lock and group_type
+                "SELECT "
+                    + "COALESCE(SUM(CASE WHEN jid.server = ? THEN 0 ELSE 1 END), 0) AS chat_count, "
+                    + "COALESCE(SUM(CASE WHEN jid.server = ? THEN 1 ELSE 0 END), 0) AS group_count "
+                    + "FROM chat INNER JOIN jid ON jid._id = chat.jid_row_id "
+                    + "WHERE chat.unseen_message_count <> 0 "
+                    + "AND chat.archived = 0 "
+                    + "AND chat.chat_lock = 0 "
+                    + "AND (chat.group_type = 0 OR chat.group_type = 6)",
+                // Query 2: fallback without chat_lock
+                "SELECT "
+                    + "COALESCE(SUM(CASE WHEN jid.server = ? THEN 0 ELSE 1 END), 0) AS chat_count, "
+                    + "COALESCE(SUM(CASE WHEN jid.server = ? THEN 1 ELSE 0 END), 0) AS group_count "
+                    + "FROM chat INNER JOIN jid ON jid._id = chat.jid_row_id "
+                    + "WHERE chat.unseen_message_count <> 0 "
+                    + "AND chat.archived = 0 "
+                    + "AND (chat.group_type = 0 OR chat.group_type = 6)",
+                // Query 3: universal fallback
+                "SELECT "
+                    + "COALESCE(SUM(CASE WHEN jid.server = ? THEN 0 ELSE 1 END), 0) AS chat_count, "
+                    + "COALESCE(SUM(CASE WHEN jid.server = ? THEN 1 ELSE 0 END), 0) AS group_count "
+                    + "FROM chat INNER JOIN jid ON jid._id = chat.jid_row_id "
+                    + "WHERE chat.unseen_message_count <> 0 "
+                    + "AND chat.archived = 0"
+            };
+
+            String[] args = new String[]{"g.us", "g.us"};
+            for (String sql : queries) {
+                try (Cursor cursor = db.rawQuery(sql, args)) {
+                    if (cursor != null && cursor.moveToFirst()) {
+                        int chatCount = cursor.getInt(cursor.getColumnIndexOrThrow("chat_count"));
+                        int groupCount = cursor.getInt(cursor.getColumnIndexOrThrow("group_count"));
+                        return new UnreadCounts(chatCount, groupCount);
+                    }
+                } catch (Throwable ignored) {
+                    // Try next fallback query
+                }
+            }
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " queryUnreadCounts error: " + t);
+        }
+        return new UnreadCounts(0, 0);
+    }
+
+    private static int tabIndex(int tabId) {
+        synchronized (tabs) {
+            int idx = tabs.indexOf(tabId);
+            if (idx >= 0) return idx;
+        }
+        if (tabId == CHATS) return 0;
+        if (tabId == GROUPS) return 1;
+        return -1;
+    }
+
     private boolean isSeparateGroupsEnabled() {
-        return prefs.getBoolean("separate_groups_tabs", false) || prefs.getBoolean("separategroups", false);
+        return isSeparateGroupsActive();
+    }
+
+    private static boolean isSeparateGroupsActive() {
+        if (sPrefs != null) {
+            return sPrefs.getBoolean("separate_groups_tabs", false) || sPrefs.getBoolean("separategroups", false);
+        }
+        return false;
     }
 }
