@@ -5,6 +5,11 @@ import com.waenhancer.utils.UiText
 import android.widget.Toast
 import com.waenhancer.ui.components.WaexProChip
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
@@ -90,6 +95,7 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
             StyleGroup(group.id, icon, group.items())
         }
     }
+    val expandedSections = remember { mutableStateMapOf<String, Boolean>() }
 
     LaunchedEffect(navController.targetSubTabId) {
         val target = navController.targetSubTabId
@@ -113,6 +119,7 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
             val groups = if (selectedTab == "layout") layoutGroups else appearanceGroups
             val groupIdx = groups.indexOfFirst { grp -> grp.items.any { it.key == target } }
             if (groupIdx != -1) {
+                expandedSections[groups[groupIdx].title] = true
                 listState.animateScrollToItem(1 + (groupIdx * 2))
             }
             navController.scrollToTargetKey = null
@@ -298,16 +305,25 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
         // Render Style Groups
         val activeGroups = if (selectedTab == "appearance") appearanceGroups else layoutGroups
         activeGroups.forEach { group ->
+            val isExpanded = expandedSections[group.title] ?: true
             stickyHeader(key = "header_${group.title}") {
                 WaexCategoryHeader(
                     title = LocalizationHelper.getLocalizedSectionTitle(context, group.title),
                     icon = group.icon,
-                    itemCount = group.items.size
+                    isExpanded = isExpanded,
+                    onToggleExpand = {
+                        expandedSections[group.title] = !isExpanded
+                    }
                 )
             }
 
             item(key = "card_${group.title}") {
-                Surface(
+                AnimatedVisibility(
+                    visible = isExpanded,
+                    enter = expandVertically(tween(250)) + fadeIn(tween(250)),
+                    exit = shrinkVertically(tween(250)) + fadeOut(tween(200))
+                ) {
+                    Surface(
                     shape = radius.cardShape,
                     color = colors.surfaceDim,
                     border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.5f)),
@@ -609,6 +625,7 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
                             }
                         }
                     }
+                }
                 }
             }
         }

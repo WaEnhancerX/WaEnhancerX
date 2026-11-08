@@ -534,6 +534,7 @@ fun MediaStatusHubScreen(targetEpoch: Int = 0) {
                         }
                     }
                 }
+                }
             }
         }
     }

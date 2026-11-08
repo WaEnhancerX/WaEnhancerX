@@ -55,6 +55,11 @@ import androidx.compose.ui.unit.sp
 import com.waenhancer.ui.components.StitchSwitch
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateDpAsState
@@ -109,6 +114,7 @@ fun GlobalPrivacySettingsScreen(
 
     val privacyGroups = remember { FeatureCatalog.groupsFor(1, "privacy").map { SettingGroup(it.id, it.items()) } }
     val conversationGroups = remember { FeatureCatalog.groupsFor(1, "conversation").map { SettingGroup(it.id, it.items()) } }
+    val expandedSections = remember { mutableStateMapOf<String, Boolean>() }
 
     fun getPrivacyGroupIcon(groupId: String): ImageVector = when (groupId) {
         "presence_online_visibility" -> WaexIcons.Security
@@ -146,6 +152,7 @@ fun GlobalPrivacySettingsScreen(
             val groups = if (selectedTab == "conversation") conversationGroups else privacyGroups
             val groupIdx = groups.indexOfFirst { grp -> grp.items.any { it.key == target } }
             if (groupIdx != -1) {
+                expandedSections[groups[groupIdx].title] = true
                 val offset = if (selectedTab == "privacy") 3 else 1
                 listState.animateScrollToItem(offset + (groupIdx * 2))
             }
@@ -404,132 +411,143 @@ fun GlobalPrivacySettingsScreen(
 
         // Hubs & Advanced Modules (only on Privacy tab)
         if (selectedTab == "privacy") {
+            val isHubsExpanded = expandedSections["hubs"] ?: true
             stickyHeader(key = "header_hubs") {
                 WaexCategoryHeader(
                     title = stringResource(R.string.advanced_hubs_vaults),
-                    icon = WaexIcons.Security
+                    icon = WaexIcons.Security,
+                    isExpanded = isHubsExpanded,
+                    onToggleExpand = {
+                        expandedSections["hubs"] = !isHubsExpanded
+                    }
                 )
             }
 
             item(key = "card_hubs") {
-                Surface(
-                    shape = radius.cardShape,
-                    color = colors.surfaceDim,
-                    border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.5f)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = spacing.pageMargin)
+                AnimatedVisibility(
+                    visible = isHubsExpanded,
+                    enter = expandVertically(tween(250)) + fadeIn(tween(250)),
+                    exit = shrinkVertically(tween(250)) + fadeOut(tween(200))
                 ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        // 1. Per Contact Rules Tile
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { navController.navigateTo(Screen.PerContactPrivacyList) }
-                                .padding(horizontal = 18.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                    Surface(
+                        shape = radius.cardShape,
+                        color = colors.surfaceDim,
+                        border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.5f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = spacing.pageMargin)
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            // 1. Per Contact Rules Tile
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { navController.navigateTo(Screen.PerContactPrivacyList) }
+                                    .padding(horizontal = 18.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = stringResource(R.string.hub_per_contact_rules_title),
-                                    style = typography.bodyLg,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = colors.onSurface
-                                )
-                                Text(
-                                    text = stringResource(R.string.hub_per_contact_rules_desc),
-                                    style = typography.bodyMd,
-                                    color = colors.onSurfaceVariant,
-                                    fontSize = 12.sp
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.hub_per_contact_rules_title),
+                                        style = typography.bodyLg,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = colors.onSurface
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.hub_per_contact_rules_desc),
+                                        style = typography.bodyMd,
+                                        color = colors.onSurfaceVariant,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                                Icon(
+                                    imageVector = WaexIcons.ChevronRight,
+                                    contentDescription = null,
+                                    tint = colors.onSurfaceVariant,
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
-                            Icon(
-                                imageVector = WaexIcons.ChevronRight,
-                                contentDescription = null,
-                                tint = colors.onSurfaceVariant,
-                                modifier = Modifier.size(16.dp)
+
+                            HorizontalDivider(
+                                color = colors.outlineVariant.copy(alpha = 0.35f),
+                                thickness = 0.8.dp,
+                                modifier = Modifier.padding(horizontal = 18.dp)
                             )
-                        }
 
-                        HorizontalDivider(
-                            color = colors.outlineVariant.copy(alpha = 0.35f),
-                            thickness = 0.8.dp,
-                            modifier = Modifier.padding(horizontal = 18.dp)
-                        )
-
-                        // 2. Deleted Messages Vault Tile
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { navController.navigateTo(Screen.DeletedMessages) }
-                                .padding(horizontal = 18.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            // 2. Deleted Messages Vault Tile
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { navController.navigateTo(Screen.DeletedMessages) }
+                                    .padding(horizontal = 18.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = stringResource(R.string.hub_delete_for_me_title),
-                                    style = typography.bodyLg,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = colors.onSurface
-                                )
-                                Text(
-                                    text = stringResource(R.string.hub_delete_for_me_desc),
-                                    style = typography.bodyMd,
-                                    color = colors.onSurfaceVariant,
-                                    fontSize = 12.sp
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.hub_delete_for_me_title),
+                                        style = typography.bodyLg,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = colors.onSurface
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.hub_delete_for_me_desc),
+                                        style = typography.bodyMd,
+                                        color = colors.onSurfaceVariant,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                                Icon(
+                                    imageVector = WaexIcons.ChevronRight,
+                                    contentDescription = null,
+                                    tint = colors.onSurfaceVariant,
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
-                            Icon(
-                                imageVector = WaexIcons.ChevronRight,
-                                contentDescription = null,
-                                tint = colors.onSurfaceVariant,
-                                modifier = Modifier.size(16.dp)
+
+                            HorizontalDivider(
+                                color = colors.outlineVariant.copy(alpha = 0.35f),
+                                thickness = 0.8.dp,
+                                modifier = Modifier.padding(horizontal = 18.dp)
                             )
-                        }
 
-                        HorizontalDivider(
-                            color = colors.outlineVariant.copy(alpha = 0.35f),
-                            thickness = 0.8.dp,
-                            modifier = Modifier.padding(horizontal = 18.dp)
-                        )
-
-                        // 3. Calls & Recording Hub Tile
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { navController.navigateTo(Screen.CallRecordingSettings) }
-                                .padding(horizontal = 18.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            // 3. Calls & Recording Hub Tile
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { navController.navigateTo(Screen.CallRecordingSettings) }
+                                    .padding(horizontal = 18.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = stringResource(R.string.hub_calls_recording_title),
-                                    style = typography.bodyLg,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = colors.onSurface
-                                )
-                                Text(
-                                    text = stringResource(R.string.hub_calls_recording_desc),
-                                    style = typography.bodyMd,
-                                    color = colors.onSurfaceVariant,
-                                    fontSize = 12.sp
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.hub_calls_recording_title),
+                                        style = typography.bodyLg,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = colors.onSurface
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.hub_calls_recording_desc),
+                                        style = typography.bodyMd,
+                                        color = colors.onSurfaceVariant,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                                Icon(
+                                    imageVector = WaexIcons.ChevronRight,
+                                    contentDescription = null,
+                                    tint = colors.onSurfaceVariant,
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
-                            Icon(
-                                imageVector = WaexIcons.ChevronRight,
-                                contentDescription = null,
-                                tint = colors.onSurfaceVariant,
-                                modifier = Modifier.size(16.dp)
-                            )
                         }
                     }
                 }
@@ -540,16 +558,25 @@ fun GlobalPrivacySettingsScreen(
         // Setting Groups
         val activeGroups = if (selectedTab == "privacy") privacyGroups else conversationGroups
         activeGroups.forEach { group ->
+            val isExpanded = expandedSections[group.title] ?: true
             stickyHeader(key = "header_${group.title}") {
                 WaexCategoryHeader(
                     title = LocalizationHelper.getLocalizedSectionTitle(context, group.title),
                     icon = getPrivacyGroupIcon(group.title),
-                    itemCount = group.items.size
+                    isExpanded = isExpanded,
+                    onToggleExpand = {
+                        expandedSections[group.title] = !isExpanded
+                    }
                 )
             }
 
             item(key = "card_${group.title}") {
-                Surface(
+                AnimatedVisibility(
+                    visible = isExpanded,
+                    enter = expandVertically(tween(250)) + fadeIn(tween(250)),
+                    exit = shrinkVertically(tween(250)) + fadeOut(tween(200))
+                ) {
+                    Surface(
                     shape = radius.cardShape,
                     color = colors.surfaceDim,
                     border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.5f)),
@@ -1268,6 +1295,7 @@ fun GlobalPrivacySettingsScreen(
                             }
                         }
                     }
+                }
                 }
             }
         }
