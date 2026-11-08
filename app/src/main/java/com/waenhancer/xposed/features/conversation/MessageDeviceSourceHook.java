@@ -331,16 +331,44 @@ public class MessageDeviceSourceHook extends BaseFeature {
                 }, UI_EXECUTOR);
     }
 
-    private TextView findDateTextView(ViewGroup row) {
-        View target = findChildByResourceName(row, "date");
-        if (target instanceof TextView) return (TextView) target;
+    private static volatile int sDateResId = -1;
+    private static volatile int sDateWrapperResId = -1;
 
-        View wrapper = findChildByResourceName(row, "date_wrapper");
-        if (wrapper instanceof ViewGroup) {
-            ViewGroup wg = (ViewGroup) wrapper;
-            for (int i = 0; i < wg.getChildCount(); i++) {
-                View child = wg.getChildAt(i);
-                if (child instanceof TextView) return (TextView) child;
+    private TextView findDateTextView(ViewGroup row) {
+        if (sDateResId == -1) {
+            Context ctx = row.getContext();
+            sDateResId = ctx.getResources().getIdentifier("date", "id", ctx.getPackageName());
+            sDateWrapperResId = ctx.getResources().getIdentifier("date_wrapper", "id", ctx.getPackageName());
+        }
+
+        if (sDateResId > 0) {
+            View target = row.findViewById(sDateResId);
+            if (target instanceof TextView) return (TextView) target;
+        }
+
+        if (sDateWrapperResId > 0) {
+            View wrapper = row.findViewById(sDateWrapperResId);
+            if (wrapper instanceof ViewGroup) {
+                ViewGroup wg = (ViewGroup) wrapper;
+                for (int i = 0; i < wg.getChildCount(); i++) {
+                    View child = wg.getChildAt(i);
+                    if (child instanceof TextView) return (TextView) child;
+                }
+            }
+        }
+
+        // Slow fallback only if resource IDs were not found by name
+        if (sDateResId == 0 && sDateWrapperResId == 0) {
+            View target = findChildByResourceName(row, "date");
+            if (target instanceof TextView) return (TextView) target;
+
+            View wrapper = findChildByResourceName(row, "date_wrapper");
+            if (wrapper instanceof ViewGroup) {
+                ViewGroup wg = (ViewGroup) wrapper;
+                for (int i = 0; i < wg.getChildCount(); i++) {
+                    View child = wg.getChildAt(i);
+                    if (child instanceof TextView) return (TextView) child;
+                }
             }
         }
         return null;

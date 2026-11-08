@@ -819,27 +819,6 @@ public class AntiRevokeHook extends BaseFeature {
      */
     private void hookListViewAdapter() {
         try {
-            XposedHelpers.findAndHookMethod(ListView.class, "onLayout", boolean.class, int.class, int.class, int.class, int.class,
-                    new XC_MethodHook() {
-                        @Override protected void afterHookedMethod(MethodHookParam param) {
-                            ListView list = (ListView) param.thisObject;
-                            if (!isAntiRevokeEnabled() && !isPreserveOwnRevokeEnabled()) return;
-                            if (!HideAntiRevokeProFeature.isHiddenForActiveConversation(prefs)) return;
-                            for (int i = 0; i < list.getChildCount(); i++) {
-                                View child = list.getChildAt(i);
-                                if (!(child instanceof ViewGroup)) continue;
-                                String key = (String) XposedHelpers.getAdditionalInstanceField(child, "waex_key_id");
-                                if (key == null) {
-                                    key = resolveRecordedKeyFromRowText((ViewGroup) child);
-                                }
-                                if (key == null) continue;
-                                long ts = getRevokedTimestamp(key);
-                                if (ts > 0) {
-                                    HideAntiRevokeProFeature.renderRecordedDeletedRow((ViewGroup) child, key, ts);
-                                }
-                            }
-                        }
-                    });
             Class<?> recyclerView = classLoader.loadClass("androidx.recyclerview.widget.RecyclerView");
             // Do not resolve RecyclerView.Adapter through findAndHookMethod. On recent WA
             // builds that lookup can throw NoSuchMethodError even though setAdapter exists,
@@ -2510,10 +2489,7 @@ public class AntiRevokeHook extends BaseFeature {
                 return (String) original;
             }
         } catch (Throwable ignored) {}
-        String extracted = extractKeyIdFromFMessage(message);
-        if (extracted != null && !extracted.isEmpty()) return extracted;
-        String recorded = findRecordedKeyDeep(message, new IdentityHashMap<Object, Boolean>(), 0);
-        return recorded != null ? recorded : extracted;
+        return extractKeyIdFromFMessage(message);
     }
 
     @Nullable

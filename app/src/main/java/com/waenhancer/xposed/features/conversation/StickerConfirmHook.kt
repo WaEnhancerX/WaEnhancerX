@@ -37,15 +37,26 @@ class StickerConfirmHook(
     }
 
     override fun hook() {
+        if (!isEnabled(PREF_KEY, false)) return
         try {
+            val stickerContainerId = context.resources.getIdentifier("stickerContainer", "id", context.getPackageName())
+            val stickerItemId = context.resources.getIdentifier("sticker_item", "id", context.getPackageName())
+
             XposedHelpers.findAndHookMethod(
                 View::class.java,
                 "onAttachedToWindow",
                 object : XC_MethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
                         val view = param.thisObject as? View ?: return
-                        val resName = getResourceEntryName(view)
-                        if (resName != "stickerContainer" && resName != "sticker_item") return
+                        val id = view.id
+                        if (id == View.NO_ID) return
+
+                        if (stickerContainerId != 0 || stickerItemId != 0) {
+                            if (id != stickerContainerId && id != stickerItemId) return
+                        } else {
+                            val resName = getResourceEntryName(view)
+                            if (resName != "stickerContainer" && resName != "sticker_item") return
+                        }
 
                         if (view.getTag(TAG_HOOKED.hashCode()) != null) return
                         view.setTag(TAG_HOOKED.hashCode(), true)

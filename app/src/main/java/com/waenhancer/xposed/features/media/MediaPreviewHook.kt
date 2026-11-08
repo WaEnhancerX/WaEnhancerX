@@ -33,6 +33,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewStub
+import android.view.ViewTreeObserver
 import android.view.Window
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -98,8 +99,11 @@ class MediaPreviewHook(
     override fun hook() {
         if (!isEnabled("media_preview", isEnabled("enable_media_preview", true))) return
 
+        var videoViewContainerClass: Class<*>? = null
+        var imageViewContainerClass: Class<*>? = null
+
         try {
-            val videoViewContainerClass = DexSearchEngine.getInstance().findClassWithCache(
+            videoViewContainerClass = DexSearchEngine.getInstance().findClassWithCache(
                 context, classLoader, "waex_video_view_container"
             ) { bridge, loader ->
                 bridge.findClass(FindClass.create().matcher(ClassMatcher.create().addUsingString(
@@ -144,7 +148,7 @@ class MediaPreviewHook(
         }
 
         try {
-            val imageViewContainerClass = DexSearchEngine.getInstance().findClassWithCache(
+            imageViewContainerClass = DexSearchEngine.getInstance().findClassWithCache(
                 context, classLoader, "waex_image_view_container"
             ) { bridge, loader ->
                 val hdTouchId = getWaexId(context, "hd_invisible_touch")
@@ -199,24 +203,26 @@ class MediaPreviewHook(
             XposedBridge.log("[WAEX][MediaPreview] Error hooking imageViewContainer: ${t.javaClass.simpleName}")
         }
 
-        // Secondary fallback: bubble row attachment hook
-        try {
-            val mediaRowClass = DexSearchEngine.getInstance().findClassWithCache(
-                context, classLoader, "waex_media_bubble_layout_v1"
-            ) { bridge, loader ->
-                bridge.findClass(FindClass.create().matcher(ClassMatcher.create().addUsingString(
-                    "BubbleRelativeLayout/ConversationRowText", StringMatchType.Contains
-                ))).firstOrNull()?.getInstance(loader)
-            }
-            if (mediaRowClass != null) {
-                ViewHookDispatcher.onAttached(this) { attached ->
-                    val view = attached as? ViewGroup ?: return@onAttached
-                    if (!mediaRowClass.isInstance(view)) return@onAttached
-                    view.postDelayed({ installAffordanceFallback(view) }, 200L)
+        // Secondary fallback: only if primary container hooks could not be resolved
+        if (videoViewContainerClass == null && imageViewContainerClass == null) {
+            try {
+                val mediaRowClass = DexSearchEngine.getInstance().findClassWithCache(
+                    context, classLoader, "waex_media_bubble_layout_v1"
+                ) { bridge, loader ->
+                    bridge.findClass(FindClass.create().matcher(ClassMatcher.create().addUsingString(
+                        "BubbleRelativeLayout/ConversationRowText", StringMatchType.Contains
+                    ))).firstOrNull()?.getInstance(loader)
                 }
+                if (mediaRowClass != null) {
+                    ViewHookDispatcher.onAttached(this) { attached ->
+                        val view = attached as? ViewGroup ?: return@onAttached
+                        if (!mediaRowClass.isInstance(view)) return@onAttached
+                        view.postDelayed({ installAffordanceFallback(view) }, 200L)
+                    }
+                }
+            } catch (t: Throwable) {
+                XposedBridge.log("[WAEX][MediaPreview] Secondary bubble hook error: ${t.javaClass.simpleName}")
             }
-        } catch (t: Throwable) {
-            XposedBridge.log("[WAEX][MediaPreview] Secondary bubble hook error: ${t.javaClass.simpleName}")
         }
     }
 
@@ -269,11 +275,21 @@ class MediaPreviewHook(
         prevBtn.setOnClickListener { startPreview(mainContainer, context) }
         linearLayout.addView(prevBtn)
 
-        controlFrame.viewTreeObserver.addOnGlobalLayoutListener {
+        val layoutListener = ViewTreeObserver.OnGlobalLayoutListener {
             if (prevBtn.visibility != controlFrame.visibility) {
                 prevBtn.visibility = controlFrame.visibility
             }
         }
+        controlFrame.viewTreeObserver.addOnGlobalLayoutListener(layoutListener)
+        controlFrame.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) {}
+            override fun onViewDetachedFromWindow(v: View) {
+                try {
+                    v.viewTreeObserver.removeOnGlobalLayoutListener(layoutListener)
+                } catch (_: Throwable) {}
+                v.removeOnAttachStateChangeListener(this)
+            }
+        })
     }
 
     private fun installAffordanceFallback(root: ViewGroup) {

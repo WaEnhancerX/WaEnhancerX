@@ -12,6 +12,7 @@ import android.view.ViewParent;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.xposed.utils.ActivityTracker;
 import de.robv.android.xposed.XC_MethodHook;
 import java.util.ArrayDeque;
 import java.util.Locale;
@@ -67,6 +68,8 @@ public class ChatListCustomizationsHook extends BaseFeature {
             XposedHelpers.findAndHookMethod(View.class, "onAttachedToWindow", new XC_MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
+                    Activity activity = ActivityTracker.getCurrentActivity();
+                    if (activity == null || !activity.getClass().getSimpleName().contains("Home")) return;
                     View view = (View) param.thisObject;
                     if (shouldRemoveView(view)) removeView(view);
                 }

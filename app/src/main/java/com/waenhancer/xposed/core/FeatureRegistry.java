@@ -324,10 +324,15 @@ public final class FeatureRegistry {
                 () -> new ChatLimitsBypassHook(context, classLoader, prefs));
 
         try {
-            DeviceDefaultEmojisFeature.install(context, classLoader, prefs,
-                    (cacheKey, query) -> DexSearchEngine.getInstance().findClassWithCache(
-                            context, classLoader, cacheKey, query::execute));
-            features.add(new FeatureEntry("Device Default Emojis", "DeviceDefaultEmojisFeature", "Conversation", "ACTIVE"));
+            if (prefs.getBoolean("disable_defemojis", false)
+                    || prefs.getBoolean(context.getPackageName() + ":disable_defemojis", false)) {
+                DeviceDefaultEmojisFeature.install(context, classLoader, prefs,
+                        (cacheKey, query) -> DexSearchEngine.getInstance().findClassWithCache(
+                                context, classLoader, cacheKey, query::execute));
+                features.add(new FeatureEntry("Device Default Emojis", "DeviceDefaultEmojisFeature", "Conversation", "ACTIVE"));
+            } else {
+                features.add(new FeatureEntry("Device Default Emojis", "DeviceDefaultEmojisFeature", "Conversation", "DISABLED"));
+            }
         } catch (Throwable t) {
             FeatureEntry entry = new FeatureEntry("Device Default Emojis", "DeviceDefaultEmojisFeature", "Conversation", "FAILED");
             entry.error = t.getMessage();

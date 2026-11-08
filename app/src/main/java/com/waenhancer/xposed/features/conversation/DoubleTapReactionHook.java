@@ -75,6 +75,7 @@ public class DoubleTapReactionHook extends BaseFeature {
 
     @Override
     public void hook() throws Throwable {
+        if (!isEnabled(PREF_KEY, false)) return;
         initReflection();
         hookListViewAdapter();
     }
@@ -247,12 +248,28 @@ public class DoubleTapReactionHook extends BaseFeature {
         row.setOnTouchListener(wrapper);
     }
 
+    private static volatile java.lang.reflect.Field sListenerInfoField;
+    private static volatile java.lang.reflect.Field sOnTouchListenerField;
+
     @Nullable
     private View.OnTouchListener getOnTouchListener(View view) {
         try {
-            Object listenerInfo = XposedHelpers.getObjectField(view, "mListenerInfo");
-            return listenerInfo == null ? null
-                    : (View.OnTouchListener) XposedHelpers.getObjectField(listenerInfo, "mOnTouchListener");
+            java.lang.reflect.Field liField = sListenerInfoField;
+            if (liField == null) {
+                liField = View.class.getDeclaredField("mListenerInfo");
+                liField.setAccessible(true);
+                sListenerInfoField = liField;
+            }
+            Object listenerInfo = liField.get(view);
+            if (listenerInfo == null) return null;
+
+            java.lang.reflect.Field otlField = sOnTouchListenerField;
+            if (otlField == null) {
+                otlField = listenerInfo.getClass().getDeclaredField("mOnTouchListener");
+                otlField.setAccessible(true);
+                sOnTouchListenerField = otlField;
+            }
+            return (View.OnTouchListener) otlField.get(listenerInfo);
         } catch (Throwable ignored) {
             return null;
         }
