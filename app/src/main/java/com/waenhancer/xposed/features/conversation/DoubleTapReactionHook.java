@@ -43,14 +43,14 @@ public class DoubleTapReactionHook extends BaseFeature {
     private static final String FIELD_BOUND_MSG = "waex_doubletap_fmessage";
     private static final String FIELD_TOUCH_WRAPPER = "waex_doubletap_touch_wrapper";
     private static final int TAG_BOUND_MSG = 0x57414454; // 'WADT'
+    private static final int TAG_TRACKER = 0x57414455;
+    private static final int TAG_TOUCH_INSTALLED = 0x57414456;
 
     private Class<?> fMessageClass;
     private Class<?> actionUserClass;
     private Method reactionSenderMethod;
     private volatile Object cachedActionUserInstance;
     private final Set<Method> hookedAdapterMethods = ConcurrentHashMap.newKeySet();
-
-    private static final WeakHashMap<View, TouchTracker> touchTrackerMap = new WeakHashMap<>();
 
     private static class TouchTracker {
         float downX;
@@ -187,7 +187,7 @@ public class DoubleTapReactionHook extends BaseFeature {
                                             ViewGroup row = (ViewGroup) p.getResult();
 
                                             row.setTag(TAG_BOUND_MSG, null);
-                                            TouchTracker tracker = touchTrackerMap.get(row);
+                                            TouchTracker tracker = (TouchTracker) row.getTag(TAG_TRACKER);
                                             if (tracker != null) tracker.resetAll();
                                             if (!(p.thisObject instanceof ListAdapter) || p.args == null
                                                     || p.args.length == 0 || !(p.args[0] instanceof Integer)) return;
@@ -223,27 +223,25 @@ public class DoubleTapReactionHook extends BaseFeature {
     }
 
     private void bindDoubleTapListener(final ViewGroup row) {
-        TouchTracker tracker = touchTrackerMap.get(row);
+        TouchTracker tracker = (TouchTracker) row.getTag(TAG_TRACKER);
         if (tracker == null) {
             tracker = new TouchTracker();
-            touchTrackerMap.put(row, tracker);
+            row.setTag(TAG_TRACKER, tracker);
         } else {
             // List rows are recycled; a tap on the previous message must not carry over.
             tracker.resetAll();
         }
 
-        Object installedWrapper = XposedHelpers.getAdditionalInstanceField(row, FIELD_TOUCH_WRAPPER);
-        View.OnTouchListener currentListener = getOnTouchListener(row);
-        if (installedWrapper != null && installedWrapper == currentListener) return;
+        if (row.getTag(TAG_TOUCH_INSTALLED) != null) return;
+        row.setTag(TAG_TOUCH_INSTALLED, Boolean.TRUE);
 
-        final View.OnTouchListener originalListener = currentListener;
+        final View.OnTouchListener originalListener = getOnTouchListener(row);
         final int touchSlop = ViewConfiguration.get(row.getContext()).getScaledTouchSlop();
         View.OnTouchListener wrapper = (view, event) -> {
             boolean handled = originalListener != null && originalListener.onTouch(view, event);
             observeTouch(view, event, touchSlop);
             return handled;
         };
-        XposedHelpers.setAdditionalInstanceField(row, FIELD_TOUCH_WRAPPER, wrapper);
         row.setOnTouchListener(wrapper);
     }
 
@@ -275,7 +273,7 @@ public class DoubleTapReactionHook extends BaseFeature {
     }
 
     private void observeTouch(View view, MotionEvent event, int touchSlop) {
-        TouchTracker tracker = touchTrackerMap.get(view);
+        TouchTracker tracker = (TouchTracker) view.getTag(TAG_TRACKER);
         if (tracker == null) return;
 
         switch (event.getActionMasked()) {

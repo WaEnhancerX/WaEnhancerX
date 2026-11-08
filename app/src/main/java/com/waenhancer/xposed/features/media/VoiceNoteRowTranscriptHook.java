@@ -180,18 +180,17 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
             return;
         }
 
-        // Fast path: resolve message item and check if it is an audio/voice note before traversing view tree
-        Object item;
-        try { item = adapter.getItem(position); } catch (Throwable t) { item = null; }
-        File voiceNote = voiceNoteOf(item);
-        if (voiceNote == null) {
+        // Fast path: if not a voice note row, remove any recycled CC button and exit immediately
+        ViewGroup voiceNoteRow = findVoiceNoteRow(row);
+        if (voiceNoteRow == null) {
             removeCcButton(row);
             return;
         }
 
-        // Identify whether this is a voice note row
-        ViewGroup voiceNoteRow = findVoiceNoteRow(row);
-        if (voiceNoteRow == null) {
+        Object item;
+        try { item = adapter.getItem(position); } catch (Throwable t) { item = null; }
+        File voiceNote = voiceNoteOf(item);
+        if (voiceNote == null) {
             removeCcButton(row);
             return;
         }

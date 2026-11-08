@@ -939,6 +939,7 @@ public class AntiRevokeHook extends BaseFeature {
                         previousGetViewHook = XposedBridge.hookMethod(getViewMethod, new XC_MethodHook() {
                             @Override
                             protected void beforeHookedMethod(MethodHookParam p) {
+                                if (REVOKED_MESSAGES.isEmpty()) return;
                                 if (p.args != null && p.args.length > 1 && p.args[1] instanceof ViewGroup) {
                                     ViewGroup recycledRow = (ViewGroup) p.args[1];
                                     if (recycledRow.getTag(TAG_DECORATED) != null) {
@@ -952,11 +953,18 @@ public class AntiRevokeHook extends BaseFeature {
                                 if (p.thisObject != currentAdapter && p.thisObject != underlyingAdapter) return;
                                 if (!isAntiRevokeEnabled() && !isPreserveOwnRevokeEnabled()) return;
 
-                                int pos = (int) p.args[0];
                                 Object renderedRow = p.getResult();
                                 if (!(renderedRow instanceof ViewGroup)) return;
                                 ViewGroup row = (ViewGroup) renderedRow;
 
+                                if (REVOKED_MESSAGES.isEmpty()) {
+                                    if (row.getTag(TAG_DECORATED) != null) {
+                                        resetRowDecoration(row);
+                                    }
+                                    return;
+                                }
+
+                                int pos = (int) p.args[0];
                                 Object item;
                                 try {
                                     item = boundAdapter.getItem(pos);
@@ -2482,13 +2490,15 @@ public class AntiRevokeHook extends BaseFeature {
     @Nullable
     private String getOriginalOrCurrentKeyId(@Nullable Object message) {
         if (message == null) return null;
-        try {
-            Object original = XposedHelpers.getAdditionalInstanceField(
-                    message, "waex_original_key_id");
-            if (original instanceof String && !((String) original).isEmpty()) {
-                return (String) original;
-            }
-        } catch (Throwable ignored) {}
+        if (HideAntiRevokeProFeature.isEnabled(prefs)) {
+            try {
+                Object original = XposedHelpers.getAdditionalInstanceField(
+                        message, "waex_original_key_id");
+                if (original instanceof String && !((String) original).isEmpty()) {
+                    return (String) original;
+                }
+            } catch (Throwable ignored) {}
+        }
         return extractKeyIdFromFMessage(message);
     }
 
