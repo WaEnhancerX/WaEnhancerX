@@ -1144,7 +1144,7 @@ private val CUSTOMIZABLE_HOOKS = listOf(
     "ProfilePhotoDownloadHook", "PresenceToastsHook", "TaskerIntegrationHook",
     "ChatBubbleColorsHook", "ChannelRecommendationsFilterHook", "ChatFilterDisplayHook",
     "CustomDpiHook", "CustomTimeHook", "CssThemeHook", "HideHomeTabsHook",
-    "IGStatusHook", "StatusStyleHook", "PropsOverrideHook", "NewSettingsStyleHook",
+    "StatusStyleHook", "PropsOverrideHook", "NewSettingsStyleHook",
     "OnlinePresenceIndicatorsHook", "SeparateGroupsHook", "FloatingBottomBarHook",
     "FilterItemsHook"
 )

@@ -131,7 +131,7 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
             "unlock_premium_customization", "custom_filters", "custom_ab_props",
             "dotonline", "showonlinetext", "typing_online_toasts",
             "metaai", "channels_enhancements", "chat_filters", "hide_ui_tabs",
-            "instagram_status_layout", "status_style", "separate_groups_tabs", "quick_home_menu",
+            "instagram_status_layout", "native_igstatus", "status_style", "separate_groups_tabs", "quick_home_menu",
             "contact_blocked_verify",
             "disable_sensor_proximity"
         )
@@ -150,7 +150,7 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
                         preferenceManager.getString("seentick", "0")
                     ))
                 } else {
-                    val defaultValue = false
+                    val defaultValue = key == "native_igstatus"
                     val canonicalKey = StyleBooleanAliasPolicy.canonicalKey(key)
                     val legacyDefault = if (canonicalKey == key) defaultValue
                         else preferenceManager.getBoolean(key, defaultValue)

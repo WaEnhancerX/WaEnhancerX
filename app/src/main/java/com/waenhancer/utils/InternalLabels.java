@@ -121,6 +121,7 @@ public final class InternalLabels {
             case "Custom Timestamp":
             case "Seconds on Timestamp": return UiText.get(R.string.feat_custom_time_format_title, "Custom Timestamp");
             case "Enable IGStatus on Home Screen": return UiText.get(R.string.waex_ui_enable_igstatus_on_home_screen, "Enable IGStatus on Home Screen");
+            case "Native IGStatus": return UiText.get(R.string.waex_ui_native_igstatus, "Native IGStatus");
             case "New Settings Style": return UiText.get(R.string.waex_ui_new_settings_style, "New Settings Style");
             case "Separate Chats and Groups": return UiText.get(R.string.waex_ui_separate_chats_and_groups, "Separate Chats and Groups");
             case "CallRecording": return UiText.get(R.string.waex_ui_callrecording, "CallRecording");

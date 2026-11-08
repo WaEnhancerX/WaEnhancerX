@@ -3,6 +3,8 @@ package com.waenhancer.ui.components
 import com.waenhancer.app.R
 import com.waenhancer.utils.UiText
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Icon
@@ -12,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.waenhancer.ui.designsystem.WaexIcons
@@ -26,17 +29,32 @@ fun WaexTopBar(
     modifier: Modifier = Modifier,
     onBackClick: (() -> Unit)? = null,
     titleStyle: TextStyle? = null,
+    titleLeadingIcon: (@Composable () -> Unit)? = null,
     actions: (@Composable RowScope.() -> Unit)? = null
 ) {
     val colors = WaexTheme.colors
     val typography = WaexTheme.typography
     TopAppBar(
         title = {
-            Text(
-                text = title,
-                style = titleStyle ?: typography.headlineMd,
-                color = colors.onSurface
-            )
+            if (titleLeadingIcon != null) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    titleLeadingIcon()
+                    Text(
+                        text = title,
+                        style = titleStyle ?: typography.headlineMd,
+                        color = colors.onSurface
+                    )
+                }
+            } else {
+                Text(
+                    text = title,
+                    style = titleStyle ?: typography.headlineMd,
+                    color = colors.onSurface
+                )
+            }
         },
         modifier = modifier.fillMaxWidth(),
         navigationIcon = {

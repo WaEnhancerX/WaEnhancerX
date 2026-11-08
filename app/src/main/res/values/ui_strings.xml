@@ -855,6 +855,7 @@
     <string name="waex_ui_chat_filter_display_feature" formatted="false">"Chat Filter Display"</string>
     <string name="waex_ui_seconds_on_timestamp" formatted="false">"Custom Timestamp"</string>
     <string name="waex_ui_enable_igstatus_on_home_screen" formatted="false">"Enable IGStatus on Home Screen"</string>
+    <string name="waex_ui_native_igstatus" formatted="false">"Native IGStatus"</string>
     <string name="waex_ui_new_settings_style" formatted="false">"New Settings Style"</string>
     <string name="waex_ui_separate_chats_and_groups" formatted="false">"Separate Chats and Groups"</string>
     <string name="waex_ui_callrecording" formatted="false">"CallRecording"</string>

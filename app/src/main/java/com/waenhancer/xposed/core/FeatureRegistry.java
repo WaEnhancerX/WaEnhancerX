@@ -45,7 +45,6 @@ import com.waenhancer.xposed.features.customization.FilterItemsHook;
 import com.waenhancer.xposed.features.customization.FloatingBottomBarHook;
 import com.waenhancer.xposed.features.customization.OnlinePresenceIndicatorsHook;
 import com.waenhancer.xposed.features.customization.HideHomeTabsHook;
-import com.waenhancer.xposed.features.customization.IGStatusHook;
 import com.waenhancer.xposed.features.customization.NewSettingsStyleHook;
 import com.waenhancer.xposed.features.customization.PropsOverrideHook;
 import com.waenhancer.xposed.features.customization.SeparateGroupsHook;
@@ -487,10 +486,6 @@ public final class FeatureRegistry {
                     return tabs != null && !tabs.isEmpty();
                 },
                 () -> new HideHomeTabsHook(context, classLoader, prefs));
-
-        registerFeature(IGStatusHook.class, "Customization",
-                () -> prefs.getBoolean("igstatus", false),
-                () -> new IGStatusHook(context, classLoader, prefs));
 
         registerFeature(StatusStyleHook.class, "Customization",
                 () -> !"1".equals(prefs.getString("status_style", "1")),

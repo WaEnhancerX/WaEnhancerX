@@ -28,6 +28,10 @@ public final class PropsOverrideHook extends BaseFeature {
     public static final ConcurrentHashMap<Integer, Float> FLOATS = new ConcurrentHashMap<>();
     public static final ConcurrentHashMap<Integer, String> STRINGS = new ConcurrentHashMap<>();
 
+    public static boolean isHookInstalled() {
+        return hookInstalled;
+    }
+
     public PropsOverrideHook(@NonNull Context context, @NonNull ClassLoader classLoader,
                              @NonNull SharedPreferences prefs) {
         super(context, classLoader, prefs);
@@ -38,6 +42,13 @@ public final class PropsOverrideHook extends BaseFeature {
 
     @Override
     public void hook() {
+        // IGStatus is native-only. WhatsApp's own Chats stories row is controlled
+        // by this MobileConfig flag; no module-owned header is injected anymore.
+        boolean igStatus = prefs.getBoolean("igstatus", false);
+        boolean nativeIgStatus = prefs.getBoolean("native_igstatus", true);
+        boolean oldStatus = prefs.getBoolean("oldstatus", false);
+        setIntegerOverride(3877, true, oldStatus ? (igStatus ? 2 : 0) : 2);
+        setBooleanOverride(25327, igStatus && nativeIgStatus, true);
         synchronized (PropsOverrideHook.class) {
             if (hookInstalled) return;
             Method booleanGetter = findFallbackGetter("waex_props_boolean_method", "Unknown BooleanField");
