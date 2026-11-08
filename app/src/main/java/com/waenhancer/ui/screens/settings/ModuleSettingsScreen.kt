@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -59,6 +60,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -155,12 +157,12 @@ fun ModuleSettingsScreen() {
 
             // ─── SECTION 1: HOOKING & CORE ENGINE ────────────────────────────
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SettingsSectionHeader(title = "HOOKING & ENGINE")
+                SettingsSectionHeader(title = "Hooking and engine")
 
                 SettingsGroupCard {
                     SettingsRowItem(
                         icon = WaexIcons.AutoMode,
-                        iconTint = colors.primary,
+                        iconTint = colors.onSurfaceVariant,
                         iconBackground = colors.primary.copy(alpha = 0.12f),
                         title = "Hooking mode",
                         subtitle = "Controls when safe visual hooks are loaded into WhatsApp",
@@ -174,7 +176,7 @@ fun ModuleSettingsScreen() {
 
                     SettingsRowItem(
                         icon = WaexIcons.Layers,
-                        iconTint = colors.primary,
+                        iconTint = colors.onSurfaceVariant,
                         iconBackground = colors.primary.copy(alpha = 0.12f),
                         title = stringResource(R.string.config_mode_title),
                         subtitle = stringResource(R.string.config_mode_desc),
@@ -187,13 +189,13 @@ fun ModuleSettingsScreen() {
 
             // ─── SECTION 2: APPEARANCE & DISPLAY ─────────────────────────────
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SettingsSectionHeader(title = "APPEARANCE & DISPLAY")
+                SettingsSectionHeader(title = "Appearance and display")
 
                 SettingsGroupCard {
                     SettingsRowItem(
                         icon = themeIcon(themeMode),
-                        iconTint = Color(0xFF8B5CF6), // Purple
-                        iconBackground = Color(0xFF8B5CF6).copy(alpha = 0.12f),
+                        iconTint = colors.onSurfaceVariant,
+                        iconBackground = colors.surfaceContainerHighest,
                         title = stringResource(R.string.app_theme_title),
                         subtitle = stringResource(R.string.app_theme_desc),
                         value = themeLabel(themeMode),
@@ -210,13 +212,13 @@ fun ModuleSettingsScreen() {
 
             // ─── SECTION 3: SYSTEM & UPDATES ─────────────────────────────────
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SettingsSectionHeader(title = "SYSTEM & UPDATES")
+                SettingsSectionHeader(title = "System and updates")
 
                 SettingsGroupCard {
                     SettingsRowItem(
                         icon = WaexIcons.SystemUpdate,
-                        iconTint = Color(0xFF0284C7), // Sky Blue
-                        iconBackground = Color(0xFF0284C7).copy(alpha = 0.12f),
+                        iconTint = colors.onSurfaceVariant,
+                        iconBackground = colors.surfaceContainerHighest,
                         title = stringResource(R.string.update_settings_title),
                         subtitle = stringResource(R.string.update_settings_desc),
                         showDivider = true,
@@ -225,8 +227,8 @@ fun ModuleSettingsScreen() {
 
                     SettingsRowItem(
                         icon = Icons.Rounded.Language,
-                        iconTint = Color(0xFF10B981), // Emerald
-                        iconBackground = Color(0xFF10B981).copy(alpha = 0.12f),
+                        iconTint = colors.onSurfaceVariant,
+                        iconBackground = colors.surfaceContainerHighest,
                         title = stringResource(R.string.app_language_title),
                         subtitle = stringResource(R.string.app_language_desc),
                         value = LocaleHelper.getLanguageDisplayName(currentLangCode),
@@ -243,13 +245,13 @@ fun ModuleSettingsScreen() {
                 }
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SettingsSectionHeader(title = "DEVELOPER OPTIONS")
+                    SettingsSectionHeader(title = "Developer options")
 
                     SettingsGroupCard {
                         SettingsSwitchRow(
                             icon = Icons.Rounded.BugReport,
-                            iconTint = Color(0xFFF59E0B), // Amber
-                            iconBackground = Color(0xFFF59E0B).copy(alpha = 0.12f),
+                            iconTint = colors.onSurfaceVariant,
+                            iconBackground = colors.surfaceContainerHighest,
                             title = "Make target apps debuggable",
                             subtitle = "Forces JDWP debugger and debug flags on target WhatsApp applications",
                             checked = forceTargetDebuggable,
@@ -266,14 +268,14 @@ fun ModuleSettingsScreen() {
                         exit = fadeOut() + shrinkVertically()
                     ) {
                         WaexInfoBanner(
-                            title = "Xposed Scope & Restart Required",
+                            title = "Scope and restart required",
                             message = "Ensure Wa Enhancer X has 'System Framework' (android) enabled under its scope in LSPosed. Force-stop and restart WhatsApp for debugging to take effect.",
                             bannerType = BannerType.INFO
                         )
                     }
 
                     WaexInfoBanner(
-                        title = "Developer Notice",
+                        title = "Developer notice",
                         message = "This option allows external debuggers to attach to WhatsApp. Only enable if you need active memory analysis.",
                         bannerType = BannerType.WARNING
                     )
@@ -350,7 +352,7 @@ fun ModuleSettingsScreen() {
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "Hooking Mode",
+                    text = "Hooking mode",
                     style = typography.titleLg,
                     fontWeight = FontWeight.Bold,
                     color = colors.onSurface,
@@ -560,11 +562,10 @@ private fun HeroEngineCard(
                         .background(colors.primary.copy(alpha = 0.14f), WaexTheme.radius.mdShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = WaexIcons.Extension,
-                        contentDescription = null,
-                        tint = colors.primary,
-                        modifier = Modifier.size(24.dp)
+                    Image(
+                        painter = painterResource(R.drawable.ic_app_logo),
+                        contentDescription = "WA Enhancer X",
+                        modifier = Modifier.size(44.dp)
                     )
                 }
 
