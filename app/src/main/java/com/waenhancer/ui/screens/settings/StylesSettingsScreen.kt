@@ -10,6 +10,11 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.PaddingValues
+import com.waenhancer.ui.components.WaexCategoryHeader
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -56,6 +61,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun StylesSettingsScreen(targetEpoch: Int = 0) {
     val colors = WaexTheme.colors
@@ -69,9 +75,21 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
 
     val navController = LocalWaexNavController.current
     val context = LocalContext.current
-    val scrollState = rememberScrollState()
-    val itemCoordinates = remember { mutableStateMapOf<String, Float>() }
-    var containerY by remember { mutableStateOf(0f) }
+    val listState = rememberLazyListState()
+
+    val appearanceGroups = remember {
+        FeatureCatalog.groupsFor(4, "appearance").map { StyleGroup(it.id, WaexIcons.Palette, it.items()) }
+    }
+    val layoutGroups = remember {
+        FeatureCatalog.groupsFor(4, "layout").map { group ->
+            val icon = when (group.id) {
+                "conversation_list_activity_presence" -> WaexIcons.Security
+                "home_layout_navigation" -> WaexIcons.GridView
+                else -> WaexIcons.Extension
+            }
+            StyleGroup(group.id, icon, group.items())
+        }
+    }
 
     LaunchedEffect(navController.targetSubTabId) {
         val target = navController.targetSubTabId
@@ -81,15 +99,23 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
         }
     }
 
-    LaunchedEffect(navController.scrollToTargetKey, itemCoordinates.keys.toList()) {
+    LaunchedEffect(navController.scrollToTargetKey) {
         val target = navController.scrollToTargetKey
         if (target != null) {
-            delay(100)
-            if (itemCoordinates.containsKey(target)) {
-                val yOffset = itemCoordinates[target] ?: 0f
-                scrollState.animateScrollTo(yOffset.toInt())
-                navController.scrollToTargetKey = null
+            val inLayout = layoutGroups.any { grp -> grp.items.any { it.key == target } }
+            val inAppearance = appearanceGroups.any { grp -> grp.items.any { it.key == target } }
+            if (inLayout && selectedTab != "layout") {
+                selectedTab = "layout"
+            } else if (inAppearance && selectedTab != "appearance") {
+                selectedTab = "appearance"
             }
+            delay(150)
+            val groups = if (selectedTab == "layout") layoutGroups else appearanceGroups
+            val groupIdx = groups.indexOfFirst { grp -> grp.items.any { it.key == target } }
+            if (groupIdx != -1) {
+                listState.animateScrollToItem(1 + (groupIdx * 2))
+            }
+            navController.scrollToTargetKey = null
         }
     }
 
@@ -187,31 +213,14 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
     val isPro = LocalIsPro.current
     val onActivatePro = LocalOnActivatePro.current
 
-    val appearanceGroups = remember {
-        FeatureCatalog.groupsFor(4, "appearance").map { StyleGroup(it.id, WaexIcons.Palette, it.items()) }
-    }
-    val layoutGroups = remember {
-        FeatureCatalog.groupsFor(4, "layout").map { group ->
-            val icon = when (group.id) {
-                "conversation_list_activity_presence" -> WaexIcons.Security
-                "home_layout_navigation" -> WaexIcons.GridView
-                else -> WaexIcons.Extension
-            }
-            StyleGroup(group.id, icon, group.items())
-        }
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .onGloballyPositioned { containerCoordinates ->
-                containerY = containerCoordinates.positionInRoot().y
-            }
-            .padding(vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         // Tab switcher header
+        item(key = "tab_switcher") {
         Surface(
             shape = radius.mdShape,
             color = colors.surfaceDim,
@@ -284,39 +293,27 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
                 }
             }
         }
+        }
 
         // Render Style Groups
         val activeGroups = if (selectedTab == "appearance") appearanceGroups else layoutGroups
         activeGroups.forEach { group ->
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = spacing.pageMargin)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
-                ) {
-                    Icon(
-                        imageVector = group.icon,
-                        contentDescription = null,
-                        tint = colors.primary,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Text(
-                        text = LocalizationHelper.getLocalizedSectionTitle(context, group.title),
-                        style = typography.labelSm,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.onSurfaceVariant
-                    )
-                }
+            stickyHeader(key = "header_${group.title}") {
+                WaexCategoryHeader(
+                    title = LocalizationHelper.getLocalizedSectionTitle(context, group.title),
+                    icon = group.icon,
+                    itemCount = group.items.size
+                )
+            }
 
+            item(key = "card_${group.title}") {
                 Surface(
-                    shape = radius.bentoCardShape,
+                    shape = radius.cardShape,
                     color = colors.surfaceDim,
-                    border = BorderStroke(1.dp, colors.outlineVariant),
-                    modifier = Modifier.fillMaxWidth()
+                    border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.5f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = spacing.pageMargin)
                 ) {
                     Column {
                         group.items.forEachIndexed { index, item ->
@@ -334,10 +331,6 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(highlightBgColor)
-                                    .onGloballyPositioned { coordinates ->
-                                        val y = coordinates.positionInRoot().y - containerY + scrollState.value
-                                        itemCoordinates[item.key] = y
-                                    }
                                     .clickable {
                                         if (isLocked) {
                                             onActivatePro()
@@ -612,14 +605,13 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
                                 }
                             }
                             if (index < group.items.lastIndex) {
-                                HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
+                                HorizontalDivider(thickness = 0.8.dp, color = colors.outlineVariant.copy(alpha = 0.4f), modifier = Modifier.padding(horizontal = 16.dp))
                             }
                         }
                     }
                 }
             }
         }
-        Spacer(modifier = Modifier.height(100.dp))
     }
 
     typedEditorKey?.let { key ->

@@ -7,6 +7,12 @@ import android.graphics.Color as AndroidColor
 import android.widget.Toast
 import com.waenhancer.ui.components.WaexProChip
 
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.PaddingValues
+import com.waenhancer.ui.components.WaexCategoryHeader
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -84,6 +90,7 @@ import com.waenhancer.ui.screens.privacy.DeletedIndicatorPreferencePolicy
 import com.waenhancer.ui.screens.media.MediaQuickSettingPolicy
 
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GlobalPrivacySettingsScreen(
     onOpenModal: (String) -> Unit,
@@ -98,9 +105,24 @@ fun GlobalPrivacySettingsScreen(
     var selectedTab by remember { mutableStateOf("privacy") } // "privacy" | "conversation"
 
     val navController = LocalWaexNavController.current
-    val scrollState = rememberScrollState()
-    val itemCoordinates = remember { mutableStateMapOf<String, Float>() }
-    var containerY by remember { mutableStateOf(0f) }
+    val listState = rememberLazyListState()
+
+    val privacyGroups = remember { FeatureCatalog.groupsFor(1, "privacy").map { SettingGroup(it.id, it.items()) } }
+    val conversationGroups = remember { FeatureCatalog.groupsFor(1, "conversation").map { SettingGroup(it.id, it.items()) } }
+
+    fun getPrivacyGroupIcon(groupId: String): ImageVector = when (groupId) {
+        "presence_online_visibility" -> WaexIcons.Security
+        "message_delivery_receipts" -> WaexIcons.Success
+        "status_privacy" -> WaexIcons.Image
+        "message_protection_security" -> WaexIcons.Lock
+        "anti_revoke_deletion_defense" -> WaexIcons.Refresh
+        "security_vault" -> WaexIcons.Folder
+        "home_menu_shortcuts" -> WaexIcons.GridView
+        "message_controls" -> WaexIcons.Settings
+        "chat_navigation_shortcuts" -> WaexIcons.ChevronRight
+        "chat_group_utilities" -> WaexIcons.AutoAwesome
+        else -> WaexIcons.Security
+    }
 
     LaunchedEffect(navController.targetSubTabId) {
         val target = navController.targetSubTabId
@@ -110,15 +132,24 @@ fun GlobalPrivacySettingsScreen(
         }
     }
 
-    LaunchedEffect(navController.scrollToTargetKey, itemCoordinates.keys.toList()) {
+    LaunchedEffect(navController.scrollToTargetKey) {
         val target = navController.scrollToTargetKey
         if (target != null) {
-            delay(100)
-            if (itemCoordinates.containsKey(target)) {
-                val yOffset = itemCoordinates[target] ?: 0f
-                scrollState.animateScrollTo(yOffset.toInt())
-                navController.scrollToTargetKey = null
+            val inConversation = conversationGroups.any { grp -> grp.items.any { it.key == target } }
+            val inPrivacy = privacyGroups.any { grp -> grp.items.any { it.key == target } }
+            if (inConversation && selectedTab != "conversation") {
+                selectedTab = "conversation"
+            } else if (inPrivacy && selectedTab != "privacy") {
+                selectedTab = "privacy"
             }
+            delay(150)
+            val groups = if (selectedTab == "conversation") conversationGroups else privacyGroups
+            val groupIdx = groups.indexOfFirst { grp -> grp.items.any { it.key == target } }
+            if (groupIdx != -1) {
+                val offset = if (selectedTab == "privacy") 3 else 1
+                listState.animateScrollToItem(offset + (groupIdx * 2))
+            }
+            navController.scrollToTargetKey = null
         }
     }
 
@@ -287,91 +318,84 @@ fun GlobalPrivacySettingsScreen(
         )
     }
 
-    val privacyGroups = remember { FeatureCatalog.groupsFor(1, "privacy").map { SettingGroup(it.id, it.items()) } }
-    val conversationGroups = remember { FeatureCatalog.groupsFor(1, "conversation").map { SettingGroup(it.id, it.items()) } }
-
-
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .onGloballyPositioned { containerCoordinates ->
-                containerY = containerCoordinates.positionInRoot().y
-            }
-            .padding(vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         // Tab switcher header
-        Surface(
-            shape = radius.mdShape,
-            color = colors.surfaceDim,
-            border = BorderStroke(1.dp, colors.outlineVariant),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = spacing.pageMargin)
-                .height(48.dp)
-        ) {
-            BoxWithConstraints(
+        item(key = "tab_switcher") {
+            Surface(
+                shape = radius.mdShape,
+                color = colors.surfaceDim,
+                border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.5f)),
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(4.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.pageMargin)
+                    .height(48.dp)
             ) {
-                val totalWidth = maxWidth
-                val tabWidth = totalWidth / 2
-
-                val activeIndex = if (selectedTab == "privacy") 0 else 1
-                val targetOffset = tabWidth * activeIndex
-                val animatedOffset by animateDpAsState(
-                    targetValue = targetOffset,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioLowBouncy,
-                        stiffness = Spring.StiffnessLow
-                    ),
-                    label = "sub_tab_offset"
-                )
-
-                // Sliding highlight box
-                Box(
+                BoxWithConstraints(
                     modifier = Modifier
-                        .offset(x = animatedOffset)
-                        .width(tabWidth)
-                        .fillMaxHeight()
-                        .clip(radius.defaultShape)
-                        .background(colors.surface)
-                        .border(1.dp, colors.outlineVariant, radius.defaultShape)
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.SpaceAround
+                        .fillMaxSize()
+                        .padding(4.dp)
                 ) {
-                    val tabPrivacyLabel = stringResource(R.string.tab_privacy)
-                    val tabConversationLabel = stringResource(R.string.tab_conversation)
-                    listOf("privacy" to tabPrivacyLabel, "conversation" to tabConversationLabel).forEach { (tabId, label) ->
-                        val isSelected = selectedTab == tabId
-                        val textColor by animateColorAsState(
-                            targetValue = if (isSelected) colors.primary else colors.onSurfaceVariant,
-                            animationSpec = tween(150),
-                            label = "sub_tab_text_color"
-                        )
+                    val totalWidth = maxWidth
+                    val tabWidth = totalWidth / 2
 
-                        Box(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .weight(1f)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) { selectedTab = tabId },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = label,
-                                style = typography.bodyMd,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = textColor
+                    val activeIndex = if (selectedTab == "privacy") 0 else 1
+                    val targetOffset = tabWidth * activeIndex
+                    val animatedOffset by animateDpAsState(
+                        targetValue = targetOffset,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessLow
+                        ),
+                        label = "sub_tab_offset"
+                    )
+
+                    // Sliding highlight box
+                    Box(
+                        modifier = Modifier
+                            .offset(x = animatedOffset)
+                            .width(tabWidth)
+                            .fillMaxHeight()
+                            .clip(radius.defaultShape)
+                            .background(colors.surface)
+                            .border(1.dp, colors.outlineVariant, radius.defaultShape)
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.SpaceAround
+                    ) {
+                        val tabPrivacyLabel = stringResource(R.string.tab_privacy)
+                        val tabConversationLabel = stringResource(R.string.tab_conversation)
+                        listOf("privacy" to tabPrivacyLabel, "conversation" to tabConversationLabel).forEach { (tabId, label) ->
+                            val isSelected = selectedTab == tabId
+                            val textColor by animateColorAsState(
+                                targetValue = if (isSelected) colors.primary else colors.onSurfaceVariant,
+                                animationSpec = tween(150),
+                                label = "sub_tab_text_color"
                             )
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .weight(1f)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) { selectedTab = tabId },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    style = typography.bodyMd,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = textColor
+                                )
+                            }
                         }
                     }
                 }
@@ -380,24 +404,21 @@ fun GlobalPrivacySettingsScreen(
 
         // Hubs & Advanced Modules (only on Privacy tab)
         if (selectedTab == "privacy") {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = spacing.pageMargin)
-            ) {
-                Text(
-                    text = stringResource(R.string.advanced_hubs_vaults),
-                    style = typography.labelSm,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+            stickyHeader(key = "header_hubs") {
+                WaexCategoryHeader(
+                    title = stringResource(R.string.advanced_hubs_vaults),
+                    icon = WaexIcons.Security
                 )
+            }
 
+            item(key = "card_hubs") {
                 Surface(
-                    shape = radius.bentoCardShape,
+                    shape = radius.cardShape,
                     color = colors.surfaceDim,
-                    border = BorderStroke(1.dp, colors.outlineVariant),
-                    modifier = Modifier.fillMaxWidth()
+                    border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.5f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = spacing.pageMargin)
                 ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         // 1. Per Contact Rules Tile
@@ -434,8 +455,8 @@ fun GlobalPrivacySettingsScreen(
                         }
 
                         HorizontalDivider(
-                            color = colors.outlineVariant.copy(alpha = 0.5f),
-                            thickness = 1.dp,
+                            color = colors.outlineVariant.copy(alpha = 0.35f),
+                            thickness = 0.8.dp,
                             modifier = Modifier.padding(horizontal = 18.dp)
                         )
 
@@ -473,8 +494,8 @@ fun GlobalPrivacySettingsScreen(
                         }
 
                         HorizontalDivider(
-                            color = colors.outlineVariant.copy(alpha = 0.5f),
-                            thickness = 1.dp,
+                            color = colors.outlineVariant.copy(alpha = 0.35f),
+                            thickness = 0.8.dp,
                             modifier = Modifier.padding(horizontal = 18.dp)
                         )
 
@@ -519,24 +540,22 @@ fun GlobalPrivacySettingsScreen(
         // Setting Groups
         val activeGroups = if (selectedTab == "privacy") privacyGroups else conversationGroups
         activeGroups.forEach { group ->
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = spacing.pageMargin)
-            ) {
-                Text(
-                    text = LocalizationHelper.getLocalizedSectionTitle(context, group.title),
-                    style = typography.labelSm,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+            stickyHeader(key = "header_${group.title}") {
+                WaexCategoryHeader(
+                    title = LocalizationHelper.getLocalizedSectionTitle(context, group.title),
+                    icon = getPrivacyGroupIcon(group.title),
+                    itemCount = group.items.size
                 )
+            }
 
+            item(key = "card_${group.title}") {
                 Surface(
-                    shape = radius.bentoCardShape,
+                    shape = radius.cardShape,
                     color = colors.surfaceDim,
-                    border = BorderStroke(1.dp, colors.outlineVariant),
-                    modifier = Modifier.fillMaxWidth()
+                    border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.5f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = spacing.pageMargin)
                 ) {
                     val isPro = LocalIsPro.current
                     val onActivatePro = LocalOnActivatePro.current
@@ -561,10 +580,6 @@ fun GlobalPrivacySettingsScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(highlightBgColor)
-                                    .onGloballyPositioned { coordinates ->
-                                        val y = coordinates.positionInRoot().y - containerY + scrollState.value
-                                        itemCoordinates[item.key] = y
-                                    }
                                     .clickable {
                                         if (isLocked) {
                                             onActivatePro()
@@ -1249,14 +1264,13 @@ fun GlobalPrivacySettingsScreen(
                             }
 
                             if (index < group.items.lastIndex) {
-                                HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
+                                HorizontalDivider(thickness = 0.8.dp, color = colors.outlineVariant.copy(alpha = 0.4f), modifier = Modifier.padding(horizontal = 16.dp))
                             }
                         }
                     }
                 }
             }
         }
-        Spacer(modifier = Modifier.height(100.dp))
     }
 
     if (showColorPickerDialog) {
