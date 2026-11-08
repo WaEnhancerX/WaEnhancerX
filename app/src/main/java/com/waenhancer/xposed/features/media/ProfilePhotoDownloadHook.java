@@ -4,8 +4,10 @@ import com.waenhancer.app.R;
 import com.waenhancer.utils.ContactIdentityPolicy;
 import com.waenhancer.utils.ContactNameResolver;
 import com.waenhancer.utils.UiText;
+import com.waenhancer.xposed.features.homescreen.MenuIconLoader;
 
 import android.app.Activity;
+import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -13,9 +15,12 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.MediaStore;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -30,12 +35,22 @@ import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 
 import org.luckypray.dexkit.query.FindClass;
+import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.enums.StringMatchType;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
+import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.ClassData;
+import org.luckypray.dexkit.result.MethodData;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.ref.WeakReference;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -43,9 +58,9 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -58,6 +73,10 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
     private static final String PREF_SAVE_DUPLICATES = "download_profile_save_duplicates";
     private static final String PREF_SAVED_IDENTITIES = "download_profile_saved_identities";
     private static final Object SAVED_IDENTITIES_LOCK = new Object();
+
+    private static volatile Object sContactPhotosManagerInstance;
+    private static volatile Method sGetProfilePhotoStreamMethod;
+
     private final AtomicBoolean saveInFlight = new AtomicBoolean();
     private final ExecutorService io = Executors.newSingleThreadExecutor(r -> {
         Thread thread = new Thread(r, "WAEX-ProfilePhotoSave");
@@ -81,20 +100,42 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
             XposedBridge.log(TAG + " profile viewer class not found");
             return;
         }
-        XposedBridge.hookAllMethods(viewer, "onCreateOptionsMenu",
-                new XC_MethodHook() {
-                    @Override protected void afterHookedMethod(MethodHookParam param) {
-                        if (param.hasThrowable() || !isEnabled("download_profile", false)
-                                || !(param.thisObject instanceof Activity)
-                                || param.args.length == 0
-                                || !(param.args[0] instanceof Menu)) return;
-                        installMenuAction((Activity) param.thisObject, (Menu) param.args[0]);
+
+        XC_MethodHook menuHook = new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) {
+                if (param.hasThrowable() || !isEnabled("download_profile", false)
+                        || !(param.thisObject instanceof Activity)
+                        || param.args.length == 0
+                        || !(param.args[0] instanceof Menu)) return;
+                installMenuAction((Activity) param.thisObject, (Menu) param.args[0]);
+            }
+        };
+
+        // Hook both onCreateOptionsMenu and onPrepareOptionsMenu across the entire viewer hierarchy
+        // so that the Download item is created, maintained, and remains visible across full-screen
+        // toggles and menu invalidations.
+        for (Class<?> curr = viewer; curr != null && curr != Activity.class; curr = curr.getSuperclass()) {
+            try {
+                for (Method m : curr.getDeclaredMethods()) {
+                    String mName = m.getName();
+                    if (("onCreateOptionsMenu".equals(mName) || "onPrepareOptionsMenu".equals(mName))
+                            && m.getParameterTypes().length == 1
+                            && Menu.class.isAssignableFrom(m.getParameterTypes()[0])) {
+                        XposedBridge.hookMethod(m, menuHook);
                     }
-                });
+                }
+            } catch (Throwable t) {
+                XposedBridge.log(TAG + " failed to hook menu methods on " + curr.getSimpleName() + ": " + t.getClass().getSimpleName());
+            }
+        }
+
+        initContactPhotoManagerHook();
     }
 
     private Class<?> resolveViewerClass() {
         String[] candidates = {
+                "com.whatsapp.profile.ui.ViewProfilePhoto",
                 "com.whatsapp.profile.ViewProfilePhoto",
                 "com.whatsapp.profile.ViewProfilePhotoActivity"
         };
@@ -105,105 +146,338 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
         return DexSearchEngine.getInstance().findClassWithCache(context, classLoader,
                 "profile_photo_viewer_class", (bridge, loader) -> {
                     ClassData data = bridge.findClass(FindClass.create().matcher(
-                            ClassMatcher.create().className("ViewProfilePhoto",
+                            ClassMatcher.create().className(".ViewProfilePhoto",
                                     StringMatchType.EndsWith))).firstOrNull();
+                    if (data == null) {
+                        data = bridge.findClass(FindClass.create().matcher(
+                                ClassMatcher.create().className("ViewProfilePhoto",
+                                        StringMatchType.Contains))).firstOrNull();
+                    }
                     return data == null ? null : data.getInstance(loader);
                 });
     }
 
+    private void initContactPhotoManagerHook() {
+        try {
+            Method getPhotoStreamMethod = DexSearchEngine.getInstance().findMethodWithCache(
+                    context, classLoader, "contact_photos_get_stream_method", (bridge, loader) -> {
+                        MethodData md = bridge.findMethod(FindMethod.create().matcher(
+                                MethodMatcher.create().usingStrings("contactPhotosBitmapManager/getphotostream/")
+                        )).firstOrNull();
+                        return md != null ? md.getMethodInstance(loader) : null;
+                    });
+
+            if (getPhotoStreamMethod != null) {
+                sGetProfilePhotoStreamMethod = getPhotoStreamMethod;
+                Class<?> managerClass = getPhotoStreamMethod.getDeclaringClass();
+                for (Constructor<?> ctor : managerClass.getDeclaredConstructors()) {
+                    XposedBridge.hookMethod(ctor, new XC_MethodHook() {
+                        @Override
+                        protected void afterHookedMethod(MethodHookParam param) {
+                            sContactPhotosManagerInstance = param.thisObject;
+                        }
+                    });
+                }
+            }
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " initContactPhotoManagerHook error: " + t.getClass().getSimpleName());
+        }
+    }
+
     private void installMenuAction(Activity activity, Menu menu) {
-        if (menu.findItem(MENU_ID) != null) return;
+        MenuItem existing = menu.findItem(MENU_ID);
+        if (existing != null) {
+            existing.setVisible(true);
+            existing.setEnabled(true);
+            return;
+        }
+
         MenuItem item = menu.add(Menu.NONE, MENU_ID, Menu.NONE, UiText.get(R.string.waex_ui_download, "Download"));
-        item.setIcon(android.R.drawable.stat_sys_download_done);
+        Drawable icon = MenuIconLoader.load(activity, "ic_waex_download");
+        if (icon != null) {
+            item.setIcon(icon);
+        } else {
+            item.setIcon(android.R.drawable.stat_sys_download_done);
+        }
         item.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
         item.setOnMenuItemClickListener(ignored -> {
             if (!isEnabled("download_profile", false) || activity.isFinishing()
                     || activity.isDestroyed() || !saveInFlight.compareAndSet(false, true)) return true;
-            Bitmap captured = null;
-            boolean submitted = false;
-            try {
-                boolean saveDuplicates = isEnabled(PREF_SAVE_DUPLICATES, true);
-                String profileIdentity = saveDuplicates ? null : profileIdentity(activity);
-                if (profileIdentity != null && hasSavedProfile(profileIdentity)) {
-                    Toast.makeText(activity, UiText.get(R.string.profile_photo_already_saved,
-                            "Profile photo already saved"), Toast.LENGTH_SHORT).show();
-                    return true;
-                }
-                // Admit before copying the displayed bitmap: repeated clicks must not
-                // allocate and queue another full-resolution copy while one save runs.
-                captured = captureDisplayedPhoto(activity);
-                if (captured == null) {
-                    Toast.makeText(activity, UiText.get(R.string.waex_ui_profile_photo_is_not_ready_yet,
-                            "Profile photo is not ready yet"), Toast.LENGTH_SHORT).show();
-                    return true;
-                }
-                Context application = activity.getApplicationContext();
-                if (application == null) application = context;
-                final Context storageContext = application;
-                final Bitmap ownedBitmap = captured;
-                final WeakReference<Activity> owner = new WeakReference<>(activity);
-                io.execute(() -> saveBitmap(storageContext, owner, ownedBitmap, profileIdentity));
-                submitted = true;
-            } catch (RuntimeException | LinkageError failure) {
-                logFailure("capture or scheduling", failure);
-                Toast.makeText(activity, UiText.get(R.string.waex_ui_couldn_t_save_profile_photo,
-                        "Couldn't save profile photo"), Toast.LENGTH_LONG).show();
-            } finally {
-                if (!submitted) {
-                    if (captured != null) captured.recycle();
+
+            io.execute(() -> {
+                try {
+                    boolean saveDuplicates = isEnabled(PREF_SAVE_DUPLICATES, true);
+                    String profileIdentity = saveDuplicates ? null : profileIdentity(activity);
+                    if (profileIdentity != null && hasSavedProfile(profileIdentity)) {
+                        showToast(activity, UiText.get(R.string.profile_photo_already_saved, "Profile photo already saved"));
+                        saveInFlight.set(false);
+                        return;
+                    }
+
+                    boolean saved = extractAndSavePhoto(activity, profileIdentity);
+                    if (!saved) {
+                        showToast(activity, UiText.get(R.string.waex_ui_profile_photo_is_not_ready_yet, "Profile photo is not ready yet"));
+                    }
+                } catch (Throwable failure) {
+                    logFailure("save profile photo", failure);
+                    showToast(activity, UiText.get(R.string.waex_ui_couldn_t_save_profile_photo, "Couldn't save profile photo"));
+                } finally {
                     saveInFlight.set(false);
                 }
-            }
+            });
             return true;
         });
     }
 
+    private boolean extractAndSavePhoto(Activity activity, String profileIdentity) {
+        Context appCtx = activity.getApplicationContext() != null ? activity.getApplicationContext() : context;
+
+        // Tier 1: Direct File check from photo helper or cache
+        File directFile = resolveProfilePhotoFile(activity);
+        if (directFile != null && directFile.isFile() && directFile.length() > 0) {
+            try (InputStream in = new FileInputStream(directFile)) {
+                if (saveStreamToGallery(appCtx, in, profileIdentity)) {
+                    notifySaved(activity);
+                    return true;
+                }
+            } catch (Throwable t) {
+                logFailure("Tier 1 direct file copy", t);
+            }
+        }
+
+        // Tier 2: Contact photo stream via ContactPhotosBitmapManager
+        InputStream stream = resolveContactPhotoStream(activity);
+        if (stream != null) {
+            try (InputStream in = stream) {
+                if (saveStreamToGallery(appCtx, in, profileIdentity)) {
+                    notifySaved(activity);
+                    return true;
+                }
+            } catch (Throwable t) {
+                logFailure("Tier 2 stream copy", t);
+            }
+        }
+
+        // Tier 3: PhotoView bitmap extraction
+        Bitmap photoViewBitmap = extractBitmapFromPhotoView(activity);
+        if (photoViewBitmap != null) {
+            try {
+                if (saveBitmapToGallery(appCtx, photoViewBitmap, profileIdentity)) {
+                    notifySaved(activity);
+                    return true;
+                }
+            } finally {
+                photoViewBitmap.recycle();
+            }
+        }
+
+        // Tier 4: Window view hierarchy capture fallback
+        Bitmap fallback = captureDisplayedPhoto(activity);
+        if (fallback != null) {
+            try {
+                if (saveBitmapToGallery(appCtx, fallback, profileIdentity)) {
+                    notifySaved(activity);
+                    return true;
+                }
+            } finally {
+                fallback.recycle();
+            }
+        }
+
+        return false;
+    }
+
+    private File resolveProfilePhotoFile(Activity activity) {
+        try {
+            // Check fields of activity and its superclasses for contact object and photo helper
+            Object contact = extractContactObject(activity);
+            if (contact != null) {
+                for (Class<?> curr = activity.getClass(); curr != null && curr != Activity.class; curr = curr.getSuperclass()) {
+                    for (Field field : curr.getDeclaredFields()) {
+                        field.setAccessible(true);
+                        Object helper = field.get(activity);
+                        if (helper == null) continue;
+                        for (Method method : helper.getClass().getDeclaredMethods()) {
+                            if (File.class.isAssignableFrom(method.getReturnType())) {
+                                Class<?>[] params = method.getParameterTypes();
+                                if (params.length == 1 && params[0].isAssignableFrom(contact.getClass())) {
+                                    method.setAccessible(true);
+                                    Object result = method.invoke(helper, contact);
+                                    if (result instanceof File) {
+                                        File f = (File) result;
+                                        if (f.isFile() && f.length() > 0) return f;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Check WhatsApp's cache directory: Profile Pictures/<jid>.j or .jpg
+            String rawJid = ContactNameResolver.INSTANCE.extractJidFromActivity(activity);
+            if (rawJid != null && !rawJid.isEmpty()) {
+                File cacheDir = activity.getCacheDir();
+                if (cacheDir != null) {
+                    File[] candidates = {
+                            new File(cacheDir, "Profile Pictures/" + rawJid + ".j"),
+                            new File(cacheDir, "Profile Pictures/" + rawJid + ".jpg"),
+                            new File(cacheDir, "Profile Pictures/" + rawJid),
+                            new File(activity.getFilesDir(), "me.jpg")
+                    };
+                    for (File c : candidates) {
+                        if (c.isFile() && c.length() > 0) return c;
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            logFailure("resolveProfilePhotoFile", t);
+        }
+        return null;
+    }
+
+    private InputStream resolveContactPhotoStream(Activity activity) {
+        Method method = sGetProfilePhotoStreamMethod;
+        Object manager = sContactPhotosManagerInstance;
+        if (method == null || manager == null) return null;
+
+        try {
+            Object contact = extractContactObject(activity);
+            if (contact == null) return null;
+
+            Class<?>[] paramTypes = method.getParameterTypes();
+            Object[] args = new Object[paramTypes.length];
+            for (int i = 0; i < paramTypes.length; i++) {
+                Class<?> type = paramTypes[i];
+                if (type == boolean.class || type == Boolean.class) {
+                    args[i] = true;
+                } else if (type.isAssignableFrom(contact.getClass())) {
+                    args[i] = contact;
+                } else if (type == int.class || type == Integer.class) {
+                    args[i] = 640;
+                }
+            }
+            method.setAccessible(true);
+            Object res = method.invoke(manager, args);
+            if (res instanceof InputStream) return (InputStream) res;
+        } catch (Throwable t) {
+            logFailure("resolveContactPhotoStream", t);
+        }
+        return null;
+    }
+
+    private Object extractContactObject(Activity activity) {
+        for (Class<?> curr = activity.getClass(); curr != null && curr != Activity.class; curr = curr.getSuperclass()) {
+            for (Field field : curr.getDeclaredFields()) {
+                field.setAccessible(true);
+                try {
+                    Object val = field.get(activity);
+                    if (val == null) continue;
+                    String typeName = val.getClass().getName();
+                    if (!typeName.startsWith("android.") && !typeName.startsWith("java.")) {
+                        for (Method m : val.getClass().getDeclaredMethods()) {
+                            String mName = m.getName();
+                            if (("getRawString".equals(mName) || "getJid".equals(mName) || "getUserJid".equals(mName))
+                                    && m.getParameterTypes().length == 0) {
+                                return val;
+                            }
+                        }
+                    }
+                } catch (Throwable ignored) {}
+            }
+        }
+        return null;
+    }
+
+    private Bitmap extractBitmapFromPhotoView(Activity activity) {
+        try {
+            View decor = activity.getWindow().getDecorView();
+            View photoView = findPhotoViewRecursive(decor);
+            if (photoView != null) {
+                // Check getPhoto()
+                try {
+                    Method getPhoto = photoView.getClass().getMethod("getPhoto");
+                    Bitmap b = (Bitmap) getPhoto.invoke(photoView);
+                    if (b != null && !b.isRecycled()) {
+                        return b.copy(Bitmap.Config.ARGB_8888, false);
+                    }
+                } catch (Throwable ignored) {}
+
+                // Check getImageViewBitmapDrawable()
+                try {
+                    Method getBmpDrawable = photoView.getClass().getMethod("getImageViewBitmapDrawable");
+                    BitmapDrawable bd = (BitmapDrawable) getBmpDrawable.invoke(photoView);
+                    if (bd != null && bd.getBitmap() != null && !bd.getBitmap().isRecycled()) {
+                        return bd.getBitmap().copy(Bitmap.Config.ARGB_8888, false);
+                    }
+                } catch (Throwable ignored) {}
+
+                // Check declared fields for BitmapDrawable or Bitmap (such as A0D)
+                for (Class<?> c = photoView.getClass(); c != null && c != View.class; c = c.getSuperclass()) {
+                    for (Field f : c.getDeclaredFields()) {
+                        f.setAccessible(true);
+                        Object v = f.get(photoView);
+                        if (v instanceof BitmapDrawable) {
+                            Bitmap b = ((BitmapDrawable) v).getBitmap();
+                            if (b != null && !b.isRecycled()) return b.copy(Bitmap.Config.ARGB_8888, false);
+                        } else if (v instanceof Bitmap) {
+                            Bitmap b = (Bitmap) v;
+                            if (!b.isRecycled()) return b.copy(Bitmap.Config.ARGB_8888, false);
+                        }
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            logFailure("extractBitmapFromPhotoView", t);
+        }
+        return null;
+    }
+
+    private View findPhotoViewRecursive(View view) {
+        if (view == null) return null;
+        String name = view.getClass().getName();
+        if (name.contains("PhotoView") || name.endsWith("PhotoView")) {
+            return view;
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup g = (ViewGroup) view;
+            for (int i = 0; i < g.getChildCount(); i++) {
+                View found = findPhotoViewRecursive(g.getChildAt(i));
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
     private Bitmap captureDisplayedPhoto(Activity activity) {
         ImageView best = findLargestImage(activity.getWindow().getDecorView(), null);
-        if (best == null || best.getDrawable() == null) return null;
+        if (best == null) return null;
+
         Drawable drawable = best.getDrawable();
         if (drawable instanceof BitmapDrawable) {
             Bitmap source = ((BitmapDrawable) drawable).getBitmap();
             if (source != null && !source.isRecycled()) {
-                // Preserve the existing 40MP capture ceiling for bitmap-backed
-                // drawables too, before allocating the independent ARGB copy.
                 if ((long) source.getWidth() * source.getHeight() > 40_000_000L) return null;
                 Bitmap safe = source.copy(Bitmap.Config.ARGB_8888, false);
                 if (safe != null) return safe;
             }
         }
-        int width = Math.max(1, drawable.getIntrinsicWidth() > 0
+
+        int width = Math.max(1, drawable != null && drawable.getIntrinsicWidth() > 0
                 ? drawable.getIntrinsicWidth() : best.getWidth());
-        int height = Math.max(1, drawable.getIntrinsicHeight() > 0
+        int height = Math.max(1, drawable != null && drawable.getIntrinsicHeight() > 0
                 ? drawable.getIntrinsicHeight() : best.getHeight());
         if ((long) width * height > 40_000_000L) return null;
+
         Bitmap rendered = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(rendered);
-        int left = drawable.getBounds().left;
-        int top = drawable.getBounds().top;
-        int right = drawable.getBounds().right;
-        int bottom = drawable.getBounds().bottom;
-        boolean complete = false;
-        try {
-            drawable.setBounds(0, 0, width, height);
-            drawable.draw(canvas);
-            complete = true;
-            return rendered;
-        } finally {
-            boolean restored = false;
-            try {
-                drawable.setBounds(left, top, right, bottom);
-                restored = true;
-            } finally {
-                if (!complete || !restored) rendered.recycle();
-            }
-        }
+        best.draw(canvas);
+        return rendered;
     }
 
     private ImageView findLargestImage(View view, ImageView current) {
         ImageView best = current;
-        if (view instanceof ImageView && view.getVisibility() == View.VISIBLE
-                && ((ImageView) view).getDrawable() != null) {
+        if (view instanceof ImageView && view.getVisibility() == View.VISIBLE) {
             ImageView image = (ImageView) view;
             long imageArea = photoArea(image);
             if (best == null || imageArea > photoArea(best)) best = image;
@@ -226,12 +500,12 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
         return (long) Math.max(0, width) * Math.max(0, height);
     }
 
-    private void saveBitmap(Context storageContext, WeakReference<Activity> owner, Bitmap bitmap,
-                            String profileIdentity) {
+    private boolean saveStreamToGallery(Context ctx, InputStream in, String profileIdentity) {
         Uri output = null;
         boolean success = false;
         try {
             String name = "WAEX_Profile_" + UUID.randomUUID() + ".jpg";
+            ContentResolver resolver = ctx.getContentResolver();
             ContentValues values = new ContentValues();
             values.put(MediaStore.Images.Media.DISPLAY_NAME, name);
             values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
@@ -240,57 +514,97 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
                         Environment.DIRECTORY_PICTURES + "/WAEX/Profile Photos");
                 values.put(MediaStore.Images.Media.IS_PENDING, 1);
             }
-            output = storageContext.getContentResolver().insert(
-                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
-            if (output == null) throw new IllegalStateException("MediaStore rejected the file");
-            try (OutputStream stream = storageContext.getContentResolver().openOutputStream(output)) {
-                if (stream == null || !bitmap.compress(Bitmap.CompressFormat.JPEG, 95, stream)) {
-                    throw new IllegalStateException("Could not encode the image");
+            output = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+            if (output == null) throw new IllegalStateException("MediaStore rejected insert");
+
+            try (OutputStream out = resolver.openOutputStream(output)) {
+                if (out == null) throw new IllegalStateException("MediaStore stream is null");
+                byte[] buf = new byte[32768];
+                int len;
+                while ((len = in.read(buf)) != -1) {
+                    out.write(buf, 0, len);
                 }
-                stream.flush();
+                out.flush();
             }
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 ContentValues ready = new ContentValues();
                 ready.put(MediaStore.Images.Media.IS_PENDING, 0);
-                if (storageContext.getContentResolver().update(output, ready, null, null) != 1) {
-                    throw new IllegalStateException("MediaStore did not publish the image");
-                }
+                resolver.update(output, ready, null, null);
+            } else {
+                MediaScannerConnection.scanFile(ctx, new String[]{output.getPath()}, new String[]{"image/jpeg"}, null);
             }
             success = true;
             if (profileIdentity != null) markProfileSaved(profileIdentity);
-        } catch (Exception | LinkageError failure) {
-            logFailure("save", failure);
-        } finally {
-            try {
-                if (!success && output != null) {
-                    try {
-                        // Never delete an earlier export or any host-owned image.
-                        storageContext.getContentResolver().delete(output, null, null);
-                    } catch (RuntimeException | LinkageError failure) {
-                        logFailure("rollback", failure);
-                    }
-                }
-            } finally {
-                bitmap.recycle();
-                saveInFlight.set(false);
+            return true;
+        } catch (Throwable failure) {
+            logFailure("saveStreamToGallery", failure);
+            if (!success && output != null) {
+                try { ctx.getContentResolver().delete(output, null, null); } catch (Throwable ignored) {}
             }
-            final boolean saved = success;
-            Activity activity = owner.get();
-            if (activity != null && !activity.isFinishing() && !activity.isDestroyed()) {
-                activity.runOnUiThread(() -> {
-                    Activity current = owner.get();
-                    if (current == null || current.isFinishing() || current.isDestroyed()) return;
-                    Toast.makeText(current,
-                            saved ? UiText.get(R.string.waex_ui_profile_photo_saved_to_pictures_waex_p,
-                                    "Profile photo saved to Pictures/WAEX/Profile Photos")
-                                    : UiText.get(R.string.waex_ui_couldn_t_save_profile_photo,
-                                    "Couldn't save profile photo"), Toast.LENGTH_LONG).show();
-                });
-            }
+            return false;
         }
     }
 
-    /** Returns a non-reversible, stable per-contact key; never persist a raw WhatsApp JID. */
+    private boolean saveBitmapToGallery(Context ctx, Bitmap bitmap, String profileIdentity) {
+        Uri output = null;
+        boolean success = false;
+        try {
+            String name = "WAEX_Profile_" + UUID.randomUUID() + ".jpg";
+            ContentResolver resolver = ctx.getContentResolver();
+            ContentValues values = new ContentValues();
+            values.put(MediaStore.Images.Media.DISPLAY_NAME, name);
+            values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                values.put(MediaStore.Images.Media.RELATIVE_PATH,
+                        Environment.DIRECTORY_PICTURES + "/WAEX/Profile Photos");
+                values.put(MediaStore.Images.Media.IS_PENDING, 1);
+            }
+            output = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+            if (output == null) throw new IllegalStateException("MediaStore rejected insert");
+
+            try (OutputStream stream = resolver.openOutputStream(output)) {
+                if (stream == null || !bitmap.compress(Bitmap.CompressFormat.JPEG, 95, stream)) {
+                    throw new IllegalStateException("Could not encode image");
+                }
+                stream.flush();
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ContentValues ready = new ContentValues();
+                ready.put(MediaStore.Images.Media.IS_PENDING, 0);
+                resolver.update(output, ready, null, null);
+            } else {
+                MediaScannerConnection.scanFile(ctx, new String[]{output.getPath()}, new String[]{"image/jpeg"}, null);
+            }
+            success = true;
+            if (profileIdentity != null) markProfileSaved(profileIdentity);
+            return true;
+        } catch (Throwable failure) {
+            logFailure("saveBitmapToGallery", failure);
+            if (!success && output != null) {
+                try { ctx.getContentResolver().delete(output, null, null); } catch (Throwable ignored) {}
+            }
+            return false;
+        }
+    }
+
+    private void notifySaved(Activity activity) {
+        showToast(activity, UiText.get(R.string.waex_ui_profile_photo_saved_to_pictures_waex_p,
+                "Profile photo saved to Pictures/WAEX/Profile Photos"));
+    }
+
+    private void showToast(Activity activity, String msg) {
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
+        new Handler(Looper.getMainLooper()).post(() -> {
+            try {
+                if (!activity.isFinishing() && !activity.isDestroyed()) {
+                    Toast.makeText(activity, msg, Toast.LENGTH_SHORT).show();
+                }
+            } catch (Throwable ignored) {}
+        });
+    }
+
     private static String profileIdentity(Activity activity) {
         try {
             String jid = ContactIdentityPolicy.canonicalJid(
