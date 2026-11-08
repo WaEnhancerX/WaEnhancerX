@@ -42,6 +42,7 @@ public class DoubleTapReactionHook extends BaseFeature {
     private static final String PREF_EMOJI_KEY = "doubletap2like_emoji";
     private static final String FIELD_BOUND_MSG = "waex_doubletap_fmessage";
     private static final String FIELD_TOUCH_WRAPPER = "waex_doubletap_touch_wrapper";
+    private static final int TAG_BOUND_MSG = 0x57414454; // 'WADT'
 
     private Class<?> fMessageClass;
     private Class<?> actionUserClass;
@@ -181,15 +182,13 @@ public class DoubleTapReactionHook extends BaseFeature {
                                     XposedBridge.hookMethod(getViewMethod, new XC_MethodHook() {
                                         @Override
                                         protected void afterHookedMethod(MethodHookParam p) {
+                                            if (!isEnabled(PREF_KEY, false)) return;
                                             if (!(p.getResult() instanceof ViewGroup)) return;
                                             ViewGroup row = (ViewGroup) p.getResult();
 
-                                            // A recycled row must never keep a previous reaction target,
-                                            // even if the new item is unavailable or the feature is off.
-                                            XposedHelpers.removeAdditionalInstanceField(row, FIELD_BOUND_MSG);
+                                            row.setTag(TAG_BOUND_MSG, null);
                                             TouchTracker tracker = touchTrackerMap.get(row);
                                             if (tracker != null) tracker.resetAll();
-                                            if (!isEnabled(PREF_KEY, false)) return;
                                             if (!(p.thisObject instanceof ListAdapter) || p.args == null
                                                     || p.args.length == 0 || !(p.args[0] instanceof Integer)) return;
 
@@ -204,7 +203,7 @@ public class DoubleTapReactionHook extends BaseFeature {
                                                 return;
                                             }
 
-                                            XposedHelpers.setAdditionalInstanceField(row, FIELD_BOUND_MSG, item);
+                                            row.setTag(TAG_BOUND_MSG, item);
                                             bindDoubleTapListener(row);
                                         }
                                     });
@@ -307,7 +306,8 @@ public class DoubleTapReactionHook extends BaseFeature {
                 if (tracker.lastTapTime != 0L
                         && now - tracker.lastTapTime <= ViewConfiguration.getDoubleTapTimeout()) {
                     tracker.lastTapTime = 0L;
-                    Object message = XposedHelpers.getAdditionalInstanceField(view, FIELD_BOUND_MSG);
+                    Object msgTag = view.getTag(TAG_BOUND_MSG);
+                    Object message = msgTag != null ? msgTag : XposedHelpers.getAdditionalInstanceField(view, FIELD_BOUND_MSG);
                     if (message != null) handleDoubleTapReaction(view, message);
                 } else {
                     tracker.lastTapTime = now;

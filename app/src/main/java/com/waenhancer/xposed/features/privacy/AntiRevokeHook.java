@@ -84,6 +84,7 @@ public class AntiRevokeHook extends BaseFeature {
 
     private static final String TAG = "[WAEX][AntiRevoke]";
     private static final int TAG_DECORATED = 0x57415244; // 'WARD'
+    private static final int TAG_KEY_ID = 0x57414B59;    // 'WAKY'
     private static volatile int sDateResId = 0;
     private static volatile int sMsgTextResId = 0;
     private static final ConcurrentHashMap<Class<?>, Field> S_CLASS_TO_KEY_FIELD = new ConcurrentHashMap<>();
@@ -782,7 +783,9 @@ public class AntiRevokeHook extends BaseFeature {
                     for (int i = 0; i < count; i++) {
                         View child = lv.getChildAt(i);
                         if (child instanceof ViewGroup) {
-                            String childKey = (String) XposedHelpers.getAdditionalInstanceField(child, "waex_key_id");
+                            Object tag = child.getTag(TAG_KEY_ID);
+                            String childKey = tag instanceof String ? (String) tag
+                                    : (String) XposedHelpers.getAdditionalInstanceField(child, "waex_key_id");
                             if (targetKeyId.equals(childKey)) {
                                 decorateRevokedRow((ViewGroup) child, timestamp);
                                 child.invalidate();
@@ -965,12 +968,7 @@ public class AntiRevokeHook extends BaseFeature {
                                 }
 
                                 String keyId = getOriginalOrCurrentKeyId(item);
-                                if (keyId != null) {
-                                    XposedHelpers.setAdditionalInstanceField(row, "waex_key_id", keyId);
-                                } else {
-                                    // Rows are recycled. Never leave the previous message key attached.
-                                    XposedHelpers.removeAdditionalInstanceField(row, "waex_key_id");
-                                }
+                                row.setTag(TAG_KEY_ID, keyId);
 
                                 long deletedTs = getRevokedTimestamp(keyId);
                                 if (deletedTs <= 0 && HideAntiRevokeProFeature.isHiddenForActiveConversation(prefs)) {
@@ -1012,8 +1010,7 @@ public class AntiRevokeHook extends BaseFeature {
                                         }
                                         if (nativeRevokedRow != null) {
                                             nativeRevokedRow.setTag(TAG_DECORATED, Boolean.TRUE);
-                                            XposedHelpers.setAdditionalInstanceField(
-                                                    nativeRevokedRow, "waex_key_id", keyId);
+                                            nativeRevokedRow.setTag(TAG_KEY_ID, keyId);
                                             p.setResult(nativeRevokedRow);
                                         } else {
                                             decorateRevokedRow(row, deletedTs);

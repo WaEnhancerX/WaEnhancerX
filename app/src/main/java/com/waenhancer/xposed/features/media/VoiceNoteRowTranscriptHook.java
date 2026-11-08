@@ -65,6 +65,9 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
     private static final String FIELD_FILE    = "waex_stt_file";
     /** Tag key on the CC button — marks whether it was added by us (vs. a recycled non-voice row). */
     private static final String FIELD_INJECTED = "waex_cc_injected";
+    private static final int TAG_CC_BTN = 0x57414343;   // 'WACC'
+    private static final int TAG_FILE = 0x57414346;     // 'WACF'
+    private static final int TAG_LISTENER = 0x5741434C; // 'WACL'
 
     private static final AtomicBoolean LOOKUP_WARNED = new AtomicBoolean(false);
 
@@ -260,25 +263,26 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
 
     /** Remove the CC button if it was previously injected into this recycled row. */
     private static void removeCcButton(ViewGroup row) {
-        Object existing = XposedHelpers.getAdditionalInstanceField(row, FIELD_CC_BTN);
+        Object existing = row.getTag(TAG_CC_BTN);
+        if (existing == null) return;
         if (existing instanceof ImageButton) {
             ImageButton btn = (ImageButton) existing;
-            Object listener = XposedHelpers.getAdditionalInstanceField(btn, "waex_layout_listener");
+            Object listener = btn.getTag(TAG_LISTENER);
             if (listener instanceof View.OnLayoutChangeListener) {
                 row.removeOnLayoutChangeListener((View.OnLayoutChangeListener) listener);
             }
             ViewGroup parent = (ViewGroup) btn.getParent();
             if (parent != null) parent.removeView(btn);
-            XposedHelpers.removeAdditionalInstanceField(row, FIELD_CC_BTN);
+            row.setTag(TAG_CC_BTN, null);
         }
     }
 
     private void injectOrUpdateCcButton(ViewGroup row, File voiceNote) {
         // Reuse an already-injected button (recycled row)
-        Object existing = XposedHelpers.getAdditionalInstanceField(row, FIELD_CC_BTN);
+        Object existing = row.getTag(TAG_CC_BTN);
         if (existing instanceof ImageButton) {
             ImageButton btn = (ImageButton) existing;
-            XposedHelpers.setAdditionalInstanceField(btn, FIELD_FILE, voiceNote.getAbsolutePath());
+            btn.setTag(TAG_FILE, voiceNote.getAbsolutePath());
             btn.setVisibility(View.VISIBLE);
             positionCcButton(row, btn);
             return;
@@ -316,23 +320,22 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
 
         ViewGroup.LayoutParams lp = new ViewGroup.MarginLayoutParams(sizePx, sizePx);
 
-        XposedHelpers.setAdditionalInstanceField(btn, FIELD_FILE, voiceNote.getAbsolutePath());
-        XposedHelpers.setAdditionalInstanceField(btn, FIELD_INJECTED, Boolean.TRUE);
+        btn.setTag(TAG_FILE, voiceNote.getAbsolutePath());
 
         btn.setOnClickListener(v -> safe(() -> {
-            Object path = XposedHelpers.getAdditionalInstanceField(v, FIELD_FILE);
+            Object path = v.getTag(TAG_FILE);
             if (path instanceof String) showTranscript((String) path);
         }).run());
 
         container.addView(btn, lp);
-        XposedHelpers.setAdditionalInstanceField(row, FIELD_CC_BTN, btn);
+        row.setTag(TAG_CC_BTN, btn);
 
         // Listen for layout changes on the row to guarantee correct side-by-side positioning
         View.OnLayoutChangeListener listener = (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
             positionCcButton(row, btn);
         };
         row.addOnLayoutChangeListener(listener);
-        XposedHelpers.setAdditionalInstanceField(btn, "waex_layout_listener", listener);
+        btn.setTag(TAG_LISTENER, listener);
 
         positionCcButton(row, btn);
     }

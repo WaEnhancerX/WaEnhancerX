@@ -78,6 +78,9 @@ class AntiEditMessagesHook(
         private const val FIELD_MSG_ID = "waex_msg_id"
         private const val FIELD_MSG_TEXT = "waex_msg_text"
         private const val FIELD_BINDING_TOKEN = "waex_edit_binding_token"
+        private const val TAG_EDIT_DATA = 0x57414544 // 'WAED'
+        private var sEditLabelResId = 0
+        private var sEditedLabelResId = 0
         private val hookedAdapterClasses = ConcurrentHashMap.newKeySet<Class<*>>()
         private val timeFormatter = object : ThreadLocal<DateFormat>() {
             override fun initialValue(): DateFormat = DateFormat.getTimeInstance(DateFormat.SHORT)
@@ -89,7 +92,7 @@ class AntiEditMessagesHook(
     private var originalKeyMethod: Method? = null
 
     private fun isFeatureEnabled(): Boolean {
-        return isEnabled(PREF_KEY, false) || isEnabled("antieditmessages", false)
+        return isEnabled(PREF_KEY, false) || isEnabled("antieditmessages", false) || isEnabled("anti_edit", false)
     }
 
     override fun hook() {
@@ -97,7 +100,6 @@ class AntiEditMessagesHook(
         hookMessageEditMethod()
         hookDatabaseEditInsert()
         hookListViewAdapter()
-        hookViewAttachmentFallback()
     }
 
     // ─── 1. Bytecode Edit Interception ──────────────────────────────────────────
@@ -263,46 +265,29 @@ class AntiEditMessagesHook(
                                 getViewMethod,
                                 object : XC_MethodHook() {
                                     override fun afterHookedMethod(p: MethodHookParam) {
+                                        if (!isFeatureEnabled()) return
                                         val row = p.result as? ViewGroup ?: return
 
-                                        // Always invalidate recycled identity, including rows that
-                                        // the current adapter cannot resolve. No database work
-                                        // belongs in this scroll-time callback.
-                                        XposedHelpers.removeAdditionalInstanceField(row, FIELD_ROW_ID)
-                                        XposedHelpers.removeAdditionalInstanceField(row, FIELD_MSG_ID)
-                                        XposedHelpers.removeAdditionalInstanceField(row, FIELD_MSG_TEXT)
-                                        XposedHelpers.removeAdditionalInstanceField(row, "waex_key_id")
-                                        XposedHelpers.setAdditionalInstanceField(row, FIELD_BINDING_TOKEN, Any())
-                                        if (!isFeatureEnabled()) return
-                                        val pos = p.args.getOrNull(0) as? Int ?: return
+                                        if (sEditLabelResId == 0) {
+                                            sEditLabelResId = row.context.resources.getIdentifier("edit_label", "id", row.context.packageName)
+                                        }
+                                        if (sEditedLabelResId == 0) {
+                                            sEditedLabelResId = row.context.resources.getIdentifier("edited_label", "id", row.context.packageName)
+                                        }
 
-                                        // The hook is installed once per class, but every chat can
-                                        // have a different adapter instance. Bind this invocation.
+                                        val editLabel = (if (sEditLabelResId != 0) row.findViewById<View>(sEditLabelResId) else null)
+                                            ?: (if (sEditedLabelResId != 0) row.findViewById<View>(sEditedLabelResId) else null)
+
+                                        if (editLabel == null) return
+
+                                        val pos = p.args.getOrNull(0) as? Int ?: return
                                         val boundAdapter = p.thisObject as? ListAdapter ?: return
                                         val item = try { boundAdapter.getItem(pos) } catch (t: Throwable) { null } ?: return
                                         val keyId = extractStableKeyId(item)
-                                        // Keyed history reads already resolve by key. Resolving a
-                                        // database row here would query SQLite for every bubble,
-                                        // even when it has no history label.
                                         val rowId = if (keyId.isNullOrEmpty()) extractRowId(item) else 0L
                                         val msgText = extractMessageText(item)
 
-                                        if (rowId > 0) {
-                                            XposedHelpers.setAdditionalInstanceField(row, FIELD_ROW_ID, rowId)
-                                        }
-                                        if (!keyId.isNullOrEmpty()) {
-                                            XposedHelpers.setAdditionalInstanceField(row, FIELD_MSG_ID, keyId)
-                                            XposedHelpers.setAdditionalInstanceField(row, "waex_key_id", keyId)
-                                            if (!msgText.isNullOrEmpty()) {
-                                                XposedHelpers.setAdditionalInstanceField(row, FIELD_MSG_TEXT, msgText)
-                                            }
-                                        }
-
-                                        val editLabel = findChildByResourceName(row, "edit_label")
-                                            ?: findChildByResourceName(row, "edited_label")
-                                        if (editLabel != null) {
-                                            bindEditLabel(editLabel, row, rowId, keyId, msgText)
-                                        }
+                                        bindEditLabel(editLabel, row, rowId, keyId, msgText)
                                     }
                                 }
                             )
@@ -317,56 +302,10 @@ class AntiEditMessagesHook(
         }
     }
 
-    // ─── 4. View.onAttachedToWindow Fallback ────────────────────────────────────
-
-    private fun hookViewAttachmentFallback() {
-        try {
-            XposedHelpers.findAndHookMethod(
-                View::class.java,
-                "onAttachedToWindow",
-                object : XC_MethodHook() {
-                    override fun afterHookedMethod(param: MethodHookParam) {
-                        if (!isFeatureEnabled()) return
-
-                        val view = param.thisObject as? View ?: return
-                        val resName = getResourceEntryName(view)
-
-                        if (resName == "edit_label" || resName == "edited_label") {
-                            val row = findParentMessageRow(view)
-                            val rowId = row?.let {
-                                XposedHelpers.getAdditionalInstanceField(it, FIELD_ROW_ID) as? Long
-                            } ?: 0L
-                            val keyId = row?.let {
-                                XposedHelpers.getAdditionalInstanceField(it, FIELD_MSG_ID) as? String
-                            }
-                            val text = row?.let {
-                                XposedHelpers.getAdditionalInstanceField(it, FIELD_MSG_TEXT) as? String
-                            }
-                            bindEditLabel(view, row, rowId, keyId, text)
-                        } else if (view is ViewGroup) {
-                            val rowId = XposedHelpers.getAdditionalInstanceField(view, FIELD_ROW_ID) as? Long ?: 0L
-                            val keyId = XposedHelpers.getAdditionalInstanceField(view, FIELD_MSG_ID) as? String
-                            if (rowId <= 0 && keyId.isNullOrEmpty()) return
-                            val editLabel = findChildByResourceName(view, "edit_label")
-                                ?: findChildByResourceName(view, "edited_label")
-                            if (editLabel != null) {
-                                val text = XposedHelpers.getAdditionalInstanceField(view, FIELD_MSG_TEXT) as? String
-                                bindEditLabel(editLabel, view, rowId, keyId, text)
-                            }
-                        }
-                    }
-                }
-            )
-        } catch (t: Throwable) {
-            XposedBridge.log("$TAG View attachment hook error: ${t.javaClass.simpleName}")
-        }
-    }
+    private data class EditData(val rowId: Long, val keyId: String?, val msgText: String?)
 
     private fun bindEditLabel(labelView: View, parentRow: View?, boundRowId: Long, boundKeyId: String?, boundText: String?) {
         if (boundRowId <= 0 && boundKeyId.isNullOrEmpty()) return
-        val bindingToken = parentRow?.let {
-            XposedHelpers.getAdditionalInstanceField(it, FIELD_BINDING_TOKEN)
-        }
         if (labelView is TextView) {
             val originalText = labelView.text.toString()
             if (!originalText.contains("📝")) {
@@ -376,9 +315,8 @@ class AntiEditMessagesHook(
             }
         }
 
-        XposedHelpers.removeAdditionalInstanceField(labelView, FIELD_ROW_ID)
-        XposedHelpers.removeAdditionalInstanceField(labelView, FIELD_MSG_ID)
-        XposedHelpers.removeAdditionalInstanceField(labelView, FIELD_MSG_TEXT)
+        val editData = EditData(boundRowId, boundKeyId, boundText)
+        labelView.setTag(TAG_EDIT_DATA, editData)
         if (boundRowId > 0) {
             XposedHelpers.setAdditionalInstanceField(labelView, FIELD_ROW_ID, boundRowId)
         }
@@ -392,20 +330,20 @@ class AntiEditMessagesHook(
         labelView.isClickable = true
         labelView.setOnClickListener { clickedView ->
             if (!isFeatureEnabled()) return@setOnClickListener
-            // An unsupported/failed bind still changes the token. An older
-            // label listener must not open history for its recycled predecessor.
-            if (parentRow != null && XposedHelpers.getAdditionalInstanceField(
-                    parentRow, FIELD_BINDING_TOKEN) !== bindingToken) return@setOnClickListener
+            val data = clickedView.getTag(TAG_EDIT_DATA) as? EditData
             val row = parentRow ?: findParentMessageRow(clickedView)
-            val rowId = (XposedHelpers.getAdditionalInstanceField(clickedView, FIELD_ROW_ID) as? Long)
+            val rowId = data?.rowId
+                ?: (XposedHelpers.getAdditionalInstanceField(clickedView, FIELD_ROW_ID) as? Long)
                 ?: (row?.let { XposedHelpers.getAdditionalInstanceField(it, FIELD_ROW_ID) as? Long })
                 ?: 0L
 
-            val keyId = (XposedHelpers.getAdditionalInstanceField(clickedView, FIELD_MSG_ID) as? String)
+            val keyId = data?.keyId
+                ?: (XposedHelpers.getAdditionalInstanceField(clickedView, FIELD_MSG_ID) as? String)
                 ?: (row?.let { XposedHelpers.getAdditionalInstanceField(it, FIELD_MSG_ID) as? String })
                 ?: (row?.let { XposedHelpers.getAdditionalInstanceField(it, "waex_key_id") as? String })
 
-            val visibleBubbleText = (XposedHelpers.getAdditionalInstanceField(clickedView, FIELD_MSG_TEXT) as? String)
+            val visibleBubbleText = data?.msgText
+                ?: (XposedHelpers.getAdditionalInstanceField(clickedView, FIELD_MSG_TEXT) as? String)
                 ?: (row?.let { XposedHelpers.getAdditionalInstanceField(it, FIELD_MSG_TEXT) as? String })
                 ?: extractTextFromMessageBubble(row)
 
