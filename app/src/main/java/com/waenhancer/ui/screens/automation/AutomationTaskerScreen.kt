@@ -73,6 +73,8 @@ import com.waenhancer.core.transcription.TranscriptionRequestHandler
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeIn
@@ -124,19 +126,42 @@ fun AutomationTaskerScreen(targetEpoch: Int = 0) {
         }
     }
 
+    val preferenceManager = LocalWaexPreferenceManager.current
+
+    // Automation states
+    var taskerIntegrationEnabled by remember(targetEpoch) { mutableStateOf(preferenceManager.getBoolean("tasker_integration", false)) }
+
+    // Audio & AI states
+    var voiceTranscriptionEnabled by remember(targetEpoch) { mutableStateOf(preferenceManager.getBoolean("voice_transcription", true)) }
+
+    val aiConfigKeys = remember {
+        setOf(
+            "voice_transcription_auto", "voice_note_transcript_button", "voice_dictation_button",
+            "transcription_provider", "assembly_key", "groq_key",
+            "custom_transcription_url", "custom_transcription_key", "custom_transcription_model"
+        )
+    }
+
     LaunchedEffect(navController.scrollToTargetKey) {
         val target = navController.scrollToTargetKey
         if (target != null) {
             if (target == "tasker_integration") {
                 selectedTab = "automation"
                 expandedSections["automation"] = true
-                delay(150)
+                delay(120)
                 listState.animateScrollToItem(1)
             } else if (target == "voice_transcription") {
                 selectedTab = "ai"
                 expandedSections["ai_service"] = true
-                delay(150)
+                delay(120)
                 listState.animateScrollToItem(1)
+            } else if (target in aiConfigKeys) {
+                selectedTab = "ai"
+                voiceTranscriptionEnabled = true
+                expandedSections["ai_service"] = true
+                expandedSections["ai_config"] = true
+                delay(150)
+                listState.animateScrollToItem(3)
             }
             navController.scrollToTargetKey = null
         }
@@ -151,14 +176,6 @@ fun AutomationTaskerScreen(targetEpoch: Int = 0) {
             }
         }
     }
-
-    val preferenceManager = LocalWaexPreferenceManager.current
-
-    // Automation states
-    var taskerIntegrationEnabled by remember(targetEpoch) { mutableStateOf(preferenceManager.getBoolean("tasker_integration", false)) }
-
-    // Audio & AI states
-    var voiceTranscriptionEnabled by remember(targetEpoch) { mutableStateOf(preferenceManager.getBoolean("voice_transcription", true)) }
     var transcriptionProvider by remember(targetEpoch) { mutableStateOf(preferenceManager.getString("transcription_provider", "Groq")) } // "Groq" | "AssemblyAI" | "Custom"
     var customUrl by remember(targetEpoch) { mutableStateOf(preferenceManager.getString("custom_transcription_url", "")) }
     var customKey by remember(targetEpoch) { mutableStateOf(preferenceManager.getString("custom_transcription_key", "")) }
@@ -291,6 +308,13 @@ fun AutomationTaskerScreen(targetEpoch: Int = 0) {
                     val card = cards.first()
                     val isLocked = card.isPro && !isPro
                     val isHighlighted = navController.highlightTargetKey == card.key
+                    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+                    if (isHighlighted) {
+                        LaunchedEffect(Unit) {
+                            delay(200)
+                            bringIntoViewRequester.bringIntoView()
+                        }
+                    }
                     val highlightBgColor by animateColorAsState(
                         targetValue = if (isHighlighted) colors.primary.copy(alpha = 0.15f) else colors.surfaceDim,
                         animationSpec = tween(durationMillis = 300),
@@ -302,6 +326,7 @@ fun AutomationTaskerScreen(targetEpoch: Int = 0) {
                         border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.5f)),
                         modifier = Modifier
                             .fillMaxWidth()
+                            .bringIntoViewRequester(bringIntoViewRequester)
                             .padding(horizontal = spacing.pageMargin)
                             .clickable(enabled = isLocked) {
                                 onActivatePro()
@@ -480,6 +505,13 @@ fun AutomationTaskerScreen(targetEpoch: Int = 0) {
                     exit = shrinkVertically(tween(250)) + fadeOut(tween(200))
                 ) {
                     val isHighlighted = navController.highlightTargetKey == "voice_transcription"
+                    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+                    if (isHighlighted) {
+                        LaunchedEffect(Unit) {
+                            delay(200)
+                            bringIntoViewRequester.bringIntoView()
+                        }
+                    }
                     val highlightBgColor by animateColorAsState(
                         targetValue = if (isHighlighted) colors.primary.copy(alpha = 0.15f) else colors.surfaceDim,
                         animationSpec = tween(durationMillis = 300),
@@ -493,6 +525,7 @@ fun AutomationTaskerScreen(targetEpoch: Int = 0) {
                         border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.5f)),
                         modifier = Modifier
                             .fillMaxWidth()
+                            .bringIntoViewRequester(bringIntoViewRequester)
                             .padding(horizontal = spacing.pageMargin)
                     ) {
                         Row(

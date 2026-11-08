@@ -45,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -56,6 +57,8 @@ import com.waenhancer.ui.components.StitchSwitch
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeIn
@@ -106,6 +109,7 @@ fun GlobalPrivacySettingsScreen(
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
     val context = LocalContext.current
+    val density = LocalDensity.current
 
     var selectedTab by remember { mutableStateOf("privacy") } // "privacy" | "conversation"
 
@@ -145,16 +149,22 @@ fun GlobalPrivacySettingsScreen(
             val inPrivacy = privacyGroups.any { grp -> grp.items.any { it.key == target } }
             if (inConversation && selectedTab != "conversation") {
                 selectedTab = "conversation"
+                delay(120)
             } else if (inPrivacy && selectedTab != "privacy") {
                 selectedTab = "privacy"
+                delay(120)
             }
-            delay(150)
+            delay(80)
             val groups = if (selectedTab == "conversation") conversationGroups else privacyGroups
             val groupIdx = groups.indexOfFirst { grp -> grp.items.any { it.key == target } }
             if (groupIdx != -1) {
-                expandedSections[groups[groupIdx].title] = true
-                val offset = if (selectedTab == "privacy") 3 else 1
-                listState.animateScrollToItem(offset + (groupIdx * 2))
+                val group = groups[groupIdx]
+                expandedSections[group.title] = true
+                val itemIdx = group.items.indexOfFirst { it.key == target }.coerceAtLeast(0)
+                val cardIndex = if (selectedTab == "privacy") 4 + (groupIdx * 2) else 2 + (groupIdx * 2)
+                val estimatedRowHeight = with(density) { 72.dp.roundToPx() }
+                val offsetPx = itemIdx * estimatedRowHeight
+                listState.animateScrollToItem(cardIndex, offsetPx)
             }
             navController.scrollToTargetKey = null
         }
@@ -596,6 +606,13 @@ fun GlobalPrivacySettingsScreen(
                             val isLocked = item.isPro && !isPro
                             val isItemDisabled = isLocked || isDependencyDisabled
                             val isHighlighted = navController.highlightTargetKey == item.key
+                            val bringIntoViewRequester = remember { BringIntoViewRequester() }
+                            if (isHighlighted) {
+                                LaunchedEffect(Unit) {
+                                    delay(200)
+                                    bringIntoViewRequester.bringIntoView()
+                                }
+                            }
                             val highlightBgColor by animateColorAsState(
                                 targetValue = if (isHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent,
                                 animationSpec = tween(durationMillis = 300),
@@ -606,6 +623,7 @@ fun GlobalPrivacySettingsScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .bringIntoViewRequester(bringIntoViewRequester)
                                     .background(highlightBgColor)
                                     .clickable {
                                         if (isLocked) {

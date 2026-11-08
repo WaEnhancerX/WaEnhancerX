@@ -40,6 +40,9 @@
         <package android:name="org.lsposed.manager" />
         <package android:name="io.github.lsposed.manager" />
         <package android:name="de.robv.android.xposed.installer" />
+        <package android:name="com.tsng.hidemyapplist" />
+        <package android:name="org.frknkrc44.hma_oss" />
+        <package android:name="com.google.android.hmal" />
     </queries>
 
     <application

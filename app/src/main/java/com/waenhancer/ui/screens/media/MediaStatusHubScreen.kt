@@ -7,6 +7,9 @@ import androidx.compose.ui.res.stringResource
 import com.waenhancer.ui.components.WaexProChip
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeIn
@@ -113,13 +116,21 @@ fun MediaStatusHubScreen(targetEpoch: Int = 0) {
         }
     }
 
+    val density = LocalDensity.current
+
     LaunchedEffect(navController.scrollToTargetKey) {
         val target = navController.scrollToTargetKey
         if (target != null) {
+            delay(100)
             val groupIdx = mediaGroups.indexOfFirst { grp -> grp.items.any { it.key == target } }
             if (groupIdx != -1) {
-                expandedSections[mediaGroups[groupIdx].title] = true
-                listState.animateScrollToItem(1 + groupIdx * 2)
+                val group = mediaGroups[groupIdx]
+                expandedSections[group.title] = true
+                val itemIdx = group.items.indexOfFirst { it.key == target }.coerceAtLeast(0)
+                val cardIndex = 2 + (groupIdx * 2)
+                val estimatedRowHeight = with(density) { 72.dp.roundToPx() }
+                val offsetPx = itemIdx * estimatedRowHeight
+                listState.animateScrollToItem(cardIndex, offsetPx)
             }
             navController.scrollToTargetKey = null
         }
@@ -287,6 +298,13 @@ fun MediaStatusHubScreen(targetEpoch: Int = 0) {
                         group.items.forEachIndexed { index, item ->
                             val isLocked = item.isPro && !isPro
                             val isHighlighted = navController.highlightTargetKey == item.key
+                            val bringIntoViewRequester = remember { BringIntoViewRequester() }
+                            if (isHighlighted) {
+                                LaunchedEffect(Unit) {
+                                    delay(200)
+                                    bringIntoViewRequester.bringIntoView()
+                                }
+                            }
                             val highlightBgColor by animateColorAsState(
                                 targetValue = if (isHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent,
                                 animationSpec = tween(durationMillis = 300),
@@ -297,6 +315,7 @@ fun MediaStatusHubScreen(targetEpoch: Int = 0) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .bringIntoViewRequester(bringIntoViewRequester)
                                     .background(highlightBgColor)
                                     .clickable {
                                         if (isLocked) {

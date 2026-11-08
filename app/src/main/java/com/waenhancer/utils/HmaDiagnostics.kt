@@ -71,11 +71,16 @@ object HmaDiagnostics {
     }
 
     private fun runCheck(context: Context, targetPackages: Collection<String>, scopeSnapshot: LsposedScopeSnapshot?): HmaReport {
-        if (!isHmaInstalledAndActive(context)) {
-            return HmaReport(HmaState.NOT_ACTIVE)
+        val allConfigPaths = findAllHmaConfigPaths()
+        if (allConfigPaths.isEmpty()) {
+            return if (!isHmaInstalledAndActive(context)) {
+                HmaReport(HmaState.NOT_ACTIVE)
+            } else {
+                HmaReport(HmaState.NOT_CONFIGURED)
+            }
         }
 
-        val allConfigs = readAllHmaConfigs()
+        val allConfigs = readAllHmaConfigs(allConfigPaths)
         if (allConfigs.isEmpty()) {
             return HmaReport(HmaState.NOT_CONFIGURED)
         }
@@ -170,48 +175,48 @@ object HmaDiagnostics {
         "com.google.android.hmal"
     )
 
+    private val KNOWN_CONFIG_PATHS = listOf(
+        "/data/adb/hma/config.json",
+        "/data/misc/hide_my_applist/config.json",
+        "/data/misc/hide_my_applist_oss/config.json",
+        "/data/system/hide_my_applist/config.json",
+        "/data/system/users/0/hide_my_applist/config.json",
+        "/data/data/org.frknkrc44.hma_oss/files/config.json",
+        "/data/data/com.tsng.hidemyapplist/files/config.json",
+        "/data/data/com.google.android.hmal/files/config.json",
+        "/data/user/0/org.frknkrc44.hma_oss/files/config.json",
+        "/data/user/0/com.tsng.hidemyapplist/files/config.json",
+        "/data/user/0/com.google.android.hmal/files/config.json"
+    )
+
     private fun isHmaInstalledAndActive(context: Context): Boolean {
-        // 1. Zygisk module directory check
-        val zygiskCheck = AppRestartHelper.runRootCommand(
-            "[ -d $HMA_ZYGISK_PATH ] && [ ! -f $HMA_ZYGISK_PATH/disable ] && echo active; " +
-                    "ls -d /data/adb/modules/*hma* 2>/dev/null; true"
+        // 1. In-process Package Manager check (0 root overhead, 0ms)
+        for (pkg in KNOWN_HMA_PACKAGES) {
+            try {
+                context.packageManager.getPackageInfo(pkg, 0)
+                return true
+            } catch (_: Exception) {}
+        }
+
+        // 2. Fast combined filesystem / module check (1 single root command, ~5ms)
+        val checkCmd = "[ -d $HMA_ZYGISK_PATH ] && [ ! -f $HMA_ZYGISK_PATH/disable ] && echo active; " +
+                "ls -d /data/adb/modules/*hma* 2>/dev/null; " +
+                "ls -d /data/data/org.frknkrc44.hma_oss /data/data/com.tsng.hidemyapplist /data/data/com.google.android.hmal 2>/dev/null; " +
+                "ls /data/adb/hma/config.json /data/misc/hide_my_applist*/config.json 2>/dev/null; true"
+        val quickCheck = AppRestartHelper.runRootCommand(checkCmd)
+        if (!quickCheck.isNullOrBlank()) {
+            return true
+        }
+
+        // 3. LSPosed module database check (only if LSP config exists)
+        val lspCheck = AppRestartHelper.runRootCommand(
+            "[ -f $LSP_CONFIG_DB ] && (grep -E 'hidemyapp|hma' $LSP_CONFIG_DB 2>/dev/null || sqlite3 $LSP_CONFIG_DB \"SELECT 1 FROM modules WHERE (module_pkg_name LIKE '%hidemyapp%' OR module_pkg_name LIKE '%hma%') AND enabled = 1 LIMIT 1\" 2>/dev/null); true"
         )
-        if (zygiskCheck?.contains("active") == true || zygiskCheck?.contains("hma") == true) {
+        if (!lspCheck.isNullOrBlank()) {
             return true
         }
 
-        // 2. LSPosed module database check
-        val dbCheck = AppRestartHelper.runRootCommand("[ -f $LSP_CONFIG_DB ] && echo exists")
-        if (dbCheck?.contains("exists") == true) {
-            val cacheDir = context.cacheDir
-            val cacheDb = File(cacheDir, "hma_lsposed_inspect.db")
-            val walDb = File(cacheDir, "hma_lsposed_inspect.db-wal")
-            val shmDb = File(cacheDir, "hma_lsposed_inspect.db-shm")
-
-            listOf(cacheDb, walDb, shmDb).forEach { if (it.exists()) it.delete() }
-
-            val copyCmd = "cp $LSP_CONFIG_DB ${cacheDb.absolutePath} 2>/dev/null; " +
-                    "cp $LSP_CONFIG_DB-wal ${walDb.absolutePath} 2>/dev/null; " +
-                    "cp $LSP_CONFIG_DB-shm ${shmDb.absolutePath} 2>/dev/null; " +
-                    "chmod 666 ${cacheDb.absolutePath} ${walDb.absolutePath} ${shmDb.absolutePath} 2>/dev/null; true"
-            AppRestartHelper.runRootCommand(copyCmd)
-
-            if (cacheDb.exists()) {
-                val found = isHmaEnabledInLspDb(cacheDb)
-                listOf(cacheDb, walDb, shmDb).forEach { if (it.exists()) it.delete() }
-                if (found) return true
-            }
-        }
-
-        // 3. Installed package manager check dynamically for any HMA / HMAL packages
-        val installedHmaPackages = getInstalledHmaPackages(context)
-        if (installedHmaPackages.isNotEmpty()) {
-            return true
-        }
-
-        // 4. Check if any HMA config file exists directly
-        val configPaths = findAllHmaConfigPaths()
-        return configPaths.isNotEmpty()
+        return false
     }
 
     /**
@@ -219,27 +224,27 @@ object HmaDiagnostics {
      */
     private fun getInstalledHmaPackages(context: Context): List<String> {
         val packages = mutableSetOf<String>()
-        try {
-            val pm = context.packageManager
-            val installed = pm.getInstalledPackages(0).map { it.packageName }
-            for (pkg in installed) {
-                val lower = pkg.lowercase()
-                if (lower.contains("hidemyapp") || lower.contains("hma") || lower.endsWith(".hmal")) {
-                    packages.add(pkg)
-                }
-            }
-        } catch (_: Exception) {}
+        val pm = context.packageManager
+        for (pkg in KNOWN_HMA_PACKAGES) {
+            try {
+                pm.getPackageInfo(pkg, 0)
+                packages.add(pkg)
+            } catch (_: Exception) {}
+        }
+        if (packages.isNotEmpty()) {
+            return packages.toList()
+        }
 
-        // Also query via root package manager in case package visibility is restricted
-        val pmOut = AppRestartHelper.runRootCommand("pm list packages")
-        if (!pmOut.isNullOrBlank()) {
-            pmOut.lines().forEach { raw ->
-                val line = raw.trim()
-                if (line.startsWith("package:")) {
-                    val p = line.removePrefix("package:").trim()
-                    val lower = p.lowercase()
-                    if (lower.contains("hidemyapp") || lower.contains("hma") || lower.endsWith(".hmal")) {
-                        packages.add(p)
+        // Fast fallback: query only known HMA packages directly via pm path (no full pm dump)
+        val quickCheck = AppRestartHelper.runRootCommand(
+            KNOWN_HMA_PACKAGES.joinToString("; ") { "pm path $it 2>/dev/null" }
+        )
+        if (!quickCheck.isNullOrBlank()) {
+            quickCheck.lines().forEach { line ->
+                val trimmed = line.trim()
+                if (trimmed.startsWith("package:")) {
+                    KNOWN_HMA_PACKAGES.forEach { known ->
+                        if (trimmed.contains(known)) packages.add(known)
                     }
                 }
             }
@@ -269,11 +274,10 @@ object HmaDiagnostics {
     /**
      * Reads all available HMA / HMAL configurations across the device.
      */
-    private fun readAllHmaConfigs(): List<Pair<String, JSONObject>> {
-        val paths = findAllHmaConfigPaths()
+    private fun readAllHmaConfigs(paths: List<String> = findAllHmaConfigPaths()): List<Pair<String, JSONObject>> {
         val configs = mutableListOf<Pair<String, JSONObject>>()
         for (path in paths) {
-            val out = AppRestartHelper.runRootCommand("cat $path 2>/dev/null")
+            val out = AppRestartHelper.runRootCommand("cat ${shellQuote(path)} 2>/dev/null")
             if (!out.isNullOrBlank() && out.trimStart().startsWith("{")) {
                 try {
                     configs.add(path to JSONObject(out))
@@ -288,13 +292,30 @@ object HmaDiagnostics {
      * zygisk data directories, and app-internal private files.
      */
     private fun findAllHmaConfigPaths(): List<String> {
-        val findCmd = "find /data/misc /data/system /data/adb /data/user/0 /data/data -name 'config.json' " +
-                "\\( -path '*hide_my_applist*' -o -path '*hma*' \\) 2>/dev/null; true"
-        val out = AppRestartHelper.runRootCommand(findCmd) ?: return emptyList()
-        return out.lines()
-            .map { it.trim() }
-            .filter { it.isNotBlank() && it.endsWith("config.json") }
-            .distinct()
+        val checkScript = KNOWN_CONFIG_PATHS.joinToString(" ") { shellQuote(it) }
+        val out = AppRestartHelper.runRootCommand(
+            "ls $checkScript 2>/dev/null; ls /data/misc/hide_my_applist*/config.json 2>/dev/null; true"
+        )
+        val directMatches = out?.lines()
+            ?.map { it.trim() }
+            ?.filter { it.isNotBlank() && it.endsWith("config.json") }
+            ?.distinct()
+            .orEmpty()
+
+        if (directMatches.isNotEmpty()) {
+            return directMatches
+        }
+
+        // Fast fallback: shallow search ONLY in /data/misc and /data/adb (maxdepth 3)
+        // Never traverse /data/data or /data/user/0 which scans all apps on device!
+        val shallowSearch = AppRestartHelper.runRootCommand(
+            "find /data/misc /data/adb -maxdepth 3 -name 'config.json' 2>/dev/null; true"
+        )
+        return shallowSearch?.lines()
+            ?.map { it.trim() }
+            ?.filter { it.isNotBlank() && it.endsWith("config.json") && (it.contains("hma") || it.contains("hide_my_applist")) }
+            ?.distinct()
+            .orEmpty()
     }
 
     /**
@@ -463,24 +484,9 @@ object HmaDiagnostics {
      * Force-stops all HMA and related app instances and processes.
      */
     fun forceStopHmaApps(context: Context) {
-        val installedHmas = getInstalledHmaPackages(context)
-        for (pkg in installedHmas) {
-            AppRestartHelper.runRootCommand("am force-stop $pkg")
-        }
-        // Also fallback to any packages directly found by pm
-        val pmOut = AppRestartHelper.runRootCommand("pm list packages")
-        if (!pmOut.isNullOrBlank()) {
-            pmOut.lines().forEach { raw ->
-                val line = raw.trim()
-                if (line.startsWith("package:")) {
-                    val p = line.removePrefix("package:").trim()
-                    val lower = p.lowercase()
-                    if (lower.contains("hma") || lower.contains("hidemyapp") || lower.endsWith(".hmal")) {
-                        AppRestartHelper.runRootCommand("am force-stop $p")
-                    }
-                }
-            }
-        }
+        val installedHmas = getInstalledHmaPackages(context).ifEmpty { KNOWN_HMA_PACKAGES }
+        val stopCmd = installedHmas.joinToString("; ") { "am force-stop $it" }
+        AppRestartHelper.runRootCommand(stopCmd)
     }
 
     private fun checkScopeBlockReason(
