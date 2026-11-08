@@ -34,7 +34,9 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
@@ -249,8 +251,18 @@ public final class SeparateGroupsHook extends BaseFeature {
         }
     }
 
+    private static final Map<Class<?>, Field> JID_FIELD_CACHE = new ConcurrentHashMap<>();
+
     private Object findJid(Object chat) {
-        Class<?> type = chat.getClass();
+        if (chat == null) return null;
+        Class<?> chatClass = chat.getClass();
+        Field cached = JID_FIELD_CACHE.get(chatClass);
+        if (cached != null) {
+            try {
+                return cached.get(chat);
+            } catch (Throwable ignored) {}
+        }
+        Class<?> type = chatClass;
         while (type != null && type != Object.class) {
             for (Field field : type.getDeclaredFields()) {
                 if (Modifier.isStatic(field.getModifiers()) || field.getType().isPrimitive()) continue;
@@ -259,7 +271,10 @@ public final class SeparateGroupsHook extends BaseFeature {
                     Object value = field.get(chat);
                     if (value == null) continue;
                     if (XposedHelpers.findMethodExactIfExists(value.getClass(), "getServer") != null
-                            || value.getClass().getName().contains("jid.")) return value;
+                            || value.getClass().getName().contains("jid.")) {
+                        JID_FIELD_CACHE.put(chatClass, field);
+                        return value;
+                    }
                 } catch (Throwable ignored) {}
             }
             type = type.getSuperclass();

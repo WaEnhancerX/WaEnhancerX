@@ -84,6 +84,8 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
 
     // Cached resource IDs (looked up once — getIdentifier is slow)
     private static volatile int sVoiceNoteRowId;
+    private static volatile int sAudioPlayerId;
+    private static volatile int sAudioRowId;
     private static volatile int sMainLayoutId;
     private static volatile int sActionButtonId;
 
@@ -175,19 +177,18 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
             return;
         }
 
-        // Identify whether this is a voice note row
-        ViewGroup voiceNoteRow = findVoiceNoteRow(row);
-        if (voiceNoteRow == null) {
-            // Not a voice note row — remove any stale CC button
-            removeCcButton(row);
-            return;
-        }
-
-        // Get the message item
+        // Fast path: resolve message item and check if it is an audio/voice note before traversing view tree
         Object item;
         try { item = adapter.getItem(position); } catch (Throwable t) { item = null; }
         File voiceNote = voiceNoteOf(item);
         if (voiceNote == null) {
+            removeCcButton(row);
+            return;
+        }
+
+        // Identify whether this is a voice note row
+        ViewGroup voiceNoteRow = findVoiceNoteRow(row);
+        if (voiceNoteRow == null) {
             removeCcButton(row);
             return;
         }
@@ -211,13 +212,19 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
         if (id != 0 && (row.getId() == id || row.findViewById(id) != null)) {
             return row;
         }
-        // Check if row contains the audio player view (common to voice notes and audio messages)
-        int audioPlayerId = ctx.getResources().getIdentifier("conversation_row_audio_player_view", "id", ctx.getPackageName());
+        int audioPlayerId = sAudioPlayerId;
+        if (audioPlayerId == 0) {
+            audioPlayerId = ctx.getResources().getIdentifier("conversation_row_audio_player_view", "id", ctx.getPackageName());
+            if (audioPlayerId != 0) sAudioPlayerId = audioPlayerId;
+        }
         if (audioPlayerId != 0 && row.findViewById(audioPlayerId) != null) {
             return row;
         }
-        // Check for audio row identifier if any
-        int audioRowId = ctx.getResources().getIdentifier("conversation_row_audio", "id", ctx.getPackageName());
+        int audioRowId = sAudioRowId;
+        if (audioRowId == 0) {
+            audioRowId = ctx.getResources().getIdentifier("conversation_row_audio", "id", ctx.getPackageName());
+            if (audioRowId != 0) sAudioRowId = audioRowId;
+        }
         if (audioRowId != 0 && (row.getId() == audioRowId || row.findViewById(audioRowId) != null)) {
             return row;
         }

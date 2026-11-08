@@ -828,9 +828,13 @@ public class AntiRevokeHook extends BaseFeature {
                             for (int i = 0; i < list.getChildCount(); i++) {
                                 View child = list.getChildAt(i);
                                 if (!(child instanceof ViewGroup)) continue;
-                                String key = resolveRecordedKeyFromRowText((ViewGroup) child);
+                                String key = (String) XposedHelpers.getAdditionalInstanceField(child, "waex_key_id");
+                                if (key == null) {
+                                    key = resolveRecordedKeyFromRowText((ViewGroup) child);
+                                }
+                                if (key == null) continue;
                                 long ts = getRevokedTimestamp(key);
-                                if (key != null && ts > 0) {
+                                if (ts > 0) {
                                     HideAntiRevokeProFeature.renderRecordedDeletedRow((ViewGroup) child, key, ts);
                                 }
                             }
@@ -989,16 +993,6 @@ public class AntiRevokeHook extends BaseFeature {
                                     }
                                 }
 
-                                // Log key diagnostic information for every row to help debug
-                                if (keyId != null) {
-                                    XposedBridge.log(TAG + " getView pos=" + pos
-                                            + " key=" + keyId
-                                            + " ts=" + deletedTs
-                                            + " revealed=" + HideAntiRevokeProFeature.isRevealed(keyId)
-                                            + " rowClass=" + row.getClass().getSimpleName()
-                                            + " adapterItem=" + item.getClass().getSimpleName());
-                                }
-
                                 if (deletedTs > 0) {
                                     // If WhatsApp already returned its native revoked
                                     // row, keep it untouched. Recorded anti-revokes can
@@ -1058,28 +1052,21 @@ public class AntiRevokeHook extends BaseFeature {
         }
     }
 
+    private static volatile int sMessageTextResId = 0;
+
     @Nullable
     private String resolveRecordedKeyFromRowText(@NonNull ViewGroup row) {
         try {
-            int textId = row.getResources().getIdentifier("message_text", "id", row.getContext().getPackageName());
+            int textId = sMessageTextResId;
+            if (textId == 0) {
+                textId = row.getResources().getIdentifier("message_text", "id", row.getContext().getPackageName());
+                if (textId != 0) sMessageTextResId = textId;
+            }
             View view = textId == 0 ? null : row.findViewById(textId);
             if (!(view instanceof TextView)) return null;
-            String text = ((TextView) view).getText().toString();
-            if (text.isEmpty()) return null;
-            String cached = revokedTextKeyCache.get(text);
-            if (cached != null) return cached;
-            SQLiteDatabase db = SQLiteDatabase.openDatabase(
-                    row.getContext().getDatabasePath("msgstore.db").getPath(), null, SQLiteDatabase.OPEN_READONLY);
-            try (Cursor cursor = db.rawQuery(
-                    "SELECT key_id FROM message WHERE text_data=? ORDER BY _id DESC LIMIT 8", new String[]{text})) {
-                while (cursor.moveToNext()) {
-                    String candidate = cursor.getString(0);
-                    if (getRevokedTimestamp(candidate) > 0) {
-                        revokedTextKeyCache.put(text, candidate);
-                        return candidate;
-                    }
-                }
-            } finally { db.close(); }
+            CharSequence cs = ((TextView) view).getText();
+            if (cs == null || cs.length() == 0) return null;
+            return revokedTextKeyCache.get(cs.toString());
         } catch (Throwable ignored) {}
         return null;
     }
@@ -2524,7 +2511,7 @@ public class AntiRevokeHook extends BaseFeature {
             }
         } catch (Throwable ignored) {}
         String extracted = extractKeyIdFromFMessage(message);
-        if (extracted != null && getRevokedTimestamp(extracted) > 0) return extracted;
+        if (extracted != null && !extracted.isEmpty()) return extracted;
         String recorded = findRecordedKeyDeep(message, new IdentityHashMap<Object, Boolean>(), 0);
         return recorded != null ? recorded : extracted;
     }

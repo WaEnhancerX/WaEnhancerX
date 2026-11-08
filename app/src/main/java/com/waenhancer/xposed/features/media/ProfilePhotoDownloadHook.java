@@ -95,6 +95,9 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
     }
 
     @Override public void hook() {
+        if (!isEnabled("download_profile", false)) {
+            return;
+        }
         Class<?> viewer = resolveViewerClass();
         if (viewer == null) {
             XposedBridge.log(TAG + " profile viewer class not found");

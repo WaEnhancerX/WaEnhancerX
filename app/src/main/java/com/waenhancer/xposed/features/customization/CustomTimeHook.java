@@ -68,6 +68,9 @@ public class CustomTimeHook extends BaseFeature {
 
             if (timeMethod != null) {
                 XposedBridge.hookMethod(timeMethod, new XC_MethodHook() {
+                    private String cachedPattern = null;
+                    private DateTimeFormatter cachedFormatter = null;
+
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) {
                         if (param.args != null && param.args.length > 1 && param.args[1] instanceof Calendar) {
@@ -83,13 +86,17 @@ public class CustomTimeHook extends BaseFeature {
                                 pattern = formatChoice != null && !formatChoice.trim().isEmpty() ? formatChoice : "HH:mm a";
                             }
 
-                            DateTimeFormatter formatter;
-                            try {
-                                formatter = DateTimeFormatter.ofPattern(pattern, Locale.getDefault())
-                                        .withZone(ZoneId.systemDefault());
-                            } catch (Throwable t) {
-                                formatter = DateTimeFormatter.ofPattern("HH:mm a", Locale.getDefault())
-                                        .withZone(ZoneId.systemDefault());
+                            DateTimeFormatter formatter = cachedFormatter;
+                            if (formatter == null || !pattern.equals(cachedPattern)) {
+                                try {
+                                    formatter = DateTimeFormatter.ofPattern(pattern, Locale.getDefault())
+                                            .withZone(ZoneId.systemDefault());
+                                } catch (Throwable t) {
+                                    formatter = DateTimeFormatter.ofPattern("HH:mm a", Locale.getDefault())
+                                            .withZone(ZoneId.systemDefault());
+                                }
+                                cachedPattern = pattern;
+                                cachedFormatter = formatter;
                             }
 
                             String timeStr = formatter.format(Instant.ofEpochMilli(calendar.getTimeInMillis()));
