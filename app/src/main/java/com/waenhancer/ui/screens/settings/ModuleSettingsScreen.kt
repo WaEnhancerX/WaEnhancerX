@@ -9,7 +9,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -60,7 +59,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -562,10 +560,11 @@ private fun HeroEngineCard(
                         .background(colors.primary.copy(alpha = 0.14f), WaexTheme.radius.mdShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Image(
-                        painter = painterResource(R.drawable.ic_app_logo),
+                    Icon(
+                        imageVector = WaexIcons.Settings,
                         contentDescription = "WA Enhancer X",
-                        modifier = Modifier.size(44.dp)
+                        tint = colors.primary,
+                        modifier = Modifier.size(26.dp)
                     )
                 }
 
