@@ -581,11 +581,7 @@ fun GlobalPrivacySettingsScreen(
             }
 
             item(key = "card_${group.title}") {
-                AnimatedVisibility(
-                    visible = isExpanded,
-                    enter = expandVertically(tween(250)) + fadeIn(tween(250)),
-                    exit = shrinkVertically(tween(250)) + fadeOut(tween(200))
-                ) {
+                if (isExpanded) {
                     Surface(
                     shape = radius.cardShape,
                     color = colors.surfaceDim,
@@ -618,13 +614,9 @@ fun GlobalPrivacySettingsScreen(
                                     bringIntoViewRequester.bringIntoView()
                                 }
                             }
-                            val highlightBgColor by animateColorAsState(
-                                targetValue = if (isHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent,
-                                animationSpec = tween(durationMillis = 300),
-                                label = "highlight_bg"
-                            )
-                            val locTitle = LocalizationHelper.getTitle(context, item)
-                            val locDesc = LocalizationHelper.getDesc(context, item)
+                            val highlightBgColor = if (isHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent
+                            val locTitle = remember(item.key) { LocalizationHelper.getTitle(context, item) }
+                            val locDesc = remember(item.key) { LocalizationHelper.getDesc(context, item) }
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -1329,9 +1321,9 @@ fun GlobalPrivacySettingsScreen(
                         }
                     }
                 }
-                }
             }
         }
+    }
     }
 
     if (showColorPickerDialog) {
