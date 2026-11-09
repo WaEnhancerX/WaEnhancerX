@@ -50,6 +50,7 @@ public class CallPrivacyHook extends BaseFeature {
     private static final String PREF_KEY_PRIVACY = "call_privacy";
     private static final String PREF_KEY_TYPE = "call_type";
     private static final String PREF_KEY_CALL_INFO = "call_info";
+    private static final String PREF_KEY_BLOCK_NOTICE = "call_block_notification_enabled";
 
     private Object mVoipManagerInstance = null;
     private Method mEndCallMethod = null;
@@ -461,6 +462,7 @@ public class CallPrivacyHook extends BaseFeature {
     }
 
     private void showBlockedCallNotification(String callerJid, String reason) {
+        if (!prefs.getBoolean(PREF_KEY_BLOCK_NOTICE, true)) return;
         CompletableFuture.runAsync(() -> {
             try {
                 String contactName = ContactNameResolver.INSTANCE.resolveName(context, callerJid, null, null);
@@ -536,8 +538,11 @@ public class CallPrivacyHook extends BaseFeature {
     }
 
     private boolean isCallPrivacyEnabled() {
+        if (prefs.contains("call_privacy_enabled")) {
+            return prefs.getBoolean("call_privacy_enabled", false);
+        }
         String mode = prefs.getString(PREF_KEY_PRIVACY, "0");
-        return !"0".equals(mode) || prefs.getBoolean("call_privacy_enabled", false);
+        return !"0".equals(mode);
     }
 
     private boolean shouldBlockCall(String callerJid) {
@@ -561,6 +566,37 @@ public class CallPrivacyHook extends BaseFeature {
             return isUnknownCaller(callerJid);
         }
 
+        if ("3".equals(mode)) {
+            return containsConfiguredCaller(prefs.getString("call_block_contacts", ""), callerJid, phoneJid);
+        }
+
+        if ("4".equals(mode)) {
+            return !containsConfiguredCaller(prefs.getString("call_white_contacts", ""), callerJid, phoneJid);
+        }
+
+        return false;
+    }
+
+    private boolean containsConfiguredCaller(String value, String callerJid, String phoneJid) {
+        if (TextUtils.isEmpty(value)) return false;
+
+        String normalized = value.replace("[", "")
+                .replace("]", "")
+                .replace("\"", "")
+                .replace("'", "");
+        String callerUser = ContactNameResolver.INSTANCE.cleanUserPart(callerJid);
+        String phoneUser = phoneJid == null ? "" : ContactNameResolver.INSTANCE.cleanUserPart(phoneJid);
+
+        for (String item : normalized.split(",")) {
+            String candidate = item.trim();
+            if (candidate.isEmpty()) continue;
+            if (candidate.equalsIgnoreCase(callerJid)
+                    || candidate.equalsIgnoreCase(phoneJid)
+                    || candidate.equals(callerUser)
+                    || candidate.equals(phoneUser)) {
+                return true;
+            }
+        }
         return false;
     }
 

@@ -1,5 +1,5 @@
 [Added]
-- Added support for version upto 2.26.45.xx
+- Added support for versions upto 2.26.45.xx
 - Parallel Downloading: Multi-connection acceleration for downloading large photos, videos, and documents
 - Custom A/B Props support: Override WhatsApp AB properties
 - Search bar style
@@ -12,6 +12,7 @@
 - Fixed Unread chats counter not showing on Groups tab in latest version
 - Fixed Status tabs indicator position
 - Fixed Delete for me message deletion delay
+- Other privacy and performance bug fixes
 
 [Improvements]
 - Improved Module Status and Target App detection

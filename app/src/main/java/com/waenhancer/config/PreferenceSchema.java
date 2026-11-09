@@ -121,6 +121,7 @@ public final class PreferenceSchema {
         add(entries, "bubble_right", Type.INT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "bypass_version_check", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "call_block_contacts", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "call_block_notification_enabled", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "call_info", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "call_privacy", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "call_recording_blacklist", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
