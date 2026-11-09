@@ -148,11 +148,7 @@ fun ModuleSettingsScreen() {
         ) {
             // ─── HERO HEADER BANNER ──────────────────────────────────────────
             HeroEngineCard(
-                version = BuildConfig.VERSION_NAME,
-                hookingMode = hookingModeLabel(hookingMode),
-                configMode = if (configMode.contains("Per", ignoreCase = true)) "Per-App" else "Universal",
-                onHookingModeClick = { showHookingModeSheet = true },
-                onConfigModeClick = { showConfigModeSheet = true }
+                version = BuildConfig.VERSION_NAME
             )
 
             // ─── SECTION 1: HOOKING & CORE ENGINE ────────────────────────────
@@ -539,11 +535,7 @@ fun ModuleSettingsScreen() {
 
 @Composable
 private fun HeroEngineCard(
-    version: String,
-    hookingMode: String,
-    configMode: String,
-    onHookingModeClick: () -> Unit,
-    onConfigModeClick: () -> Unit
+    version: String
 ) {
     val colors = WaexTheme.colors
     val typography = WaexTheme.typography
@@ -595,83 +587,6 @@ private fun HeroEngineCard(
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                HeroQuickPill(
-                    label = "Hooking",
-                    value = hookingMode,
-                    icon = WaexIcons.AutoMode,
-                    modifier = Modifier.weight(1f),
-                    onClick = onHookingModeClick
-                )
-
-                HeroQuickPill(
-                    label = "Target Mode",
-                    value = configMode,
-                    icon = WaexIcons.Layers,
-                    modifier = Modifier.weight(1f),
-                    onClick = onConfigModeClick
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun HeroQuickPill(
-    label: String,
-    value: String,
-    icon: ImageVector,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    val colors = WaexTheme.colors
-    val typography = WaexTheme.typography
-
-    Surface(
-        shape = WaexTheme.radius.defaultShape,
-        color = colors.surface,
-        border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.8f)),
-        modifier = modifier.clickable(onClick = onClick)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = colors.primary,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(Modifier.width(8.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = label,
-                    style = typography.bodySm,
-                    fontSize = 11.sp,
-                    color = colors.onSurfaceVariant,
-                    maxLines = 1
-                )
-                Text(
-                    text = value,
-                    style = typography.labelSm,
-                    fontWeight = FontWeight.SemiBold,
-                    color = colors.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            Icon(
-                imageVector = WaexIcons.ChevronRight,
-                contentDescription = null,
-                tint = colors.onSurfaceVariant.copy(alpha = 0.6f),
-                modifier = Modifier.size(14.dp)
-            )
         }
     }
 }
