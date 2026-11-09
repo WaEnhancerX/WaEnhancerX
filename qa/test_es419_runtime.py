@@ -4,7 +4,7 @@
 All real template formatting uses java.util.Formatter. This is not Android instrumentation.
 """
 from pathlib import Path
-import tempfile,subprocess,base64,re,os,shutil
+import tempfile,subprocess,base64,re,os,shutil,argparse
 from localization_support import entries,write_r
 ROOT=Path(__file__).resolve().parents[1];SRC=ROOT/'app/src/main/java/com/waenhancer/utils'
 DOUBLES={
@@ -117,31 +117,34 @@ fun main() {
  println("PASS: 7 production Kotlin picker/migration/wrapped-context checks with Android doubles")
 }
 '''
-def cli_tool(name):
-    candidate=shutil.which(name+('.bat' if os.name=='nt' else ''))
-    if candidate is None: raise RuntimeError(f'Required compiler/runtime not in PATH: {name}')
-    return candidate
+parser=argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--kotlin-home',type=Path,default=Path(os.environ['KOTLIN_HOME']) if os.environ.get('KOTLIN_HOME') else None)
+args=parser.parse_args()
+compiler=shutil.which('kotlinc.bat' if os.name=='nt' else 'kotlinc')
+kotlin_home=args.kotlin_home.resolve() if args.kotlin_home else (Path(compiler).resolve().parent.parent if compiler else None)
+if kotlin_home is None or not (kotlin_home/'lib/kotlin-compiler.jar').is_file():
+    raise RuntimeError('A complete Kotlin distribution is required; provide --kotlin-home for wrapper installations')
+kotlin_lib=kotlin_home/'lib'
+stdlib=kotlin_lib/'kotlin-stdlib.jar'
+if not stdlib.is_file(): raise RuntimeError(f'Kotlin stdlib missing: {stdlib}')
 
 with tempfile.TemporaryDirectory(prefix='waex_es419_') as temp:
     tmp=Path(temp);sources=[]
     for path,code in DOUBLES.items():
-        p=tmp/path;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(code);sources.append(p)
+        p=tmp/path;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(code, encoding="utf-8");sources.append(p)
     r,ids=write_r(ROOT,tmp);sources.append(r)
-    runner=tmp/'qa/TestEs419Runtime.java';runner.parent.mkdir();runner.write_text(RUNNER);sources.append(runner)
+    runner=tmp/'qa/TestEs419Runtime.java';runner.parent.mkdir();runner.write_text(RUNNER, encoding="utf-8");sources.append(runner)
     sources += [SRC/p for p in ['UiText.java','DisplayLocalePolicy.java','InternalLabels.java','PreferenceLabels.java']]
     sources.append(ROOT/'app/src/main/java/com/waenhancer/config/PreferenceKeyAliases.java')
     en=entries(ROOT,'values');es=entries(ROOT,'values-b+es+419');fixture=tmp/'resource-values.tsv'
     def b64(s):return base64.b64encode(s.encode()).decode()
-    fixture.write_text('\n'.join(f'{ids[k]}\t{b64(en[k][0])}\t{b64(es[k][0])}\t{str(en[k][1]).lower()}' for k in sorted(ids)))
+    fixture.write_text('\n'.join(f'{ids[k]}\t{b64(en[k][0])}\t{b64(es[k][0])}\t{str(en[k][1]).lower()}' for k in sorted(ids)), encoding="utf-8")
     classes=tmp/'classes';classes.mkdir()
     subprocess.run(['javac','--release','17','-encoding','UTF-8','-d',str(classes),*map(str,sources)],check=True,timeout=90)
     subprocess.run(['java','-Dfile.encoding=UTF-8','-cp',str(classes),'qa.TestEs419Runtime',str(fixture)],check=True,timeout=45)
-    kt=tmp/'TestLocale.kt';kt.write_text(KOTLIN)
-    subprocess.run([cli_tool('kotlinc'),'-cp',str(classes),str(SRC/'LocaleHelper.kt'),str(kt),'-d',str(tmp/'test.jar')],check=True,timeout=90)
+    kt=tmp/'TestLocale.kt';kt.write_text(KOTLIN, encoding="utf-8")
+    subprocess.run(['java','-Dfile.encoding=UTF-8','-cp',str(kotlin_lib/'*'),'org.jetbrains.kotlin.cli.jvm.K2JVMCompiler','-kotlin-home',str(kotlin_home),'-cp',str(classes),str(SRC/'LocaleHelper.kt'),str(kt),'-d',str(tmp/'test.jar')],check=True,timeout=90)
     # Execute the compiled Kotlin fixture with Java's platform classpath;
     # the Kotlin CLI wrapper can drop a classpath entry on Windows.
-    kotlin_lib=Path(cli_tool('kotlinc')).resolve().parent.parent/'lib'
-    stdlib=kotlin_lib/'kotlin-stdlib.jar'
-    if not stdlib.is_file(): raise RuntimeError(f'Kotlin stdlib missing: {stdlib}')
     runtime_cp=os.pathsep.join(map(str,[classes,tmp/'test.jar',stdlib]))
     subprocess.run(['java','-Dfile.encoding=UTF-8','-cp',runtime_cp,'TestLocaleKt'],check=True,timeout=45)

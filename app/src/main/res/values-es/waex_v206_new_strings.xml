@@ -25,7 +25,7 @@
     <string name="diag_denylist_target_blocked">Bloqueada por la DenyList aplicada</string>
     <string name="diag_denylist_target_clean">No está en la DenyList aplicada</string>
     <string name="diag_denylist_target_magisk_inactive">Magisk no está activo</string>
-    <string name="diag_denylist_target_not_enforced">La aplicación de DenyList está desactivada</string>
+    <string name="diag_denylist_target_not_enforced">No se están aplicando las reglas de DenyList</string>
     <string name="diag_label_denylist">DenyList de Magisk</string>
     <string name="feat_custom_ab_props_desc">Sobrescribe propiedades A/B de WhatsApp según su tipo e identificador durante el inicio</string>
     <string name="feat_custom_ab_props_title">Propiedades A/B personalizadas</string>
@@ -35,7 +35,7 @@
     <string name="feat_parallel_downloading_title">Descargas paralelas</string>
     <string name="navigation_drawer_open">Abrir el panel de navegación</string>
     <string name="parallel_downloading_2">2 conexiones</string>
-    <string name="parallel_downloading_4">4 conexiones (recomendado)</string>
+    <string name="parallel_downloading_4">4 conexiones (opción recomendada)</string>
     <string name="parallel_downloading_8">8 conexiones</string>
     <string name="parallel_downloading_connections_desc">Selecciona la cantidad de conexiones simultáneas utilizadas por descarga</string>
     <string name="parallel_downloading_connections_title">CONEXIONES PARALELAS</string>
