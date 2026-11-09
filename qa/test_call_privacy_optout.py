@@ -103,6 +103,17 @@ fun main(){
   val f=render(p,false);verify(f.mode()=="1","mode stale after target switch");verify(!f.enabled(),"target explicit off ignored")
   verify(p.writes==0,"target change caused writes")
  }
+ for(which in listOf("row","switch"))test("stale callback cannot modify another target via="+which){
+  val p=Prefs();p.data()["call_privacy"]="0";p.data()["call_privacy_enabled"]=false;val old=render(p)
+  p.switchTarget("business");p.data()["call_privacy"]="4";p.data()["call_privacy_enabled"]=false
+  val before=p.data().toMap();if(which=="row")old.row() else old.toggle(true)
+  verify(p.data()==before && p.writes==0,"stale target callback wrote a different account")
+ }
+ for(mode in listOf("invalid","99",""))test("invalid retained mode is not activation consent: "+mode){
+  val p=Prefs();p.data()["call_privacy"]=mode;val before=p.data().toMap();val f=render(p)
+  verify(!f.enabled() && f.mode()=="0","invalid mode enabled blocking")
+  verify(p.data()==before && p.writes==0,"invalid preference silently rewritten")
+ }
  println("SUMMARY cases="+cases+" checks="+checks+" failures="+failed.size)
  if(failed.isNotEmpty())throw AssertionError("REGRESSION_CASES="+failed.size)
 }

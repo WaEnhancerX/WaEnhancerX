@@ -154,6 +154,7 @@ fun CallsHubScreen() {
 
     // Call Blocker & Privacy State. Reading this screen must never enable blocking
     // or rewrite a user's retained policy. The explicit switch wins over legacy mode.
+    val callPrivacyEpoch = prefManager.targetEpoch
     var callPrivacyMode by remember(prefManager.targetEpoch) {
         val raw = try {
             prefManager.getString("call_privacy", "0")
@@ -493,6 +494,7 @@ fun CallsHubScreen() {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
+                                        if (prefManager.targetEpoch == callPrivacyEpoch) {
                                         val next = !callPrivacyEnabled
                                         callPrivacyEnabled = next
                                         prefManager.putBoolean("call_privacy_enabled", next)
@@ -500,7 +502,8 @@ fun CallsHubScreen() {
                                             callPrivacyMode = "1"
                                             prefManager.putString("call_privacy", "1")
                                         }
-                                    }
+                                        }
+}
                                     .padding(horizontal = 16.dp, vertical = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -522,13 +525,15 @@ fun CallsHubScreen() {
                                 StitchSwitch(
                                     checked = callPrivacyEnabled,
                                     onCheckedChange = { next ->
+                                        if (prefManager.targetEpoch == callPrivacyEpoch) {
                                         callPrivacyEnabled = next
                                         prefManager.putBoolean("call_privacy_enabled", next)
                                         if (next && callPrivacyMode == "0") {
                                             callPrivacyMode = "1"
                                             prefManager.putString("call_privacy", "1")
                                         }
-                                    }
+                                        }
+}
                                 )
                             }
                         }
