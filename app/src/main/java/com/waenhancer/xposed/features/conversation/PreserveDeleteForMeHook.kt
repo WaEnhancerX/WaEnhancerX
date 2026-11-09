@@ -17,6 +17,7 @@ import org.luckypray.dexkit.query.matchers.MethodMatcher
 import java.io.File
 import java.lang.reflect.Method
 import java.lang.reflect.Field
+import java.util.concurrent.Executors
 import org.luckypray.dexkit.DexKitBridge
 
 /**
@@ -44,6 +45,9 @@ class PreserveDeleteForMeHook(
         private val preservationWarningLock = Any()
         private var lastPreservationWarningAtElapsed = -1L
         private const val PRESERVATION_WARNING_INTERVAL_MS = 30_000L
+        private val preservationExecutor = Executors.newSingleThreadExecutor { runnable ->
+            Thread(runnable, "WAEX-PreserveDeleteForMe").apply { isDaemon = true }
+        }
 
         /** Lets other database hooks distinguish a local Delete-for-me from a remote revoke. */
         @JvmStatic
@@ -330,13 +334,21 @@ class PreserveDeleteForMeHook(
                 putBoolean("fromMe", fromMe)
                 putBoolean("isGroup", isGroup)
             }
-            val response = context.contentResolver.call(
-                Uri.parse(PROVIDER_URI),
-                "record_preserved_message",
-                null,
-                bundle
-            )
-            response?.getBoolean("success", false) == true
+            // This runs inside WhatsApp's delete path. Do not wait for the manager process or its
+            // SQLite write; all metadata needed for preservation is already in the bundle.
+            preservationExecutor.execute {
+                try {
+                    context.contentResolver.call(
+                        Uri.parse(PROVIDER_URI),
+                        "record_preserved_message",
+                        null,
+                        bundle
+                    )
+                } catch (_: Throwable) {
+                    XposedBridge.log("$TAG Async message preservation failed")
+                }
+            }
+            true
         } catch (_: Throwable) {
             false
         }

@@ -11,6 +11,7 @@
 [Fixes]
 - Fixed Unread chats counter not showing on Groups tab in latest version
 - Fixed Status tabs indicator position
+- Fixed Delete for me message deletion delay
 
 [Improvements]
 - Improved Module Status and Target App detection
