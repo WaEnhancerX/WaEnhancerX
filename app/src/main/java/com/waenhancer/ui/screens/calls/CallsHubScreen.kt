@@ -152,32 +152,21 @@ fun CallsHubScreen() {
         onResult = { canReadLegacyRecordings = it }
     )
 
-    // Call Blocker & Privacy State
-    var callPrivacyMode by remember {
-        val raw = try {
-            prefManager.getString("call_privacy", "1")
-        } catch (_: Throwable) {
-            "1"
-        }
-        val sanitized = if (raw == "true") "1" else if (raw == "false") "1" else (raw ?: "1")
-        mutableStateOf(if (sanitized == "0" || sanitized == "3" || sanitized == "4") "1" else sanitized)
-    }
-    var callPrivacyEnabled by remember(prefManager.targetEpoch) {
-        val enabledPref = prefManager.getBoolean("call_privacy_enabled", false)
-        val rawMode = try { prefManager.getString("call_privacy", "0") } catch (_: Throwable) { "0" }
-        mutableStateOf(enabledPref || (rawMode != null && rawMode != "0"))
-    }
-    LaunchedEffect(Unit) {
+    // Call Blocker & Privacy State. Reading this screen must never enable blocking
+    // or rewrite a user's retained policy. The explicit switch wins over legacy mode.
+    var callPrivacyMode by remember(prefManager.targetEpoch) {
         val raw = try {
             prefManager.getString("call_privacy", "0")
         } catch (_: Throwable) {
             "0"
         }
-        val isEnabled = prefManager.getBoolean("call_privacy_enabled", false) || (raw != "0" && raw != null)
-        prefManager.putBoolean("call_privacy_enabled", isEnabled)
-        if (raw == "0" || raw == "3" || raw == "4") {
-            prefManager.putString("call_privacy", "1")
-        }
+        mutableStateOf(if (raw in setOf("0", "1", "2", "3", "4")) raw!! else "0")
+    }
+    var callPrivacyEnabled by remember(prefManager.targetEpoch) {
+        val rawMode = try { prefManager.getString("call_privacy", "0") } catch (_: Throwable) { "0" }
+        // Only installations without an explicit switch inherit the legacy mode.
+        val legacyEnabled = rawMode in setOf("1", "2", "3", "4")
+        mutableStateOf(prefManager.getBoolean("call_privacy_enabled", legacyEnabled))
     }
     var callRejectType by remember(prefManager.targetEpoch) { mutableStateOf(prefManager.getString("call_type", "no_internet") ?: "no_internet") }
     var callInfoEnabled by remember(prefManager.targetEpoch) { mutableStateOf(prefManager.getBoolean("call_info", false)) }
@@ -507,7 +496,7 @@ fun CallsHubScreen() {
                                         val next = !callPrivacyEnabled
                                         callPrivacyEnabled = next
                                         prefManager.putBoolean("call_privacy_enabled", next)
-                                        if (next && (callPrivacyMode == "0" || callPrivacyMode == "3" || callPrivacyMode == "4")) {
+                                        if (next && callPrivacyMode == "0") {
                                             callPrivacyMode = "1"
                                             prefManager.putString("call_privacy", "1")
                                         }
@@ -535,7 +524,7 @@ fun CallsHubScreen() {
                                     onCheckedChange = { next ->
                                         callPrivacyEnabled = next
                                         prefManager.putBoolean("call_privacy_enabled", next)
-                                        if (next && (callPrivacyMode == "0" || callPrivacyMode == "3" || callPrivacyMode == "4")) {
+                                        if (next && callPrivacyMode == "0") {
                                             callPrivacyMode = "1"
                                             prefManager.putString("call_privacy", "1")
                                         }
@@ -568,7 +557,9 @@ fun CallsHubScreen() {
                                     Column(modifier = Modifier.fillMaxWidth()) {
                                         // 1. Who Can Call Me
                                         val whoCanCallLabel = when (callPrivacyMode) {
+                                            "0" -> UiText.get(R.string.waex_ui_everyone_no_block, "Everyone (No Block)")
                                             "2" -> UiText.get(R.string.waex_ui_unknown_contacts_only, "Unknown Contacts Only")
+                                            "3", "4" -> UiText.get(R.string.waex_ui_custom_privacy, "Custom Privacy")
                                             else -> UiText.get(R.string.waex_ui_block_all_calls, "Block All Calls")
                                         }
                                         Row(
