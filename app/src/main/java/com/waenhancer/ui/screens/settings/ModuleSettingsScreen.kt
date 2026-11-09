@@ -574,7 +574,7 @@ private fun HeroEngineCard(
                         color = colors.onSurface
                     )
                     Text(
-                        text = "Module core & engine settings",
+                        text = "Styles, Hooking & Config Mode",
                         style = typography.bodySm,
                         color = colors.onSurfaceVariant
                     )
