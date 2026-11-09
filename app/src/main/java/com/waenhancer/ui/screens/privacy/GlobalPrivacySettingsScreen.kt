@@ -600,8 +600,9 @@ fun GlobalPrivacySettingsScreen(
                     Column {
                         group.items.forEachIndexed { index, item ->
                             val isBlueTickDependent = (
-                                item.key == "blueonreply" ||
+                                    item.key == "blueonreply" ||
                                     item.key == "seentick" ||
+                                    item.key == "hide_seen_receipts" ||
                                     item.key == "hideonceseen"
                                 )
                             val isHideReadEnabled = settingsState["hide_read_receipts"] ?: false
