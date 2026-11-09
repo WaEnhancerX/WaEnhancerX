@@ -1,32 +1,34 @@
-# Startup hook-report batching: acceptance and boundaries
+# Startup catalogue reporting: bounded work and truthful transitions
 
 ## Contract
 
-`MainHook` publishes the complete hook catalogue after `initializeAll()` returns. Startup entries must not serialize/transmit that same complete catalogue once per feature. Deferred installations must still publish their new ACTIVE/FAILED state immediately. Failures remain visible; disabled/waiting states, hook execution order, Dex leases and licensing decisions are unchanged.
+MainHook publishes the terminal catalogue after initializeAll. STARTUP entries do not publish a full catalogue individually. This removes intermediate whole-catalogue snapshots, not hooks or version/licensing checks.
 
-This intentionally removes intermediate per-startup-entry snapshots. During startup, the runtime health remains INITIALIZING; the terminal catalogue and READY/READY_WITH_ERRORS reports remain the authority. This is not permission to mark disabled or failed features ACTIVE.
+Lazy entries may install inside initializeAll when an Activity is already present, or after a later lifecycle event. Both must publish their changes. A retry that succeeds clears its former error. A WAITING lazy entry disabled before installation publishes DISABLED once; an unchanged disabled entry does not create repeated reports.
 
-## Automated checks
+## Reproduce
 
-```
-python3 qa/test_startup_hook_reporting.py --out /tmp/waex-startup-report
-python3 qa/mutate_startup_hook_reporting.py --out /tmp/waex-startup-report-mutants
-```
+    python3 qa/test_startup_hook_reporting.py --out /tmp/waex-startup-report
+    python3 qa/mutate_startup_hook_reporting.py --out /tmp/waex-startup-report-mutants
 
-Requires a JDK supporting `--release 17`. Use `--source-root` on the primary runner to compare the unchanged official source. Outputs must be new directories. Tests compile eight exact source blocks from FeatureRegistry, including initialization, installation, failure handling and reporting. MainHook's terminal publication is independently required by a source guard.
+Java 17+ and Python are required. Output directories must be new. The first runner accepts --source-root for a baseline checkout.
 
-The fixture models Android IPC/JSON, the lifecycle scheduler, feature bodies and Dex leasing explicitly. It counts serialized catalogue rows and provider calls; it does not emulate Binder latency or execute native Xposed. The complete FeatureRegistry constructor and private policy/licensing dependencies are not compiled or replaced by this test.
+## Verification boundaries
 
-Ten scenarios verify one terminal startup report at 1/8/28/65 enabled entries, complete error/status snapshots, disabled and waiting entries, successful and failed lazy updates, provider-failure isolation, duplicate lazy installation and balanced Dex leases. Four mutants restore redundant reporting, drop deferred reports, mislabel failures or falsify snapshot states; compiler failures do not qualify as detected mutants.
+The runner extracts eight exact production blocks. IPC, JSON serialization, feature implementations, Dex leases and lifecycle events are explicit counting doubles. It is not a complete registry build, native Xposed run or Binder latency benchmark.
 
-## Device acceptance still required
+The source guard ignores comments and string/character literals; two negative guard cases reject a commented or quoted terminal sequence. The real MainHook source SHA256 is recorded. This is still a structural call-site guard, not execution of MainHook's entire startup path.
 
-1. Build authorized baseline/candidate APKs with identical signing/configuration and dependency versions.
-2. Reproduce cold launches on the same WhatsApp build, account, Android profile and framework; preserve data and scope.
-3. Record initial draw and runtime READY separately. A timeout from `am start -W` must not be called a completed startup.
-4. Compare repeated launches in balanced order, without concurrent stress tasks. Trace/count actual register_injected_hooks calls and attribute time before claiming a speed gain.
-5. Verify the final complete catalogue includes successful, failed, disabled and waiting features accurately.
-6. Enter a deferred-feature screen, exercise that feature, and verify its report still updates. Repeat with an induced legitimate feature failure.
-7. Restore the original scope/settings after each experiment. Use only authorized recipients for functional tests.
+The fixture separates publication attempts from accepted snapshots. Provider failure must leave no accepted snapshot. It also covers Activity-present early lazy installation rather than forcing ActivityTracker to return null in every case.
 
-The November 9 laboratory scope-on/off experiment establishes overhead associated with WAEX in that environment; it does not measure this unbuilt candidate or prove that reporting accounts for all startup delay. Full APK, Linux CI and device acceptance remain separate checks.
+## Results
+
+13 scenarios / 241 reached checks pass on the reviewed candidate. The unchanged main completes 13 scenarios with eight failed cases. Six compiled mutations are rejected: redundant startup publication, missing lazy publication, failed hooks marked active, all states marked active, stale retry errors and missing lazy opt-out publication.
+
+For an all-STARTUP catalogue of N enabled entries, attempts fall from N+1 to one. An early lazy installation can add its own report before the terminal report; do not claim exactly one IPC for every possible configuration.
+
+## Tradeoffs and pending acceptance
+
+If initialization exits exceptionally before the terminal call or the terminal transport fails, there may be no startup catalogue from this attempt. No eventual delivery/retry guarantee is introduced. The earlier intermediate snapshots are intentionally removed. Later reinstallation of STARTUP entries is not an established production path in the inspected source; changing that invariant requires revisiting batching.
+
+Official APK ON/OFF measurements demonstrate an injection-associated startup difference only. They do not measure a candidate speedup. Repeat a balanced launch experiment with legitimate matching baseline/candidate APKs, record Displayed and READY separately, count actual provider calls, and test lazy success/failure/opt-out before claiming runtime improvement.
