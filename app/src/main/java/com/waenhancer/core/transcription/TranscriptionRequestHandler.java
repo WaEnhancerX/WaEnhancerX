@@ -176,7 +176,8 @@ public final class TranscriptionRequestHandler {
     }
 
     private static TranscriptionClient.Config configFor(Context context) {
-        String provider = readString(context, "transcription_provider", TranscriptionClient.PROVIDER_GROQ);
+        String provider = normalizeProvider(
+                readString(context, "transcription_provider", TranscriptionClient.PROVIDER_GROQ));
         String language = readString(context, "transcription_language", "");
         TranscriptionClient.Config config;
         switch (provider) {
@@ -198,6 +199,26 @@ public final class TranscriptionRequestHandler {
                         firstNonEmpty(context, "groq_key", "groq_api_key"), "", language);
         }
         return config;
+    }
+
+    /** Accept the older UI-facing "Device" value as the canonical local provider. */
+    private static String normalizeProvider(String value) {
+        if (value == null) return TranscriptionClient.PROVIDER_GROQ;
+        String normalized = value.trim();
+        if ("Device".equalsIgnoreCase(normalized) ||
+                TranscriptionClient.PROVIDER_LOCAL.equalsIgnoreCase(normalized)) {
+            return TranscriptionClient.PROVIDER_LOCAL;
+        }
+        if (TranscriptionClient.PROVIDER_ASSEMBLY.equalsIgnoreCase(normalized)) {
+            return TranscriptionClient.PROVIDER_ASSEMBLY;
+        }
+        if (TranscriptionClient.PROVIDER_CUSTOM.equalsIgnoreCase(normalized)) {
+            return TranscriptionClient.PROVIDER_CUSTOM;
+        }
+        if (TranscriptionClient.PROVIDER_GROQ.equalsIgnoreCase(normalized)) {
+            return TranscriptionClient.PROVIDER_GROQ;
+        }
+        return TranscriptionClient.PROVIDER_GROQ;
     }
 
     /** The chosen on-device model, or the suggested one when none was chosen. */

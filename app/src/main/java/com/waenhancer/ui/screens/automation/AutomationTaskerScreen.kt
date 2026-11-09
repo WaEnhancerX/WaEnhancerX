@@ -176,7 +176,12 @@ fun AutomationTaskerScreen(targetEpoch: Int = 0) {
             }
         }
     }
-    var transcriptionProvider by remember(targetEpoch) { mutableStateOf(preferenceManager.getString("transcription_provider", "Groq")) } // "Groq" | "AssemblyAI" | "Custom"
+    var transcriptionProvider by remember(targetEpoch) {
+        mutableStateOf(
+            preferenceManager.getString("transcription_provider", "Groq")
+                ?.let { if (it.equals("Device", ignoreCase = true)) "Local" else it }
+        )
+    } // "Local" | "Groq" | "AssemblyAI" | "Custom"
     var customUrl by remember(targetEpoch) { mutableStateOf(preferenceManager.getString("custom_transcription_url", "")) }
     var customKey by remember(targetEpoch) { mutableStateOf(preferenceManager.getString("custom_transcription_key", "")) }
     var customModel by remember(targetEpoch) { mutableStateOf(preferenceManager.getString("custom_transcription_model", "")) }
