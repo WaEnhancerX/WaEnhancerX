@@ -416,6 +416,7 @@
     <string name="call_recording_config_title">Call Recording Configuration</string>
     <string name="call_recording_config_desc">Configure audio sources, formats &amp; bitrate</string>
     <string name="requires_pro_label">Requires Pro</string>
+    <string name="requires_setting_enabled">Requires %1$s enabled</string>
     <string name="subtab_automation">Automation</string>
     <string name="subtab_audio_ai">Audio &amp; AI</string>
     <string name="tab_privacy">Privacy</string>

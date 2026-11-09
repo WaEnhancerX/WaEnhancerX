@@ -456,7 +456,7 @@ fun GlobalPrivacySettingsScreen(
                                     .padding(horizontal = 18.dp, vertical = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(
+                            Column(
                                     modifier = Modifier.weight(1f),
                                     verticalArrangement = Arrangement.spacedBy(2.dp)
                                 ) {
@@ -599,7 +599,11 @@ fun GlobalPrivacySettingsScreen(
 
                     Column {
                         group.items.forEachIndexed { index, item ->
-                            val isBlueTickDependent = (item.key == "blueonreply" || item.key == "seentick")
+                            val isBlueTickDependent = (
+                                item.key == "blueonreply" ||
+                                    item.key == "seentick" ||
+                                    item.key == "hideonceseen"
+                                )
                             val isHideReadEnabled = settingsState["hide_read_receipts"] ?: false
                             val isDependencyDisabled = isBlueTickDependent && !isHideReadEnabled
 
@@ -652,17 +656,27 @@ fun GlobalPrivacySettingsScreen(
                                             color = colors.onSurface
                                         )
                                         val reqPro = stringResource(R.string.requires_pro_label)
-                                        val depHint = stringResource(R.string.dep_disabled_hide_blue_ticks)
                                         Text(
-                                            text = when {
-                                                isLocked -> "$locDesc • $reqPro"
-                                                isDependencyDisabled -> "$locDesc\n$depHint"
-                                                else -> locDesc
-                                            },
+                                            text = if (isLocked) "$locDesc • $reqPro" else locDesc,
                                             style = typography.bodyMd,
-                                            color = if (isDependencyDisabled) colors.error.copy(alpha = 0.8f) else colors.onSurfaceVariant,
+                                            color = colors.onSurfaceVariant,
                                             fontSize = 12.sp
                                         )
+                                        if (isDependencyDisabled) {
+                                            val dependencyTitle = LocalizationHelper.getLocalizedFeatureTitle(
+                                                context,
+                                                "hide_read_receipts"
+                                            )
+                                            Text(
+                                                text = stringResource(
+                                                    R.string.requires_setting_enabled,
+                                                    dependencyTitle
+                                                ),
+                                                style = typography.labelSm,
+                                                color = colors.onSurfaceVariant,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
                                     }
                                     StitchSwitch(
                                         checked = if (isItemDisabled && isLocked) false else (settingsState[item.key] ?: false),
