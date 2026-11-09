@@ -4,10 +4,14 @@
 All real template formatting uses java.util.Formatter. This is not Android instrumentation.
 """
 from pathlib import Path
-import tempfile,subprocess,base64,re
+import tempfile,subprocess,base64,re,os,shutil
 from localization_support import entries,write_r
 ROOT=Path(__file__).resolve().parents[1];SRC=ROOT/'app/src/main/java/com/waenhancer/utils'
 DOUBLES={
+'androidx/annotation/NonNull.java':'''package androidx.annotation;
+@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS)
+@java.lang.annotation.Target({java.lang.annotation.ElementType.METHOD, java.lang.annotation.ElementType.PARAMETER, java.lang.annotation.ElementType.FIELD})
+public @interface NonNull {}''',
 'android/os/LocaleList.java':'''package android.os; public class LocaleList { private final java.util.Locale[] v; public LocaleList(java.util.Locale... v){this.v=v;} public java.util.Locale get(int i){return v[i];} }''',
 'android/os/Build.java':'''package android.os; public class Build {public static class VERSION {public static int SDK_INT=34;} public static class VERSION_CODES {public static final int N=24;} }''',
 'android/content/SharedPreferences.java':'''package android.content; public interface SharedPreferences {String getString(String k,String v); Editor edit(); interface Editor {Editor putString(String k,String v); void apply();} }''',
@@ -113,6 +117,11 @@ fun main() {
  println("PASS: 7 production Kotlin picker/migration/wrapped-context checks with Android doubles")
 }
 '''
+def cli_tool(name):
+    candidate=shutil.which(name+('.bat' if os.name=='nt' else ''))
+    if candidate is None: raise RuntimeError(f'Required compiler/runtime not in PATH: {name}')
+    return candidate
+
 with tempfile.TemporaryDirectory(prefix='waex_es419_') as temp:
     tmp=Path(temp);sources=[]
     for path,code in DOUBLES.items():
@@ -128,5 +137,11 @@ with tempfile.TemporaryDirectory(prefix='waex_es419_') as temp:
     subprocess.run(['javac','--release','17','-encoding','UTF-8','-d',str(classes),*map(str,sources)],check=True,timeout=90)
     subprocess.run(['java','-Dfile.encoding=UTF-8','-cp',str(classes),'qa.TestEs419Runtime',str(fixture)],check=True,timeout=45)
     kt=tmp/'TestLocale.kt';kt.write_text(KOTLIN)
-    subprocess.run(['kotlinc','-cp',str(classes),str(SRC/'LocaleHelper.kt'),str(kt),'-d',str(tmp/'test.jar')],check=True,timeout=90)
-    subprocess.run(['kotlin','-cp',str(classes)+':'+str(tmp/'test.jar'),'TestLocaleKt'],check=True,timeout=45)
+    subprocess.run([cli_tool('kotlinc'),'-cp',str(classes),str(SRC/'LocaleHelper.kt'),str(kt),'-d',str(tmp/'test.jar')],check=True,timeout=90)
+    # Execute the compiled Kotlin fixture with Java's platform classpath;
+    # the Kotlin CLI wrapper can drop a classpath entry on Windows.
+    kotlin_lib=Path(cli_tool('kotlinc')).resolve().parent.parent/'lib'
+    stdlib=kotlin_lib/'kotlin-stdlib.jar'
+    if not stdlib.is_file(): raise RuntimeError(f'Kotlin stdlib missing: {stdlib}')
+    runtime_cp=os.pathsep.join(map(str,[classes,tmp/'test.jar',stdlib]))
+    subprocess.run(['java','-Dfile.encoding=UTF-8','-cp',runtime_cp,'TestLocaleKt'],check=True,timeout=45)

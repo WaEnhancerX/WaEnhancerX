@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Negative controls for localization; preserve original sources and require assertion failures."""
 from pathlib import Path
-import argparse,tempfile,shutil,subprocess,json
+import argparse,tempfile,shutil,subprocess,json,sys
+from localization_support import stage_string_resources
 ROOT=Path(__file__).resolve().parents[1]
 parser=argparse.ArgumentParser();parser.add_argument('--out',type=Path,required=True);args=parser.parse_args();args.out.mkdir(parents=True,exist_ok=True)
 CASES=[
@@ -16,12 +17,10 @@ with tempfile.TemporaryDirectory(prefix='waex_l10n_mutants_') as temp:
  for name,file,before,after,test,expected in CASES:
   r=base/name;(r/'app/src/main').mkdir(parents=True);(r/'qa').mkdir()
   shutil.copytree(ROOT/'app/src/main/java',r/'app/src/main/java')
-  for folder in ['values','values-es','values-b+es+419']:
-   out=r/'app/src/main/res'/folder;out.mkdir(parents=True)
-   for n in ['strings.xml','ui_strings.xml']:shutil.copy2(ROOT/'app/src/main/res'/folder/n,out/n)
+  stage_string_resources(ROOT, r/'app/src/main/res', {})
   for n in ['localization_support.py','test_es419_runtime.py']:shutil.copy2(ROOT/'qa'/n,r/'qa'/n)
   target=r/'app/src/main/java/com/waenhancer/utils'/file;code=target.read_text();assert before in code,(name,'inert');target.write_text(code.replace(before,after))
-  p=subprocess.run(['python3',str(r/'qa'/test)],cwd=r,capture_output=True,text=True,timeout=150)
+  p=subprocess.run([sys.executable,str(r/'qa'/test)],cwd=r,capture_output=True,text=True,timeout=150)
   output=p.stdout+p.stderr;(args.out/(name+'.log')).write_text(output)
   compiled=('AssertionError: '+expected) in output
   results.append({'case':name,'exit':p.returncode,'compiled_then_assertion_failure':compiled})
