@@ -2,6 +2,7 @@ package com.waenhancer.utils
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
+import com.waenhancer.config.PreferenceStores
 import com.waenhancer.xposed.utils.AppRestartHelper
 import java.io.File
 
@@ -21,13 +22,34 @@ object LsposedScopeReader {
     private const val DB = "/data/adb/lspd/config/modules_config.db"
     private const val CACHE = "waex_lsposed_scope.db"
     private const val MODULE = "com.waenhancer"
+    private const val PREF_KEY_CACHED_SCOPE = "cached_lsposed_scope"
     private val packageToken = Regex("\\b[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z0-9_]+)+\\b")
 
     @Volatile
     private var lastSnapshot: LsposedScopeSnapshot? = null
 
-    fun cached(): LsposedScopeSnapshot? = lastSnapshot
+    fun cached(context: Context? = null): LsposedScopeSnapshot? {
+        if (lastSnapshot != null) return lastSnapshot
+        if (context != null) {
+            runCatching {
+                val prefs = PreferenceStores.publicStore(context)
+                val saved = prefs.getStringSet(PREF_KEY_CACHED_SCOPE, null)
+                if (!saved.isNullOrEmpty()) {
+                    val snapshot = LsposedScopeSnapshot(
+                        modulePackage = MODULE,
+                        packages = saved,
+                        frameworkReachable = true,
+                        source = LsposedScopeSnapshot.Source.DATABASE
+                    )
+                    lastSnapshot = snapshot
+                    return snapshot
+                }
+            }
+        }
+        return lastSnapshot
+    }
 
+    @Synchronized
     fun read(context: Context): LsposedScopeSnapshot {
         val declared = DeclaredWhatsAppTargets.packages()
         val copy = File(context.cacheDir, CACHE)
@@ -40,8 +62,14 @@ object LsposedScopeReader {
             "echo WAEX_LSPOSED_DB_OK; else echo WAEX_LSPOSED_DB_MISSING; fi"
         val rootResult = runCatching { AppRestartHelper.runRootCommand(command).orEmpty() }.getOrDefault("")
         if (!rootResult.contains("WAEX_LSPOSED_DB_OK") || !copy.exists()) {
-            return (lastSnapshot ?: LsposedScopeSnapshot(MODULE, emptySet(), false, LsposedScopeSnapshot.Source.UNAVAILABLE,
-                "LSPosed scope database unavailable")).also { if (lastSnapshot == null) lastSnapshot = it }
+            val fallback = cached(context) ?: LsposedScopeSnapshot(
+                MODULE,
+                emptySet(),
+                false,
+                LsposedScopeSnapshot.Source.UNAVAILABLE,
+                "LSPosed scope database unavailable"
+            )
+            return fallback.also { if (lastSnapshot == null) lastSnapshot = it }
         }
         return try {
             val packages = LinkedHashSet<String>()
@@ -83,12 +111,25 @@ object LsposedScopeReader {
                     }
                 }
             }
+            if (packages.isNotEmpty()) {
+                runCatching {
+                    PreferenceStores.publicStore(context).edit()
+                        .putStringSet(PREF_KEY_CACHED_SCOPE, packages)
+                        .apply()
+                }
+            }
             LsposedScopeSnapshot(MODULE, packages, true, LsposedScopeSnapshot.Source.DATABASE).also {
                 lastSnapshot = it
             }
         } catch (e: Throwable) {
-            (lastSnapshot ?: LsposedScopeSnapshot(MODULE, emptySet(), true, LsposedScopeSnapshot.Source.UNAVAILABLE,
-                "Could not parse LSPosed scope: ${e.javaClass.simpleName}")).also {
+            val fallback = cached(context) ?: LsposedScopeSnapshot(
+                MODULE,
+                emptySet(),
+                true,
+                LsposedScopeSnapshot.Source.UNAVAILABLE,
+                "Could not parse LSPosed scope: ${e.javaClass.simpleName}"
+            )
+            fallback.also {
                 if (lastSnapshot == null) lastSnapshot = it
             }
         } finally {

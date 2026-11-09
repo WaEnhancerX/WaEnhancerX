@@ -105,10 +105,12 @@ import com.waenhancer.utils.WhatsAppPackageDetector
 import com.waenhancer.utils.XposedRuntimeInspector
 import com.waenhancer.utils.LsposedScopeReader
 import com.waenhancer.utils.LsposedScopeSnapshot
+import com.waenhancer.utils.TargetAppManager
 import com.waenhancer.utils.TargetRuntimePresentation
 import com.waenhancer.ui.components.rememberRuntimeObservationClock
 import com.waenhancer.xposed.utils.AppRestartHelper
 import com.waenhancer.xposed.utils.ModuleStatus
+import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -165,10 +167,11 @@ fun MainDashboardScreen(
     }
 
     var diagnosticsRefreshTrigger by remember { mutableIntStateOf(0) }
-    var runtimeSnapshot by remember {
-        mutableStateOf(XposedRuntimeInspector.cached())
-    }
-    var scopeSnapshot by remember { mutableStateOf<LsposedScopeSnapshot?>(LsposedScopeReader.cached()) }
+    val scopeSnapshot by TargetAppManager.scopeSnapshot.collectAsState()
+    val runtimeSnapshot by TargetAppManager.runtimeSnapshot.collectAsState()
+    val reportedApps by TargetAppManager.detectedApps.collectAsState()
+    val refreshEpoch by TargetAppManager.refreshEpoch.collectAsState()
+
     var systemDiagnostics by remember {
         mutableStateOf(SystemDiagnosticsReader.getOrFastSnapshot(context, isModuleActive))
     }
@@ -187,24 +190,8 @@ fun MainDashboardScreen(
         systemDiagnostics = withContext(Dispatchers.IO) { SystemDiagnosticsReader.read(context, isModuleActive) }
     }
 
-    LaunchedEffect(refreshTrigger) {
-        val liveScope = withContext(Dispatchers.IO) { LsposedScopeReader.read(context) }
-        scopeSnapshot = liveScope
-        val packages = withContext(Dispatchers.IO) {
-            WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot, liveScope)
-                .filter { it.isInstalled }.map { it.packageName }
-        }
-        val refreshed = withContext(Dispatchers.IO) {
-            XposedRuntimeInspector.inspect(packages)
-        }
-        runtimeSnapshot = refreshed
-    }
-
-    LaunchedEffect(hmaRefreshTrigger, scopeSnapshot) {
-        val targets = withContext(Dispatchers.IO) {
-            WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot, scopeSnapshot)
-                .filter { it.isInstalled }.map { it.packageName }
-        }
+    LaunchedEffect(hmaRefreshTrigger, scopeSnapshot, refreshEpoch) {
+        val targets = reportedApps.filter { it.isInstalled }.map { it.packageName }
         val report = HmaDiagnostics.checkHmaStatus(
             context = context,
             targetPackages = targets,
@@ -214,11 +201,8 @@ fun MainDashboardScreen(
         hmaStatus = report
     }
 
-    LaunchedEffect(denylistRefreshTrigger, scopeSnapshot) {
-        val targets = withContext(Dispatchers.IO) {
-            WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot, scopeSnapshot)
-                .filter { it.isInstalled }.map { it.packageName }
-        }
+    LaunchedEffect(denylistRefreshTrigger, scopeSnapshot, refreshEpoch) {
+        val targets = reportedApps.filter { it.isInstalled }.map { it.packageName }
         val report = MagiskDenylistDiagnostics.checkDenylistStatus(
             context = context,
             targetPackages = targets,
@@ -228,47 +212,28 @@ fun MainDashboardScreen(
         denylistStatus = report
     }
 
-    // Re-check target apps on resume and whenever target app sends active broadcast
+    // Re-check target apps and diagnostics on resume
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 refreshTrigger++
+                diagnosticsRefreshTrigger++
+                TargetAppManager.refresh(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(c: Context?, intent: Intent?) {
-                refreshTrigger++
-                denylistRefreshTrigger++
-            }
-        }
-        val filter = IntentFilter("com.waenhancer.ACTION_TARGET_APP_ACTIVE")
-        if (Build.VERSION.SDK_INT >= 33) {
-            context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
-        } else {
-            context.registerReceiver(receiver, filter)
-        }
-
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-            try {
-                context.unregisterReceiver(receiver)
-            } catch (_: Throwable) {}
         }
     }
 
-    // Dynamic WhatsApp Packages & Clones Detector
-    val reportedApps = remember(refreshTrigger, runtimeSnapshot, scopeSnapshot) {
-        WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot, scopeSnapshot)
-    }
     val observationTime = rememberRuntimeObservationClock()
     val detectedApps = reportedApps.map {
         TargetRuntimePresentation.asOf(it, observationTime.wall, observationTime.elapsed)
     }
     val prefs = remember(context) { PreferenceStores.publicStore(context) }
-    val versionDecisions = remember(reportedApps, refreshTrigger) {
+    val versionDecisions = remember(reportedApps, refreshTrigger, refreshEpoch) {
         reportedApps.associate { it.packageName to UniversalVersionValidator.evaluate(context, it.versionName, prefs) }
     }
     val targetSummary = TargetRuntimePresentation.summarize(detectedApps, versionDecisions)
@@ -609,6 +574,7 @@ fun MainDashboardScreen(
                     diagnosticsRefreshTrigger++
                     hmaRefreshTrigger++
                     denylistRefreshTrigger++
+                    TargetAppManager.refresh(context, force = true)
                 },
                 onViewDetails = { navController.navigateTo(Screen.SystemHealth) },
                 onViewSupportedVersions = { navController.navigateTo(Screen.SupportedVersions) },

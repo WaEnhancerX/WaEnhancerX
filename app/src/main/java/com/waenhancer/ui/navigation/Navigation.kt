@@ -74,11 +74,13 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.waenhancer.utils.WhatsAppPackageDetector
 import com.waenhancer.utils.LsposedScopeReader
+import com.waenhancer.utils.TargetAppManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.rememberCoroutineScope
@@ -412,12 +414,15 @@ fun MainContainerScreen() {
         val icon: androidx.compose.ui.graphics.ImageBitmap?
     )
 
-    var resumeTrigger by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        TargetAppManager.init(context)
+    }
+
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                resumeTrigger++
+                TargetAppManager.refresh(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -426,17 +431,7 @@ fun MainContainerScreen() {
         }
     }
 
-    var scopedPackages by remember { mutableStateOf<Set<String>>(emptySet()) }
-    LaunchedEffect(resumeTrigger) {
-        withContext(Dispatchers.IO) {
-            val liveScope = LsposedScopeReader.read(context)
-            val detected = WhatsAppPackageDetector.detectWhatsAppApps(context, null, liveScope)
-            val scoped = detected.filter { it.isInstalled && it.inLsposedScope }.map { it.packageName }.toSet()
-            withContext(Dispatchers.Main) {
-                scopedPackages = scoped
-            }
-        }
-    }
+    val scopedPackages by TargetAppManager.scopedPackages.collectAsState()
 
     val visibleTargetApps = remember(scopedPackages) {
         val pm = context.packageManager
