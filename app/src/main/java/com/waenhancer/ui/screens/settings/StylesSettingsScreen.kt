@@ -670,8 +670,8 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
             choices = listOf(
                 "HH:mm a" to "HH:mm a (default)",
                 "HH:mm:ss" to "HH:mm:ss",
-                "HH:mm:ss.SSS" to "HH:mm:ss.SSS",
                 "h:mm:ss a" to "h:mm:ss a",
+                "HH:mm:ss.SSS" to "HH:mm:ss.SSS",
                 "h:mm:ss.SSS a" to "h:mm:ss.SSS a",
                 "Custom Pattern" to "Custom Pattern"
             ),
