@@ -260,6 +260,13 @@ Thanks go to these wonderful people ([emoji key](https://allcontributors.org/doc
       </a><br />
       <a href="https://github.com/WaEnhancerX/WaEnhancerX/pull/58" title="Translation">🌍</a>
     </td>
+    <td align="center" valign="top" width="180">
+      <a href="https://github.com/Tttim0o">
+        <img src="https://avatars.githubusercontent.com/u/180036827?v=4" width="100px" alt="Tttim0o" /><br />
+        <sub><b>Tttim0o</b></sub>
+      </a><br />
+      <a href="https://github.com/WaEnhancerX/WaEnhancerX/commits?author=Tttim0o" title="Code">💻</a>
+    </td>
   </tr>
 </table>
 
