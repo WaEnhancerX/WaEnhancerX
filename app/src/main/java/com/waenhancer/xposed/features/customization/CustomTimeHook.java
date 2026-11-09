@@ -31,7 +31,7 @@ public class CustomTimeHook extends BaseFeature {
     @NonNull
     @Override
     public String getName() {
-        return "Seconds on Timestamp";
+        return "Custom Timestamp";
     }
 
     @NonNull
@@ -47,17 +47,12 @@ public class CustomTimeHook extends BaseFeature {
             return;
         }
 
-        boolean ampm = prefs.getBoolean("ampm", false);
-        String pattern = ampm ? "hh:mm:ss a" : "HH:mm:ss";
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern(pattern, Locale.US)
-                .withZone(ZoneId.systemDefault());
-
         DexSearchEngine engine = DexSearchEngine.getInstance();
         engine.initialize(context);
 
         try {
             Method timeMethod = engine.findMethodWithCache(
-                    context, classLoader, "wpp_time_to_seconds_method",
+                    context, classLoader, "waex_time_to_seconds_method",
                     (bridge, loader) -> {
                         MethodData md = bridge.findMethod(FindMethod.create()
                                 .matcher(MethodMatcher.create()
@@ -73,12 +68,49 @@ public class CustomTimeHook extends BaseFeature {
 
             if (timeMethod != null) {
                 XposedBridge.hookMethod(timeMethod, new XC_MethodHook() {
+                    private String cachedPattern = null;
+                    private DateTimeFormatter cachedFormatter = null;
+
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) {
                         if (param.args != null && param.args.length > 1 && param.args[1] instanceof Calendar) {
                             Calendar calendar = (Calendar) param.args[1];
-                            String formatted = formatter.format(Instant.ofEpochMilli(calendar.getTimeInMillis()));
-                            param.setResult(formatted);
+                            String formatChoice = prefs.getString("timestamp_format", "HH:mm a");
+                            String pattern;
+                            if ("Custom Pattern".equals(formatChoice)) {
+                                pattern = prefs.getString("timestamp_custom_pattern", "HH:mm a");
+                                if (pattern == null || pattern.trim().isEmpty()) {
+                                    pattern = "HH:mm a";
+                                }
+                            } else {
+                                pattern = formatChoice != null && !formatChoice.trim().isEmpty() ? formatChoice : "HH:mm a";
+                            }
+
+                            DateTimeFormatter formatter = cachedFormatter;
+                            if (formatter == null || !pattern.equals(cachedPattern)) {
+                                try {
+                                    formatter = DateTimeFormatter.ofPattern(pattern, Locale.getDefault())
+                                            .withZone(ZoneId.systemDefault());
+                                } catch (Throwable t) {
+                                    formatter = DateTimeFormatter.ofPattern("HH:mm a", Locale.getDefault())
+                                            .withZone(ZoneId.systemDefault());
+                                }
+                                cachedPattern = pattern;
+                                cachedFormatter = formatter;
+                            }
+
+                            String timeStr = formatter.format(Instant.ofEpochMilli(calendar.getTimeInMillis()));
+                            String template = prefs.getString("timestamp_custom_text", "${t}");
+                            if (template == null || template.isEmpty()) {
+                                template = "${t}";
+                            }
+                            String result;
+                            if (template.contains("${t}")) {
+                                result = template.replace("${t}", timeStr);
+                            } else {
+                                result = template;
+                            }
+                            param.setResult(result);
                         }
                     }
                 });

@@ -7,15 +7,19 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.MediaPlayer
+import android.media.MediaMetadataRetriever
 import android.os.Build
 import android.os.Environment
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -35,21 +39,33 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.Slider
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.CallMade
+import androidx.compose.material.icons.automirrored.rounded.CallReceived
+import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -60,8 +76,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -69,7 +87,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toBitmap
+import com.waenhancer.calls.CallRecordingStore
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.rememberModalBottomSheetState
+import com.waenhancer.ui.components.WaexModalBottomSheet
 import com.waenhancer.ui.components.RequestRuntimePermissionOnUse
+import com.waenhancer.ui.components.WaexConfirmationBottomSheet
+import com.waenhancer.ui.components.WaexSearchBar
 import com.waenhancer.ui.components.StitchSwitch
 import com.waenhancer.ui.components.WaexTopBar
 import com.waenhancer.ui.designsystem.WaexIcons
@@ -78,6 +103,7 @@ import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
 import java.io.File
 import java.text.DateFormat
 import java.text.SimpleDateFormat
@@ -94,9 +120,14 @@ data class RecordedCallItem(
     val name: String,
     val dateStr: String,
     val sizeStr: String,
-    val durationStr: String
+    val durationStr: String,
+    val contactName: String,
+    val contactJid: String?,
+    val direction: String,
+    val targetPackage: String
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CallsHubScreen() {
     val navController = LocalWaexNavController.current
@@ -124,26 +155,55 @@ fun CallsHubScreen() {
     // Call Blocker & Privacy State
     var callPrivacyMode by remember {
         val raw = try {
+            prefManager.getString("call_privacy", "1")
+        } catch (_: Throwable) {
+            "1"
+        }
+        val sanitized = if (raw == "true") "1" else if (raw == "false") "1" else (raw ?: "1")
+        mutableStateOf(if (sanitized == "0" || sanitized == "3" || sanitized == "4") "1" else sanitized)
+    }
+    var callPrivacyEnabled by remember(prefManager.targetEpoch) {
+        val enabledPref = prefManager.getBoolean("call_privacy_enabled", false)
+        val rawMode = try { prefManager.getString("call_privacy", "0") } catch (_: Throwable) { "0" }
+        mutableStateOf(enabledPref || (rawMode != null && rawMode != "0"))
+    }
+    LaunchedEffect(Unit) {
+        val raw = try {
             prefManager.getString("call_privacy", "0")
         } catch (_: Throwable) {
             "0"
         }
-        mutableStateOf(if (raw == "true") "1" else if (raw == "false") "0" else (raw ?: "0"))
+        val isEnabled = prefManager.getBoolean("call_privacy_enabled", false) || (raw != "0" && raw != null)
+        prefManager.putBoolean("call_privacy_enabled", isEnabled)
+        if (raw == "0" || raw == "3" || raw == "4") {
+            prefManager.putString("call_privacy", "1")
+        }
     }
-    var callRejectType by remember { mutableStateOf(prefManager.getString("call_type", "no_internet") ?: "no_internet") }
-    var callInfoEnabled by remember { mutableStateOf(prefManager.getBoolean("call_info", false)) }
+    var callRejectType by remember(prefManager.targetEpoch) { mutableStateOf(prefManager.getString("call_type", "no_internet") ?: "no_internet") }
+    var callInfoEnabled by remember(prefManager.targetEpoch) { mutableStateOf(prefManager.getBoolean("call_info", false)) }
+    var callBlockNotifications by remember(prefManager.targetEpoch) { mutableStateOf(prefManager.getBoolean("call_block_notification_enabled", true)) }
+
+    var showWhoCanCallSheet by remember { mutableStateOf(false) }
+    var showRejectionTypeSheet by remember { mutableStateOf(false) }
 
     // Call Recording State
-    var callRecordingEnabled by remember { mutableStateOf(prefManager.getBoolean("call_recording_enabled", false)) }
-    var preferCallAudio by remember { mutableStateOf(prefManager.getBoolean("call_recording_use_root", false)) }
-    var audioFormat by remember { mutableStateOf(prefManager.getString("call_recording_format", "m4a") ?: "m4a") }
+    var callRecordingEnabled by remember(prefManager.targetEpoch) { mutableStateOf(prefManager.getBoolean("call_recording_enabled", false)) }
+    var preferCallAudio by remember(prefManager.targetEpoch) { mutableStateOf(prefManager.getBoolean("call_recording_use_root", false)) }
+    var audioFormat by remember(prefManager.targetEpoch) { mutableStateOf(prefManager.getString("call_recording_format", "m4a") ?: "m4a") }
 
     // Recordings list state
     val recordingsList = remember { mutableStateListOf<RecordedCallItem>() }
     var isLoadingRecordings by remember { mutableStateOf(false) }
     var currentlyPlayingPath by remember { mutableStateOf<String?>(null) }
+    var expandedRecordingPath by remember { mutableStateOf<String?>(null) }
+    var isAudioPlaying by remember { mutableStateOf(false) }
+    var playbackPosition by remember { mutableStateOf(0) }
+    var playbackDuration by remember { mutableStateOf(0) }
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
     var selectedRecordingPaths by remember { mutableStateOf(emptySet<String>()) }
+    var recordingsPendingDelete by remember { mutableStateOf<List<RecordedCallItem>>(emptyList()) }
+    var recordingSearchQuery by remember { mutableStateOf("") }
+    var recordingAppFilter by remember { mutableStateOf("all") }
 
     fun stopAudio() {
         try {
@@ -152,6 +212,9 @@ fun CallsHubScreen() {
         } catch (_: Throwable) {}
         mediaPlayer = null
         currentlyPlayingPath = null
+        isAudioPlaying = false
+        playbackPosition = 0
+        playbackDuration = 0
     }
 
     fun clearRecordingSelection() {
@@ -180,21 +243,25 @@ fun CallsHubScreen() {
             }.apply {
                 type = "audio/*"
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                clipData = ClipData.newRawUri(UiText.get(R.string.waex_ui_call_recording_bb8d55c9, "Call recording"), uris.first())
+                clipData = ClipData.newRawUri(UiText.get(R.string.waex_ui_call_recording, "Call recording"), uris.first())
             }
-            context.startActivity(Intent.createChooser(intent, UiText.get(R.string.waex_ui_share_call_recording_692216ae, "Share call recording")))
+            context.startActivity(Intent.createChooser(intent, UiText.get(R.string.waex_ui_share_call_recording, "Share call recording")))
             clearRecordingSelection()
         }.onFailure {
-            Toast.makeText(context, UiText.get(R.string.waex_ui_couldn_t_share_the_selected_recording_d260dfd9, "Couldn't share the selected recording"), Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, UiText.get(R.string.waex_ui_couldn_t_share_the_selected_recording, "Couldn't share the selected recording"), Toast.LENGTH_SHORT).show()
         }
     }
 
-    fun deleteSelectedRecordings() {
-        val selected = recordingsList.filter { it.file.absolutePath in selectedRecordingPaths }
-        if (currentlyPlayingPath in selectedRecordingPaths) stopAudio()
-        val removed = selected.filter { runCatching { it.file.delete() }.getOrDefault(false) }
+    fun deleteRecordings(selected: List<RecordedCallItem>) {
+        val selectedPaths = selected.mapTo(mutableSetOf()) { it.file.absolutePath }
+        if (currentlyPlayingPath?.let { it in selectedPaths } == true) stopAudio()
+        val store = CallRecordingStore.get(context)
+        val removed = selected.filter { item ->
+            runCatching { item.file.delete() }.getOrDefault(false).also { if (it) store.deleteByPath(item.file.absolutePath) }
+        }
         recordingsList.removeAll(removed.toSet())
         clearRecordingSelection()
+        recordingsPendingDelete = emptyList()
         Toast.makeText(context, UiText.quantity(R.plurals.waex_recordings_deleted, removed.size, "Deleted %d recording(s)", removed.size), Toast.LENGTH_SHORT).show()
     }
 
@@ -216,6 +283,7 @@ fun CallsHubScreen() {
             File(context.filesDir, "call_recordings")
         )
 
+        val metadata = CallRecordingStore.get(context).all().associateBy { it.recordingPath }
         val foundFiles = mutableListOf<File>()
         for (dir in searchDirs) {
             if (dir.exists() && dir.isDirectory) {
@@ -228,12 +296,14 @@ fun CallsHubScreen() {
         }
 
         foundFiles.sortByDescending { it.lastModified() }
-        val dateFormat = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT, UiText.displayLocale())
+        val dateFormat = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, UiText.displayLocale())
 
         for (file in foundFiles) {
             val sizeKb = file.length() / 1024
             val sizeStr = if (sizeKb > 1024) String.format(Locale.getDefault(), "%.1f MB", sizeKb / 1024f) else "$sizeKb KB"
-            val dateStr = dateFormat.format(Date(file.lastModified()))
+            val record = metadata[file.absolutePath]
+            val dateStr = dateFormat.format(Date(record?.startedAt ?: file.lastModified()))
+            val durationStr = formatPlaybackTime(readAudioDuration(file))
 
             recordingsList.add(
                 RecordedCallItem(
@@ -241,7 +311,11 @@ fun CallsHubScreen() {
                     name = file.nameWithoutExtension,
                     dateStr = dateStr,
                     sizeStr = sizeStr,
-                    durationStr = UiText.get(R.string.waex_ui_audio_call_edd60bff, "Audio Call")
+                    durationStr = durationStr,
+                    contactName = record?.contactName ?: file.nameWithoutExtension,
+                    contactJid = record?.contactJid,
+                    direction = record?.direction ?: "unknown",
+                    targetPackage = record?.targetPackage ?: "unknown"
                 )
             )
         }
@@ -256,10 +330,44 @@ fun CallsHubScreen() {
         }
     }
 
+    LaunchedEffect(currentlyPlayingPath, isAudioPlaying) {
+        while (currentlyPlayingPath != null) {
+            val player = mediaPlayer
+            if (player != null) {
+                playbackPosition = runCatching { player.currentPosition }.getOrDefault(0)
+                playbackDuration = runCatching { player.duration }.getOrDefault(0)
+                isAudioPlaying = runCatching { player.isPlaying }.getOrDefault(false)
+            }
+            delay(250)
+        }
+    }
+
+    val visibleRecordings = recordingsList.filter { item ->
+        val matchesApp = recordingAppFilter == "all" || item.targetPackage == recordingAppFilter
+        val matchesName = recordingSearchQuery.isBlank() ||
+            item.contactName.contains(recordingSearchQuery.trim(), ignoreCase = true)
+        matchesApp && matchesName
+    }
+    val recordingAppFilters = recordingsList
+        .map { it.targetPackage }
+        .filter { it.isNotBlank() && it != "unknown" }
+        .distinct()
+        .map { packageName ->
+            val installedName = runCatching {
+                val pm = context.packageManager
+                val launchIntent = pm.getLaunchIntentForPackage(packageName)
+                val activityInfo = launchIntent?.resolveActivityInfo(pm, 0)
+                activityInfo?.loadLabel(pm)?.toString()?.takeIf { it.isNotBlank() }
+                    ?: pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()
+            }.getOrNull()?.takeIf { it.isNotBlank() } ?: packageName
+            packageName to installedName
+        }
+        .sortedBy { it.second.lowercase(Locale.getDefault()) }
+
     Scaffold(
         topBar = {
             WaexTopBar(
-                title = if (selectedRecordingPaths.isEmpty()) UiText.get(R.string.waex_ui_calls_recording_6042880c, "Calls & Recording") else UiText.get(R.string.waex_ui_1_s_selected_5f9d5da8, "%1\$s selected", selectedRecordingPaths.size),
+                title = if (selectedRecordingPaths.isEmpty()) UiText.get(R.string.waex_ui_calls_recording, "Calls & Recording") else UiText.get(R.string.waex_ui_1_s_selected, "%1\$s selected", selectedRecordingPaths.size),
                 onBackClick = if (selectedRecordingPaths.isEmpty()) {
                     { navController.popBack() }
                 } else {
@@ -268,10 +376,14 @@ fun CallsHubScreen() {
                 actions = if (selectedRecordingPaths.isEmpty()) null else {
                     {
                         IconButton(onClick = { shareSelectedRecordings() }) {
-                            Icon(WaexIcons.Share, contentDescription = UiText.get(R.string.waex_ui_share_selected_e3040dd9, "Share selected"), tint = colors.onSurface)
+                            Icon(WaexIcons.Share, contentDescription = UiText.get(R.string.waex_ui_share_selected, "Share selected"), tint = colors.onSurface)
                         }
-                        IconButton(onClick = { deleteSelectedRecordings() }) {
-                            Icon(WaexIcons.Clear, contentDescription = UiText.get(R.string.waex_ui_delete_selected_d2ab5d46, "Delete selected"), tint = colors.error)
+                        IconButton(onClick = {
+                            recordingsPendingDelete = recordingsList.filter {
+                                it.file.absolutePath in selectedRecordingPaths
+                            }
+                        }) {
+                            Icon(Icons.Rounded.Delete, contentDescription = UiText.get(R.string.waex_ui_delete_selected, "Delete selected"), tint = colors.error)
                         }
                     }
                 }
@@ -381,99 +493,66 @@ fun CallsHubScreen() {
                             .padding(bottom = 32.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        // ── SECTION 1: WHO CAN CALL ME ─────────────────────────────────
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(
-                                text = UiText.get(R.string.waex_ui_who_can_call_me_14ebef24, "WHO CAN CALL ME"),
-                                style = typography.labelSm,
-                                fontWeight = FontWeight.Bold,
-                                color = colors.onSurfaceVariant,
-                                modifier = Modifier.padding(start = 4.dp)
-                            )
-
-                            Surface(
-                                shape = radius.bentoCardShape,
-                                color = colors.surfaceDim,
-                                border = BorderStroke(1.dp, colors.outlineVariant),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.fillMaxWidth()) {
-                                    val blockerOptions = listOf(
-                                        "0" to (UiText.get(R.string.waex_ui_everyone_no_block_f8505494, "Everyone (No Block)") to UiText.get(R.string.waex_ui_allow_all_whatsapp_incoming_voice_vide_3f8889bd, "Allow all WhatsApp incoming voice & video calls")),
-                                        "1" to (UiText.get(R.string.waex_ui_block_all_calls_f74be201, "Block All Calls") to UiText.get(R.string.waex_ui_automatically_drop_every_incoming_what_52316223, "Automatically drop every incoming WhatsApp call")),
-                                        "2" to (UiText.get(R.string.waex_ui_unknown_contacts_only_0adb8d96, "Unknown Contacts Only") to UiText.get(R.string.waex_ui_only_allow_numbers_saved_in_your_phone_504e2e53, "Only allow numbers saved in your phone address book"))
-                                    )
-
-                                    blockerOptions.forEachIndexed { index, (value, details) ->
-                                        val isChosen = callPrivacyMode == value
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clickable {
-                                                    callPrivacyMode = value
-                                                    prefManager.putString("call_privacy", value)
-                                                }
-                                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            // Compact Radio Indicator
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(18.dp)
-                                                    .clip(CircleShape)
-                                                    .border(
-                                                        1.5.dp,
-                                                        if (isChosen) colors.primary else colors.outlineVariant,
-                                                        CircleShape
-                                                    ),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                if (isChosen) {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(9.dp)
-                                                            .clip(CircleShape)
-                                                            .background(colors.primary)
-                                                    )
-                                                }
-                                            }
-
-                                            Spacer(modifier = Modifier.width(12.dp))
-
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    text = details.first,
-                                                    style = typography.bodyMd,
-                                                    fontWeight = if (isChosen) FontWeight.SemiBold else FontWeight.Medium,
-                                                    color = if (isChosen) colors.primary else colors.onSurface,
-                                                    fontSize = 13.sp
-                                                )
-                                                Text(
-                                                    text = details.second,
-                                                    style = typography.bodyMd,
-                                                    color = colors.onSurfaceVariant,
-                                                    fontSize = 11.sp
-                                                )
-                                            }
-                                        }
-
-                                        if (index < blockerOptions.size - 1) {
-                                            HorizontalDivider(
-                                                color = colors.outlineVariant.copy(alpha = 0.5f),
-                                                thickness = 1.dp,
-                                                modifier = Modifier.padding(horizontal = 16.dp)
-                                            )
+                        // ── SWITCH TILE: ENABLE CALL BLOCKING ───────────────────────────
+                        Surface(
+                            shape = radius.bentoCardShape,
+                            color = colors.surfaceDim,
+                            border = BorderStroke(1.dp, colors.outlineVariant),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        val next = !callPrivacyEnabled
+                                        callPrivacyEnabled = next
+                                        prefManager.putBoolean("call_privacy_enabled", next)
+                                        if (next && (callPrivacyMode == "0" || callPrivacyMode == "3" || callPrivacyMode == "4")) {
+                                            callPrivacyMode = "1"
+                                            prefManager.putString("call_privacy", "1")
                                         }
                                     }
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = UiText.get(R.string.waex_ui_block_incoming_calls, "Block Incoming Calls"),
+                                        style = typography.bodyLg,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = colors.onSurface
+                                    )
+                                    Text(
+                                        text = UiText.get(R.string.feat_call_privacy_desc, "Block WhatsApp calls based on privacy type"),
+                                        style = typography.bodyMd,
+                                        color = colors.onSurfaceVariant,
+                                        fontSize = 12.sp
+                                    )
                                 }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                StitchSwitch(
+                                    checked = callPrivacyEnabled,
+                                    onCheckedChange = { next ->
+                                        callPrivacyEnabled = next
+                                        prefManager.putBoolean("call_privacy_enabled", next)
+                                        if (next && (callPrivacyMode == "0" || callPrivacyMode == "3" || callPrivacyMode == "4")) {
+                                            callPrivacyMode = "1"
+                                            prefManager.putString("call_privacy", "1")
+                                        }
+                                    }
+                                )
                             }
                         }
 
-                        // ── SECTION 2: REJECTION ACTION SIMULATION ─────────────────────
-                        if (callPrivacyMode != "0") {
+                        // ── CATEGORY: CALL BLOCKING PREFERENCES ─────────────────────────
+                        AnimatedVisibility(
+                            visible = callPrivacyEnabled,
+                            enter = fadeIn() + expandVertically(),
+                            exit = fadeOut() + shrinkVertically()
+                        ) {
                             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(
-                                    text = UiText.get(R.string.waex_ui_call_rejection_appearance_4b21bb01, "CALL REJECTION APPEARANCE"),
+                                    text = "CALL BLOCKING",
                                     style = typography.labelSm,
                                     fontWeight = FontWeight.Bold,
                                     color = colors.onSurfaceVariant,
@@ -487,70 +566,180 @@ fun CallsHubScreen() {
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(modifier = Modifier.fillMaxWidth()) {
-                                        val rejectOptions = listOf(
-                                            "no_internet" to (UiText.get(R.string.waex_ui_no_internet_connection_13a21216, "No Internet Connection") to UiText.get(R.string.waex_ui_caller_sees_calling_without_connection_78bae289, "Caller sees 'Calling...' without connection tone")),
-                                            "busy" to (UiText.get(R.string.waex_ui_user_busy_0ee28857, "User Busy") to UiText.get(R.string.waex_ui_simulates_immediate_line_busy_tone_983e3462, "Simulates immediate line busy tone")),
-                                            "declined" to (UiText.get(R.string.waex_ui_call_declined_f695a2f2, "Call Declined") to UiText.get(R.string.waex_ui_instantly_rejects_and_shows_call_decli_f15c55b2, "Instantly rejects and shows call declined")),
-                                            "uncallable" to (UiText.get(R.string.waex_ui_not_available_2ab64517, "Not Available") to UiText.get(R.string.waex_ui_simulates_caller_not_reachable_fd5240bd, "Simulates caller not reachable"))
+                                        // 1. Who Can Call Me
+                                        val whoCanCallLabel = when (callPrivacyMode) {
+                                            "2" -> UiText.get(R.string.waex_ui_unknown_contacts_only, "Unknown Contacts Only")
+                                            else -> UiText.get(R.string.waex_ui_block_all_calls, "Block All Calls")
+                                        }
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable { showWhoCanCallSheet = true }
+                                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = UiText.get(R.string.waex_ui_who_can_call_me, "Who Can Call Me"),
+                                                    style = typography.bodyLg,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = colors.onSurface
+                                                )
+                                                Text(
+                                                    text = whoCanCallLabel,
+                                                    style = typography.bodyMd,
+                                                    color = colors.primary,
+                                                    fontWeight = FontWeight.Medium,
+                                                    fontSize = 12.sp
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Icon(
+                                                imageVector = WaexIcons.ChevronRight,
+                                                contentDescription = null,
+                                                tint = colors.onSurfaceVariant,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+
+                                        HorizontalDivider(
+                                            color = colors.outlineVariant.copy(alpha = 0.5f),
+                                            thickness = 1.dp,
+                                            modifier = Modifier.padding(horizontal = 16.dp)
                                         )
 
-                                        rejectOptions.forEachIndexed { index, (typeVal, details) ->
-                                            val isChosen = callRejectType == typeVal
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .clickable {
-                                                        callRejectType = typeVal
-                                                        prefManager.putString("call_type", typeVal)
-                                                    }
-                                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(18.dp)
-                                                        .clip(CircleShape)
-                                                        .border(
-                                                            1.5.dp,
-                                                            if (isChosen) colors.primary else colors.outlineVariant,
-                                                            CircleShape
-                                                        ),
-                                                    contentAlignment = Alignment.Center
+                                        // 2. Call Rejection Type
+                                        val rejectionLabel = when (callRejectType) {
+                                            "busy" -> UiText.get(R.string.waex_ui_user_busy, "User Busy")
+                                            "ended" -> UiText.get(R.string.waex_ui_ended, "Not Answered")
+                                            "uncallable" -> UiText.get(R.string.waex_ui_not_available_title, "Not Available")
+                                            else -> UiText.get(R.string.waex_ui_no_internet_connection, "No Internet Connection")
+                                        }
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable { showRejectionTypeSheet = true }
+                                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "Call Rejection Type",
+                                                    style = typography.bodyLg,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = colors.onSurface
+                                                )
+                                                Text(
+                                                    text = rejectionLabel,
+                                                    style = typography.bodyMd,
+                                                    color = colors.primary,
+                                                    fontWeight = FontWeight.Medium,
+                                                    fontSize = 12.sp
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Icon(
+                                                imageVector = WaexIcons.ChevronRight,
+                                                contentDescription = null,
+                                                tint = colors.onSurfaceVariant,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+
+                                        HorizontalDivider(
+                                            color = colors.outlineVariant.copy(alpha = 0.5f),
+                                            thickness = 1.dp,
+                                            modifier = Modifier.padding(horizontal = 16.dp)
+                                        )
+
+                                        // 3. Contact Block List (Disabled)
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .alpha(0.45f)
+                                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically
                                                 ) {
-                                                    if (isChosen) {
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .size(9.dp)
-                                                                .clip(CircleShape)
-                                                                .background(colors.primary)
+                                                    Text(
+                                                        text = "Contact Block List",
+                                                        style = typography.bodyLg,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = colors.onSurface
+                                                    )
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Surface(
+                                                        shape = RoundedCornerShape(4.dp),
+                                                        color = colors.surfaceContainerHighest,
+                                                        border = BorderStroke(0.5.dp, colors.outlineVariant.copy(alpha = 0.5f))
+                                                    ) {
+                                                        Text(
+                                                            text = "Coming Soon",
+                                                            style = typography.labelSm,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = colors.onSurfaceVariant,
+                                                            fontSize = 10.sp,
+                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                                         )
                                                     }
                                                 }
-
-                                                Spacer(modifier = Modifier.width(12.dp))
-
-                                                Column(modifier = Modifier.weight(1f)) {
-                                                    Text(
-                                                        text = details.first,
-                                                        style = typography.bodyMd,
-                                                        fontWeight = if (isChosen) FontWeight.SemiBold else FontWeight.Medium,
-                                                        color = if (isChosen) colors.primary else colors.onSurface,
-                                                        fontSize = 13.sp
-                                                    )
-                                                    Text(
-                                                        text = details.second,
-                                                        style = typography.bodyMd,
-                                                        color = colors.onSurfaceVariant,
-                                                        fontSize = 11.sp
-                                                    )
-                                                }
+                                                Text(
+                                                    text = "Block calls from selected numbers",
+                                                    style = typography.bodyMd,
+                                                    color = colors.onSurfaceVariant,
+                                                    fontSize = 12.sp
+                                                )
                                             }
+                                        }
 
-                                            if (index < rejectOptions.size - 1) {
-                                                HorizontalDivider(
-                                                    color = colors.outlineVariant.copy(alpha = 0.5f),
-                                                    thickness = 1.dp,
-                                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                        HorizontalDivider(
+                                            color = colors.outlineVariant.copy(alpha = 0.5f),
+                                            thickness = 1.dp,
+                                            modifier = Modifier.padding(horizontal = 16.dp)
+                                        )
+
+                                        // 4. Contact Allow List (Disabled)
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .alpha(0.45f)
+                                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        text = "Contact Allow List",
+                                                        style = typography.bodyLg,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = colors.onSurface
+                                                    )
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Surface(
+                                                        shape = RoundedCornerShape(4.dp),
+                                                        color = colors.surfaceContainerHighest,
+                                                        border = BorderStroke(0.5.dp, colors.outlineVariant.copy(alpha = 0.5f))
+                                                    ) {
+                                                        Text(
+                                                            text = "Coming Soon",
+                                                            style = typography.labelSm,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = colors.onSurfaceVariant,
+                                                            fontSize = 10.sp,
+                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                        )
+                                                    }
+                                                }
+                                                Text(
+                                                    text = "Allow calls only from selected numbers",
+                                                    style = typography.bodyMd,
+                                                    color = colors.onSurfaceVariant,
+                                                    fontSize = 12.sp
                                                 )
                                             }
                                         }
@@ -562,7 +751,7 @@ fun CallsHubScreen() {
                         // ── SECTION 3: CALL CONTROLS & DIAGNOSTICS ─────────────────────
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
-                                text = UiText.get(R.string.waex_ui_call_enhancements_2ffe1444, "CALL ENHANCEMENTS"),
+                                text = UiText.get(R.string.waex_ui_call_enhancements, "CALL ENHANCEMENTS"),
                                 style = typography.labelSm,
                                 fontWeight = FontWeight.Bold,
                                 color = colors.onSurfaceVariant,
@@ -585,13 +774,13 @@ fun CallsHubScreen() {
                                     ) {
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
-                                                text = UiText.get(R.string.waex_ui_additional_call_information_c9b77d50, "Additional Call Information"),
+                                                text = UiText.get(R.string.waex_ui_additional_call_information, "Additional Call Information"),
                                                 style = typography.bodyLg,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = colors.onSurface
                                             )
                                             Text(
-                                                text = UiText.get(R.string.waex_ui_receive_detailed_notification_with_cal_e55e211d, "Receive detailed notification with caller IP, location, device & version after calls end"),
+                                                text = UiText.get(R.string.waex_ui_receive_detailed_notification_with_cal, "Receive detailed notification with caller IP, location, device & version after calls end"),
                                                 style = typography.bodyMd,
                                                 color = colors.onSurfaceVariant,
                                                 fontSize = 12.sp
@@ -622,13 +811,13 @@ fun CallsHubScreen() {
                                     ) {
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
-                                                text = UiText.get(R.string.waex_ui_record_whatsapp_calls_edeb6ac1, "Record WhatsApp Calls"),
+                                                text = UiText.get(R.string.waex_ui_record_whatsapp_calls, "Record WhatsApp Calls"),
                                                 style = typography.bodyLg,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = colors.onSurface
                                             )
                                             Text(
-                                                text = UiText.get(R.string.waex_ui_automatically_capture_incoming_outgoin_892737f9, "Automatically capture incoming & outgoing voice calls"),
+                                                text = UiText.get(R.string.waex_ui_automatically_capture_incoming_outgoin, "Automatically capture incoming & outgoing voice calls"),
                                                 style = typography.bodyMd,
                                                 color = colors.onSurfaceVariant,
                                                 fontSize = 12.sp
@@ -651,7 +840,7 @@ fun CallsHubScreen() {
                         if (callRecordingEnabled) {
                             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(
-                                    text = UiText.get(R.string.waex_ui_recording_configuration_40230390, "RECORDING CONFIGURATION"),
+                                    text = UiText.get(R.string.waex_ui_recording_configuration, "RECORDING CONFIGURATION"),
                                     style = typography.labelSm,
                                     fontWeight = FontWeight.Bold,
                                     color = colors.onSurfaceVariant,
@@ -667,7 +856,7 @@ fun CallsHubScreen() {
                                     Column(modifier = Modifier.padding(16.dp)) {
                                         // Capture engine row
                                         Text(
-                                            text = UiText.get(R.string.waex_ui_audio_capture_engine_2219d349, "Audio Capture Engine"),
+                                            text = UiText.get(R.string.waex_ui_audio_capture_engine, "Audio Capture Engine"),
                                             style = typography.bodyMd,
                                             fontWeight = FontWeight.SemiBold,
                                             color = colors.onSurface,
@@ -729,7 +918,7 @@ fun CallsHubScreen() {
 
                                         // Encoding Format Row
                                         Text(
-                                            text = UiText.get(R.string.waex_ui_encoding_format_414693ab, "Encoding Format"),
+                                            text = UiText.get(R.string.waex_ui_encoding_format, "Encoding Format"),
                                             style = typography.bodyMd,
                                             fontWeight = FontWeight.SemiBold,
                                             color = colors.onSurface,
@@ -742,8 +931,8 @@ fun CallsHubScreen() {
                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
                                             listOf(
-                                                "m4a" to UiText.get(R.string.waex_ui_aac_m4a_512c810e, "AAC (.m4a)"),
-                                                "opus" to UiText.get(R.string.waex_ui_opus_opus_f43733be, "Opus (.opus)")
+                                                "m4a" to UiText.get(R.string.waex_ui_aac_m4a, "AAC (.m4a)"),
+                                                "opus" to UiText.get(R.string.waex_ui_opus_opus, "Opus (.opus)")
                                             ).forEach { (formatKey, label) ->
                                                 val active = audioFormat == formatKey
                                                 Box(
@@ -806,14 +995,14 @@ fun CallsHubScreen() {
                             }
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = UiText.get(R.string.waex_ui_no_call_recordings_yet_1a95417c, "No Call Recordings Yet"),
+                                text = UiText.get(R.string.waex_ui_no_call_recordings_yet, "No Call Recordings Yet"),
                                 style = typography.headlineMd,
                                 fontWeight = FontWeight.Bold,
                                 color = colors.onSurface
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = UiText.get(R.string.waex_ui_when_whatsapp_calls_are_placed_or_rece_a10b5a50, "When WhatsApp calls are placed or received with Call Recording enabled, the audio files will appear here automatically."),
+                                text = UiText.get(R.string.waex_ui_when_whatsapp_calls_are_placed_or_rece, "When WhatsApp calls are placed or received with Call Recording enabled, the audio files will appear here automatically."),
                                 style = typography.bodyMd,
                                 color = colors.onSurfaceVariant,
                                 textAlign = TextAlign.Center,
@@ -828,133 +1017,346 @@ fun CallsHubScreen() {
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             item {
-                                Spacer(modifier = Modifier.height(4.dp))
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    WaexSearchBar(
+                                        query = recordingSearchQuery,
+                                        onQueryChange = { recordingSearchQuery = it },
+                                        placeholder = "Search by contact name"
+                                    )
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .horizontalScroll(rememberScrollState()),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        (listOf("all" to "All") + recordingAppFilters).forEach { (packageName, appName) ->
+                                            val selected = recordingAppFilter == packageName
+                                            val count = if (packageName == "all") recordingsList.size else recordingsList.count { it.targetPackage == packageName }
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(20.dp))
+                                                    .background(if (selected) colors.primary.copy(alpha = 0.14f) else colors.surfaceDim)
+                                                    .border(
+                                                        1.dp,
+                                                        if (selected) colors.primary else colors.outlineVariant,
+                                                        RoundedCornerShape(20.dp)
+                                                    )
+                                                    .clickable { recordingAppFilter = packageName }
+                                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = "$appName ($count)",
+                                                    style = typography.bodySm,
+                                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                                    color = if (selected) colors.primary else colors.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
-                            items(recordingsList, key = { it.file.absolutePath }) { item ->
-                                val isPlaying = currentlyPlayingPath == item.file.absolutePath
+                            if (visibleRecordings.isEmpty()) {
+                                item {
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Icon(WaexIcons.Search, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(28.dp))
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        Text("No matching recordings", style = typography.bodyLg, fontWeight = FontWeight.SemiBold, color = colors.onSurface)
+                                        Text("Try another contact name or target app.", style = typography.bodySm, color = colors.onSurfaceVariant)
+                                    }
+                                }
+                            }
+                            items(visibleRecordings, key = { it.file.absolutePath }) { item ->
+                                val isActive = currentlyPlayingPath == item.file.absolutePath
+                                val isExpanded = expandedRecordingPath == item.file.absolutePath
                                 val isSelected = item.file.absolutePath in selectedRecordingPaths
+                                val appIcon = remember(item.targetPackage) {
+                                    runCatching {
+                                        context.packageManager.getApplicationIcon(item.targetPackage)
+                                            .toBitmap(64, 64).asImageBitmap()
+                                    }.getOrNull()
+                                }
+                                fun togglePlayback() {
+                                    if (isActive && isAudioPlaying) {
+                                        mediaPlayer?.pause()
+                                        isAudioPlaying = false
+                                    } else if (isActive) {
+                                        mediaPlayer?.start()
+                                        isAudioPlaying = true
+                                    } else {
+                                        stopAudio()
+                                        try {
+                                            val mp = MediaPlayer().apply {
+                                                setDataSource(item.file.absolutePath)
+                                                prepare()
+                                                setOnCompletionListener { stopAudio() }
+                                                start()
+                                            }
+                                            mediaPlayer = mp
+                                            currentlyPlayingPath = item.file.absolutePath
+                                            playbackDuration = mp.duration
+                                            isAudioPlaying = true
+                                        } catch (e: Exception) {
+                                            Toast.makeText(
+                                                context,
+                                                UiText.get(R.string.waex_ui_playback_error_1_s, "Playback error: %1\$s", e.message),
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                            stopAudio()
+                                        }
+                                    }
+                                }
                                 Surface(
                                     shape = radius.bentoCardShape,
-                                    color = if (isSelected || isPlaying) colors.primary.copy(alpha = 0.08f) else colors.surfaceDim,
+                                    color = if (isSelected || isActive) colors.primary.copy(alpha = 0.08f) else colors.surfaceDim,
                                     border = BorderStroke(
                                         1.dp,
-                                        if (isSelected || isPlaying) colors.primary else colors.outlineVariant
+                                        if (isSelected || isActive) colors.primary else colors.outlineVariant
                                     ),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .combinedClickable(
                                             onClick = {
                                                 if (selectedRecordingPaths.isNotEmpty()) toggleRecordingSelection(item)
+                                                else expandedRecordingPath = if (isExpanded) null else item.file.absolutePath
                                             },
                                             onLongClick = { toggleRecordingSelection(item) }
                                         )
                                 ) {
-                                    Row(
+                                    Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(16.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                            .padding(14.dp)
                                     ) {
-                                        // Play / Pause Action Button
-                                        IconButton(
-                                            onClick = {
-                                                if (isPlaying) {
-                                                    stopAudio()
-                                                } else {
-                                                    stopAudio()
-                                                    try {
-                                                        val mp = MediaPlayer().apply {
-                                                            setDataSource(item.file.absolutePath)
-                                                            prepare()
-                                                            setOnCompletionListener {
-                                                                stopAudio()
-                                                            }
-                                                            start()
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            // Target App Icon with status indicator
+                                            if (appIcon != null) {
+                                                Box(contentAlignment = Alignment.BottomEnd) {
+                                                    Image(
+                                                        bitmap = appIcon,
+                                                        contentDescription = item.targetPackage,
+                                                        modifier = Modifier
+                                                            .size(42.dp)
+                                                            .clip(RoundedCornerShape(10.dp))
+                                                    )
+                                                    // Direction badge anchored on icon
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .offset(x = 4.dp, y = 4.dp)
+                                                            .size(18.dp)
+                                                            .clip(CircleShape)
+                                                            .background(colors.surface)
+                                                            .border(1.dp, colors.outlineVariant, CircleShape),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        val (dirIcon, dirTint) = when (item.direction) {
+                                                            "outgoing" -> Icons.AutoMirrored.Rounded.CallMade to colors.primary
+                                                            "incoming" -> Icons.AutoMirrored.Rounded.CallReceived to colors.primary
+                                                            else -> Icons.Rounded.Call to colors.onSurfaceVariant
                                                         }
-                                                        mediaPlayer = mp
-                                                        currentlyPlayingPath = item.file.absolutePath
-                                                    } catch (e: Exception) {
-                                                        Toast.makeText(context, UiText.get(R.string.waex_ui_playback_error_1_s_158f296a, "Playback error: %1\$s", e.message), Toast.LENGTH_SHORT).show()
-                                                        stopAudio()
+                                                        Icon(
+                                                            imageVector = dirIcon,
+                                                            contentDescription = item.direction,
+                                                            tint = dirTint,
+                                                            modifier = Modifier.size(11.dp)
+                                                        )
                                                     }
                                                 }
-                                            },
-                                            modifier = Modifier
-                                                .size(44.dp)
-                                                .clip(CircleShape)
-                                                .background(if (isPlaying) colors.primary else colors.primary.copy(alpha = 0.12f))
-                                        ) {
-                                            Icon(
-                                                imageVector = if (isPlaying) WaexIcons.Clear else WaexIcons.Play,
-                                                contentDescription = if (isPlaying) UiText.get(R.string.waex_ui_stop_cae7d57b, "Stop") else UiText.get(R.string.waex_ui_play_436e6101, "Play"),
-                                                tint = if (isPlaying) Color.White else colors.primary,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                        }
+                                                Spacer(modifier = Modifier.width(14.dp))
+                                            }
 
-                                        Spacer(modifier = Modifier.width(14.dp))
-
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = item.name,
-                                                style = typography.bodyLg,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = colors.onSurface,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                            Spacer(modifier = Modifier.height(2.dp))
-                                            Row(
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                verticalAlignment = Alignment.CenterVertically
+                                            // Center Info Column
+                                            Column(
+                                                modifier = Modifier.weight(1f),
+                                                verticalArrangement = Arrangement.spacedBy(3.dp)
                                             ) {
+                                                // Contact Name (Bold, clean hierarchy)
                                                 Text(
-                                                    text = item.dateStr,
-                                                    style = typography.bodyMd,
+                                                    text = item.contactName,
+                                                    style = typography.bodyLg,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = colors.onSurface,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+
+                                                // App Name + Call Direction Text
+                                                val appTitle = remember(item.targetPackage) {
+                                                    runCatching {
+                                                        val pm = context.packageManager
+                                                        val launchIntent = pm.getLaunchIntentForPackage(item.targetPackage)
+                                                        val activityInfo = launchIntent?.resolveActivityInfo(pm, 0)
+                                                        activityInfo?.loadLabel(pm)?.toString()?.takeIf { it.isNotBlank() }
+                                                            ?: pm.getApplicationLabel(pm.getApplicationInfo(item.targetPackage, 0)).toString()
+                                                    }.getOrNull()?.takeIf { it.isNotBlank() } ?: if (item.targetPackage == "com.whatsapp.w4b") "WA Business" else "WhatsApp"
+                                                }
+                                                val directionTitle = when (item.direction) {
+                                                    "outgoing" -> "Outgoing"
+                                                    "incoming" -> "Incoming"
+                                                    else -> "Call"
+                                                }
+                                                Text(
+                                                    text = "$directionTitle · $appTitle",
+                                                    style = typography.bodySm,
                                                     color = colors.onSurfaceVariant,
-                                                    fontSize = 11.sp
+                                                    fontSize = 12.sp,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
                                                 )
+
+                                                // Metadata: Date & File Size
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    Text(
+                                                        text = item.dateStr,
+                                                        style = typography.bodySm,
+                                                        color = colors.onSurfaceVariant.copy(alpha = 0.8f),
+                                                        fontSize = 11.sp,
+                                                        maxLines = 1
+                                                    )
+                                                    Text(
+                                                        text = "·",
+                                                        style = typography.bodySm,
+                                                        color = colors.outlineVariant
+                                                    )
+                                                    Text(
+                                                        text = item.sizeStr,
+                                                        style = typography.bodySm,
+                                                        color = colors.onSurfaceVariant,
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Medium,
+                                                        maxLines = 1
+                                                    )
+                                                }
+                                            }
+
+                                            Spacer(modifier = Modifier.width(8.dp))
+
+                                            // Right Column: Duration + Actions
+                                            Column(
+                                                horizontalAlignment = Alignment.End,
+                                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                // Call duration in collapsed view
                                                 Text(
-                                                    text = "•",
-                                                    style = typography.bodyMd,
-                                                    color = colors.outlineVariant
-                                                )
-                                                Text(
-                                                    text = item.sizeStr,
-                                                    style = typography.bodyMd,
+                                                    text = item.durationStr,
+                                                    style = typography.labelSm,
                                                     color = colors.primary,
-                                                    fontWeight = FontWeight.Medium,
-                                                    fontSize = 11.sp
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 12.sp
                                                 )
+
+                                                // Action Buttons (Delete & Expand)
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                                ) {
+                                                    if (isSelected) {
+                                                        Icon(
+                                                            imageVector = WaexIcons.Check,
+                                                            contentDescription = UiText.get(R.string.waex_ui_selected, "Selected"),
+                                                            tint = colors.primary,
+                                                            modifier = Modifier.size(22.dp)
+                                                        )
+                                                    } else {
+                                                        IconButton(
+                                                            onClick = {
+                                                                recordingsPendingDelete = listOf(item)
+                                                            },
+                                                            modifier = Modifier.size(32.dp)
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Rounded.Delete,
+                                                                contentDescription = UiText.get(R.string.action_delete, "Delete"),
+                                                                tint = colors.error.copy(alpha = 0.85f),
+                                                                modifier = Modifier.size(18.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                    IconButton(
+                                                        onClick = {
+                                                            expandedRecordingPath = if (isExpanded) null else item.file.absolutePath
+                                                        },
+                                                        modifier = Modifier.size(32.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = if (isExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                                                            contentDescription = if (isExpanded) "Collapse player" else "Expand player",
+                                                            tint = colors.onSurfaceVariant,
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                    }
+                                                }
                                             }
                                         }
 
-                                        if (isSelected) {
-                                            Icon(
-                                                imageVector = WaexIcons.Check,
-                                                contentDescription = UiText.get(R.string.waex_ui_selected_57fd7a0c, "Selected"),
-                                                tint = colors.primary,
-                                                modifier = Modifier.size(24.dp)
-                                            )
-                                        } else IconButton(
-                                            onClick = {
-                                                if (currentlyPlayingPath == item.file.absolutePath) {
-                                                    stopAudio()
-                                                }
-                                                try {
-                                                    item.file.delete()
-                                                    recordingsList.remove(item)
-                                                    Toast.makeText(context, UiText.get(R.string.waex_ui_recording_deleted_ded881bb, "Recording deleted"), Toast.LENGTH_SHORT).show()
-                                                } catch (_: Throwable) {}
-                                            },
-                                            modifier = Modifier.size(36.dp)
+                                        // Expandable Audio Player
+                                        AnimatedVisibility(
+                                            visible = isExpanded,
+                                            enter = fadeIn(tween(200)) + expandVertically(tween(200)),
+                                            exit = fadeOut(tween(150)) + shrinkVertically(tween(150))
                                         ) {
-                                            Icon(
-                                                imageVector = WaexIcons.Clear,
-                                                contentDescription = UiText.get(R.string.action_delete, "Delete"),
-                                                tint = colors.error.copy(alpha = 0.8f),
-                                                modifier = Modifier.size(16.dp)
-                                            )
+                                            Column(modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                                                HorizontalDivider(
+                                                    color = colors.outlineVariant.copy(alpha = 0.5f),
+                                                    thickness = 1.dp
+                                                )
+                                                Spacer(modifier = Modifier.height(12.dp))
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    IconButton(
+                                                        onClick = { togglePlayback() },
+                                                        modifier = Modifier
+                                                            .size(42.dp)
+                                                            .clip(CircleShape)
+                                                            .background(if (isActive && isAudioPlaying) colors.primary else colors.primary.copy(alpha = 0.12f))
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = if (isActive && isAudioPlaying) Icons.Rounded.Pause else WaexIcons.Play,
+                                                            contentDescription = if (isActive && isAudioPlaying) "Pause" else UiText.get(R.string.waex_ui_play, "Play"),
+                                                            tint = if (isActive && isAudioPlaying) Color.White else colors.primary,
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                    }
+                                                    Spacer(modifier = Modifier.width(12.dp))
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        Slider(
+                                                            value = if (isActive) playbackPosition.toFloat() else 0f,
+                                                            onValueChange = { if (isActive) mediaPlayer?.seekTo(it.toInt()) },
+                                                            valueRange = 0f..maxOf(1, if (isActive) playbackDuration else 1).toFloat(),
+                                                            modifier = Modifier.fillMaxWidth()
+                                                        )
+                                                        Row(
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                            horizontalArrangement = Arrangement.SpaceBetween
+                                                        ) {
+                                                            Text(
+                                                                text = formatPlaybackTime(if (isActive) playbackPosition else 0),
+                                                                style = typography.bodySm,
+                                                                color = colors.onSurfaceVariant,
+                                                                fontSize = 11.sp
+                                                            )
+                                                            Text(
+                                                                text = formatPlaybackTime(if (isActive) playbackDuration else readAudioDuration(item.file)),
+                                                                style = typography.bodySm,
+                                                                color = colors.onSurfaceVariant,
+                                                                fontSize = 11.sp
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -968,4 +1370,227 @@ fun CallsHubScreen() {
             }
         }
     }
+
+    if (showWhoCanCallSheet) {
+        val whoCanCallSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val options = listOf(
+            "1" to (UiText.get(R.string.waex_ui_block_all_calls, "Block All Calls") to UiText.get(R.string.waex_ui_automatically_drop_every_incoming_what, "Automatically drop every incoming WhatsApp call")),
+            "2" to (UiText.get(R.string.waex_ui_unknown_contacts_only, "Unknown Contacts Only") to UiText.get(R.string.waex_ui_only_allow_numbers_saved_in_your_phone, "Only allow numbers saved in your phone address book"))
+        )
+
+        WaexModalBottomSheet(
+            onDismissRequest = { showWhoCanCallSheet = false },
+            sheetState = whoCanCallSheetState,
+            containerColor = colors.surface,
+            shape = radius.bottomSheetShape
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = UiText.get(R.string.waex_ui_who_can_call_me, "Who Can Call Me"),
+                    style = typography.titleMd,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.onSurface,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+
+                options.forEach { (value, details) ->
+                    val isSelected = callPrivacyMode == value
+                    Surface(
+                        shape = radius.cardShape,
+                        color = if (isSelected) colors.primary.copy(alpha = 0.12f) else colors.surfaceContainerLow,
+                        border = BorderStroke(
+                            1.dp,
+                            if (isSelected) colors.primary else colors.outlineVariant
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                callPrivacyMode = value
+                                prefManager.putString("call_privacy", value)
+                                showWhoCanCallSheet = false
+                            }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .clip(CircleShape)
+                                    .border(
+                                        1.5.dp,
+                                        if (isSelected) colors.primary else colors.outlineVariant,
+                                        CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isSelected) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(9.dp)
+                                            .clip(CircleShape)
+                                            .background(colors.primary)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(14.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = details.first,
+                                    style = typography.bodyLg,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                    color = if (isSelected) colors.primary else colors.onSurface
+                                )
+                                Text(
+                                    text = details.second,
+                                    style = typography.bodyMd,
+                                    color = colors.onSurfaceVariant,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showRejectionTypeSheet) {
+        val rejectionSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val rejectOptions = listOf(
+            "no_internet" to (UiText.get(R.string.waex_ui_no_internet_connection, "No Internet Connection") to UiText.get(R.string.waex_ui_caller_sees_calling_without_connection, "Caller sees 'Calling...' without connection tone")),
+            "busy" to (UiText.get(R.string.waex_ui_user_busy, "User Busy") to UiText.get(R.string.waex_ui_simulates_immediate_line_busy_tone, "Simulates immediate line busy tone")),
+            "ended" to (UiText.get(R.string.waex_ui_ended, "Not Answered") to "Ends the incoming call immediately"),
+            "uncallable" to (UiText.get(R.string.waex_ui_not_available_title, "Not Available") to UiText.get(R.string.waex_ui_simulates_caller_not_reachable, "Simulates caller not reachable"))
+        )
+
+        WaexModalBottomSheet(
+            onDismissRequest = { showRejectionTypeSheet = false },
+            sheetState = rejectionSheetState,
+            containerColor = colors.surface,
+            shape = radius.bottomSheetShape
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "Call Rejection Type",
+                    style = typography.titleMd,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.onSurface,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+
+                rejectOptions.forEach { (typeVal, details) ->
+                    val isSelected = callRejectType == typeVal
+                    Surface(
+                        shape = radius.cardShape,
+                        color = if (isSelected) colors.primary.copy(alpha = 0.12f) else colors.surfaceContainerLow,
+                        border = BorderStroke(
+                            1.dp,
+                            if (isSelected) colors.primary else colors.outlineVariant
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                callRejectType = typeVal
+                                prefManager.putString("call_type", typeVal)
+                                showRejectionTypeSheet = false
+                            }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .clip(CircleShape)
+                                    .border(
+                                        1.5.dp,
+                                        if (isSelected) colors.primary else colors.outlineVariant,
+                                        CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isSelected) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(9.dp)
+                                            .clip(CircleShape)
+                                            .background(colors.primary)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(14.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = details.first,
+                                    style = typography.bodyLg,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                    color = if (isSelected) colors.primary else colors.onSurface
+                                )
+                                Text(
+                                    text = details.second,
+                                    style = typography.bodyMd,
+                                    color = colors.onSurfaceVariant,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (recordingsPendingDelete.isNotEmpty()) {
+        val count = recordingsPendingDelete.size
+        WaexConfirmationBottomSheet(
+            title = if (count == 1) "Delete recording?" else "Delete $count recordings?",
+            message = if (count == 1) {
+                "This will permanently delete the call recording for ${recordingsPendingDelete.first().contactName}."
+            } else {
+                "This will permanently delete the selected call recordings."
+            },
+            confirmLabel = if (count == 1) "Delete recording" else "Delete recordings",
+            destructive = true,
+            onDismiss = { recordingsPendingDelete = emptyList() },
+            onConfirm = { deleteRecordings(recordingsPendingDelete) }
+        )
+    }
+}
+
+private fun readAudioDuration(file: File): Int {
+    val retriever = MediaMetadataRetriever()
+    return try {
+        retriever.setDataSource(file.absolutePath)
+        retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toIntOrNull() ?: 0
+    } catch (_: Throwable) {
+        0
+    } finally {
+        runCatching { retriever.release() }
+    }
+}
+
+private fun formatPlaybackTime(milliseconds: Int): String {
+    val seconds = (milliseconds.coerceAtLeast(0) / 1000)
+    return "%d:%02d".format(Locale.US, seconds / 60, seconds % 60)
 }

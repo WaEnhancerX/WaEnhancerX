@@ -38,7 +38,7 @@ public class FreezeLastSeenHook extends BaseFeature {
             Method setAvailableMethod = DexSearchEngine.getInstance().findMethodWithCache(
                     context,
                     classLoader,
-                    "wpp_presence_set_available",
+                    "waex_presence_set_available",
                     (bridge, loader) -> {
                         MethodData data = bridge.findMethod(FindMethod.create()
                                 .matcher(MethodMatcher.create()
@@ -69,7 +69,7 @@ public class FreezeLastSeenHook extends BaseFeature {
             Method sendJobMethod = DexSearchEngine.getInstance().findMethodWithCache(
                     context,
                     classLoader,
-                    "wpp_freeze_last_seen_job",
+                    "waex_freeze_last_seen_job",
                     (bridge, loader) -> {
                         MethodData data = bridge.findMethod(FindMethod.create()
                                 .matcher(MethodMatcher.create()

@@ -9,11 +9,14 @@ from pathlib import Path
 import argparse,hashlib,json,os,re,shutil,subprocess,zipfile,urllib.request,io
 
 ROOT=Path(__file__).resolve().parents[1]
-EXPECTED_TESTS=84
+EXPECTED_TESTS=99
 PKG=Path('app/src/main/java/com/waenhancer')
 PRODUCTION=[
  PKG/'xposed/features/conversation/PreserveDeleteForMeHook.kt',
  PKG/'xposed/core/BaseFeature.kt',
+ PKG/'calls/CallRecordingStore.kt',
+ PKG/'xposed/core/HookRegistrar.java',
+ PKG/'xposed/core/ViewHookDispatcher.java',
  PKG/'xposed/core/db/PreservedMessageStore.kt',
  PKG/'utils/ContactIdentityPolicy.java',
  PKG/'utils/DeclaredWhatsAppTargets.java',
@@ -32,28 +35,130 @@ public class XposedBridge {
  public static final Map<Member,List<XC_MethodHook>> hooks=new LinkedHashMap<>();
  public static final List<String> logs=new ArrayList<>();
  public static void log(String text){logs.add(text);}
- public static void hookMethod(Member method,XC_MethodHook callback){hooks.computeIfAbsent(method,k->new ArrayList<>()).add(callback);}
- public static void hookAllMethods(Class<?> type,String name,XC_MethodHook callback){for(Method m:type.getDeclaredMethods())if(m.getName().equals(name))hookMethod(m,callback);}
- public static XC_MethodHook.MethodHookParam fireBefore(Member method,Object owner,Object[] args)throws Throwable {
-  List<XC_MethodHook> callbacks=hooks.get(method); if(callbacks==null)throw new AssertionError("Production callback missing");
-  XC_MethodHook.MethodHookParam param=new XC_MethodHook.MethodHookParam();param.method=method;param.thisObject=owner;param.args=args;
-  for(XC_MethodHook callback:callbacks)callback.beforeHookedMethod(param);return param;
+ public static void log(Throwable error){java.io.StringWriter text=new java.io.StringWriter();error.printStackTrace(new java.io.PrintWriter(text));logs.add(text.toString());}
+ public static XC_MethodHook.Unhook hookMethod(Member method,XC_MethodHook callback){
+  if(method==null||callback==null)throw new IllegalArgumentException("Null hook registration");
+  if(!(method instanceof Method)&&!(method instanceof Constructor))throw new IllegalArgumentException("Not a method/constructor");
+  hooks.computeIfAbsent(method,k->new ArrayList<>()).add(callback);
+  return callback.new Unhook(method);
  }
- public static void fireAfter(XC_MethodHook.MethodHookParam param)throws Throwable {for(XC_MethodHook callback:hooks.get(param.method))callback.afterHookedMethod(param);}
+ public static Set<XC_MethodHook.Unhook> hookAllMethods(Class<?> type,String name,XC_MethodHook callback){
+  Set<XC_MethodHook.Unhook> registrations=new LinkedHashSet<>();
+  for(Method m:type.getDeclaredMethods())if(m.getName().equals(name))registrations.add(hookMethod(m,callback));
+  return registrations;
+ }
+ public static Set<XC_MethodHook.Unhook> hookAllConstructors(Class<?> type,XC_MethodHook callback){
+  Set<XC_MethodHook.Unhook> registrations=new LinkedHashSet<>();
+  for(Constructor<?> c:type.getDeclaredConstructors())registrations.add(hookMethod(c,callback));
+  return registrations;
+ }
+ public static void unhookMethod(Member method,XC_MethodHook callback){
+  List<XC_MethodHook> callbacks=hooks.get(method);
+  if(callbacks==null)return;
+  callbacks.remove(callback);
+  if(callbacks.isEmpty())hooks.remove(method);
+ }
+ public static XC_MethodHook.MethodHookParam fireBefore(Member method,Object owner,Object[] args)throws Throwable {
+  List<XC_MethodHook> callbacks=hooks.get(method);if(callbacks==null||callbacks.isEmpty())throw new AssertionError("Production callback missing");
+  XC_MethodHook.MethodHookParam param=new XC_MethodHook.MethodHookParam();param.method=method;param.thisObject=owner;param.args=args;
+  param.invocationCallbacks=new ArrayList<>(callbacks);
+  for(XC_MethodHook callback:param.invocationCallbacks){param.beforeCount++;callback.beforeHookedMethod(param);if(param.resultWasSet)break;}return param;
+ }
+ public static void fireAfter(XC_MethodHook.MethodHookParam param)throws Throwable {
+  if(param.invocationCallbacks==null)throw new AssertionError("No invocation snapshot");
+  for(int i=param.beforeCount-1;i>=0;i--)param.invocationCallbacks.get(i).afterHookedMethod(param);
+ }
  public static void reset(){hooks.clear();logs.clear();}
 }'''
 METHOD_HOOK='''package de.robv.android.xposed;
+import java.lang.reflect.Member;
 public abstract class XC_MethodHook {
  protected void beforeHookedMethod(MethodHookParam param)throws Throwable{}
  protected void afterHookedMethod(MethodHookParam param)throws Throwable{}
+ public final class Unhook {
+  private final Member method;
+  public Unhook(Member method){this.method=method;}
+  public Member getHookedMethod(){return method;}
+  public XC_MethodHook getCallback(){return XC_MethodHook.this;}
+  public void unhook(){XposedBridge.unhookMethod(method,XC_MethodHook.this);}
+ }
  public static final class MethodHookParam {
   public Object thisObject;public Object[] args;public java.lang.reflect.Member method;
-  public boolean resultWasSet;private Object result;
-  public Object getResult(){return result;}public void setResult(Object value){result=value;resultWasSet=true;}
+  public boolean resultWasSet;private Object result;private Throwable throwable;
+  java.util.List<XC_MethodHook> invocationCallbacks;int beforeCount;
+  public Object getResult(){return result;}public void setResult(Object value){result=value;throwable=null;resultWasSet=true;}
+  public Throwable getThrowable(){return throwable;}public boolean hasThrowable(){return throwable!=null;}
+  public void setThrowable(Throwable value){throwable=value;result=null;resultWasSet=true;}
  }
 }'''
 
-XPOSED_HELPERS='package de.robv.android.xposed;\npublic final class XposedHelpers {\n    public static Class<?> findClass(String name, ClassLoader loader) {\n        try { return Class.forName(name, false, loader); }\n        catch (ClassNotFoundException failure) { throw new IllegalArgumentException(failure); }\n    }\n    public static Class<?> findClassIfExists(String name, ClassLoader loader) {\n        if (name.contains("StatusPlaybackActivity") || name.contains("ComposerActivity"))\n            throw new AssertionError("Host navigation is outside this fixture");\n        try { return Class.forName(name, false, loader); }\n        catch (ClassNotFoundException absent) { return null; }\n    }\n    public static java.lang.reflect.Field findField(Class<?> type, String name) {\n        for (Class<?> current = type; current != null; current = current.getSuperclass()) {\n            try { java.lang.reflect.Field field = current.getDeclaredField(name); field.setAccessible(true); return field; }\n            catch (NoSuchFieldException absent) { }\n        }\n        throw new IllegalArgumentException(name);\n    }\n    public static java.lang.reflect.Method findMethodExact(Class<?> type, String name, Class<?>... parameters) {\n        try { java.lang.reflect.Method method = type.getDeclaredMethod(name, parameters); method.setAccessible(true); return method; }\n        catch (ReflectiveOperationException failure) { throw new IllegalArgumentException(failure); }\n    }\n}\n'
+XPOSED_HELPERS='''package de.robv.android.xposed;
+import java.lang.reflect.*;
+public final class XposedHelpers {
+ private XposedHelpers(){}
+ public static Class<?> findClass(String name,ClassLoader loader){
+  try{return Class.forName(name,false,loader);}
+  catch(ClassNotFoundException failure){throw new IllegalArgumentException(failure);}
+ }
+ public static Class<?> findClassIfExists(String name,ClassLoader loader){
+  if(name.contains("StatusPlaybackActivity")||name.contains("ComposerActivity"))
+   throw new AssertionError("Host navigation is outside this fixture");
+  try{return Class.forName(name,false,loader);}catch(ClassNotFoundException absent){return null;}
+ }
+ public static Field findField(Class<?> type,String name){
+  for(Class<?> current=type;current!=null;current=current.getSuperclass()){
+   try{Field field=current.getDeclaredField(name);field.setAccessible(true);return field;}
+   catch(NoSuchFieldException absent){}
+  }
+  throw new IllegalArgumentException("Missing field: "+name);
+ }
+ public static Field findFieldIfExists(Class<?> type,String name){
+  try{return findField(type,name);}catch(IllegalArgumentException absent){return null;}
+ }
+ private static Class<?>[] parameterTypes(Object[] values){
+  Class<?>[] types=new Class<?>[values.length];
+  for(int i=0;i<values.length;i++){
+   if(!(values[i] instanceof Class))throw new IllegalArgumentException("Only explicit parameter types supported");
+   types[i]=(Class<?>)values[i];
+  }
+  return types;
+ }
+ public static Method findMethodExact(Class<?> type,String name,Object... types){
+  try{Method m=type.getDeclaredMethod(name,parameterTypes(types));m.setAccessible(true);return m;}
+  catch(ReflectiveOperationException failure){throw new IllegalArgumentException(failure);}
+ }
+ public static Method findMethodExactIfExists(Class<?> type,String name,Object... types){
+  try{return findMethodExact(type,name,types);}catch(IllegalArgumentException missing){return null;}
+ }
+ public static Method findMethodBestMatch(Class<?> type,String name,Object... types){
+  return findMethodExact(type,name,types);
+ }
+ public static XC_MethodHook.Unhook findAndHookMethod(Class<?> type,String name,Object... args){
+  if(args.length<1||!(args[args.length-1] instanceof XC_MethodHook))
+   throw new IllegalArgumentException("Required explicit Xposed callback");
+  Object[] params=java.util.Arrays.copyOf(args,args.length-1);
+  return XposedBridge.hookMethod(findMethodExact(type,name,params),(XC_MethodHook)args[args.length-1]);
+ }
+ public static XC_MethodHook.Unhook findAndHookMethod(String name,ClassLoader loader,String method,Object... args){
+  return findAndHookMethod(findClass(name,loader),method,args);
+ }
+ public static Object callMethod(Object owner,String name,Object... args){
+  throw new AssertionError("Dynamic method dispatch outside preserved-message fixture");
+ }
+ public static Object getObjectField(Object owner,String name){
+  try{return findField(owner.getClass(),name).get(owner);}
+  catch(IllegalAccessException failure){throw new IllegalArgumentException(failure);}
+ }
+ public static Object getAdditionalInstanceField(Object owner,String key){
+  throw new AssertionError("Additional instance fields outside fixture");
+ }
+ public static Object setAdditionalInstanceField(Object owner,String key,Object value){
+  throw new AssertionError("Additional instance fields outside fixture");
+ }
+ public static Object removeAdditionalInstanceField(Object owner,String key){
+  throw new AssertionError("Additional instance fields outside fixture");
+ }
+}'''
 
 POM='''<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion>
 <groupId>org.waex.qa</groupId><artifactId>preserved-dispatch-contract-only</artifactId><version>1</version>
@@ -102,7 +207,15 @@ def main():
                         (deps/(archive.stem+'-'+name.replace('/','_'))).write_bytes(bundle.read(name))
     compiler=shutil.which('kotlinc')
     if not compiler:raise RuntimeError('Kotlin compiler required for full production sources')
-    kotlin=Path(compiler);stdlib=kotlin.resolve().parents[1]/'lib/kotlin-stdlib.jar'
+    kotlin=Path(compiler);kotlin_lib=kotlin.resolve().parents[1]/'lib';stdlib=kotlin_lib/'kotlin-stdlib.jar'
+    # Windows batch wrappers may split the semicolon-separated compiler classpath.
+    # Launch the same pinned Kotlin compiler directly via Java on Windows.
+    compiler_command=[str(kotlin)]
+    if os.name=='nt':
+        compiler_jars=sorted(kotlin_lib.glob('*.jar'))
+        if not compiler_jars:raise RuntimeError('Kotlin compiler distribution JARs missing')
+        compiler_command=['java','-Dkotlin.home='+str(kotlin_lib.parent),'-cp',os.pathsep.join(map(str,compiler_jars)),
+                          'org.jetbrains.kotlin.cli.jvm.K2JVMCompiler','-kotlin-home',str(kotlin_lib.parent)]
     dexkit=args.dexkit.resolve() if args.dexkit else out/'dexkit-2.2.0.jar'
     if not args.dexkit:
         url='https://repo.maven.apache.org/maven2/org/luckypray/dexkit/2.2.0/dexkit-2.2.0.aar'
@@ -116,14 +229,78 @@ def main():
     for relative in PRODUCTION:
         source=root/relative;dest=stage/relative;dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(source,dest);sources.append(dest)
         identities[str(relative)]=hashlib.sha256(source.read_bytes()).hexdigest()
+    main_hook_source=(root/PKG/'xposed/MainHook.java').read_text()
+    if not re.search(r'public\s+static\s+volatile\s+String\s+sModulePath\s*;',main_hook_source):
+        raise RuntimeError('Production MainHook.sModulePath contract changed; review fixture before executing')
+    # Out-of-scope provider services are represented by fail-closed compile contracts.
+    # Require their real source declarations before compiling a standalone fixture;
+    # missing/changed methods must fail here rather than silently changing semantics.
+    contracts = {
+        PKG/'config/PreferenceRestartTracker.java': (
+            r'NEED_RESTART\s*=\s*"need_restart"',
+            r'PENDING_CHANGES\s*=\s*"pending_restart_changes"'),
+        PKG/'core/transcription/TranscriptionRequestHandler.java': (
+            r'METHOD\s*=\s*"transcribe_audio"',
+            r'METHOD_READY\s*=\s*"transcription_ready"',
+            r'METHOD_LOG\s*=\s*"transcription_log"',
+            r'Bundle\s+ready\s*\(', r'Bundle\s+handle\s*\(', r'Bundle\s+log\s*\('),
+        PKG/'xposed/utils/AppRestartHelper.java': (
+            r'void\s+restartPackage\s*\(\s*Context\s+context\s*,\s*String\s+packageName\s*,\s*String\s+appName\s*,\s*boolean\s+showProgressToast\s*\)',),
+        PKG/'utils/WhatsAppPackageDetector.kt': (
+            r'fun\s+isWhatsAppPackageName\s*\(packageName:\s*String\?\)',
+            r'DeclaredWhatsAppTargets\.contains\(packageName\)'),
+    }
+    contract_hashes={}
+    for relative,required in contracts.items():
+        content=(root/relative).read_text(encoding='utf-8')
+        contract_hashes[str(relative)]=hashlib.sha256(content.encode()).hexdigest()
+        for pattern in required:
+            if re.search(pattern,content) is None:
+                raise RuntimeError(f'Contract changed in {relative}: {pattern}')
     fixtures={
-        'com/waenhancer/app/BuildConfig.java':'package com.waenhancer.app;public final class BuildConfig{public static final int VERSION_CODE=20100;public static final String VERSION_NAME="fixture";}',
         'androidx/annotation/NonNull.java':'package androidx.annotation;public @interface NonNull{}',
         'androidx/annotation/Nullable.java':'package androidx.annotation;public @interface Nullable{}',
         'de/robv/android/xposed/XposedBridge.java':XPOSED,
         'de/robv/android/xposed/XC_MethodHook.java':METHOD_HOOK,
         'de/robv/android/xposed/XposedHelpers.java':XPOSED_HELPERS,
-        'com/waenhancer/utils/WhatsAppPackageDetector.java':'package com.waenhancer.utils;public class WhatsAppPackageDetector{public static java.util.Set<String> getSupportedPackages(android.content.Context c){return DeclaredWhatsAppTargets.packages();}}',
+        # Compile-only field descriptor from the real MainHook; Xposed startup is outside this fixture.
+        'com/waenhancer/xposed/MainHook.java':'package com.waenhancer.xposed;public class MainHook { public static volatile String sModulePath; }',
+        'com/waenhancer/utils/WhatsAppPackageDetector.java':'''package com.waenhancer.utils;
+public final class WhatsAppPackageDetector {
+ public static java.util.Set<String> getSupportedPackages(android.content.Context c){
+  return DeclaredWhatsAppTargets.packages();
+ }
+ public static boolean isWhatsAppPackageName(String name){return DeclaredWhatsAppTargets.contains(name);}
+ public static boolean isWhatsAppPackageName(android.content.Context c,String name){return isWhatsAppPackageName(name);}
+}''',
+        'com/waenhancer/config/PreferenceRestartTracker.java':'''package com.waenhancer.config;
+public final class PreferenceRestartTracker {
+ public static final String NEED_RESTART="need_restart";
+ public static final String PENDING_CHANGES="pending_restart_changes";
+ private PreferenceRestartTracker(){}
+}''',
+        'com/waenhancer/xposed/utils/AppRestartHelper.java':'''package com.waenhancer.xposed.utils;
+public final class AppRestartHelper {
+ public static void restartPackage(android.content.Context context,String packageName,
+                                   String appName,boolean showProgressToast){
+  throw new AssertionError("Restarting apps is outside preserved-message fixture");
+ }
+}''',
+        'com/waenhancer/core/transcription/TranscriptionRequestHandler.java':'''package com.waenhancer.core.transcription;
+public final class TranscriptionRequestHandler {
+ public static final String METHOD="transcribe_audio";
+ public static final String METHOD_READY="transcription_ready";
+ public static final String METHOD_LOG="transcription_log";
+ public static android.os.Bundle handle(android.content.Context c,android.os.Bundle b){
+  throw new AssertionError("Transcription outside preserved-message fixture");
+ }
+ public static android.os.Bundle ready(android.content.Context c){
+  throw new AssertionError("Transcription outside preserved-message fixture");
+ }
+ public static android.os.Bundle log(android.content.Context c,android.os.Bundle b){
+  throw new AssertionError("Transcription outside preserved-message fixture");
+ }
+}''',
         'com/waenhancer/licensing/LicenseManager.java':'package com.waenhancer.licensing;public class LicenseManager{public static String getProStatus(android.content.Context c){throw new AssertionError("License endpoint is outside fixture");}}',
         'com/waenhancer/update/UpdateCheckCoordinator.java':'package com.waenhancer.update;public class UpdateCheckCoordinator{public static final String TRIGGER_WHATSAPP="unused";public static void request(android.content.Context c,String s,boolean b){throw new AssertionError("Update endpoint is outside fixture");}}',
     }
@@ -140,9 +317,14 @@ def main():
     if not android.is_file():raise RuntimeError('Pinned Android compilation API missing')
     cp=os.pathsep.join(map(str,[classes,*sorted(deps.glob('*.jar')),dexkit,stdlib]))
     prod_cp=os.pathsep.join(map(str,[classes,android,dexkit,stdlib]))
-    first=[source for source in sources if source.suffix=='.java' and source.name!='HookProvider.java']+fixture_paths
+    lifecycle_names={'HookRegistrar.java','ViewHookDispatcher.java'}
+    first=[source for source in sources if source.suffix=='.java' and source.name not in lifecycle_names|{'HookProvider.java'}]+fixture_paths
     execute(['javac','--release','17','-cp',cp,'-d',classes,*first],out/'javac-production-support.log')
-    execute([kotlin,'-jvm-target','17','-classpath',prod_cp,'-d',classes,*[s for s in sources if s.suffix=='.kt']],out/'kotlinc-production.log')
+    execute([*compiler_command,'-jvm-target','17','-classpath',prod_cp,'-d',classes,
+             *[s for s in sources if s.suffix=='.kt'],
+             *[s for s in sources if s.name in lifecycle_names]],out/'kotlinc-production.log')
+    execute(['javac','--release','17','-cp',cp,'-d',classes,
+             *[s for s in sources if s.name in lifecycle_names]],out/'javac-hook-lifecycle.log')
     test=stage/'PreservedDispatchContractTest.java';shutil.copyfile(ROOT/'qa/fixtures'/test.name,test)
     identities['qa/fixtures/'+test.name]=hashlib.sha256(test.read_bytes()).hexdigest()
     execute(['javac','--release','17','-cp',cp,'-d',classes,stage/PKG/'xposed/bridge/HookProvider.java',test],out/'javac-provider-tests.log')
@@ -157,7 +339,8 @@ def main():
     assertions=len(re.findall(r'^java\.lang\.AssertionError(?::|$)',log,re.MULTILINE))
     expected=args.expect_assertion_failures
     accepted=count==EXPECTED_TESTS and failures==expected and (result==0 and passed is not None if expected==0 else result!=0 and assertions==expected)
-    report={'source_root':str(root),'tests':count,'failures':failures,'assertion_failures':assertions,'expected_tests':EXPECTED_TESTS,'expected_assertion_failures':expected,'junit_exit':result,'accepted_result':accepted,'source_sha256':identities,'external_service_fixture_sha256':fixture_identities,'limits':'Complete production sender/provider/store and support policies/cache classes; Robolectric Android ContentResolver, ContentProvider, SQLite files and Binder/UID/package shadows on API24/28/34. Explicit Xposed dispatch and synthetic host Runnable/message graph/SQL schema. Package detector facade delegates to real DeclaredWhatsAppTargets; unrelated private license and update entry points throw if called. No native DexKit discovery, actual WhatsApp/LSPosed, device disk fault or kernel cross-process Binder test.'}
+    report={'source_root':str(root),'tests':count,'failures':failures,'assertion_failures':assertions,'expected_tests':EXPECTED_TESTS,'expected_assertion_failures':expected,'junit_exit':result,'accepted_result':accepted,'source_sha256':identities,'external_service_fixture_sha256':fixture_identities,
+            'compile_only_source_contract_sha256':contract_hashes,'limits':'Complete production sender/provider/store and support policies/cache classes; Robolectric Android ContentResolver, ContentProvider, SQLite files and Binder/UID/package shadows on API24/28/34. Explicit Xposed dispatch and synthetic host Runnable/message graph/SQL schema. Package detector facade delegates to real DeclaredWhatsAppTargets; unrelated private license and update entry points throw if called. No native DexKit discovery, actual WhatsApp/LSPosed, device disk fault or kernel cross-process Binder test.'}
     (out/'result.json').write_text(json.dumps(report,indent=2)+'\n')
     dependency_paths=[*sorted(deps.glob('*.jar')),dexkit]
     (out/'dependency-sha256.json').write_text(json.dumps({path.name:hashlib.sha256(path.read_bytes()).hexdigest() for path in dependency_paths},indent=2)+'\n')

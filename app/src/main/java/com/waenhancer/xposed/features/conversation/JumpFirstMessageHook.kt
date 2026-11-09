@@ -132,7 +132,7 @@ class JumpFirstMessageHook(
         menuItem.setOnMenuItemClickListener {
             val chatJid = extractChatJidFromActivity(activity)
             if (chatJid.isNullOrEmpty()) {
-                Toast.makeText(activity, UiText.get(R.string.waex_ui_unable_to_determine_chat_jid_fb5fdb1b, "Unable to determine chat JID"), Toast.LENGTH_SHORT).show()
+                Toast.makeText(activity, UiText.get(R.string.waex_ui_unable_to_determine_chat_jid, "Unable to determine chat JID"), Toast.LENGTH_SHORT).show()
                 return@setOnMenuItemClickListener true
             }
 
@@ -140,7 +140,7 @@ class JumpFirstMessageHook(
                 val firstMsg = queryFirstMessage(activity, chatJid)
                 if (firstMsg == null) {
                     activity.runOnUiThread {
-                        Toast.makeText(activity, UiText.get(R.string.waex_ui_no_message_history_found_d6380f22, "No message history found"), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(activity, UiText.get(R.string.waex_ui_no_message_history_found, "No message history found"), Toast.LENGTH_SHORT).show()
                     }
                     return@execute
                 }
@@ -294,4 +294,5 @@ class JumpFirstMessageHook(
         val name = activity.javaClass.name
         return name.contains("Conversation") || name.contains("ChatActivity")
     }
+
 }

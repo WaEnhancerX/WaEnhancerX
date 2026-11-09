@@ -13,6 +13,7 @@
     <string name="go_to_telegram">Telegram kanal</string>
     <string name="go_to_github">GitHub težave</string>
     <string name="contributors">Sodelavci</string>
+    <string name="contributor">Sodelavec</string>
     <string name="stargazers_title">Naši podporniki</string>
     <string name="stargazers_thank_you">Hvala za podporo za WaEnhancer X</string>
     <string name="stargazers_message">Vsaka zvezdica pomaga več ljudem odkriti projekt. Ta stena je namenjena vsem, ki so izkazali svojo podporo.</string>
@@ -120,8 +121,6 @@
     <string name="feat_hideonceseen_desc">Skrije, da je bila vsebina Ogledano enkrat ogledana</string>
     <string name="feat_anti_revoke_title">Zaščita pred preklicem sporočil</string>
     <string name="feat_anti_revoke_desc">Sporočila se ti ne bodo izbrisala</string>
-    <string name="feat_hide_anti_revoke_title">Dodaj Skrij zaščito pred preklicem v meni klepeta</string>
-    <string name="feat_hide_anti_revoke_desc">Dodajanje možnosti v meni klepeta, da se izbrisana sporočila za ta klepet skrijejo</string>
     <string name="feat_preserve_own_revoke_title">Ohrani moja preklicana sporočila</string>
     <string name="feat_preserve_own_revoke_desc">Ohranjevanje lokalne kopije po izbrisanju za vse, medtem ko se sporočila izbrišejo za prejemnike</string>
     <string name="feat_antirevokestatus_title">Zaščita pred izbrisom statusa</string>
@@ -202,8 +201,8 @@
     <string name="feat_status_text_composer_desc">Za prilagajanje statusa, pritisni in drži na izbirnik barv</string>
     <string name="feat_status_downloader_title">Prenesi in deli status</string>
     <string name="feat_status_downloader_desc">Prikazovanje dveh gumbov za deljenje in prenos statusa</string>
-    <string name="feat_media_upload_quality_title">Slike in videi v HD kakovosti</string>
-    <string name="feat_media_upload_quality_desc">Privzeto pošiljanje slik in videoposnetkov v HD kakovosti</string>
+    <string name="feat_media_upload_quality_title">Slike in videoposnetki v izvirni kakovosti</string>
+    <string name="feat_media_upload_quality_desc">Pošiljanje slik in videoposnetkov v izvirni kakovosti</string>
     <string name="feat_send_audio_as_voice_status_title">Zvočni status</string>
     <string name="feat_send_audio_as_voice_status_desc">Izbira lokalne zvočne datoteke in jo objavi kot zvočni status</string>
     <string name="feat_status_video_splitter_title">Razdelilnik statusnih videoposnetkov</string>
@@ -280,8 +279,8 @@
     <string name="feat_license_verification_desc">Upravljanje vnosa in preverjanja licenčnega ključa</string>
     <string name="feat_pro_features_unlock_title">Upravljaj premium funkcije</string>
     <string name="feat_pro_features_unlock_desc">Dinamično zaklepanje/odklepanje premium funkcij</string>
-    <string name="feat_metaai_title">Skrij gumb Meta AI</string>
-    <string name="feat_metaai_desc">Skrij gumb Meta AI na zaslonu klepetov.</string>
+    <string name="feat_metaai_title">Odstrani Meta AI</string>
+    <string name="feat_metaai_desc">Izberi površine in dostopne točke Meta AI, ki jih želiš odstraniti.</string>
     <string name="sec_chat_group_utilities">Orodja za klepet in skupine</string>
     <string name="sec_conversation_list_activity_presence">Dejavnost na seznamu klepetov in prisotnost</string>
     <string name="sec_visual_styles">Vizualni slogi</string>
@@ -370,4 +369,27 @@
     <string name="title_call_recordings">Posnetki</string>
     <string name="view_once_setting_save_failed">Nastavitve ni bilo mogoče shraniti</string>
     <string name="waex_l10n_builtin_match">"Podprto"</string>
+    <string name="manual_status_seen_section">OGLED STANJA</string>
+    <string name="manual_status_seen_title">Ročno pošlji potrdilo o ogledu stanja</string>
+    <string name="manual_status_seen_desc">Izberite, kako označiti trenutno stanje kot ogledano</string>
+    <string name="manual_status_seen_placement_title">PRIKAŽI DEJANJE KOT</string>
+    <string name="manual_status_seen_menu">Možnost v meniju</string>
+    <string name="manual_status_seen_icon">Gumb za ogledano</string>
+    <string name="profile_photo_already_saved">Profilna slika je že shranjena</string>
+    <string name="profile_photo_saving">SHRANJEVANJE PROFILNIH SLIK</string>
+    <string name="save_profile_duplicates">Shrani dvojnike</string>
+    <string name="save_profile_duplicates_desc">Vsakič shrani novo datoteko</string>
+    <string name="status_already_saved">Stanje je že shranjeno</string>
+    <string name="status_download_saving">SHRANJEVANJE PRENOSOV STANJ</string>
+    <string name="save_status_duplicates">Shrani dvojnike</string>
+    <string name="save_status_duplicates_desc">Vsakič shrani novo datoteko</string>
+    <string name="feat_app_interface_size_title">@string/interface_size_title</string>
+    <string name="feat_app_interface_size_desc">@string/interface_size_desc</string>
+    <string name="sending_read_blue_tick">Pošiljanje modre kljukice za branje…</string>
+    <string name="diag_target_sheet_custom_rule_warning">Vse aplikacije so vbrizgane in aktivne. Velja pravilo po meri za verzijo; združljivost s to verzijo ni bila uradno preverjena.</string>
+    <string name="feat_bypass_screenshot_restriction_title">Dovoli posnetke zaslona</string>
+    <string name="feat_bypass_screenshot_restriction_desc">Dovoli posnetke zaslona in snemanje zaslona v celotnem WhatsApp</string>
+    <string name="waex_ui_selected_icon_color">Barva izbranih ikon</string>
+    <string name="waex_ui_unselected_icon_color">Barva neizbranih ikon</string>
+    <string name="waex_ui_using_app_default_color">Uporablja privzeto barvo aplikacije</string>
 </resources>

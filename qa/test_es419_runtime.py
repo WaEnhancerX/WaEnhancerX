@@ -120,6 +120,7 @@ with tempfile.TemporaryDirectory(prefix='waex_es419_') as temp:
     r,ids=write_r(ROOT,tmp);sources.append(r)
     runner=tmp/'qa/TestEs419Runtime.java';runner.parent.mkdir();runner.write_text(RUNNER);sources.append(runner)
     sources += [SRC/p for p in ['UiText.java','DisplayLocalePolicy.java','InternalLabels.java','PreferenceLabels.java']]
+    sources.append(ROOT/'app/src/main/java/com/waenhancer/config/PreferenceKeyAliases.java')
     en=entries(ROOT,'values');es=entries(ROOT,'values-b+es+419');fixture=tmp/'resource-values.tsv'
     def b64(s):return base64.b64encode(s.encode()).decode()
     fixture.write_text('\n'.join(f'{ids[k]}\t{b64(en[k][0])}\t{b64(es[k][0])}\t{str(en[k][1]).lower()}' for k in sorted(ids)))

@@ -197,7 +197,7 @@ fun DeletedMessagesVaultScreen() {
                                 .padding(horizontal = spacing.pageMargin, vertical = 12.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            listOf("individuals" to UiText.get(R.string.waex_ui_individuals_d64d3d99, "Individuals"), "groups" to UiText.get(R.string.waex_ui_groups_39bbb719, "Groups")).forEach { (tabId, label) ->
+                            listOf("individuals" to UiText.get(R.string.waex_ui_individuals, "Individuals"), "groups" to UiText.get(R.string.waex_ui_groups, "Groups")).forEach { (tabId, label) ->
                                 val active = selectedTab == tabId
                                 Box(
                                     modifier = Modifier
@@ -249,12 +249,12 @@ fun DeletedMessagesVaultScreen() {
                                     )
                                 }
                                 Text(
-                                    text = if (selectedTab == "individuals") UiText.get(R.string.waex_ui_no_preserved_individual_chats_0491329d, "No preserved individual chats") else UiText.get(R.string.waex_ui_no_preserved_group_chats_29845d70, "No preserved group chats"),
+                                    text = if (selectedTab == "individuals") UiText.get(R.string.waex_ui_no_preserved_individual_chats, "No preserved individual chats") else UiText.get(R.string.waex_ui_no_preserved_group_chats, "No preserved group chats"),
                                     style = typography.headlineMd,
                                     color = colors.onSurface
                                 )
                                 Text(
-                                    text = UiText.get(R.string.waex_ui_when_messages_are_deleted_via_delete_f_439b7068, "When messages are deleted via 'Delete For Me', they will be preserved and listed here."),
+                                    text = UiText.get(R.string.waex_ui_when_messages_are_deleted_via_delete_f, "When messages are deleted via 'Delete For Me', they will be preserved and listed here."),
                                     style = typography.bodyMd,
                                     color = colors.onSurfaceVariant,
                                     textAlign = TextAlign.Center
@@ -289,17 +289,17 @@ private fun loadRealPreservedChats(context: Context): List<PreservedChat> {
     val chatGroupMap = mutableMapOf<String, Boolean>()
 
     for (rec in records) {
-        val jid = if (rec.jid.isNullOrEmpty()) UiText.get(R.string.waex_ui_unknown_b764cdc0, "Unknown") else rec.jid
+        val jid = if (rec.jid.isNullOrEmpty()) UiText.get(R.string.waex_ui_unknown, "Unknown") else rec.jid
         val dateTimeStr = if (rec.timestamp > 0) {
             dateTimeFormatter.format(Date(rec.timestamp))
         } else {
-            UiText.get(R.string.waex_ui_preserved_9d31b48b, "Preserved")
+            UiText.get(R.string.waex_ui_preserved, "Preserved")
         }
         val msg = PreservedMessage(
             // SQLite permits several NULL logical IDs even under a UNIQUE key.
             // Use the physical row identity so each preserved message can render.
             id = rec.storageId.toString(),
-            text = rec.text.ifBlank { UiText.get(R.string.waex_ui_preserved_message_547f6da1, "Preserved message") },
+            text = rec.text.ifBlank { UiText.get(R.string.waex_ui_preserved_message, "Preserved message") },
             timestamp = dateTimeStr,
             isFromMe = rec.isFromMe,
             senderName = if (rec.isGroup && !rec.isFromMe && rec.senderName.isNotBlank()) rec.senderName else null
@@ -463,9 +463,9 @@ private fun WhatsAppChatListItem(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val prefix = if (lastMsg?.isFromMe == true) UiText.get(R.string.waex_ui_you_7b1aab93, "You: ") else ""
+                    val prefix = if (lastMsg?.isFromMe == true) UiText.get(R.string.waex_ui_you, "You: ") else ""
                     Text(
-                        text = "$prefix${lastMsg?.text ?: UiText.get(R.string.waex_ui_no_messages_a06faf26, "No messages")}",
+                        text = "$prefix${lastMsg?.text ?: UiText.get(R.string.waex_ui_no_messages, "No messages")}",
                         style = typography.bodyMd,
                         color = colors.onSurfaceVariant,
                         maxLines = 1,
@@ -477,14 +477,14 @@ private fun WhatsAppChatListItem(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFFEF4444).copy(alpha = 0.12f))
+                                .background(colors.errorContainer)
                                 .padding(horizontal = 7.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = "${chat.messages.size}",
                                 style = typography.labelSm,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFEF4444)
+                                color = colors.onErrorContainer
                             )
                         }
                     }

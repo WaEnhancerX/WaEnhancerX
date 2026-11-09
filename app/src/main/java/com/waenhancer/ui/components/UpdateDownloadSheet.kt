@@ -9,10 +9,9 @@ import android.os.Looper
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -101,7 +100,11 @@ fun UpdateDownloadSheet(
                     if (!session.claimTerminal()) return@post
                     mainHandler.removeCallbacks(progressTask)
                     dismiss()
-                    Toast.makeText(context, UiText.get(R.string.waex_ui_download_failed_1_s_1f37f501, "Download failed: %1\$s", error.message), Toast.LENGTH_LONG).show()
+                    if (NetworkErrorCenter.isNetworkError(error)) {
+                        NetworkErrorCenter.show(error)
+                    } else {
+                        Toast.makeText(context, UiText.get(R.string.waex_ui_download_failed_1_s, "Download failed: %1\$s", error.message), Toast.LENGTH_LONG).show()
+                    }
                 }
             }
         }, expectedSha256, expectedSize)
@@ -113,7 +116,7 @@ fun UpdateDownloadSheet(
         }
     }
 
-    ModalBottomSheet(
+    WaexModalBottomSheet(
         onDismissRequest = {},
         sheetState = sheetState,
         containerColor = colors.surfaceContainer
@@ -125,10 +128,12 @@ fun UpdateDownloadSheet(
                 .padding(horizontal = 24.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(UiText.get(R.string.waex_ui_downloading_update_01436823, "Downloading update"), style = typography.headlineMd, fontWeight = FontWeight.Bold, color = colors.onSurface)
-            LinearProgressIndicator(
+            Text(UiText.get(R.string.waex_ui_downloading_update, "Downloading update"), style = typography.headlineMd, fontWeight = FontWeight.Bold, color = colors.onSurface)
+            WaexLinearProgressIndicator(
                 progress = { downloadProgress / 100f },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(12.dp),
                 color = colors.primary,
                 trackColor = colors.surfaceContainerHighest
             )

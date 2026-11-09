@@ -9,6 +9,8 @@ import com.waenhancer.xposed.core.VersionGuard;
 import java.lang.ref.WeakReference;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import com.waenhancer.xposed.core.RestartPromptController;
+import com.waenhancer.xposed.features.updates.WhatsAppUpdateSheet;
 
 /**
  * Tracks current top-level Activity and Conversation Activity in WhatsApp.
@@ -47,6 +49,11 @@ public final class ActivityTracker implements Application.ActivityLifecycleCallb
     @Override
     public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle savedInstanceState) {
         sCurrentActivity = new WeakReference<>(activity);
+        for (ActivityListener listener : sListeners) {
+            try {
+                listener.onActivityCreated(activity);
+            } catch (Throwable ignored) {}
+        }
     }
 
     @Override
@@ -55,7 +62,13 @@ public final class ActivityTracker implements Application.ActivityLifecycleCallb
     }
 
     public interface ActivityListener {
+        default void onActivityCreated(@NonNull Activity activity) {}
+
         void onActivityResumed(@NonNull Activity activity);
+
+        default void onActivityStopped(@NonNull Activity activity) {}
+
+        default void onActivityDestroyed(@NonNull Activity activity) {}
     }
 
     private static final List<ActivityListener> sListeners = new CopyOnWriteArrayList<>();
@@ -77,10 +90,10 @@ public final class ActivityTracker implements Application.ActivityLifecycleCallb
             VersionGuard.onTargetActivityResumed(activity);
         } catch (Throwable ignored) {}
         try {
-            com.waenhancer.xposed.features.updates.WhatsAppUpdateSheet.onTargetActivityResumed(activity);
+            WhatsAppUpdateSheet.onTargetActivityResumed(activity);
         } catch (Throwable ignored) {}
         try {
-            com.waenhancer.xposed.core.RestartPromptController.onTargetActivityResumed(activity);
+            RestartPromptController.onTargetActivityResumed(activity);
         } catch (Throwable ignored) {}
         for (ActivityListener listener : sListeners) {
             try {
@@ -92,12 +105,18 @@ public final class ActivityTracker implements Application.ActivityLifecycleCallb
     @Override
     public void onActivityPaused(@NonNull Activity activity) {
         try {
-            com.waenhancer.xposed.core.RestartPromptController.onTargetActivityPaused(activity);
+            RestartPromptController.onTargetActivityPaused(activity);
         } catch (Throwable ignored) {}
     }
 
     @Override
-    public void onActivityStopped(@NonNull Activity activity) {}
+    public void onActivityStopped(@NonNull Activity activity) {
+        for (ActivityListener listener : sListeners) {
+            try {
+                listener.onActivityStopped(activity);
+            } catch (Throwable ignored) {}
+        }
+    }
 
     @Override
     public void onActivitySaveInstanceState(@NonNull Activity activity, @NonNull Bundle outState) {}
@@ -106,6 +125,11 @@ public final class ActivityTracker implements Application.ActivityLifecycleCallb
     public void onActivityDestroyed(@NonNull Activity activity) {
         if (sCurrentActivity.get() == activity) {
             sCurrentActivity = new WeakReference<>(null);
+        }
+        for (ActivityListener listener : sListeners) {
+            try {
+                listener.onActivityDestroyed(activity);
+            } catch (Throwable ignored) {}
         }
     }
 }

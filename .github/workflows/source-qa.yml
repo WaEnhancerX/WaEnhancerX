@@ -81,6 +81,24 @@ jobs:
           set -euo pipefail
           python3 qa/test_syntax_checker.py
 
+      - name: Validate complete status style and property hook contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_status_style_hook_contract.py --out "$RUNNER_TEMP/status-style-hook-contract"
+
+      - name: Preserve status style hook contract evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: status-style-hook-contract-evidence
+          path: |
+            ${{ runner.temp }}/status-style-hook-contract/*.json
+            ${{ runner.temp }}/status-style-hook-contract/*.log
+            ${{ runner.temp }}/status-style-hook-contract/sources
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Run required public-source JVM regression suites
         shell: bash
         run: |
@@ -95,6 +113,10 @@ jobs:
             qa/test_dex_negative_cache.py
             qa/test_android24_compatibility.py
             qa/test_restart_safety.py
+            qa/test_tasker_runtime_gate.py
+            qa/test_double_tap_adapter_binding.py
+            qa/test_profile_photo_save.py
+            qa/test_status_media_export.py
             qa/test_hook_return_types.py
             qa/test_monet_wiring.py
             qa/test_catalog_source.py
@@ -357,6 +379,37 @@ jobs:
         with:
           name: runtime-framework-evidence
           path: ${{ runner.temp }}/waex-runtime-framework/evidence
+          retention-days: 14
+          if-no-files-found: error
+
+  interface-scale-framework:
+    name: Interface size / complete theme / Android density and font scale
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Require whole-theme scaling and accessibility regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f qa/fixtures/InterfaceScaleThemeTest.kt
+          python3 qa/verify_interface_scale_framework.py --out "$RUNNER_TEMP/waex-interface-scale"
+      - name: Preserve source identities, dependency hashes and framework results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: interface-scale-framework-evidence
+          path: ${{ runner.temp }}/waex-interface-scale/evidence
           retention-days: 14
           if-no-files-found: error
 

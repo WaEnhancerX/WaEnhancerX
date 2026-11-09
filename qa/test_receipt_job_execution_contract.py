@@ -51,7 +51,7 @@ install = extract(text, '    private void hookSendReadReceiptJob()')
 resolve = extract(text, '    private Method resolveReadReceiptExecution(')
 assert 'getDeclaredMethods()' not in install, 'Do not blanket-hook receipt job methods'
 assert 'matches.size() != 1' in resolve, 'Ambiguous DEX matches must be rejected'
-assert 'wpp_send_read_receipt_execution_v1' in resolve
+assert 'waex_send_read_receipt_execution_v1' in resolve
 
 body = r"""
 package com.waenhancer.xposed.features.privacy;
@@ -106,7 +106,8 @@ public class TestReceiptExecutionContract {
   static Object getAdditionalInstanceField(Object j,String k){return marks.get(j);}
   static void setAdditionalInstanceField(Object j,String k,Object v){marks.put(j,v);}
  }
- static class BlueOnReplyHook {static final List<String> captured=new ArrayList<>();static void captureSuppressedReadJob(String j,Constructor<?> c,Object[] a){captured.add(j);}}
+ static class BlueOnReplyHook {static final List<String> captured=new ArrayList<>();static void captureSuppressedReadJob(String j,Constructor<?> c,Object[] a){captured.add(j);}static boolean isManualStatusSeenEnabled(Object prefs){return false;}static void captureSuppressedStatusReadJob(Constructor<?> c,Object[] a){}static boolean isManualStatusReceipt(Object job){return false;}}
+ Object prefs=new Object();
  boolean blueEnabled;
  boolean isEnabled(String key,boolean value){return blueEnabled||value;}
  static String canonicalJid(String value){return ReceiptJidPolicy.canonical(value);}

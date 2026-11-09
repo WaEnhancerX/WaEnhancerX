@@ -45,7 +45,7 @@ class ChatBubbleColorsHook(
             val bubbleMethods = DexSearchEngine.getInstance().findMethodWithCache(
                 context,
                 classLoader,
-                "wpp_bubble_drawable_method"
+                "waex_bubble_drawable_method"
             ) { bridge, loader ->
                 val results = bridge.findMethod(
                     FindMethod.create().matcher {

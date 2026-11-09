@@ -16,6 +16,9 @@ import org.luckypray.dexkit.query.enums.StringMatchType
 import org.luckypray.dexkit.query.matchers.MethodMatcher
 import java.io.File
 import java.lang.reflect.Method
+import java.lang.reflect.Field
+import java.util.concurrent.Executors
+import org.luckypray.dexkit.DexKitBridge
 
 /**
  * Feature: Preserve "Delete For Me" Messages.
@@ -42,6 +45,9 @@ class PreserveDeleteForMeHook(
         private val preservationWarningLock = Any()
         private var lastPreservationWarningAtElapsed = -1L
         private const val PRESERVATION_WARNING_INTERVAL_MS = 30_000L
+        private val preservationExecutor = Executors.newSingleThreadExecutor { runnable ->
+            Thread(runnable, "WAEX-PreserveDeleteForMe").apply { isDaemon = true }
+        }
 
         /** Lets other database hooks distinguish a local Delete-for-me from a remote revoke. */
         @JvmStatic
@@ -328,13 +334,28 @@ class PreserveDeleteForMeHook(
                 putBoolean("fromMe", fromMe)
                 putBoolean("isGroup", isGroup)
             }
-            val response = context.contentResolver.call(
-                Uri.parse(PROVIDER_URI),
-                "record_preserved_message",
-                null,
-                bundle
-            )
-            response?.getBoolean("success", false) == true
+            // This runs inside WhatsApp's delete path. Do not wait for the manager process or its
+            // SQLite write; all metadata needed for preservation is already in the bundle.
+            preservationExecutor.execute {
+                try {
+                    val acknowledgement = context.contentResolver.call(
+                        Uri.parse(PROVIDER_URI),
+                        "record_preserved_message",
+                        null,
+                        bundle
+                    )
+                    // The enqueue result only acknowledges scheduling. The manager's
+                    // explicit persistence acknowledgement must be checked on this worker,
+                    // without blocking WhatsApp's original Delete-for-me callback.
+                    if (acknowledgement?.getBoolean("success", false) != true) {
+                        warnPreservationUnconfirmed()
+                    }
+                } catch (_: Throwable) {
+                    // Do not log private message content, message IDs or transport errors.
+                    warnPreservationUnconfirmed()
+                }
+            }
+            true
         } catch (_: Throwable) {
             false
         }
@@ -345,7 +366,7 @@ class PreserveDeleteForMeHook(
             DexSearchEngine.getInstance().findMethodWithCache(
                 context,
                 classLoader,
-                "wpp_delete_for_me_method_v7",
+                "waex_delete_for_me_method_v7",
                 { bridge, loader ->
                     resolveCurrentDeleteForMeRunnable(bridge, loader) ?: bridge.findMethod(
                         FindMethod.create().matcher(
@@ -380,7 +401,7 @@ class PreserveDeleteForMeHook(
      * message-key helper string -> dialog builder(Set) -> positive listener -> Runnable -> run().
      */
     private fun resolveCurrentDeleteForMeRunnable(
-        bridge: org.luckypray.dexkit.DexKitBridge,
+        bridge: DexKitBridge,
         loader: ClassLoader
     ): Method? {
         val deleteDialogAnchors = bridge.findMethod(
@@ -537,7 +558,7 @@ class PreserveDeleteForMeHook(
         }
     }
 
-    private fun allInstanceFields(type: Class<*>): Sequence<java.lang.reflect.Field> = sequence {
+    private fun allInstanceFields(type: Class<*>): Sequence<Field> = sequence {
         var current: Class<*>? = type
         while (current != null && current != Any::class.java) {
             yieldAll(current.declaredFields.asSequence())

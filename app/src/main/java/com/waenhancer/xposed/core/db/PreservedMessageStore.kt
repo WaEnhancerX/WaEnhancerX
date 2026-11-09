@@ -5,6 +5,8 @@ import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import android.util.Log
+import com.waenhancer.utils.ContactIdentityPolicy
 
 /**
  * SQLite Store for Preserved "Delete For Me" messages.
@@ -157,13 +159,13 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
                 } catch (t: Throwable) {
                     // This optional name refresh follows an already confirmed
                     // INSERT. Its failure must not report that the copy is absent.
-                    android.util.Log.e("WAEX:PreservedStore", "contact name refresh failed: ${t.javaClass.simpleName}")
+                    Log.e("WAEX:PreservedStore", "contact name refresh failed: ${t.javaClass.simpleName}")
                 }
             }
             return true
         } catch (t: Throwable) {
             // SQLite exception messages and stacks can contain message values.
-            android.util.Log.e("WAEX:PreservedStore", "insertPreservedMessage failed: ${t.javaClass.simpleName}")
+            Log.e("WAEX:PreservedStore", "insertPreservedMessage failed: ${t.javaClass.simpleName}")
             return false
         }
     }
@@ -209,8 +211,38 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
         return list
     }
 
+    fun getPreservedMessageByMsgId(msgId: String): StoredMessage? {
+        if (msgId.isBlank()) return null
+        try {
+            val db = readableDatabase
+            db.query(
+                TABLE_NAME,
+                arrayOf(COL_MSG_ID, COL_JID, COL_NAME, COL_SENDER_NAME, COL_TEXT, COL_TIMESTAMP, COL_FROM_ME, COL_IS_GROUP, COL_ID),
+                "$COL_MSG_ID = ?",
+                arrayOf(msgId),
+                null, null, null, "1"
+            ).use { cursor ->
+                if (cursor != null && cursor.moveToFirst()) {
+                    val hasSenderCol = cursor.columnCount >= 8
+                    return StoredMessage(
+                        id = cursor.getString(0) ?: "",
+                        jid = cursor.getString(1) ?: "",
+                        chatName = cursor.getString(2) ?: "",
+                        senderName = if (hasSenderCol) (cursor.getString(3) ?: "") else "",
+                        text = cursor.getString(4) ?: "",
+                        timestamp = cursor.getLong(5),
+                        isFromMe = cursor.getInt(6) == 1,
+                        isGroup = cursor.getInt(7) == 1,
+                        storageId = cursor.getLong(8)
+                    )
+                }
+            }
+        } catch (_: Throwable) {}
+        return null
+    }
+
     fun getContactNameByJid(jid: String): String? {
-        val exact = com.waenhancer.utils.ContactIdentityPolicy.canonicalJid(jid) ?: return null
+        val exact = ContactIdentityPolicy.canonicalJid(jid) ?: return null
         try {
             readableDatabase.rawQuery(
                 "SELECT DISTINCT $COL_NAME FROM $TABLE_NAME WHERE $COL_JID = ? AND $COL_NAME IS NOT NULL AND $COL_NAME != '' LIMIT 2",

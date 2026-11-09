@@ -18,6 +18,7 @@ sealed class Screen(val route: String) {
     object About : Screen("about")
     object Stargazers : Screen("stargazers")
     object ModuleSettings : Screen("module_settings")
+    object HookingModeHelp : Screen("hooking_mode_help")
     object UpdateSettings : Screen("update_settings")
     object SupportedVersions : Screen("supported_versions")
     object BootloaderSpoofer : Screen("bootloader_spoofer")
@@ -28,6 +29,8 @@ sealed class Screen(val route: String) {
     object ManageDevices : Screen("manage_devices")
     object FloatingBottomBarCustomizer : Screen("floating_bottom_bar_customizer")
     object FilterItems : Screen("filter_items")
+    object CustomAbProps : Screen("custom_ab_props")
+    data class CustomAbPropEditor(val index: Int = -1) : Screen("custom_ab_prop_editor/$index")
     data class InjectedHooks(val packageName: String, val appName: String) : Screen("injected_hooks/$packageName")
 }
 

@@ -13,6 +13,7 @@
     <string name="go_to_telegram">"Canal de Telegram"</string>
     <string name="go_to_github">"Reportes en GitHub"</string>
     <string name="contributors">"Colaboradores"</string>
+    <string name="contributor">"Colaborador"</string>
     <string name="stargazers_title">"Quienes apoyan el proyecto"</string>
     <string name="stargazers_thank_you">"Gracias por apoyar a WaEnhancerX"</string>
     <string name="stargazers_message">"Cada estrella ayuda a que más personas descubran el proyecto. Este espacio reconoce a quienes han mostrado su apoyo."</string>
@@ -119,8 +120,6 @@
     <string name="feat_hideonceseen_desc">"Oculta que abriste una foto o un video de una sola vista"</string>
     <string name="feat_anti_revoke_title">"Conservar mensajes eliminados"</string>
     <string name="feat_anti_revoke_desc">"Conserva tu copia de los mensajes que otras personas eliminan"</string>
-    <string name="feat_hide_anti_revoke_title">"Agregar la opción de ocultar mensajes eliminados"</string>
-    <string name="feat_hide_anti_revoke_desc">"Agrega al menú de la conversación una opción para ocultar sus mensajes eliminados"</string>
     <string name="feat_preserve_own_revoke_title">"Conservar mis mensajes eliminados para todos"</string>
     <string name="feat_preserve_own_revoke_desc">"Conserva tu copia local al usar Eliminar para todos, sin impedir que se elimine la de los destinatarios"</string>
     <string name="feat_antirevokestatus_title">"Conservar estados eliminados"</string>
@@ -201,8 +200,8 @@
     <string name="feat_status_text_composer_desc">"Mantén presionado el selector de color del estado para personalizarlo"</string>
     <string name="feat_status_downloader_title">"Descargar y compartir estados"</string>
     <string name="feat_status_downloader_desc">"Agrega dos botones para compartir y descargar estados"</string>
-    <string name="feat_media_upload_quality_title">"Fotos y videos en alta definición"</string>
-    <string name="feat_media_upload_quality_desc">"Envía fotos y videos en alta definición de forma predeterminada"</string>
+    <string name="feat_media_upload_quality_title">"Fotos y videos en calidad original"</string>
+    <string name="feat_media_upload_quality_desc">"Envía fotos y videos en calidad original"</string>
     <string name="feat_send_audio_as_voice_status_title">"Audio local como estado de voz"</string>
     <string name="feat_send_audio_as_voice_status_desc">"Elige un archivo de audio de tu dispositivo y publícalo como estado de voz"</string>
     <string name="feat_status_video_splitter_title">"Dividir videos para estados"</string>
@@ -368,4 +367,27 @@
     <string name="stargazers_last_updated">"Última actualización: %1$s"</string>
     <string name="feat_status_style_title">Estilo de Estados e Historias</string>
     <string name="feat_status_style_desc">Personaliza el diseño de historias y estados con modelos nativos de WhatsApp</string>
+    <string name="manual_status_seen_section">VISUALIZACIÓN DE ESTADOS</string>
+    <string name="manual_status_seen_title">Enviar confirmación de visto manualmente</string>
+    <string name="manual_status_seen_desc">Elige cómo marcar el estado actual como visto</string>
+    <string name="manual_status_seen_placement_title">MOSTRAR ACCIÓN COMO</string>
+    <string name="manual_status_seen_menu">Opción de menú</string>
+    <string name="manual_status_seen_icon">Botón de visto</string>
+    <string name="profile_photo_already_saved">La foto de perfil ya está guardada</string>
+    <string name="profile_photo_saving">GUARDADO DE FOTOS DE PERFIL</string>
+    <string name="save_profile_duplicates">Guardar duplicados</string>
+    <string name="save_profile_duplicates_desc">Guardar un archivo nuevo cada vez</string>
+    <string name="status_already_saved">El estado ya está guardado</string>
+    <string name="status_download_saving">GUARDADO DE DESCARGAS DE ESTADOS</string>
+    <string name="save_status_duplicates">Guardar duplicados</string>
+    <string name="save_status_duplicates_desc">Guardar un archivo nuevo cada vez</string>
+    <string name="feat_app_interface_size_title">@string/interface_size_title</string>
+    <string name="feat_app_interface_size_desc">@string/interface_size_desc</string>
+    <string name="sending_read_blue_tick">Enviando confirmación de lectura…</string>
+    <string name="diag_target_sheet_custom_rule_warning">Todas las aplicaciones están inyectadas y activas. Se aplica una regla de versión personalizada; la compatibilidad con esta versión no ha sido verificada oficialmente.</string>
+    <string name="feat_bypass_screenshot_restriction_title">Permitir capturas de pantalla</string>
+    <string name="feat_bypass_screenshot_restriction_desc">Permitir capturas de pantalla y grabación de pantalla en toda la aplicación de WhatsApp</string>
+    <string name="waex_ui_selected_icon_color">Color del icono seleccionado</string>
+    <string name="waex_ui_unselected_icon_color">Color del icono no seleccionado</string>
+    <string name="waex_ui_using_app_default_color">Usando el color predeterminado de la aplicación</string>
 </resources>

@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="feat_metaai_title">Ocultar el botón de Meta AI</string>
-    <string name="feat_metaai_desc">Oculta el botón de Meta AI en la pantalla de chats.</string>
+    <string name="feat_metaai_title">Eliminar Meta AI</string>
+    <string name="feat_metaai_desc">Elige qué superficies y puntos de acceso de Meta AI quieres eliminar.</string>
+    <string name="meta_ai_remove_home_fab">"Quitar Inicio FAB"</string>
+    <string name="meta_ai_remove_entry_points">"Eliminar Meta AI puntos de entrada"</string>
+    <string name="meta_ai_block_chat">"Bloquear chat Meta AI"</string>
 </resources>
