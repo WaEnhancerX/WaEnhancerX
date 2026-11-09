@@ -675,6 +675,10 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
                 "h:mm:ss.SSS a" to "h:mm:ss.SSS a",
                 "Custom Pattern" to "Custom Pattern"
             ),
+            optionPreview = { value ->
+                val pattern = if (value == "Custom Pattern") timestampCustomPattern else value
+                formatTimestampPreview(pattern)
+            },
             onDismiss = { showTimestampFormatSheet = false },
             onSave = { selected ->
                 preferenceManager.putPublicString("timestamp_format", selected)
@@ -878,12 +882,20 @@ private fun TextValueEditorDialog(
     }
 }
 
+private fun formatTimestampPreview(pattern: String): String {
+    return runCatching {
+        DateTimeFormatter.ofPattern(pattern, Locale.getDefault())
+            .format(Instant.now().atZone(ZoneId.systemDefault()))
+    }.getOrElse { "—" }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChoiceValueEditorDialog(
     title: String,
     selectedValue: String,
     choices: List<Pair<String, String>>,
+    optionPreview: ((String) -> String)? = null,
     onDismiss: () -> Unit,
     onSave: (String) -> Unit
 ) {
@@ -959,8 +971,19 @@ private fun ChoiceValueEditorDialog(
                             style = typography.bodyLg,
                             color = if (isSelected) colors.primary else colors.onSurface,
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                            modifier = Modifier.padding(start = 4.dp)
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(start = 4.dp)
                         )
+                        optionPreview?.let { preview ->
+                            Text(
+                                text = preview(value),
+                                style = typography.bodySm,
+                                color = colors.onSurfaceVariant,
+                                maxLines = 1,
+                                modifier = Modifier.padding(end = 12.dp)
+                            )
+                        }
                     }
                     if (index < choices.lastIndex) {
                         HorizontalDivider(
