@@ -679,8 +679,13 @@ public final class FeatureRegistry {
             dexSearchEngine.releaseLease();
             if (entry.installation != Installation.STARTUP) {
                 dexSearchEngine.close();
+                // Lazy installs happen after the startup catalogue has been published.
+                // Report their state changes immediately, including failures.
+                reportInjectedHooks(reportingContext, reportingPackage);
             }
-            reportInjectedHooks(reportingContext, reportingPackage);
+            // MainHook publishes the complete catalogue after initializeAll().
+            // Reporting it for every STARTUP entry duplicates JSON serialization and
+            // synchronous provider IPC on the target's initialization thread.
         }
     }
 
