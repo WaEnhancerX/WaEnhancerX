@@ -31,6 +31,7 @@ sealed class Screen(val route: String) {
     object FilterItems : Screen("filter_items")
     object CustomAbProps : Screen("custom_ab_props")
     data class CustomAbPropEditor(val index: Int = -1) : Screen("custom_ab_prop_editor/$index")
+    object CustomEmojis : Screen("custom_emojis")
     data class InjectedHooks(val packageName: String, val appName: String) : Screen("injected_hooks/$packageName")
 }
 

@@ -103,7 +103,8 @@
       "removeseemore",
       "stamp_copied_message",
       "doubletap2like",
-      "disable_defemojis"
+      "disable_defemojis",
+      "custom_emojis"
     ],
     "proKeys": [
       "message_bomber"

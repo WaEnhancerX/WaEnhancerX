@@ -15,6 +15,7 @@ import com.waenhancer.hooking.ScreenScopedFeature;
 import com.waenhancer.licensing.customprops.CustomAbPropsRuntime;
 import com.waenhancer.licensing.features.AudioToVoiceStatusFeature;
 import com.waenhancer.licensing.features.BootloaderSpooferFeature;
+import com.waenhancer.licensing.features.CustomEmojisFeature;
 import com.waenhancer.licensing.features.DeviceDefaultEmojisFeature;
 import com.waenhancer.licensing.features.FileSizeSpooferFeature;
 import com.waenhancer.licensing.features.MessageBomberFeature;
@@ -323,8 +324,9 @@ public final class FeatureRegistry {
                 () -> new ChatLimitsBypassHook(context, classLoader, prefs));
 
         try {
-            if (prefs.getBoolean("disable_defemojis", false)
-                    || prefs.getBoolean(context.getPackageName() + ":disable_defemojis", false)) {
+            boolean deviceEmojis = prefs.getBoolean("disable_defemojis", false)
+                    || prefs.getBoolean(context.getPackageName() + ":disable_defemojis", false);
+            if (deviceEmojis) {
                 DeviceDefaultEmojisFeature.install(context, classLoader, prefs,
                         (cacheKey, query) -> DexSearchEngine.getInstance().findClassWithCache(
                                 context, classLoader, cacheKey, query::execute));
@@ -332,8 +334,24 @@ public final class FeatureRegistry {
             } else {
                 features.add(new FeatureEntry("Device Default Emojis", "DeviceDefaultEmojisFeature", "Conversation", "DISABLED"));
             }
+
+            // Custom Emojis requires device emojis to be turned off
+            String pkg = context.getPackageName();
+            boolean customEmojis = !deviceEmojis && (
+                    prefs.getBoolean("custom_emojis", false)
+                    || prefs.getBoolean("custom_emoji_enabled", false)
+                    || prefs.getBoolean(pkg + ":custom_emojis", false)
+                    || prefs.getBoolean(pkg + ":custom_emoji_enabled", false));
+            if (customEmojis) {
+                CustomEmojisFeature.install(context, classLoader, prefs,
+                        (cacheKey, query) -> DexSearchEngine.getInstance().findClassWithCache(
+                                context, classLoader, cacheKey, query::execute));
+                features.add(new FeatureEntry("Custom Emojis", "CustomEmojisFeature", "Conversation", "ACTIVE"));
+            } else {
+                features.add(new FeatureEntry("Custom Emojis", "CustomEmojisFeature", "Conversation", "DISABLED"));
+            }
         } catch (Throwable t) {
-            FeatureEntry entry = new FeatureEntry("Device Default Emojis", "DeviceDefaultEmojisFeature", "Conversation", "FAILED");
+            FeatureEntry entry = new FeatureEntry("Custom Emojis", "CustomEmojisFeature", "Conversation", "FAILED");
             entry.error = t.getMessage();
             features.add(entry);
         }

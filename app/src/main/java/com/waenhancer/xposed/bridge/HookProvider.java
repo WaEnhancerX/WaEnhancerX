@@ -87,6 +87,34 @@ public class HookProvider extends ContentProvider {
                 return result;
             }
 
+            if ("get_custom_emoji_font".equals(method)) {
+                String filename = arg != null ? arg : (extras != null ? extras.getString("filename") : null);
+                if (filename == null || filename.isEmpty()) return null;
+                String safeName = new File(filename).getName();
+                File emojiDir = new File(context.getFilesDir(), "custom_emojis");
+                File fontFile = new File(emojiDir, safeName);
+                if (!fontFile.exists() || !fontFile.isFile()) {
+                    File extDir = context.getExternalFilesDir("custom_emojis");
+                    if (extDir != null) {
+                        File extFile = new File(extDir, safeName);
+                        if (extFile.exists() && extFile.isFile()) {
+                            fontFile = extFile;
+                        }
+                    }
+                }
+                if (!fontFile.exists() || !fontFile.isFile()) return null;
+                try {
+                    ParcelFileDescriptor pfd = ParcelFileDescriptor.open(fontFile, ParcelFileDescriptor.MODE_READ_ONLY);
+                    Bundle result = new Bundle();
+                    result.putParcelable("descriptor", pfd);
+                    result.putLong("file_size", fontFile.length());
+                    result.putLong("last_modified", fontFile.lastModified());
+                    return result;
+                } catch (FileNotFoundException ignored) {
+                    return null;
+                }
+            }
+
             if ("create_call_recording".equals(method)) {
                 if (extras == null) return null;
                 String requestedName = extras.getString("name", "Call.m4a");

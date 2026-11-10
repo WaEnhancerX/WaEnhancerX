@@ -66,6 +66,10 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
         }
     }
 
+    public String getTargetPackage() {
+        return targetPackage;
+    }
+
     /** Changes when the active target changes; preference screens use it to refresh controls only. */
     public int getTargetEpoch() { return targetEpoch; }
 

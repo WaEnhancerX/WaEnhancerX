@@ -100,6 +100,7 @@ import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.screens.audio.AudioTranscriptionScreen
 import com.waenhancer.ui.screens.automation.AutomationTaskerScreen
 import com.waenhancer.ui.screens.conversation.ConversationEnhancementsScreen
+import com.waenhancer.ui.screens.conversation.CustomEmojisScreen
 import com.waenhancer.ui.screens.dashboard.MainDashboardScreen
 import com.waenhancer.ui.screens.dashboard.InjectedHooksScreen
 import com.waenhancer.ui.screens.license.LicenseActivationScreen
@@ -191,6 +192,10 @@ class WaexNavController(initialScreen: Screen = Screen.MainDashboard) {
         }
         if (preferenceKey == "custom_ab_props") {
             navigateTo(Screen.CustomAbProps)
+            return
+        }
+        if (preferenceKey == "custom_emojis" || preferenceKey == "custom_emoji_enabled" || preferenceKey == "disable_defemojis") {
+            navigateTo(Screen.CustomEmojis)
             return
         }
         val rootScreen = when (tabIndex) {
@@ -1316,6 +1321,7 @@ fun WaexAppNavigation(
             onBack = navController::popBack,
             onEdit = { index -> navController.navigateTo(Screen.CustomAbPropEditor(index)) }
         )
+        Screen.CustomEmojis -> CustomEmojisScreen()
         is Screen.CustomAbPropEditor -> CustomAbPropEditorScreen(
             index = currentScreen.index,
             prefs = preferenceManager,

@@ -1,0 +1,178 @@
+package com.waenhancer.core.emojis
+
+import android.content.Context
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONObject
+import java.io.File
+import java.io.IOException
+import java.util.Locale
+import java.util.concurrent.TimeUnit
+
+data class CustomEmojiPack(
+    val filename: String,
+    val size: Long,
+    val downloadUrl: String,
+    val previewUrl: String? = null
+) {
+    val displayName: String
+        get() = filename.removeSuffix(".ttf")
+
+    val formattedSize: String
+        get() = CustomEmojiManager.formatFileSize(size)
+}
+
+object CustomEmojiManager {
+
+    private const val API_URL = "https://waex.mubashar.dev/api/emojis"
+    private const val CUSTOM_EMOJIS_DIR = "custom_emojis"
+
+    private val httpClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .build()
+    }
+
+    fun getEmojisDirectory(context: Context): File {
+        val dir = File(context.filesDir, CUSTOM_EMOJIS_DIR)
+        if (!dir.exists()) {
+            dir.mkdirs()
+        }
+        return dir
+    }
+
+    fun getEmojiFile(context: Context, filename: String): File {
+        return File(getEmojisDirectory(context), filename)
+    }
+
+    fun isDownloaded(context: Context, filename: String): Boolean {
+        if (filename.isEmpty()) return false
+        val file = getEmojiFile(context, filename)
+        return file.exists() && file.isFile && file.length() > 0L
+    }
+
+    fun deleteDownloadedEmoji(context: Context, filename: String): Boolean {
+        if (filename.isEmpty()) return true
+        val file = getEmojiFile(context, filename)
+        return if (file.exists()) file.delete() else true
+    }
+
+    suspend fun fetchCloudEmojis(): Result<List<CustomEmojiPack>> = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url(API_URL)
+                .header("User-Agent", "WAEX-Android")
+                .build()
+
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    return@withContext Result.failure(IOException("HTTP ${response.code}"))
+                }
+                val body = response.body?.string() ?: return@withContext Result.failure(IOException("Empty response"))
+                val json = JSONObject(body)
+                val emojisArray = json.optJSONArray("emojis")
+                    ?: return@withContext Result.success(emptyList())
+
+                val list = mutableListOf<CustomEmojiPack>()
+                for (i in 0 until emojisArray.length()) {
+                    val obj = emojisArray.getJSONObject(i)
+                    val filename = obj.getString("filename")
+                    val size = obj.optLong("size", 0L)
+                    val downloadUrl = obj.getString("download_url")
+                    val previewUrl = obj.optString("preview").takeIf { it.isNotBlank() }
+                    list.add(CustomEmojiPack(filename, size, downloadUrl, previewUrl))
+                }
+                Result.success(list)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun downloadEmoji(
+        context: Context,
+        pack: CustomEmojiPack,
+        onProgress: (Int) -> Unit
+    ): Result<File> = withContext(Dispatchers.IO) {
+        val dir = getEmojisDirectory(context)
+        val tempFile = File(dir, "${pack.filename}.tmp")
+        val finalFile = File(dir, pack.filename)
+
+        try {
+            val request = Request.Builder()
+                .url(pack.downloadUrl)
+                .header("User-Agent", "WAEX-Android")
+                .build()
+
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    return@withContext Result.failure(IOException("HTTP ${response.code}"))
+                }
+                val body = response.body ?: return@withContext Result.failure(IOException("Empty body"))
+                val totalBytes = if (pack.size > 0L) pack.size else body.contentLength()
+
+                body.byteStream().use { input ->
+                    tempFile.outputStream().use { output ->
+                        val buffer = ByteArray(8192)
+                        var bytesRead: Int
+                        var downloadedBytes = 0L
+                        var lastProgress = 0
+                        while (input.read(buffer).also { bytesRead = it } != -1) {
+                            output.write(buffer, 0, bytesRead)
+                            downloadedBytes += bytesRead
+                            if (totalBytes > 0) {
+                                val progress = ((downloadedBytes * 100) / totalBytes).toInt().coerceIn(0, 100)
+                                if (progress != lastProgress) {
+                                    lastProgress = progress
+                                    onProgress(progress)
+                                }
+                            }
+                        }
+                        output.flush()
+                    }
+                }
+            }
+
+            if (tempFile.exists()) {
+                if (finalFile.exists()) finalFile.delete()
+                tempFile.renameTo(finalFile)
+            }
+            onProgress(100)
+            Result.success(finalFile)
+        } catch (e: Exception) {
+            if (tempFile.exists()) tempFile.delete()
+            Result.failure(e)
+        }
+    }
+
+    fun getDownloadedFiles(context: Context): List<File> {
+        val dir = getEmojisDirectory(context)
+        return dir.listFiles { file -> file.isFile && file.extension.equals("ttf", ignoreCase = true) && file.length() > 0 }
+            ?.toList() ?: emptyList()
+    }
+
+    fun getTotalDownloadedBytes(context: Context): Long {
+        return getDownloadedFiles(context).sumOf { it.length() }
+    }
+
+    fun clearAllDownloaded(context: Context): Boolean {
+        val dir = getEmojisDirectory(context)
+        var allDeleted = true
+        dir.listFiles()?.forEach { file ->
+            if (file.isFile && !file.delete()) {
+                allDeleted = false
+            }
+        }
+        return allDeleted
+    }
+
+    fun formatFileSize(bytes: Long): String {
+        if (bytes <= 0) return ""
+        val mb = bytes.toDouble() / (1024 * 1024)
+        return String.format(Locale.US, "%.1f MB", mb)
+    }
+}
+
