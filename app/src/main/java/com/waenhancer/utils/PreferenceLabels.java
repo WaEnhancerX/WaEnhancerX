@@ -1,123 +1,60 @@
 package com.waenhancer.utils;
+
+import androidx.annotation.NonNull;
 import com.waenhancer.app.R;
-/** Display-only catalog lookup; no preference writes or changes to stored keys. */
+import com.waenhancer.config.PreferenceKeyAliases;
+import java.lang.reflect.Field;
+import java.util.Locale;
+
+/** Resolves preference keys through the same title resources used by the settings UI. */
 public final class PreferenceLabels {
+    private static final String TITLE_PREFIX = "feat_";
+    private static final String TITLE_SUFFIX = "_title";
+
     private PreferenceLabels() {}
+
+    @NonNull
     public static String text(String key) {
-        if (key == null) key = "";
-        switch (key) {
-            case "always_online": return UiText.get(R.string.feat_always_online_title, "Always Online");
-            case "always_typing": return UiText.get(R.string.feat_always_typing_title, "Hide Typing");
-            case "anti_edit_messages": return UiText.get(R.string.feat_anti_edit_messages_title, "Show Edited Message History");
-            case "anti_revoke": return UiText.get(R.string.feat_anti_revoke_title, "Anti-Revoke Messages");
-            case "anti_view_once": return UiText.get(R.string.feat_anti_view_once_title, "Unlimited View Once");
-            case "antidisappearing": return UiText.get(R.string.feat_antidisappearing_title, "Anti Disappearing Messages");
-            case "antirevoke": return UiText.get(R.string.feat_anti_revoke_title, "Anti-Revoke Messages");
-            case "antirevokestatus": return UiText.get(R.string.feat_antirevokestatus_title, "Anti-Delete Status");
-            case "autonext_status": return UiText.get(R.string.feat_autonext_status_title, "Disable Auto Skip Status");
-            case "blueonreply": return UiText.get(R.string.feat_blueonreply_title, "Send Blue Ticks upon Reply");
-            case "bootloader_spoofer": return UiText.get(R.string.feat_bootloader_spoofer_title, "Bootloader Spoofer");
-            case "broadcast_tag": return UiText.get(R.string.feat_broadcast_tag_title, "Show chat broadcast icon");
-            case "bubble_colors": return UiText.get(R.string.feat_bubble_colors_title, "Change Bubble Colors");
-            case "bypass_version_check": return UiText.get(R.string.feat_bypass_version_check_title, "Disable Version Check");
-            case "call_privacy": return UiText.get(R.string.feat_call_privacy_title, "Block Calls");
-            case "call_recording": return UiText.get(R.string.feat_call_recording_title, "Call Recording");
-            case "call_type_controller": return UiText.get(R.string.feat_call_type_controller_title, "Enable selection of call type");
-            case "change_dpi": return UiText.get(R.string.feat_custom_view_dpi_title, "Change Default DPI");
-            case "channels_enhancements": return UiText.get(R.string.feat_channels_enhancements_title, "Remove Channel Recomendations");
-            case "chat_filters": return UiText.get(R.string.feat_chat_filters_title, "Enable filter chats for type");
-            case "chatfilter": return UiText.get(R.string.feat_chat_filters_title, "Enable filter chats for type");
-            case "contact_blocked_verify": return UiText.get(R.string.feat_contact_blocked_verify_title, "Show Contact Added Status in Conversation");
-            case "copy_status_text": return UiText.get(R.string.feat_copy_status_text_title, "Enable Copy Status");
-            case "css_theme": return UiText.get(R.string.feat_custom_theme_title, "Custom Theme CSS");
-            case "custom_css": return UiText.get(R.string.feat_custom_theme_title, "Custom Theme CSS");
-            case "custom_filters": return UiText.get(R.string.feat_custom_filters_title, "Custom Appearance Filters");
-            case "custom_privacy": return UiText.get(R.string.feat_custom_privacy_title, "Custom Privacy per contact");
-            case "custom_theme": return UiText.get(R.string.feat_custom_theme_title, "Custom Theme CSS");
-            case "custom_time_format": return UiText.get(R.string.feat_custom_time_format_title, "Seconds on Timestamp");
-            case "custom_toolbar": return UiText.get(R.string.feat_custom_toolbar_title, "New Settings Style");
-            case "custom_view_dpi": return UiText.get(R.string.feat_custom_view_dpi_title, "Change Default DPI");
-            case "direct_chat_dialer": return UiText.get(R.string.feat_direct_chat_dialer_title, "New Chat");
-            case "disable_sensor_proximity": return UiText.get(R.string.feat_disable_sensor_proximity_title, "Disable Screen off on proximity sensor");
-            case "dnd_mode": return UiText.get(R.string.feat_dnd_mode_title, "DND Mode");
-            case "dotonline": return UiText.get(R.string.feat_dotonline_title, "Show Online Dot in Conversation List");
-            case "doubletap2like": return UiText.get(R.string.feat_doubletap2like_title, "Enable Double Click to React");
-            case "doubletap2like_emoji": return UiText.get(R.string.feat_doubletap2like_emoji_title, "Custom Reaction Emoji");
-            case "download_profile": return UiText.get(R.string.feat_download_profile_title, "Download Profile Photo");
-            case "download_view_once": return UiText.get(R.string.feat_download_view_once_title, "Download View Once");
-            case "downloadstatus": return UiText.get(R.string.feat_status_downloader_title, "Download and Share Status");
-            case "downloadviewonce": return UiText.get(R.string.feat_download_view_once_title, "Download View Once");
-            case "file_size_spoofer": return UiText.get(R.string.feat_file_size_spoofer_title, "File Size Spoofer");
-            case "filter_items": return UiText.get(R.string.feat_filter_items_title, "Filter Items By ID");
-            case "floating_bottom_bar": return UiText.get(R.string.feat_floating_bottom_bar_title, "Floating Bottom Bar");
-            case "freeze_last_seen": return UiText.get(R.string.feat_freezelastseen_title, "Freeze Last Seen");
-            case "freezelastseen": return UiText.get(R.string.feat_freezelastseen_title, "Freeze Last Seen");
-            case "ghostmode": return UiText.get(R.string.feat_ghostmode_title, "Show Ghost Mode Button");
-            case "ghostmode_r": return UiText.get(R.string.feat_ghostmode_r_title, "Hide Recording Audio");
-            case "ghostmode_t": return UiText.get(R.string.feat_ghostmode_t_title, "Hide Typing");
-            case "group_admin_tools": return UiText.get(R.string.feat_group_admin_tools_title, "Show Admin Group Icon");
-            case "hide_anti_revoke": return UiText.get(R.string.feat_hide_anti_revoke_title, "Add Hide Anti-Revoke to Chat Menu");
-            case "hide_chats": return UiText.get(R.string.feat_hide_chats_title, "Hide Locked Chats");
-            case "hide_delivery_receipts": return UiText.get(R.string.feat_hide_delivery_receipts_title, "Hide Delivered");
-            case "hide_forwarded_tag": return UiText.get(R.string.feat_hide_forwarded_tag_title, "Hide \"Forwarded\" Tag");
-            case "hide_read_receipts": return UiText.get(R.string.feat_hide_read_receipts_title, "Hide Blue Ticks");
-            case "hide_seen_receipts": return UiText.get(R.string.feat_hide_seen_receipts_title, "Hide audio seen");
-            case "hide_ui_tabs": return UiText.get(R.string.feat_hide_ui_tabs_title, "Hide Tabs on Home");
-            case "hideonceseen": return UiText.get(R.string.feat_hideonceseen_title, "Hide View Once Seen");
-            case "hideread_group": return UiText.get(R.string.feat_hideread_group_title, "Hide Blue Tick in Groups");
-            case "hidetabs": return UiText.get(R.string.feat_hide_ui_tabs_title, "Hide Tabs on Home");
-            case "igstatus": return UiText.get(R.string.feat_instagram_status_layout_title, "Enable IGStatus on Home Screen");
-            case "inline_translation": return UiText.get(R.string.feat_inline_translation_title, "Enable Google Translate");
-            case "instagram_status_layout": return UiText.get(R.string.feat_instagram_status_layout_title, "Enable IGStatus on Home Screen");
-            case "jump_to_first_message": return UiText.get(R.string.feat_jump_to_first_message_title, "Jump to First Message");
-            case "license_verification": return UiText.get(R.string.feat_license_verification_title, "License Verification & Activation");
-            case "locked_chats_enhancer": return UiText.get(R.string.feat_locked_chats_enhancer_title, "Enhanced Locked Chats");
-            case "media_preview": return UiText.get(R.string.feat_media_preview_title, "Enable Media Preview");
-            case "media_upload_quality": return UiText.get(R.string.feat_media_upload_quality_title, "HD Quality Images & Videos");
-            case "message_bomber": return UiText.get(R.string.feat_message_bomber_title, "Message Bomber");
-            case "message_device_source": return UiText.get(R.string.feat_message_device_source_title, "Show Message Device Source");
-            case "miscellaneous_enhancements": return UiText.get(R.string.feat_disable_sensor_proximity_title, "Disable Screen off on proximity sensor");
-            case "novaconfig": return UiText.get(R.string.feat_custom_toolbar_title, "New Settings Style");
-            case "open_wae": return UiText.get(R.string.feat_open_wae_title, "Enable WAEX Button");
-            case "open_waex": return UiText.get(R.string.feat_open_wae_title, "Enable WAEX Button");
-            case "preserve_delete_for_me": return UiText.get(R.string.feat_preserve_delete_for_me_title, "Delete (for me)");
-            case "preserve_own_revoke": return UiText.get(R.string.feat_preserve_own_revoke_title, "Keep My Revoked Messages");
-            case "pro_features_unlock": return UiText.get(R.string.feat_pro_features_unlock_title, "Pro Feature Management");
-            case "quick_home_menu": return UiText.get(R.string.feat_quick_home_menu_title, "Quick Action Home Menu");
-            case "removeforwardlimit": return UiText.get(R.string.feat_removeforwardlimit_title, "Remove Forward Limit");
-            case "removeseemore": return UiText.get(R.string.feat_removeseemore_title, "Remove \"See More\" Button");
-            case "restartbutton": return UiText.get(R.string.feat_restartbutton_title, "Enable Restart Button");
-            case "revokeallmessages": return UiText.get(R.string.feat_revokeallmessages_title, "Increase limit of \"Delete for everyone\" option");
-            case "seen_tick_customization": return UiText.get(R.string.feat_seen_tick_customization_title, "View Seen Tick");
-            case "seentick": return UiText.get(R.string.feat_seentick_title, "Show Button to send blue tick");
-            case "segundos": return UiText.get(R.string.feat_custom_time_format_title, "Seconds on Timestamp");
-            case "send_audio_as_voice_status": return UiText.get(R.string.feat_send_audio_as_voice_status_title, "Audio to Voice Status");
-            case "separate_groups_tabs": return UiText.get(R.string.feat_separate_groups_tabs_title, "Separate Groups");
-            case "show_dndmode": return UiText.get(R.string.feat_show_dndmode_title, "Show DND Button");
-            case "show_home_menu": return UiText.get(R.string.feat_quick_home_menu_title, "Quick Action Home Menu");
-            case "show_hook_toast": return UiText.get(R.string.feat_show_hook_toast_title, "Show Hook Injection Toast");
-            case "show_restart_sheet": return UiText.get(R.string.feat_show_restart_sheet_title, "Show Restart Sheet");
-            case "showonlinetext": return UiText.get(R.string.feat_showonlinetext_title, "Show Online/Last seen in Conversation List");
-            case "stamp_copied_message": return UiText.get(R.string.feat_stamp_copied_message_title, "Remove Stamp from Copied Messages");
-            case "status_downloader": return UiText.get(R.string.feat_status_downloader_title, "Download and Share Status");
-            case "status_style": return UiText.get(R.string.feat_status_style_title, "Stories & Status Style");
-            case "status_text_composer": return UiText.get(R.string.feat_status_text_composer_title, "Custom colors for text status");
-            case "status_video_splitter": return UiText.get(R.string.feat_status_video_splitter_title, "Status Video Splitter");
-            case "stealth_status_view": return UiText.get(R.string.feat_stealth_status_view_title, "Hide Status View");
-            case "sticker_confirm_alert": return UiText.get(R.string.feat_sticker_confirm_alert_title, "Confirmation Before Sending Sticker");
-            case "supported_versions": return UiText.get(R.string.feat_supported_versions_title, "Supported WhatsApp Versions");
-            case "tasker_integration": return UiText.get(R.string.feat_tasker_integration_title, "Enable Tasker Automation");
-            case "toast_viewed_message": return UiText.get(R.string.feat_toast_viewed_message_title, "Show toast on viewed your message");
-            case "toast_viewed_status": return UiText.get(R.string.feat_toast_viewed_status_title, "Show toast on viewed your status");
-            case "toastdeleted": return UiText.get(R.string.feat_toastdeleted_title, "Show toast notification on delete message");
-            case "typearchive": return UiText.get(R.string.feat_typearchive_title, "Hide Archived Chats");
-            case "typing_online_toasts": return UiText.get(R.string.feat_typing_online_toasts_title, "Show toast on contact online");
-            case "unlimited_pinned_chats": return UiText.get(R.string.feat_unlimited_pinned_chats_title, "Disable Pinned Chats Limit");
-            case "unlock_premium_customization": return UiText.get(R.string.feat_unlock_premium_customization_title, "Unlock WA Plus");
-            case "verify_blocked_contact": return UiText.get(R.string.feat_contact_blocked_verify_title, "Show Contact Added Status in Conversation");
-            case "voice_transcription": return UiText.get(R.string.feat_voice_transcription_title, "Audio Transcription");
-            case "waex_menu_style": return UiText.get(R.string.feat_quick_home_menu_title, "Quick Action Home Menu");
-            default: return UiText.get(R.string.waex_ui_setting_1_s_58e12775, "Setting: %1$s", key);
+        String normalized = key == null ? "" : key.trim();
+        if (normalized.isEmpty()) return "";
+
+        String canonical = PreferenceKeyAliases.canonical(normalized);
+        String candidate = canonical;
+        while (!candidate.isEmpty()) {
+            Integer resourceId = titleResource(TITLE_PREFIX + candidate + TITLE_SUFFIX);
+            if (resourceId != null) {
+                return UiText.get(resourceId, humanize(candidate));
+            }
+            int separator = candidate.lastIndexOf('_');
+            if (separator < 0) break;
+            candidate = candidate.substring(0, separator);
         }
+        return humanize(canonical);
+    }
+
+    private static Integer titleResource(String fieldName) {
+        try {
+            Field field = R.string.class.getField(fieldName);
+            return field.getInt(null);
+        } catch (ReflectiveOperationException ignored) {
+            return null;
+        }
+    }
+
+    private static String humanize(String key) {
+        String[] words = key.replace('-', '_').split("_+");
+        StringBuilder result = new StringBuilder();
+        for (String word : words) {
+            if (word.isEmpty()) continue;
+            if (result.length() > 0) result.append(' ');
+            if ("ai".equalsIgnoreCase(word) || "hd".equalsIgnoreCase(word)
+                    || "dpi".equalsIgnoreCase(word) || "dnd".equalsIgnoreCase(word)) {
+                result.append(word.toUpperCase(Locale.ROOT));
+            } else {
+                result.append(Character.toUpperCase(word.charAt(0)));
+                if (word.length() > 1) result.append(word.substring(1));
+            }
+        }
+        return result.length() == 0 ? key : result.toString();
     }
 }

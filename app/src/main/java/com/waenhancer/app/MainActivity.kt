@@ -30,6 +30,7 @@ import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
 import com.waenhancer.ui.navigation.MainContainerScreen
 import com.waenhancer.ui.navigation.WaexNavController
+import com.waenhancer.ui.components.GlobalNetworkErrorHost
 import com.waenhancer.update.UpdateCheckCoordinator
 import com.waenhancer.update.UpdateDownloader
 import dagger.hilt.android.AndroidEntryPoint
@@ -184,6 +185,7 @@ class MainActivity : ComponentActivity() {
                                     onExit = { finishAndRemoveTask() }
                                 )
                             }
+                            GlobalNetworkErrorHost()
                         }
                     }
                 }

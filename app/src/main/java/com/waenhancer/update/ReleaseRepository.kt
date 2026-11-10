@@ -10,6 +10,9 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 import java.util.Locale
 
+import android.content.Context
+import com.waenhancer.config.PreferenceStores
+
 data class WaexAsset(
     val name: String,
     val downloadUrl: String,
@@ -52,33 +55,79 @@ object ReleaseRepository {
     const val RELEASE_REPOSITORY = "Xposed-Modules-Repo/com.waenhancer"
     const val RELEASES_URL = "https://github.com/$RELEASE_REPOSITORY/releases"
     const val RELEASES_API = "https://api.github.com/repos/$RELEASE_REPOSITORY/releases?per_page=100"
+    private const val PREF_KEY_RELEASES_JSON = "releases_json_cache_v1"
+    private const val PREF_KEY_RELEASES_LAST_FETCH = "releases_last_fetch_v1"
     private const val RELEASE_ASSET_PATH_PREFIX = "/$RELEASE_REPOSITORY/releases/download/"
     private val versionPattern = Regex("^\\d+\\.\\d+(\\.\\d+)?(-[a-zA-Z0-9.-]+)?$")
     private val client = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS).build()
 
-    suspend fun fetchReleases(): List<WaexRelease> = withContext(Dispatchers.IO) {
-        val request = Request.Builder()
-            .url(RELEASES_API)
-            .header("Accept", "application/vnd.github+json")
-            .header("X-GitHub-Api-Version", "2022-11-28")
-            .header("User-Agent", "WaEnhancer X")
-            .build()
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) error(if (response.code == 403 || response.code == 429) "Rate limit exceeded. Please try again later." else "Release service returned ${response.code}.")
-            val array = JSONArray(response.body?.string() ?: error("Release service returned an empty response."))
-            buildList {
-                for (i in 0 until array.length()) {
-                    val item = array.optJSONObject(i) ?: continue
-                    parseRelease(item)?.let(::add)
+    fun parseReleasesFromJson(json: String): List<WaexRelease> = runCatching {
+        val array = JSONArray(json)
+        buildList {
+            for (i in 0 until array.length()) {
+                val item = array.optJSONObject(i) ?: continue
+                parseRelease(item)?.let(::add)
+            }
+        }.sortedByDescending { versionCode(it.version) }
+    }.getOrDefault(emptyList())
+
+    fun getCachedReleases(context: Context): List<WaexRelease> {
+        val prefs = PreferenceStores.cacheStore(context, PreferenceStores.GITHUB_API_CACHE)
+        val cachedJson = prefs.getString(PREF_KEY_RELEASES_JSON, null) ?: return emptyList()
+        return parseReleasesFromJson(cachedJson)
+    }
+
+    suspend fun fetchReleases(context: Context? = null, forceRefresh: Boolean = false): List<WaexRelease> = withContext(Dispatchers.IO) {
+        val cacheStore = context?.let { PreferenceStores.cacheStore(it, PreferenceStores.GITHUB_API_CACHE) }
+        val cachedJson = cacheStore?.getString(PREF_KEY_RELEASES_JSON, null)
+        val cachedList = if (cachedJson != null) parseReleasesFromJson(cachedJson) else emptyList()
+
+        if (!forceRefresh && cachedList.isNotEmpty()) {
+            val lastFetch = cacheStore?.getLong(PREF_KEY_RELEASES_LAST_FETCH, 0L) ?: 0L
+            // Use cache if under 1 hour old and not forcing refresh
+            if (System.currentTimeMillis() - lastFetch < 3600_000L) {
+                return@withContext cachedList
+            }
+        }
+
+        try {
+            val request = Request.Builder()
+                .url(RELEASES_API)
+                .header("Accept", "application/vnd.github+json")
+                .header("X-GitHub-Api-Version", "2022-11-28")
+                .header("User-Agent", "WaEnhancer X")
+                .build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    val isRateLimited = response.code == 403 || response.code == 429
+                    if (cachedList.isNotEmpty()) {
+                        return@withContext cachedList
+                    }
+                    error(if (isRateLimited) "Rate limit exceeded. Please try again later." else "Release service returned ${response.code}.")
                 }
-            }.sortedByDescending { versionCode(it.version) }
+                val bodyString = response.body?.string() ?: error("Release service returned an empty response.")
+                val releases = parseReleasesFromJson(bodyString)
+                if (releases.isNotEmpty() && cacheStore != null) {
+                    cacheStore.edit()
+                        .putString(PREF_KEY_RELEASES_JSON, bodyString)
+                        .putLong(PREF_KEY_RELEASES_LAST_FETCH, System.currentTimeMillis())
+                        .apply()
+                }
+                releases
+            }
+        } catch (e: Exception) {
+            if (cachedList.isNotEmpty()) {
+                return@withContext cachedList
+            }
+            throw e
         }
     }
 
-    suspend fun fetchRelease(tagName: String): WaexRelease? = fetchReleases().firstOrNull {
-        it.tagName.equals(tagName, true) || it.name.equals(tagName, true) ||
-            it.version.equals(normalizeVersion(tagName), true)
-    }
+    suspend fun fetchRelease(tagName: String, context: Context? = null): WaexRelease? =
+        fetchReleases(context = context).firstOrNull {
+            it.tagName.equals(tagName, true) || it.name.equals(tagName, true) ||
+                it.version.equals(normalizeVersion(tagName), true)
+        }
 
     fun findUpdate(releases: List<WaexRelease>, installedVersion: String): WaexRelease? {
         val installed = versionCode(normalizeVersion(installedVersion))

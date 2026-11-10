@@ -18,6 +18,7 @@ import com.waenhancer.config.PreferenceStores
 import com.waenhancer.xposed.utils.ModuleStatus
 import org.json.JSONArray
 import java.io.File
+import android.os.SystemClock
 
 data class InjectedHookItem(
     val name: String,
@@ -39,7 +40,8 @@ data class HookedAppInfo(
     val bridgeStatus: String = "NOT_REPORTED",
     val initializationError: String? = null,
     val injectionEvidence: InjectionEvidence = if (isHooked) InjectionEvidence.CURRENT else InjectionEvidence.NO_REPORT,
-    val processObservedAtElapsed: Long = -1L
+    val processObservedAtElapsed: Long = -1L,
+    val inLsposedScope: Boolean = false
 )
 
 internal fun hasCurrentInjection(
@@ -215,7 +217,8 @@ object WhatsAppPackageDetector {
     @JvmStatic
     fun detectWhatsAppApps(
         context: Context,
-        runtimeSnapshot: XposedRuntimeSnapshot? = XposedRuntimeInspector.cached()
+        runtimeSnapshot: XposedRuntimeSnapshot? = XposedRuntimeInspector.cached(),
+        scopeSnapshot: LsposedScopeSnapshot? = null
     ): List<HookedAppInfo> {
         val pm = context.packageManager
         val discoveredPackages = LinkedHashSet<String>()
@@ -224,6 +227,15 @@ object WhatsAppPackageDetector {
         discoveredPackages.addAll(getSupportedPackages(context))
 
         val isGlobalModuleActive = ModuleStatus.isModuleActive()
+        // This method is also called from Compose remember blocks. Never launch a root shell
+        // synchronously on the UI thread. Use the passed scopeSnapshot or last known cached scope.
+        val scope = scopeSnapshot ?: LsposedScopeReader.cached() ?: LsposedScopeSnapshot(
+            modulePackage = MODULE_PACKAGE,
+            packages = emptySet(),
+            frameworkReachable = false,
+            source = LsposedScopeSnapshot.Source.UNAVAILABLE,
+            error = "Scope check pending"
+        )
 
         // 2. Read packages that have been hooked by Xposed runtime
         var hookedSet: Set<String>? = null
@@ -243,6 +255,7 @@ object WhatsAppPackageDetector {
         val result = mutableListOf<HookedAppInfo>()
 
         for (pkg in discoveredPackages) {
+            if (!scope.frameworkReachable || !scope.contains(pkg)) continue
             try {
                 val pInfo = pm.getPackageInfo(pkg, 0)
                 val label = pm.getApplicationLabel(pInfo.applicationInfo ?: continue).toString()
@@ -272,7 +285,7 @@ object WhatsAppPackageDetector {
                     recordedBoot = recordedBoot,
                     currentBoot = currentBoot,
                     reportedPid = reportedPid,
-                    runningPids = runtimeSnapshot?.pidsFor(pkg, android.os.SystemClock.elapsedRealtime()),
+                    runningPids = runtimeSnapshot?.pidsFor(pkg, SystemClock.elapsedRealtime()),
                     lastActiveTime = lastActiveTime,
                     now = System.currentTimeMillis()
                 )
@@ -283,7 +296,7 @@ object WhatsAppPackageDetector {
                     HookedAppInfo(
                         packageName = pkg,
                         appName = friendlyName,
-                        versionName = "v${pInfo.versionName ?: UiText.get(R.string.waex_ui_unknown_b764cdc0, "Unknown")}",
+                        versionName = "v${pInfo.versionName ?: UiText.get(R.string.waex_ui_unknown, "Unknown")}",
                         isInstalled = true,
                         isHooked = isInjected,
                         injectedHooks = injectedHooks,
@@ -292,18 +305,19 @@ object WhatsAppPackageDetector {
                         bridgeStatus = prefs.getString("bridge_status_$pkg", "NOT_REPORTED") ?: "NOT_REPORTED",
                         initializationError = prefs.getString("runtime_error_$pkg", null),
                         injectionEvidence = evidence,
-                        processObservedAtElapsed = runtimeSnapshot?.observedAtElapsed ?: -1L
+                        processObservedAtElapsed = runtimeSnapshot?.observedAtElapsed ?: -1L,
+                        inLsposedScope = true
                     )
                 )
             } catch (e: PackageManager.NameNotFoundException) {
-                // Only list standard WPP / Business if uninstalled as placeholders if no apps are installed
+                // Only list standard WAEX / Business if uninstalled as placeholders if no apps are installed
                 if (pkg == "com.whatsapp" || pkg == "com.whatsapp.w4b") {
                     val name = if (pkg == "com.whatsapp") "WhatsApp" else "WhatsApp Business"
                     result.add(
                         HookedAppInfo(
                             packageName = pkg,
                             appName = name,
-                            versionName = UiText.get(R.string.waex_ui_not_installed_d08041a7, "Not Installed"),
+                            versionName = UiText.get(R.string.waex_ui_not_installed, "Not Installed"),
                             isInstalled = false,
                             isHooked = false,
                             injectedHooks = emptyList(),
@@ -315,12 +329,7 @@ object WhatsAppPackageDetector {
         }
 
         // Filter out uninstalled placeholders if at least one app is installed
-        val installedCount = result.count { it.isInstalled }
-        val visible = if (installedCount > 0) {
-            result.filter { it.isInstalled }
-        } else {
-            result
-        }
-        return visible.sortedBy { it.appName.lowercase() }
+        return result.filter { it.isInstalled && it.inLsposedScope }
+            .sortedBy { it.appName.lowercase() }
     }
 }

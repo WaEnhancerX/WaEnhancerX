@@ -19,13 +19,18 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import com.waenhancer.config.PreferenceRestartTracker;
 import com.waenhancer.config.PreferenceSchema;
+import com.waenhancer.calls.CallRecordingRecord;
+import com.waenhancer.calls.CallRecordingStore;
+import com.waenhancer.core.transcription.TranscriptionRequestHandler;
 import com.waenhancer.licensing.LicenseManager;
 import com.waenhancer.licensing.ProFeatureGate;
 import com.waenhancer.licensing.features.BootloaderSpooferFeature;
 import com.waenhancer.xposed.core.db.PreservedMessageStore;
 import com.waenhancer.update.UpdateCheckCoordinator;
 import com.waenhancer.utils.WhatsAppPackageDetector;
+import com.waenhancer.xposed.utils.AppRestartHelper;
 
 /**
  * HookProvider provides preference IPC bridge between WaEnhancerX UI and target processes (WhatsApp / WA Business).
@@ -69,6 +74,19 @@ public class HookProvider extends ContentProvider {
                 return result;
             }
 
+            if ("restart_target".equals(method)) {
+                String pkg = arg != null ? arg : (extras != null
+                        ? extras.getString("package") : null);
+                if (pkg == null || !callerOwnsPackage(context, callerUid, pkg)) {
+                    return writeResult(false);
+                }
+                // The injected menu already displayed "Restarting WhatsApp…".
+                AppRestartHelper.restartPackage(context, pkg, null, false);
+                Bundle result = writeResult(true);
+                result.putBoolean("accepted", true);
+                return result;
+            }
+
             if ("create_call_recording".equals(method)) {
                 if (extras == null) return null;
                 String requestedName = extras.getString("name", "Call.m4a");
@@ -88,10 +106,34 @@ public class HookProvider extends ContentProvider {
                     Bundle result = new Bundle();
                     result.putParcelable("descriptor", descriptor);
                     result.putString("path", output.getAbsolutePath());
+                    String callId = extras.getString("call_id");
+                    if (callId != null && !callId.isEmpty()) {
+                        CallRecordingStore.get(context).begin(new CallRecordingRecord(
+                                callId,
+                                extras.getString("contact_jid"),
+                                extras.getString("contact_name", "Unknown contact"),
+                                extras.getString("direction", "unknown"),
+                                extras.getString("target_package", "unknown"),
+                                extras.getLong("started_at", System.currentTimeMillis()),
+                                null,
+                                output.getAbsolutePath(),
+                                "recording"));
+                    }
                     return result;
                 } catch (FileNotFoundException ignored) {
                     return null;
                 }
+            }
+
+            if ("finish_call_recording".equals(method)) {
+                if (extras == null) return writeResult(false);
+                String callId = extras.getString("call_id");
+                if (callId == null || callId.isEmpty()) return writeResult(false);
+                CallRecordingStore.get(context).finish(
+                        callId,
+                        extras.getLong("ended_at", System.currentTimeMillis()),
+                        extras.getBoolean("successful", false));
+                return writeResult(true);
             }
 
             if ("delete_call_recording".equals(method)) {
@@ -102,6 +144,8 @@ public class HookProvider extends ContentProvider {
                 if (base == null) base = context.getFilesDir();
                 boolean deleted = !safeName.isEmpty()
                         && new File(new File(base, "CallRecordings"), safeName).delete();
+                String path = new File(new File(base, "CallRecordings"), safeName).getAbsolutePath();
+                CallRecordingStore.get(context).deleteByPath(path);
                 Bundle result = new Bundle();
                 result.putBoolean("deleted", deleted);
                 return result;
@@ -184,6 +228,25 @@ public class HookProvider extends ContentProvider {
 
             if ("get_all_preferences".equals(method)) {
                 var all = new HashMap<String, Object>(prefs.getAll());
+                String targetPackage = targetPackageForCaller(context, callerUid);
+                if (targetPackage != null && "Per Target App".equals(prefs.getString("module_config_mode", "Universal"))) {
+                    initializeTarget(prefs, targetPackage);
+                    String prefix = targetPackage + ":";
+                    for (Map.Entry<String, ?> entry : prefs.getAll().entrySet()) {
+                        String key = entry.getKey();
+                        if (key != null && key.startsWith(prefix) && key.length() > prefix.length()) {
+                            all.put(key.substring(prefix.length()), entry.getValue());
+                        }
+                    }
+                    all.put(PreferenceRestartTracker.NEED_RESTART,
+                            Boolean.TRUE.equals(prefs.getAll().get(prefix + PreferenceRestartTracker.NEED_RESTART)));
+                    Object pendingChanges = prefs.getAll().get(prefix + PreferenceRestartTracker.PENDING_CHANGES);
+                    if (pendingChanges instanceof Set<?>) {
+                        all.put(PreferenceRestartTracker.PENDING_CHANGES, pendingChanges);
+                    } else {
+                        all.remove(PreferenceRestartTracker.PENDING_CHANGES);
+                    }
+                }
                 all.put("waex_pro_active", "ACTIVE".equalsIgnoreCase(
                         LicenseManager.getProStatus(context)));
                 // Keybox material is private at rest and is exposed only in this in-memory IPC
@@ -254,6 +317,18 @@ public class HookProvider extends ContentProvider {
                         extras.getBoolean("clear", false), operations);
             }
 
+            if (TranscriptionRequestHandler.METHOD.equals(method) && extras != null) {
+                return TranscriptionRequestHandler.handle(context, extras);
+            }
+
+            if (TranscriptionRequestHandler.METHOD_READY.equals(method)) {
+                return TranscriptionRequestHandler.ready(context);
+            }
+
+            if (TranscriptionRequestHandler.METHOD_LOG.equals(method) && extras != null) {
+                return TranscriptionRequestHandler.log(context, extras);
+            }
+
             if ("record_preserved_message".equals(method) && extras != null) {
                 String jid = extras.getString("jid", "");
                 String contactName = extras.getString("name", "");
@@ -264,9 +339,9 @@ public class HookProvider extends ContentProvider {
                 boolean fromMe = extras.getBoolean("fromMe", false);
                 boolean isGroup = extras.getBoolean("isGroup", false);
 
-                PreservedMessageStore.getInstance(context)
-                        .insertPreservedMessage(jid, contactName, senderName, msgId, text, timestamp, fromMe, isGroup);
-                return Bundle.EMPTY;
+                boolean saved = PreservedMessageStore.getInstance(context)
+                        .tryInsertPreservedMessage(jid, contactName, senderName, msgId, text, timestamp, fromMe, isGroup);
+                return writeResult(saved);
             }
 
             return null;
@@ -364,10 +439,15 @@ public class HookProvider extends ContentProvider {
                     && !isEntitledBoolean(context, key)) return writeResult(false);
         }
 
+        String targetPackage = targetPackageForCaller(context, callerUid);
+        boolean scoped = targetPackage != null
+                && "Per Target App".equals(prefs.getString("module_config_mode", "Universal"));
+
         SharedPreferences.Editor editor = prefs.edit();
         if (clear) editor.clear();
         for (Bundle op : operations) {
             String key = op.getString("key");
+            if (scoped && !"module_config_mode".equals(key)) key = targetPackage + ":" + key;
             switch (op.getString("type")) {
                 case "remove": editor.remove(key); break;
                 case "string": editor.putString(key, op.getString("value")); break;
@@ -387,6 +467,33 @@ public class HookProvider extends ContentProvider {
                     Uri.parse("content://" + AUTHORITY + "/preferences"), null);
         }
         return writeResult(committed);
+    }
+
+    private String targetPackageForCaller(Context context, int uid) {
+        String[] packages = context.getPackageManager().getPackagesForUid(uid);
+        if (packages == null) return null;
+        for (String pkg : packages) if (WhatsAppPackageDetector.isWhatsAppPackageName(pkg)) return pkg;
+        return null;
+    }
+
+    private void initializeTarget(SharedPreferences prefs, String packageName) {
+        SharedPreferences.Editor editor = prefs.edit();
+        boolean changed = false;
+        for (PreferenceSchema.Entry entry : PreferenceSchema.all().values()) {
+            if (entry.store != PreferenceSchema.Store.PUBLIC || entry.sensitivity == PreferenceSchema.Sensitivity.RUNTIME) continue;
+            String scoped = packageName + ":" + entry.key;
+            if (!prefs.contains(scoped) && prefs.contains(entry.key)) {
+                Object value = prefs.getAll().get(entry.key);
+                if (value instanceof Boolean) editor.putBoolean(scoped, (Boolean) value);
+                else if (value instanceof String) editor.putString(scoped, (String) value);
+                else if (value instanceof Integer) editor.putInt(scoped, (Integer) value);
+                else if (value instanceof Long) editor.putLong(scoped, (Long) value);
+                else if (value instanceof Float) editor.putFloat(scoped, (Float) value);
+                else if (value instanceof Set<?>) editor.putStringSet(scoped, new HashSet<>((Set<String>) value));
+                changed = true;
+            }
+        }
+        if (changed) editor.commit();
     }
 
     private boolean isEntitledBoolean(Context context, String key) {

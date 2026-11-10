@@ -14,6 +14,14 @@ from test_receipt_stanza_runtime import AREA, PRODUCTION, ROOT, run_contracts
 
 
 MUTANTS = [
+    ('viewed_history_is_not_consent', 'HideReceiptsHook.java',
+     '// Viewed/handled history can also be set by bounded-queue eviction.',
+     'if (HideSeenStore.getInstance(context).isAlreadyViewed(target, messageId, HideSeenStore.TYPE_READ)) return;\n                        // Viewed/handled history can also be set by bounded-queue eviction.',
+     'viewed-history-is-not-explicit-read-consent'),
+    ('manual_chat_overrides_delivery', 'ExplicitReadReceiptPolicy.java',
+     'if (hideDelivery || grants == null || !(token instanceof JobGrant)) return false;',
+     'if (grants == null || !(token instanceof JobGrant)) return false;',
+     'manual-chat-keeps-hide_delivery_receipts'),
     ('rewrite_control_receipts', 'HideReceiptsHook.java',
      'if (type != null && !isReadReceipt) return;',
      '// negative control: allow unrelated protocol receipts through privacy mutation',
@@ -45,7 +53,7 @@ def validate(out, kotlinc):
         raise AssertionError('Candidate failed before mutations; see candidate/runtime.log')
     rows = []
     paths = [AREA / name for name in PRODUCTION]
-    paths.append(Path('app/src/main/java/com/waenhancer/xposed/core/BaseFeature.kt'))
+    paths.extend(Path('app/src/main/java/com/waenhancer/xposed/core') / name for name in ('BaseFeature.kt','HookRegistrar.java','ViewHookDispatcher.java'))
     for label, name, before, after, expected in MUTANTS:
         snapshot = out / 'sources' / label
         for rel in paths:
@@ -60,7 +68,7 @@ def validate(out, kotlinc):
         with redirect_stdout(io.StringIO()):
             code = run_contracts(snapshot, out / label, kotlinc)
         report = json.loads((out / label / 'result.json').read_text(encoding='utf-8'))
-        rejected = code != 0 and ('FAIL ' + expected + ': AssertionError:') in report['output']
+        rejected = report['completed_matrix'] and code != 0 and ('FAIL ' + expected + ': AssertionError:') in report['output']
         if not rejected:
             raise AssertionError('Mutation was not rejected at its intended runtime invariant: ' + label)
         rows.append({'mutation': label, 'file': str(AREA / name),

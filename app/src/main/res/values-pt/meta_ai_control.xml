@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feat_metaai_title">Remover Meta AI</string>
+    <string name="feat_metaai_desc">Escolha quais superfícies e pontos de acesso da Meta AI remover.</string>
+    <string name="meta_ai_remove_home_fab">"Remover página inicial FAB"</string>
+    <string name="meta_ai_remove_entry_points">"Remover pontos de entrada Meta AI"</string>
+    <string name="meta_ai_block_chat">"Bloquear bate-papo Meta AI"</string>
+</resources>

@@ -68,7 +68,7 @@ object TargetRuntimePresentation {
         if (installed.any { decisions[it.packageName] == UniversalVersionValidator.Decision.EXPLICIT_BYPASS })
             return Summary("Version bypass active; compatibility unverified", false)
         if (installed.any { decisions[it.packageName] == UniversalVersionValidator.Decision.CUSTOM_RULE })
-            return Summary("Custom version allowance; compatibility unverified", false)
+            return Summary("Custom version allowance; compatibility unverified", null)
         if (installed.any { !it.isHooked || it.runtimeStatus != "READY" || it.bridgeStatus != "PROVIDER" })
             return Summary("Version rules accepted; runtime unconfirmed", null)
         // Even current READY reports are not acceptance tests of all individual features.

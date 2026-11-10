@@ -36,6 +36,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BooleanSupplier;
 
 /**
  * Presence & Activity Toasts Hook:
@@ -80,7 +82,7 @@ public class PresenceToastsHook extends BaseFeature {
     private void hookIncomingPresence() {
         try {
             Method presenceMethod = DexSearchEngine.getInstance().findMethodWithCache(
-                    context, classLoader, "wpp_presence_message_handler_v4",
+                    context, classLoader, "waex_presence_message_handler_v4",
                     (bridge, loader) -> {
                         // The old available literal belongs to a multiplexed Runnable.
                         // Match the Handler envelope instead, including both event branches.
@@ -126,7 +128,7 @@ public class PresenceToastsHook extends BaseFeature {
                             if (!PresenceStateStore.isCurrentOnline(event.jid, transitionId)) return;
                             try {
                                 String name = ContactNameResolver.INSTANCE.resolveName(context, event.jid, null, null);
-                                showToastSafely(name + UiText.get(R.string.waex_ui_is_online_e0992fa5, " is online"), () -> isOnlineToastEnabled()
+                                showToastSafely(name + UiText.get(R.string.waex_ui_is_online, " is online"), () -> isOnlineToastEnabled()
                                         && PresenceStateStore.isCurrentOnline(event.jid, transitionId));
                             } catch (RuntimeException | LinkageError ignored) { /* Optional name lookup. */ }
                         });
@@ -142,10 +144,10 @@ public class PresenceToastsHook extends BaseFeature {
         if (method == null || !Handler.class.isAssignableFrom(method.getDeclaringClass())) return false;
         int flags = method.getModifiers();
         Class<?>[] parameters = method.getParameterTypes();
-        return java.lang.reflect.Modifier.isPublic(flags)
-                && !java.lang.reflect.Modifier.isStatic(flags)
-                && !java.lang.reflect.Modifier.isAbstract(flags)
-                && !java.lang.reflect.Modifier.isNative(flags)
+        return Modifier.isPublic(flags)
+                && !Modifier.isStatic(flags)
+                && !Modifier.isAbstract(flags)
+                && !Modifier.isNative(flags)
                 && !method.isBridge() && !method.isSynthetic()
                 && "handleMessage".equals(method.getName()) && method.getReturnType() == void.class
                 && parameters.length == 1 && parameters[0] == Message.class;
@@ -309,7 +311,7 @@ public class PresenceToastsHook extends BaseFeature {
     }
 
     private static final ToastThrottle TOAST_THROTTLE = new ToastThrottle(1500L, 2048);
-    private static final java.util.concurrent.atomic.AtomicInteger PRESENCE_DIAGNOSTICS = new java.util.concurrent.atomic.AtomicInteger();
+    private static final AtomicInteger PRESENCE_DIAGNOSTICS = new AtomicInteger();
 
     private boolean isReceiptToastEnabled(ReceiptObservationPolicy.Kind kind) {
         return kind == ReceiptObservationPolicy.Kind.STATUS ? isStatusViewedToastEnabled() : isMessageViewedToastEnabled();
@@ -356,11 +358,11 @@ public class PresenceToastsHook extends BaseFeature {
                         : null;
                 if (!ContactNameResolver.INSTANCE.isValidDisplayName(name)
                         || "Unknown".equalsIgnoreCase(name)) {
-                    name = UiText.get(R.string.waex_ui_a_contact_f7f0de9a, "A contact");
+                    name = UiText.get(R.string.waex_ui_a_contact, "A contact");
                 }
                 String text = name + ("status".equals(subject)
                         ? UiText.get(R.string.waex_ui_deleted_a_status, " deleted a status")
-                        : UiText.get(R.string.waex_ui_deleted_a_message_475dad17, " deleted a message"));
+                        : UiText.get(R.string.waex_ui_deleted_a_message, " deleted a message"));
                 handler.post(() -> {
                     try {
                         Toast.makeText(context, text, Toast.LENGTH_SHORT).show();
@@ -374,7 +376,7 @@ public class PresenceToastsHook extends BaseFeature {
         showToastSafely(message, () -> true);
     }
 
-    private void showToastSafely(String message, java.util.function.BooleanSupplier stillValid) {
+    private void showToastSafely(String message, BooleanSupplier stillValid) {
         mainHandler.post(() -> {
             try {
                 // A queued name lookup must not announce an already invalidated transition.

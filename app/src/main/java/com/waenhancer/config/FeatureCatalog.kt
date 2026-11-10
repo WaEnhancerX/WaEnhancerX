@@ -73,19 +73,14 @@ object FeatureCatalog {
         .filter { item -> canonicalGroupOverrides[item.key]?.let { it == item.groupId } ?: true }
         .distinctBy { it.key }
 
-    private val aliases = mapOf(
-        "freeze_last_seen" to "freezelastseen", "antirevoke" to "anti_revoke",
-        "downloadstatus" to "status_downloader", "downloadviewonce" to "download_view_once",
-        "custom_css" to "custom_theme", "css_theme" to "custom_theme", "change_dpi" to "custom_view_dpi",
-        "chatfilter" to "chat_filters", "hidetabs" to "hide_ui_tabs", "show_home_menu" to "quick_home_menu",
-        "waex_menu_style" to "quick_home_menu", "open_waex" to "open_wae",
-        "miscellaneous_enhancements" to "disable_sensor_proximity", "novaconfig" to "custom_toolbar",
-        "segundos" to "custom_time_format", "igstatus" to "instagram_status_layout",
-        "verify_blocked_contact" to "contact_blocked_verify"
-    )
-
     @JvmStatic
-    fun findByKey(key: String?): FeatureItem? = key?.let { keyToItem[it] ?: aliases[it]?.let(keyToItem::get) }
+    fun findByKey(key: String?): FeatureItem? = key?.let {
+        keyToItem[it] ?: keyToItem[PreferenceKeyAliases.canonical(it)]
+    }
+
+    /** Resolves legacy preference aliases without requiring catalog initialization. */
+    @JvmStatic
+    fun canonicalKey(key: String): String = PreferenceKeyAliases.canonical(key)
 
     /** Groups that should be rendered for one settings destination. */
     fun groupsFor(tabIndex: Int, subTabId: String?): List<PreferenceGroup> =

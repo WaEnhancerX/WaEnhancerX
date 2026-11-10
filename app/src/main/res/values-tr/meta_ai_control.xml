@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feat_metaai_title">Meta AI’ı kaldır</string>
+    <string name="feat_metaai_desc">Kaldırmak istediğiniz Meta AI yüzeylerini ve erişim noktalarını seçin.</string>
+    <string name="meta_ai_remove_home_fab">"Ev FAB kaldır"</string>
+    <string name="meta_ai_remove_entry_points">"Meta AI giriş noktalarını kaldır"</string>
+    <string name="meta_ai_block_chat">"Meta AI sohbetini engelle"</string>
+</resources>

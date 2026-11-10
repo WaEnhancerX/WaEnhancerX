@@ -1,10 +1,12 @@
 package com.waenhancer.xposed.features.privacy;
 
 import android.content.Context;
+import com.whatsapp.infra.core.jid.Jid;
 import android.content.SharedPreferences;
 import android.os.Message;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import de.robv.android.xposed.XposedBridge;
+import de.robv.android.xposed.XposedHelpers;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -42,9 +44,10 @@ public final class ReceiptStanzaRuntimeChecks {
     public static final class Attribute {
         public final String key;
         public final String value;
-        public Attribute(String key, String value) { this.key = key; this.value = value; }
+        public final Jid jid;
+        public Attribute(String key, String value) { this.key = key; this.value = value; this.jid=null; }
+        public Attribute(String key,Jid jid){this.key=key;this.value=null;this.jid=jid;}
     }
-
     public static final class Node {
         public final String tag = "receipt";
         public Attribute[] attributes;
@@ -80,6 +83,7 @@ public final class ReceiptStanzaRuntimeChecks {
         public String jid;
         public String participant;
         public String[] ids;
+        public String[] diagnosticIds = {"unrelated-diagnostic-id"};
         public int executions;
         public int lifecycleCalls;
         public ReadJob(String jid, String participant, String[] ids) {
@@ -114,9 +118,11 @@ public final class ReceiptStanzaRuntimeChecks {
     private static void scenario(String label, Scenario action) {
         scenarios++;
         PREFS.values.clear();
+        com.waenhancer.xposed.core.db.HideSeenStore.viewed=false;
+        com.waenhancer.xposed.core.db.HideSeenStore.inserts=0;
         CustomPrivacyHook.contacts.clear();
         CustomPrivacyHook.lookups = 0;
-        BlueOnReplyHook.captured.clear();
+        BlueOnReplyHook.manualChats.clear(); BlueOnReplyHook.captured.clear(); BlueOnReplyHook.prepared.clear(); BlueOnReplyHook.staged.clear();
         try { action.run(); }
         catch (Throwable error) {
             failures.add(label + ": " + error.getClass().getSimpleName() + ": " + error.getMessage());
@@ -200,24 +206,30 @@ public final class ReceiptStanzaRuntimeChecks {
         return (ReadJob) XposedBridge.construct(constructor, jid, participant, new String[]{"fixture-id"});
     }
 
+    private static void markManual(ReadJob job) {
+        BlueOnReplyHook.manualChats.add(job);
+        XposedHelpers.setAdditionalInstanceField(job,ExplicitReadReceiptPolicy.JOB_GRANT_KEY,
+                ExplicitReadReceiptPolicy.captureJobGrant(job.jid,new Object[]{job.ids}));
+    }
     private static void install() throws Throwable {
         generate = Generator.class.getMethod("generate", DeviceJid.class, Node.class);
         incoming = Incoming.class.getMethod("receive", IncomingMessage.class);
         execution = ReadJob.class.getMethod("run");
         dispatch = Writer.class.getMethod("dispatch", Message.class);
         constructor = ReadJob.class.getConstructor(String.class, String.class, String[].class);
-        DexSearchEngine.classes.put("wpp_protocol_tree_node_class", Node.class);
-        DexSearchEngine.classes.put("wpp_key_value_class", Attribute.class);
-        DexSearchEngine.classes.put("wpp_send_read_receipt_job_class", ReadJob.class);
-        DexSearchEngine.methods.put("wpp_read_receipt_incoming_message", incoming);
-        DexSearchEngine.methods.put("wpp_send_read_receipt_execution_v1", execution);
-        DexSearchEngine.methods.put("wpp_receipt_node_generator", generate);
-        DexSearchEngine.methods.put("wpp_on_dispatch_message_419", dispatch);
-        DexSearchEngine.methods.put("wpp_delivery_anchor_ReadReceipts_sendDeliveryReadReceipt",
+        DexSearchEngine.classes.put("waex_protocol_tree_node_class", Node.class);
+        DexSearchEngine.classes.put("waex_key_value_class", Attribute.class);
+        DexSearchEngine.classes.put("waex_send_read_receipt_job_class", ReadJob.class);
+        DexSearchEngine.methods.put("waex_read_receipt_incoming_message", incoming);
+        DexSearchEngine.methods.put("waex_send_read_receipt_execution_v1", execution); // Baseline comparison.
+        DexSearchEngine.methods.put("waex_send_read_receipt_execution_v2", execution);
+        DexSearchEngine.methods.put("waex_receipt_node_generator", generate);
+        DexSearchEngine.methods.put("waex_on_dispatch_message_419", dispatch);
+        DexSearchEngine.methods.put("waex_delivery_anchor_ReadReceipts_sendDeliveryReadReceipt",
                 Delivery.class.getMethod("combined"));
-        DexSearchEngine.methods.put("wpp_delivery_anchor_ReadReceipts_sendDeliveryReceiptIfNotRetry",
+        DexSearchEngine.methods.put("waex_delivery_anchor_ReadReceipts_sendDeliveryReceiptIfNotRetry",
                 Delivery.class.getMethod("ordinary"));
-        DexSearchEngine.methods.put("wpp_played_batch_dispatch_v1",
+        DexSearchEngine.methods.put("waex_played_batch_dispatch_v1",
                 Played.class.getMethod("dispatch", Set.class, boolean.class));
         new HideReceiptsHook(new Context(), ReceiptStanzaRuntimeChecks.class.getClassLoader(), PREFS).hook();
         for (Method method : List.of(generate, incoming, execution, dispatch)) {
@@ -320,7 +332,8 @@ public final class ReceiptStanzaRuntimeChecks {
             PREFS.values.put("stealth_status_view", true);
             PREFS.values.put("blueonreply", true);
             ReadJob job = job(BROADCAST, PERSON);
-            check(BlueOnReplyHook.captured.equals(List.of(BROADCAST)), "broadcast read job was not captured for its conversation");
+            check(BlueOnReplyHook.prepared.equals(List.of(BROADCAST)), "broadcast read job was not prepared for its conversation");
+            check(BlueOnReplyHook.captured.isEmpty(), "construction incorrectly counted as suppressed execution");
             XposedBridge.invoke(execution, job);
             check(job.executions == 1, "stealth status cancelled a broadcast-list job");
         });
@@ -332,7 +345,7 @@ public final class ReceiptStanzaRuntimeChecks {
             PREFS.values.put("stealth_status_view", true);
             int before = INCOMING.calls;
             XposedBridge.invoke(incoming, INCOMING, new IncomingMessage("status@broadcast", PERSON));
-            check(INCOMING.calls == before, "exact status incoming receipt escaped stealth mode");
+            check(INCOMING.calls == before + 1, "incoming status must reach constructor before execution suppression");
             ReadJob job = job("status@broadcast", PERSON);
             XposedBridge.invoke(execution, job);
             check(job.executions == 0, "exact status job escaped stealth mode");
@@ -380,6 +393,73 @@ public final class ReceiptStanzaRuntimeChecks {
             Object payload = new Object(); message.obj = payload;
             XposedBridge.invoke(dispatch, WRITER, message);
             check(message.arg1 == -1 && message.obj == payload, "existing 419 policy changed without a replacement contract");
+        });
+        scenario("typed-jid-read-privacy", () -> {
+            CustomPrivacyHook.contacts.put(PERSON,new JSONObject().put("HideSeen",true));
+            Node n=node("read",PERSON,null,"typed-id");n.attributes[0]=new Attribute("to",new Jid(PERSON));
+            expectReadHidden(n,null);
+        });
+        scenario("viewed-ordinary-delivery-cannot-bypass-ghost", () -> {
+            PREFS.values.put("ghostmode_active", true);
+            com.waenhancer.xposed.core.db.HideSeenStore.viewed=true;
+            expectReadHidden(node(null,PERSON,null,"seen-delivery"),"inactive");
+        });
+        scenario("viewed-read-cannot-bypass-hide-delivery", () -> {
+            PREFS.values.put("hide_delivery_receipts", true);
+            com.waenhancer.xposed.core.db.HideSeenStore.viewed=true;
+            expectReadHidden(node("read",PERSON,null,"seen"),"inactive");
+        });
+        scenario("viewed-read-cannot-bypass-ghost", () -> {
+            PREFS.values.put("ghostmode_active", true);
+            com.waenhancer.xposed.core.db.HideSeenStore.viewed=true;
+            expectReadHidden(node("read",PERSON,null,"seen"),"inactive");
+        });
+        scenario("viewed-history-is-not-explicit-read-consent", () -> {
+            PREFS.values.put("hide_read_receipts", true);
+            com.waenhancer.xposed.core.db.HideSeenStore.viewed=true;
+            expectReadHidden(node("read",PERSON,null,"seen"),null);
+        });
+        scenario("control-receipt-not-recorded-as-pending-read", () -> {
+            PREFS.values.put("hide_read_receipts", true);
+            expectUntouched(node("retry",PERSON,null,"control"));
+            check(com.waenhancer.xposed.core.db.HideSeenStore.inserts==0,"control receipt stored as pending read");
+        });
+        for(String pref:new String[]{"hide_delivery_receipts","ghostmode_active"})scenario("manual-chat-keeps-"+pref,()->{
+            PREFS.values.put(pref,true);ReadJob j=job(PERSON,null);markManual(j);
+            XposedBridge.invoke(execution,j);check(j.executions==0,"manual tag bypassed delivery privacy");
+        });
+        scenario("manual-chat-refreshes-only-exact-ids-at-execution",()->{
+            PREFS.values.put("hide_read_receipts",true);ReadJob j=job(PERSON,null);markManual(j);
+            try {
+                XposedBridge.invoke(execution,j);check(j.executions==1,"verified explicit read job did not execute");
+                expectUntouched(node("read",PERSON,null,"fixture-id"));
+                expectReadHidden(node("read",PERSON,null,"other-id"),null);
+                expectReadHidden(node("read",OTHER,null,"fixture-id"),null);
+                expectReadHidden(node("read",PERSON,null,"unrelated-diagnostic-id"),null);
+            } finally {HideReceiptsHook.revokeExplicitReceiptIds(PERSON,new Object[]{j.ids});}
+        });
+        scenario("manual-chat-without-ids-is-not-unrestricted-consent",()->{
+            PREFS.values.put("hide_read_receipts",true);ReadJob j=job(PERSON,null);j.ids=new String[0];markManual(j);
+            XposedBridge.invoke(execution,j);check(j.executions==0,"manual job without exact IDs bypassed privacy");
+        });
+        scenario("manual-tag-without-action-grant-is-not-consent",()->{
+            PREFS.values.put("hide_read_receipts",true);ReadJob j=job(PERSON,null);BlueOnReplyHook.manualChats.add(j);
+            XposedBridge.invoke(execution,j);check(j.executions==0,"bare manual tag granted read permission");
+        });
+        scenario("manual-action-cannot-switch-to-group-participant",()->{
+            PREFS.values.put("hideread_group",true);ReadJob j=job(PERSON,GROUP);markManual(j);
+            try {
+                XposedBridge.invoke(execution,j);check(j.executions==0,"participant replaced the action recipient");
+                expectReadHidden(node("read",GROUP,null,"fixture-id"),null);
+            } finally {HideReceiptsHook.revokeExplicitReceiptIds(PERSON,new Object[]{j.ids});HideReceiptsHook.revokeExplicitReceiptIds(GROUP,new Object[]{j.ids});}
+        });
+        scenario("manual-action-grant-retains-original-id-snapshot",()->{
+            PREFS.values.put("hide_read_receipts",true);ReadJob j=job(PERSON,null);markManual(j);j.ids[0]="post-action-id";
+            try {
+                XposedBridge.invoke(execution,j);check(j.executions==1,"authentic action grant was lost");
+                expectUntouched(node("read",PERSON,null,"fixture-id"));
+                expectReadHidden(node("read",PERSON,null,"post-action-id"),null);
+            } finally {HideReceiptsHook.revokeExplicitReceiptIds(PERSON,new Object[]{new String[]{"fixture-id","post-action-id"}});}
         });
         scenario("null-result-and-generator-failure", () -> {
             PREFS.values.put("ghostmode_active", true);

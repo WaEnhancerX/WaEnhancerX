@@ -250,7 +250,7 @@ class WaexBottomSheet(private val context: Context) {
                     textSize = 18f
                     typeface = Typeface.DEFAULT_BOLD
                     setTextColor(primaryTextColor)
-                    gravity = Gravity.CENTER
+                    gravity = if (topRightView != null) Gravity.START or Gravity.CENTER_VERTICAL else Gravity.CENTER
                 }
                 headerLayout.addView(titleView)
             }

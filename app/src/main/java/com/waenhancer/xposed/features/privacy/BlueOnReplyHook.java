@@ -14,6 +14,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.xposed.core.db.HideSeenStore;
 import com.waenhancer.xposed.features.homescreen.MenuIconLoader;
 import com.waenhancer.xposed.utils.ActivityTracker;
 import de.robv.android.xposed.XC_MethodHook;
@@ -35,6 +36,12 @@ import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import android.graphics.drawable.Drawable;
+import java.lang.reflect.Array;
+import java.util.IdentityHashMap;
+import java.util.Iterator;
 
 /**
  * Blue on Reply Hook:
@@ -44,14 +51,23 @@ public class BlueOnReplyHook extends BaseFeature {
 
     private static final String TAG = "[WAEX][BlueOnReply]";
     private static final String PREF_KEY = "blueonreply";
+    private static final int MAX_MANUAL_READ_JOBS = 50;
     // Bound retained constructor arguments and never route one chat's read receipts to another.
     private static final PendingReadReceiptStore<ReadJobRecipe> PENDING_JOBS =
-            new PendingReadReceiptStore<>(128, 64);
+            new PendingReadReceiptStore<>(128, MAX_MANUAL_READ_JOBS);
     private static volatile Constructor<?> sendReadConstructor;
     private static volatile Method enqueueJobMethod;
     private static volatile Class<?> managerClass;
     private static volatile Object jobManager;
+    private static volatile Context appContext;
     private static final int MENU_SEND_BLUE_TICK = 0x7EAE0012;
+    private static final Map<String, ReadJobRecipe> PENDING_STATUS_RECEIPTS = new LinkedHashMap<>();
+    // Status player wrappers do not always retain the MessageKey. Keep the most recently
+    // suppressed host job as the playback-order fallback; the host creates it for the
+    // status that is being opened.
+    private static final Object MANUAL_STATUS_RECEIPT = new Object();
+    private static final String PENDING_CHAT_RECEIPT = "waex_pending_chat_receipt";
+    private static final String MANUAL_CHAT_ATTEMPT = "waex_manual_chat_attempt";
 
     private static final class ReadJobRecipe {
         final Constructor<?> constructor;
@@ -65,6 +81,7 @@ public class BlueOnReplyHook extends BaseFeature {
 
     public BlueOnReplyHook(@NonNull Context context, @NonNull ClassLoader classLoader, @NonNull SharedPreferences prefs) {
         super(context, classLoader, prefs);
+        appContext = context.getApplicationContext();
     }
 
     @Override
@@ -77,7 +94,7 @@ public class BlueOnReplyHook extends BaseFeature {
     private void initializeReadReceiptDispatcher() {
         try {
             Class<?> sendReadClass = DexSearchEngine.getInstance().findClassWithCache(
-                    context, classLoader, "wpp_send_read_receipt_job_class",
+                    context, classLoader, "waex_send_read_receipt_job_class",
                     (bridge, loader) -> {
                         ClassData data = bridge.findClass(FindClass.create().matcher(
                                 ClassMatcher.create().className(
@@ -93,7 +110,7 @@ public class BlueOnReplyHook extends BaseFeature {
             sendReadConstructor.setAccessible(true);
 
             Method anchor = DexSearchEngine.getInstance().findMethodWithCache(
-                    context, classLoader, "wpp_wa_job_manager_start_anchor",
+                    context, classLoader, "waex_wa_job_manager_start_anchor",
                     (bridge, loader) -> {
                         MethodData data = bridge.findMethod(FindMethod.create().matcher(
                                 MethodMatcher.create().addUsingString(
@@ -141,7 +158,7 @@ public class BlueOnReplyHook extends BaseFeature {
             Method sendMessageMethod = DexSearchEngine.getInstance().findMethodWithCache(
                     context,
                     classLoader,
-                    "wpp_blue_on_reply_send_e2e_job",
+                    "waex_blue_on_reply_send_e2e_job",
                     (bridge, loader) -> {
                         MethodData md = bridge.findMethod(FindMethod.create()
                                 .matcher(MethodMatcher.create()
@@ -175,18 +192,287 @@ public class BlueOnReplyHook extends BaseFeature {
         return isHideBlueTicksEnabled() && isEnabled(PREF_KEY, false);
     }
 
-    public static void captureSuppressedReadJob(String jid, Constructor<?> constructor,
-                                                Object[] constructorArgs) {
+    /**
+     * Stage a receipt on its job instance. It becomes a manual-send candidate only when
+     * HideReceipts confirms that this job actually reached the hidden-read execution path.
+     */
+    public static void prepareSuppressedReadJob(String jid, Constructor<?> constructor,
+                                                Object[] constructorArgs, Object constructedJob) {
         String key = canonicalJid(jid);
-        if (key == null || constructor == null || constructorArgs == null) return;
-        Object[] copy = Arrays.copyOf(constructorArgs, constructorArgs.length);
-        for (int i = 0; i < copy.length; i++) {
-            if (copy[i] instanceof String[]) {
-                copy[i] = ((String[]) copy[i]).clone();
-            }
+        if (key == null || constructor == null || constructorArgs == null) {
+            XposedBridge.log(TAG + " chat receipt not staged: incomplete job contract");
+            return;
+        }
+        // WhatsApp's constructor arguments have changed across builds. The completed
+        // SendReadReceiptJob is the authoritative source of its message IDs, just as it
+        // is for the actual suppression hook. Do not assume a particular argument slot.
+        if (readReceiptMessageIds(constructedJob).isEmpty()) {
+            XposedBridge.log(TAG + " chat receipt not staged: job has no message IDs");
+            return;
         }
         constructor.setAccessible(true);
-        PENDING_JOBS.add(key, new ReadJobRecipe(constructor, copy));
+        XposedHelpers.setAdditionalInstanceField(constructedJob, PENDING_CHAT_RECEIPT,
+                new PendingChatReceipt(key, new ReadJobRecipe(constructor, copyArguments(constructorArgs))));
+    }
+
+    /** Called by the verified SendReadReceiptJob execution hook once hiding is confirmed. */
+    public static void recordSuppressedReadJob(Object job) {
+        Object attempt = XposedHelpers.getAdditionalInstanceField(job, MANUAL_CHAT_ATTEMPT);
+        if (attempt instanceof ManualReadAttempt) {
+            // A local privacy veto is not a successful receipt. Retain only the original
+            // action-time recipe for another explicit action, never for automatic retry.
+            ((ManualReadAttempt) attempt).recordLocalVeto();
+            return;
+        }
+        Object value = XposedHelpers.getAdditionalInstanceField(job, PENDING_CHAT_RECEIPT);
+        if (!(value instanceof PendingChatReceipt)) {
+            return;
+        }
+        PendingChatReceipt pending = (PendingChatReceipt) value;
+        markEvictedHandled(pending.recipient, PENDING_JOBS.add(pending.recipient, pending.recipe));
+        XposedHelpers.removeAdditionalInstanceField(job, PENDING_CHAT_RECEIPT);
+    }
+
+    /** Coordinates enqueue acknowledgement with synchronous or delayed local vetoes. */
+    private static final class ManualReadAttempt {
+        final String recipient;
+        final ReadJobRecipe original;
+        final ReadJobRecipe retryRecipe;
+        private boolean accepted;
+        private boolean vetoed;
+
+        ManualReadAttempt(String recipient, ReadJobRecipe recipe) {
+            this.recipient = recipient;
+            this.original = recipe;
+            // The synthetic or host job may mutate its arrays after construction.
+            // Retry the private original snapshot, not fields from the executing job.
+            this.retryRecipe = new ReadJobRecipe(recipe.constructor, copyArguments(recipe.arguments));
+        }
+
+        synchronized void acknowledgeEnqueue() {
+            if (accepted) return;
+            accepted = true;
+            PENDING_JOBS.remove(recipient, original);
+            if (vetoed) restoreRecipe();
+        }
+
+        synchronized void recordLocalVeto() {
+            if (vetoed) return;
+            vetoed = true;
+            // A synchronous veto inside enqueue must wait for its acknowledgement.
+            // If enqueue throws, the original remains pending and no duplicate is added.
+            if (accepted) restoreRecipe();
+        }
+
+        private void restoreRecipe() {
+            markEvictedHandled(recipient, PENDING_JOBS.add(recipient, retryRecipe));
+        }
+    }
+
+    private static final class PendingChatReceipt {
+        final String recipient;
+        final ReadJobRecipe recipe;
+
+        PendingChatReceipt(String recipient, ReadJobRecipe recipe) {
+            this.recipient = recipient;
+            this.recipe = recipe;
+        }
+    }
+
+    public static Set<String> readReceiptMessageIds(Object job) {
+        Set<String> ids = new LinkedHashSet<>();
+        if (job == null) return ids;
+        for (Class<?> type = job.getClass(); type != null && type != Object.class; type = type.getSuperclass()) {
+            for (Field field : type.getDeclaredFields()) {
+                if (Modifier.isStatic(field.getModifiers()) || field.getType() != String[].class) continue;
+                try {
+                    field.setAccessible(true);
+                    Object value = field.get(job);
+                    if (!(value instanceof String[])) continue;
+                    for (String id : (String[]) value) {
+                        if (id != null && !id.isEmpty()) ids.add(id);
+                    }
+                } catch (Throwable ignored) {}
+            }
+        }
+        return ids;
+    }
+
+    public static void captureSuppressedStatusReadJob(Constructor<?> constructor, Object[] arguments) {
+        if (constructor == null || arguments == null) return;
+        ReadJobRecipe recipe = new ReadJobRecipe(constructor, copyArguments(arguments));
+        synchronized (PENDING_STATUS_RECEIPTS) {
+            for (Object argument : arguments) if (argument instanceof String[])
+                for (String id : (String[]) argument) if (id != null && !id.isEmpty()) {
+                    PENDING_STATUS_RECEIPTS.put(id, recipe);
+                    while (PENDING_STATUS_RECEIPTS.size() > 256)
+                        PENDING_STATUS_RECEIPTS.remove(PENDING_STATUS_RECEIPTS.keySet().iterator().next());
+                }
+        }
+    }
+
+    /**
+     * Called by HideReceiptsHook when a message arrives via the type-9 in-chat dispatch path.
+     * WhatsApp skips SendReadReceiptJob for messages received while the user is in the chat,
+     * so we build a single-ID job recipe here using the same constructor we already resolved.
+     * sendPendingReadJobs will replay it when the user taps "Send blue tick".
+     */
+    public static void recordObservedReceipt(String jid, Object typedJid,
+                                             String messageId) {
+        String key = canonicalJid(jid);
+        if (key == null || typedJid == null || messageId == null || messageId.isEmpty()) return;
+        Constructor<?> ctor = sendReadConstructor;
+        if (ctor == null) {
+            XposedBridge.log(TAG + " Cannot record observed receipt: constructor unavailable");
+            return;
+        }
+        // Build args: find an existing pending recipe for this jid to reuse its constructor shape,
+        // or construct minimal args with just the messageId array.
+        Object[] args = buildMinimalConstructorArgs(
+                ctor, typedJid, new String[]{messageId});
+        if (args == null) return;
+        ReadJobRecipe recipe = new ReadJobRecipe(ctor, args);
+        markEvictedHandled(key, PENDING_JOBS.add(key, recipe));
+    }
+
+    private static void markEvictedHandled(String recipient, ReadJobRecipe evicted) {
+        Context context = appContext;
+        if (context == null || evicted == null) return;
+        for (Object argument : evicted.arguments) {
+            if (!(argument instanceof String[])) continue;
+            for (String id : (String[]) argument) {
+                if (id != null && !id.isEmpty()) {
+                    HideSeenStore.getInstance(context).updateViewedMessageAsync(
+                            recipient, id, HideSeenStore.TYPE_READ, true);
+                }
+            }
+        }
+    }
+
+    /**
+     * Creates the smallest valid direct-chat recipe using the typed JID retained
+     * from the decrypted message. Optional participant/recipient fields stay null.
+     */
+    private static Object[] buildMinimalConstructorArgs(Constructor<?> ctor, Object typedJid,
+                                                        String[] messageIds) {
+        Class<?>[] params = ctor.getParameterTypes();
+        Object[] args = new Object[params.length];
+        boolean jidSet = false;
+        boolean idsSet = false;
+        for (int i = 0; i < params.length; i++) {
+            Class<?> p = params[i];
+            if (!idsSet && p == String[].class) {
+                args[i] = messageIds;
+                idsSet = true;
+            } else if (!jidSet && typedJid != null
+                    && !(typedJid instanceof String) && p.isInstance(typedJid)) {
+                // The current SendReadReceiptJob constructor requires the host's
+                // typed JID as its first argument. The remaining participant and
+                // recipient JID parameters are optional for a direct chat.
+                args[i] = typedJid;
+                jidSet = true;
+            } else if (p == boolean.class || p == Boolean.class) {
+                args[i] = false;
+            } else if (p == int.class || p == Integer.class) {
+                args[i] = 0;
+            } else if (p == long.class || p == Long.class) {
+                args[i] = 0L;
+            } else {
+                args[i] = null; // Reference types default to null
+            }
+        }
+        if (!idsSet || !jidSet) {
+            XposedBridge.log(TAG + " buildMinimalConstructorArgs: required argument unavailable");
+            return null;
+        }
+        return args;
+    }
+
+    public static boolean sendCapturedStatusReceipt(Object statusItem) {
+        String id = findStatusId(statusItem, new IdentityHashMap<>(), 0);
+        ReadJobRecipe recipe;
+        synchronized (PENDING_STATUS_RECEIPTS) {
+            // Never substitute the most recently captured receipt when the active playback
+            // item cannot be identified. After backward navigation, that receipt belongs to
+            // the last-viewed status and would acknowledge the wrong item.
+            recipe = id == null ? null : PENDING_STATUS_RECEIPTS.get(id);
+        }
+        if (recipe == null || enqueueJobMethod == null || getOrFindJobManager() == null) return false;
+        try {
+            Object job = recipe.constructor.newInstance(copyArguments(recipe.arguments));
+            XposedHelpers.setAdditionalInstanceField(job, "waex_manual_status_seen", MANUAL_STATUS_RECEIPT);
+            enqueueJobMethod.invoke(getOrFindJobManager(), job);
+            synchronized (PENDING_STATUS_RECEIPTS) {
+                // A host status receipt can cover several message IDs. Remove every alias
+                // for the exact recipe so delivered entries cannot block later statuses.
+                Iterator<Map.Entry<String, ReadJobRecipe>> iterator =
+                        PENDING_STATUS_RECEIPTS.entrySet().iterator();
+                while (iterator.hasNext()) {
+                    if (iterator.next().getValue() == recipe) iterator.remove();
+                }
+            }
+            return true;
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " Error enqueueing status receipt: "
+                    + t.getClass().getSimpleName());
+            return false;
+        }
+    }
+
+    /** True only when this item exposes an exact receipt ID that was suppressed earlier. */
+    public static boolean hasCapturedStatusReceipt(Object statusItem) {
+        return findStatusId(statusItem, new IdentityHashMap<>(), 0) != null;
+    }
+
+    private static Object[] copyArguments(Object[] source) { Object[] copy = Arrays.copyOf(source, source.length); for (int i=0;i<copy.length;i++) if(copy[i] instanceof String[]) copy[i]=((String[])copy[i]).clone(); return copy; }
+    private static String findStatusId(Object value, IdentityHashMap<Object, Boolean> seen, int depth) {
+        // The current status item is wrapped differently between playback pages. Traverse
+        // its small object graph deeply enough to reach the MessageKey, but accept an ID
+        // only when it exactly matches a receipt WhatsApp itself already suppressed.
+        if (value == null || depth > 12 || seen.put(value, Boolean.TRUE) != null) return null;
+        if (value instanceof String) { synchronized (PENDING_STATUS_RECEIPTS) { return PENDING_STATUS_RECEIPTS.containsKey(value) ? (String)value : null; } }
+        if (value.getClass().isArray()) {
+            int length = Array.getLength(value);
+            for (int i = 0; i < length; i++) {
+                String found = findStatusId(Array.get(value, i), seen, depth + 1);
+                if (found != null) return found;
+            }
+            return null;
+        }
+        if (value instanceof Iterable) {
+            for (Object child : (Iterable<?>) value) {
+                String found = findStatusId(child, seen, depth + 1);
+                if (found != null) return found;
+            }
+            return null;
+        }
+        Class<?> type=value.getClass(); if (type.getName().startsWith("java.")) return null;
+        for (Class<?> c=type;c!=null&&c!=Object.class;c=c.getSuperclass()) for (Field f:c.getDeclaredFields()) {
+            if (Modifier.isStatic(f.getModifiers()) || f.getType().isPrimitive()) continue;
+            try { f.setAccessible(true); String found=findStatusId(f.get(value),seen,depth+1); if(found!=null)return found; } catch(Throwable ignored) {}
+        } return null;
+    }
+
+    public static boolean isManualStatusSeenEnabled(SharedPreferences prefs) {
+        // Show the "Send Seen" button whenever the user has enabled it, regardless of
+        // whether a stealth/hide-status-view setting is also active. The receipt capture
+        // in HideReceiptsHook is already gated by shouldHideStatusView, so on a miss the
+        // button simply shows a "no receipt to send" toast — which is the correct UX.
+        return prefs != null && prefs.getBoolean("manual_status_seen", false);
+    }
+
+    public static boolean isManualStatusSeenMenuPlacement(SharedPreferences prefs) {
+        return isManualStatusSeenEnabled(prefs)
+                && "menu".equals(prefs.getString("manual_status_seen_placement", "menu"));
+    }
+
+    public static boolean isManualStatusReceipt(Object job) {
+        return XposedHelpers.getAdditionalInstanceField(job, "waex_manual_status_seen") == MANUAL_STATUS_RECEIPT;
+    }
+
+    /** Explicit chat receipt created by the manual/blue-on-reply action. */
+    public static boolean isManualChatReceipt(Object job) {
+        return Boolean.TRUE.equals(XposedHelpers.getAdditionalInstanceField(job, "blue_on_reply"));
     }
 
     private static Object getOrFindJobManager() {
@@ -226,7 +512,10 @@ public class BlueOnReplyHook extends BaseFeature {
         // Exact canonical JID match only. @lid, @s.whatsapp.net and @g.us are
         // distinct identity namespaces; same local user part is NOT proof that
         // their queued read receipts belong to the same recipient.
-        List<ReadJobRecipe> pending = PENDING_JOBS.drain(key);
+        // Keep records until WhatsApp has accepted their explicit jobs. This mirrors the
+        // reliable chat flow: a temporary manager/constructor failure must not make a
+        // user's hidden messages impossible to mark read on the next tap or reply.
+        List<ReadJobRecipe> pending = PENDING_JOBS.snapshot(key);
         if (pending.isEmpty()) {
             return 0;
         }
@@ -235,10 +524,16 @@ public class BlueOnReplyHook extends BaseFeature {
         int sent = 0;
         for (ReadJobRecipe recipe : pending) {
             try {
+                Object grant = ExplicitReadReceiptPolicy.captureJobGrant(key, recipe.arguments);
+                if (grant == null) continue;
                 HideReceiptsHook.allowExplicitReceiptIds(key, recipe.arguments);
-                Object job = recipe.constructor.newInstance(recipe.arguments);
+                Object job = recipe.constructor.newInstance(copyArguments(recipe.arguments));
                 XposedHelpers.setAdditionalInstanceField(job, "blue_on_reply", true);
+                XposedHelpers.setAdditionalInstanceField(job, ExplicitReadReceiptPolicy.JOB_GRANT_KEY, grant);
+                ManualReadAttempt attempt = new ManualReadAttempt(key, recipe);
+                XposedHelpers.setAdditionalInstanceField(job, MANUAL_CHAT_ATTEMPT, attempt);
                 enqueue.invoke(manager, job);
+                attempt.acknowledgeEnqueue();
                 sent++;
             } catch (Throwable t) {
                 // Constructor or dispatch failure must not leave a stale permission.
@@ -332,8 +627,8 @@ public class BlueOnReplyHook extends BaseFeature {
         }
         if (menu.findItem(MENU_SEND_BLUE_TICK) != null) return;
 
-        MenuItem item = menu.add(Menu.NONE, MENU_SEND_BLUE_TICK, Menu.NONE, UiText.get(R.string.waex_ui_send_blue_tick_a14924d4, "Send blue tick"));
-        android.graphics.drawable.Drawable icon = MenuIconLoader.load(context, "ic_waex_mark_read");
+        MenuItem item = menu.add(Menu.NONE, MENU_SEND_BLUE_TICK, Menu.NONE, UiText.get(R.string.waex_ui_send_blue_tick, "Send blue tick"));
+        Drawable icon = MenuIconLoader.load(context, "ic_waex_mark_read");
         if (icon == null) {
             int iconId = context.getResources().getIdentifier(
                     "ic_notif_mark_read", "drawable", "com.whatsapp");
@@ -350,7 +645,7 @@ public class BlueOnReplyHook extends BaseFeature {
                     ? (Context) conversation : context;
             Toast.makeText(toastContext,
                     jid == null ? UiText.get(R.string.waex_l10n_recipient_unconfirmed, "Cannot verify chat recipient")
-                            : (sent > 0 ? UiText.get(R.string.waex_ui_blue_tick_sent_22828691, "Blue tick sent") : UiText.get(R.string.waex_ui_no_hidden_read_receipt_to_send_15d6cfc0, "No hidden read receipt to send")),
+                            : (sent > 0 ? UiText.get(R.string.waex_ui_blue_tick_sent, "Seen sent") : UiText.get(R.string.waex_ui_no_hidden_read_receipt_to_send, "No hidden read receipt to send")),
                     Toast.LENGTH_SHORT).show();
             return true;
         });

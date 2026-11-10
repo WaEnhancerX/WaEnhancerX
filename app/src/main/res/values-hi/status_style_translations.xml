@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="status_style_default">डिफ़ॉल्ट</string>
+    <string name="status_style_vertical_rows">ऊर्ध्वाधर पंक्तियाँ</string>
+    <string name="status_style_facebook_grid">फेसबुक कार्ड (ग्रिड)</string>
+    <string name="status_style_vertical_compact">ऊर्ध्वाधर सूची (कॉम्पैक्ट)</string>
+    <string name="status_style_vertical_circle">ऊर्ध्वाधर सूची (गोलाकार अवतार)</string>
+    <string name="status_style_vertical_square">ऊर्ध्वाधर सूची (चौकोर कार्ड)</string>
+</resources>

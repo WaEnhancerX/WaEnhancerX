@@ -13,6 +13,7 @@ import androidx.annotation.NonNull;
 import com.waenhancer.xposed.bridge.HookProvider;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.utils.ContactNameResolver;
 
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.enums.StringMatchType;
@@ -60,6 +61,7 @@ public final class CallRecordingHook extends BaseFeature {
     private volatile ParcelFileDescriptor destination;
     private volatile String outputPath;
     private volatile String outputName;
+    private volatile String outputCallId;
 
     public CallRecordingHook(@NonNull Context context, @NonNull ClassLoader classLoader,
                              @NonNull SharedPreferences prefs) {
@@ -204,7 +206,8 @@ public final class CallRecordingHook extends BaseFeature {
             }
             if (session != null && !session.matches(callback, snapshot.callId)) finishSession();
             boolean newSession = session == null;
-            if (newSession) session = new Session(callback, snapshot.callId);
+            if (newSession) session = new Session(callback, snapshot.callId, snapshot.peerJid,
+                    snapshot.direction, System.currentTimeMillis());
             if ((!newSession && recording.get()) || pendingStart != null) return;
             Session expected = session;
             pendingStart = worker.schedule(() -> {
@@ -251,6 +254,14 @@ public final class CallRecordingHook extends BaseFeature {
             Bundle request = new Bundle();
             outputName = "WhatsApp_Call_" + timestamp + format.extension;
             request.putString("name", outputName);
+            outputCallId = expected.callId;
+            request.putString("call_id", expected.callId);
+            request.putString("contact_jid", expected.peerJid);
+            request.putString("contact_name", expected.peerJid == null ? "Unknown contact"
+                    : ContactNameResolver.INSTANCE.resolveName(context, expected.peerJid, null, null));
+            request.putString("direction", expected.direction);
+            request.putString("target_package", context.getPackageName());
+            request.putLong("started_at", expected.startedAt);
             Bundle response = context.getContentResolver().call(
                     BRIDGE_URI, "create_call_recording", null, request);
             if (response == null) throw new IllegalStateException("WAEX storage bridge unavailable");
@@ -354,8 +365,19 @@ public final class CallRecordingHook extends BaseFeature {
                         BRIDGE_URI, "delete_call_recording", null, request);
             } catch (Throwable ignored) {}
         }
+        if (outputCallId != null) {
+            try {
+                Bundle request = new Bundle();
+                request.putString("call_id", outputCallId);
+                request.putLong("ended_at", System.currentTimeMillis());
+                request.putBoolean("successful", !deleteInvalid);
+                context.getContentResolver().call(
+                        BRIDGE_URI, "finish_call_recording", null, request);
+            } catch (Throwable ignored) {}
+        }
         outputPath = null;
         outputName = null;
+        outputCallId = null;
     }
 
     private static final class RecordingFormat {
@@ -387,10 +409,16 @@ public final class CallRecordingHook extends BaseFeature {
     private static final class Session {
         final WeakReference<Object> owner;
         final String callId;
+        final String peerJid;
+        final String direction;
+        final long startedAt;
 
-        Session(Object owner, String callId) {
+        Session(Object owner, String callId, String peerJid, String direction, long startedAt) {
             this.owner = new WeakReference<>(owner);
             this.callId = callId;
+            this.peerJid = peerJid;
+            this.direction = direction;
+            this.startedAt = startedAt;
         }
 
         boolean matches(Object callback, String id) {

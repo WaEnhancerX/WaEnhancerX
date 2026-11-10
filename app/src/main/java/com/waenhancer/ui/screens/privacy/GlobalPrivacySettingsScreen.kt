@@ -1,11 +1,18 @@
 package com.waenhancer.ui.screens.privacy
 
 import com.waenhancer.utils.UiText
+import com.waenhancer.utils.EmojiInputPolicy
 
 import android.graphics.Color as AndroidColor
 import android.widget.Toast
 import com.waenhancer.ui.components.WaexProChip
 
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.PaddingValues
+import com.waenhancer.ui.components.WaexCategoryHeader
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -38,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -48,6 +56,13 @@ import androidx.compose.ui.unit.sp
 import com.waenhancer.ui.components.StitchSwitch
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateDpAsState
@@ -83,22 +98,41 @@ import com.waenhancer.ui.screens.privacy.DeletedIndicatorPreferencePolicy
 import com.waenhancer.ui.screens.media.MediaQuickSettingPolicy
 
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GlobalPrivacySettingsScreen(
-    onOpenModal: (String) -> Unit
+    onOpenModal: (String) -> Unit,
+    targetEpoch: Int = 0
 ) {
     val colors = WaexTheme.colors
     val spacing = WaexTheme.spacing
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
     val context = LocalContext.current
+    val density = LocalDensity.current
 
     var selectedTab by remember { mutableStateOf("privacy") } // "privacy" | "conversation"
 
     val navController = LocalWaexNavController.current
-    val scrollState = rememberScrollState()
-    val itemCoordinates = remember { mutableStateMapOf<String, Float>() }
-    var containerY by remember { mutableStateOf(0f) }
+    val listState = rememberLazyListState()
+
+    val privacyGroups = remember { FeatureCatalog.groupsFor(1, "privacy").map { SettingGroup(it.id, it.items()) } }
+    val conversationGroups = remember { FeatureCatalog.groupsFor(1, "conversation").map { SettingGroup(it.id, it.items()) } }
+    val expandedSections = remember { mutableStateMapOf<String, Boolean>() }
+
+    fun getPrivacyGroupIcon(groupId: String): ImageVector = when (groupId) {
+        "presence_online_visibility" -> WaexIcons.Security
+        "message_delivery_receipts" -> WaexIcons.Success
+        "status_privacy" -> WaexIcons.Image
+        "message_protection_security" -> WaexIcons.Lock
+        "anti_revoke_deletion_defense" -> WaexIcons.Refresh
+        "security_vault" -> WaexIcons.Folder
+        "home_menu_shortcuts" -> WaexIcons.GridView
+        "message_controls" -> WaexIcons.Settings
+        "chat_navigation_shortcuts" -> WaexIcons.ChevronRight
+        "chat_group_utilities" -> WaexIcons.AutoAwesome
+        else -> WaexIcons.Security
+    }
 
     LaunchedEffect(navController.targetSubTabId) {
         val target = navController.targetSubTabId
@@ -108,15 +142,31 @@ fun GlobalPrivacySettingsScreen(
         }
     }
 
-    LaunchedEffect(navController.scrollToTargetKey, itemCoordinates.keys.toList()) {
+    LaunchedEffect(navController.scrollToTargetKey) {
         val target = navController.scrollToTargetKey
         if (target != null) {
-            delay(100)
-            if (itemCoordinates.containsKey(target)) {
-                val yOffset = itemCoordinates[target] ?: 0f
-                scrollState.animateScrollTo(yOffset.toInt())
-                navController.scrollToTargetKey = null
+            val inConversation = conversationGroups.any { grp -> grp.items.any { it.key == target } }
+            val inPrivacy = privacyGroups.any { grp -> grp.items.any { it.key == target } }
+            if (inConversation && selectedTab != "conversation") {
+                selectedTab = "conversation"
+                delay(120)
+            } else if (inPrivacy && selectedTab != "privacy") {
+                selectedTab = "privacy"
+                delay(120)
             }
+            delay(80)
+            val groups = if (selectedTab == "conversation") conversationGroups else privacyGroups
+            val groupIdx = groups.indexOfFirst { grp -> grp.items.any { it.key == target } }
+            if (groupIdx != -1) {
+                val group = groups[groupIdx]
+                expandedSections[group.title] = true
+                val itemIdx = group.items.indexOfFirst { it.key == target }.coerceAtLeast(0)
+                val cardIndex = if (selectedTab == "privacy") 4 + (groupIdx * 2) else 2 + (groupIdx * 2)
+                val estimatedRowHeight = with(density) { 72.dp.roundToPx() }
+                val offsetPx = itemIdx * estimatedRowHeight
+                listState.animateScrollToItem(cardIndex, offsetPx)
+            }
+            navController.scrollToTargetKey = null
         }
     }
 
@@ -138,9 +188,10 @@ fun GlobalPrivacySettingsScreen(
             "hide_read_receipts", "hideread_group", "blueonreply", "seentick", "hide_delivery_receipts", "hide_seen_receipts", "hideonceseen",
             "stealth_status_view", "autonext_status", "toast_viewed_status",
             "anti_view_once", "downloadviewonce", "download_view_once",
-            "anti_revoke", "hide_anti_revoke", "preserve_own_revoke", "antirevokestatus", "antidisappearing", "toastdeleted", "toast_viewed_message",
+            "bypass_screenshot_restriction",
+            "anti_revoke", "show_as_deleted", "preserve_own_revoke", "antirevokestatus", "antidisappearing", "toastdeleted", "toast_viewed_message",
             "locked_chats_enhancer", "typearchive", "dnd_mode", "hide_chats", "custom_privacy",
-            "message_bomber", "anti_edit_messages", "message_device_source", "preserve_delete_for_me", "revokeallmessages", "hide_forwarded_tag", "removeforwardlimit",
+            "message_bomber", "anti_edit_messages", "message_device_source", "revokeallmessages", "hide_forwarded_tag", "removeforwardlimit",
             "sticker_confirm_alert", "removeseemore", "stamp_copied_message", "doubletap2like",
             "jump_to_first_message", "unlimited_pinned_chats", "broadcast_tag", "direct_chat_dialer", "inline_translation", "copy_status_text",
             "call_type_controller", "custom_filter_groups", "group_admin_tools", "status_text_composer",
@@ -163,6 +214,12 @@ fun GlobalPrivacySettingsScreen(
             "1", "true" -> "1"
             else -> "0"
         })
+    }
+    var manualStatusSeen by remember {
+        mutableStateOf(preferenceManager.getBoolean("manual_status_seen", false))
+    }
+    var manualStatusSeenPlacement by remember {
+        mutableStateOf(preferenceManager.getString("manual_status_seen_placement", "menu") ?: "menu")
     }
 
     var archiveOpenViaMenu by remember {
@@ -193,7 +250,7 @@ fun GlobalPrivacySettingsScreen(
         preferenceManager.getBoolean(key, false)
     }
 
-    val settingsState = remember(preferenceManager) {
+    val settingsState = remember(preferenceManager, targetEpoch) {
         mutableStateMapOf<String, Boolean>().apply {
             privacyKeys.forEach { key ->
                 var boolVal = if (key == "downloadviewonce" || key == "download_view_once") {
@@ -223,6 +280,8 @@ fun GlobalPrivacySettingsScreen(
                 val enabled = readViewOnceDownload()
                 settingsState["downloadviewonce"] = enabled
                 settingsState["download_view_once"] = enabled
+                manualStatusSeen = preferenceManager.getBoolean("manual_status_seen", false)
+                manualStatusSeenPlacement = preferenceManager.getString("manual_status_seen_placement", "menu") ?: "menu"
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -267,7 +326,7 @@ fun GlobalPrivacySettingsScreen(
     }
 
     var showColorPickerDialog by remember { mutableStateOf(false) }
-    var deletedMessageColor by remember(preferenceManager) {
+    var deletedMessageColor by remember(preferenceManager, targetEpoch) {
         // The persisted preference has schema type INT; older releases wrote hex text.
         mutableStateOf(
             DeletedIndicatorPreferencePolicy.toColorHex(
@@ -276,91 +335,84 @@ fun GlobalPrivacySettingsScreen(
         )
     }
 
-    val privacyGroups = remember { FeatureCatalog.groupsFor(1, "privacy").map { SettingGroup(it.id, it.items()) } }
-    val conversationGroups = remember { FeatureCatalog.groupsFor(1, "conversation").map { SettingGroup(it.id, it.items()) } }
-
-
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .onGloballyPositioned { containerCoordinates ->
-                containerY = containerCoordinates.positionInRoot().y
-            }
-            .padding(vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         // Tab switcher header
-        Surface(
-            shape = radius.mdShape,
-            color = colors.surfaceDim,
-            border = BorderStroke(1.dp, colors.outlineVariant),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = spacing.pageMargin)
-                .height(48.dp)
-        ) {
-            BoxWithConstraints(
+        item(key = "tab_switcher") {
+            Surface(
+                shape = radius.mdShape,
+                color = colors.surfaceDim,
+                border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.5f)),
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(4.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.pageMargin)
+                    .height(48.dp)
             ) {
-                val totalWidth = maxWidth
-                val tabWidth = totalWidth / 2
-
-                val activeIndex = if (selectedTab == "privacy") 0 else 1
-                val targetOffset = tabWidth * activeIndex
-                val animatedOffset by animateDpAsState(
-                    targetValue = targetOffset,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioLowBouncy,
-                        stiffness = Spring.StiffnessLow
-                    ),
-                    label = "sub_tab_offset"
-                )
-
-                // Sliding highlight box
-                Box(
+                BoxWithConstraints(
                     modifier = Modifier
-                        .offset(x = animatedOffset)
-                        .width(tabWidth)
-                        .fillMaxHeight()
-                        .clip(radius.defaultShape)
-                        .background(colors.surface)
-                        .border(1.dp, colors.outlineVariant, radius.defaultShape)
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.SpaceAround
+                        .fillMaxSize()
+                        .padding(4.dp)
                 ) {
-                    val tabPrivacyLabel = stringResource(R.string.tab_privacy)
-                    val tabConversationLabel = stringResource(R.string.tab_conversation)
-                    listOf("privacy" to tabPrivacyLabel, "conversation" to tabConversationLabel).forEach { (tabId, label) ->
-                        val isSelected = selectedTab == tabId
-                        val textColor by animateColorAsState(
-                            targetValue = if (isSelected) colors.primary else colors.onSurfaceVariant,
-                            animationSpec = tween(150),
-                            label = "sub_tab_text_color"
-                        )
+                    val totalWidth = maxWidth
+                    val tabWidth = totalWidth / 2
 
-                        Box(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .weight(1f)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) { selectedTab = tabId },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = label,
-                                style = typography.bodyMd,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = textColor
+                    val activeIndex = if (selectedTab == "privacy") 0 else 1
+                    val targetOffset = tabWidth * activeIndex
+                    val animatedOffset by animateDpAsState(
+                        targetValue = targetOffset,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessLow
+                        ),
+                        label = "sub_tab_offset"
+                    )
+
+                    // Sliding highlight box
+                    Box(
+                        modifier = Modifier
+                            .offset(x = animatedOffset)
+                            .width(tabWidth)
+                            .fillMaxHeight()
+                            .clip(radius.defaultShape)
+                            .background(colors.surface)
+                            .border(1.dp, colors.outlineVariant, radius.defaultShape)
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.SpaceAround
+                    ) {
+                        val tabPrivacyLabel = stringResource(R.string.tab_privacy)
+                        val tabConversationLabel = stringResource(R.string.tab_conversation)
+                        listOf("privacy" to tabPrivacyLabel, "conversation" to tabConversationLabel).forEach { (tabId, label) ->
+                            val isSelected = selectedTab == tabId
+                            val textColor by animateColorAsState(
+                                targetValue = if (isSelected) colors.primary else colors.onSurfaceVariant,
+                                animationSpec = tween(150),
+                                label = "sub_tab_text_color"
                             )
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .weight(1f)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) { selectedTab = tabId },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    style = typography.bodyMd,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = textColor
+                                )
+                            }
                         }
                     }
                 }
@@ -369,135 +421,143 @@ fun GlobalPrivacySettingsScreen(
 
         // Hubs & Advanced Modules (only on Privacy tab)
         if (selectedTab == "privacy") {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = spacing.pageMargin)
-            ) {
-                Text(
-                    text = stringResource(R.string.advanced_hubs_vaults),
-                    style = typography.labelSm,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+            val isHubsExpanded = expandedSections["hubs"] ?: true
+            stickyHeader(key = "header_hubs") {
+                WaexCategoryHeader(
+                    title = stringResource(R.string.advanced_hubs_vaults),
+                    icon = WaexIcons.Security,
+                    isExpanded = isHubsExpanded,
+                    onToggleExpand = {
+                        expandedSections["hubs"] = !isHubsExpanded
+                    }
                 )
+            }
 
-                Surface(
-                    shape = radius.bentoCardShape,
-                    color = colors.surfaceDim,
-                    border = BorderStroke(1.dp, colors.outlineVariant),
-                    modifier = Modifier.fillMaxWidth()
+            item(key = "card_hubs") {
+                AnimatedVisibility(
+                    visible = isHubsExpanded,
+                    enter = expandVertically(tween(250)) + fadeIn(tween(250)),
+                    exit = shrinkVertically(tween(250)) + fadeOut(tween(200))
                 ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        // 1. Per Contact Rules Tile
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { navController.navigateTo(Screen.PerContactPrivacyList) }
-                                .padding(horizontal = 18.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                    Surface(
+                        shape = radius.cardShape,
+                        color = colors.surfaceDim,
+                        border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.5f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = spacing.pageMargin)
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            // 1. Per Contact Rules Tile
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { navController.navigateTo(Screen.PerContactPrivacyList) }
+                                    .padding(horizontal = 18.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = stringResource(R.string.hub_per_contact_rules_title),
-                                    style = typography.bodyLg,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = colors.onSurface
-                                )
-                                Text(
-                                    text = stringResource(R.string.hub_per_contact_rules_desc),
-                                    style = typography.bodyMd,
-                                    color = colors.onSurfaceVariant,
-                                    fontSize = 12.sp
+                            Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.hub_per_contact_rules_title),
+                                        style = typography.bodyLg,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = colors.onSurface
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.hub_per_contact_rules_desc),
+                                        style = typography.bodyMd,
+                                        color = colors.onSurfaceVariant,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                                Icon(
+                                    imageVector = WaexIcons.ChevronRight,
+                                    contentDescription = null,
+                                    tint = colors.onSurfaceVariant,
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
-                            Icon(
-                                imageVector = WaexIcons.ChevronRight,
-                                contentDescription = null,
-                                tint = colors.onSurfaceVariant,
-                                modifier = Modifier.size(16.dp)
+
+                            HorizontalDivider(
+                                color = colors.outlineVariant.copy(alpha = 0.35f),
+                                thickness = 0.8.dp,
+                                modifier = Modifier.padding(horizontal = 18.dp)
                             )
-                        }
 
-                        HorizontalDivider(
-                            color = colors.outlineVariant.copy(alpha = 0.5f),
-                            thickness = 1.dp,
-                            modifier = Modifier.padding(horizontal = 18.dp)
-                        )
-
-                        // 2. Deleted Messages Vault Tile
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { navController.navigateTo(Screen.DeletedMessages) }
-                                .padding(horizontal = 18.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            // 2. Deleted Messages Vault Tile
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { navController.navigateTo(Screen.DeletedMessages) }
+                                    .padding(horizontal = 18.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = stringResource(R.string.hub_delete_for_me_title),
-                                    style = typography.bodyLg,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = colors.onSurface
-                                )
-                                Text(
-                                    text = stringResource(R.string.hub_delete_for_me_desc),
-                                    style = typography.bodyMd,
-                                    color = colors.onSurfaceVariant,
-                                    fontSize = 12.sp
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.hub_delete_for_me_title),
+                                        style = typography.bodyLg,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = colors.onSurface
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.hub_delete_for_me_desc),
+                                        style = typography.bodyMd,
+                                        color = colors.onSurfaceVariant,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                                Icon(
+                                    imageVector = WaexIcons.ChevronRight,
+                                    contentDescription = null,
+                                    tint = colors.onSurfaceVariant,
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
-                            Icon(
-                                imageVector = WaexIcons.ChevronRight,
-                                contentDescription = null,
-                                tint = colors.onSurfaceVariant,
-                                modifier = Modifier.size(16.dp)
+
+                            HorizontalDivider(
+                                color = colors.outlineVariant.copy(alpha = 0.35f),
+                                thickness = 0.8.dp,
+                                modifier = Modifier.padding(horizontal = 18.dp)
                             )
-                        }
 
-                        HorizontalDivider(
-                            color = colors.outlineVariant.copy(alpha = 0.5f),
-                            thickness = 1.dp,
-                            modifier = Modifier.padding(horizontal = 18.dp)
-                        )
-
-                        // 3. Calls & Recording Hub Tile
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { navController.navigateTo(Screen.CallRecordingSettings) }
-                                .padding(horizontal = 18.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            // 3. Calls & Recording Hub Tile
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { navController.navigateTo(Screen.CallRecordingSettings) }
+                                    .padding(horizontal = 18.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = stringResource(R.string.hub_calls_recording_title),
-                                    style = typography.bodyLg,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = colors.onSurface
-                                )
-                                Text(
-                                    text = stringResource(R.string.hub_calls_recording_desc),
-                                    style = typography.bodyMd,
-                                    color = colors.onSurfaceVariant,
-                                    fontSize = 12.sp
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.hub_calls_recording_title),
+                                        style = typography.bodyLg,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = colors.onSurface
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.hub_calls_recording_desc),
+                                        style = typography.bodyMd,
+                                        color = colors.onSurfaceVariant,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                                Icon(
+                                    imageVector = WaexIcons.ChevronRight,
+                                    contentDescription = null,
+                                    tint = colors.onSurfaceVariant,
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
-                            Icon(
-                                imageVector = WaexIcons.ChevronRight,
-                                contentDescription = null,
-                                tint = colors.onSurfaceVariant,
-                                modifier = Modifier.size(16.dp)
-                            )
                         }
                     }
                 }
@@ -508,52 +568,60 @@ fun GlobalPrivacySettingsScreen(
         // Setting Groups
         val activeGroups = if (selectedTab == "privacy") privacyGroups else conversationGroups
         activeGroups.forEach { group ->
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = spacing.pageMargin)
-            ) {
-                Text(
-                    text = LocalizationHelper.getLocalizedSectionTitle(context, group.title),
-                    style = typography.labelSm,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+            val isExpanded = expandedSections[group.title] ?: true
+            stickyHeader(key = "header_${group.title}") {
+                WaexCategoryHeader(
+                    title = LocalizationHelper.getLocalizedSectionTitle(context, group.title),
+                    icon = getPrivacyGroupIcon(group.title),
+                    isExpanded = isExpanded,
+                    onToggleExpand = {
+                        expandedSections[group.title] = !isExpanded
+                    }
                 )
+            }
 
-                Surface(
-                    shape = radius.bentoCardShape,
+            item(key = "card_${group.title}") {
+                if (isExpanded) {
+                    Surface(
+                    shape = radius.cardShape,
                     color = colors.surfaceDim,
-                    border = BorderStroke(1.dp, colors.outlineVariant),
-                    modifier = Modifier.fillMaxWidth()
+                    border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.5f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = spacing.pageMargin)
                 ) {
                     val isPro = LocalIsPro.current
                     val onActivatePro = LocalOnActivatePro.current
 
                     Column {
                         group.items.forEachIndexed { index, item ->
-                            val isBlueTickDependent = (item.key == "blueonreply" || item.key == "seentick")
+                            val isBlueTickDependent = (
+                                    item.key == "blueonreply" ||
+                                    item.key == "seentick" ||
+                                    item.key == "hide_seen_receipts" ||
+                                    item.key == "hideonceseen"
+                                )
                             val isHideReadEnabled = settingsState["hide_read_receipts"] ?: false
                             val isDependencyDisabled = isBlueTickDependent && !isHideReadEnabled
 
                             val isLocked = item.isPro && !isPro
                             val isItemDisabled = isLocked || isDependencyDisabled
                             val isHighlighted = navController.highlightTargetKey == item.key
-                            val highlightBgColor by animateColorAsState(
-                                targetValue = if (isHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent,
-                                animationSpec = tween(durationMillis = 300),
-                                label = "highlight_bg"
-                            )
-                            val locTitle = LocalizationHelper.getTitle(context, item)
-                            val locDesc = LocalizationHelper.getDesc(context, item)
+                            val bringIntoViewRequester = remember { BringIntoViewRequester() }
+                            if (isHighlighted) {
+                                LaunchedEffect(Unit) {
+                                    delay(200)
+                                    bringIntoViewRequester.bringIntoView()
+                                }
+                            }
+                            val highlightBgColor = if (isHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent
+                            val locTitle = remember(item.key) { LocalizationHelper.getTitle(context, item) }
+                            val locDesc = remember(item.key) { LocalizationHelper.getDesc(context, item) }
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .bringIntoViewRequester(bringIntoViewRequester)
                                     .background(highlightBgColor)
-                                    .onGloballyPositioned { coordinates ->
-                                        val y = coordinates.positionInRoot().y - containerY + scrollState.value
-                                        itemCoordinates[item.key] = y
-                                    }
                                     .clickable {
                                         if (isLocked) {
                                             onActivatePro()
@@ -581,17 +649,27 @@ fun GlobalPrivacySettingsScreen(
                                             color = colors.onSurface
                                         )
                                         val reqPro = stringResource(R.string.requires_pro_label)
-                                        val depHint = stringResource(R.string.dep_disabled_hide_blue_ticks)
                                         Text(
-                                            text = when {
-                                                isLocked -> "$locDesc • $reqPro"
-                                                isDependencyDisabled -> "$locDesc\n$depHint"
-                                                else -> locDesc
-                                            },
+                                            text = if (isLocked) "$locDesc • $reqPro" else locDesc,
                                             style = typography.bodyMd,
-                                            color = if (isDependencyDisabled) colors.error.copy(alpha = 0.8f) else colors.onSurfaceVariant,
+                                            color = colors.onSurfaceVariant,
                                             fontSize = 12.sp
                                         )
+                                        if (isDependencyDisabled) {
+                                            val dependencyTitle = LocalizationHelper.getLocalizedFeatureTitle(
+                                                context,
+                                                "hide_read_receipts"
+                                            )
+                                            Text(
+                                                text = stringResource(
+                                                    R.string.requires_setting_enabled,
+                                                    dependencyTitle
+                                                ),
+                                                style = typography.labelSm,
+                                                color = colors.onSurfaceVariant,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
                                     }
                                     StitchSwitch(
                                         checked = if (isItemDisabled && isLocked) false else (settingsState[item.key] ?: false),
@@ -604,6 +682,54 @@ fun GlobalPrivacySettingsScreen(
                                         isUnlocked = isPro,
                                         modifier = Modifier.align(Alignment.TopEnd)
                                     )
+                                }
+                            }
+
+                            if (item.key == "stealth_status_view" && settingsState["stealth_status_view"] == true) {
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = colors.surfaceDim.copy(alpha = 0.6f),
+                                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                                Text(UiText.get(R.string.manual_status_seen_title, "Send status seen manually"), style = typography.bodyMd, fontWeight = FontWeight.Medium, color = colors.onSurface)
+                                                Text(UiText.get(R.string.manual_status_seen_desc, "Add a menu action to mark the current status as seen"), style = typography.labelSm, color = colors.onSurfaceVariant)
+                                            }
+                                            StitchSwitch(checked = manualStatusSeen, onCheckedChange = { checked ->
+                                                preferenceManager.putBoolean("manual_status_seen", checked)
+                                                manualStatusSeen = preferenceManager.getBoolean("manual_status_seen", false)
+                                            })
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (item.key == "stealth_status_view" && settingsState["stealth_status_view"] == true && manualStatusSeen) {
+                                Surface(shape = RoundedCornerShape(12.dp), color = colors.surfaceDim.copy(alpha = 0.6f),
+                                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
+                                    Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text(UiText.get(R.string.manual_status_seen_placement_title, "SHOW ACTION AS"), style = typography.labelSm, fontWeight = FontWeight.Bold, color = colors.primary)
+                                        Row(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(colors.surface).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            listOf("menu" to UiText.get(R.string.manual_status_seen_menu, "Menu option"), "icon" to UiText.get(R.string.manual_status_seen_icon, "Status icon")).forEach { (value, label) ->
+                                                val selected = manualStatusSeenPlacement == value
+                                                Box(modifier = Modifier.weight(1f).clip(RoundedCornerShape(8.dp)).background(if (selected) colors.primary else Color.Transparent).clickable {
+                                                    manualStatusSeenPlacement = value
+                                                    preferenceManager.putString("manual_status_seen_placement", value)
+                                                }.padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                                                    Text(label, style = typography.labelSm, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal, color = if (selected) Color.White else colors.onSurfaceVariant)
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
 
@@ -620,7 +746,7 @@ fun GlobalPrivacySettingsScreen(
                                         verticalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         Text(
-                                            text = UiText.get(R.string.waex_ui_button_placement_15d950e9, "BUTTON PLACEMENT"),
+                                            text = UiText.get(R.string.waex_ui_button_placement, "BUTTON PLACEMENT"),
                                             style = typography.labelSm,
                                             fontWeight = FontWeight.Bold,
                                             color = colors.primary
@@ -633,7 +759,7 @@ fun GlobalPrivacySettingsScreen(
                                                 .padding(4.dp),
                                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                                         ) {
-                                            listOf("1" to UiText.get(R.string.waex_ui_top_icon_d8a8beb7, "Top icon"), "2" to UiText.get(R.string.waex_ui_menu_option_e2b665ae, "Menu option")).forEach { (value, label) ->
+                                            listOf("1" to UiText.get(R.string.waex_ui_top_icon, "Top icon"), "2" to UiText.get(R.string.waex_ui_menu_option, "Menu option")).forEach { (value, label) ->
                                                 val selected = seenTickPlacement == value
                                                 Box(
                                                     modifier = Modifier
@@ -673,7 +799,7 @@ fun GlobalPrivacySettingsScreen(
                                         verticalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         Text(
-                                            text = UiText.get(R.string.waex_ui_open_archived_chats_4757b69a, "OPEN ARCHIVED CHATS"),
+                                            text = UiText.get(R.string.waex_ui_open_archived_chats_uppercase, "OPEN ARCHIVED CHATS"),
                                             style = typography.labelSm,
                                             fontWeight = FontWeight.Bold,
                                             color = colors.primary
@@ -684,7 +810,7 @@ fun GlobalPrivacySettingsScreen(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text(
-                                                text = UiText.get(R.string.waex_ui_show_in_3_dots_waex_menu_022a93a6, "Show in 3-dots / WAEX menu"),
+                                                text = UiText.get(R.string.waex_ui_show_in_3_dots_waex_menu, "Show in 3-dots / WAEX menu"),
                                                 style = typography.bodySm,
                                                 color = colors.onSurface,
                                                 modifier = Modifier.weight(1f).padding(end = 8.dp)
@@ -707,7 +833,7 @@ fun GlobalPrivacySettingsScreen(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text(
-                                                text = UiText.get(R.string.waex_ui_long_press_whatsapp_title_eee432ef, "Long-press WhatsApp title"),
+                                                text = UiText.get(R.string.waex_ui_long_press_whatsapp_title, "Long-press WhatsApp title"),
                                                 style = typography.bodySm,
                                                 color = colors.onSurface,
                                                 modifier = Modifier.weight(1f).padding(end = 8.dp)
@@ -730,7 +856,7 @@ fun GlobalPrivacySettingsScreen(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text(
-                                                text = UiText.get(R.string.waex_ui_tap_whatsapp_title_3_times_84515b9e, "Tap WhatsApp title 3 times"),
+                                                text = UiText.get(R.string.waex_ui_tap_whatsapp_title_3_times, "Tap WhatsApp title 3 times"),
                                                 style = typography.bodySm,
                                                 color = colors.onSurface,
                                                 modifier = Modifier.weight(1f).padding(end = 8.dp)
@@ -764,13 +890,13 @@ fun GlobalPrivacySettingsScreen(
                                         verticalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         Text(
-                                            text = UiText.get(R.string.waex_ui_open_locked_chats_b10ca180, "OPEN LOCKED CHATS"),
+                                            text = UiText.get(R.string.waex_ui_open_locked_chats_uppercase, "OPEN LOCKED CHATS"),
                                             style = typography.labelSm,
                                             fontWeight = FontWeight.Bold,
                                             color = colors.primary
                                         )
                                         listOf(
-                                            Triple(UiText.get(R.string.waex_ui_show_in_3_dots_waex_menu_022a93a6, "Show in 3-dots / WAEX menu"), lockedOpenViaMenu) { checked: Boolean ->
+                                            Triple(UiText.get(R.string.waex_ui_show_in_3_dots_waex_menu, "Show in 3-dots / WAEX menu"), lockedOpenViaMenu) { checked: Boolean ->
                                                 lockedOpenViaMenu = checked
                                                 preferenceManager.putBoolean("locked_open_via_menu", checked)
                                                 if (checked) {
@@ -778,7 +904,7 @@ fun GlobalPrivacySettingsScreen(
                                                     preferenceManager.putBoolean("archive_open_via_menu", false)
                                                 }
                                             },
-                                            Triple(UiText.get(R.string.waex_ui_long_press_whatsapp_title_eee432ef, "Long-press WhatsApp title"), lockedOpenViaTitleLongPress) { checked: Boolean ->
+                                            Triple(UiText.get(R.string.waex_ui_long_press_whatsapp_title, "Long-press WhatsApp title"), lockedOpenViaTitleLongPress) { checked: Boolean ->
                                                 lockedOpenViaTitleLongPress = checked
                                                 preferenceManager.putBoolean("locked_open_via_title_long_press", checked)
                                                 if (checked) {
@@ -786,7 +912,7 @@ fun GlobalPrivacySettingsScreen(
                                                     preferenceManager.putBoolean("archive_open_via_title_long_press", false)
                                                 }
                                             },
-                                            Triple(UiText.get(R.string.waex_ui_tap_whatsapp_title_3_times_84515b9e, "Tap WhatsApp title 3 times"), lockedOpenViaTitleTripleTap) { checked: Boolean ->
+                                            Triple(UiText.get(R.string.waex_ui_tap_whatsapp_title_3_times, "Tap WhatsApp title 3 times"), lockedOpenViaTitleTripleTap) { checked: Boolean ->
                                                 lockedOpenViaTitleTripleTap = checked
                                                 preferenceManager.putBoolean("locked_open_via_title_triple_tap", checked)
                                                 if (checked) {
@@ -819,7 +945,9 @@ fun GlobalPrivacySettingsScreen(
                             // If anti_revoke or antirevokestatus is enabled, show indicator choice chips and color sub-preferences
                             if ((item.key == "anti_revoke" && (settingsState["anti_revoke"] == true)) ||
                                 (item.key == "antirevokestatus" && (settingsState["antirevokestatus"] == true) && (settingsState["anti_revoke"] != true))) {
-                                val currentIndicator = preferenceManager.getString("anti_revoke_indicator", "2")
+                                val currentIndicator = preferenceManager
+                                    .getInt("anti_revoke_indicator", 2).toString()
+                                val isShowAsDeleted = preferenceManager.getBoolean("show_as_deleted", false)
                                 val isColorEnabled = preferenceManager.getBoolean("anti_revoke_color_enabled", true)
 
                                 Surface(
@@ -835,53 +963,7 @@ fun GlobalPrivacySettingsScreen(
                                             .padding(12.dp),
                                         verticalArrangement = Arrangement.spacedBy(14.dp)
                                     ) {
-                                        // Section 1: Indicator Style with Segmented Control
-                                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                            Text(
-                                                text = UiText.get(R.string.waex_ui_indicator_style_7b2d18a3, "INDICATOR STYLE"),
-                                                style = typography.labelSm,
-                                                fontWeight = FontWeight.Bold,
-                                                color = colors.primary
-                                            )
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .clip(RoundedCornerShape(10.dp))
-                                                    .background(colors.surface)
-                                                    .padding(4.dp),
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                            ) {
-                                                listOf("2" to UiText.get(R.string.waex_ui_deleted_icon_a9a44dc0, "Deleted Icon 🚫"), "1" to UiText.get(R.string.waex_ui_text_deleted_0eb7a071, "Text \"Deleted\"")).forEach { (valKey, title) ->
-                                                    val isSelected = currentIndicator == valKey
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .weight(1f)
-                                                            .clip(RoundedCornerShape(8.dp))
-                                                            .background(if (isSelected) colors.primary else Color.Transparent)
-                                                            .clickable {
-                                                                preferenceManager.putInt("anti_revoke_indicator", valKey.toInt())
-                                                                settingsState["anti_revoke_indicator_dummy"] = !(settingsState["anti_revoke_indicator_dummy"] ?: false)
-                                                             }
-                                                            .padding(vertical = 8.dp),
-                                                        contentAlignment = Alignment.Center
-                                                    ) {
-                                                        Text(
-                                                            text = title,
-                                                            style = typography.labelSm,
-                                                            color = if (isSelected) colors.onPrimary else colors.onSurfaceVariant,
-                                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        HorizontalDivider(
-                                            color = colors.outlineVariant.copy(alpha = 0.5f),
-                                            thickness = 0.5.dp
-                                        )
-
-                                        // Section 2: Color Deleted Messages Switch
+                                        // Section 1: Show as Deleted Message Switch
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -889,68 +971,150 @@ fun GlobalPrivacySettingsScreen(
                                         ) {
                                             Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                                 Text(
-                                                    text = UiText.get(R.string.waex_ui_color_deleted_text_indicator_ae75ad33, "Color Deleted Text & Indicator"),
+                                                    text = UiText.get(R.string.waex_ui_show_as_deleted, "Show as Deleted Message"),
                                                     style = typography.bodyMd,
                                                     color = colors.onSurface,
                                                     fontWeight = FontWeight.Medium
                                                 )
                                                 Text(
-                                                    text = UiText.get(R.string.waex_ui_apply_custom_color_to_deleted_message_11bb3603, "Apply custom color to deleted message/status and time"),
+                                                text = "Coming soon — native deleted-message layout is temporarily disabled",
                                                     style = typography.labelSm,
                                                     color = colors.onSurfaceVariant
                                                 )
                                             }
                                             StitchSwitch(
-                                                checked = isColorEnabled,
-                                                onCheckedChange = { checked ->
-                                                    preferenceManager.putBoolean("anti_revoke_color_enabled", checked)
-                                                    settingsState["anti_revoke_color_enabled"] = checked
-                                                    settingsState["anti_revoke_indicator_dummy"] = !(settingsState["anti_revoke_indicator_dummy"] ?: false)
-                                                }
+                                                checked = false,
+                                                onCheckedChange = null,
+                                                enabled = false
                                             )
                                         }
 
-                                        // Section 3: Color Picker Trigger (only when Color Deleted Messages is ON)
-                                        if (isColorEnabled) {
+                                        if (!isShowAsDeleted) {
+                                            HorizontalDivider(
+                                                color = colors.outlineVariant.copy(alpha = 0.5f),
+                                                thickness = 0.5.dp
+                                            )
+
+                                            // Section 2: Indicator Style with Segmented Control
+                                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                Text(
+                                                    text = UiText.get(R.string.waex_ui_indicator_style, "INDICATOR STYLE"),
+                                                    style = typography.labelSm,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = colors.primary
+                                                )
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clip(RoundedCornerShape(10.dp))
+                                                        .background(colors.surface)
+                                                        .padding(4.dp),
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    listOf(
+                                                        "2" to UiText.get(R.string.waex_ui_deleted_icon, "Deleted Icon 🚫"),
+                                                        "1" to UiText.get(R.string.waex_ui_text_deleted, "Text \"Deleted\"")
+                                                    ).forEach { (valKey, title) ->
+                                                        val isSelected = currentIndicator == valKey
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .weight(1f)
+                                                                .clip(RoundedCornerShape(8.dp))
+                                                                .background(if (isSelected) colors.primary else Color.Transparent)
+                                                                .clickable {
+                                                                    preferenceManager.putInt("anti_revoke_indicator", valKey.toInt())
+                                                                    settingsState["anti_revoke_indicator_dummy"] = !(settingsState["anti_revoke_indicator_dummy"] ?: false)
+                                                                }
+                                                                .padding(vertical = 8.dp),
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Text(
+                                                                text = title,
+                                                                style = typography.labelSm,
+                                                                color = if (isSelected) colors.onPrimary else colors.onSurfaceVariant,
+                                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            HorizontalDivider(
+                                                color = colors.outlineVariant.copy(alpha = 0.5f),
+                                                thickness = 0.5.dp
+                                            )
+
+                                            // Section 3: Color Deleted Messages Switch
                                             Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .clip(RoundedCornerShape(10.dp))
-                                                    .background(colors.surface)
-                                                    .clickable { showColorPickerDialog = true }
-                                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                                modifier = Modifier.fillMaxWidth(),
                                                 horizontalArrangement = Arrangement.SpaceBetween,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                                ) {
-                                                    val parsedCurrentColor = try {
-                                                        Color(AndroidColor.parseColor(deletedMessageColor))
-                                                    } catch (_: Throwable) {
-                                                        Color(0xFFEF4444)
-                                                    }
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(24.dp)
-                                                            .clip(CircleShape)
-                                                            .background(parsedCurrentColor)
-                                                            .border(1.5.dp, colors.outline, CircleShape)
-                                                    )
+                                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                                     Text(
-                                                        text = UiText.get(R.string.waex_ui_indicator_text_color_55dfa1d7, "Indicator & Text Color"),
+                                                        text = UiText.get(R.string.waex_ui_color_deleted_text_indicator, "Color Deleted Text & Indicator"),
                                                         style = typography.bodyMd,
                                                         color = colors.onSurface,
                                                         fontWeight = FontWeight.Medium
                                                     )
+                                                    Text(
+                                                        text = UiText.get(R.string.waex_ui_apply_custom_color_to_deleted_message, "Apply custom color to deleted message/status and time"),
+                                                        style = typography.labelSm,
+                                                        color = colors.onSurfaceVariant
+                                                    )
                                                 }
-                                                Text(
-                                                    text = deletedMessageColor.uppercase(),
-                                                    style = typography.labelSm,
-                                                    color = colors.primary,
-                                                    fontWeight = FontWeight.Bold
+                                                StitchSwitch(
+                                                    checked = isColorEnabled,
+                                                    onCheckedChange = { checked ->
+                                                        preferenceManager.putBoolean("anti_revoke_color_enabled", checked)
+                                                        settingsState["anti_revoke_color_enabled"] = checked
+                                                        settingsState["anti_revoke_indicator_dummy"] = !(settingsState["anti_revoke_indicator_dummy"] ?: false)
+                                                    }
                                                 )
+                                            }
+
+                                            // Section 4: Color Picker Trigger (only when Color Deleted Messages is ON)
+                                            if (isColorEnabled) {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clip(RoundedCornerShape(10.dp))
+                                                        .background(colors.surface)
+                                                        .clickable { showColorPickerDialog = true }
+                                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                                    ) {
+                                                        val parsedCurrentColor = try {
+                                                            Color(AndroidColor.parseColor(deletedMessageColor))
+                                                        } catch (_: Throwable) {
+                                                            colors.error
+                                                        }
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(24.dp)
+                                                                .clip(CircleShape)
+                                                                .background(parsedCurrentColor)
+                                                                .border(1.5.dp, colors.outline, CircleShape)
+                                                        )
+                                                        Text(
+                                                            text = UiText.get(R.string.waex_ui_indicator_text_color, "Indicator & Text Color"),
+                                                            style = typography.bodyMd,
+                                                            color = colors.onSurface,
+                                                            fontWeight = FontWeight.Medium
+                                                        )
+                                                    }
+                                                    Text(
+                                                        text = deletedMessageColor.uppercase(),
+                                                        style = typography.labelSm,
+                                                        color = colors.primary,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -973,13 +1137,13 @@ fun GlobalPrivacySettingsScreen(
                                         verticalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         Text(
-                                            text = UiText.get(R.string.waex_ui_waenhancerx_settings_placement_8c28acc2, "WAENHANCERX SETTINGS PLACEMENT"),
+                                            text = UiText.get(R.string.waex_ui_waenhancerx_settings_placement, "WAENHANCERX SETTINGS PLACEMENT"),
                                             style = typography.labelSm,
                                             fontWeight = FontWeight.Bold,
                                             color = colors.primary
                                         )
                                         Text(
-                                            text = UiText.get(R.string.waex_ui_choose_where_to_show_the_waex_settings_44afa3ae, "Choose where to show the WAEX settings entry point"),
+                                            text = UiText.get(R.string.waex_ui_choose_where_to_show_the_waex_settings, "Choose where to show the WAEX settings entry point"),
                                             style = typography.bodyMd,
                                             color = colors.onSurfaceVariant,
                                             fontSize = 11.sp
@@ -993,8 +1157,8 @@ fun GlobalPrivacySettingsScreen(
                                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                                         ) {
                                             listOf(
-                                                "home_menu" to UiText.get(R.string.waex_ui_home_menu_792a1d5a, "Home Menu"),
-                                                "wa_settings" to UiText.get(R.string.waex_ui_whatsapp_settings_37faf372, "WhatsApp Settings")
+                                                "home_menu" to UiText.get(R.string.waex_ui_home_menu, "Home Menu"),
+                                                "wa_settings" to UiText.get(R.string.waex_ui_whatsapp_settings, "WhatsApp Settings")
                                             ).forEach { (value, label) ->
                                                 val isSelected = waexSettingsPlacement == value
                                                 Box(
@@ -1038,13 +1202,13 @@ fun GlobalPrivacySettingsScreen(
                                         verticalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         Text(
-                                            text = UiText.get(R.string.waex_ui_menu_display_options_c808869d, "MENU DISPLAY OPTIONS"),
+                                            text = UiText.get(R.string.waex_ui_menu_display_options, "MENU DISPLAY OPTIONS"),
                                             style = typography.labelSm,
                                             fontWeight = FontWeight.Bold,
                                             color = colors.primary
                                         )
                                         Text(
-                                            text = UiText.get(R.string.waex_ui_how_waex_items_appear_in_whatsapp_s_ho_3f618d0d, "How WAEX items appear in WhatsApp's home menu"),
+                                            text = UiText.get(R.string.waex_ui_how_waex_items_appear_in_whatsapp_s_ho, "How WAEX items appear in WhatsApp's home menu"),
                                             style = typography.bodyMd,
                                             color = colors.onSurfaceVariant,
                                             fontSize = 11.sp
@@ -1058,9 +1222,9 @@ fun GlobalPrivacySettingsScreen(
                                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                                         ) {
                                             listOf(
-                                                "grouped"  to UiText.get(R.string.waex_ui_grouped_89731456, "Grouped"),
-                                                "separate" to UiText.get(R.string.waex_ui_separate_726c1269, "Separate"),
-                                                "icons"    to UiText.get(R.string.waex_ui_icons_eae96e02, "Icons")
+                                                "grouped"  to UiText.get(R.string.waex_ui_grouped, "Grouped"),
+                                                "separate" to UiText.get(R.string.waex_ui_separate, "Separate"),
+                                                "icons"    to UiText.get(R.string.waex_ui_icons, "Icons")
                                             ).forEach { (value, label) ->
                                                 val isSelected = waexMenuStyle == value
                                                 Box(
@@ -1092,7 +1256,7 @@ fun GlobalPrivacySettingsScreen(
                             if (item.key == "doubletap2like" && (settingsState["doubletap2like"] == true)) {
                                 var showEmojiPicker by remember { mutableStateOf(false) }
                                 var currentEmoji by remember {
-                                    mutableStateOf(preferenceManager.getString("doubletap2like_emoji", "👍").ifBlank { "👍" })
+                                    mutableStateOf(EmojiInputPolicy.singleEmojiOrDefault(preferenceManager.getString("doubletap2like_emoji", "👍")))
                                 }
 
                                 Surface(
@@ -1112,13 +1276,13 @@ fun GlobalPrivacySettingsScreen(
                                     ) {
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
-                                                text = UiText.get(R.string.waex_ui_custom_reaction_emoji_e6b8a58e, "CUSTOM REACTION EMOJI"),
+                                                text = UiText.get(R.string.waex_ui_custom_reaction_emoji, "CUSTOM REACTION EMOJI"),
                                                 style = typography.labelSm,
                                                 fontWeight = FontWeight.Bold,
                                                 color = colors.primary
                                             )
                                             Text(
-                                                text = UiText.get(R.string.waex_ui_tap_to_change_default_reaction_emoji_1_341eb819, "Tap to change default reaction emoji (%1\$s)", currentEmoji),
+                                                text = UiText.get(R.string.waex_ui_tap_to_change_default_reaction_emoji_1, "Tap to change default reaction emoji (%1\$s)", currentEmoji),
                                                 style = typography.bodyMd,
                                                 color = colors.onSurfaceVariant,
                                                 fontSize = 11.sp
@@ -1152,14 +1316,14 @@ fun GlobalPrivacySettingsScreen(
                             }
 
                             if (index < group.items.lastIndex) {
-                                HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
+                                HorizontalDivider(thickness = 0.8.dp, color = colors.outlineVariant.copy(alpha = 0.4f), modifier = Modifier.padding(horizontal = 16.dp))
                             }
                         }
                     }
                 }
             }
         }
-        Spacer(modifier = Modifier.height(100.dp))
+    }
     }
 
     if (showColorPickerDialog) {

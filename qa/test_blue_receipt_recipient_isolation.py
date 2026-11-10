@@ -12,11 +12,18 @@ root = Path(__file__).resolve().parents[1]
 src = root / 'app/src/main/java/com/waenhancer/xposed/features/privacy'
 blue = (src/'BlueOnReplyHook.java').read_text(encoding='utf-8')
 assert 'PendingReadReceiptStore<ReadJobRecipe>' in blue
-assert 'PENDING_JOBS.drain(key)' in blue
+assert 'PENDING_JOBS.snapshot(key)' in blue
 # Both routing paths must parse only complete, unambiguous JIDs.
 assert 'ReceiptJidPolicy.canonical(value)' in blue
-assert re.search(r'if \(key == null\) \{[^}]*return 0;\s*\}', blue), 'Unknown recipient must return before draining'
-assert blue.index('if (key == null)') < blue.index('PENDING_JOBS.drain(key)')
+assert re.search(r'if \(key == null\) \{[^}]*return 0;\s*\}', blue), 'Unknown recipient must return before reading pending jobs'
+assert blue.index('if (key == null)') < blue.index('PENDING_JOBS.snapshot(key)')
+# Current upstream retains jobs until enqueue succeeds; draining up front would lose retries.
+assert 'PENDING_JOBS.remove(recipient, original)' in blue
+assert 'attempt.acknowledgeEnqueue()' in blue
+assert blue.index('enqueue.invoke(manager, job)') < blue.index('attempt.acknowledgeEnqueue()')
+assert blue.index('PENDING_JOBS.snapshot(key)') < blue.index('enqueue.invoke(manager, job)') < blue.index('attempt.acknowledgeEnqueue()')
+ack = blue.split('synchronized void acknowledgeEnqueue()', 1)[1].split('synchronized void recordLocalVeto()', 1)[0]
+assert ack.index('accepted = true;') < ack.index('PENDING_JOBS.remove(recipient, original);') < ack.index('if (vetoed) restoreRecipe();')
 assert 'sendPendingReadJobs(remoteJid)' in blue
 assert 'extractOutgoingJobJid(param.thisObject)' in blue
 assert 'XposedHelpers.getObjectField(job, "jid")' in blue
@@ -34,7 +41,8 @@ assert 'HideReceiptsHook.allowExplicitReceiptIds(key, recipe.arguments)' in blue
 assert 'HideReceiptsHook.revokeExplicitReceiptIds(key, recipe.arguments)' in blue
 assert 'getOrFindJobManager()' in blue
 assert 'SendE2EMessageJob/onRun' in blue
-assert 'new PendingReadReceiptStore<>(128, 64)' in blue
+assert 'new PendingReadReceiptStore<>(128, MAX_MANUAL_READ_JOBS)' in blue
+assert 'private static final int MAX_MANUAL_READ_JOBS = 50;' in blue
 # Exception messages can contain private JIDs, so diagnostics show type only.
 assert 't.getMessage()' not in blue
 assert blue.count('t.getClass().getSimpleName()') >= 4
@@ -59,7 +67,7 @@ assert 'captureJid = findJidInObject' not in hide
 assert 'SystemClock.elapsedRealtime()' in hide
 assert 'EXPLICIT_RECEIPT_IDS.isAllowed(' in hide
 assert 'new ConcurrentHashMap<>()' not in hide
-assert '" EnforceHiding: Downgrading read receipt"' in hide
+# Receipt isolation does not depend on a per-message informational log.
 assert 't.getMessage()' not in hide
 
 with tempfile.TemporaryDirectory(prefix='waex_exact_receipts_') as dest:

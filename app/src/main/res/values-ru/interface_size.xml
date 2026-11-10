@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="interface_size_title">Размер интерфейса</string>
+    <string name="interface_size_desc">Настройка текста, элементов управления, отступов и навигации по всему приложению</string>
+    <string name="interface_size_compact">Компактный</string>
+    <string name="interface_size_standard">Стандартный</string>
+    <string name="interface_size_comfortable">Комфортный</string>
+    <string name="interface_size_large">Большой</string>
+    <string name="build_variant_debug">Отладка (Debug)</string>
+    <string name="build_variant_release">Релиз (Release)</string>
+</resources>

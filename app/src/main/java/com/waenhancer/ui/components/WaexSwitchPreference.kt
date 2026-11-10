@@ -1,21 +1,15 @@
 package com.waenhancer.ui.components
 
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.dp
+import androidx.compose.material3.Icon
 import com.waenhancer.ui.designsystem.WaexTheme
 
 @Composable
@@ -26,49 +20,37 @@ fun StitchSwitch(
     enabled: Boolean = true
 ) {
     val colors = WaexTheme.colors
-    val trackWidth = 36.dp
-    val trackHeight = 20.dp
-    val thumbSize = 16.dp
-
-    // A non-bouncy spring matches Android's direct, physical switch response while preserving
-    // the custom WAEX control's exact resting appearance.
-    val thumbOffset by animateDpAsState(
-        targetValue = if (checked) 16.dp else 0.dp,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "switch_thumb"
-    )
-
-    val trackColor = when {
-        !enabled -> if (checked) colors.primary.copy(alpha = 0.5f) else colors.outlineVariant.copy(alpha = 0.5f)
-        checked -> colors.primary // Pitch Black (#000000)
-        else -> colors.outlineVariant // Muted grey outline-variant
-    }
-
-    Box(
-        modifier = modifier
-            .size(width = trackWidth, height = trackHeight)
-            .clip(CircleShape)
-            .background(trackColor)
-            .then(
-                if (onCheckedChange != null && enabled) {
-                    Modifier.clickable { onCheckedChange(!checked) }
-                } else {
-                    Modifier
+    Switch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        modifier = modifier.graphicsLayer {
+            scaleX = 0.84f
+            scaleY = 0.84f
+        },
+        enabled = enabled,
+        thumbContent = {
+            Icon(
+                imageVector = if (checked) Icons.Rounded.Check else Icons.Rounded.Remove,
+                contentDescription = null,
+                modifier = Modifier.graphicsLayer {
+                    scaleX = 0.72f
+                    scaleY = 0.72f
                 }
             )
-            .padding(2.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .padding(start = thumbOffset)
-                .size(thumbSize)
-                .clip(CircleShape)
-                .background(Color.White)
+        },
+        colors = SwitchDefaults.colors(
+            checkedThumbColor = colors.onPrimary,
+            checkedTrackColor = colors.primary,
+            checkedBorderColor = colors.primary,
+            uncheckedThumbColor = colors.outline,
+            uncheckedTrackColor = colors.surfaceContainerHighest,
+            uncheckedBorderColor = colors.outline,
+            disabledCheckedThumbColor = colors.onSurface.copy(alpha = 0.38f),
+            disabledCheckedTrackColor = colors.primary.copy(alpha = 0.32f),
+            disabledUncheckedThumbColor = colors.onSurface.copy(alpha = 0.38f),
+            disabledUncheckedTrackColor = colors.surfaceContainerHighest.copy(alpha = 0.38f)
         )
-    }
+    )
 }
 
 @Composable
@@ -78,7 +60,7 @@ fun WaexSwitchPreference(
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     description: String? = null,
-    icon: ImageVector? = null, // kept for signature compatibility
+    icon: ImageVector? = null,
     enabled: Boolean = true,
     showDivider: Boolean = true
 ) {
@@ -86,12 +68,13 @@ fun WaexSwitchPreference(
         title = title,
         modifier = modifier,
         description = description,
+        icon = icon,
         onClick = if (enabled) { { onCheckedChange(!checked) } } else null,
         showDivider = showDivider,
         trailing = {
             StitchSwitch(
                 checked = checked,
-                onCheckedChange = if (enabled) onCheckedChange else null,
+                onCheckedChange = null,
                 enabled = enabled
             )
         }

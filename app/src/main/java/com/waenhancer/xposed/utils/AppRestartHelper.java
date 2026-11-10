@@ -53,6 +53,12 @@ public final class AppRestartHelper {
      * eligible. The signed WAEX broadcast is used when root is unavailable.
      */
     public static void restartPackage(Context context, String packageName, String appName) {
+        restartPackage(context, packageName, appName, true);
+    }
+
+    /** Restarts a package, optionally omitting the initial progress toast for delegated callers. */
+    public static void restartPackage(Context context, String packageName, String appName,
+                                      boolean showProgressToast) {
         if (context == null) return;
         Set<String> discoveredScope;
         try {
@@ -64,7 +70,7 @@ public final class AppRestartHelper {
         final Set<String> supported = discoveredScope == null
                 ? Collections.emptySet() : discoveredScope;
         if (!RestartTargetPolicy.isSupportedTarget(packageName, supported)) {
-            toast(context, UiText.get(R.string.waex_ui_unsupported_restart_target_db4c044c, "Unsupported restart target"));
+            toast(context, UiText.get(R.string.waex_ui_unsupported_restart_target, "Unsupported restart target"));
             return;
         }
 
@@ -73,16 +79,19 @@ public final class AppRestartHelper {
             launchIntent = context.getPackageManager().getLaunchIntentForPackage(packageName);
             if (launchIntent == null || launchIntent.getComponent() == null
                     || !packageName.equals(launchIntent.getComponent().getPackageName())) {
-                toast(context, UiText.get(R.string.waex_ui_unable_to_launch_selected_whatsapp_app_db15818c, "Unable to launch selected WhatsApp app"));
+                toast(context, UiText.get(R.string.waex_ui_unable_to_launch_selected_whatsapp_app, "Unable to launch selected WhatsApp app"));
                 return;
             }
         } catch (RuntimeException error) {
-            toast(context, UiText.get(R.string.waex_ui_unable_to_find_selected_whatsapp_app_719a2e57, "Unable to find selected WhatsApp app"));
+            toast(context, UiText.get(R.string.waex_ui_unable_to_find_selected_whatsapp_app, "Unable to find selected WhatsApp app"));
             return;
         }
         if (!RESTART_PENDING.compareAndSet(false, true)) return;
 
-        toast(context, UiText.get(R.string.waex_ui_restarting_8e116479, "Restarting ") + (appName == null ? packageName : appName) + "...");
+        if (showProgressToast) {
+            toast(context, UiText.get(R.string.waex_ui_restarting, "Restarting ")
+                    + (appName == null ? packageName : appName) + "...");
+        }
         try {
             EXECUTOR.execute(() -> {
                 try {
@@ -92,9 +101,11 @@ public final class AppRestartHelper {
                             RestartTargetPolicy.forceStopCommand(packageName, supported)) != null;
                     boolean startedByRoot = false;
                     if (stoppedByRoot) {
+                        String component = launchIntent.getComponent() != null
+                                ? launchIntent.getComponent().flattenToShortString() : null;
                         String output = runRootCommand(
-                                RestartTargetPolicy.launchCommand(packageName, supported));
-                        startedByRoot = RestartTargetPolicy.reportsMonkeyLaunch(output);
+                                RestartTargetPolicy.launchCommand(packageName, component, supported));
+                        startedByRoot = RestartTargetPolicy.reportsRootLaunch(output);
                     }
                     if (startedByRoot) {
                         RESTART_PENDING.set(false);
@@ -122,22 +133,22 @@ public final class AppRestartHelper {
                             launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                             context.startActivity(launch);
                             if (!stoppedByRoot) {
-                                toast(context, UiText.get(R.string.waex_ui_whatsapp_opened_restart_not_verified_82c7c6d0, "WhatsApp opened; restart not verified"));
+                                toast(context, UiText.get(R.string.waex_ui_whatsapp_opened_restart_not_verified, "WhatsApp opened; restart not verified"));
                             }
                         } catch (RuntimeException ignored) {
-                            toast(context, UiText.get(R.string.waex_ui_could_not_reopen_whatsapp_6cd0efa0, "Could not reopen WhatsApp"));
+                            toast(context, UiText.get(R.string.waex_ui_could_not_reopen_whatsapp, "Could not reopen WhatsApp"));
                         } finally {
                             RESTART_PENDING.set(false);
                         }
                     }, delay)) RESTART_PENDING.set(false);
                 } catch (RuntimeException error) {
-                    toast(context, UiText.get(R.string.waex_ui_unable_to_restart_whatsapp_858d4979, "Unable to restart WhatsApp"));
+                    toast(context, UiText.get(R.string.waex_ui_unable_to_restart_whatsapp, "Unable to restart WhatsApp"));
                     RESTART_PENDING.set(false);
                 }
             });
         } catch (RejectedExecutionException failure) {
             RESTART_PENDING.set(false);
-            toast(context, UiText.get(R.string.waex_ui_restart_operation_unavailable_1da7ab39, "Restart operation unavailable"));
+            toast(context, UiText.get(R.string.waex_ui_restart_operation_unavailable, "Restart operation unavailable"));
         }
     }
 
@@ -146,7 +157,7 @@ public final class AppRestartHelper {
         if (context == null || !RESTART_PENDING.compareAndSet(false, true)) return;
         final Context appContext = context.getApplicationContext() != null
                 ? context.getApplicationContext() : context;
-        toast(appContext, UiText.get(R.string.waex_ui_restarting_whatsapp_and_waex_3f47c0c8, "Restarting WhatsApp and WAEX..."));
+        toast(appContext, UiText.get(R.string.waex_ui_restarting_whatsapp_and_waex, "Restarting WhatsApp and WAEX..."));
 
         try {
             EXECUTOR.execute(() -> {
@@ -156,15 +167,18 @@ public final class AppRestartHelper {
                             ? Collections.emptySet() : new LinkedHashSet<>(discovered);
 
                     for (String packageName : targets) {
+                        Intent targetLaunch = appContext.getPackageManager().getLaunchIntentForPackage(packageName);
                         if (!RestartTargetPolicy.isSupportedTarget(packageName, targets)
-                                || appContext.getPackageManager().getLaunchIntentForPackage(packageName) == null) {
+                                || targetLaunch == null) {
                             continue;
                         }
 
                         boolean stoppedByRoot = runRootCommand(
                                 RestartTargetPolicy.forceStopCommand(packageName, targets)) != null;
                         if (stoppedByRoot) {
-                            runRootCommand(RestartTargetPolicy.launchCommand(packageName, targets));
+                            String component = targetLaunch.getComponent() != null
+                                    ? targetLaunch.getComponent().flattenToShortString() : null;
+                            runRootCommand(RestartTargetPolicy.launchCommand(packageName, component, targets));
                         } else {
                             Intent restart = new Intent(RESTART_ACTION);
                             restart.setPackage(packageName);
@@ -176,12 +190,12 @@ public final class AppRestartHelper {
                     MAIN.post(() -> relaunchModuleProcess(appContext));
                 } catch (Throwable error) {
                     RESTART_PENDING.set(false);
-                    toast(appContext, UiText.get(R.string.waex_ui_unable_to_restart_apps_94cd4609, "Unable to restart apps"));
+                    toast(appContext, UiText.get(R.string.waex_ui_unable_to_restart_apps, "Unable to restart apps"));
                 }
             });
         } catch (RejectedExecutionException failure) {
             RESTART_PENDING.set(false);
-            toast(appContext, UiText.get(R.string.waex_ui_restart_operation_unavailable_1da7ab39, "Restart operation unavailable"));
+            toast(appContext, UiText.get(R.string.waex_ui_restart_operation_unavailable, "Restart operation unavailable"));
         }
     }
 
@@ -191,7 +205,7 @@ public final class AppRestartHelper {
                     .getLaunchIntentForPackage(context.getPackageName());
             if (launchIntent == null || launchIntent.getComponent() == null) {
                 RESTART_PENDING.set(false);
-                toast(context, UiText.get(R.string.waex_ui_unable_to_relaunch_waex_f2b8e3cb, "Unable to relaunch WAEX"));
+                toast(context, UiText.get(R.string.waex_ui_unable_to_relaunch_waex, "Unable to relaunch WAEX"));
                 return;
             }
             Intent restartIntent = Intent.makeRestartActivityTask(launchIntent.getComponent());
@@ -204,7 +218,7 @@ public final class AppRestartHelper {
             AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
             if (alarmManager == null) {
                 RESTART_PENDING.set(false);
-                toast(context, UiText.get(R.string.waex_ui_unable_to_relaunch_waex_f2b8e3cb, "Unable to relaunch WAEX"));
+                toast(context, UiText.get(R.string.waex_ui_unable_to_relaunch_waex, "Unable to relaunch WAEX"));
                 return;
             }
             alarmManager.set(
@@ -216,7 +230,7 @@ public final class AppRestartHelper {
             System.exit(0);
         } catch (Throwable error) {
             RESTART_PENDING.set(false);
-            toast(context, UiText.get(R.string.waex_ui_unable_to_relaunch_waex_f2b8e3cb, "Unable to relaunch WAEX"));
+            toast(context, UiText.get(R.string.waex_ui_unable_to_relaunch_waex, "Unable to relaunch WAEX"));
         }
     }
 
