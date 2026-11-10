@@ -194,11 +194,22 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
 
     @Override
     public String getString(String key, String defaultValue) {
+        final String resolved;
+        final SharedPreferences store;
         try {
-        return getStore(key).getString(key(key), defaultValue);
+            resolved = resolvedKey(key);
+            store = PreferenceStores.storeFor(context, resolved);
+        } catch (ClassCastException ignored) {
+            // A legacy mode value of the wrong type must retain the default contract.
+            return defaultValue;
+        }
+        try {
+            return store.getString(resolved, defaultValue);
         } catch (ClassCastException e) {
             try {
-                Object allVal = getStore(key).getAll().get(key);
+                // Convert the same key/store that failed the strict read, even if
+                // the selected target changes while that read is in progress.
+                Object allVal = store.getAll().get(resolved);
                 return allVal != null ? String.valueOf(allVal) : defaultValue;
             } catch (Throwable ignored) {
                 return defaultValue;
