@@ -32,7 +32,7 @@ public class AlwaysOnlineHook extends BaseFeature {
         Method stateChangeMethod = DexSearchEngine.getInstance().findMethodWithCache(
                 context,
                 classLoader,
-                "wpp_always_online_transition_unavailable",
+                "waex_always_online_transition_unavailable",
                 (bridge, loader) -> {
                     MethodData data = bridge.findMethod(FindMethod.create()
                             .matcher(MethodMatcher.create()

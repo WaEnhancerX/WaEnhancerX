@@ -14,8 +14,6 @@ import re
 import subprocess
 import tempfile
 
-from test_view_once_download import STUBS, DEX_STUBS, write
-
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = Path('app/src/main/java/com/waenhancer')
 REFLECTION = re.compile(r'\.\s*(?:getParameterCount\s*\(|parameterCount\b)')
@@ -48,31 +46,21 @@ def source_violations(root):
 def compiled_violations(root):
     with tempfile.TemporaryDirectory(prefix='waex-api24-symbols-') as temporary:
         stage = Path(temporary)
-        write(stage, STUBS)
-        write(stage, DEX_STUBS)
-        sources = [root / PACKAGE / path for path in [
-            'xposed/core/devkit/HookReturnTypeGuard.java',
-            'xposed/features/media/ViewOnceMediaResolver.java',
-            'xposed/features/media/ViewOnceAudioResolver.java',
-            'utils/ContactIdentityPolicy.java',
-        ]]
+        # This shared guard remains in main after the view-once and local-delete
+        # reverts. Compile it directly: this policy must not depend on fixtures
+        # or selectors that belong to an optional/reverted feature.
+        source = root / PACKAGE / 'xposed/core/devkit/HookReturnTypeGuard.java'
         classes = stage / 'classes'
         subprocess.run(['javac', '--release', '17', '-d', str(classes),
-                        *map(str, sources), *map(str, stage.rglob('*.java'))], check=True, timeout=60)
-        selection = root / PACKAGE / 'xposed/features/conversation/PreservedMessageSelection.kt'
-        subprocess.run(['kotlinc', '-jvm-target', '17', '-cp', str(classes), '-d', str(classes),
-                        str(selection)], check=True, timeout=60)
-        print('COMPILE_OK: complete production Java guard/resolvers and Kotlin selection', flush=True)
-        # Inspect only the actual production classes, not the deliberately modern
-        # JVM fixture implementations of DexKit/Android/host types.
+                        str(source)], check=True, timeout=60)
+        print('COMPILE_OK: complete production HookReturnTypeGuard; no platform doubles', flush=True)
+        # Inspect the actual production class and any nested classes. The
+        # source scan below still covers every production Java/Kotlin file.
         names = []
-        for prefix in ['com/waenhancer/xposed/core/devkit/HookReturnTypeGuard',
-                       'com/waenhancer/xposed/features/media/ViewOnceMediaResolver',
-                       'com/waenhancer/xposed/features/media/ViewOnceAudioResolver',
-                       'com/waenhancer/xposed/features/conversation/PreservedMessageSelection']:
-            for path in classes.glob(prefix + '*.class'):
-                names.append(path.relative_to(classes).as_posix()[:-6].replace('/', '.'))
-        assert len(names) >= 4, 'production bytecode missing'
+        prefix = 'com/waenhancer/xposed/core/devkit/HookReturnTypeGuard'
+        for path in sorted(classes.glob(prefix + '*.class')):
+            names.append(path.relative_to(classes).as_posix()[:-6].replace('/', '.'))
+        assert prefix.replace('/', '.') in names, 'production guard bytecode missing'
         result = subprocess.run(['javap', '-classpath', str(classes), '-c', '-p', *names],
                                 check=True, capture_output=True, text=True, timeout=60)
         return names, sorted(set(POLICY_MEMBER_REFERENCES.findall(result.stdout)))

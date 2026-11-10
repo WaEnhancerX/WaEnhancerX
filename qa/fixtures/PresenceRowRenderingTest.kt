@@ -1,3 +1,5 @@
+import android.content.pm.ApplicationInfo
+
 
 import android.app.Application
 import android.graphics.Bitmap
@@ -37,7 +39,7 @@ class PresenceRowRenderingTest {
         }
         app = RuntimeEnvironment.getApplication()
         // Config.NONE has no manifest: explicitly enable the RTL fixture contract.
-        app.applicationInfo.flags = app.applicationInfo.flags or android.content.pm.ApplicationInfo.FLAG_SUPPORTS_RTL
+        app.applicationInfo.flags = app.applicationInfo.flags or ApplicationInfo.FLAG_SUPPORTS_RTL
         app.applicationInfo.targetSdkVersion = 28
         h = RendererHarness(app)
         val companion = RendererHarness::class.java.getDeclaredField("identityAliases")

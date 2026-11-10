@@ -6,6 +6,7 @@ import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
 import android.os.Bundle
+import android.os.SystemClock
 import com.waenhancer.xposed.core.BaseFeature
 import com.waenhancer.xposed.core.devkit.DexSearchEngine
 import de.robv.android.xposed.XC_MethodHook
@@ -15,6 +16,9 @@ import org.luckypray.dexkit.query.enums.StringMatchType
 import org.luckypray.dexkit.query.matchers.MethodMatcher
 import java.io.File
 import java.lang.reflect.Method
+import java.lang.reflect.Field
+import java.util.concurrent.Executors
+import org.luckypray.dexkit.DexKitBridge
 
 /**
  * Feature: Preserve "Delete For Me" Messages.
@@ -38,6 +42,12 @@ class PreserveDeleteForMeHook(
         private const val PROVIDER_URI = "content://com.waenhancer.hookprovider"
 
         private val deleteForMeScope = ThreadLocal<Boolean>()
+        private val preservationWarningLock = Any()
+        private var lastPreservationWarningAtElapsed = -1L
+        private const val PRESERVATION_WARNING_INTERVAL_MS = 30_000L
+        private val preservationExecutor = Executors.newSingleThreadExecutor { runnable ->
+            Thread(runnable, "WAEX-PreserveDeleteForMe").apply { isDaemon = true }
+        }
 
         /** Lets other database hooks distinguish a local Delete-for-me from a remote revoke. */
         @JvmStatic
@@ -101,6 +111,7 @@ class PreserveDeleteForMeHook(
                             val sqlArgs = whereArgs?.map { it?.toString() ?: "" }?.toTypedArray() ?: emptyArray()
                             val querySql = "SELECT _id, key_id, chat_row_id, from_me, message_type, text_data, timestamp, sender_jid_row_id FROM message WHERE $where"
 
+                            var hadUnconfirmedMessage = false
                             db.rawQuery(querySql, sqlArgs).use { cursor ->
                                 if (cursor != null && cursor.moveToFirst()) {
                                     do {
@@ -121,7 +132,7 @@ class PreserveDeleteForMeHook(
                                                 resolveSenderDisplayName(context, db, senderJidRowId, chatDisplayName)
                                             else chatDisplayName
 
-                                            dispatchToManagerApp(
+                                            if (!dispatchToManagerApp(
                                                 jid = chatJid,
                                                 chatName = chatDisplayName,
                                                 senderName = senderDisplayName,
@@ -130,11 +141,12 @@ class PreserveDeleteForMeHook(
                                                 timestamp = if (msgTs > 0) msgTs else now,
                                                 fromMe = fromMe,
                                                 isGroup = isGroup
-                                            )
+                                            )) hadUnconfirmedMessage = true
                                         }
                                     } while (cursor.moveToNext())
                                 }
                             }
+                            if (hadUnconfirmedMessage) warnPreservationUnconfirmed()
                         } catch (t: Throwable) {
                             XposedBridge.log("$TAG Error inspecting message before delete: ${t.javaClass.simpleName}")
                         }
@@ -288,6 +300,19 @@ class PreserveDeleteForMeHook(
         }
     }
 
+    private fun warnPreservationUnconfirmed() {
+        synchronized(preservationWarningLock) {
+            val now = SystemClock.elapsedRealtime()
+            val previous = lastPreservationWarningAtElapsed
+            if (previous >= 0L && now >= previous &&
+                now - previous < PRESERVATION_WARNING_INTERVAL_MS) return
+            lastPreservationWarningAtElapsed = now
+        }
+        // An old provider may have saved the message but returned no receipt.
+        // Do not claim loss, expose its payload, or flood the log for a batch.
+        XposedBridge.log("$TAG Message preservation was not confirmed by the manager")
+    }
+
     private fun dispatchToManagerApp(
         jid: String,
         chatName: String,
@@ -297,8 +322,8 @@ class PreserveDeleteForMeHook(
         timestamp: Long,
         fromMe: Boolean,
         isGroup: Boolean
-    ) {
-        try {
+    ): Boolean {
+        return try {
             val bundle = Bundle().apply {
                 putString("jid", jid)
                 putString("name", chatName)
@@ -309,14 +334,23 @@ class PreserveDeleteForMeHook(
                 putBoolean("fromMe", fromMe)
                 putBoolean("isGroup", isGroup)
             }
-            context.contentResolver.call(
-                Uri.parse(PROVIDER_URI),
-                "record_preserved_message",
-                null,
-                bundle
-            )
-        } catch (t: Throwable) {
-            XposedBridge.log("$TAG dispatchToManagerApp failed: ${t.javaClass.simpleName}")
+            // This runs inside WhatsApp's delete path. Do not wait for the manager process or its
+            // SQLite write; all metadata needed for preservation is already in the bundle.
+            preservationExecutor.execute {
+                try {
+                    context.contentResolver.call(
+                        Uri.parse(PROVIDER_URI),
+                        "record_preserved_message",
+                        null,
+                        bundle
+                    )
+                } catch (_: Throwable) {
+                    XposedBridge.log("$TAG Async message preservation failed")
+                }
+            }
+            true
+        } catch (_: Throwable) {
+            false
         }
     }
 
@@ -325,7 +359,7 @@ class PreserveDeleteForMeHook(
             DexSearchEngine.getInstance().findMethodWithCache(
                 context,
                 classLoader,
-                "wpp_delete_for_me_method_v7",
+                "waex_delete_for_me_method_v7",
                 { bridge, loader ->
                     resolveCurrentDeleteForMeRunnable(bridge, loader) ?: bridge.findMethod(
                         FindMethod.create().matcher(
@@ -335,7 +369,7 @@ class PreserveDeleteForMeHook(
                             )
                         )
                     ).firstOrNull()?.getMethodInstance(loader)?.takeIf {
-                        it.name != "run" || it.parameterCount > 0
+                        it.name != "run" || it.parameterTypes.isNotEmpty()
                     } ?: bridge.findMethod(
                         FindMethod.create().matcher(
                             MethodMatcher.create().addUsingString(
@@ -344,7 +378,7 @@ class PreserveDeleteForMeHook(
                             )
                         )
                     ).firstOrNull()?.getMethodInstance(loader)?.takeIf {
-                        it.name != "run" || it.parameterCount > 0
+                        it.name != "run" || it.parameterTypes.isNotEmpty()
                     }
                 }
             )
@@ -360,7 +394,7 @@ class PreserveDeleteForMeHook(
      * message-key helper string -> dialog builder(Set) -> positive listener -> Runnable -> run().
      */
     private fun resolveCurrentDeleteForMeRunnable(
-        bridge: org.luckypray.dexkit.DexKitBridge,
+        bridge: DexKitBridge,
         loader: ClassLoader
     ): Method? {
         val deleteDialogAnchors = bridge.findMethod(
@@ -440,7 +474,8 @@ class PreserveDeleteForMeHook(
                 return false
             }
 
-            var captured = 0
+            var recognized = 0
+            var confirmed = 0
             SQLiteDatabase.openDatabase(dbFile.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { db ->
                 keys.forEach { key ->
                     db.rawQuery(
@@ -461,7 +496,7 @@ class PreserveDeleteForMeHook(
                         } else {
                             chatName
                         }
-                        dispatchToManagerApp(
+                        if (dispatchToManagerApp(
                             jid = chatJid,
                             chatName = chatName,
                             senderName = senderName,
@@ -470,12 +505,15 @@ class PreserveDeleteForMeHook(
                             timestamp = cursor.getLong(6),
                             fromMe = fromMe,
                             isGroup = isGroup
-                        )
-                        captured++
+                        )) confirmed++
+                        recognized++
                     }
                 }
             }
-            return captured > 0
+            if (confirmed < recognized) warnPreservationUnconfirmed()
+            // This return value identifies a local selection for AntiRevoke's
+            // scope. Storage availability must not change the original delete.
+            return recognized > 0
         } catch (t: Throwable) {
             XposedBridge.log("$TAG Error copying selected messages: ${t.javaClass.simpleName}")
             return false
@@ -491,7 +529,7 @@ class PreserveDeleteForMeHook(
         if (message == null) return null
         return try {
             val methodKey = message.javaClass.methods.firstOrNull {
-                it.name == "Atl" && it.parameterCount == 0
+                it.name == "Atl" && it.parameterTypes.isEmpty()
             }?.invoke(message)
             val key = methodKey ?: allInstanceFields(message.javaClass)
                 .filterNot { it.type.isPrimitive || it.type == String::class.java }
@@ -513,7 +551,7 @@ class PreserveDeleteForMeHook(
         }
     }
 
-    private fun allInstanceFields(type: Class<*>): Sequence<java.lang.reflect.Field> = sequence {
+    private fun allInstanceFields(type: Class<*>): Sequence<Field> = sequence {
         var current: Class<*>? = type
         while (current != null && current != Any::class.java) {
             yieldAll(current.declaredFields.asSequence())

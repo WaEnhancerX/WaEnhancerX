@@ -23,7 +23,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import com.waenhancer.ui.components.WaexCircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -48,6 +48,7 @@ import com.waenhancer.ui.components.WaexConfirmationBottomSheet
 import com.waenhancer.ui.components.WaexInfoBanner
 import com.waenhancer.ui.components.WaexSectionHeader
 import com.waenhancer.ui.components.WaexTopBar
+import com.waenhancer.ui.components.NetworkErrorCenter
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import androidx.compose.foundation.shape.CircleShape
@@ -112,20 +113,20 @@ fun LicenseActivationScreen() {
         listOf(
             PurchasePlan(
                 id = 2,
-                name = UiText.get(R.string.waex_ui_pro_monthly_fc7aed6d, "Pro Monthly"),
+                name = UiText.get(R.string.waex_ui_pro_monthly, "Pro Monthly"),
                 originalPrice = "3.50",
                 offerPrice = "2.30",
-                period = UiText.get(R.string.waex_ui_month_40edde43, "/ Month"),
-                desc = UiText.get(R.string.waex_ui_full_access_to_all_pro_features_for_30_3746092e, "Full access to all Pro features for 30 days")
+                period = UiText.get(R.string.waex_ui_month, "/ Month"),
+                desc = UiText.get(R.string.waex_ui_full_access_to_all_pro_features_for_30, "Full access to all Pro features for 30 days")
             ),
             PurchasePlan(
                 id = 3,
-                name = UiText.get(R.string.waex_ui_pro_yearly_a80329b0, "Pro Yearly"),
+                name = UiText.get(R.string.waex_ui_pro_yearly, "Pro Yearly"),
                 originalPrice = "28.50",
                 offerPrice = "18.99",
-                period = UiText.get(R.string.waex_ui_year_aae0fb2c, "/ Year"),
-                desc = UiText.get(R.string.waex_ui_save_33_with_full_pro_access_for_365_d_9ab320db, "Save 33% with full Pro access for 365 days"),
-                badge = UiText.get(R.string.waex_ui_best_value_06447fa6, "Best Value")
+                period = UiText.get(R.string.waex_ui_year, "/ Year"),
+                desc = UiText.get(R.string.waex_ui_save_33_with_full_pro_access_for_365_d, "Save 33% with full Pro access for 365 days"),
+                badge = UiText.get(R.string.waex_ui_best_value, "Best Value")
             )
         )
     }
@@ -159,7 +160,7 @@ fun LicenseActivationScreen() {
                     requestMethod = "GET"
                     connectTimeout = 5000
                     readTimeout = 5000
-                    setRequestProperty(UiText.get(R.string.waex_ui_accept_89713b9c, "Accept"), "application/json")
+                    setRequestProperty(UiText.get(R.string.waex_ui_accept, "Accept"), "application/json")
                 }
 
                 val inputStream = BufferedInputStream(urlConnection.inputStream)
@@ -225,9 +226,9 @@ fun LicenseActivationScreen() {
 
     if (showRemoveLicenseDialog) {
         WaexConfirmationBottomSheet(
-            title = UiText.get(R.string.waex_ui_remove_license_70f459dc, "Remove License?"),
-            message = UiText.get(R.string.waex_ui_this_will_unlink_this_device_remove_th_a2b62c79, "This will unlink this device, remove the saved license, and return WAEX to the Free tier."),
-            confirmLabel = UiText.get(R.string.waex_ui_remove_license_1af46866, "Remove License"),
+            title = UiText.get(R.string.waex_ui_remove_license_confirmation, "Remove License?"),
+            message = UiText.get(R.string.waex_ui_this_will_unlink_this_device_remove_th, "This will unlink this device, remove the saved license, and return WAEX to the Free tier."),
+            confirmLabel = UiText.get(R.string.waex_ui_remove_license_action, "Remove License"),
             destructive = true,
             confirmEnabled = !isRemovingLicense,
             onDismiss = {
@@ -247,13 +248,18 @@ fun LicenseActivationScreen() {
                             showRemoveLicenseDialog = false
                             proStatus = LicenseManager.getProStatus(context)
                             planName = LicenseManager.getProPlanName(context)
-                            Toast.makeText(context, UiText.get(R.string.waex_ui_license_removed_from_this_device_0a2fb62a, "License removed from this device."), Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, UiText.get(R.string.waex_ui_license_removed_from_this_device, "License removed from this device."), Toast.LENGTH_LONG).show()
                             AppRestartHelper.restartWhatsAppAndModule(context)
                         }
 
                         override fun onError(msg: String?) {
                             isRemovingLicense = false
-                            removeLicenseError = msg ?: UiText.get(R.string.waex_ui_unable_to_remove_the_license_please_tr_9d627156, "Unable to remove the license. Please try again.")
+                            if (NetworkErrorCenter.isNetworkError(msg)) {
+                                removeLicenseError = ""
+                                NetworkErrorCenter.show(msg)
+                            } else {
+                                removeLicenseError = msg ?: UiText.get(R.string.waex_ui_unable_to_remove_the_license_please_tr, "Unable to remove the license. Please try again.")
+                            }
                         }
                     }
                 )
@@ -269,15 +275,15 @@ fun LicenseActivationScreen() {
             },
             confirmContent = {
                 if (isRemovingLicense) {
-                    CircularProgressIndicator(
+                    WaexCircularProgressIndicator(
                         modifier = Modifier.size(16.dp),
                         strokeWidth = 2.dp,
                         color = Color.White
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(UiText.get(R.string.waex_ui_removing_d4b09919, "Removing…"))
+                    Text(UiText.get(R.string.waex_ui_removing, "Removing…"))
                 } else {
-                    Text(UiText.get(R.string.waex_ui_remove_license_1af46866, "Remove License"), fontWeight = FontWeight.Bold)
+                    Text(UiText.get(R.string.waex_ui_remove_license_action, "Remove License"), fontWeight = FontWeight.Bold)
                 }
             }
         )
@@ -303,8 +309,8 @@ fun LicenseActivationScreen() {
             if (isActive) {
                 // ─── ACTIVE PLAN CARD ───
                 WaexSectionHeader(
-                    title = UiText.get(R.string.waex_ui_active_subscription_8a09aaa3, "Active Subscription"),
-                    subtitle = UiText.get(R.string.waex_ui_your_pro_license_is_active_and_hardwar_9353b737, "Your Pro license is active and hardware-locked.")
+                    title = UiText.get(R.string.waex_ui_active_subscription, "Active Subscription"),
+                    subtitle = UiText.get(R.string.waex_ui_your_pro_license_is_active_and_hardwar, "Your Pro license is active and hardware-locked.")
                 )
 
                 WaexCard(modifier = Modifier.fillMaxWidth()) {
@@ -314,26 +320,26 @@ fun LicenseActivationScreen() {
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = UiText.get(R.string.waex_ui_status_920e413c, "Status"), style = typography.bodyMd, color = colors.onSurfaceVariant)
-                            Text(text = UiText.get(R.string.waex_ui_active_pro_191376ef, "Active Pro"), style = typography.bodyLg, fontWeight = FontWeight.Bold, color = Color(0xFF4CAF50))
+                            Text(text = UiText.get(R.string.waex_ui_status, "Status"), style = typography.bodyMd, color = colors.onSurfaceVariant)
+                            Text(text = UiText.get(R.string.waex_ui_active_pro, "Active Pro"), style = typography.bodyLg, fontWeight = FontWeight.Bold, color = Color(0xFF4CAF50))
                         }
                         HorizontalDivider(color = colors.outlineVariant)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(text = UiText.get(R.string.waex_ui_plan_fa8ed0bd, "Plan"), style = typography.bodyMd, color = colors.onSurfaceVariant)
-                            Text(text = planName.ifEmpty { UiText.get(R.string.waex_ui_lifetime_pro_edfdc169, "Lifetime Pro") }, style = typography.bodyMd, fontWeight = FontWeight.SemiBold, color = colors.onSurface)
+                            Text(text = UiText.get(R.string.waex_ui_plan, "Plan"), style = typography.bodyMd, color = colors.onSurfaceVariant)
+                            Text(text = planName.ifEmpty { UiText.get(R.string.waex_ui_lifetime_pro, "Lifetime Pro") }, style = typography.bodyMd, fontWeight = FontWeight.SemiBold, color = colors.onSurface)
                         }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(text = UiText.get(R.string.waex_ui_expires_f6725f3a, "Expires"), style = typography.bodyMd, color = colors.onSurfaceVariant)
+                            Text(text = UiText.get(R.string.waex_ui_expires, "Expires"), style = typography.bodyMd, color = colors.onSurfaceVariant)
                             val expiryText = if (expiresAt > 0) {
                                 val sdf = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
                                 sdf.format(Date(expiresAt))
-                            } else UiText.get(R.string.waex_ui_lifetime_access_6307bd6b, "Lifetime Access")
+                            } else UiText.get(R.string.waex_ui_lifetime_access, "Lifetime Access")
                             Text(text = expiryText, style = typography.bodyMd, color = colors.onSurface)
                         }
                         if (tgUser.isNotEmpty()) {
@@ -341,7 +347,7 @@ fun LicenseActivationScreen() {
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(text = UiText.get(R.string.waex_ui_telegram_account_bd7330e3, "Telegram Account"), style = typography.bodyMd, color = colors.onSurfaceVariant)
+                                Text(text = UiText.get(R.string.waex_ui_telegram_account, "Telegram Account"), style = typography.bodyMd, color = colors.onSurfaceVariant)
                                 Text(text = "@$tgUser", style = typography.bodyMd, fontWeight = FontWeight.Medium, color = colors.primary)
                             }
                         }
@@ -350,7 +356,7 @@ fun LicenseActivationScreen() {
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(text = UiText.get(R.string.waex_ui_github_account_b8d6a3e1, "GitHub Account"), style = typography.bodyMd, color = colors.onSurfaceVariant)
+                                Text(text = UiText.get(R.string.waex_ui_github_account, "GitHub Account"), style = typography.bodyMd, color = colors.onSurfaceVariant)
                                 Text(text = "@$ghUser", style = typography.bodyMd, fontWeight = FontWeight.Medium, color = colors.primary)
                             }
                         }
@@ -358,7 +364,7 @@ fun LicenseActivationScreen() {
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(text = UiText.get(R.string.waex_ui_license_key_71fd251d, "License Key"), style = typography.bodyMd, color = colors.onSurfaceVariant)
+                            Text(text = UiText.get(R.string.waex_ui_license_key, "License Key"), style = typography.bodyMd, color = colors.onSurfaceVariant)
                             Text(text = maskedKey, style = typography.bodyMd, fontFamily = FontFamily.Monospace, color = colors.onSurface)
                         }
                     }
@@ -387,7 +393,7 @@ fun LicenseActivationScreen() {
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = UiText.get(R.string.waex_ui_manage_connected_devices_638abe23, "Manage Connected Devices"),
+                            text = UiText.get(R.string.waex_ui_manage_connected_devices, "Manage Connected Devices"),
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -411,21 +417,21 @@ fun LicenseActivationScreen() {
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = UiText.get(R.string.waex_ui_remove_license_1af46866, "Remove License"), fontWeight = FontWeight.SemiBold)
+                    Text(text = UiText.get(R.string.waex_ui_remove_license_action, "Remove License"), fontWeight = FontWeight.SemiBold)
                 }
 
             } else {
                 // ─── FREE / EXPIRED ACTIVATION FORM ───
                 WaexSectionHeader(
-                    title = if (isExpired) UiText.get(R.string.waex_ui_license_expired_7314f40b, "License Expired") else UiText.get(R.string.waex_ui_activate_license_key_3e7cbad8, "Activate License Key"),
-                    subtitle = if (isExpired) UiText.get(R.string.waex_ui_your_previous_license_has_expired_ente_a8f8ea0a, "Your previous license has expired. Enter a new key to renew.") else UiText.get(R.string.waex_ui_input_your_purchased_key_to_verify_you_2dc5edbb, "Input your purchased key to verify your license.")
+                    title = if (isExpired) UiText.get(R.string.waex_ui_license_expired, "License Expired") else UiText.get(R.string.waex_ui_activate_license_key, "Activate License Key"),
+                    subtitle = if (isExpired) UiText.get(R.string.waex_ui_your_previous_license_has_expired_ente, "Your previous license has expired. Enter a new key to renew.") else UiText.get(R.string.waex_ui_input_your_purchased_key_to_verify_you, "Input your purchased key to verify your license.")
                 )
 
                 if (isExpired) {
                     WaexInfoBanner(
-                        message = UiText.get(R.string.waex_ui_your_license_period_has_ended_pro_feat_119bf1d7, "Your license period has ended. Pro features are currently locked."),
+                        message = UiText.get(R.string.waex_ui_your_license_period_has_ended_pro_feat, "Your license period has ended. Pro features are currently locked."),
                         bannerType = BannerType.ERROR,
-                        title = UiText.get(R.string.waex_ui_subscription_expired_88f93274, "Subscription Expired")
+                        title = UiText.get(R.string.waex_ui_subscription_expired, "Subscription Expired")
                     )
                 }
 
@@ -433,7 +439,7 @@ fun LicenseActivationScreen() {
                 WaexCard(modifier = Modifier.fillMaxWidth()) {
                     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         Text(
-                            text = UiText.get(R.string.waex_ui_enter_your_license_key_to_unlock_all_p_51f39af2, "Enter your license key to unlock all premium features."),
+                            text = UiText.get(R.string.waex_ui_enter_your_license_key_to_unlock_all_p, "Enter your license key to unlock all premium features."),
                             style = typography.bodyMd,
                             color = colors.onSurfaceVariant
                         )
@@ -517,7 +523,7 @@ fun LicenseActivationScreen() {
                             onClick = {
                                 val trimmedKey = licenseKeyInput.trim().uppercase(Locale.US)
                                 if (!LicenseManager.isValidLicensePattern(trimmedKey)) {
-                                    errorMessage = UiText.get(R.string.waex_ui_invalid_key_format_expected_waex_xxxx_8bf26cd1, "Invalid key format. Expected: WAEX-XXXX-XXXX-XXXX")
+                                    errorMessage = UiText.get(R.string.waex_ui_invalid_key_format_expected_waex_xxxx, "Invalid key format. Expected: WAEX-XXXX-XXXX-XXXX")
                                     return@Button
                                 }
                                 isVerifying = true
@@ -536,7 +542,12 @@ fun LicenseActivationScreen() {
 
                                         override fun onError(msg: String?) {
                                             isVerifying = false
-                                            errorMessage = msg ?: UiText.get(R.string.waex_ui_verification_failed_f07240d4, "Verification failed.")
+                                            if (NetworkErrorCenter.isNetworkError(msg)) {
+                                                errorMessage = ""
+                                                NetworkErrorCenter.show(msg)
+                                            } else {
+                                                errorMessage = msg ?: UiText.get(R.string.waex_ui_verification_failed, "Verification failed.")
+                                            }
                                         }
                                     }
                                 )
@@ -552,19 +563,19 @@ fun LicenseActivationScreen() {
                             enabled = licenseKeyInput.isNotBlank() && !isVerifying
                         ) {
                             if (isVerifying) {
-                                CircularProgressIndicator(
+                                WaexCircularProgressIndicator(
                                     color = colors.onPrimary,
                                     modifier = Modifier.size(18.dp),
                                     strokeWidth = 2.dp
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = UiText.get(R.string.waex_ui_verifying_with_server_88342cf7, "Verifying with Server…"),
+                                    text = UiText.get(R.string.waex_ui_verifying_with_server, "Verifying with Server…"),
                                     style = typography.bodyMd.copy(fontWeight = FontWeight.Bold)
                                 )
                             } else {
                                 Text(
-                                    text = UiText.get(R.string.waex_ui_verify_activate_acf94d3b, "Verify & Activate"),
+                                    text = UiText.get(R.string.waex_ui_verify_activate, "Verify & Activate"),
                                     style = typography.bodyMd.copy(fontWeight = FontWeight.Bold)
                                 )
                             }
@@ -574,8 +585,8 @@ fun LicenseActivationScreen() {
 
                 // ─── PURCHASE LICENSE PLANS SECTION ───
                 WaexSectionHeader(
-                    title = UiText.get(R.string.waex_ui_purchase_license_key_7dc5ed9a, "Purchase License Key"),
-                    subtitle = UiText.get(R.string.waex_ui_instant_automated_delivery_via_telegra_f09ba74c, "Instant automated delivery via Telegram bot")
+                    title = UiText.get(R.string.waex_ui_purchase_license_key, "Purchase License Key"),
+                    subtitle = UiText.get(R.string.waex_ui_instant_automated_delivery_via_telegra, "Instant automated delivery via Telegram bot")
                 )
 
                 if (isLoadingPlans && plans.isEmpty()) {
@@ -748,7 +759,7 @@ fun LicenseActivationScreen() {
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = UiText.get(R.string.waex_ui_manage_license_via_telegram_waenhancer_03cb64d0, "Manage license via Telegram @waenhancerx_bot"),
+                            text = UiText.get(R.string.waex_ui_manage_license_via_telegram_waenhancer, "Manage license via Telegram @waenhancerx_bot"),
                             style = typography.bodyMd.copy(color = colors.primary, fontWeight = FontWeight.Medium),
                             fontSize = 12.sp
                         )
@@ -758,8 +769,8 @@ fun LicenseActivationScreen() {
 
             // ─── FREE VS PRO FEATURES COMPARISON TABLE ───
             WaexSectionHeader(
-                title = UiText.get(R.string.waex_ui_free_vs_pro_features_3092c6e5, "Free vs Pro Features"),
-                subtitle = UiText.get(R.string.waex_ui_tap_any_feature_to_navigate_directly_t_7307e93d, "Tap any feature to navigate directly to its settings")
+                title = UiText.get(R.string.waex_ui_free_vs_pro_features, "Free vs Pro Features"),
+                subtitle = UiText.get(R.string.waex_ui_tap_any_feature_to_navigate_directly_t, "Tap any feature to navigate directly to its settings")
             )
 
             Surface(
@@ -777,14 +788,14 @@ fun LicenseActivationScreen() {
                             .padding(horizontal = 16.dp, vertical = 10.dp)
                     ) {
                         Text(
-                            text = UiText.get(R.string.waex_ui_feature_3d377ae9, "Feature"),
+                            text = UiText.get(R.string.waex_ui_feature, "Feature"),
                             style = typography.labelSm,
                             fontWeight = FontWeight.Bold,
                             color = colors.onSurfaceVariant,
                             modifier = Modifier.weight(1.5f)
                         )
                         Text(
-                            text = UiText.get(R.string.waex_ui_free_f411a1fb, "Free"),
+                            text = UiText.get(R.string.waex_ui_free, "Free"),
                             style = typography.labelSm,
                             fontWeight = FontWeight.Bold,
                             color = colors.onSurfaceVariant,
@@ -810,10 +821,10 @@ fun LicenseActivationScreen() {
                     )
 
                     val comparisonRows = listOf(
-                        ComparisonFeature(UiText.get(R.string.waex_ui_always_typing_b7568ffa, "Always Typing"), "✗", "✓") {
+                        ComparisonFeature(UiText.get(R.string.waex_ui_always_typing, "Always Typing"), "✗", "✓") {
                             navController.navigateToPreference(1, "presence", "always_online")
                         },
-                        ComparisonFeature(UiText.get(R.string.waex_ui_custom_status_view_2159812e, "Custom Status View"), "✗", "✓") {
+                        ComparisonFeature(UiText.get(R.string.waex_ui_custom_status_view, "Custom Status View"), "✗", "✓") {
                             navController.navigateToPreference(2, null, "custom_status_view")
                         },
                         ComparisonFeature(UiText.get(R.string.feat_status_video_splitter_title, "Status Video Splitter"), "✗", "✓") {
@@ -822,7 +833,7 @@ fun LicenseActivationScreen() {
                         ComparisonFeature(UiText.get(R.string.feat_send_audio_as_voice_status_title, "Audio to Voice Status"), "✗", "✓") {
                             navController.navigateToPreference(2, null, "send_audio_as_voice_status")
                         },
-                        ComparisonFeature(UiText.get(R.string.waex_ui_preserve_deleted_messages_e39773df, "Preserve Deleted Messages"), "✗", "✓") {
+                        ComparisonFeature(UiText.get(R.string.waex_ui_preserve_deleted_messages, "Preserve Deleted Messages"), "✗", "✓") {
                             navController.navigateToPreference(1, "conversation", "anti_revoke_messages")
                         },
                         ComparisonFeature(UiText.get(R.string.feat_message_bomber_title, "Message Bomber"), "✗", "✓") {
@@ -833,13 +844,13 @@ fun LicenseActivationScreen() {
                         ComparisonFeature(UiText.get(R.string.feat_file_size_spoofer_title, "File Size Spoofer"), "✗", "✓") {
                             navController.navigateToPreference(2, null, "file_size_spoofer")
                         },
-                        ComparisonFeature(UiText.get(R.string.waex_ui_automation_tasker_e61057ac, "Automation & Tasker"), "✗", "✓") {
+                        ComparisonFeature(UiText.get(R.string.waex_ui_automation_tasker, "Automation & Tasker"), "✗", "✓") {
                             navController.navigateTo(Screen.AutomationTasker)
                         },
-                        ComparisonFeature(UiText.get(R.string.waex_ui_per_contact_privacy_c4476ed0, "Per-Contact Privacy"), "✗", "✓") {
+                        ComparisonFeature(UiText.get(R.string.waex_ui_per_contact_privacy, "Per-Contact Privacy"), "✗", "✓") {
                             navController.navigateTo(Screen.PerContactPrivacyList)
                         },
-                        ComparisonFeature(UiText.get(R.string.waex_ui_theme_custom_styles_41b03b0d, "Theme & Custom Styles"), UiText.get(R.string.waex_ui_basic_0e35f6e9, "Basic"), UiText.get(R.string.waex_ui_full_008dacb6, "Full")) {
+                        ComparisonFeature(UiText.get(R.string.waex_ui_theme_custom_styles, "Theme & Custom Styles"), UiText.get(R.string.waex_ui_basic, "Basic"), UiText.get(R.string.waex_ui_full, "Full")) {
                             navController.navigateTo(Screen.StylesSettings)
                         }
                     )
@@ -902,19 +913,19 @@ private fun parsePlansJson(jsonStr: String): List<PurchasePlan> {
         var period = obj.optString("period", "")
         if (period.isEmpty()) {
             if (name.contains("monthly", ignoreCase = true)) {
-                period = UiText.get(R.string.waex_ui_month_40edde43, "/ Month")
+                period = UiText.get(R.string.waex_ui_month, "/ Month")
             } else if (name.contains("yearly", ignoreCase = true)) {
-                period = UiText.get(R.string.waex_ui_year_aae0fb2c, "/ Year")
+                period = UiText.get(R.string.waex_ui_year, "/ Year")
             }
         }
         var desc = obj.optString("desc", "")
         if (desc.isEmpty()) {
             desc = if (name.contains("monthly", ignoreCase = true)) {
-                UiText.get(R.string.waex_ui_full_access_to_all_pro_features_for_30_3746092e, "Full access to all Pro features for 30 days")
+                UiText.get(R.string.waex_ui_full_access_to_all_pro_features_for_30, "Full access to all Pro features for 30 days")
             } else if (name.contains("yearly", ignoreCase = true)) {
-                UiText.get(R.string.waex_ui_save_33_with_full_pro_access_for_365_d_9ab320db, "Save 33% with full Pro access for 365 days")
+                UiText.get(R.string.waex_ui_save_33_with_full_pro_access_for_365_d, "Save 33% with full Pro access for 365 days")
             } else {
-                UiText.get(R.string.waex_ui_unlock_all_premium_pro_capabilities_f4442f27, "Unlock all premium Pro capabilities")
+                UiText.get(R.string.waex_ui_unlock_all_premium_pro_capabilities, "Unlock all premium Pro capabilities")
             }
         }
 

@@ -7,8 +7,8 @@ import java.util.regex.Pattern;
 final class RestartTargetPolicy {
     private static final Pattern PACKAGE_NAME = Pattern.compile(
             "[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+");
-    private static final Pattern MONKEY_LAUNCHED = Pattern.compile(
-            "(?s).*\\bEvents injected:\\s*[1-9][0-9]*\\b.*");
+    private static final Pattern ROOT_LAUNCHED = Pattern.compile(
+            "(?s).*Starting:\\s*Intent\\s*\\{.*");
     private static final Pattern ROOT_ID = Pattern.compile(
             "(?s).*(?:^|\\s)uid=0(?:\\(|\\s|$).*");
 
@@ -33,16 +33,30 @@ final class RestartTargetPolicy {
         return "am force-stop '" + packageName + "'";
     }
 
+    private static final Pattern COMPONENT_NAME = Pattern.compile(
+            "[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+/\\.?[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*");
+
     static String launchCommand(String packageName, Set<String> declaredScope) {
+        return launchCommand(packageName, null, declaredScope);
+    }
+
+    static String launchCommand(String packageName, String activityComponent, Set<String> declaredScope) {
         if (!isSupportedTarget(packageName, declaredScope)) {
             throw new IllegalArgumentException("Unsupported restart target");
         }
-        return "monkey -p '" + packageName
-                + "' -c android.intent.category.LAUNCHER 1";
+        if (activityComponent != null
+                && activityComponent.startsWith(packageName + "/")
+                && COMPONENT_NAME.matcher(activityComponent).matches()) {
+            return "am start -n '" + activityComponent + "'";
+        }
+        return "ACT=$(pm resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER '"
+                + packageName + "' | tail -n 1) && am start -n \"$ACT\"";
     }
 
-    static boolean reportsMonkeyLaunch(String commandOutput) {
-        return commandOutput != null && MONKEY_LAUNCHED.matcher(commandOutput).matches();
+    static boolean reportsRootLaunch(String commandOutput) {
+        return commandOutput != null
+                && ROOT_LAUNCHED.matcher(commandOutput).matches()
+                && !commandOutput.contains("Error:");
     }
 
     static boolean reportsRootId(String commandOutput) {

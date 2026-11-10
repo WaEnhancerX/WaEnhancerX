@@ -5,6 +5,8 @@ import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import android.util.Log
+import com.waenhancer.utils.ContactIdentityPolicy
 
 /**
  * SQLite Store for Preserved "Delete For Me" messages.
@@ -18,7 +20,10 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
 ) {
     companion object {
         private const val DATABASE_NAME = "waex_preserved_messages.db"
-        private const val DATABASE_VERSION = 3
+        // Version 3 has existed with two UNIQUE-key layouts. Version 4 was also
+        // published in the compatibility candidate. Both remain readable without
+        // rebuilding the table; keep the version monotonic across those builds.
+        private const val DATABASE_VERSION = 4
         const val TABLE_NAME = "preserved_messages"
 
         const val COL_ID = "_id"
@@ -42,7 +47,7 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
         }
     }
 
-    data class StoredMessage(
+    data class StoredMessage @JvmOverloads constructor(
         val id: String,
         val jid: String,
         val chatName: String,
@@ -50,7 +55,8 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
         val text: String,
         val timestamp: Long,
         val isFromMe: Boolean,
-        val isGroup: Boolean
+        val isGroup: Boolean,
+        val storageId: Long = 0L
     )
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -84,10 +90,9 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
                 db.execSQL("ALTER TABLE $TABLE_NAME ADD COLUMN $COL_SENDER_NAME TEXT")
             }
         }
-    }
-
-    override fun onDowngrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Prevent SQLiteException when downgrading from v3 to v2
+        // The readable columns of v2, both historical v3 layouts, and v4 are
+        // compatible. Preserve their row IDs, indexes, constraints and sequence.
+        // Let SQLiteOpenHelper reject an unknown future version by default.
     }
 
     fun insertPreservedMessage(
@@ -100,7 +105,23 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
         fromMe: Boolean,
         isGroup: Boolean
     ) {
-        if (msgId.isBlank()) return
+        // Retain the existing void JVM entry point for callers compiled before
+        // the provider gained an explicit persistence acknowledgement.
+        tryInsertPreservedMessage(jid, chatName, senderName, msgId, text, timestamp, fromMe, isGroup)
+    }
+
+    /** True only after SQLite confirms the message INSERT/REPLACE. */
+    fun tryInsertPreservedMessage(
+        jid: String,
+        chatName: String?,
+        senderName: String?,
+        msgId: String,
+        text: String,
+        timestamp: Long,
+        fromMe: Boolean,
+        isGroup: Boolean
+    ): Boolean {
+        if (msgId.isBlank()) return false
         try {
             val db = writableDatabase
             val resolvedChatName = if (!chatName.isNullOrBlank() && !chatName.all { it.isDigit() }) {
@@ -126,16 +147,26 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
                 put(COL_FROM_ME, if (fromMe) 1 else 0)
                 put(COL_IS_GROUP, if (isGroup) 1 else 0)
             }
-            db.insertWithOnConflict(TABLE_NAME, null, cv, SQLiteDatabase.CONFLICT_REPLACE)
+            val insertedId = db.insertWithOnConflict(TABLE_NAME, null, cv, SQLiteDatabase.CONFLICT_REPLACE)
+            if (insertedId == -1L) return false
 
             if (!chatName.isNullOrBlank() && !chatName.all { it.isDigit() }) {
-                val updateCv = ContentValues().apply {
-                    put(COL_NAME, chatName)
+                try {
+                    val updateCv = ContentValues().apply {
+                        put(COL_NAME, chatName)
+                    }
+                    db.update(TABLE_NAME, updateCv, "$COL_JID = ?", arrayOf(jid))
+                } catch (t: Throwable) {
+                    // This optional name refresh follows an already confirmed
+                    // INSERT. Its failure must not report that the copy is absent.
+                    Log.e("WAEX:PreservedStore", "contact name refresh failed: ${t.javaClass.simpleName}")
                 }
-                db.update(TABLE_NAME, updateCv, "$COL_JID = ?", arrayOf(jid))
             }
+            return true
         } catch (t: Throwable) {
-            android.util.Log.e("WAEX:PreservedStore", "insertPreservedMessage failed: ${t.javaClass.simpleName}: ${t.message}", t)
+            // SQLite exception messages and stacks can contain message values.
+            Log.e("WAEX:PreservedStore", "insertPreservedMessage failed: ${t.javaClass.simpleName}")
+            return false
         }
     }
 
@@ -145,7 +176,7 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
             val db = readableDatabase
             val cursor: Cursor? = db.query(
                 TABLE_NAME,
-                arrayOf(COL_MSG_ID, COL_JID, COL_NAME, COL_SENDER_NAME, COL_TEXT, COL_TIMESTAMP, COL_FROM_ME, COL_IS_GROUP),
+                arrayOf(COL_MSG_ID, COL_JID, COL_NAME, COL_SENDER_NAME, COL_TEXT, COL_TIMESTAMP, COL_FROM_ME, COL_IS_GROUP, COL_ID),
                 null, null, null, null,
                 "$COL_TIMESTAMP ASC"
             )
@@ -170,7 +201,8 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
                             text = text,
                             timestamp = timestamp,
                             isFromMe = isFromMe,
-                            isGroup = isGroup
+                            isGroup = isGroup,
+                            storageId = it.getLong(8)
                         )
                     )
                 }
@@ -179,8 +211,38 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
         return list
     }
 
+    fun getPreservedMessageByMsgId(msgId: String): StoredMessage? {
+        if (msgId.isBlank()) return null
+        try {
+            val db = readableDatabase
+            db.query(
+                TABLE_NAME,
+                arrayOf(COL_MSG_ID, COL_JID, COL_NAME, COL_SENDER_NAME, COL_TEXT, COL_TIMESTAMP, COL_FROM_ME, COL_IS_GROUP, COL_ID),
+                "$COL_MSG_ID = ?",
+                arrayOf(msgId),
+                null, null, null, "1"
+            ).use { cursor ->
+                if (cursor != null && cursor.moveToFirst()) {
+                    val hasSenderCol = cursor.columnCount >= 8
+                    return StoredMessage(
+                        id = cursor.getString(0) ?: "",
+                        jid = cursor.getString(1) ?: "",
+                        chatName = cursor.getString(2) ?: "",
+                        senderName = if (hasSenderCol) (cursor.getString(3) ?: "") else "",
+                        text = cursor.getString(4) ?: "",
+                        timestamp = cursor.getLong(5),
+                        isFromMe = cursor.getInt(6) == 1,
+                        isGroup = cursor.getInt(7) == 1,
+                        storageId = cursor.getLong(8)
+                    )
+                }
+            }
+        } catch (_: Throwable) {}
+        return null
+    }
+
     fun getContactNameByJid(jid: String): String? {
-        val exact = com.waenhancer.utils.ContactIdentityPolicy.canonicalJid(jid) ?: return null
+        val exact = ContactIdentityPolicy.canonicalJid(jid) ?: return null
         try {
             readableDatabase.rawQuery(
                 "SELECT DISTINCT $COL_NAME FROM $TABLE_NAME WHERE $COL_JID = ? AND $COL_NAME IS NOT NULL AND $COL_NAME != '' LIMIT 2",

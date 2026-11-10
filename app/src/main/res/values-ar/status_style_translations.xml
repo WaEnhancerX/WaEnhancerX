@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="status_style_default">افتراضي</string>
+    <string name="status_style_vertical_rows">صفوف عمودية</string>
+    <string name="status_style_facebook_grid">بطاقات فيسبوك (شبكة)</string>
+    <string name="status_style_vertical_compact">قائمة عمودية (مدمجة)</string>
+    <string name="status_style_vertical_circle">قائمة عمودية (صور دائرية)</string>
+    <string name="status_style_vertical_square">قائمة عمودية (بطاقات مربعة)</string>
+</resources>

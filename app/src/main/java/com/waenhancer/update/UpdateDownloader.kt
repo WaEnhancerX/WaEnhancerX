@@ -58,9 +58,24 @@ object UpdateDownloader {
         fun onFailure(error: Exception)
     }
 
-    fun hasRootAccess(): Boolean {
+    @Volatile
+    private var cachedRootAccess: Boolean? = null
+    @Volatile
+    private var lastRootCheckElapsed: Long = 0L
+    private const val ROOT_CACHE_TTL_MS = 60_000L
+
+    fun hasCachedRootAccess(): Boolean? = cachedRootAccess
+
+    fun hasRootAccess(forceRefresh: Boolean = false): Boolean {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (!forceRefresh && cachedRootAccess != null && (now - lastRootCheckElapsed < ROOT_CACHE_TTL_MS)) {
+            return cachedRootAccess!!
+        }
         val output = runRootCommand("id")
-        return output?.let { "uid=0" in it } == true
+        val hasRoot = output?.let { "uid=0" in it } == true
+        cachedRootAccess = hasRoot
+        lastRootCheckElapsed = now
+        return hasRoot
     }
 
     fun downloadApk(
@@ -140,12 +155,12 @@ object UpdateDownloader {
     fun installApk(context: Context, apkFile: File, expectedVersion: String) {
         val activity = context.findActivity() ?: return
         if (!isValidModuleApk(activity, apkFile, expectedVersion)) {
-            Toast.makeText(activity, UiText.get(R.string.waex_ui_apk_does_not_match_selected_version_1_2285cdd0, "APK does not match selected version %1\$s", expectedVersion), Toast.LENGTH_LONG).show()
+            Toast.makeText(activity, UiText.get(R.string.waex_ui_apk_does_not_match_selected_version_1, "APK does not match selected version %1\$s", expectedVersion), Toast.LENGTH_LONG).show()
             return
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !activity.packageManager.canRequestPackageInstalls()) {
             activity.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${activity.packageName}")))
-            Toast.makeText(activity, UiText.get(R.string.waex_ui_please_allow_waenhancer_x_to_install_a_cde29fd6, "Please allow WaEnhancer X to install apps"), Toast.LENGTH_LONG).show()
+            Toast.makeText(activity, UiText.get(R.string.waex_ui_please_allow_waenhancer_x_to_install_a, "Please allow WaEnhancer X to install apps"), Toast.LENGTH_LONG).show()
             return
         }
         val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.fileprovider", apkFile)
@@ -156,7 +171,7 @@ object UpdateDownloader {
     fun installApkWithRoot(context: Context, apkFile: File, expectedVersion: String) {
         val activity = context.findActivity() ?: return
         if (!isValidModuleApk(activity, apkFile, expectedVersion)) {
-            Toast.makeText(activity, UiText.get(R.string.waex_ui_apk_does_not_match_selected_version_1_2285cdd0, "APK does not match selected version %1\$s", expectedVersion), Toast.LENGTH_LONG).show()
+            Toast.makeText(activity, UiText.get(R.string.waex_ui_apk_does_not_match_selected_version_1, "APK does not match selected version %1\$s", expectedVersion), Toast.LENGTH_LONG).show()
             return
         }
         Thread {
@@ -189,11 +204,11 @@ object UpdateDownloader {
             val success = result?.trim()?.startsWith("Success", ignoreCase = true) == true
             activity.runOnUiThread {
                 if (success) {
-                    Toast.makeText(activity, UiText.get(R.string.waex_ui_installation_successful_restarting_dbd45bac, "Installation successful. Restarting..."), Toast.LENGTH_LONG).show()
+                    Toast.makeText(activity, UiText.get(R.string.waex_ui_installation_successful_restarting, "Installation successful. Restarting..."), Toast.LENGTH_LONG).show()
                     Handler(Looper.getMainLooper()).postDelayed({ Process.killProcess(Process.myPid()) }, 2000)
                 } else Toast.makeText(
                     activity,
-                    UiText.get(R.string.waex_ui_root_installation_failed_1_s_eb2c4718, "Root installation failed: %1\$s", result?.trim().orEmpty().ifEmpty { UiText.get(R.string.waex_ui_unable_to_execute_the_root_installer_798f1547, "Unable to execute the root installer") }),
+                    UiText.get(R.string.waex_ui_root_installation_failed_1_s, "Root installation failed: %1\$s", result?.trim().orEmpty().ifEmpty { UiText.get(R.string.waex_ui_unable_to_execute_the_root_installer, "Unable to execute the root installer") }),
                     Toast.LENGTH_LONG
                 ).show()
             }

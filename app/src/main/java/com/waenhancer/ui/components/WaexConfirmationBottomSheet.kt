@@ -17,7 +17,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -49,7 +48,7 @@ fun WaexConfirmationBottomSheet(
     val actionColor = if (destructive) colors.error else colors.primary
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    ModalBottomSheet(
+    WaexModalBottomSheet(
         onDismissRequest = { if (confirmEnabled) onDismiss() },
         sheetState = sheetState,
         containerColor = colors.surface,

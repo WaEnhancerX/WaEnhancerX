@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class DexCacheGenerationTest {
     public static final class OldTarget { public int oldField; public void oldMethod() {} }
+    public static final class HotfixTarget { public int newField; public void newMethod() {} }
     public static final class CorrectedTarget { public int newField; public void newMethod() {} }
 
     private static final class FilePrefs implements SharedPreferences {
@@ -45,11 +46,12 @@ public final class DexCacheGenerationTest {
             boolean clear;
             final Map<String, String> changes = new HashMap<>();
             @Override public Editor clear() { clear = true; return this; }
+            @Override public Editor remove(String key) { changes.put(key, null); return this; }
             @Override public Editor putString(String key, String value) { changes.put(key, "S:" + value); return this; }
             @Override public Editor putLong(String key, long value) { changes.put(key, "L:" + value); return this; }
             @Override public void apply() {
                 if (clear) { data.clear(); clears++; }
-                data.putAll(changes);
+                changes.forEach((key,value) -> { if(value==null) data.remove(key); else data.put(key,value); });
                 try (OutputStream output = Files.newOutputStream(path)) { data.store(output, "JVM fixture only"); }
                 catch (Exception failure) { throw new IllegalStateException(failure); }
             }
@@ -60,6 +62,7 @@ public final class DexCacheGenerationTest {
         final PackageManager manager = new PackageManager();
         Host(Path path) throws Exception {
             prefs = new FilePrefs(path);
+            manager.hideModule = true; // Exact compiled identity must work when HMA/profile hides the manager.
             manager.info.code = 1234L;
             manager.info.versionCode = 1234;
         }
@@ -79,7 +82,8 @@ public final class DexCacheGenerationTest {
         boolean seed = phase.equals("seed");
         boolean fresh = phase.equals("fresh");
         boolean reuseOld = phase.equals("reuse-old");
-        Class<?> expected = seed || reuseOld ? OldTarget.class : CorrectedTarget.class;
+        Class<?> updated = args.length > 2 && args[2].equals("name-update") ? HotfixTarget.class : CorrectedTarget.class;
+        Class<?> expected = seed || reuseOld ? OldTarget.class : updated;
         Class<?> fallback = fresh || seed ? expected : OldTarget.class;
         Method expectedMethod = expected.getMethod(expected == OldTarget.class ? "oldMethod" : "newMethod");
         Field expectedField = expected.getField(expected == OldTarget.class ? "oldField" : "newField");
@@ -95,12 +99,16 @@ public final class DexCacheGenerationTest {
         Field field = cache.getField(loader, "route-field", () -> {
             scans.incrementAndGet(); return fallback.getField(fallback == OldTarget.class ? "oldField" : "newField");
         });
+        Class<?>[] types = cache.getClasses(loader, "route-classes", () -> { scans.incrementAndGet(); return new Class<?>[]{fallback}; });
+        Method[] methods = cache.getMethods(loader, "route-methods", () -> { scans.incrementAndGet(); return new Method[]{fallback.getMethod(fallback == OldTarget.class ? "oldMethod" : "newMethod")}; });
+        check(types.length == 1 && types[0] == expected, "module generation returned obsolete class array");
+        check(methods.length == 1 && methods[0].equals(expectedMethod), "module generation returned obsolete method array");
         System.out.println("GENERATION_OBSERVED phase=" + phase + " class=" + type.getSimpleName()
                 + " method=" + method.getName() + " field=" + field.getName() + " resolver_calls=" + scans.get());
         check(type == expected, "module generation returned an obsolete but still resolvable class");
         check(expectedMethod.equals(method), "module generation returned an obsolete but still resolvable method");
         check(expectedField.equals(field), "module generation returned an obsolete but still resolvable field");
-        check(scans.get() == (seed || fresh ? 3 : 0), "one resolution per kind only after generation change");
+        check(scans.get() == (seed || fresh ? 5 : 0), "one resolution per kind only after generation change");
         check(host.prefs.clears == (seed || fresh ? 1 : 0), "cache invalidates once on generation change, never every launch");
         System.out.println("GENERATION_PASS phase=" + phase + " resolver_calls=" + scans.get()
                 + " invalidations=" + host.prefs.clears);

@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="feat_metaai_title">Удалить Meta AI</string>
+    <string name="feat_metaai_desc">Выберите элементы и точки доступа Meta AI, которые нужно удалить.</string>
+    <string name="meta_ai_remove_home_fab">"Удалить домашнюю страницу FAB"</string>
+    <string name="meta_ai_remove_entry_points">"Удалите точки входа Meta AI."</string>
+    <string name="meta_ai_block_chat">"Заблокировать чат Meta AI"</string>
+</resources>

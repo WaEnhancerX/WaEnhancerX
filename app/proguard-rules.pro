@@ -76,8 +76,11 @@
 -dontwarn de.robv.android.xposed.**
 
 -keep class com.waenhancer.xposed.MainHook { *; }
+-keepnames class com.waenhancer.xposed.features.**
 -keep class com.waenhancer.xposed.utils.ModuleStatus {
     public static boolean isModuleActive();
 }
 
 
+# On-device transcription: libwaexwhisper.so binds to these JNI names.
+-keep class com.waenhancer.core.transcription.local.WhisperNative { native <methods>; }

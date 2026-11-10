@@ -3,25 +3,18 @@ package com.waenhancer.ui.components
 import com.waenhancer.app.R
 import com.waenhancer.utils.UiText
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
@@ -37,69 +30,51 @@ fun WaexSearchBar(
     val colors = WaexTheme.colors
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
-    val spacing = WaexTheme.spacing
-
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(48.dp),
-        shape = radius.mdShape,
-        color = colors.surfaceContainerLow,
-        border = BorderStroke(1.dp, colors.outlineVariant)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = spacing.stackSm),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+    TextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = modifier.fillMaxWidth(),
+        textStyle = typography.bodyLg,
+        placeholder = {
+            androidx.compose.material3.Text(
+                text = placeholder,
+                style = typography.bodyLg,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        },
+        leadingIcon = {
             Icon(
                 imageVector = WaexIcons.Search,
                 contentDescription = null,
                 tint = colors.onSurfaceVariant,
-                modifier = Modifier
-                    .padding(horizontal = spacing.stackSm)
-                    .size(20.dp)
+                modifier = Modifier.size(22.dp)
             )
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(vertical = spacing.stackSm),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                if (query.isEmpty()) {
-                    Text(
-                        text = placeholder,
-                        style = typography.bodyMd,
-                        color = colors.onSurfaceVariant
-                    )
-                }
-                BasicTextField(
-                    value = query,
-                    onValueChange = onQueryChange,
-                    singleLine = true,
-                    textStyle = typography.bodyMd.copy(color = colors.onSurface),
-                    cursorBrush = SolidColor(colors.primary),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(
-                        onSearch = {
-                            if (onSearch != null) onSearch()
-                        }
-                    ),
-                    modifier = Modifier.fillMaxWidth()
+        },
+        trailingIcon = if (query.isNotEmpty()) {{
+            IconButton(onClick = { onQueryChange("") }) {
+                Icon(
+                    imageVector = WaexIcons.Clear,
+                    contentDescription = UiText.get(R.string.waex_ui_clear_search, "Clear search"),
+                    tint = colors.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
                 )
             }
-            if (query.isNotEmpty()) {
-                IconButton(
-                    onClick = { onQueryChange("") },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = WaexIcons.Clear,
-                        contentDescription = UiText.get(R.string.waex_ui_clear_search_3b7ea517, "Clear search"),
-                        tint = colors.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-        }
-    }
+        }} else null,
+        singleLine = true,
+        shape = radius.fullShape,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { onSearch?.invoke() }),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = colors.surfaceContainerHigh,
+            unfocusedContainerColor = colors.surfaceContainerHigh,
+            disabledContainerColor = colors.surfaceContainerLow,
+            focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+            unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+            disabledIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+            cursorColor = colors.primary,
+            focusedTextColor = colors.onSurface,
+            unfocusedTextColor = colors.onSurface
+        )
+    )
 }

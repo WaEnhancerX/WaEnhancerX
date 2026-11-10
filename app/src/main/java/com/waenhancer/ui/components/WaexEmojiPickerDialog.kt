@@ -26,7 +26,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -47,6 +46,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.waenhancer.ui.designsystem.WaexTheme
+import com.waenhancer.utils.EmojiInputPolicy
 
 private val PRESET_EMOJIS = listOf(
     "👍", "❤️", "😂", "😮", "😢", "🙏",
@@ -67,9 +67,12 @@ fun WaexEmojiPickerDialog(
     val radius = WaexTheme.radius
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    var selectedEmoji by remember { mutableStateOf(initialEmoji.ifBlank { "👍" }) }
+    var emojiInput by remember(initialEmoji) {
+        mutableStateOf(EmojiInputPolicy.singleEmojiOrDefault(initialEmoji))
+    }
+    val hasValidSingleEmoji = EmojiInputPolicy.isSingleEmoji(emojiInput.trim())
 
-    ModalBottomSheet(
+    WaexModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.surface,
@@ -93,7 +96,7 @@ fun WaexEmojiPickerDialog(
                 )
 
                 Text(
-                    text = UiText.get(R.string.waex_ui_select_or_type_the_default_emoji_sent_1489519d, "Select or type the default emoji sent when double-tapping a message."),
+                    text = UiText.get(R.string.waex_ui_select_or_type_the_default_emoji_sent, "Select or type the default emoji sent when double-tapping a message."),
                     style = typography.bodySm,
                     color = colors.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
@@ -101,7 +104,7 @@ fun WaexEmojiPickerDialog(
 
                 // Quick Presets
                 Text(
-                    text = UiText.get(R.string.waex_ui_popular_reactions_c2b82def, "Popular Reactions"),
+                    text = UiText.get(R.string.waex_ui_popular_reactions, "Popular Reactions"),
                     style = typography.labelSm,
                     color = colors.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -113,7 +116,7 @@ fun WaexEmojiPickerDialog(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     PRESET_EMOJIS.forEach { emoji ->
-                        val isSelected = selectedEmoji == emoji
+                        val isSelected = emojiInput == emoji
                         Box(
                             modifier = Modifier
                                 .size(44.dp)
@@ -122,7 +125,7 @@ fun WaexEmojiPickerDialog(
                                     if (isSelected) colors.primary.copy(alpha = 0.2f)
                                     else colors.surfaceContainerHighest
                                 )
-                                .clickable { selectedEmoji = emoji },
+                        .clickable { emojiInput = emoji },
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -138,20 +141,17 @@ fun WaexEmojiPickerDialog(
 
                 // Custom Input Field
                 Text(
-                    text = UiText.get(R.string.waex_ui_or_enter_custom_emoji_8442012c, "Or enter custom emoji"),
+                    text = UiText.get(R.string.waex_ui_or_enter_custom_emoji, "Or enter custom emoji"),
                     style = typography.labelSm,
                     color = colors.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 6.dp)
                 )
 
                 OutlinedTextField(
-                    value = selectedEmoji,
-                    onValueChange = { newValue ->
-                        if (newValue.length <= 4) {
-                            selectedEmoji = newValue
-                        }
-                    },
+                    value = emojiInput,
+                    onValueChange = { emojiInput = it },
                     singleLine = true,
+                    isError = emojiInput.isNotEmpty() && !hasValidSingleEmoji,
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -161,7 +161,7 @@ fun WaexEmojiPickerDialog(
                         unfocusedTextColor = colors.onSurface
                     ),
                     placeholder = {
-                        Text(UiText.get(R.string.waex_ui_e_g_007cd8a1, "e.g. 👍"), color = colors.onSurfaceVariant)
+                        Text(UiText.get(R.string.waex_ui_e_g, "e.g. 👍"), color = colors.onSurfaceVariant)
                     }
                 )
 
@@ -170,10 +170,10 @@ fun WaexEmojiPickerDialog(
                 // Actions
                 Button(
                     onClick = {
-                        val finalEmoji = selectedEmoji.trim().ifEmpty { "👍" }
-                        onEmojiSelected(finalEmoji)
+                        onEmojiSelected(emojiInput.trim())
                         onDismiss()
                     },
+                    enabled = hasValidSingleEmoji,
                     colors = ButtonDefaults.buttonColors(containerColor = colors.primary),
                     shape = radius.buttonShape,
                     modifier = Modifier.fillMaxWidth().height(50.dp)

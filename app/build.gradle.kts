@@ -3,6 +3,8 @@ import java.io.FileInputStream
 import java.security.KeyStore
 import java.security.MessageDigest
 
+import com.android.build.gradle.api.ApkVariantOutput
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -35,7 +37,24 @@ android {
         }
 
         val devGh = project.findProperty("DEV_GH")?.toString()?.trim() ?: "mubashardev"
+        val gitSha = (project.findProperty("GIT_SHA")?.toString()
+            ?: System.getenv("GITHUB_SHA") ?: "unknown").take(12)
         buildConfigField("String", "DEV_GH", "\"$devGh\"")
+        buildConfigField("String", "GH_DEV", "\"$devGh\"")
+        buildConfigField("String", "GIT_SHA", "\"$gitSha\"")
+        buildConfigField("String", "MAPPING_ID", "\"${configuredVersionCode}-$gitSha\"")
+
+        // On-device transcription (whisper.cpp) is built for 64-bit ARM only. This filter
+        // applies to the CMake build alone; prebuilt libraries keep all their ABIs.
+        externalNativeBuild {
+            cmake {
+                abiFilters += "arm64-v8a"
+                arguments += listOf(
+                    "-DANDROID_STL=c++_shared", // several native libraries share one C++ runtime
+                    "-DCMAKE_BUILD_TYPE=Release" // debug APKs too: unoptimised whisper.cpp is ~20x slower
+                )
+            }
+        }
     }
 
     signingConfigs {
@@ -83,6 +102,13 @@ android {
 
     buildTypes {
         debug {
+            // Debug APKs are distributed to testers, so run the same whole-program
+            // shrinking/obfuscation pass as release. The mapping file remains under
+            // app/build/outputs/mapping/debug for local crash retracing.
+            // AGP deliberately disables R8 obfuscation for debuggable variants.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName("releaseConfig")
         }
         release {
@@ -103,12 +129,23 @@ android {
         buildConfig = true
     }
 
+    ndkVersion = "27.0.12077973"
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
         jniLibs {
-            useLegacyPackaging = false
+            // Xposed injects WAEX code into WhatsApp's process. DexSearchEngine loads
+            // libdexkit.so through WAEX's absolute nativeLibraryDir path, so the .so
+            // must be extracted instead of being mmap'd directly from the APK.
+            useLegacyPackaging = true
         }
     }
 
@@ -119,7 +156,7 @@ android {
     applicationVariants.all {
         val variant = this
         variant.outputs.forEach {
-            val output = it as? com.android.build.gradle.api.ApkVariantOutput
+            val output = it as? ApkVariantOutput
             if (output != null) {
                 val suffix = if (variant.buildType.name == "debug") "_debug" else "_release"
                 output.outputFileName = "WaEnhancerX-v${variant.versionName}${suffix}.apk"
@@ -147,7 +184,8 @@ dependencies {
 
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
-    implementation(libs.androidx.compose.material3)
+    // Material 3 Expressive wavy progress indicators compatible with AGP 9.0.x and compileSdk 36
+    implementation("androidx.compose.material3:material3:1.5.0-alpha18")
     implementation(libs.androidx.compose.icons.core)
     implementation("androidx.compose.material:material-icons-extended")
     debugImplementation(libs.androidx.compose.ui.tooling)
@@ -187,6 +225,7 @@ dependencies {
 
     // Testing
     testImplementation(libs.junit)
+    testImplementation(libs.libxposed.legacy)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.test.ext.junit)

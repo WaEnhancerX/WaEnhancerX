@@ -5,11 +5,24 @@ import com.waenhancer.utils.UiText
 import android.widget.Toast
 import com.waenhancer.ui.components.WaexProChip
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.PaddingValues
+import com.waenhancer.ui.components.WaexCategoryHeader
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -36,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.waenhancer.config.FeatureCatalog
 import com.waenhancer.config.FeatureItem
 import com.waenhancer.ui.components.StitchSwitch
+import com.waenhancer.ui.components.WaexModalBottomSheet
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
@@ -50,9 +64,14 @@ import com.waenhancer.ui.navigation.LocalIsPro
 import com.waenhancer.ui.navigation.LocalOnActivatePro
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
 import com.waenhancer.ui.navigation.Screen
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun StylesSettingsScreen() {
+fun StylesSettingsScreen(targetEpoch: Int = 0) {
     val colors = WaexTheme.colors
     val spacing = WaexTheme.spacing
     val typography = WaexTheme.typography
@@ -64,9 +83,22 @@ fun StylesSettingsScreen() {
 
     val navController = LocalWaexNavController.current
     val context = LocalContext.current
-    val scrollState = rememberScrollState()
-    val itemCoordinates = remember { mutableStateMapOf<String, Float>() }
-    var containerY by remember { mutableStateOf(0f) }
+    val listState = rememberLazyListState()
+
+    val appearanceGroups = remember {
+        FeatureCatalog.groupsFor(4, "appearance").map { StyleGroup(it.id, WaexIcons.Palette, it.items()) }
+    }
+    val layoutGroups = remember {
+        FeatureCatalog.groupsFor(4, "layout").map { group ->
+            val icon = when (group.id) {
+                "conversation_list_activity_presence" -> WaexIcons.Security
+                "home_layout_navigation" -> WaexIcons.GridView
+                else -> WaexIcons.Extension
+            }
+            StyleGroup(group.id, icon, group.items())
+        }
+    }
+    val expandedSections = remember { mutableStateMapOf<String, Boolean>() }
 
     LaunchedEffect(navController.targetSubTabId) {
         val target = navController.targetSubTabId
@@ -76,15 +108,33 @@ fun StylesSettingsScreen() {
         }
     }
 
-    LaunchedEffect(navController.scrollToTargetKey, itemCoordinates.keys.toList()) {
+    val density = LocalDensity.current
+
+    LaunchedEffect(navController.scrollToTargetKey) {
         val target = navController.scrollToTargetKey
         if (target != null) {
-            delay(100)
-            if (itemCoordinates.containsKey(target)) {
-                val yOffset = itemCoordinates[target] ?: 0f
-                scrollState.animateScrollTo(yOffset.toInt())
-                navController.scrollToTargetKey = null
+            val inLayout = layoutGroups.any { grp -> grp.items.any { it.key == target } }
+            val inAppearance = appearanceGroups.any { grp -> grp.items.any { it.key == target } }
+            if (inLayout && selectedTab != "layout") {
+                selectedTab = "layout"
+                delay(120)
+            } else if (inAppearance && selectedTab != "appearance") {
+                selectedTab = "appearance"
+                delay(120)
             }
+            delay(80)
+            val groups = if (selectedTab == "layout") layoutGroups else appearanceGroups
+            val groupIdx = groups.indexOfFirst { grp -> grp.items.any { it.key == target } }
+            if (groupIdx != -1) {
+                val group = groups[groupIdx]
+                expandedSections[group.title] = true
+                val itemIdx = group.items.indexOfFirst { it.key == target }.coerceAtLeast(0)
+                val cardIndex = 2 + (groupIdx * 2)
+                val estimatedRowHeight = with(density) { 72.dp.roundToPx() }
+                val offsetPx = itemIdx * estimatedRowHeight
+                listState.animateScrollToItem(cardIndex, offsetPx)
+            }
+            navController.scrollToTargetKey = null
         }
     }
 
@@ -99,20 +149,40 @@ fun StylesSettingsScreen() {
     }
 
     val preferenceManager = LocalWaexPreferenceManager.current
+    var removeMetaAiHomeFab by remember(targetEpoch) {
+        mutableStateOf(preferenceManager.getBoolean("metaai_remove_home_fab", true))
+    }
+    var removeMetaAiEntryPoints by remember(targetEpoch) {
+        mutableStateOf(preferenceManager.getBoolean("metaai_remove_entry_points", true))
+    }
+    var blockMetaAiChat by remember(targetEpoch) {
+        mutableStateOf(preferenceManager.getBoolean("metaai_block_chat", true))
+    }
+    var showTimestampFormatSheet by remember { mutableStateOf(false) }
+    var showModifyTextSheet by remember { mutableStateOf(false) }
+    var timestampFormat by remember(targetEpoch, typedValueRevision) {
+        mutableStateOf(preferenceManager.getString("timestamp_format", "HH:mm a") ?: "HH:mm a")
+    }
+    var timestampCustomPattern by remember(targetEpoch, typedValueRevision) {
+        mutableStateOf(preferenceManager.getString("timestamp_custom_pattern", "HH:mm a") ?: "HH:mm a")
+    }
+    var timestampCustomText by remember(targetEpoch, typedValueRevision) {
+        mutableStateOf(preferenceManager.getString("timestamp_custom_text", "\${t}") ?: "\${t}")
+    }
     val stylesKeys = remember {
         listOf(
             "bubble_colors", "custom_theme", "custom_time_format", "custom_toolbar",
             "custom_view_dpi", "seen_tick_customization", "floating_bottom_bar",
-            "unlock_premium_customization", "custom_filters",
+            "unlock_premium_customization", "custom_filters", "custom_ab_props",
             "dotonline", "showonlinetext", "typing_online_toasts",
             "metaai", "channels_enhancements", "chat_filters", "hide_ui_tabs",
-            "instagram_status_layout", "status_style", "separate_groups_tabs", "quick_home_menu",
+            "instagram_status_layout", "native_igstatus", "status_style", "separate_groups_tabs", "quick_home_menu",
             "contact_blocked_verify",
             "disable_sensor_proximity"
         )
     }
 
-    val settingsState = remember {
+    val settingsState = remember(targetEpoch) {
         mutableStateMapOf<String, Boolean>().apply {
             stylesKeys.forEach { key ->
                 if (StyleNonBooleanPreferencePolicy.requiresDedicatedEditor(key)) {
@@ -125,7 +195,7 @@ fun StylesSettingsScreen() {
                         preferenceManager.getString("seentick", "0")
                     ))
                 } else {
-                    val defaultValue = false
+                    val defaultValue = key == "native_igstatus"
                     val canonicalKey = StyleBooleanAliasPolicy.canonicalKey(key)
                     val legacyDefault = if (canonicalKey == key) defaultValue
                         else preferenceManager.getBoolean(key, defaultValue)
@@ -154,7 +224,7 @@ fun StylesSettingsScreen() {
             settingsState[key] = preferenceManager.getBoolean(canonicalKey, value)
         } else {
             // Failed commits must not appear as successful changes in the UI.
-            Toast.makeText(context, UiText.get(R.string.waex_ui_unable_to_save_setting_d9dcb19d, "Unable to save setting"), Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, UiText.get(R.string.waex_ui_unable_to_save_setting, "Unable to save setting"), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -162,31 +232,14 @@ fun StylesSettingsScreen() {
     val isPro = LocalIsPro.current
     val onActivatePro = LocalOnActivatePro.current
 
-    val appearanceGroups = remember {
-        FeatureCatalog.groupsFor(4, "appearance").map { StyleGroup(it.id, WaexIcons.Palette, it.items()) }
-    }
-    val layoutGroups = remember {
-        FeatureCatalog.groupsFor(4, "layout").map { group ->
-            val icon = when (group.id) {
-                "conversation_list_activity_presence" -> WaexIcons.Security
-                "home_layout_navigation" -> WaexIcons.GridView
-                else -> WaexIcons.Extension
-            }
-            StyleGroup(group.id, icon, group.items())
-        }
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .onGloballyPositioned { containerCoordinates ->
-                containerY = containerCoordinates.positionInRoot().y
-            }
-            .padding(vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         // Tab switcher header
+        item(key = "tab_switcher") {
         Surface(
             shape = radius.mdShape,
             color = colors.surfaceDim,
@@ -230,7 +283,7 @@ fun StylesSettingsScreen() {
                     modifier = Modifier.fillMaxSize(),
                     horizontalArrangement = Arrangement.SpaceAround
                 ) {
-                    listOf("appearance" to UiText.get(R.string.waex_ui_appearance_3907fa7f, "Appearance"), "layout" to UiText.get(R.string.waex_ui_home_feed_ea0a795f, "Home & Feed")).forEach { (tabId, label) ->
+                    listOf("appearance" to UiText.get(R.string.waex_ui_appearance, "Appearance"), "layout" to UiText.get(R.string.waex_ui_home_feed, "Home & Feed")).forEach { (tabId, label) ->
                         val isSelected = selectedTab == tabId
                         val textColor by animateColorAsState(
                             targetValue = if (isSelected) colors.primary else colors.onSurfaceVariant,
@@ -259,45 +312,49 @@ fun StylesSettingsScreen() {
                 }
             }
         }
+        }
 
         // Render Style Groups
         val activeGroups = if (selectedTab == "appearance") appearanceGroups else layoutGroups
         activeGroups.forEach { group ->
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = spacing.pageMargin)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
-                ) {
-                    Icon(
-                        imageVector = group.icon,
-                        contentDescription = null,
-                        tint = colors.primary,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Text(
-                        text = LocalizationHelper.getLocalizedSectionTitle(context, group.title),
-                        style = typography.labelSm,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.onSurfaceVariant
-                    )
-                }
+            val isExpanded = expandedSections[group.title] ?: true
+            stickyHeader(key = "header_${group.title}") {
+                WaexCategoryHeader(
+                    title = LocalizationHelper.getLocalizedSectionTitle(context, group.title),
+                    icon = group.icon,
+                    isExpanded = isExpanded,
+                    onToggleExpand = {
+                        expandedSections[group.title] = !isExpanded
+                    }
+                )
+            }
 
-                Surface(
-                    shape = radius.bentoCardShape,
+            item(key = "card_${group.title}") {
+                AnimatedVisibility(
+                    visible = isExpanded,
+                    enter = expandVertically(tween(250)) + fadeIn(tween(250)),
+                    exit = shrinkVertically(tween(250)) + fadeOut(tween(200))
+                ) {
+                    Surface(
+                    shape = radius.cardShape,
                     color = colors.surfaceDim,
-                    border = BorderStroke(1.dp, colors.outlineVariant),
-                    modifier = Modifier.fillMaxWidth()
+                    border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.5f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = spacing.pageMargin)
                 ) {
                     Column {
                         group.items.forEachIndexed { index, item ->
                             val isLocked = item.isPro && !isPro
                             val needsTypedEditor = StyleNonBooleanPreferencePolicy.requiresDedicatedEditor(item.key)
                             val isHighlighted = navController.highlightTargetKey == item.key
+                            val bringIntoViewRequester = remember { BringIntoViewRequester() }
+                            if (isHighlighted) {
+                                LaunchedEffect(Unit) {
+                                    delay(200)
+                                    bringIntoViewRequester.bringIntoView()
+                                }
+                            }
                             val highlightBgColor by animateColorAsState(
                                 targetValue = if (isHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent,
                                 animationSpec = tween(durationMillis = 300),
@@ -308,11 +365,8 @@ fun StylesSettingsScreen() {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .bringIntoViewRequester(bringIntoViewRequester)
                                     .background(highlightBgColor)
-                                    .onGloballyPositioned { coordinates ->
-                                        val y = coordinates.positionInRoot().y - containerY + scrollState.value
-                                        itemCoordinates[item.key] = y
-                                    }
                                     .clickable {
                                         if (isLocked) {
                                             onActivatePro()
@@ -363,7 +417,7 @@ fun StylesSettingsScreen() {
                                             ) {
                                                 Icon(
                                                     imageVector = WaexIcons.Settings,
-                                                    contentDescription = UiText.get(R.string.waex_ui_customize_floating_bottom_bar_58ae0180, "Customize Floating Bottom Bar"),
+                                                    contentDescription = UiText.get(R.string.waex_ui_customize_floating_bottom_bar, "Customize Floating Bottom Bar"),
                                                     tint = colors.primary,
                                                     modifier = Modifier.size(20.dp)
                                                 )
@@ -378,7 +432,20 @@ fun StylesSettingsScreen() {
                                             ) {
                                                 Icon(
                                                     imageVector = WaexIcons.Settings,
-                                                    contentDescription = UiText.get(R.string.waex_ui_configure_filter_items_1e380999, "Configure Filter Items"),
+                                                    contentDescription = UiText.get(R.string.waex_ui_configure_filter_items, "Configure Filter Items"),
+                                                    tint = colors.primary,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+                                        if (item.key == "custom_ab_props") {
+                                            IconButton(
+                                                onClick = { navController.navigateTo(Screen.CustomAbProps) },
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = WaexIcons.Settings,
+                                                    contentDescription = "Configure Custom AB Properties",
                                                     tint = colors.primary,
                                                     modifier = Modifier.size(20.dp)
                                                 )
@@ -387,7 +454,7 @@ fun StylesSettingsScreen() {
                                         if (needsTypedEditor) {
                                             Icon(
                                                 imageVector = WaexIcons.ChevronRight,
-                                                contentDescription = UiText.get(R.string.waex_ui_configure_1_s_a548a230, "Configure %1\$s", locTitle),
+                                                contentDescription = UiText.get(R.string.waex_ui_configure_1_s, "Configure %1\$s", locTitle),
                                                 tint = colors.primary,
                                                 modifier = Modifier.size(20.dp)
                                             )
@@ -407,15 +474,181 @@ fun StylesSettingsScreen() {
                                     )
                                 }
                             }
+                            if (item.key == "metaai" && settingsState[item.key] == true) {
+                                MetaAiRemovalSwitch(
+                                    title = stringResource(R.string.meta_ai_remove_home_fab),
+                                    checked = removeMetaAiHomeFab,
+                                    onCheckedChange = { enabled ->
+                                        if (preferenceManager.putBooleans(mapOf("metaai_remove_home_fab" to enabled))) {
+                                            removeMetaAiHomeFab = enabled
+                                        }
+                                    }
+                                )
+                                MetaAiRemovalSwitch(
+                                    title = stringResource(R.string.meta_ai_remove_entry_points),
+                                    checked = removeMetaAiEntryPoints,
+                                    onCheckedChange = { enabled ->
+                                        if (preferenceManager.putBooleans(mapOf("metaai_remove_entry_points" to enabled))) {
+                                            removeMetaAiEntryPoints = enabled
+                                        }
+                                    }
+                                )
+                                MetaAiRemovalSwitch(
+                                    title = stringResource(R.string.meta_ai_block_chat),
+                                    checked = blockMetaAiChat,
+                                    onCheckedChange = { enabled ->
+                                        if (preferenceManager.putBooleans(mapOf("metaai_block_chat" to enabled))) {
+                                            blockMetaAiChat = enabled
+                                        }
+                                    }
+                                )
+                            }
+                            if (item.key == "custom_time_format" && (settingsState[item.key] == true)) {
+                                HorizontalDivider(
+                                    thickness = 1.dp,
+                                    color = colors.outlineVariant.copy(alpha = 0.4f),
+                                    modifier = Modifier.padding(start = 32.dp)
+                                )
+                                // Sub-pref 1: Timestamp format
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { showTimestampFormatSheet = true }
+                                        .padding(start = 32.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = UiText.get(R.string.timestamp_format_title, "Timestamp format"),
+                                            style = typography.bodyLg,
+                                            fontWeight = FontWeight.Medium,
+                                            color = colors.onSurface
+                                        )
+                                        Text(
+                                            text = if (timestampFormat == "Custom Pattern") {
+                                                if (timestampCustomPattern.isNotBlank()) "Custom Pattern ($timestampCustomPattern)" else "Custom Pattern"
+                                            } else {
+                                                timestampFormat
+                                            },
+                                            style = typography.bodyMd,
+                                            color = colors.onSurfaceVariant,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = WaexIcons.ChevronRight,
+                                        contentDescription = UiText.get(R.string.waex_ui_configure_1_s, "Configure %1\$s",
+                                            UiText.get(R.string.timestamp_format_title, "Timestamp format")),
+                                        tint = colors.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                // Custom pattern input field appears right after the format pref when Custom Pattern is selected
+                                if (timestampFormat == "Custom Pattern") {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(start = 32.dp, end = 16.dp, bottom = 12.dp)
+                                    ) {
+                                        var patternInput by remember(timestampCustomPattern) { mutableStateOf(timestampCustomPattern) }
+                                        val isPatternValid = remember(patternInput) {
+                                            if (patternInput.isBlank()) false else try {
+                                                DateTimeFormatter.ofPattern(patternInput.trim())
+                                                true
+                                            } catch (t: Throwable) {
+                                                false
+                                            }
+                                        }
+                                        OutlinedTextField(
+                                            value = patternInput,
+                                            onValueChange = { input ->
+                                                patternInput = input
+                                                if (input.isNotBlank()) {
+                                                    try {
+                                                        DateTimeFormatter.ofPattern(input.trim())
+                                                        preferenceManager.putPublicString("timestamp_custom_pattern", input.trim())
+                                                        timestampCustomPattern = input.trim()
+                                                    } catch (ignored: Throwable) {}
+                                                }
+                                            },
+                                            label = { Text(UiText.get(R.string.timestamp_custom_pattern_label, "Custom Pattern")) },
+                                            placeholder = { Text(UiText.get(R.string.timestamp_custom_pattern_hint, "e.g. HH:mm a, dd/MM HH:mm:ss")) },
+                                            isError = !isPatternValid && patternInput.isNotEmpty(),
+                                            supportingText = {
+                                                if (!isPatternValid && patternInput.isNotEmpty()) {
+                                                    Text(UiText.get(R.string.timestamp_invalid_pattern, "Invalid date/time pattern"), color = colors.error)
+                                                } else if (isPatternValid) {
+                                                    val sample = remember(patternInput) {
+                                                        try {
+                                                            DateTimeFormatter.ofPattern(patternInput.trim(), Locale.getDefault())
+                                                                .withZone(ZoneId.systemDefault())
+                                                                .format(Instant.now())
+                                                        } catch (e: Throwable) { "" }
+                                                    }
+                                                    if (sample.isNotEmpty()) {
+                                                        Text("Preview: $sample", color = colors.primary)
+                                                    }
+                                                }
+                                            },
+                                            singleLine = true,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
+                                }
+
+                                HorizontalDivider(
+                                    thickness = 1.dp,
+                                    color = colors.outlineVariant.copy(alpha = 0.4f),
+                                    modifier = Modifier.padding(start = 32.dp)
+                                )
+
+                                // Sub-pref 2: Modify text
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { showModifyTextSheet = true }
+                                        .padding(start = 32.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = UiText.get(R.string.timestamp_modify_text_title, "Modify text"),
+                                            style = typography.bodyLg,
+                                            fontWeight = FontWeight.Medium,
+                                            color = colors.onSurface
+                                        )
+                                        Text(
+                                            text = timestampCustomText,
+                                            style = typography.bodyMd,
+                                            color = colors.onSurfaceVariant,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = WaexIcons.ChevronRight,
+                                        contentDescription = UiText.get(R.string.waex_ui_configure_1_s, "Configure %1\$s",
+                                            UiText.get(R.string.timestamp_modify_text_title, "Modify text")),
+                                        tint = colors.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
                             if (index < group.items.lastIndex) {
-                                HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
+                                HorizontalDivider(thickness = 0.8.dp, color = colors.outlineVariant.copy(alpha = 0.4f), modifier = Modifier.padding(horizontal = 16.dp))
                             }
                         }
                     }
                 }
+                }
             }
         }
-        Spacer(modifier = Modifier.height(100.dp))
     }
 
     typedEditorKey?.let { key ->
@@ -430,6 +663,72 @@ fun StylesSettingsScreen() {
         )
     }
 
+    if (showTimestampFormatSheet) {
+        ChoiceValueEditorDialog(
+            title = UiText.get(R.string.timestamp_format_title, "Timestamp format"),
+            selectedValue = timestampFormat,
+            choices = listOf(
+                "HH:mm a" to "HH:mm a (default)",
+                "HH:mm:ss" to "HH:mm:ss",
+                "h:mm:ss a" to "h:mm:ss a",
+                "HH:mm:ss.SSS" to "HH:mm:ss.SSS",
+                "h:mm:ss.SSS a" to "h:mm:ss.SSS a",
+                "Custom Pattern" to "Custom Pattern"
+            ),
+            optionPreview = { value ->
+                val pattern = if (value == "Custom Pattern") timestampCustomPattern else value
+                formatTimestampPreview(pattern)
+            },
+            onDismiss = { showTimestampFormatSheet = false },
+            onSave = { selected ->
+                preferenceManager.putPublicString("timestamp_format", selected)
+                timestampFormat = selected
+                showTimestampFormatSheet = false
+                typedValueRevision++
+            }
+        )
+    }
+
+    if (showModifyTextSheet) {
+        ModifyTimestampTextSheet(
+            initialText = timestampCustomText,
+            selectedFormat = timestampFormat,
+            customPattern = timestampCustomPattern,
+            onDismiss = { showModifyTextSheet = false },
+            onSave = { savedText ->
+                preferenceManager.putPublicString("timestamp_custom_text", savedText)
+                timestampCustomText = savedText
+                showModifyTextSheet = false
+                typedValueRevision++
+            }
+        )
+    }
+
+}
+
+@Composable
+private fun MetaAiRemovalSwitch(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    val colors = WaexTheme.colors
+    val typography = WaexTheme.typography
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(start = 32.dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            modifier = Modifier.weight(1f),
+            style = typography.bodyMd,
+            color = colors.onSurface
+        )
+        StitchSwitch(checked = checked, onCheckedChange = onCheckedChange)
+    }
 }
 
 @Composable
@@ -445,38 +744,38 @@ private fun TypedStyleEditorDialog(
             onSaved()
         } else {
             // Keep the editor and its input open so the user can retry.
-            Toast.makeText(context, UiText.get(R.string.waex_ui_unable_to_save_setting_d9dcb19d, "Unable to save setting"), Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, UiText.get(R.string.waex_ui_unable_to_save_setting, "Unable to save setting"), Toast.LENGTH_SHORT).show()
         }
     }
     when (key) {
         "custom_theme" -> TextValueEditorDialog(
             title = UiText.get(R.string.feat_custom_theme_title, "Custom Theme CSS"),
-            description = UiText.get(R.string.waex_ui_style_whatsapp_views_using_ids_widget_eedbeb45, "Style WhatsApp views using IDs, widget types, scoped activities, and common CSS properties. Restart WhatsApp after saving."),
+            description = UiText.get(R.string.waex_ui_style_whatsapp_views_using_ids_widget, "Style WhatsApp views using IDs, widget types, scoped activities, and common CSS properties. Restart WhatsApp after saving."),
             initialValue = preferenceManager.getString("css_theme", "") ?: "",
             singleLine = false,
             placeholder = "#conversation_row_date {\n  color: #FFFFFF;\n  font-size: 12sp;\n}",
             validator = ::isValidCustomCss,
-            errorMessage = UiText.get(R.string.waex_ui_check_that_every_selector_has_a_matchi_c94dfb11, "Check that every selector has a matching { } block"),
+            errorMessage = UiText.get(R.string.waex_ui_check_that_every_selector_has_a_matchi, "Check that every selector has a matching { } block"),
             onDismiss = onDismiss,
             onSave = { completeSave(preferenceManager.putPublicString("css_theme", it.trim())) }
         )
         "custom_view_dpi" -> TextValueEditorDialog(
-            title = UiText.get(R.string.waex_ui_default_dpi_9037cbe6, "Default DPI"),
-            description = UiText.get(R.string.waex_ui_enter_0_to_use_the_device_default_or_a_2e3826cd, "Enter 0 to use the device default, or a DPI value from 120 to 1000."),
+            title = UiText.get(R.string.waex_ui_default_dpi, "Default DPI"),
+            description = UiText.get(R.string.waex_ui_enter_0_to_use_the_device_default_or_a, "Enter 0 to use the device default, or a DPI value from 120 to 1000."),
             initialValue = preferenceManager.getString("change_dpi", "0") ?: "0",
             singleLine = true,
             placeholder = "0",
             validator = { value ->
                 value.toIntOrNull()?.let { it == 0 || it in 120..1000 } == true
             },
-            errorMessage = UiText.get(R.string.waex_ui_enter_0_or_a_number_from_120_to_1000_b5a85be0, "Enter 0 or a number from 120 to 1000"),
+            errorMessage = UiText.get(R.string.waex_ui_enter_0_or_a_number_from_120_to_1000, "Enter 0 or a number from 120 to 1000"),
             onDismiss = onDismiss,
             onSave = { completeSave(preferenceManager.putPublicString("change_dpi", it.trim())) }
         )
         "chat_filters" -> ChoiceValueEditorDialog(
-            title = UiText.get(R.string.waex_ui_chat_filter_display_7d02ece7, "Chat filter display"),
+            title = UiText.get(R.string.waex_ui_chat_filter_display_label, "Chat filter display"),
             selectedValue = preferenceManager.getString("chatfilter", "2") ?: "2",
-            choices = listOf("0" to UiText.get(R.string.waex_ui_hide_search_14bd5cb7, "Hide search"), "1" to UiText.get(R.string.waex_ui_search_icon_edfdb08d, "Search icon"), "2" to UiText.get(R.string.waex_ui_search_bar_de54d68f, "Search bar")),
+            choices = listOf("0" to UiText.get(R.string.waex_ui_hide_search, "Hide search"), "1" to UiText.get(R.string.waex_ui_search_icon, "Search icon"), "2" to UiText.get(R.string.waex_ui_search_bar, "Search bar")),
             onDismiss = onDismiss,
             onSave = { completeSave(preferenceManager.putPublicString("chatfilter", it)) }
         )
@@ -484,21 +783,21 @@ private fun TypedStyleEditorDialog(
             title = UiText.get(R.string.feat_quick_home_menu_title, "Quick Action Home Menu"),
             selectedValue = preferenceManager.getString("waex_menu_style", "grouped") ?: "grouped",
             choices = listOf(
-                "grouped" to UiText.get(R.string.waex_ui_grouped_under_waex_2485cb08, "Grouped under WAEX"),
-                "separate" to UiText.get(R.string.waex_ui_separate_menu_items_36c8f114, "Separate menu items"),
-                "icons" to UiText.get(R.string.waex_ui_toolbar_icons_12004bba, "Toolbar icons")
+                "grouped" to UiText.get(R.string.waex_ui_grouped_under_waex, "Grouped under WAEX"),
+                "separate" to UiText.get(R.string.waex_ui_separate_menu_items, "Separate menu items"),
+                "icons" to UiText.get(R.string.waex_ui_toolbar_icons, "Toolbar icons")
             ),
             onDismiss = onDismiss,
             onSave = { completeSave(preferenceManager.putPublicString("waex_menu_style", it)) }
         )
         "hide_ui_tabs" -> MultiChoiceValueEditorDialog(
-            title = UiText.get(R.string.waex_ui_hide_home_tabs_98f3a2cc, "Hide home tabs"),
+            title = UiText.get(R.string.waex_ui_hide_home_tabs_label, "Hide home tabs"),
             selectedValues = preferenceManager.getStringSet("hidetabs", emptySet()) ?: emptySet(),
             choices = listOf(
-                "300" to UiText.get(R.string.waex_ui_updates_22e2bada, "Updates"),
-                "600" to UiText.get(R.string.waex_ui_communities_c864f329, "Communities"),
-                "400" to UiText.get(R.string.waex_ui_calls_b73a5e2c, "Calls"),
-                "700" to UiText.get(R.string.waex_ui_tools_ea93d6a2, "Tools")
+                "300" to UiText.get(R.string.waex_ui_updates, "Updates"),
+                "600" to UiText.get(R.string.waex_ui_communities, "Communities"),
+                "400" to UiText.get(R.string.waex_ui_calls, "Calls"),
+                "700" to UiText.get(R.string.waex_ui_tools, "Tools")
             ),
             onDismiss = onDismiss,
             onSave = { completeSave(preferenceManager.putPublicStringSet("hidetabs", it)) }
@@ -509,8 +808,6 @@ private fun TypedStyleEditorDialog(
             choices = listOf(
                 "1" to UiText.get(R.string.status_style_default, "Default"),
                 "0" to UiText.get(R.string.status_style_vertical_rows, "Vertical Rows"),
-                "5" to UiText.get(R.string.status_style_facebook_grid, "Facebook Cards (Grid)"),
-                "4" to UiText.get(R.string.status_style_vertical_compact, "Vertical List (Compact)"),
                 "3" to UiText.get(R.string.status_style_vertical_circle, "Vertical List (Circular Avatars)"),
                 "9" to UiText.get(R.string.status_style_vertical_square, "Vertical List (Square Cards)")
             ),
@@ -530,7 +827,7 @@ private fun TextValueEditorDialog(
     singleLine: Boolean,
     placeholder: String,
     validator: (String) -> Boolean = { true },
-    errorMessage: String = UiText.get(R.string.waex_ui_invalid_value_d3c7d623, "Invalid value"),
+    errorMessage: String = UiText.get(R.string.waex_ui_invalid_value, "Invalid value"),
     onDismiss: () -> Unit,
     onSave: (String) -> Unit
 ) {
@@ -539,7 +836,7 @@ private fun TextValueEditorDialog(
     val colors = WaexTheme.colors
     val radius = WaexTheme.radius
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(
+    WaexModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.surface,
@@ -585,12 +882,20 @@ private fun TextValueEditorDialog(
     }
 }
 
+private fun formatTimestampPreview(pattern: String): String {
+    return runCatching {
+        DateTimeFormatter.ofPattern(pattern, Locale.getDefault())
+            .format(Instant.now().atZone(ZoneId.systemDefault()))
+    }.getOrElse { "—" }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ChoiceValueEditorDialog(
     title: String,
     selectedValue: String,
     choices: List<Pair<String, String>>,
+    optionPreview: ((String) -> String)? = null,
     onDismiss: () -> Unit,
     onSave: (String) -> Unit
 ) {
@@ -600,7 +905,7 @@ private fun ChoiceValueEditorDialog(
     var selected by remember(title, selectedValue) { mutableStateOf(selectedValue) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    ModalBottomSheet(
+    WaexModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.surface,
@@ -666,8 +971,19 @@ private fun ChoiceValueEditorDialog(
                             style = typography.bodyLg,
                             color = if (isSelected) colors.primary else colors.onSurface,
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                            modifier = Modifier.padding(start = 4.dp)
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(start = 4.dp)
                         )
+                        optionPreview?.let { preview ->
+                            Text(
+                                text = preview(value),
+                                style = typography.bodySm,
+                                color = colors.onSurfaceVariant,
+                                maxLines = 1,
+                                modifier = Modifier.padding(end = 12.dp)
+                            )
+                        }
                     }
                     if (index < choices.lastIndex) {
                         HorizontalDivider(
@@ -728,7 +1044,7 @@ private fun MultiChoiceValueEditorDialog(
     val selected = remember(title, selectedValues) { mutableStateListOf<String>().apply { addAll(selectedValues) } }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    ModalBottomSheet(
+    WaexModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.surface,
@@ -847,6 +1163,178 @@ private fun MultiChoiceValueEditorDialog(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ModifyTimestampTextSheet(
+    initialText: String,
+    selectedFormat: String,
+    customPattern: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    val colors = WaexTheme.colors
+    val typography = WaexTheme.typography
+    val radius = WaexTheme.radius
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var textValue by remember(initialText) { mutableStateOf(initialText.ifEmpty { "\${t}" }) }
+
+    val effectivePattern = remember(selectedFormat, customPattern) {
+        if (selectedFormat == "Custom Pattern") {
+            customPattern.ifBlank { "HH:mm a" }
+        } else {
+            selectedFormat.ifBlank { "HH:mm a" }
+        }
+    }
+
+    val formattedTimestamp = remember(effectivePattern) {
+        try {
+            DateTimeFormatter.ofPattern(effectivePattern, Locale.getDefault())
+                .withZone(ZoneId.systemDefault())
+                .format(Instant.now())
+        } catch (e: Throwable) {
+            try {
+                DateTimeFormatter.ofPattern("HH:mm a", Locale.getDefault())
+                    .withZone(ZoneId.systemDefault())
+                    .format(Instant.now())
+            } catch (ignored: Throwable) {
+                "12:00 PM"
+            }
+        }
+    }
+
+    val livePreview = remember(textValue, formattedTimestamp) {
+        if (textValue.contains("\${t}")) {
+            textValue.replace("\${t}", formattedTimestamp)
+        } else {
+            textValue
+        }
+    }
+
+    WaexModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = colors.surface,
+        shape = radius.bottomSheetShape,
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(top = 10.dp, bottom = 6.dp)
+                    .size(width = 36.dp, height = 4.dp)
+                    .clip(CircleShape)
+                    .background(colors.outlineVariant.copy(alpha = 0.6f))
+            )
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .imePadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Instructions on top of sheet
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = UiText.get(R.string.timestamp_modify_text_title, "Modify text"),
+                    style = typography.headlineMd,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.onSurface
+                )
+                Text(
+                    text = UiText.get(
+                        R.string.timestamp_modify_text_instructions,
+                        "Use \${t} as the timestamp variable according to your selected format. You can add any text before and after \${t}, or enter custom text."
+                    ),
+                    style = typography.bodyMd,
+                    color = colors.onSurfaceVariant
+                )
+            }
+
+            // Input field
+            OutlinedTextField(
+                value = textValue,
+                onValueChange = { textValue = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = false,
+                label = { Text("Timestamp Text") },
+                placeholder = { Text("\${t}") },
+                trailingIcon = {
+                    if (!textValue.contains("\${t}")) {
+                        TextButton(onClick = {
+                            textValue = if (textValue.isEmpty()) "\${t}" else "$textValue \${t}"
+                        }) {
+                            Text("+\${t}", color = colors.primary, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            )
+
+            // Gap
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Preview under it with a gap
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(colors.surfaceContainerHighest.copy(alpha = 0.5f))
+                    .border(1.dp, colors.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = UiText.get(R.string.timestamp_modify_text_preview, "Preview"),
+                    style = typography.labelLg,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.primary
+                )
+                Text(
+                    text = livePreview.ifEmpty { "(empty)" },
+                    style = typography.bodyLg,
+                    fontWeight = FontWeight.Medium,
+                    color = colors.onSurface
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Save button
+            Button(
+                onClick = { onSave(textValue) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                shape = radius.fullShape,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = colors.primary,
+                    contentColor = colors.onPrimary
+                )
+            ) {
+                Text(UiText.get(R.string.action_save, "Save"), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            }
+
+            // Cancel button
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp),
+                shape = radius.fullShape
+            ) {
+                Text(
+                    text = UiText.get(R.string.action_cancel, "Cancel"),
+                    fontWeight = FontWeight.Medium,
+                    color = colors.onSurfaceVariant,
+                    fontSize = 14.sp
+                )
+            }
+        }
+    }
+}
+
 private fun isValidCustomCss(css: String): Boolean {
     if (css.isBlank()) return true
     var depth = 0
@@ -879,20 +1367,18 @@ private fun typedStyleSummary(
     preferenceManager: WaexPreferenceManager,
     @Suppress("UNUSED_PARAMETER") revision: Int
 ): String = when (key) {
-    "custom_theme" -> if (preferenceManager.getString("css_theme", "").isNullOrBlank()) UiText.get(R.string.waex_ui_not_configured_dd1841d2, "Not configured") else UiText.get(R.string.waex_ui_configured_84aebc69, "Configured")
-    "custom_view_dpi" -> preferenceManager.getString("change_dpi", "0")?.let { if (it == "0") UiText.get(R.string.waex_ui_device_default_aa46c373, "Device default") else "$it DPI" } ?: UiText.get(R.string.waex_ui_device_default_aa46c373, "Device default")
-    "chat_filters" -> when (preferenceManager.getString("chatfilter", "2")) { "0" -> UiText.get(R.string.waex_ui_search_hidden_7723b9b3, "Search hidden"); "1" -> UiText.get(R.string.waex_ui_search_icon_edfdb08d, "Search icon"); else -> UiText.get(R.string.waex_ui_search_bar_de54d68f, "Search bar") }
-    "hide_ui_tabs" -> preferenceManager.getStringSet("hidetabs", emptySet())?.let { if (it.isEmpty()) UiText.get(R.string.waex_ui_no_tabs_hidden_eb0aba28, "No tabs hidden") else UiText.get(R.string.waex_ui_1_s_hidden_416c73f0, "%1\$s hidden", it.size) } ?: UiText.get(R.string.waex_ui_no_tabs_hidden_eb0aba28, "No tabs hidden")
-    "quick_home_menu" -> when (preferenceManager.getString("waex_menu_style", "grouped")) { "separate" -> UiText.get(R.string.waex_ui_separate_items_7f91460e, "Separate items"); "icons" -> UiText.get(R.string.waex_ui_toolbar_icons_12004bba, "Toolbar icons"); else -> UiText.get(R.string.waex_ui_grouped_89731456, "Grouped") }
+    "custom_theme" -> if (preferenceManager.getString("css_theme", "").isNullOrBlank()) UiText.get(R.string.waex_ui_not_configured, "Not configured") else UiText.get(R.string.waex_ui_configured, "Configured")
+    "custom_view_dpi" -> preferenceManager.getString("change_dpi", "0")?.let { if (it == "0") UiText.get(R.string.waex_ui_device_default, "Device default") else "$it DPI" } ?: UiText.get(R.string.waex_ui_device_default, "Device default")
+    "chat_filters" -> when (preferenceManager.getString("chatfilter", "2")) { "0" -> UiText.get(R.string.waex_ui_search_hidden, "Search hidden"); "1" -> UiText.get(R.string.waex_ui_search_icon, "Search icon"); else -> UiText.get(R.string.waex_ui_search_bar, "Search bar") }
+    "hide_ui_tabs" -> preferenceManager.getStringSet("hidetabs", emptySet())?.let { if (it.isEmpty()) UiText.get(R.string.waex_ui_no_tabs_hidden, "No tabs hidden") else UiText.get(R.string.waex_ui_1_s_hidden, "%1\$s hidden", it.size) } ?: UiText.get(R.string.waex_ui_no_tabs_hidden, "No tabs hidden")
+    "quick_home_menu" -> when (preferenceManager.getString("waex_menu_style", "grouped")) { "separate" -> UiText.get(R.string.waex_ui_separate_items, "Separate items"); "icons" -> UiText.get(R.string.waex_ui_toolbar_icons, "Toolbar icons"); else -> UiText.get(R.string.waex_ui_grouped, "Grouped") }
     "status_style" -> when (preferenceManager.getString("status_style", "1")) {
         "0" -> UiText.get(R.string.status_style_vertical_rows, "Vertical Rows")
-        "5" -> UiText.get(R.string.status_style_facebook_grid, "Facebook Cards (Grid)")
-        "4" -> UiText.get(R.string.status_style_vertical_compact, "Vertical List (Compact)")
         "3" -> UiText.get(R.string.status_style_vertical_circle, "Vertical List (Circular Avatars)")
         "9" -> UiText.get(R.string.status_style_vertical_square, "Vertical List (Square Cards)")
         else -> UiText.get(R.string.status_style_default, "Default")
     }
-    else -> UiText.get(R.string.waex_ui_configure_6defafa2, "Configure")
+    else -> UiText.get(R.string.waex_ui_configure, "Configure")
 }
 
 private data class StyleGroup(

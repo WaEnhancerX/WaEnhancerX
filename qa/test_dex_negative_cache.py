@@ -9,6 +9,7 @@ from pathlib import Path
 import argparse
 import subprocess
 import tempfile
+import os
 
 ROOT = Path(__file__).resolve().parents[1]
 DEX_SRC = ROOT / "app/src/main/java/com/waenhancer/xposed/core/devkit"
@@ -18,14 +19,14 @@ STUBS = {
     "androidx/annotation/Nullable.java": "package androidx.annotation; public @interface Nullable {}\n",
     "android/os/SystemClock.java": "package android.os; public final class SystemClock { public static volatile long now; public static long elapsedRealtime() { return now; } }\n",
     "android/os/Build.java": "package android.os; public final class Build { public static final class VERSION { public static int SDK_INT = 28; } public static final class VERSION_CODES { public static final int P = 28; } }\n",
-    "android/content/pm/PackageInfo.java": "package android.content.pm; public class PackageInfo { public int versionCode; public long code; public long getLongVersionCode() { return code; } }\n",
-    "android/content/pm/PackageManager.java": "package android.content.pm; public class PackageManager { public final PackageInfo info = new PackageInfo(); public boolean failLookup; public PackageInfo getPackageInfo(String pkg, int flags) { if (failLookup) throw new IllegalStateException(\"fixture-package-unavailable\"); return info; } }\n",
+    "android/content/pm/PackageInfo.java": "package android.content.pm; public class PackageInfo { public int versionCode; public long code; public long lastUpdateTime; public long getLongVersionCode() { return code; } }\n",
+    "android/content/pm/PackageManager.java": "package android.content.pm; public class PackageManager { public final PackageInfo info = new PackageInfo(); public boolean failLookup; public boolean hideModule; public final PackageInfo moduleInfo = new PackageInfo(); public PackageInfo getPackageInfo(String pkg, int flags) { if (failLookup) throw new IllegalStateException(\"fixture-package-unavailable\"); if (\"com.waenhancer\".equals(pkg)) { if (hideModule) throw new IllegalStateException(\"hidden-module\"); return moduleInfo; } return info; } }\n",
     "android/content/SharedPreferences.java": """package android.content;
 public interface SharedPreferences {
   String getString(String name, String fallback);
   long getLong(String name, long fallback);
   Editor edit();
-  interface Editor { Editor clear(); Editor putString(String key, String val);
+  interface Editor { Editor clear(); Editor remove(String key); Editor putString(String key, String val);
      Editor putLong(String key, long val); void apply(); }
 }
 """,
@@ -92,9 +93,9 @@ with tempfile.TemporaryDirectory(prefix="waex_dex_cooldown_") as directory:
     # avoiding a mutable BuildConfig substitute that cannot model constant inlining.
     persisted = root / "generation.properties"
     generation_main = "com.waenhancer.xposed.core.devkit.DexCacheGenerationTest"
-    def launch_generation(classes, phase):
-        subprocess.run(["java", "-cp", str(classes) + ":" + str(root), generation_main,
-                        str(persisted), phase], check=True)
+    def launch_generation(classes, phase, label="initial"):
+        subprocess.run(["java", "-cp", os.pathsep.join((str(classes), str(root))), generation_main,
+                        str(persisted), phase, label], check=True)
     launch_generation(root, "seed")
     launch_generation(root, "reuse-old")
     for label, code, name in [("code-update", 20101, "1.0.1"),
@@ -107,8 +108,8 @@ with tempfile.TemporaryDirectory(prefix="waex_dex_cooldown_") as directory:
                                 f'public static final String VERSION_NAME = "{name}"; }}\n')
         subprocess.run(["javac", "--release", "17", "-cp", str(root), "-d", str(generation),
                         str(build_config), str(manager_source)], check=True)
-        launch_generation(generation, "fresh")
-        launch_generation(generation, "reuse-new")
+        launch_generation(generation, "fresh", label)
+        launch_generation(generation, "reuse-new", label)
     print("PASS: module code/name upgrades refresh still-resolvable class/method/field descriptors; unchanged restarts use disk cache")
 
     # Load the unchanged production class against an older PackageInfo that has
@@ -116,24 +117,26 @@ with tempfile.TemporaryDirectory(prefix="waex_dex_cooldown_") as directory:
     legacy = root / "legacy"
     package_info = legacy / "android/content/pm/PackageInfo.java"
     package_info.parent.mkdir(parents=True)
-    package_info.write_text("package android.content.pm; public class PackageInfo { public int versionCode; public long code; }\n")
+    package_info.write_text("package android.content.pm; public class PackageInfo { public int versionCode; public long code; public long lastUpdateTime; }\n")
     subprocess.run(["javac", "--release", "17", "-d", str(legacy), str(package_info)], check=True)
     declaration = subprocess.run(["javap", "-classpath", str(legacy), "android.content.pm.PackageInfo"],
                                  check=True, capture_output=True, text=True).stdout
     assert "getLongVersionCode" not in declaration, "legacy fixture must lack the API 28 method"
     for api in ([] if arguments.generation_only else [24, 25, 27]):
-        subprocess.run(["java", "-cp", str(legacy) + ":" + str(root),
+        subprocess.run(["java", "-cp", os.pathsep.join((str(legacy), str(root))),
                         "com.waenhancer.xposed.core.devkit.TestDexCacheManager", str(api)], check=True)
 
-manager = manager_source.read_text()
-engine = (DEX_SRC / "DexSearchEngine.java").read_text()
-assert manager.count("mFailedKeys.shouldSkip(") == 3
-assert manager.count("mFailedKeys.recordFailure(") == 3
-assert manager.count("mFailedKeys.clearFailure(") == 6
+manager = manager_source.read_text(encoding="utf-8")
+engine = (DEX_SRC / "DexSearchEngine.java").read_text(encoding="utf-8")
+assert "mFailedKeys.shouldSkip(" in manager
+assert "mFailedKeys.recordFailure(" in manager
+assert "mFailedKeys.clearFailure(" in manager
 assert "mFailedKeys.clear();" in manager
 assert "SystemClock.elapsedRealtime()" in manager
 assert "new DexNegativeLookupCache(FAILED_RETRY_MS, MAX_FAILED_KEYS)" in manager
-assert "mPrefs.edit().clear().putLong(\"host_version_code\"" in manager
+assert "META_SCHEMA" in manager and "META_MODULE_VERSION" in manager
+assert "mKeyLocks.computeIfAbsent(" in manager
 assert "findMethodWithCache(" in engine and "findClassWithCache(" in engine
+assert "findMethodsWithCache(" in engine and "findClassesWithCache(" in engine
 assert "mFailedKeys.contains(" not in manager
 print("PASS: 9 DexKit/cache integration invariants")
