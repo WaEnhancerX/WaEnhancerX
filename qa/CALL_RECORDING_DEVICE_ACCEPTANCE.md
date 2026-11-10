@@ -16,8 +16,8 @@ reviewed source contract, not compatibility with every host version or device.
 ## Ending-event overload regression checks
 
 `python3 qa/test_call_recording_event_contract.py` compiles the complete production
-event contract and checks 20 declaration variants for each of the two supported
-callback packages in isolated class loaders (40 Java reflection cases). It checks
+event contract and checks 23 declaration variants for each of the two supported
+callback packages in isolated class loaders (46 Java reflection cases). It checks
 the verified exact signature, a unique typed alternative, unrelated overloads,
 wrong return/static/native/abstract contracts, same-suffix classes from another
 package, and ambiguous typed alternatives. An exact, usable signature takes
@@ -27,8 +27,9 @@ does not establish the lifetime of a call.
 
 `python3 qa/test_call_recording_lifecycle.py --host-variant typed-ending` repeats
 the complete recorder lifecycle with a controlled alternate trailing-argument
-signature. The fixture dispatches the method actually registered by the hook and
-checks that its original arguments/result remain unchanged. This demonstrates
+signature. The fixture independently declares the expected host signature, verifies that
+exactly that event is registered, rejects a decoy overload, and dispatches the
+expected event rather than learning its choice from the implementation under test. This demonstrates
 source handling of that declaration shape; it does not identify another supported
 WhatsApp release. Run the on-device acceptance below for every actual host version.
 
@@ -87,3 +88,15 @@ the recording hooks. Events without an identified call are ignored, so they
 cannot affect another call's recording. A host that stops exposing an ending
 call's identity requires a separately verified terminal event contract; it must
 not be marked compatible solely because these JVM fixtures pass.
+
+## Reconciliation evidence — 2026-11-10
+
+The same 46 selector cases pass on the candidate and produce22 failures on official current main. Missing CallLogInfo is rejected; invalid native/abstract preferred signatures do not hide a valid unique alternative. Successful resolutions retain current optional peer-JID and direction metadata. The three compiling selector mutants are rejected at named cases:8,4 and2 failures respectively.
+
+    python3 qa/mutate_call_recording_event_contract.py --out /tmp/waex-ending-mutants
+
+The complete recorder hook executes 109 lifecycle checks with each of the exact and typed-ending host shapes. The same oracle verifies success/failure cleanup, stop/release/descriptor closure exactly once, duplicate endings and finalization metadata, including injected stop and release failures. These two runs are not 218 independent scenarios.
+
+Storage, contact-name resolution, Android audio, Xposed and scheduler remain explicit seams. Contact resolution fails loudly if exercised outside this fixture. A successful simulated finish_call_recording call does not establish persisted provider metadata. Native audio, remote-participant audibility, hardware routes and candidate APK behavior remain NOT_VERIFIED.
+
+The focused call-ending workflow runs independently of unrelated failing source-QA steps, retains failures and does not replace the existing source-QA gate. The merge preserves both the earlier call-ending checks and current upstream localization checks.

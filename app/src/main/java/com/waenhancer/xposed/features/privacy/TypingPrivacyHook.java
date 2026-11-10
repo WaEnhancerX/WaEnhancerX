@@ -30,7 +30,7 @@ public class TypingPrivacyHook extends BaseFeature {
         DexCacheManager dexCache = DexCacheManager.getInstance(context);
         DexSearchEngine engine = DexSearchEngine.getInstance();
 
-        Method composingMethod = dexCache.getMethod(classLoader, "wpp_handle_me_composing_method", () -> {
+        Method composingMethod = dexCache.getMethod(classLoader, "waex_handle_me_composing_method", () -> {
             var bridge = engine.getBridge();
             if (bridge == null) {
                 engine.initialize(context);

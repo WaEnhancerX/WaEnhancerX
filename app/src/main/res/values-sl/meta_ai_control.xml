@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="meta_ai_remove_home_fab">Odstrani FAB na domačem zaslonu</string>
+    <string name="meta_ai_remove_entry_points">Odstrani vstopne točke Meta AI</string>
+    <string name="meta_ai_block_chat">Blokiraj pogovor Meta AI</string>
+</resources>

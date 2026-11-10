@@ -50,3 +50,4 @@ google-services.json
 
 */__pycache__
 .pytest_cache
+analysis

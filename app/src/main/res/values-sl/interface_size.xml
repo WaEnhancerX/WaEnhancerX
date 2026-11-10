@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="interface_size_title">Velikost vmesnika</string>
+    <string name="interface_size_desc">Prilagodite besedilo, kontrolnike, razmike in navigacijo v celotni aplikaciji</string>
+    <string name="interface_size_compact">Kompaktno</string>
+    <string name="interface_size_standard">Standardno</string>
+    <string name="interface_size_comfortable">Udobno</string>
+    <string name="interface_size_large">Veliko</string>
+    <string name="build_variant_debug">Razhroščevanje</string>
+    <string name="build_variant_release">Končna izdaja</string>
+</resources>

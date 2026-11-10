@@ -1,0 +1,55 @@
+name: Verified call-ending selection and recorder lifecycle
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: ['fix/call-ending-contract-v38-2026-10-19']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          submodules: false
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+      - name: Check real reflection contracts, controls, and independently selected events
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/waex-call-ending"
+          mkdir -p "$out"
+          python3 qa/test_call_recording_event_contract.py --out "$out/selector" | tee "$out/selector.log"
+          python3 qa/mutate_call_recording_event_contract.py --out "$out/mutations" | tee "$out/mutations.log"
+          python3 qa/test_call_recording_lifecycle.py --out "$out/exact" | tee "$out/exact.log"
+          python3 qa/test_call_recording_lifecycle.py --host-variant typed-ending --out "$out/typed" | tee "$out/typed.log"
+          for shape in mutable-info sound-return sound-static info-return missing-end; do
+            python3 qa/test_call_recording_lifecycle.py --host-variant "$shape" --scenario rejected-contract --out "$out/$shape" | tee "$out/$shape.log"
+          done
+      - name: Retain successes and failures with source identities
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: call-ending-contract-evidence
+          path: |
+            ${{ runner.temp }}/waex-call-ending/**/*.json
+            ${{ runner.temp }}/waex-call-ending/**/*.log
+          if-no-files-found: error
+          retention-days: 14

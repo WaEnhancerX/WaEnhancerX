@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="receipt_observed_message">%1$s hat deine Nachricht gerade gelesen</string>
+    <string name="receipt_observed_status">%1$s hat deinen Status gerade angesehen</string>
+</resources>

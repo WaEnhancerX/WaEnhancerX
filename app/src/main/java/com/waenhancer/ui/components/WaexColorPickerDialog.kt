@@ -28,7 +28,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
@@ -64,7 +63,9 @@ private val PRESET_COLORS = listOf(
 fun WaexColorPickerDialog(
     initialColorHex: String,
     onColorSelected: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    enableOpacity: Boolean = false,
+    onUseDefault: (() -> Unit)? = null
 ) {
     val colors = WaexTheme.colors
     val typography = WaexTheme.typography
@@ -91,15 +92,28 @@ fun WaexColorPickerDialog(
     var hue by remember(parsedColor) { mutableFloatStateOf(hsv[0]) }
     var saturation by remember(parsedColor) { mutableFloatStateOf(hsv[1]) }
     var value by remember(parsedColor) { mutableFloatStateOf(hsv[2]) }
+    var opacity by remember {
+        mutableFloatStateOf(
+            try { AndroidColor.alpha(AndroidColor.parseColor(initialColorHex)) / 255f }
+            catch (_: Throwable) { 1f }
+        )
+    }
+
+    fun colorHex(argb: Int): String = if (enableOpacity) {
+        String.format("#%08X", argb)
+    } else {
+        String.format("#%06X", 0xFFFFFF and argb)
+    }
 
     fun updateFromHsv(h: Float, s: Float, v: Float) {
-        val argb = AndroidColor.HSVToColor(floatArrayOf(h, s, v))
-        val hex = String.format("#%06X", 0xFFFFFF and argb)
+        val alpha = if (enableOpacity) (opacity * 255f).toInt().coerceIn(0, 255) else 255
+        val argb = AndroidColor.HSVToColor(alpha, floatArrayOf(h, s, v))
+        val hex = colorHex(argb)
         selectedColorHex = hex
         parsedColor = Color(argb)
     }
 
-    ModalBottomSheet(
+    WaexModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.surface,
@@ -115,7 +129,7 @@ fun WaexColorPickerDialog(
                 .padding(bottom = 24.dp)
         ) {
                 Text(
-                    text = UiText.get(R.string.waex_ui_select_accent_color_ba07cfa2, "Select Accent Color"),
+                    text = UiText.get(R.string.waex_ui_select_accent_color, "Select Accent Color"),
                     style = typography.headlineMd,
                     color = colors.onSurface,
                     fontWeight = FontWeight.Bold
@@ -143,12 +157,13 @@ fun WaexColorPickerDialog(
                             val cleanInput = if (!input.startsWith("#")) "#$input" else input
                             selectedColorHex = cleanInput
                             try {
-                                if (cleanInput.length == 7) {
+                                if (cleanInput.length == 7 || (enableOpacity && cleanInput.length == 9)) {
                                     parsedColor = Color(AndroidColor.parseColor(cleanInput))
+                                    if (cleanInput.length == 9) opacity = AndroidColor.alpha(parsedColor.toArgb()) / 255f
                                 }
                             } catch (_: Throwable) {}
                         },
-                        label = { Text(UiText.get(R.string.waex_ui_hex_code_fc70e187, "Hex Code"), style = typography.labelSm) },
+                        label = { Text(UiText.get(R.string.waex_ui_hex_code, "Hex Code"), style = typography.labelSm) },
                         textStyle = typography.bodyMd.copy(fontWeight = FontWeight.Bold),
                         modifier = Modifier.weight(1f),
                         singleLine = true,
@@ -160,7 +175,7 @@ fun WaexColorPickerDialog(
 
                 // Presets Palette
                 Text(
-                    text = UiText.get(R.string.waex_ui_presets_954f93fe, "Presets"),
+                    text = UiText.get(R.string.waex_ui_presets, "Presets"),
                     style = typography.labelSm,
                     color = colors.onSurfaceVariant,
                     fontWeight = FontWeight.Medium
@@ -192,8 +207,12 @@ fun WaexColorPickerDialog(
                                     shape = CircleShape
                                 )
                                 .clickable {
-                                    selectedColorHex = hex
-                                    parsedColor = presetColor
+                                    val presetArgb = AndroidColor.parseColor(hex)
+                                    val argb = if (enableOpacity) {
+                                        (presetArgb and 0x00FFFFFF) or ((opacity * 255f).toInt().coerceIn(0, 255) shl 24)
+                                    } else presetArgb
+                                    selectedColorHex = colorHex(argb)
+                                    parsedColor = Color(argb)
                                 }
                         )
                     }
@@ -203,7 +222,7 @@ fun WaexColorPickerDialog(
 
                 // Sliders (Hue, Saturation, Brightness)
                 Text(
-                    text = UiText.get(R.string.waex_ui_hue_4d7056f0, "Hue"),
+                    text = UiText.get(R.string.waex_ui_hue, "Hue"),
                     style = typography.labelSm,
                     color = colors.onSurfaceVariant
                 )
@@ -221,7 +240,7 @@ fun WaexColorPickerDialog(
                 )
 
                 Text(
-                    text = UiText.get(R.string.waex_ui_saturation_993f024b, "Saturation"),
+                    text = UiText.get(R.string.waex_ui_saturation, "Saturation"),
                     style = typography.labelSm,
                     color = colors.onSurfaceVariant
                 )
@@ -239,7 +258,7 @@ fun WaexColorPickerDialog(
                 )
 
                 Text(
-                    text = UiText.get(R.string.waex_ui_brightness_ec811d30, "Brightness"),
+                    text = UiText.get(R.string.waex_ui_brightness, "Brightness"),
                     style = typography.labelSm,
                     color = colors.onSurfaceVariant
                 )
@@ -256,6 +275,26 @@ fun WaexColorPickerDialog(
                     )
                 )
 
+                if (enableOpacity) {
+                    Text(
+                        text = UiText.get(R.string.waex_ui_opacity_value, "Opacity: %1\$d%%", (opacity * 100f).toInt()),
+                        style = typography.labelSm,
+                        color = colors.onSurfaceVariant
+                    )
+                    Slider(
+                        value = opacity,
+                        onValueChange = {
+                            opacity = it
+                            updateFromHsv(hue, saturation, value)
+                        },
+                        valueRange = 0f..1f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = colors.primary,
+                            activeTrackColor = colors.primary
+                        )
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Actions
@@ -271,6 +310,19 @@ fun WaexColorPickerDialog(
                     Text(UiText.get(R.string.action_apply, "Apply"), color = colors.onPrimary, fontWeight = FontWeight.Bold)
                 }
                 Spacer(modifier = Modifier.height(10.dp))
+                if (onUseDefault != null) {
+                    OutlinedButton(
+                        onClick = {
+                            onUseDefault()
+                            onDismiss()
+                        },
+                        shape = radius.buttonShape,
+                        modifier = Modifier.fillMaxWidth().height(50.dp)
+                    ) {
+                        Text(UiText.get(R.string.waex_ui_use_app_default_color, "Use App Default Color"), color = colors.onSurface)
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
                 OutlinedButton(
                     onClick = onDismiss,
                     shape = radius.buttonShape,

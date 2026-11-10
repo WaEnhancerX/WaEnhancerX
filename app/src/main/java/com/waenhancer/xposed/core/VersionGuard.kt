@@ -118,9 +118,9 @@ object VersionGuard {
                 }
 
                 WaexBottomSheet(activity)
-                    .setTitle(UiText.get(R.string.waex_ui_waex_compatibility_notice_a91003b3, "WAEX Compatibility Notice"))
+                    .setTitle(UiText.get(R.string.waex_ui_waex_compatibility_notice, "WAEX Compatibility Notice"))
                     .setMessage(noticeMessage(currentVersion, decision))
-                    .setPositiveButton(UiText.get(R.string.waex_ui_open_waex_settings_51efb194, "Open WAEX Settings")) { dialog, _ ->
+                    .setPositiveButton(UiText.get(R.string.waex_ui_open_waex_settings, "Open WAEX Settings")) { dialog, _ ->
                         try {
                             val pm = activity.packageManager
                             val intent = pm.getLaunchIntentForPackage("com.waenhancer") ?: Intent().apply {

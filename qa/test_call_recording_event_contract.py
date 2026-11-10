@@ -21,6 +21,9 @@ PACKAGES = (
 EXACT = 'public void callEnding(CallLogInfo log, int interval, String series, String path) {}'
 ALTERNATE = 'public void callEnding(CallLogInfo log, long interval, boolean finalEvent) {}'
 CASES = (
+    ('missing_log_info', 'public void callEnding(int ignored) {}', 'reject'),
+    ('typed_after_invalid_exact_native', 'public native void callEnding(CallLogInfo log,int interval,String series,String path);' + ALTERNATE, 'CallLogInfo,long,boolean'),
+    ('typed_after_invalid_exact_abstract', 'public abstract void callEnding(CallLogInfo log,int interval,String series,String path);' + ALTERNATE, 'CallLogInfo,long,boolean'),
     ('verified_exact', EXACT, 'CallLogInfo,int,String,String'),
     ('exact_over_unrelated', EXACT + 'public void callEnding(String value) {}', 'CallLogInfo,int,String,String'),
     ('exact_over_typed_variants', EXACT + ALTERNATE, 'CallLogInfo,int,String,String'),
@@ -50,7 +53,12 @@ import java.util.*;
 public final class CallEndingContractChecks {
   public static void main(String[] args) throws Exception {
     try (URLClassLoader loader = new URLClassLoader(new URL[]{Path.of(args[0]).toUri().toURL(),
-            Path.of(args[1]).toUri().toURL()}, ClassLoader.getPlatformClassLoader())) {
+            Path.of(args[1]).toUri().toURL()}, ClassLoader.getPlatformClassLoader()) {
+      @Override protected Class<?> loadClass(String name,boolean resolve)throws ClassNotFoundException {
+        if(args[5].equals("missing_log_info") && name.startsWith("com.whatsapp.") && name.endsWith(".CallLogInfo"))throw new ClassNotFoundException(name);
+        return super.loadClass(name,resolve);
+      }
+    }) {
       Class<?> contract = loader.loadClass("com.waenhancer.xposed.features.media.CallRecordingEventContract");
       Class<?> callback = loader.loadClass(args[2]);
       Method resolve = contract.getDeclaredMethod("resolve", Class.class);
@@ -77,7 +85,13 @@ public final class CallEndingContractChecks {
           || Modifier.isAbstract(ending.getModifiers()) || Modifier.isNative(ending.getModifiers())) {
         throw new AssertionError("Resolved event does not satisfy the usable host declaration");
       }
-      System.out.println("PASS selected " + actual);
+      Method read=contract.getDeclaredMethod("read",Object.class);
+      read.setAccessible(true);
+      Object info=loader.loadClass(args[4]+".CallInfo").getConstructor().newInstance();
+      Object snapshot=read.invoke(resolved,info);
+      Field peer=snapshot.getClass().getDeclaredField("peerJid"),direction=snapshot.getClass().getDeclaredField("direction");peer.setAccessible(true);direction.setAccessible(true);
+      if(!"synthetic-peer@s.whatsapp.net".equals(peer.get(snapshot)) || !"outgoing".equals(direction.get(snapshot)))throw new AssertionError("Current peer/direction metadata was lost");
+      System.out.println("PASS selected " + actual + "; current peer/direction retained");
     }
   }
 }
@@ -87,14 +101,14 @@ public final class CallEndingContractChecks {
 def write(directory, relative, text):
     destination = directory / relative
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(text)
+    destination.write_text(text,encoding="utf-8")
     return destination
 
 
 def run(command, log):
     result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                            text=True, timeout=60)
-    log.write_text(result.stdout)
+                            text=True,encoding="utf-8",errors="replace", timeout=60)
+    log.write_text(result.stdout,encoding="utf-8")
     return result
 
 
@@ -112,7 +126,7 @@ def main():
     for _, package in PACKAGES:
         for name, body in (
             ('CallState', 'public enum CallState {NONE, ACTIVE}'),
-            ('CallInfo', 'public final class CallInfo {public final String callId="call"; public final CallState callState=CallState.ACTIVE;}'),
+            ('CallInfo', 'public final class CallInfo {public final String callId="call"; public final CallState callState=CallState.ACTIVE; public static class Peer {public String getRawString(){return "synthetic-peer@s.whatsapp.net";}} public Peer getPeerJid(){return new Peer();} public boolean isCaller(){return true;}}'),
             ('CallLogInfo', 'public class CallLogInfo {}'),
         ):
             sources.append(write(common, package.replace('.', '/') + '/' + name + '.java',
@@ -139,7 +153,7 @@ def main():
                 print(compiled.stdout)
                 raise RuntimeError('Invalid test declaration: ' + name)
             checked = run(['java', '-cp', str(classes), 'CallEndingContractChecks', str(case / 'classes'),
-                           str(classes), callback_package + '.VoiceServiceEventCallback', expected, info_package], case / 'behavior.log')
+                           str(classes), callback_package + '.VoiceServiceEventCallback', expected, info_package, name], case / 'behavior.log')
             results.append({'case': name, 'package': callback_package, 'expected': expected,
                             'exit_code': checked.returncode, 'passed': checked.returncode == 0,
                             'fixture_sha256': hashlib.sha256(callback.read_bytes()).hexdigest(),

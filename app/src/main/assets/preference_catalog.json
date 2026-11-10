@@ -44,7 +44,8 @@
     "tabId": "privacy",
     "keys": [
       "anti_view_once",
-      "download_view_once"
+      "download_view_once",
+      "bypass_screenshot_restriction"
     ]
   },
   {
@@ -54,7 +55,6 @@
     "tabId": "privacy",
     "keys": [
       "anti_revoke",
-      "hide_anti_revoke",
       "preserve_own_revoke",
       "antirevokestatus",
       "antidisappearing",
@@ -96,7 +96,6 @@
       "message_bomber",
       "anti_edit_messages",
       "message_device_source",
-      "preserve_delete_for_me",
       "revokeallmessages",
       "hide_forwarded_tag",
       "removeforwardlimit",
@@ -104,7 +103,7 @@
       "removeseemore",
       "stamp_copied_message",
       "doubletap2like",
-      "doubletap2like_emoji"
+      "disable_defemojis"
     ],
     "proKeys": [
       "message_bomber"
@@ -157,10 +156,10 @@
     "tabIndex": 2,
     "tabId": "media",
     "keys": [
-      "call_recording",
       "download_view_once",
       "media_preview",
-      "download_profile"
+      "download_profile",
+      "parallel_downloading"
     ]
   },
   {
@@ -195,7 +194,8 @@
       "seen_tick_customization",
       "floating_bottom_bar",
       "unlock_premium_customization",
-      "custom_filters"
+      "custom_filters",
+      "custom_ab_props"
     ],
     "proKeys": [
       "unlock_premium_customization"
@@ -243,6 +243,7 @@
     "tabIndex": -1,
     "tabId": "settings",
     "keys": [
+      "app_interface_size",
       "show_hook_toast",
       "show_restart_sheet",
       "supported_versions",

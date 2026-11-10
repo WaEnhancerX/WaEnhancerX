@@ -22,6 +22,9 @@ class MessageStore private constructor(private val context: Context) {
     private fun openDatabase() {
         val dbFile = findMsgstoreDbFile(context) ?: return
         try {
+            if (sqLiteDatabase?.isOpen == true) {
+                try { sqLiteDatabase?.close() } catch (_: Throwable) {}
+            }
             sqLiteDatabase = SQLiteDatabase.openDatabase(
                 dbFile.absolutePath,
                 null,
@@ -42,7 +45,9 @@ class MessageStore private constructor(private val context: Context) {
 
     val database: SQLiteDatabase?
         get() {
-            if (sqLiteDatabase == null || !sqLiteDatabase!!.isOpen) {
+            val dbFile = findMsgstoreDbFile(context)
+            if (sqLiteDatabase == null || !sqLiteDatabase!!.isOpen ||
+                (dbFile != null && sqLiteDatabase!!.path != dbFile.absolutePath)) {
                 openDatabase()
             }
             return sqLiteDatabase

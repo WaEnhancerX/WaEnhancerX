@@ -62,7 +62,7 @@ public class HideArchivedChatsHook extends BaseFeature {
         Class<?> archiveClass = engine.findClassWithCache(
                 context,
                 classLoader,
-                "wpp_archive_chat_view_class",
+                "waex_archive_chat_view_class",
                 (bridge, loader) -> {
                     ClassData cd = bridge.findClass(FindClass.create()
                             .matcher(ClassMatcher.create()

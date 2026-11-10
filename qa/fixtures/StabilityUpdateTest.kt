@@ -1,5 +1,8 @@
 package com.waenhancer.update
 
+import org.json.JSONArray
+import java.io.IOException
+
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
@@ -12,7 +15,7 @@ import java.security.MessageDigest
 @Config(sdk = [34])
 class StabilityUpdateTest {
     private fun parse(asset: JSONObject): WaexRelease? {
-        val item = JSONObject().put("tag_name", "20300-2.0.3").put("assets", org.json.JSONArray().put(asset))
+        val item = JSONObject().put("tag_name", "20300-2.0.3").put("assets", JSONArray().put(asset))
         val parser = ReleaseRepository::class.java.getDeclaredMethod("parseRelease", JSONObject::class.java)
         parser.isAccessible = true
         return parser.invoke(ReleaseRepository, item) as WaexRelease?
@@ -47,7 +50,7 @@ class StabilityUpdateTest {
         policy.finish(bytes.size.toLong())
         val bad = UpdateTransferPolicy("0".repeat(64), bytes.size.toLong())
         bad.append(bytes, bytes.size)
-        assertThrows(java.io.IOException::class.java) { bad.finish(bytes.size.toLong()) }
+        assertThrows(IOException::class.java) { bad.finish(bytes.size.toLong()) }
         val gate = UpdateProgressGate()
         assertEquals(9, (0L until 2048L).count { gate.allow(it) })
     }

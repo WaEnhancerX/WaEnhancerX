@@ -1,0 +1,1103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="waex_ui_1_open_any_chat_or_contact_info_page_i" formatted="false">"1. Öffnen Sie eine beliebige Chat- oder Kontaktinfoseite in WhatsApp.
+2. Tippen Sie auf „Benutzerdefinierte Privatsphäre“, um bestimmte Außerkraftsetzungen festzulegen.
+3. Gespeicherte Regeln haben Vorrang vor globalen Datenschutzeinstellungen."</string>
+    <string name="waex_ui_1_s_2_s_followers_3_s_repositories">"%1$s%2$s Follower | %3$s-Repositorys"</string>
+    <string name="waex_ui_1_s_active">"%1$s Aktiv"</string>
+    <string name="waex_ui_1_s_available">"%1$s Verfügbar"</string>
+    <string name="waex_ui_1_s_commits">"• %1$s-Commits"</string>
+    <string name="waex_ui_1_s_failed">"%1$s Fehlgeschlagen"</string>
+    <string name="waex_ui_followers_count">"%1$s Follower"</string>
+    <string name="waex_ui_followers_count_compact">"• %1$s Follower"</string>
+    <string name="waex_ui_1_s_hidden">"%1$s ausgeblendet"</string>
+    <string name="waex_ui_1_s_hooks">"%1$s Haken"</string>
+    <string name="waex_ui_1_s_initialization">"%1$s Initialisierung"</string>
+    <string name="waex_ui_1_s_last_error">"%1$s letzter Fehler"</string>
+    <string name="waex_ui_1_s_of_2_s_devices_in_use">"%1$s von %2$s Geräten im Einsatz"</string>
+    <string name="waex_ui_1_s_of_2_s_granted">"%1$s von %2$s Zugegeben"</string>
+    <string name="waex_ui_1_s_of_2_s_granted_missing_permissions">"%1$s von %2$s gewährt. Fehlende Berechtigungen werden angefordert, wenn eine Funktion sie benötigt."</string>
+    <string name="waex_ui_1_s_preference_bridge">"%1$s Präferenzbrücke"</string>
+    <string name="waex_ui_1_s_preserved_messages">"%1$s bewahrte Nachrichten auf"</string>
+    <string name="waex_ui_1_s_s_avatar">"%1$ss Avatar"</string>
+    <string name="waex_ui_1_s_s_contributions">"%1$ss Beiträge"</string>
+    <string name="waex_ui_1_s_selected">"%1$s ausgewählt"</string>
+    <string name="waex_ui_1_s_settings_backed_up">"%1$s Einstellungen gesichert"</string>
+    <string name="waex_ui_1_s_settings_restored_restart_whatsapp">"%1$s Einstellungen wiederhergestellt. Starten Sie WhatsApp neu, um es anzuwenden."</string>
+    <string name="waex_ui_1_s_supporters_and_counting">"%1$s Unterstützer, Tendenz steigend"</string>
+    <string name="waex_ui_aac_m4a" formatted="false">"AAC (.m4a)"</string>
+    <string name="waex_ui_accept" formatted="false">"Akzeptiere"</string>
+    <string name="waex_ui_account_protection" formatted="false">"Kontoschutz"</string>
+    <string name="waex_ui_action" formatted="false">"Aktion"</string>
+    <string name="waex_ui_action_intent" formatted="false">"Aktionsabsicht:"</string>
+    <string name="waex_ui_action_send_intent" formatted="false">"Aktion: Absicht senden"</string>
+    <string name="waex_ui_action_send_message_automatically" formatted="false">"AKTION: NACHRICHT AUTOMATISCH SENDEN"</string>
+    <string name="waex_ui_activate_ghost_mode" formatted="false">"Ghost-Modus aktivieren?"</string>
+    <string name="waex_ui_activate_license_key" formatted="false">"Lizenzschlüssel aktivieren"</string>
+    <string name="waex_ui_activate_pro_license" formatted="false">"Aktivieren Sie die Pro-Lizenz"</string>
+    <string name="waex_ui_activate_restart" formatted="false">"Aktivieren und neu starten"</string>
+    <string name="waex_ui_active" formatted="false">"AKTIV"</string>
+    <string name="waex_ui_active_after_whatsapp_is_restarted" formatted="false">"Aktiv nach dem Neustart von WhatsApp"</string>
+    <string name="waex_ui_active_device_slots" formatted="false">"Aktive Gerätesteckplätze"</string>
+    <string name="waex_ui_active_hours_range" formatted="false">"Bereich der aktiven Stunden"</string>
+    <string name="waex_ui_active_pro" formatted="false">"Active Pro"</string>
+    <string name="waex_ui_active_subscription" formatted="false">"Aktives Abonnement"</string>
+    <string name="waex_ui_add_filter" formatted="false">"Filter hinzufügen"</string>
+    <string name="waex_ui_add_me_to_the_list" formatted="false">"Füge mich zur Liste hinzu"</string>
+    <string name="waex_ui_add_rule" formatted="false">"Regel hinzufügen"</string>
+    <string name="waex_ui_add_universal_rule_1_s">"Universelle Regel hinzufügen (%1$s)"</string>
+    <string name="waex_ui_added_universal_rule_1_s">"Universelle Regel %1$s hinzugefügt"</string>
+    <string name="waex_ui_additional_call_information" formatted="false">"Zusätzliche Anrufinformationen"</string>
+    <string name="waex_ui_adds_a_dedicated_custom_privacy_tile_o" formatted="false">"Fügt auf der Kontakt- und Gruppendetailseite eine spezielle benutzerdefinierte Datenschutzkachel hinzu"</string>
+    <string name="waex_ui_adds_custom_privacy_directly_into_the" formatted="false">"Fügt „Benutzerdefinierte Privatsphäre“ direkt zum Optionsmenü oben rechts in Chats hinzu"</string>
+    <string name="waex_ui_adjust_corner_curves_margins_and_sizin" formatted="false">"Passen Sie Eckkurven, Ränder und Größe an"</string>
+    <string name="waex_ui_advanced_protection_for_your_messaging" formatted="false">"Erweiterter Schutz für Ihr Messaging-Erlebnis. Kontrollieren Sie die Sichtbarkeit und die Nachrichtenpersistenz."</string>
+    <string name="waex_ui_after_ignoring_an_update" formatted="false">"Nach dem Ignorieren eines Updates"</string>
+    <string name="waex_ui_ai_transcription_provider" formatted="false">"AI-Transkriptionsanbieter"</string>
+    <string name="waex_ui_all_files_access" formatted="false">"Zugriff auf alle Dateien"</string>
+    <string name="waex_ui_all_installed_whatsapp_apps_are_alread" formatted="false">"Alle installierten WhatsApp Apps werden bereits unterstützt!"</string>
+    <string name="waex_ui_all_settings_reset_to_default" formatted="false">"Alle Einstellungen werden auf die Standardeinstellungen zurückgesetzt"</string>
+    <string name="waex_ui_allow_all_whatsapp_incoming_voice_vide" formatted="false">"Alle WhatsApp eingehenden Sprach- und Videoanrufe zulassen"</string>
+    <string name="waex_ui_allow_granular_privacy_overrides_for_s" formatted="false">"Ermöglichen Sie detaillierte Datenschutzüberschreibungen für bestimmte Kontakte oder Gruppen"</string>
+    <string name="waex_ui_allow_user_defined_versions_and_wildca" formatted="false">"Erlauben Sie benutzerdefinierten Versionen und Platzhalterregeln, Hooks zu laden"</string>
+    <string name="waex_ui_allow_version_downgrades" formatted="false">"Versions-Downgrades zulassen"</string>
+    <string name="waex_ui_always_active" formatted="false">"Immer aktiv"</string>
+    <string name="waex_ui_always_typing" formatted="false">"Immer tippen"</string>
+    <string name="waex_ui_android_device" formatted="false">"Android Gerät"</string>
+    <string name="waex_ui_animated_emojis" formatted="false">"Animierte Emojis"</string>
+    <string name="waex_ui_anti_disappearing_messages" formatted="false">"Anti-Verschwinden-Nachrichten"</string>
+    <string name="waex_ui_anti_edit_messages_hyphenated" formatted="false">"Anti-Edit-Nachrichten"</string>
+    <string name="waex_ui_anti_revoke_label" formatted="false">"Anti-Widerruf"</string>
+    <string name="waex_ui_anti_revoke_feature" formatted="false">"Anti-Revoke"</string>
+    <string name="waex_ui_anti_revoke_status" formatted="false">"Anti-Revoke-Status"</string>
+    <string name="waex_ui_anti_view_once_label" formatted="false">"Anti View Once"</string>
+    <string name="waex_ui_api_1_s">"API %1$s"</string>
+    <string name="waex_ui_apk_does_not_match_selected_version_1">"APK stimmt nicht mit der ausgewählten Version überein %1$s"</string>
+    <string name="waex_ui_app_logo" formatted="false">"App-Logo"</string>
+    <string name="waex_ui_appearance" formatted="false">"Aussehen"</string>
+    <string name="waex_ui_apply_custom_color_to_deleted_message" formatted="false">"Wenden Sie eine benutzerdefinierte Farbe auf gelöschte Nachrichten/Status und Uhrzeit an"</string>
+    <string name="waex_ui_apply_during_set_hours" formatted="false">"Bewerben Sie sich zu festgelegten Zeiten"</string>
+    <string name="waex_ui_approve_the_superuser_request_if_your" formatted="false">"Genehmigen Sie die Superuser-Anfrage, wenn Ihr Root-Manager um Erlaubnis bittet."</string>
+    <string name="waex_ui_archived_chats_unavailable_in_this_wha" formatted="false">"Archivierte Chats sind in diesem WhatsApp-Build nicht verfügbar"</string>
+    <string name="waex_ui_are_you_sure_you_want_to_delete_filter">"Sind Sie sicher, dass Sie den Filter „%1$s“ löschen möchten?"</string>
+    <string name="waex_ui_are_you_sure_you_want_to_remove_all_cu" formatted="false">"Sind Sie sicher, dass Sie alle benutzerdefinierten Datenschutzregeln entfernen möchten? Diese Aktion stellt die Standard-Datenschutzregeln für alle Kontakte wieder her und kann nicht rückgängig gemacht werden."</string>
+    <string name="waex_ui_ask_the_module_to_check_when_whatsapp" formatted="false">"Bitten Sie das Modul zu prüfen, wann WhatsApp startet"</string>
+    <string name="waex_ui_assemblyai_api_key" formatted="false">"AssemblyAI API Schlüssel"</string>
+    <string name="waex_ui_at_most_every_6_hours" formatted="false">"Höchstens alle 6 Stunden"</string>
+    <string name="waex_ui_at_most_once_a_day" formatted="false">"Höchstens einmal am Tag"</string>
+    <string name="waex_ui_at_most_once_a_week" formatted="false">"Höchstens einmal pro Woche"</string>
+    <string name="waex_ui_audio_call" formatted="false">"Audioanruf"</string>
+    <string name="waex_ui_audio_capture_engine" formatted="false">"Audio-Capture-Engine"</string>
+    <string name="waex_ui_auto_check_for_updates" formatted="false">"Automatische Suche nach Updates"</string>
+    <string name="waex_ui_auto_download_models" formatted="false">"Modelle automatisch herunterladen"</string>
+    <string name="waex_ui_auto_reply" formatted="false">"Automatische Antwort"</string>
+    <string name="waex_ui_auto_reply_i_am_currently_driving_will" formatted="false">"Automatische Antwort: Ich fahre gerade, melde mich in Kürze zurück."</string>
+    <string name="waex_ui_automate_whatsapp_workflows_using_inte" formatted="false">"Automatisieren Sie WhatsApp-Workflows mithilfe von Intent-Broadcasts in Tasker, MacroDroid und Automate."</string>
+    <string name="waex_ui_automated_checks" formatted="false">"AUTOMATISIERTE KONTROLLEN"</string>
+    <string name="waex_ui_automated_morning_briefing_scheduled_d" formatted="false">"Automatisierter Versand des morgendlichen Briefings"</string>
+    <string name="waex_ui_automatically_capture_incoming_outgoin" formatted="false">"Erfassen Sie automatisch eingehende und ausgehende Sprachanrufe"</string>
+    <string name="waex_ui_automatically_drop_every_incoming_what" formatted="false">"Lassen Sie jeden eingehenden WhatsApp-Anruf automatisch fallen"</string>
+    <string name="waex_ui_automatically_hides_pill_when_scrollin" formatted="false">"Blendet die Pille automatisch aus, wenn durch Chatlisten gescrollt wird"</string>
+    <string name="waex_ui_automatically_install_downloaded_apk_v" formatted="false">"Installieren Sie das heruntergeladene APK automatisch über die Root-Shell"</string>
+    <string name="waex_ui_automation_tasker" formatted="false">"Automatisierung &amp; Tasker"</string>
+    <string name="waex_ui_available_apk_assets_for_1_s">"Verfügbare APK-Assets für %1$s"</string>
+    <string name="waex_ui_available" formatted="false">"Verfügbar"</string>
+    <string name="waex_ui_available_extras" formatted="false">"Verfügbare Extras:"</string>
+    <string name="waex_ui_awaiting_runtime_report" formatted="false">"Warten auf Laufzeitbericht"</string>
+    <string name="waex_ui_backup_failed_1_s">"Sicherung fehlgeschlagen: %1$s"</string>
+    <string name="waex_ui_base_translation_dictionary_42_mb" formatted="false">"Basisübersetzungswörterbuch: 42 MB"</string>
+    <string name="waex_ui_basic" formatted="false">"Einfach"</string>
+    <string name="waex_ui_basic_integrity_supported" formatted="false">"Grundlegende Integrität wird unterstützt"</string>
+    <string name="waex_ui_be_the_first_supporter_featured_here_b" formatted="false">"Seien Sie der erste Unterstützer, der hier vorgestellt wird, indem Sie WaEnhancerX auf GitHub spielen."</string>
+    <string name="waex_ui_become_a_supporter" formatted="false">"Werden Sie Unterstützer"</string>
+    <string name="waex_ui_behavior_change_color" formatted="false">"Verhalten: Farbe ändern"</string>
+    <string name="waex_ui_behavior" formatted="false">"Verhalten"</string>
+    <string name="waex_ui_behavior_gone_remove" formatted="false">"Verhalten: Weg (Entfernen)"</string>
+    <string name="waex_ui_behavior_opacity_1_s">"Verhalten: Deckkraft (%1$s%%)"</string>
+    <string name="waex_ui_behavior_resize_1_s">"Verhalten: Größe ändern (%1$s)"</string>
+    <string name="waex_ui_behavior_translucency" formatted="false">"Verhalten und Transluzenz"</string>
+    <string name="waex_ui_best_value" formatted="false">"Bestes Preis-Leistungs-Verhältnis"</string>
+    <string name="waex_ui_beta" formatted="false">"Beta"</string>
+    <string name="waex_ui_block_all_calls" formatted="false">"Alle Anrufe blockieren"</string>
+    <string name="waex_ui_blue_on_reply_title" formatted="false">"Blau bei Antwort"</string>
+    <string name="waex_ui_blue_on_reply_label" formatted="false">"Blau bei Antwort"</string>
+    <string name="waex_ui_blue_tick_sent" formatted="false">"Blaue Häkchen gesendet"</string>
+    <string name="waex_ui_bootloader_spoofing_integrity" formatted="false">"Bootloader-Spoofing und -Integrität"</string>
+    <string name="waex_ui_both_info_screen_3_dot_menu" formatted="false">"Beides (Infobildschirm und 3-Punkt-Menü)"</string>
+    <string name="waex_ui_bottom_margin" formatted="false">"Unterer Rand"</string>
+    <string name="waex_ui_brightness" formatted="false">"Helligkeit"</string>
+    <string name="waex_ui_broadcast_intent_to_send_a_message_wit" formatted="false">"Broadcast-Absicht, eine Nachricht zu senden, ohne die WhatsApp-Schnittstelle zu öffnen."</string>
+    <string name="waex_ui_bubble_colors" formatted="false">"Blasenfarben"</string>
+    <string name="waex_ui_button_placement" formatted="false">"PLATZIERUNG DER TASTEN"</string>
+    <string name="waex_ui_bypass_version_verification" formatted="false">"Versionsüberprüfung umgehen"</string>
+    <string name="waex_ui_call_declined" formatted="false">"Anruf abgelehnt"</string>
+    <string name="waex_ui_call_enhancements" formatted="false">"ANRUFVERBESSERUNGEN"</string>
+    <string name="waex_ui_call_privacy" formatted="false">"Rufen Sie Privatsphäre an"</string>
+    <string name="waex_ui_call_recording" formatted="false">"Anrufaufzeichnung"</string>
+    <string name="waex_ui_call_rejection_appearance" formatted="false">"ANRUFABWEISUNG ERSCHEINUNGSBILD"</string>
+    <string name="waex_ui_caller_sees_calling_without_connection" formatted="false">"Anrufer sieht „Anrufen...“ ohne Verbindungston"</string>
+    <string name="waex_ui_calls" formatted="false">"Anrufe"</string>
+    <string name="waex_ui_calls_recording" formatted="false">"Anrufe und Aufzeichnung"</string>
+    <string name="waex_ui_certificate_is_current" formatted="false">"Zertifikat ist aktuell"</string>
+    <string name="waex_ui_certificates_parsed" formatted="false">"Zertifikate analysiert"</string>
+    <string name="waex_ui_change" formatted="false">"Veränderung"</string>
+    <string name="waex_ui_change_color_pro" formatted="false">"Farbe ändern (Pro)"</string>
+    <string name="waex_ui_change_the_default_emoji_sent_when_dou">"Ändern Sie das Standard-Emoji, das beim Doppelklicken gesendet wird (%1$s)"</string>
+    <string name="waex_ui_changelog_releases" formatted="false">"Änderungsprotokoll und Veröffentlichungen"</string>
+    <string name="waex_ui_chat_3_dot_options_menu" formatted="false">"Chat-3-Punkt-Optionsmenü"</string>
+    <string name="waex_ui_chat_filter_display_label" formatted="false">"Anzeige des Chatfilters"</string>
+    <string name="waex_ui_chat_filters" formatted="false">"Chat-Filter"</string>
+    <string name="waex_ui_chat_limits_bypass" formatted="false">"Chat-Limits umgehen"</string>
+    <string name="waex_ui_chat_list_customizations" formatted="false">"Anpassungen der Chat-Liste"</string>
+    <string name="waex_ui_chats" formatted="false">"Chats"</string>
+    <string name="waex_ui_check_again" formatted="false">"Überprüfen Sie es noch einmal"</string>
+    <string name="waex_ui_check_frequency" formatted="false">"Frequenz prüfen"</string>
+    <string name="waex_ui_check_that_every_selector_has_a_matchi" formatted="false">"Überprüfen Sie, ob jeder Selektor einen passenden {}-Block hat"</string>
+    <string name="waex_ui_check_when_module_opens" formatted="false">"Überprüfen Sie, wann das Modul geöffnet wird"</string>
+    <string name="waex_ui_check_when_whatsapp_opens" formatted="false">"Überprüfen Sie, wann WhatsApp geöffnet wird"</string>
+    <string name="waex_ui_checking_root_access" formatted="false">"Root-Zugriff prüfen"</string>
+    <string name="waex_ui_choose_color" formatted="false">"Wählen Sie Farbe"</string>
+    <string name="waex_ui_choose_where_to_show_the_waex_settings" formatted="false">"Wählen Sie aus, wo der Einstiegspunkt für die Einstellungen WAEX angezeigt werden soll"</string>
+    <string name="waex_ui_classic_regular" formatted="false">"Klassisch (Normal)"</string>
+    <string name="waex_ui_clear_all_custom_rules" formatted="false">"Alle benutzerdefinierten Regeln löschen?"</string>
+    <string name="waex_ui_clear_all" formatted="false">"Alles löschen"</string>
+    <string name="waex_ui_clear_search" formatted="false">"Suche löschen"</string>
+    <string name="waex_ui_close" formatted="false">"Schließen"</string>
+    <string name="waex_ui_close_search" formatted="false">"Suche schließen"</string>
+    <string name="waex_ui_collapse_1_s">"%1$s reduzieren"</string>
+    <string name="waex_ui_collapse" formatted="false">"Zusammenbruch"</string>
+    <string name="waex_ui_color_deleted_text_indicator" formatted="false">"Gelöschter Text und Indikator farbig"</string>
+    <string name="waex_ui_communities" formatted="false">"Gemeinschaften"</string>
+    <string name="waex_ui_compatibility_verified" formatted="false">"Kompatibilität überprüft"</string>
+    <string name="waex_ui_completed" formatted="false">"Abgeschlossen"</string>
+    <string name="waex_ui_completed_with_hook_failures" formatted="false">"Mit Hook-Fehlern abgeschlossen"</string>
+    <string name="waex_ui_configuration" formatted="false">"Konfiguration"</string>
+    <string name="waex_ui_configure_1_s">"Konfigurieren Sie %1$s"</string>
+    <string name="waex_ui_configure" formatted="false">"Konfigurieren"</string>
+    <string name="waex_ui_configure_filter_items" formatted="false">"Konfigurieren Sie Filterelemente"</string>
+    <string name="waex_ui_configure_rules_for_this_specific_cont" formatted="false">"Konfigurieren Sie Regeln für diesen bestimmten Kontakt"</string>
+    <string name="waex_ui_configure_scroll_hide_dynamics_and_bac" formatted="false">"Konfigurieren Sie die Dynamik des Scroll-Ausblendens und die Deckkraft des Hintergrunds"</string>
+    <string name="waex_ui_configured" formatted="false">"Konfiguriert"</string>
+    <string name="waex_ui_confirm_unlink_current_device" formatted="false">"Bestätigen Sie, dass die Verbindung zum aktuellen Gerät aufgehoben wird"</string>
+    <string name="waex_ui_confirm_unlink_device" formatted="false">"Bestätigen Sie „Gerät trennen“."</string>
+    <string name="waex_ui_connected" formatted="false">"Verbunden"</string>
+    <string name="waex_ui_connected_devices" formatted="false">"Verbundene Geräte"</string>
+    <string name="waex_ui_connected_directly" formatted="false">"Direkt verbunden"</string>
+    <string name="waex_ui_connection_status" formatted="false">"Verbindungsstatus"</string>
+    <string name="waex_ui_contact_group_info_screen" formatted="false">"Kontakt- und Gruppeninformationsbildschirm"</string>
+    <string name="waex_ui_contact_rules_1_s">"Kontaktregeln (%1$s)"</string>
+    <string name="waex_ui_contact_rules" formatted="false">"Kontaktregeln"</string>
+    <string name="waex_ui_contacts_access" formatted="false">"Zugriff auf Kontakte"</string>
+    <string name="waex_ui_contacts_with_custom_privacy_rules_wil" formatted="false">"Kontakte mit benutzerdefinierten Datenschutzregeln werden hier angezeigt. Regeln können innerhalb einer WhatsApp-Konversation festgelegt werden."</string>
+    <string name="waex_ui_continue_to_waenhancerx" formatted="false">"Weiter zu WaEnhancerX"</string>
+    <string name="waex_ui_convert_received_voice_notes_to_readab" formatted="false">"Konvertieren Sie empfangene Sprachnotizen in lesbare Chat-Textblasen."</string>
+    <string name="waex_ui_copied_1_s_to_clipboard">"%1$s in die Zwischenablage kopiert"</string>
+    <string name="waex_ui_copied_status_text_to_clipboard" formatted="false">"Statustext in die Zwischenablage kopiert"</string>
+    <string name="waex_ui_copy_error" formatted="false">"Kopierfehler"</string>
+    <string name="waex_ui_copy_text" formatted="false">"Text kopieren"</string>
+    <string name="waex_ui_copy_the_error_details_when_reporting" formatted="false">"Kopieren Sie die Fehlerdetails, wenn Sie dieses Problem melden."</string>
+    <string name="waex_ui_corner_radius" formatted="false">"Eckenradius"</string>
+    <string name="waex_ui_could_not_load_this_github_profile" formatted="false">"Dieses GitHub-Profil konnte nicht geladen werden."</string>
+    <string name="waex_ui_could_not_open_archived_chats" formatted="false">"Archivierte Chats konnten nicht geöffnet werden"</string>
+    <string name="waex_ui_could_not_open_file_picker_1_s">"Dateiauswahl konnte nicht geöffnet werden: %1$s"</string>
+    <string name="waex_ui_could_not_open_link" formatted="false">"Link konnte nicht geöffnet werden"</string>
+    <string name="waex_ui_could_not_open_locked_chats" formatted="false">"Gesperrte Chats konnten nicht geöffnet werden"</string>
+    <string name="waex_ui_could_not_read_the_selected_file" formatted="false">"Die ausgewählte Datei konnte nicht gelesen werden"</string>
+    <string name="waex_ui_could_not_refresh_devices" formatted="false">"Geräte konnten nicht aktualisiert werden."</string>
+    <string name="waex_ui_couldn_t_find_you_or_your_friend_here" formatted="false">"Konnten Sie oder Ihren Freund hier nicht finden?"</string>
+    <string name="waex_ui_couldn_t_save_profile_photo" formatted="false">"Profilfoto konnte nicht gespeichert werden"</string>
+    <string name="waex_ui_couldn_t_share_the_selected_recording" formatted="false">"Die ausgewählte Aufnahme konnte nicht geteilt werden"</string>
+    <string name="waex_ui_css_theme" formatted="false">"CSS Thema"</string>
+    <string name="waex_ui_current_device_unlinked_reverted_to_fr" formatted="false">"Aktuelles Gerät nicht verknüpft. Zurück zur kostenlosen Stufe."</string>
+    <string name="waex_ui_custom_dpi" formatted="false">"Benutzerdefiniert DPI"</string>
+    <string name="waex_ui_custom_keybox" formatted="false">"Benutzerdefinierter Schlüsselkasten"</string>
+    <string name="waex_ui_custom_keybox_imported" formatted="false">"Benutzerdefinierter Schlüsselkasten importiert"</string>
+    <string name="waex_ui_custom_keybox_ready" formatted="false">"Benutzerdefinierter Schlüsselkasten bereit"</string>
+    <string name="waex_ui_custom_privacy" formatted="false">"Benutzerdefinierte Privatsphäre"</string>
+    <string name="waex_ui_custom_privacy_rules" formatted="false">"Benutzerdefinierte Datenschutzregeln"</string>
+    <string name="waex_ui_custom_privacy_saved" formatted="false">"Benutzerdefinierte Privatsphäre gespeichert"</string>
+    <string name="waex_ui_custom_reaction" formatted="false">"Benutzerdefinierte Reaktion"</string>
+    <string name="waex_ui_custom_reaction_emoji" formatted="false">"BENUTZERDEFINIERTE REAKTIONS-EMOJI"</string>
+    <string name="waex_ui_custom_status_layout" formatted="false">"Benutzerdefiniertes Statuslayout"</string>
+    <string name="waex_ui_custom_status_view" formatted="false">"Benutzerdefinierte Statusansicht"</string>
+    <string name="waex_ui_custom_time_format" formatted="false">"Benutzerdefiniertes Zeitformat"</string>
+    <string name="waex_ui_custom_toolbar" formatted="false">"Benutzerdefinierte Symbolleiste"</string>
+    <string name="waex_ui_customize_floating_bottom_bar" formatted="false">"Passen Sie die schwebende untere Leiste an"</string>
+    <string name="waex_ui_dashboard" formatted="false">"Armaturenbrett"</string>
+    <string name="waex_ui_date_unavailable" formatted="false">"Datum nicht verfügbar"</string>
+    <string name="waex_ui_deactivate_ghost_mode" formatted="false">"Ghost-Modus deaktivieren?"</string>
+    <string name="waex_ui_deactivate_restart" formatted="false">"Deaktivieren und neu starten"</string>
+    <string name="waex_ui_deactivating_restores_your_normal_onli" formatted="false">"Durch die Deaktivierung werden Ihre normale Online-Sichtbarkeit, Tippindikatoren und Lesebestätigungen wiederhergestellt.
+
+WhatsApp neu starten, um die Änderungen zu übernehmen?"</string>
+    <string name="waex_ui_debug" formatted="false">"Debuggen"</string>
+    <string name="waex_ui_default_dpi" formatted="false">"Standard DPI"</string>
+    <string name="waex_ui_default_language" formatted="false">"Standardsprache"</string>
+    <string name="waex_ui_delete_filter" formatted="false">"Filter löschen"</string>
+    <string name="waex_ui_delete_selected" formatted="false">"Ausgewählte löschen"</string>
+    <string name="waex_ui_deleted_message_prefix" formatted="false">"🚫 Gelöscht •"</string>
+    <string name="waex_ui_deleted_at" formatted="false">"Gelöscht am:"</string>
+    <string name="waex_ui_deleted_icon" formatted="false">"Gelöschtes Symbol 🚫"</string>
+    <string name="waex_ui_developer" formatted="false">"Entwickler"</string>
+    <string name="waex_ui_device" formatted="false">"Gerät"</string>
+    <string name="waex_ui_device_attestation" formatted="false">"GERÄTEBESCHEINIGUNG"</string>
+    <string name="waex_ui_device_environment" formatted="false">"Geräteumgebung"</string>
+    <string name="waex_ui_device_integrity_supported" formatted="false">"Geräteintegrität unterstützt"</string>
+    <string name="waex_ui_device_management" formatted="false">"Geräteverwaltung"</string>
+    <string name="waex_ui_device_model" formatted="false">"Gerätemodell"</string>
+    <string name="waex_ui_device_unlinked_successfully" formatted="false">"Das Gerät wurde erfolgreich getrennt."</string>
+    <string name="waex_ui_direct_pipeline" formatted="false">"Direkte Pipeline"</string>
+    <string name="waex_ui_disable_proximity_sensor" formatted="false">"Näherungssensor deaktivieren"</string>
+    <string name="waex_ui_disable_see_more_button_and_show_all_l" formatted="false">"Deaktivieren Sie die Schaltfläche „Mehr anzeigen“ und zeigen Sie alle langen Nachrichten an"</string>
+    <string name="waex_ui_disabled_uppercase" formatted="false">"DEAKTIVIERT"</string>
+    <string name="waex_ui_disabled_label" formatted="false">"Deaktiviert"</string>
+    <string name="waex_ui_disabled" formatted="false">"Deaktiviert"</string>
+    <string name="waex_ui_dismiss" formatted="false">"Entlassen"</string>
+    <string name="waex_ui_display_over_other_apps" formatted="false">"Anzeige über anderen Apps"</string>
+    <string name="waex_ui_displays_the_custom_privacy_shortcut_i" formatted="false">"Zeigt die benutzerdefinierte Datenschutzverknüpfung an beiden Stellen an"</string>
+    <string name="waex_ui_dissociating_your_current_phone_will_r" formatted="false">"Durch die Trennung Ihres aktuellen Telefons wird WAEX auf die kostenlose Stufe zurückgesetzt und die App wird neu gestartet."</string>
+    <string name="waex_ui_dnd_off" formatted="false">"Nicht stören: AUS"</string>
+    <string name="waex_ui_dnd_on" formatted="false">"DND: EIN"</string>
+    <string name="waex_ui_do_you_want_to_send_this_sticker_to_th" formatted="false">"Möchten Sie diesen Aufkleber an den Chat senden?"</string>
+    <string name="waex_ui_done" formatted="false">"Fertig"</string>
+    <string name="waex_ui_double_tap_reaction" formatted="false">"Double-Tap-Reaktion"</string>
+    <string name="waex_ui_downgrade" formatted="false">"Downgrade"</string>
+    <string name="waex_ui_download" formatted="false">"Herunterladen"</string>
+    <string name="waex_ui_download_failed_1_s">"Download fehlgeschlagen: %1$s"</string>
+    <string name="waex_ui_downloading_and_validating_the_certifi" formatted="false">"Herunterladen und Validieren der Zertifikatskette…"</string>
+    <string name="waex_ui_downloading_update" formatted="false">"Update wird heruntergeladen"</string>
+    <string name="waex_ui_e_g" formatted="false">"z.B. 👍"</string>
+    <string name="waex_ui_e_g_conversation_row_date" formatted="false">"z.B. Konversationszeile_Datum"</string>
+    <string name="waex_ui_ec_attestation_chain" formatted="false">"EC Attestierungskette"</string>
+    <string name="waex_ui_edit_filter" formatted="false">"Filter bearbeiten"</string>
+    <string name="waex_ui_edited_message_history" formatted="false">"Bearbeiteter Nachrichtenverlauf"</string>
+    <string name="waex_ui_enable" formatted="false">"Aktivieren"</string>
+    <string name="waex_ui_enable_bootloader_spoofer" formatted="false">"Aktivieren Sie den Bootloader-Spoofer"</string>
+    <string name="waex_ui_enable_custom_versions" formatted="false">"Aktivieren Sie benutzerdefinierte Versionen"</string>
+    <string name="waex_ui_enable_floating_bottom_bar" formatted="false">"Aktivieren Sie die schwebende untere Leiste"</string>
+    <string name="waex_ui_enable_per_contact_privacy" formatted="false">"Aktivieren Sie den Datenschutz pro Kontakt"</string>
+    <string name="waex_ui_enable_the_feature_when_your_source_is" formatted="false">"Aktivieren Sie die Funktion, wenn Ihre Quelle bereit ist"</string>
+    <string name="waex_ui_encoding_format" formatted="false">"Kodierungsformat"</string>
+    <string name="waex_ui_end_hour" formatted="false">"Endstunde"</string>
+    <string name="waex_ui_enforcing" formatted="false">"Durchsetzen"</string>
+    <string name="waex_ui_engine_running" formatted="false">"Motor läuft"</string>
+    <string name="waex_ui_enhanced_adaptive_shadows_and_refined" formatted="false">"Verbesserte adaptive Schatten und verfeinerte Polsterung"</string>
+    <string name="waex_ui_enter_0_or_a_number_from_120_to_1000" formatted="false">"Geben Sie 0 oder eine Zahl zwischen 120 und 1000 ein"</string>
+    <string name="waex_ui_enter_0_to_use_the_device_default_or_a" formatted="false">"Geben Sie 0 ein, um den Gerätestandard zu verwenden, oder einen DPI-Wert zwischen 120 und 1000."</string>
+    <string name="waex_ui_enter_your_license_key_to_unlock_all_p" formatted="false">"Geben Sie Ihren Lizenzschlüssel ein, um alle Premium-Funktionen freizuschalten."</string>
+    <string name="waex_ui_error_1_s">"Fehler: %1$s"</string>
+    <string name="waex_ui_error" formatted="false">"Fehler:"</string>
+    <string name="waex_ui_error_displaying_image_1_s">"Fehler beim Anzeigen des Bildes: %1$s"</string>
+    <string name="waex_ui_error_displaying_video_1_s">"Fehler beim Anzeigen des Videos: %1$s"</string>
+    <string name="waex_ui_error_finding_message_info" formatted="false">"Fehler beim Finden der Nachrichteninformationen"</string>
+    <string name="waex_ui_error_launching_preview_1_s">"Fehler beim Starten der Vorschau: %1$s"</string>
+    <string name="waex_ui_error_opening_status" formatted="false">"Fehler beim Öffnen:"</string>
+    <string name="waex_ui_error_playing_video" formatted="false">"Fehler beim Abspielen des Videos"</string>
+    <string name="waex_ui_error_saving_status_media" formatted="false">"Fehler beim Speichern des Statusmediums:"</string>
+    <string name="waex_ui_event_incoming_message" formatted="false">"EREIGNIS: EINGANGENDE NACHRICHT"</string>
+    <string name="waex_ui_event_message_received" formatted="false">"Ereignis: Nachricht empfangen"</string>
+    <string name="waex_ui_every_eligible_app_open" formatted="false">"Jede berechtigte App ist geöffnet"</string>
+    <string name="waex_ui_everyone_no_block" formatted="false">"Jeder (kein Block)"</string>
+    <string name="waex_ui_exit_waenhancerx" formatted="false">"Beenden Sie WaEnhancerX"</string>
+    <string name="waex_ui_expand" formatted="false">"Erweitern"</string>
+    <string name="waex_ui_expand_1_s">"Erweitern Sie %1$s"</string>
+    <string name="waex_ui_expires" formatted="false">"Läuft ab"</string>
+    <string name="waex_ui_extra_number_1234567890_extra_message" formatted="false">"Extra: Nummer:1234567890
+Extra: Nachricht: Ihre automatische Antwort hier"</string>
+    <string name="waex_ui_fade_out" formatted="false">"Ausblenden"</string>
+    <string name="waex_ui_failed_uppercase" formatted="false">"FEHLGESCHLAGEN"</string>
+    <string name="waex_ui_failed_label" formatted="false">"Fehlgeschlagen"</string>
+    <string name="waex_ui_failed_to_download_status" formatted="false">"Download-Status fehlgeschlagen:"</string>
+    <string name="waex_ui_failed_to_fetch_connected_devices" formatted="false">"Angeschlossene Geräte konnten nicht abgerufen werden."</string>
+    <string name="waex_ui_failed_to_load_devices" formatted="false">"Geräte konnten nicht geladen werden"</string>
+    <string name="waex_ui_failed_to_save" formatted="false">"Speichern fehlgeschlagen:"</string>
+    <string name="waex_ui_fast_navigation_and_conversation_produ" formatted="false">"Schnelle Navigations- und Konversationsproduktivitätstools"</string>
+    <string name="waex_ui_feature" formatted="false">"Funktion"</string>
+    <string name="waex_ui_feature_enabled" formatted="false">"Funktion aktiviert"</string>
+    <string name="waex_ui_features" formatted="false">"Funktionen"</string>
+    <string name="waex_ui_filter_items" formatted="false">"Elemente filtern"</string>
+    <string name="waex_ui_filter_view_id" formatted="false">"Filteransichts-ID"</string>
+    <string name="waex_ui_force_waex_hooks_to_run_on_any_version" formatted="false">"Erzwingen Sie die Ausführung von WAEX-Hooks auf jeder Version ohne Überprüfung (Erweitert)"</string>
+    <string name="waex_ui_framework_package" formatted="false">"Rahmenpaket"</string>
+    <string name="waex_ui_framework_version" formatted="false">"Framework-Version"</string>
+    <string name="waex_ui_free" formatted="false">"Kostenlos"</string>
+    <string name="waex_ui_free_plan" formatted="false">"Kostenloser Plan"</string>
+    <string name="waex_ui_free_vs_pro_features" formatted="false">"Kostenlose vs. Pro-Funktionen"</string>
+    <string name="waex_ui_freeze" formatted="false">"Einfrieren"</string>
+    <string name="waex_ui_freeze_last_seen" formatted="false">"Aktivieren Sie „Zuletzt gesehen einfrieren?“"</string>
+    <string name="waex_ui_freeze_last_seen_off" formatted="false">"Zuletzt gesehen einfrieren: AUS"</string>
+    <string name="waex_ui_freeze_last_seen_on" formatted="false">"Zuletzt gesehen einfrieren: EIN"</string>
+    <string name="waex_ui_freeze_restart" formatted="false">"Einfrieren und neu starten"</string>
+    <string name="waex_ui_frosted_glass_effect" formatted="false">"Milchglaseffekt"</string>
+    <string name="waex_ui_full" formatted="false">"Voll"</string>
+    <string name="waex_ui_full_access_to_all_pro_features_for_30" formatted="false">"Voller Zugriff auf alle Pro-Funktionen für 30 Tage"</string>
+    <string name="waex_ui_full_quality_media_info_is_unavailable" formatted="false">"Medieninformationen in voller Qualität sind nicht verfügbar"</string>
+    <string name="waex_ui_general" formatted="false">"Allgemein"</string>
+    <string name="waex_ui_general_stability_improvements_and_bug" formatted="false">"Allgemeine Stabilitätsverbesserungen und Fehlerbehebungen."</string>
+    <string name="waex_ui_geometry_spacing" formatted="false">"Geometrie und Abstand"</string>
+    <string name="waex_ui_get_or_manage_license_via_waenhancerx" formatted="false">"Erhalten oder verwalten Sie die Lizenz über @waenhancerx_bot"</string>
+    <string name="waex_ui_get_whisper_models_over_wi_fi_automati" formatted="false">"Erhalten Sie automatisch Whisper-Modelle über Wi-Fi."</string>
+    <string name="waex_ui_ghost_mode" formatted="false">"Ghost-Modus"</string>
+    <string name="waex_ui_ghost_mode_activated" formatted="false">"Ghost-Modus aktiviert"</string>
+    <string name="waex_ui_ghost_mode_deactivated" formatted="false">"Ghost-Modus deaktiviert"</string>
+    <string name="waex_ui_ghost_mode_hides_your_online_status_fr" formatted="false">"Der Ghost-Modus verbirgt Ihren Online-Status, friert die zuletzt gesehenen Kontakte ein und unterdrückt die Eingabe und Lesebestätigungen aller Kontakte.
+
+WhatsApp neu starten, um die Änderungen zu übernehmen?"</string>
+    <string name="waex_ui_ghost_mode_off" formatted="false">"Geistermodus: AUS"</string>
+    <string name="waex_ui_ghost_mode_on" formatted="false">"Geistermodus: EIN"</string>
+    <string name="waex_ui_github_account" formatted="false">"GitHub Konto"</string>
+    <string name="waex_ui_glass_opacity" formatted="false">"Glasopazität"</string>
+    <string name="waex_ui_gone_remove" formatted="false">"Weg (Entfernen)"</string>
+    <string name="waex_ui_grant_everything_now_for_convenience_o" formatted="false">"Erteilen Sie der Einfachheit halber jetzt alles oder fahren Sie fort und erteilen Sie Berechtigungen nur dann, wenn eine Funktion sie benötigt."</string>
+    <string name="waex_ui_groq_api_key" formatted="false">"Groq API Schlüssel"</string>
+    <string name="waex_ui_group_1_s_preserved">"Gruppe • %1$s beibehalten"</string>
+    <string name="waex_ui_grouped" formatted="false">"Gruppiert"</string>
+    <string name="waex_ui_grouped_under_waex" formatted="false">"Gruppiert unter WAEX"</string>
+    <string name="waex_ui_groups" formatted="false">"Gruppen"</string>
+    <string name="waex_ui_hardware_locked_feature_activation" formatted="false">"Aktivierung der Hardware-gesperrten Funktion"</string>
+    <string name="waex_ui_hd_upload" formatted="false">"HD-Upload"</string>
+    <string name="waex_ui_hex_code" formatted="false">"Hex-Code"</string>
+    <string name="waex_ui_hide_audio_recording_state" formatted="false">"Audioaufnahmestatus ausblenden"</string>
+    <string name="waex_ui_hide_forwarded_tag" formatted="false">"Weitergeleitetes Tag ausblenden"</string>
+    <string name="waex_ui_hide_home_tabs_title" formatted="false">"Home-Registerkarten ausblenden"</string>
+    <string name="waex_ui_hide_home_tabs_label" formatted="false">"Home-Tabs ausblenden"</string>
+    <string name="waex_ui_hide_on_scroll" formatted="false">"Beim Scrollen ausblenden"</string>
+    <string name="waex_ui_bottom_bar_shadow" formatted="false">"Schatten"</string>
+    <string name="waex_ui_bottom_bar_shadow_desc" formatted="false">"Zeigen Sie einen Schatten unter der schwebenden Leiste an"</string>
+    <string name="waex_ui_hide_online" formatted="false">"Online verstecken"</string>
+    <string name="waex_ui_hide_read_confirmation" formatted="false">"Lesebestätigung ausblenden"</string>
+    <string name="waex_ui_hide_receipts" formatted="false">"Belege ausblenden"</string>
+    <string name="waex_ui_hide_recording" formatted="false">"Aufnahme ausblenden"</string>
+    <string name="waex_ui_hide_recording_status" formatted="false">"Aufnahmestatus ausblenden"</string>
+    <string name="waex_ui_hide_search" formatted="false">"Suche ausblenden"</string>
+    <string name="waex_ui_hide_seen" formatted="false">"Gesehenes verbergen"</string>
+    <string name="waex_ui_hide_seen_tick" formatted="false">"Gesehenes Häkchen ausblenden"</string>
+    <string name="waex_ui_hide_typing_indicator_label" formatted="false">"Tippanzeige ausblenden"</string>
+    <string name="waex_ui_hide_typing_status" formatted="false">"Tippstatus ausblenden"</string>
+    <string name="waex_ui_hide_view_status" formatted="false">"Ansichtsstatus ausblenden"</string>
+    <string name="waex_ui_home_feed" formatted="false">"Zuhause &amp; Futter"</string>
+    <string name="waex_ui_home_header_actions" formatted="false">"Home-Header-Aktionen"</string>
+    <string name="waex_ui_home_menu" formatted="false">"Home-Menü"</string>
+    <string name="waex_ui_hook_runtime" formatted="false">"Hook-Laufzeit"</string>
+    <string name="waex_ui_hook_success" formatted="false">"HAKEN SIE ERFOLGREICH"</string>
+    <string name="waex_ui_hooks" formatted="false">"Haken"</string>
+    <string name="waex_ui_horizontal_margin" formatted="false">"Horizontaler Rand"</string>
+    <string name="waex_ui_horizontal_inner_padding" formatted="false">"Horizontale Innenpolsterung"</string>
+    <string name="waex_ui_how_to_configure_rules" formatted="false">"So konfigurieren Sie Regeln"</string>
+    <string name="waex_ui_how_waex_items_appear_in_whatsapp_s_ho" formatted="false">"Wie WAEX-Elemente im Home-Menü von WhatsApp angezeigt werden"</string>
+    <string name="waex_ui_hue" formatted="false">"Farbton"</string>
+    <string name="waex_ui_icon_label_spacing" formatted="false">"Abstand zwischen Symbolen und Beschriftungen"</string>
+    <string name="waex_ui_icon_size" formatted="false">"Symbolgröße"</string>
+    <string name="waex_ui_icons" formatted="false">"Symbole"</string>
+    <string name="waex_ui_icons_only" formatted="false">"Tab-Beschriftungen ausblenden (nur Symbole)"</string>
+    <string name="waex_ui_icons_only_desc" formatted="false">"Zeigen Sie nur Navigationssymbole an und zentrieren Sie sie vertikal"</string>
+    <string name="waex_ui_selector_type" formatted="false">"Selektortyp"</string>
+    <string name="waex_ui_selector_color" formatted="false">"Auswahlfarbe"</string>
+    <string name="waex_ui_use_default_selector_color" formatted="false">"Verwendung der Standardauswahlfarbe von WhatsApp"</string>
+    <string name="waex_ui_use_app_default_color" formatted="false">"Verwenden Sie die Standardfarbe der App"</string>
+    <string name="waex_ui_opacity_value">"Deckkraft: %1$d%%"</string>
+    <string name="waex_ui_default" formatted="false">"Standard"</string>
+    <string name="waex_ui_oval" formatted="false">"Oval"</string>
+    <string name="waex_ui_ignore_battery_optimizations" formatted="false">"Batterieoptimierungen ignorieren"</string>
+    <string name="waex_ui_ignore" formatted="false">"Ignorieren"</string>
+    <string name="waex_ui_import_a_keybox_xml_before_enabling" formatted="false">"Importieren Sie vor der Aktivierung eine keybox.xml"</string>
+    <string name="waex_ui_import_custom_keybox_xml" formatted="false">"Importieren Sie die benutzerdefinierte keybox.xml"</string>
+    <string name="waex_ui_imported_keybox_selected" formatted="false">"Importierte Schlüsselbox ausgewählt"</string>
+    <string name="waex_ui_in_app_shortcut_placement" formatted="false">"Platzierung von In-App-Verknüpfungen"</string>
+    <string name="waex_ui_in_progress" formatted="false">"In Bearbeitung"</string>
+    <string name="waex_ui_indicator_style" formatted="false">"BLINKERSTIL"</string>
+    <string name="waex_ui_indicator_text_color" formatted="false">"Anzeige- und Textfarbe"</string>
+    <string name="waex_ui_individuals" formatted="false">"Einzelpersonen"</string>
+    <string name="waex_ui_injected" formatted="false">"Injiziert"</string>
+    <string name="waex_ui_injected_hooks" formatted="false">"Eingespritzte Haken"</string>
+    <string name="waex_ui_injected_initialization_failed" formatted="false">"Injiziert • Initialisierung fehlgeschlagen"</string>
+    <string name="waex_ui_injected_settings_connection_unavailab" formatted="false">"Eingespritzt • Einstellungsverbindung nicht verfügbar"</string>
+    <string name="waex_ui_injected_some_features_failed" formatted="false">"Eingefügt • Einige Funktionen sind fehlgeschlagen"</string>
+    <string name="waex_ui_injected_unsupported_version" formatted="false">"Injiziert • Nicht unterstützte Version"</string>
+    <string name="waex_ui_injected_using_settings_fallback" formatted="false">"Eingespritzt • Verwenden von Fallback-Einstellungen"</string>
+    <string name="waex_ui_injection_detected" formatted="false">"Injektion erkannt"</string>
+    <string name="waex_ui_input_your_purchased_key_to_verify_you" formatted="false">"Geben Sie Ihren gekauften Schlüssel ein, um Ihre Lizenz zu überprüfen."</string>
+    <string name="waex_ui_instagram_status_layout" formatted="false">"Instagram-Statuslayout"</string>
+    <string name="waex_ui_install_apk" formatted="false">"Installieren Sie APK"</string>
+    <string name="waex_ui_install_older_builds_over_newer_versio" formatted="false">"Ältere Builds über neuere Versionen installieren (Root erforderlich)"</string>
+    <string name="waex_ui_install_unknown_apps" formatted="false">"Unbekannte Apps installieren"</string>
+    <string name="waex_ui_installation_successful_restarting" formatted="false">"Installation erfolgreich. Neustart..."</string>
+    <string name="waex_ui_installed" formatted="false">"Installiert"</string>
+    <string name="waex_ui_installed_v_1_s">"Installiert: v%1$s"</string>
+    <string name="waex_ui_instant_automated_delivery_via_telegra" formatted="false">"Sofortige automatisierte Lieferung über den Bot Telegram"</string>
+    <string name="waex_ui_instantly_rejects_and_shows_call_decli" formatted="false">"Wird sofort abgelehnt und zeigt an, dass der Anruf abgelehnt wurde"</string>
+    <string name="waex_ui_integrity_estimate" formatted="false">"Integritätsschätzung"</string>
+    <string name="waex_ui_invalid_key_format_expected_waex_xxxx" formatted="false">"Ungültiges Schlüsselformat. Erwartet: WAEX-XXXX-XXXX-XXXX"</string>
+    <string name="waex_ui_invalid_keybox_1_s">"Ungültiger Schlüsselkasten: %1$s"</string>
+    <string name="waex_ui_invalid_value" formatted="false">"Ungültiger Wert"</string>
+    <string name="waex_ui_ios_frosted_glass" formatted="false">"iOS Milchglas"</string>
+    <string name="waex_ui_is_online" formatted="false">"ist online"</string>
+    <string name="waex_ui_join_our_supporters_and_get_your_githu" formatted="false">"Treten Sie unseren Unterstützern bei und lassen Sie Ihr GitHub-Profil in dieser Liste erscheinen."</string>
+    <string name="waex_ui_join_the_supporters_list" formatted="false">"Treten Sie der Unterstützerliste bei"</string>
+    <string name="waex_ui_keep_deleted_messages_visible" formatted="false">"Gelöschte Nachrichten sichtbar halten"</string>
+    <string name="waex_ui_kernel" formatted="false">"Kernel"</string>
+    <string name="waex_ui_keybox_file_is_too_large" formatted="false">"Die Keybox-Datei ist zu groß"</string>
+    <string name="waex_ui_keybox_setup_required" formatted="false">"Einrichtung eines Schlüsselkastens erforderlich"</string>
+    <string name="waex_ui_keybox_source" formatted="false">"KEYBOX-QUELLE"</string>
+    <string name="waex_ui_keybox_verification" formatted="false">"Schlüsselbox-Überprüfung"</string>
+    <string name="waex_ui_language_downloads" formatted="false">"Sprache &amp; Downloads"</string>
+    <string name="waex_ui_last_seen_frozen" formatted="false">"Zuletzt eingefroren gesehen"</string>
+    <string name="waex_ui_last_seen_unfrozen" formatted="false">"Zuletzt gesehen ungefroren"</string>
+    <string name="waex_ui_last_updated_1_s">"| Zuletzt aktualisiert %1$s"</string>
+    <string name="waex_ui_later" formatted="false">"Später"</string>
+    <string name="waex_ui_license_expired" formatted="false">"Lizenz abgelaufen"</string>
+    <string name="waex_ui_license_key" formatted="false">"Lizenzschlüssel"</string>
+    <string name="waex_ui_license_removed_from_this_device" formatted="false">"Die Lizenz wurde von diesem Gerät entfernt."</string>
+    <string name="waex_ui_licensing" formatted="false">"Lizenzierung"</string>
+    <string name="waex_ui_lifetime_access" formatted="false">"Lebenslanger Zugriff"</string>
+    <string name="waex_ui_lifetime_pro" formatted="false">"Lifetime Pro"</string>
+    <string name="waex_ui_limit_full" formatted="false">"Limit voll"</string>
+    <string name="waex_ui_lines_added" formatted="false">"Zeilen hinzugefügt"</string>
+    <string name="waex_ui_lines_deleted" formatted="false">"Zeilen gelöscht"</string>
+    <string name="waex_ui_linked_devices" formatted="false">"VERKNÜPFTE GERÄTE"</string>
+    <string name="waex_ui_live_preview" formatted="false">"Live-Vorschau"</string>
+    <string name="waex_ui_location_ip" formatted="false">"Standort/IP"</string>
+    <string name="waex_ui_lock_your_online_timestamp" formatted="false">"Sperren Sie Ihren Online-Zeitstempel"</string>
+    <string name="waex_ui_locked_chats_unavailable_in_this_whats" formatted="false">"Gesperrte Chats sind in diesem WhatsApp-Build nicht verfügbar"</string>
+    <string name="waex_ui_locked_pro_feature" formatted="false">"Locked Pro-Funktion"</string>
+    <string name="waex_ui_locks_your_last_seen_timestamp_so_cont" formatted="false">"Sperrt Ihren zuletzt gesehenen Zeitstempel, sodass Kontakte nicht sehen können, wenn Sie aktiv sind.
+
+WhatsApp neu starten, um die Änderungen zu übernehmen?"</string>
+    <string name="waex_ui_long_press_whatsapp_title" formatted="false">"Drücken Sie lange auf den Titel WhatsApp"</string>
+    <string name="waex_ui_maintainer" formatted="false">"WARTER"</string>
+    <string name="waex_ui_manage_1_s">"%1$s verwalten"</string>
+    <string name="waex_ui_manage_automation" formatted="false">"Automatisierung verwalten"</string>
+    <string name="waex_ui_manage_connected_devices" formatted="false">"Verbundene Geräte verwalten"</string>
+    <string name="waex_ui_manage_license_via_telegram_waenhancer" formatted="false">"Verwalten Sie die Lizenz über Telegram @waenhancerx_bot"</string>
+    <string name="waex_ui_manage_privacy_settings" formatted="false">"Datenschutzeinstellungen verwalten"</string>
+    <string name="waex_ui_managed_keybox_ready" formatted="false">"Bereit für den verwalteten Schlüsselkasten"</string>
+    <string name="waex_ui_managed_keybox_unavailable" formatted="false">"Verwalteter Schlüsselkasten nicht verfügbar"</string>
+    <string name="waex_ui_managed_keybox_updated" formatted="false">"Verwaltete Schlüsselbox aktualisiert"</string>
+    <string name="waex_ui_manager_process_hooked" formatted="false">"Managerprozess süchtig"</string>
+    <string name="waex_ui_media_not_available_yet" formatted="false">"Medien noch nicht verfügbar"</string>
+    <string name="waex_ui_media_not_cached_or_available_yet" formatted="false">"Medien sind noch nicht zwischengespeichert oder verfügbar"</string>
+    <string name="waex_ui_media_preview" formatted="false">"Medienvorschau"</string>
+    <string name="waex_ui_media_quality_bypass" formatted="false">"Umgehung der Medienqualität"</string>
+    <string name="waex_ui_menu_display_options" formatted="false">"MENÜ-ANZEIGEOPTIONEN"</string>
+    <string name="waex_ui_menu_icons" formatted="false">"Menüsymbole"</string>
+    <string name="waex_ui_menu_option" formatted="false">"Menüoption"</string>
+    <string name="waex_ui_message_bomber_pro" formatted="false">"Nachrichtenbomber · Pro"</string>
+    <string name="waex_ui_message_protection_controls" formatted="false">"Nachrichtenschutz und -kontrollen"</string>
+    <string name="waex_ui_messagedevicesource" formatted="false">"MessageDeviceSource"</string>
+    <string name="waex_ui_microphone" formatted="false">"Mikrofon"</string>
+    <string name="waex_ui_microphone_call_recording" formatted="false">"Mikrofon- und Anrufaufzeichnung"</string>
+    <string name="waex_ui_minorfixes" formatted="false">"Kleinere Korrekturen"</string>
+    <string name="waex_ui_model_download_status" formatted="false">"Modell-Download-Status"</string>
+    <string name="waex_ui_module_framework" formatted="false">"Modul &amp; Framework"</string>
+    <string name="waex_ui_module_inactive" formatted="false">"Modul inaktiv"</string>
+    <string name="waex_ui_module_status" formatted="false">"Modulstatus"</string>
+    <string name="waex_ui_module_version" formatted="false">"Modulversion"</string>
+    <string name="waex_ui_modules" formatted="false">"Module"</string>
+    <string name="waex_ui_month" formatted="false">"/ Monat"</string>
+    <string name="waex_ui_more_options" formatted="false">"Weitere Optionen"</string>
+    <string name="waex_ui_my_status" formatted="false">"Mein Status"</string>
+    <string name="waex_ui_name_sender_name_number_sender_jid_pho" formatted="false">"%name (Absendername)
+%number (Absender JID / Telefon)
+%message (Textinhalt)"</string>
+    <string name="waex_ui_needs_attention" formatted="false">"BRAUCHT AUFMERKSAMKEIT"</string>
+    <string name="waex_ui_no" formatted="false">"Nein"</string>
+    <string name="waex_ui_no_active_hooks_reported_by_whatsapp_p" formatted="false">"Vom Prozess WhatsApp wurden keine aktiven Hooks gemeldet.
+Stellen Sie sicher, dass WhatsApp ausgeführt wird."</string>
+    <string name="waex_ui_no_active_rules" formatted="false">"Keine aktiven Regeln"</string>
+    <string name="waex_ui_no_call_recordings_yet" formatted="false">"Noch keine Anrufaufzeichnungen"</string>
+    <string name="waex_ui_no_changelog_available" formatted="false">"Kein Änderungsprotokoll verfügbar."</string>
+    <string name="waex_ui_no_contributors_found" formatted="false">"Keine Mitwirkenden gefunden"</string>
+    <string name="waex_ui_no_custom_rules_yet" formatted="false">"Noch keine benutzerdefinierten Regeln"</string>
+    <string name="waex_ui_no_custom_version_rules_added_yet_tap" formatted="false">"Es wurden noch keine benutzerdefinierten Versionsregeln hinzugefügt.
+Tippen Sie auf „Regel hinzufügen“, um eine nicht unterstützte App auszuwählen und ihren Versionszweig automatisch zu registrieren."</string>
+    <string name="waex_ui_no_filters_added" formatted="false">"Keine Filter hinzugefügt"</string>
+    <string name="waex_ui_no_hidden_read_receipt_to_send" formatted="false">"Keine versteckte Lesebestätigung zum Senden"</string>
+    <string name="waex_ui_no_injected_hooks_matching_filter" formatted="false">"Keine eingespritzten Haken zum passenden Filter"</string>
+    <string name="waex_ui_no_internet_connection" formatted="false">"Keine Internetverbindung"</string>
+    <string name="waex_ui_no_linked_devices_found_for_this_licen" formatted="false">"Für diese Lizenz wurden keine verknüpften Geräte gefunden."</string>
+    <string name="waex_ui_no_message_history_found" formatted="false">"Kein Nachrichtenverlauf gefunden"</string>
+    <string name="waex_ui_no_messages" formatted="false">"Keine Nachrichten"</string>
+    <string name="waex_ui_no_preserved_group_chats" formatted="false">"Keine erhaltenen Gruppenchats"</string>
+    <string name="waex_ui_no_preserved_individual_chats" formatted="false">"Keine erhaltenen Einzelchats"</string>
+    <string name="waex_ui_no_releases_found" formatted="false">"Keine Veröffentlichungen gefunden."</string>
+    <string name="waex_ui_no_tabs_hidden" formatted="false">"Keine Tabs ausgeblendet"</string>
+    <string name="waex_ui_no_validated_managed_keybox_is_cached" formatted="false">"Es ist noch kein validierter verwalteter Schlüsselkasten zwischengespeichert"</string>
+    <string name="waex_ui_none_reported" formatted="false">"Keiner gemeldet"</string>
+    <string name="waex_ui_not_available_title" formatted="false">"Nicht verfügbar"</string>
+    <string name="waex_ui_not_available_label" formatted="false">"Nicht verfügbar"</string>
+    <string name="waex_ui_not_configured" formatted="false">"Nicht konfiguriert"</string>
+    <string name="waex_ui_not_detected" formatted="false">"Nicht erkannt"</string>
+    <string name="waex_ui_not_injected" formatted="false">"Nicht gespritzt"</string>
+    <string name="waex_ui_not_installed" formatted="false">"Nicht installiert"</string>
+    <string name="waex_ui_not_installed_on_this_device" formatted="false">"Nicht auf diesem Gerät installiert"</string>
+    <string name="waex_ui_not_reported" formatted="false">"Nicht gemeldet"</string>
+    <string name="waex_ui_not_reported_yet" formatted="false">"Noch nicht gemeldet"</string>
+    <string name="waex_ui_note_resizing_view_elements_dynamicall" formatted="false">"Hinweis: Die dynamische Größenänderung von Ansichtselementen erfordert zusätzliches Layout-Rendering. Dies kann dazu führen, dass Bildschirme, die diese Elemente enthalten, mit einer geringfügigen Verzögerung geladen werden."</string>
+    <string name="waex_ui_online_presence_indicators" formatted="false">"Online-Präsenzindikatoren"</string>
+    <string name="waex_ui_only_allow_numbers_saved_in_your_phone" formatted="false">"Lassen Sie nur Nummern zu, die in Ihrem Telefonadressbuch gespeichert sind"</string>
+    <string name="waex_ui_opacity_0_100" formatted="false">"Deckkraft (0 - 100)"</string>
+    <string name="waex_ui_opacity_pro" formatted="false">"Deckkraft (Pro)"</string>
+    <string name="waex_ui_open_archived_chats_uppercase" formatted="false">"ÖFFNEN SIE ARCHIVIERTE CHATS"</string>
+    <string name="waex_ui_open_archived_chats_label" formatted="false">"Archivierte Chats öffnen"</string>
+    <string name="waex_ui_open_github" formatted="false">"Öffnen Sie GitHub"</string>
+    <string name="waex_ui_open_locked_chats_uppercase" formatted="false">"OFFENE GESCHLOSSENE CHATS"</string>
+    <string name="waex_ui_open_locked_chats_label" formatted="false">"Öffnen Sie gesperrte Chats"</string>
+    <string name="waex_ui_open_to_hire" formatted="false">"Zur Anmietung geöffnet"</string>
+    <string name="waex_ui_open_waex_settings" formatted="false">"Öffnen Sie die WAEX-Einstellungen"</string>
+    <string name="waex_ui_open_your_github_profile" formatted="false">"Öffnen Sie Ihr GitHub-Profil"</string>
+    <string name="waex_ui_optional_permissions" formatted="false">"Optionale Berechtigungen"</string>
+    <string name="waex_ui_opus_opus" formatted="false">"Opus (.opus)"</string>
+    <string name="waex_ui_or_enter_custom_emoji" formatted="false">"Oder geben Sie ein benutzerdefiniertes Emoji ein"</string>
+    <string name="waex_ui_overview" formatted="false">"Übersicht"</string>
+    <string name="waex_ui_parse_error" formatted="false">"Parse-Fehler"</string>
+    <string name="waex_ui_participant" formatted="false">"Teilnehmer"</string>
+    <string name="waex_ui_paused_unsupported_version" formatted="false">"Angehalten: nicht unterstützte Version"</string>
+    <string name="waex_ui_pending" formatted="false">"AUSSTEHEND"</string>
+    <string name="waex_ui_per_contact_privacy" formatted="false">"Datenschutz pro Kontakt"</string>
+    <string name="waex_ui_per_contact_privacy_is_currently_disab" formatted="false">"Der Datenschutz pro Kontakt ist derzeit in der Konfiguration deaktiviert."</string>
+    <string name="waex_ui_periodically_check_the_waenhancerx_rel" formatted="false">"Überprüfen Sie regelmäßig den Freigabedienst WaEnhancerX"</string>
+    <string name="waex_ui_permissive" formatted="false">"Freizügig"</string>
+    <string name="waex_ui_photos_media_storage" formatted="false">"Fotos und Medienspeicher"</string>
+    <string name="waex_ui_pill_design" formatted="false">"Pillendesign"</string>
+    <string name="waex_ui_pill_design_preset" formatted="false">"Pillen-Design-Voreinstellung"</string>
+    <string name="waex_ui_plan" formatted="false">"Planen"</string>
+    <string name="waex_ui_play" formatted="false">"Spielen"</string>
+    <string name="waex_ui_playback_error_1_s">"Wiedergabefehler: %1$s"</string>
+    <string name="waex_ui_please_allow_waenhancer_x_to_install_a" formatted="false">"Bitte erlauben Sie WaEnhancer X, Apps zu installieren"</string>
+    <string name="waex_ui_please_enter_your_license_key" formatted="false">"Bitte geben Sie Ihren Lizenzschlüssel ein."</string>
+    <string name="waex_ui_please_wait_until_the_status_finishes" formatted="false">"Bitte warten Sie, bis der Download des Status abgeschlossen ist, und versuchen Sie es dann erneut"</string>
+    <string name="waex_ui_popular_reactions" formatted="false">"Beliebte Reaktionen"</string>
+    <string name="waex_ui_post_notifications" formatted="false">"Benachrichtigungen veröffentlichen"</string>
+    <string name="waex_ui_preferences_refresh_immediately_restar" formatted="false">"Die Einstellungen werden sofort aktualisiert. Beim Neustart von WhatsApp werden Hooks erneut eingefügt, die nur beim Start geladen werden"</string>
+    <string name="waex_ui_presence_toasts" formatted="false">"Präsenz-Toasts"</string>
+    <string name="waex_ui_preserve_deleted_messages" formatted="false">"Gelöschte Nachrichten beibehalten"</string>
+    <string name="waex_ui_preserve_edits_prevent_limits_and_safe" formatted="false">"Behalten Sie Änderungen bei, verhindern Sie Einschränkungen und schützen Sie Nachrichten"</string>
+    <string name="waex_ui_preserved" formatted="false">"Konserviert"</string>
+    <string name="waex_ui_preserved_message" formatted="false">"Erhaltene Nachricht"</string>
+    <string name="waex_ui_presets" formatted="false">"Voreinstellungen"</string>
+    <string name="waex_ui_press_back_again_to_exit" formatted="false">"Drücken Sie erneut die Zurück-Taste, um den Vorgang zu beenden"</string>
+    <string name="waex_ui_prevent_revoke" formatted="false">"Widerruf verhindern"</string>
+    <string name="waex_ui_prevents_system_throttling_for_backgro" formatted="false">"Verhindert Systemdrosselung für Tasker-Hintergrundautomatisierungen und dauerhafte Stealth-Hooks."</string>
+    <string name="waex_ui_privacy_rules" formatted="false">"Datenschutzbestimmungen"</string>
+    <string name="waex_ui_private_key_matches" formatted="false">"Übereinstimmungen mit privaten Schlüsseln"</string>
+    <string name="waex_ui_pro_license_activated" formatted="false">"Pro-Lizenz aktiviert!"</string>
+    <string name="waex_ui_pro_monthly" formatted="false">"Pro Monat"</string>
+    <string name="waex_ui_pro_yearly" formatted="false">"Pro jährlich"</string>
+    <string name="waex_ui_profile_photo_download" formatted="false">"Profilfoto-Download"</string>
+    <string name="waex_ui_profile_photo_is_not_ready_yet" formatted="false">"Profilfoto ist noch nicht fertig"</string>
+    <string name="waex_ui_profile_photo_saved_to_pictures_waex_p" formatted="false">"Profilfoto unter Pictures/WAEX/Profile Photos gespeichert"</string>
+    <string name="waex_ui_purchase_license_key" formatted="false">"Lizenzschlüssel erwerben"</string>
+    <string name="waex_ui_ready" formatted="false">"Bereit"</string>
+    <string name="waex_ui_real_time_preview_of_how_whatsapp_bott" formatted="false">"Echtzeitvorschau, wie die untere Navigationstafel WhatsApp aussieht"</string>
+    <string name="waex_ui_rec" formatted="false">"Empf"</string>
+    <string name="waex_ui_receive_detailed_notification_with_cal" formatted="false">"Erhalten Sie nach Beendigung des Anrufs eine detaillierte Benachrichtigung mit IP, Standort, Gerät und Version des Anrufers"</string>
+    <string name="waex_ui_recommended" formatted="false">"EMPFOHLEN"</string>
+    <string name="waex_ui_record_whatsapp_calls" formatted="false">"Zeichnen Sie WhatsApp Anrufe auf"</string>
+    <string name="waex_ui_recording_configuration" formatted="false">"AUFZEICHNUNGSKONFIGURATION"</string>
+    <string name="waex_ui_recording_deleted" formatted="false">"Aufnahme gelöscht"</string>
+    <string name="waex_ui_refined_pro" formatted="false">"Verfeinert (Pro)"</string>
+    <string name="waex_ui_refresh_diagnostics" formatted="false">"Diagnose aktualisieren"</string>
+    <string name="waex_ui_refresh_failed_1_s">"Aktualisierung fehlgeschlagen: %1$s"</string>
+    <string name="waex_ui_refresh_hooks" formatted="false">"Haken aktualisieren"</string>
+    <string name="waex_ui_refresh_managed_keybox" formatted="false">"Verwaltete Schlüsselbox aktualisieren"</string>
+    <string name="waex_ui_refreshing" formatted="false">"Erfrischend…"</string>
+    <string name="waex_ui_refreshing_managed_keybox" formatted="false">"Aktualisierte verwaltete Schlüsselbox"</string>
+    <string name="waex_ui_release_details" formatted="false">"Veröffentlichungsdetails"</string>
+    <string name="waex_ui_release" formatted="false">"Veröffentlichung"</string>
+    <string name="waex_ui_release_not_found" formatted="false">"Veröffentlichung nicht gefunden."</string>
+    <string name="waex_ui_release_page" formatted="false">"Release-Seite"</string>
+    <string name="waex_ui_remind_me_again_after_one_day" formatted="false">"Erinnere mich nach einem Tag noch einmal daran"</string>
+    <string name="waex_ui_remind_me_again_after_one_week" formatted="false">"Erinnere mich nach einer Woche noch einmal daran"</string>
+    <string name="waex_ui_remove_custom_rules" formatted="false">"Benutzerdefinierte Regeln entfernen"</string>
+    <string name="waex_ui_remove_license_action" formatted="false">"Lizenz entfernen"</string>
+    <string name="waex_ui_remove_license_confirmation" formatted="false">"Lizenz entfernen?"</string>
+    <string name="waex_ui_removing" formatted="false">"Entfernen…"</string>
+    <string name="waex_ui_replace_custom_keybox_xml" formatted="false">"Ersetzen Sie die benutzerdefinierte keybox.xml"</string>
+    <string name="waex_ui_reported_hooked_targets" formatted="false">"Gemeldete Hakenziele"</string>
+    <string name="waex_ui_required_extras" formatted="false">"Erforderliche Extras:"</string>
+    <string name="waex_ui_required_for_automatic_call_recording" formatted="false">"Erforderlich für die automatische Anrufaufzeichnung und die KI-Transkription von Sprachnachrichten in Textnachrichten."</string>
+    <string name="waex_ui_required_for_download_progress_indicat" formatted="false">"Erforderlich für Download-Fortschrittsanzeigen, Online-Toast-Benachrichtigungen und Tasker-Synchronisierung."</string>
+    <string name="waex_ui_required_for_seamless_in_app_version_u" formatted="false">"Erforderlich für nahtlose In-App-Versionsupdate-Downloads und Modulinstallationen."</string>
+    <string name="waex_ui_required_for_whatsapp_database_backups" formatted="false">"Erforderlich für WhatsApp-Datenbanksicherungen, Datei-Spoofing und die Wiederherstellung von Chat-Tresoren."</string>
+    <string name="waex_ui_required_to_display_floating_action_bu" formatted="false">"Erforderlich, um schwebende Aktionsblasen, Online-Toasts und Chat-Schnellmenüs anzuzeigen."</string>
+    <string name="waex_ui_required_to_resolve_contact_names_and" formatted="false">"Erforderlich, um Kontaktnamen aufzulösen und Datenschutzregeln pro Kontakt einzurichten."</string>
+    <string name="waex_ui_required_to_save_status_photos_split_v" formatted="false">"Erforderlich, um Statusfotos zu speichern, Videos zu teilen und benutzerdefinierte Hintergrundbildthemen zu laden."</string>
+    <string name="waex_ui_required_to_save_status_updates_backup" formatted="false">"Erforderlich zum Speichern von Statusaktualisierungen, Sicherungskonfigurationen und Exportaufzeichnungen."</string>
+    <string name="waex_ui_reset_automatically_after_24_hours" formatted="false">"Automatisches Zurücksetzen nach 24 Stunden"</string>
+    <string name="waex_ui_resize_pro" formatted="false">"Größe ändern (Pro)"</string>
+    <string name="waex_ui_restart_app" formatted="false">"App neu starten"</string>
+    <string name="waex_ui_restart_required" formatted="false">"Neustart erforderlich"</string>
+    <string name="waex_ui_restart_whatsapp_after_changing_the_ke" formatted="false">"Starten Sie WhatsApp neu, nachdem Sie die Keybox-Quelle geändert oder diese Funktion aktiviert haben."</string>
+    <string name="waex_ui_restart_whatsapp" formatted="false">"WhatsApp neu starten"</string>
+    <string name="waex_ui_restore_failed_1_s">"Wiederherstellung fehlgeschlagen: %1$s"</string>
+    <string name="waex_ui_retain_messages_locally_when_delete_fo" formatted="false">"Behalten Sie Nachrichten lokal bei, wenn „Für mich löschen“ gedrückt wird"</string>
+    <string name="waex_ui_retry" formatted="false">"Versuchen Sie es noch einmal"</string>
+    <string name="waex_ui_root_access_is_required" formatted="false">"Root-Zugriff ist erforderlich"</string>
+    <string name="waex_ui_root_access_is_required_to_enable_sile" formatted="false">"Für die unbeaufsichtigte Installation ist Root-Zugriff erforderlich"</string>
+    <string name="waex_ui_root_access_is_required_to_enable_vers" formatted="false">"Um Versions-Downgrades zu ermöglichen, ist Root-Zugriff erforderlich"</string>
+    <string name="waex_ui_root_allowed" formatted="false">"Root erlaubt"</string>
+    <string name="waex_ui_root_direct" formatted="false">"Root / Direkt"</string>
+    <string name="waex_ui_root_installation_failed_1_s">"Root-Installation fehlgeschlagen: %1$s"</string>
+    <string name="waex_ui_root_lets_waenhancerx_verify_the_modul" formatted="false">"Mit Root kann WAEnhancerX den Modulumfang und die unterstützte Laufzeitumgebung überprüfen. Nicht-Root-Injektionsmethoden wie LSPatch und Shizuku-basierte Alternativen werden nicht unterstützt."</string>
+    <string name="waex_ui_rsa_attestation_chain" formatted="false">"RSA Attestierungskette"</string>
+    <string name="waex_ui_ec_only_keybox" formatted="false">"EC-nur Schlüsselbox"</string>
+    <string name="waex_ui_rsa_not_applicable" formatted="false">"RSA nicht anwendbar"</string>
+    <string name="waex_ui_rule_scope" formatted="false">"REGELUMFANG"</string>
+    <string name="waex_ui_rules_apply_at_all_times" formatted="false">"Die Regeln gelten jederzeit"</string>
+    <string name="waex_ui_run_an_eligible_update_check_when_waen" formatted="false">"Führen Sie eine Prüfung auf geeignete Updates durch, wenn WaEnhancerX geöffnet wird"</string>
+    <string name="waex_ui_runtime_api_captured" formatted="false">"Laufzeit API erfasst"</string>
+    <string name="waex_ui_saturation" formatted="false">"Sättigung"</string>
+    <string name="waex_ui_save_33_with_full_pro_access_for_365_d" formatted="false">"Sparen Sie 33% wmit vollem Pro-Zugriff für 365 Tage"</string>
+    <string name="waex_ui_save_rules" formatted="false">"Regeln speichern"</string>
+    <string name="waex_ui_saved_to" formatted="false">"Gespeichert unter:"</string>
+    <string name="waex_ui_scale_1_s">"Maßstab: %1$s"</string>
+    <string name="waex_ui_scheduled_rules" formatted="false">"Geplante Regeln"</string>
+    <string name="waex_ui_search_bar" formatted="false">"Suchleiste"</string>
+    <string name="waex_ui_search_github_usernames" formatted="false">"Durchsuchen Sie GitHub Benutzernamen"</string>
+    <string name="waex_ui_search_hidden" formatted="false">"Suche ausgeblendet"</string>
+    <string name="waex_ui_search_icon" formatted="false">"Suchsymbol"</string>
+    <string name="waex_ui_search_injected_hooks_classes" formatted="false">"Durchsuchen Sie injizierte Hooks und Klassen ..."</string>
+    <string name="waex_ui_search_supporters" formatted="false">"Unterstützer suchen"</string>
+    <string name="waex_ui_section_1_s">"Abschnitt: %1$s"</string>
+    <string name="waex_ui_seen" formatted="false">"Gesehen"</string>
+    <string name="waex_ui_select_accent_color" formatted="false">"Wählen Sie Akzentfarbe"</string>
+    <string name="waex_ui_select_an_installed_app_to_automatical" formatted="false">"Wählen Sie eine installierte App aus, um deren universelle Versionsregel automatisch zu generieren und zu registrieren:"</string>
+    <string name="waex_ui_select_build_type" formatted="false">"Wählen Sie Build-Typ aus"</string>
+    <string name="waex_ui_select_or_type_the_default_emoji_sent" formatted="false">"Wählen Sie das Standard-Emoji aus, das beim Doppeltippen auf eine Nachricht gesendet wird, oder geben Sie es ein."</string>
+    <string name="waex_ui_select_overall_aesthetic_theme_for_the" formatted="false">"Wählen Sie ein ästhetisches Gesamtthema für die schwebende Leiste"</string>
+    <string name="waex_ui_select_unsupported_app" formatted="false">"Wählen Sie „Nicht unterstützte App“ aus"</string>
+    <string name="waex_ui_selected" formatted="false">"Ausgewählt"</string>
+    <string name="waex_ui_selected_speech_locale_english_us" formatted="false">"Ausgewähltes Sprachgebietsschema: Englisch (USA)"</string>
+    <string name="waex_ui_send_blue_tick" formatted="false">"Blaues Häkchen senden"</string>
+    <string name="waex_ui_send" formatted="false">"Senden"</string>
+    <string name="waex_ui_send_sticker" formatted="false">"Aufkleber senden?"</string>
+    <string name="waex_ui_separate" formatted="false">"Getrennt"</string>
+    <string name="waex_ui_separate_items" formatted="false">"Separate Artikel"</string>
+    <string name="waex_ui_separate_menu_items" formatted="false">"Separate Menüpunkte"</string>
+    <string name="waex_ui_set_speech_interpretation_locale" formatted="false">"Legen Sie das Gebietsschema für die Sprachdolmetschung fest"</string>
+    <string name="waex_ui_settings_enforcement" formatted="false">"EINSTELLUNGEN &amp; DURCHSETZUNG"</string>
+    <string name="waex_ui_setup_progress" formatted="false">"Einrichtungsfortschritt"</string>
+    <string name="waex_ui_share_call_recording" formatted="false">"Anrufaufzeichnung teilen"</string>
+    <string name="waex_ui_share_selected" formatted="false">"Teilen ausgewählt"</string>
+    <string name="waex_ui_shield_heart" formatted="false">"Schildherz"</string>
+    <string name="waex_ui_show_hook_injection_toast" formatted="false">"Hook-Injection-Toast anzeigen"</string>
+    <string name="waex_ui_show_in_3_dots_waex_menu" formatted="false">"Im 3-Punkte-/WAEX-Menü anzeigen"</string>
+    <string name="waex_ui_show_it_again_on_the_next_check" formatted="false">"Zeigen Sie es bei der nächsten Kontrolle erneut vor"</string>
+    <string name="waex_ui_show_restart_sheet_after_changes" formatted="false">"Neustartblatt nach Änderungen anzeigen"</string>
+    <string name="waex_ui_show_the_injecting_hooks_notification" formatted="false">"Zeigt die Benachrichtigung über injizierende Hooks an, wenn WhatsApp geöffnet wird"</string>
+    <string name="waex_ui_silent_root_install" formatted="false">"Stille Root-Installation"</string>
+    <string name="waex_ui_simulates_caller_not_reachable" formatted="false">"Simuliert, dass der Anrufer nicht erreichbar ist"</string>
+    <string name="waex_ui_simulates_immediate_line_busy_tone" formatted="false">"Simuliert den sofortigen Besetztton der Leitung"</string>
+    <string name="waex_ui_slide_down" formatted="false">"Nach unten rutschen"</string>
+    <string name="waex_ui_solid_themed_floating_pill_with_sleek" formatted="false">"Solide, schwimmende Pille mit schlankem Umriss"</string>
+    <string name="waex_ui_spoof_the_locked_and_verified_boot_sta" formatted="false">"Fälschen Sie den gesperrten und überprüften Startstatus, der von WhatsApp-Integritätsprüfungen verwendet wird"</string>
+    <string name="waex_ui_spoofer_runtime" formatted="false">"Spoofer-Laufzeit"</string>
+    <string name="waex_ui_stable" formatted="false">"Stabil"</string>
+    <string name="waex_ui_standard_mic" formatted="false">"Standardmikrofon"</string>
+    <string name="waex_ui_star_waenhancerx_on_github_and_your_pr" formatted="false">"Markieren Sie WaEnhancerX auf GitHub und Ihr Profil kann dieser Unterstützerliste beitreten. Es ist kostenlos, dauert nur einen Moment und hilft mehr Menschen, das Projekt zu entdecken. Es kann eine Weile dauern, bis neue Sterne erscheinen."</string>
+    <string name="waex_ui_start_hour" formatted="false">"Startstunde"</string>
+    <string name="waex_ui_status" formatted="false">"Status"</string>
+    <string name="waex_ui_status_download" formatted="false">"Status-Download"</string>
+    <string name="waex_ui_status_forward" formatted="false">"Status Weiterleiten"</string>
+    <string name="waex_ui_status_saved_to_gallery_waex" formatted="false">"Status in Galerie gespeichert (WAEX)"</string>
+    <string name="waex_ui_status_splitter" formatted="false">"Statussplitter"</string>
+    <string name="waex_ui_status_text" formatted="false">"Statustext"</string>
+    <string name="waex_ui_stickers" formatted="false">"Aufkleber"</string>
+    <string name="waex_ui_stop" formatted="false">"Stopp"</string>
+    <string name="waex_ui_storage_access" formatted="false">"Speicherzugriff"</string>
+    <string name="waex_ui_stored_privately_on_this_device" formatted="false">"Privat auf diesem Gerät gespeichert"</string>
+    <string name="waex_ui_strong_integrity_supported" formatted="false">"Starke Integrität unterstützt"</string>
+    <string name="waex_ui_style_whatsapp_views_using_ids_widget" formatted="false">"Gestalten Sie WhatsApp-Ansichten mithilfe von IDs, Widget-Typen, bereichsbezogenen Aktivitäten und allgemeinen CSS-Eigenschaften. Starten Sie WhatsApp nach dem Speichern neu."</string>
+    <string name="waex_ui_subscription_expired" formatted="false">"Abonnement abgelaufen"</string>
+    <string name="waex_ui_summarize_long_audios" formatted="false">"Lange Audios zusammenfassen"</string>
+    <string name="waex_ui_supported_abis" formatted="false">"Unterstützte ABIs"</string>
+    <string name="waex_ui_supporting_since_1_s">"Unterstützend seit %1$s"</string>
+    <string name="waex_ui_system" formatted="false">"System"</string>
+    <string name="waex_ui_system_diagnostics" formatted="false">"Systemdiagnose"</string>
+    <string name="waex_ui_tap_any_feature_to_navigate_directly_t" formatted="false">"Tippen Sie auf eine beliebige Funktion, um direkt zu deren Einstellungen zu navigieren"</string>
+    <string name="waex_ui_tap_star_on_github_and_your_profile_wi" formatted="false">"Tippen Sie auf Stern auf GitHub und Ihr Profil wird angezeigt, nachdem die Liste aktualisiert wurde."</string>
+    <string name="waex_ui_tap_to_add_a_view_id_to_remove_or_cust" formatted="false">"Tippen Sie auf +, um eine Ansichts-ID zum Entfernen oder Anpassen in WhatsApp hinzuzufügen."</string>
+    <string name="waex_ui_tap_to_change_default_reaction_emoji_1">"Tippen, um das Standard-Reaktions-Emoji zu ändern (%1$s)"</string>
+    <string name="waex_ui_tap_whatsapp_title_3_times" formatted="false">"Tippen Sie dreimal auf den Titel WhatsApp"</string>
+    <string name="waex_ui_target_1_s">"Ziel: %1$s"</string>
+    <string name="waex_ui_target_applications_compatibility" formatted="false">"KOMPATIBILITÄT MIT ZIELANWENDUNGEN"</string>
+    <string name="waex_ui_tasker_integration" formatted="false">"Tasker Integration"</string>
+    <string name="waex_ui_telegram_account" formatted="false">"Telegram Konto"</string>
+    <string name="waex_ui_temporary_lockout" formatted="false">"Vorübergehende Sperrung"</string>
+    <string name="waex_ui_test" formatted="false">"Testen"</string>
+    <string name="waex_ui_text_deleted" formatted="false">"Text „Gelöscht“"</string>
+    <string name="waex_ui_text_size" formatted="false">"Textgröße"</string>
+    <string name="waex_ui_thank_you_for_being_a_pro_subscriber_a" formatted="false">"Vielen Dank, dass Sie Pro-Abonnent und WaEnhancerX-Sterngucker sind!"</string>
+    <string name="waex_ui_the_full_quality_image_could_not_be_de" formatted="false">"Das Bild in voller Qualität konnte nicht dekodiert werden"</string>
+    <string name="waex_ui_theme_custom_styles" formatted="false">"Theme und benutzerdefinierte Stile"</string>
+    <string name="waex_ui_this_behavior_requires_pro_license" formatted="false">"Für dieses Verhalten ist eine Pro-Lizenz erforderlich."</string>
+    <string name="waex_ui_this_check_runs_locally_using_the_syst" formatted="false">"Diese Prüfung wird lokal mit dem Systemidentitätsbefehl ausgeführt. Es werden keine Root-Details oder Befehlsausgaben hochgeladen."</string>
+    <string name="waex_ui_this_device" formatted="false">"Dieses Gerät"</string>
+    <string name="waex_ui_this_is_a_local_configuration_audit_no" formatted="false">"Hierbei handelt es sich um eine lokale Konfigurationsprüfung und nicht um ein Live-Urteil zur Google Play-Integrität."</string>
+    <string name="waex_ui_this_message_was_sent_via_a_linked_dev" formatted="false">"Diese Nachricht wurde über ein verknüpftes Gerät (Desktop/Telefon) gesendet."</string>
+    <string name="waex_ui_this_will_disconnect_1_s_from_your_lic">"Dadurch wird „%1$s“ von Ihrem Lizenzschlüssel getrennt und ein Gerätesteckplatz frei."</string>
+    <string name="waex_ui_this_will_unlink_this_device_remove_th" formatted="false">"Dadurch wird die Verknüpfung dieses Geräts aufgehoben, die gespeicherte Lizenz entfernt und WAEX in den kostenlosen Kontingent zurückgeführt."</string>
+    <string name="waex_ui_today_1_40_pm" formatted="false">"Heute, 13:40 Uhr"</string>
+    <string name="waex_ui_today_2_15_pm" formatted="false">"Heute, 14:15 Uhr"</string>
+    <string name="waex_ui_today_9_00_am" formatted="false">"Heute, 9:00 Uhr"</string>
+    <string name="waex_ui_toolbar_icons" formatted="false">"Symbolleistensymbole"</string>
+    <string name="waex_ui_tools" formatted="false">"Werkzeuge"</string>
+    <string name="waex_ui_top_icon" formatted="false">"Oberes Symbol"</string>
+    <string name="waex_ui_total_commits" formatted="false">"Gesamt-Commits"</string>
+    <string name="waex_ui_transcribe_voice_notes_automatically_u" formatted="false">"Transkribieren Sie Sprachnotizen automatisch mithilfe des lokalen Modells"</string>
+    <string name="waex_ui_transforms_the_default_navigation_bar" formatted="false">"Verwandelt die Standardnavigationsleiste in ein modernes schwebendes Tablet"</string>
+    <string name="waex_ui_translucent_background_with_blurred_ba" formatted="false">"Durchscheinender Hintergrund mit verschwommenem Hintergrund"</string>
+    <string name="waex_ui_translucent_glassmorphism_with_refract" formatted="false">"Durchscheinender Glasmorphismus mit Brechungsrand"</string>
+    <string name="waex_ui_trial" formatted="false">"Prozess"</string>
+    <string name="waex_ui_trigger_automation_whenever_a_new_mess" formatted="false">"Lösen Sie die Automatisierung aus, wenn in WhatsApp eine neue Nachricht empfangen wird."</string>
+    <string name="waex_ui_triggered_macro_forward_to_telegram_bo" formatted="false">"Ausgelöstes Makro: „An Telegram Bot weiterleiten“"</string>
+    <string name="waex_ui_trust_chain_verified" formatted="false">"Vertrauenskette verifiziert"</string>
+    <string name="waex_ui_try_again" formatted="false">"Versuchen Sie es erneut"</string>
+    <string name="waex_ui_typing" formatted="false">"Tippen"</string>
+    <string name="waex_ui_unable_to_determine_chat_jid" formatted="false">"Chat JID konnte nicht ermittelt werden"</string>
+    <string name="waex_ui_unable_to_execute_the_root_installer" formatted="false">"Das Root-Installationsprogramm kann nicht ausgeführt werden"</string>
+    <string name="waex_ui_unable_to_load_release" formatted="false">"Die Version konnte nicht geladen werden."</string>
+    <string name="waex_ui_unable_to_load_releases" formatted="false">"Versionen können nicht geladen werden."</string>
+    <string name="waex_ui_unable_to_remove_the_license_please_tr" formatted="false">"Die Lizenz kann nicht entfernt werden. Bitte versuchen Sie es erneut."</string>
+    <string name="waex_ui_unable_to_save_setting" formatted="false">"Die Einstellung konnte nicht gespeichert werden"</string>
+    <string name="waex_ui_unavailable" formatted="false">"Nicht verfügbar"</string>
+    <string name="waex_ui_unfreeze_last_seen" formatted="false">"„Zuletzt gesehen einfrieren“ deaktivieren?"</string>
+    <string name="waex_ui_unfreeze_restart" formatted="false">"Auftauen und neu starten"</string>
+    <string name="waex_ui_universal_base" formatted="false">"Universelle Basis"</string>
+    <string name="waex_ui_universal_built_in_versions" formatted="false">"UNIVERSELLE EINBAUVERSIONEN"</string>
+    <string name="waex_ui_unknown" formatted="false">"Unbekannt"</string>
+    <string name="waex_ui_unknown_contact" formatted="false">"Unbekannter Kontakt"</string>
+    <string name="waex_ui_unknown_contacts_only" formatted="false">"Nur unbekannte Kontakte"</string>
+    <string name="waex_ui_unknown_device" formatted="false">"Unbekanntes Gerät"</string>
+    <string name="waex_ui_unknown_preview_error" formatted="false">"Unbekannter Vorschaufehler"</string>
+    <string name="waex_ui_unlink" formatted="false">"Verknüpfung aufheben"</string>
+    <string name="waex_ui_unlink_connected_device" formatted="false">"Verbundenes Gerät trennen?"</string>
+    <string name="waex_ui_unlink_failed" formatted="false">"Das Aufheben der Verknüpfung ist fehlgeschlagen"</string>
+    <string name="waex_ui_unlink_failed_please_try_again" formatted="false">"Das Aufheben der Verknüpfung ist fehlgeschlagen. Bitte versuchen Sie es erneut."</string>
+    <string name="waex_ui_unlink_this_device" formatted="false">"Verknüpfung dieses Geräts aufheben?"</string>
+    <string name="waex_ui_unlinking_device" formatted="false">"Verknüpfung des Geräts wird aufgehoben…"</string>
+    <string name="waex_ui_unlock_all_premium_pro_capabilities" formatted="false">"Schalten Sie alle Premium-Pro-Funktionen frei"</string>
+    <string name="waex_ui_unsupported" formatted="false">"Nicht unterstützt"</string>
+    <string name="waex_ui_unsupported_setups_may_behave_unpredic" formatted="false">"Nicht unterstützte Setups können sich unvorhersehbar verhalten und das Risiko von WhatsApp-Einschränkungen erhöhen. Der Root-Zugriff beseitigt nicht alle Risiken, die mit der Verwendung von Modifikationen verbunden sind."</string>
+    <string name="waex_ui_update_available" formatted="false">"Update verfügbar"</string>
+    <string name="waex_ui_update" formatted="false">"Aktualisieren"</string>
+    <string name="waex_ui_update_now" formatted="false">"Jetzt aktualisieren"</string>
+    <string name="waex_ui_update_settings" formatted="false">"Einstellungen aktualisieren"</string>
+    <string name="waex_ui_updates" formatted="false">"Aktualisierungen"</string>
+    <string name="waex_ui_updates_every_1_s_hours">"Wird alle %1$s Stunden aktualisiert"</string>
+    <string name="waex_ui_upgrade" formatted="false">"Upgrade"</string>
+    <string name="waex_ui_use_custom_keybox" formatted="false">"Benutzerdefinierte Schlüsselbox verwenden"</string>
+    <string name="waex_ui_use_gemini_nano_to_write_bulleted_abst" formatted="false">"Verwenden Sie Gemini nano, um Zusammenfassungen mit Aufzählungszeichen für lange Notizen zu schreiben."</string>
+    <string name="waex_ui_user_busy" formatted="false">"Benutzer beschäftigt"</string>
+    <string name="waex_ui_user_defined" formatted="false">"Benutzerdefiniert"</string>
+    <string name="waex_ui_user_defined_versions_1_s">"BENUTZERDEFINIERTE VERSIONEN (%1$s)"</string>
+    <string name="waex_ui_using_disk_fallback" formatted="false">"Festplatten-Fallback verwenden"</string>
+    <string name="waex_ui_validated_and_stored_privately_updated">"Validiert und privat gespeichert
+Aktualisiert: %1$s"</string>
+    <string name="waex_ui_verification_failed" formatted="false">"Die Überprüfung ist fehlgeschlagen."</string>
+    <string name="waex_ui_verify_activate" formatted="false">"Verifizieren und aktivieren"</string>
+    <string name="waex_ui_verify_selected_keybox" formatted="false">"Ausgewählte Schlüsselbox überprüfen"</string>
+    <string name="waex_ui_verifying_keybox" formatted="false">"Schlüsselbox wird überprüft…"</string>
+    <string name="waex_ui_verifying_with_server" formatted="false">"Überprüfung mit Server…"</string>
+    <string name="waex_ui_version_with_date">"Version %1$s • %2$s"</string>
+    <string name="waex_ui_version_1_s">"Version %1$s"</string>
+    <string name="waex_ui_vertical_inner_padding" formatted="false">"Vertikale Innenpolsterung"</string>
+    <string name="waex_ui_view_1_s_configured_contact_s">"%1$s Konfigurierte Kontakte anzeigen →"</string>
+    <string name="waex_ui_view_detailed_contributions" formatted="false">"Detaillierte Beiträge anzeigen"</string>
+    <string name="waex_ui_view_details" formatted="false">"Details anzeigen"</string>
+    <string name="waex_ui_view_github_profile" formatted="false">"GitHub-Profil anzeigen"</string>
+    <string name="waex_ui_view_id_cannot_be_empty" formatted="false">"Die Ansichts-ID darf nicht leer sein"</string>
+    <string name="waex_ui_view_release_details" formatted="false">"Veröffentlichungsdetails anzeigen"</string>
+    <string name="waex_ui_viewed_your_message" formatted="false">"habe deine Nachricht gesehen"</string>
+    <string name="waex_ui_viewed_your_status" formatted="false">"habe deinen Status angesehen"</string>
+    <string name="waex_ui_visit_website" formatted="false">"Besuchen Sie die Website"</string>
+    <string name="waex_ui_voice_note_ai_rules" formatted="false">"KI-Regeln für Sprachnotizen"</string>
+    <string name="waex_ui_voice_transcription" formatted="false">"Sprachtranskription"</string>
+    <string name="waex_ui_wa_enhancer_settings" formatted="false">"WA Enhancer-Einstellungen"</string>
+    <string name="waex_ui_waenhancer_x_could_not_finish_loading" formatted="false">"WaEnhancer X konnte das Laden seiner Hooks nicht abschließen."</string>
+    <string name="waex_ui_waenhancer_x_injection_error" formatted="false">"WaEnhancer X-Injektionsfehler"</string>
+    <string name="waex_ui_waenhancer_x_injection_failed" formatted="false">"Die Injektion von WaEnhancer X ist fehlgeschlagen"</string>
+    <string name="waex_ui_waenhancerx_settings_placement" formatted="false">"PLATZIERUNG DER WAENHANCERX-EINSTELLUNGEN"</string>
+    <string name="waex_ui_waenhancerx_supports_rooted_devices_wi" formatted="false">"WaEnhancerX unterstützt nur gerootete Geräte mit einem genehmigten Xposed-Framework. Die App kann erst fortgesetzt werden, wenn Root-Zugriff verfügbar ist."</string>
+    <string name="waex_ui_waex_1_s_is_available">"WAEX %1$s ist verfügbar"</string>
+    <string name="waex_ui_waex_compatibility_notice" formatted="false">"WAEX Kompatibilitätshinweis"</string>
+    <string name="waex_ui_waex_features_are_temporarily_paused_f" formatted="false">"WAEX-Funktionen werden aus Sicherheitsgründen vorübergehend angehalten, um eine Instabilität der App zu verhindern."</string>
+    <string name="waex_ui_waex_hooks_injected" formatted="false">"WAEX Hooks injiziert"</string>
+    <string name="waex_ui_waex_managed_keybox" formatted="false">"WAEX verwaltete Schlüsselbox"</string>
+    <string name="waex_ui_wait_until_a_newer_release_is_availabl" formatted="false">"Warten Sie, bis eine neuere Version verfügbar ist"</string>
+    <string name="waex_ui_want_to_see_yourself_here" formatted="false">"Möchten Sie sich hier sehen?"</string>
+    <string name="waex_ui_we_couldn_t_load_the_supporters_right" formatted="false">"Wir konnten die Unterstützer momentan nicht laden."</string>
+    <string name="waex_ui_whatsapp_hook_active" formatted="false">"WhatsApp Hook aktiv"</string>
+    <string name="waex_ui_whatsapp_hooked" formatted="false">"WhatsApp Süchtig"</string>
+    <string name="waex_ui_whatsapp_settings" formatted="false">"WhatsApp Einstellungen"</string>
+    <string name="waex_ui_whatsapp_will_resume_updating_your_las" formatted="false">"WhatsApp wird die Aktualisierung Ihres zuletzt gesehenen Zeitstempels normal fortsetzen.
+
+WhatsApp neu starten, um die Änderungen zu übernehmen?"</string>
+    <string name="waex_ui_when_messages_are_deleted_via_delete_f" formatted="false">"Wenn Nachrichten über „Für mich löschen“ gelöscht werden, bleiben sie erhalten und werden hier aufgelistet."</string>
+    <string name="waex_ui_when_whatsapp_calls_are_placed_or_rece" formatted="false">"Wenn WhatsApp Anrufe mit aktivierter Anrufaufzeichnung getätigt oder empfangen werden, werden die Audiodateien hier automatisch angezeigt."</string>
+    <string name="waex_ui_who_can_call_me" formatted="false">"Wer kann mich anrufen?"</string>
+    <string name="waex_ui_why_this_is_required" formatted="false">"Warum dies erforderlich ist"</string>
+    <string name="waex_ui_xposed_api" formatted="false">"Xposed API"</string>
+    <string name="waex_ui_xposed_compatible_framework" formatted="false">"Xposed-kompatibles Framework"</string>
+    <string name="waex_ui_xposed_framework" formatted="false">"Xposed-Framework"</string>
+    <string name="waex_ui_xposed_framework_connected" formatted="false">"Xposed Framework verbunden"</string>
+    <string name="waex_ui_year" formatted="false">"/ Jahr"</string>
+    <string name="waex_ui_yes" formatted="false">"Ja"</string>
+    <string name="waex_ui_you" formatted="false">"Sie:"</string>
+    <string name="waex_ui_you_can_manage_supported_versions_in_w" formatted="false">"Sie können unterstützte Versionen in den WAEX-Einstellungen verwalten."</string>
+    <string name="waex_ui_you_can_unlink_inactive_devices_here_t" formatted="false">"Hier können Sie die Verknüpfung inaktiver Geräte aufheben, um Slots für neue Installationen freizugeben. Wenn Sie die Verknüpfung Ihres aktuellen Geräts aufheben, wird Pro auf diesem Telefon deaktiviert."</string>
+    <string name="waex_ui_your_license_period_has_ended_pro_feat" formatted="false">"Ihr Lizenzzeitraum ist abgelaufen. Pro-Funktionen sind derzeit gesperrt."</string>
+    <string name="waex_ui_your_previous_license_has_expired_ente" formatted="false">"Ihre bisherige Lizenz ist abgelaufen. Geben Sie einen neuen Schlüssel zum Erneuern ein."</string>
+    <string name="waex_ui_your_privacy" formatted="false">"Ihre Privatsphäre"</string>
+    <string name="waex_ui_your_pro_license_is_active_and_hardwar" formatted="false">"Ihre Pro-Lizenz ist aktiv und hardwaregesperrt."</string>
+    <string name="waex_ui_your_whatsapp_version_1_s_is_not_in_th">"Ihre WhatsApp-Version (%1$s) liegt nicht im verifizierten unterstützten Versionsbereich."</string>
+    <plurals name="waex_recordings_deleted">
+        <item quantity="one">"%1$d-Aufzeichnung gelöscht"</item>
+        <item quantity="other">"%1$d Aufnahmen gelöscht"</item>
+    </plurals>
+    <string name="waex_ui_urgent" formatted="false">"DRINGEND"</string>
+    <string name="waex_ui_important" formatted="false">"WICHTIG"</string>
+    <string name="waex_ui_announcement" formatted="false">"ANKÜNDIGUNG"</string>
+    <string name="waex_ui_device_default" formatted="false">"Gerätestandard"</string>
+    <string name="waex_ui_scheduled_1_02d_00_2_s_3_02d_00_4_s">"Geplant (%1$02d:00 %2$s - %3$02d:00 %4$s)"</string>
+    <string name="waex_ui_filteritems" formatted="false">"FilterItems"</string>
+    <string name="waex_ui_custom_privacy_per_contact" formatted="false">"Benutzerdefinierter Datenschutz (pro Kontakt)"</string>
+    <string name="waex_ui_chat_filter_display_feature" formatted="false">"Chat-Filteranzeige"</string>
+    <string name="waex_ui_seconds_on_timestamp" formatted="false">"Sekunden auf Zeitstempel"</string>
+    <string name="waex_ui_enable_igstatus_on_home_screen" formatted="false">"Aktivieren Sie IGStatus auf dem Startbildschirm"</string>
+    <string name="waex_ui_new_settings_style" formatted="false">"Neuer Einstellungsstil"</string>
+    <string name="waex_ui_separate_chats_and_groups" formatted="false">"Separate Chats und Gruppen"</string>
+    <string name="waex_ui_callrecording" formatted="false">"Anrufaufzeichnung"</string>
+    <string name="waex_ui_profilephotodownload" formatted="false">"ProfilFotoDownload"</string>
+    <string name="waex_ui_antidisappearingmessageshook" formatted="false">"AntiDisappearingMessagesHook"</string>
+    <string name="waex_ui_anti_view_once_feature" formatted="false">"Anti-View Once"</string>
+    <string name="waex_ui_autonextstatushook" formatted="false">"AutoNextStatusHook"</string>
+    <string name="waex_ui_do_not_disturb_dnd_mode" formatted="false">"Modus „Bitte nicht stören“ (DND)."</string>
+    <string name="waex_ui_freeze_last_seen_hide_online" formatted="false">"Zuletzt gesehen einfrieren und online ausblenden"</string>
+    <string name="waex_ui_hide_archived_chats" formatted="false">"Archivierte Chats ausblenden"</string>
+    <string name="waex_ui_hide_locked_chats" formatted="false">"Gesperrte Chats ausblenden"</string>
+    <string name="waex_ui_locked_chats_enhancer" formatted="false">"Enhancer für gesperrte Chats"</string>
+    <string name="waex_ui_typing_privacy" formatted="false">"Privatsphäre eingeben"</string>
+    <string name="waex_ui_hide_read_receipts" formatted="false">"Lesebestätigungen ausblenden"</string>
+    <string name="waex_ui_anti_edit_messages" formatted="false">"Anti-Nachrichten bearbeiten"</string>
+    <string name="waex_ui_message_device_source" formatted="false">"Quelle des Nachrichtengeräts"</string>
+    <string name="waex_ui_minor_fixes" formatted="false">"Kleinere Korrekturen"</string>
+    <string name="waex_ui_preserve_delete_for_me" formatted="false">"Für mich löschen"</string>
+    <string name="waex_ui_copy_status_text" formatted="false">"Statustext kopieren"</string>
+    <string name="waex_ui_unknown_feature" formatted="false">"Unbekannte Funktion"</string>
+    <string name="waex_ui_fixes" formatted="false">"Korrekturen"</string>
+    <string name="waex_ui_fixed" formatted="false">"Behoben"</string>
+    <string name="waex_ui_improvements" formatted="false">"Verbesserungen"</string>
+    <string name="waex_ui_added" formatted="false">"Hinzugefügt"</string>
+    <string name="waex_ui_new_language" formatted="false">"Neue Sprache"</string>
+    <string name="waex_ui_community_contribution" formatted="false">"Gemeinschaftsbeitrag"</string>
+    <string name="waex_ui_notes" formatted="false">"Notizen"</string>
+    <string name="waex_ui_show_changes" formatted="false">"Änderungen anzeigen"</string>
+    <string name="waex_ui_version_1_s_latest_2_s">"Version %1$s (Neueste) • %2$s"</string>
+    <string name="waex_ui_version_1_original_1_s">"Version 1 (Original) • %1$s"</string>
+    <string name="waex_ui_version_1_latest_1_s">"Version 1 (Neueste) • %1$s"</string>
+    <string name="waex_ui_version_with_metadata">"Version %1$s • %2$s"</string>
+    <string name="waex_ui_message_was_edited_by_sender" formatted="false">"Die Nachricht wurde vom Absender bearbeitet."</string>
+    <string name="waex_ui_online" formatted="false">"online"</string>
+    <string name="waex_ui_last_seen_1_s">"zuletzt gesehen %1$s"</string>
+    <string name="waex_ui_image_preview" formatted="false">"Bildvorschau"</string>
+    <string name="waex_ui_video_preview" formatted="false">"Videovorschau"</string>
+    <string name="waex_ui_preparing_preview" formatted="false">"Vorschau wird vorbereitet"</string>
+    <string name="waex_ui_connecting_0" formatted="false">"Verbindet… 0 %"</string>
+    <string name="waex_ui_downloading_1_s_2_s">"Herunterladen… %1$s%%
+%2$s"</string>
+    <string name="waex_ui_close_preview" formatted="false">"Vorschau schließen"</string>
+    <string name="waex_ui_enable_or_customize_per_contact_privac" formatted="false">"Aktivieren oder passen Sie Datenschutzregeln pro Kontakt an"</string>
+    <string name="waex_ui_hide_blue_ticks" formatted="false">"Blaue Häkchen ausblenden"</string>
+    <string name="waex_ui_don_t_send_read_receipts_for_received" formatted="false">"Senden Sie keine Lesebestätigungen für empfangene Nachrichten"</string>
+    <string name="waex_ui_hide_status_view" formatted="false">"Statusansicht ausblenden"</string>
+    <string name="waex_ui_view_contact_s_status_updates_anonymou" formatted="false">"Statusaktualisierungen des Kontakts anonym anzeigen"</string>
+    <string name="waex_ui_hide_delivered_receipts" formatted="false">"Zugestellte Belege ausblenden"</string>
+    <string name="waex_ui_don_t_send_second_delivery_checkmark" formatted="false">"Kontrollkästchen „Keine zweite Lieferung senden“ aktivieren"</string>
+    <string name="waex_ui_hide_typing_indicator" formatted="false">"Tippanzeige ausblenden"</string>
+    <string name="waex_ui_don_t_show_typing_status_when_composin" formatted="false">"Beim Verfassen wird der Tippstatus nicht angezeigt"</string>
+    <string name="waex_ui_hide_voice_recording" formatted="false">"Sprachaufzeichnung ausblenden"</string>
+    <string name="waex_ui_don_t_show_recording_audio_status" formatted="false">"Der Audioaufnahmestatus wird nicht angezeigt"</string>
+    <string name="waex_ui_preserve_deleted_messages_in_this_chat" formatted="false">"Gelöschte Nachrichten in diesem Chat beibehalten"</string>
+    <string name="waex_ui_block_incoming_calls" formatted="false">"Eingehende Anrufe blockieren"</string>
+    <string name="waex_ui_silently_decline_calls_from_this_conta" formatted="false">"Lehnen Sie Anrufe von diesem Kontakt stillschweigend ab"</string>
+    <string name="waex_ui_deleted_a_message" formatted="false">"eine Nachricht gelöscht"</string>
+    <string name="waex_ui_managed_by_ghost_mode" formatted="false">"Verwaltet durch den Ghost-Modus"</string>
+    <string name="waex_ui_lock_your_last_seen_timestamp" formatted="false">"Sperren Sie Ihren zuletzt gesehenen Zeitstempel"</string>
+    <string name="waex_ui_dnd_mode" formatted="false">"DND-Modus"</string>
+    <string name="waex_ui_mute_all_incoming_notifications" formatted="false">"Schalten Sie alle eingehenden Benachrichtigungen stumm"</string>
+    <string name="waex_ui_hide_online_status_typing_read_receipt" formatted="false">"Online-Status, Tipp- und Lesebestätigungen ausblenden"</string>
+    <string name="waex_ui_force_close_and_relaunch_whatsapp" formatted="false">"Schließen erzwingen und WhatsApp neu starten"</string>
+    <string name="waex_ui_open_waex_settings_and_preferences" formatted="false">"Öffnen Sie die Einstellungen und Präferenzen von WAEX"</string>
+    <string name="waex_ui_deleted" formatted="false">"Gelöscht •"</string>
+    <string name="waex_ui_contact" formatted="false">"Kontakt:"</string>
+    <string name="waex_ui_number" formatted="false">"Nummer:"</string>
+    <string name="waex_ui_isp" formatted="false">"ISP:"</string>
+    <string name="waex_ui_region" formatted="false">"Region:"</string>
+    <string name="waex_ui_timezone" formatted="false">"Zeitzone:"</string>
+    <string name="waex_ui_country" formatted="false">"Land:"</string>
+    <string name="waex_ui_city" formatted="false">"Stadt:"</string>
+    <string name="waex_ui_platform" formatted="false">"Plattform:"</string>
+    <string name="waex_ui_whatsapp_version" formatted="false">"WhatsApp Version:"</string>
+    <string name="waex_ui_call_information" formatted="false">"Anrufinformationen"</string>
+    <string name="waex_ui_call_blocked" formatted="false">"Anruf blockiert"</string>
+    <string name="waex_ui_call_from_contact_prefix" formatted="false">"Anruf von"</string>
+    <string name="waex_ui_call_from_phone_prefix" formatted="false">"Anruf von +"</string>
+    <string name="waex_ui_call_from_unknown_caller" formatted="false">"Anruf von unbekanntem Anrufer ("</string>
+    <string name="waex_ui_whatsapp_call_information" formatted="false">"WhatsApp Anrufinformationen"</string>
+    <string name="waex_ui_unsupported_restart_target" formatted="false">"Nicht unterstütztes Neustartziel"</string>
+    <string name="waex_ui_unable_to_launch_selected_whatsapp_app" formatted="false">"Die ausgewählte WhatsApp-App kann nicht gestartet werden"</string>
+    <string name="waex_ui_unable_to_find_selected_whatsapp_app" formatted="false">"Die ausgewählte WhatsApp-App konnte nicht gefunden werden"</string>
+    <string name="waex_ui_restarting" formatted="false">"Neustart"</string>
+    <string name="waex_ui_whatsapp_opened_restart_not_verified" formatted="false">"WhatsApp geöffnet; Neustart nicht überprüft"</string>
+    <string name="waex_ui_could_not_reopen_whatsapp" formatted="false">"WhatsApp konnte nicht erneut geöffnet werden"</string>
+    <string name="waex_ui_unable_to_restart_whatsapp" formatted="false">"WhatsApp kann nicht neu gestartet werden"</string>
+    <string name="waex_ui_restart_operation_unavailable" formatted="false">"Neustartvorgang nicht verfügbar"</string>
+    <string name="waex_ui_restarting_whatsapp_and_waex" formatted="false">"WhatsApp und WAEX werden neu gestartet..."</string>
+    <string name="waex_ui_unable_to_restart_apps" formatted="false">"Apps können nicht neu gestartet werden"</string>
+    <string name="waex_ui_unable_to_relaunch_waex" formatted="false">"WAEX kann nicht neu gestartet werden"</string>
+    <string name="waex_ui_a_contact" formatted="false">"Ein Kontakt"</string>
+    <string name="waex_ui_no_internet" formatted="false">"Kein Internet"</string>
+    <string name="waex_ui_ended" formatted="false">"Beendet"</string>
+    <string name="waex_ui_your_wa_enhancer_preferences_changed_r" formatted="false">"Ihre WA Enhancer-Einstellungen haben sich geändert. Starten Sie WhatsApp neu, um sie anzuwenden."</string>
+    <string name="waex_ui_restart_whatsapp_to_apply" formatted="false">"Starten Sie WhatsApp neu, um Folgendes anzuwenden:"</string>
+    <string name="waex_ui_more" formatted="false">"mehr"</string>
+    <string name="waex_ui_setting_1_s">"Einstellung: %1$s"</string>
+    <string name="waex_ui_chat_bubble_colors" formatted="false">"Chat-Blasenfarben"</string>
+    <string name="waex_ui_channel_recommendations_filter" formatted="false">"Kanalempfehlungsfilter"</string>
+    <string name="waex_ui_anti_edit" formatted="false">"Anti-Edit"</string>
+    <string name="waex_ui_media_status" formatted="false">"Medienstatus"</string>
+    <string name="waex_ui_media_saved_v30" formatted="false">"Medien gespeichert (WAEX)"</string>
+    <string name="waex_ui_media_save_failed_v30" formatted="false">"Diese Mediendatei kann nicht gespeichert werden"</string>
+    <string name="waex_ui_media_export_in_progress_v36" formatted="false">"Ein Medienexport ist bereits im Gange"</string>
+    <string name="waex_ui_audio_saved_v36" formatted="false">"Audio gespeichert (WAEX)"</string>
+    <string name="waex_ui_audio_save_failed_v36" formatted="false">"Diese Audiodatei kann nicht gespeichert werden"</string>
+    <string name="waex_ui_call_audio_v36" formatted="false">"Rufen Sie Audio an"</string>
+    <string name="waex_ui_call_audio_if_supported_v36" formatted="false">"Sofern unterstützt"</string>
+    <string name="waex_ui_standard_audio_v36" formatted="false">"Standard-Audio"</string>
+    <string name="waex_ui_communication_mic_v36" formatted="false">"Kommunikation / Mikrofon"</string>
+    <string name="waex_l10n_switch_release">"Wechseln Sie zu „Freigeben“."</string>
+    <string name="waex_l10n_switch_debug">"Wechseln Sie zu Debug"</string>
+    <string name="waex_l10n_reinstall_apk">"APK neu installieren"</string>
+    <string name="waex_l10n_no_rejected_versions">"Es ist keine abgelehnte Version zum Hinzufügen verfügbar. Überprüfen Sie den Regelstatus jedes Ziels. Dies ist kein Funktionskompatibilitätstest."</string>
+    <string name="waex_l10n_custom_unverified">"Benutzerdefiniert"</string>
+    <string name="waex_l10n_bypass_unverified">"Bypass aktiv (nicht überprüft)"</string>
+    <string name="waex_l10n_rejected_rules">"Version durch Regeln abgelehnt"</string>
+    <string name="waex_l10n_version_check_unavailable">"Versionsprüfung nicht verfügbar"</string>
+    <string name="waex_l10n_recipient_unconfirmed">"Der Chat-Empfänger kann nicht bestätigt werden"</string>
+    <string name="waex_l10n_guard_unsupported">"Ihre WhatsApp-Version (%1$s) entspricht nicht den konfigurierten Versionsregeln."</string>
+    <string name="waex_l10n_guard_rules_unavailable">"WAEX konnte seine Versionsregeln aus diesem WhatsApp-Prozess nicht lesen. Überprüfen Sie, ob WhatsApp auf das Paket WAEX und seine Ressourcen zugreifen kann."</string>
+    <string name="waex_l10n_guard_prefs_unavailable">"WAEX konnte die Kompatibilitätseinstellungen nicht lesen. Überprüfen Sie die Präferenzbrücke und starten Sie WhatsApp neu."</string>
+    <string name="waex_l10n_guard_version_unknown">"WAEX konnte die installierte Version WhatsApp nicht ermitteln."</string>
+    <string name="waex_l10n_guard_paused">"WAEX-Funktionen werden aus Sicherheitsgründen pausiert. Dies ist keine Bestätigung der Funktionskompatibilität."</string>
+    <string name="waex_l10n_guard_review">"Öffnen Sie die Einstellungen von WAEX, um das Problem zu überprüfen. Aktivieren Sie keine Versionsumgehung, nur um einen Zugriffsfehler zu verbergen."</string>
+    <string name="waex_l10n_last_report">"Letzter Bericht (nicht aktuell): %1$s"</string>
+    <string name="waex_l10n_detail_active">"Injiziert und aktiv (%1$d/%2$d Hooks aktiv)"</string>
+    <string name="waex_l10n_detail_init">"Injiziert • Initialisierung: %1$s"</string>
+    <string name="waex_l10n_detail_bridge">"Eingespritzt • Brücke: %1$s"</string>
+    <string name="waex_runtime_status_not_installed">"Nicht installiert"</string>
+    <string name="waex_runtime_status_module_inactive">"Modul inaktiv"</string>
+    <string name="waex_runtime_status_injection_confirmed">"Injektion bestätigt"</string>
+    <string name="waex_runtime_status_boot_identity_unavailable">"Injektion unbestätigt: Boot-Identität nicht verfügbar"</string>
+    <string name="waex_runtime_status_report_from_another_boot">"Injektion unbestätigt: Bericht von einem anderen Start"</string>
+    <string name="waex_runtime_status_no_runtime_report">"Injektion unbestätigt: kein Laufzeitbericht"</string>
+    <string name="waex_runtime_status_report_expired">"Injektion unbestätigt: Bericht abgelaufen oder Uhrzeit geändert"</string>
+    <string name="waex_runtime_status_process_check_unavailable">"Injektion nicht bestätigt: Prozessprüfung nicht verfügbar"</string>
+    <string name="waex_runtime_status_reported_process_not_running">"Der gemeldete Prozess wird nicht ausgeführt"</string>
+    <string name="waex_runtime_status_process_changed">"Injektion unbestätigt: Prozess geändert"</string>
+    <string name="waex_runtime_detail_compatibility_check_unavailable">"Injiziert • Kompatibilitätsprüfung nicht verfügbar"</string>
+    <string name="waex_runtime_detail_paused_by_version_guard">"Eingefügt • Vom Zielversionsschutz angehalten"</string>
+    <string name="waex_runtime_detail_initialization_failed">"Injiziert • Initialisierung fehlgeschlagen"</string>
+    <string name="waex_runtime_detail_version_check_requires_review">"Eingefügt • Lokale Versionsprüfung erfordert Überprüfung"</string>
+    <string name="waex_runtime_detail_initialization_in_progress">"Eingespritzt • Initialisierung läuft"</string>
+    <string name="waex_runtime_detail_settings_connection_unavailable">"Eingespritzt • Einstellungsverbindung nicht verfügbar"</string>
+    <string name="waex_runtime_detail_using_settings_fallback">"Eingespritzt • Verwenden von Fallback-Einstellungen"</string>
+    <string name="waex_runtime_detail_some_features_failed">"Eingefügt • Einige Funktionen sind fehlgeschlagen"</string>
+    <string name="waex_runtime_detail_feature_readiness_unconfirmed">"Eingefügt • Funktionsbereitschaft unbestätigt"</string>
+    <string name="waex_runtime_detail_settings_connection_unconfirmed">"Eingespritzt • Einstellungsverbindung unbestätigt"</string>
+    <string name="waex_runtime_detail_version_bypass_active">"Eingespritzt • Versionsumgehung aktiv"</string>
+    <string name="waex_runtime_detail_custom_version_unverified">"Injiziert • Benutzerdefinierte Versionszulage; unbestätigt"</string>
+    <string name="waex_runtime_detail_initialization_complete">"Injiziert • Die Initialisierung wurde als abgeschlossen gemeldet"</string>
+    <string name="waex_runtime_connection_direct">"Direkt verbunden"</string>
+    <string name="waex_runtime_connection_disk_fallback">"Festplatten-Fallback verwenden"</string>
+    <string name="waex_runtime_status_unavailable">"Nicht verfügbar"</string>
+    <string name="waex_runtime_status_not_reported">"Nicht gemeldet"</string>
+    <string name="waex_runtime_status_completed">"Abgeschlossen"</string>
+    <string name="waex_runtime_status_completed_with_failures">"Mit Hook-Fehlern abgeschlossen"</string>
+    <string name="waex_runtime_status_in_progress">"In Bearbeitung"</string>
+    <string name="waex_runtime_status_paused_compatibility_unavailable">"Angehalten: Kompatibilitätsprüfung nicht verfügbar"</string>
+    <string name="waex_runtime_status_paused_unsupported_version">"Angehalten: nicht unterstützte Version"</string>
+    <string name="waex_runtime_status_failed">"Fehlgeschlagen"</string>
+    <string name="waex_runtime_status_injection_detected">"Injektion erkannt"</string>
+    <string name="waex_runtime_status_no_target_installed">"Kein installiertes Ziel erkannt"</string>
+    <string name="waex_runtime_status_version_rules_require_review">"Versionsregeln müssen überprüft werden"</string>
+    <string name="waex_runtime_status_target_runtime_requires_review">"Die Ziellaufzeit muss überprüft werden"</string>
+    <string name="waex_runtime_status_bypass_unverified">"Versionsumgehung aktiv; Kompatibilität nicht überprüft"</string>
+    <string name="waex_runtime_status_custom_version_unverified">"Benutzerdefinierte Versionszulage; Kompatibilität nicht überprüft"</string>
+    <string name="waex_runtime_status_rules_accepted_runtime_unconfirmed">"Versionsregeln akzeptiert; Laufzeit unbestätigt"</string>
+    <string name="waex_runtime_status_rules_accepted_initialization_reported">"Regeln akzeptiert; Initialisierung gemeldet"</string>
+    <string name="waex_ui_hma_reason_not_configured">"Nicht im HMA-Bereich konfiguriert"</string>
+    <string name="waex_ui_hma_reason_visible">"Aktiv in HMA, Modul sichtbar"</string>
+    <string name="waex_ui_hma_reason_allowlist_invisible">"Über den Whitelist-Modus ausgeblendet (in der Liste der unsichtbaren Apps)"</string>
+    <string name="waex_ui_hma_reason_allowlist_missing">"Über den Whitelist-Modus ausgeblendet (Modul nicht in sichtbaren Apps enthalten)"</string>
+    <string name="waex_ui_hma_reason_blocklist_extra">"Über den Blacklist-Modus ausgeblendet (in weiteren Apps zum Ausblenden)"</string>
+    <string name="waex_ui_hma_reason_template">"Verborgen durch Blacklist-Vorlage „%1$s“"</string>
+    <string name="waex_ui_hma_reason_preset">"Versteckt durch die HMA-Voreinstellung „xposed“."</string>
+    <string name="waex_ui_deleted_a_status">"einen Status gelöscht"</string>
+    <string name="waex_ui_restarting_whatsapp_short">"WhatsApp wird neu gestartet…"</string>
+    <string name="waex_ui_adds_to_the_message_field_tap_to_recor" formatted="false">"Fügt 🎙️ zum Nachrichtenfeld hinzu. Tippen Sie zum Aufnehmen und tippen Sie erneut, um den Text einzufügen."</string>
+    <string name="waex_ui_automatic" formatted="false">"Automatisch"</string>
+    <string name="waex_ui_clear" formatted="false">"Klar"</string>
+    <string name="waex_ui_connection_failed" formatted="false">"Verbindung fehlgeschlagen"</string>
+    <string name="waex_ui_copy" formatted="false">"Kopieren"</string>
+    <string name="waex_ui_could_not_start_recording" formatted="false">"Die Aufnahme konnte nicht gestartet werden."</string>
+    <string name="waex_ui_custom_api_key" formatted="false">"Benutzerdefinierter API-Schlüssel"</string>
+    <string name="waex_ui_custom_endpoint_url" formatted="false">"Benutzerdefinierte Endpunkt-URL"</string>
+    <string name="waex_ui_dictation_button" formatted="false">"Diktiertaste"</string>
+    <string name="waex_ui_find_models" formatted="false">"Finden Sie Modelle"</string>
+    <string name="waex_ui_hide" formatted="false">"Verstecken"</string>
+    <string name="waex_ui_log_copied" formatted="false">"Protokoll kopiert"</string>
+    <string name="waex_ui_model_name" formatted="false">"Modellname"</string>
+    <string name="waex_ui_new_voice_note" formatted="false">"Neue Sprachnotiz"</string>
+    <string name="waex_ui_no_entries_yet" formatted="false">"Noch keine Einträge."</string>
+    <string name="waex_ui_no_speech_detected" formatted="false">"Keine Sprache erkannt."</string>
+    <string name="waex_ui_off_each_new_voice_note_sent_or_receiv" formatted="false">"Aus: Jede neue Sprachnotiz, ob gesendet oder empfangen, erhält eine Benachrichtigung mit einer Transkribieren-Schaltfläche."</string>
+    <string name="waex_ui_recording_tap_to_stop" formatted="false">"Aufnahme… tippen Sie auf ⏹️, um zu stoppen."</string>
+    <string name="waex_ui_recording_too_short" formatted="false">"Aufnahme zu kurz."</string>
+    <string name="waex_ui_refresh" formatted="false">"Aktualisieren"</string>
+    <string name="waex_ui_searching" formatted="false">"Suche…"</string>
+    <string name="waex_ui_show" formatted="false">"Zeigen"</string>
+    <string name="waex_ui_shows_next_to_the_time_of_voice_notes" formatted="false">"Zeigt 📝 neben der Uhrzeit von Sprachnotizen in Chats an. Tippen Sie darauf, um das Transkript zu lesen."</string>
+    <string name="waex_ui_steps_and_errors_only_transcripts_and" formatted="false">"Nur Schritte und Fehler. Transkripte und Nachrichtentexte werden niemals protokolliert."</string>
+    <string name="waex_ui_tap_transcribe_to_turn_it_into_text" formatted="false">"Tippen Sie auf Transkribieren, um es in Text umzuwandeln."</string>
+    <string name="waex_ui_transcribe" formatted="false">"Transkribieren"</string>
+    <string name="waex_ui_transcribe_automatically" formatted="false">"Automatisch transkribieren"</string>
+    <string name="waex_ui_transcribing_voice_note" formatted="false">"Sprachnotiz transkribieren…"</string>
+    <string name="waex_ui_transcript_button_on_voice_notes" formatted="false">"Schaltfläche „Transkript“ für Sprachnotizen"</string>
+    <string name="waex_ui_transcript_copied" formatted="false">"Transkript kopiert"</string>
+    <string name="waex_ui_transcription_failed" formatted="false">"Die Transkription ist fehlgeschlagen"</string>
+    <string name="waex_ui_transcription_language" formatted="false">"Transkriptionssprache"</string>
+    <string name="waex_ui_transcription_log" formatted="false">"Transkriptionsprotokoll"</string>
+    <string name="waex_ui_uses_the_openai_audio_transcriptions_r" formatted="false">"Verwendet das OpenAI-Anfrageformat /audio/transcriptions."</string>
+    <string name="waex_ui_voice_note_is_too_long_to_transcribe" formatted="false">"Die Sprachnotiz ist zu lang zum Transkribieren."</string>
+    <string name="waex_ui_voice_note_transcript" formatted="false">"Transkript der Sprachnotiz"</string>
+    <string name="waex_ui_waex_voice_transcripts" formatted="false">"WAEX Sprachtranskripte"</string>
+    <string name="waex_ui_whatsapp_needs_microphone_access_to_di" formatted="false">"WhatsApp benötigt zum Diktieren Zugriff auf das Mikrofon."</string>
+    <string name="waex_ui_balanced_speed_and_accuracy" formatted="false">"Ausgewogene Geschwindigkeit und Genauigkeit"</string>
+    <string name="waex_ui_cancel" formatted="false">"Abbrechen"</string>
+    <string name="waex_ui_delete" formatted="false">"Löschen"</string>
+    <string name="waex_ui_download_suggested_model" formatted="false">"Laden Sie das vorgeschlagene Modell herunter"</string>
+    <string name="waex_ui_english_only_more_accurate_for_english" formatted="false">"Nur Englisch: genauer für Englisch"</string>
+    <string name="waex_ui_fast_fair_accuracy" formatted="false">"Schnelle, faire Genauigkeit"</string>
+    <string name="waex_ui_fastest_lowest_accuracy" formatted="false">"Schnellste, niedrigste Genauigkeit"</string>
+    <string name="waex_ui_in_use" formatted="false">"Im Einsatz"</string>
+    <string name="waex_ui_may_be_too_heavy_for_this_phone" formatted="false">"Möglicherweise ist es zu schwer für dieses Telefon"</string>
+    <string name="waex_ui_most_accurate_slow" formatted="false">"Am genauesten, langsam"</string>
+    <string name="waex_ui_on_device_models" formatted="false">"Modelle auf dem Gerät"</string>
+    <string name="waex_ui_on_device_transcription_isn_t_availabl" formatted="false">"Die Transkription auf dem Gerät ist auf diesem Telefon nicht verfügbar"</string>
+    <string name="waex_ui_runs_on_your_phone_nothing_is_uploaded" formatted="false">"Läuft auf Ihrem Telefon, es wird nichts hochgeladen. Größere Modelle sind genauer, aber langsamer."</string>
+    <string name="waex_ui_selected_download_it_to_start_using_it" formatted="false">"Ausgewählt: Laden Sie es herunter, um es zu verwenden."</string>
+    <string name="waex_ui_suggested" formatted="false">"Vorgeschlagen"</string>
+    <string name="waex_ui_tap_a_model_to_choose_it_the_suggested" formatted="false">"Tippen Sie auf ein Modell, um es auszuwählen. Das vorgeschlagene wird verwendet, bis Sie ein anderes auswählen."</string>
+    <string name="waex_ui_this_phone" formatted="false">"Dieses Telefon"</string>
+</resources>

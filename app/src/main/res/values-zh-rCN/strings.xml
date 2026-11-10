@@ -12,6 +12,7 @@
     <string name="go_to_telegram">Telegram 频道</string>
     <string name="go_to_github">GitHub 问题反馈</string>
     <string name="contributors">贡献者</string>
+    <string name="contributor">贡献者</string>
     <string name="stargazers_title">支持者</string>
     <string name="stargazers_thank_you">感谢你支持 WaEnhancerX</string>
     <string name="stargazers_message">每一颗星标都能帮助更多人发现这个项目。这里展示所有给予支持的人。</string>
@@ -119,8 +120,6 @@
     <string name="feat_hideonceseen_desc">查看一次性媒体后，不让发送者知道你已查看</string>
     <string name="feat_anti_revoke_title">保留他人删除的消息</string>
     <string name="feat_anti_revoke_desc">他人选择“对所有人删除”后，仍在本机保留消息</string>
-    <string name="feat_hide_anti_revoke_title">显示隐藏已删除消息的菜单项</string>
-    <string name="feat_hide_anti_revoke_desc">在聊天菜单中添加选项，用于隐藏当前聊天中保留的已删除消息</string>
     <string name="feat_preserve_own_revoke_title">保留自己对所有人删除的消息</string>
     <string name="feat_preserve_own_revoke_desc">选择“对所有人删除”后，仍在本机保留该消息</string>
     <string name="feat_antirevokestatus_title">动态防删除</string>
@@ -201,8 +200,8 @@
     <string name="feat_status_text_composer_desc">长按动态中的颜色选择器即可自定义颜色</string>
     <string name="feat_status_downloader_title">下载和分享动态</string>
     <string name="feat_status_downloader_desc">显示分享和下载动态的两个按钮</string>
-    <string name="feat_media_upload_quality_title">高清图片和视频</string>
-    <string name="feat_media_upload_quality_desc">默认以高清画质发送图片和视频</string>
+    <string name="feat_media_upload_quality_title">原画质图片和视频</string>
+    <string name="feat_media_upload_quality_desc">以原始画质发送图片和视频</string>
     <string name="feat_send_audio_as_voice_status_title">将音频发布为语音动态</string>
     <string name="feat_send_audio_as_voice_status_desc">选择本地音频文件并发布为语音动态</string>
     <string name="feat_status_video_splitter_title">动态视频分段</string>
@@ -367,4 +366,29 @@
     <string name="diag_target_sheet_injected_badge">已注入</string>
     <string name="diag_target_sheet_section_targets">已安装的目标应用</string>
     <string name="waex_l10n_builtin_match">"受支持"</string>
+    <string name="manual_status_seen_section">状态查看控制</string>
+    <string name="manual_status_seen_title">手动向对方发送状态已查看</string>
+    <string name="manual_status_seen_desc">选择如何将当前状态标记为已查看</string>
+    <string name="manual_status_seen_placement_title">操作展示方式</string>
+    <string name="manual_status_seen_menu">菜单选项</string>
+    <string name="manual_status_seen_icon">已查看按钮</string>
+    <string name="profile_photo_already_saved">个人资料照片已保存</string>
+    <string name="profile_photo_saving">个人资料照片保存</string>
+    <string name="save_profile_duplicates">保存重复副本</string>
+    <string name="save_profile_duplicates_desc">每次都保存为新文件</string>
+    <string name="status_already_saved">状态媒体已保存</string>
+    <string name="status_download_saving">状态下载保存</string>
+    <string name="save_status_duplicates">保存重复副本</string>
+    <string name="save_status_duplicates_desc">每次都保存为新文件</string>
+    <string name="feat_app_interface_size_title">@string/interface_size_title</string>
+    <string name="feat_app_interface_size_desc">@string/interface_size_desc</string>
+    <string name="feat_status_style_title">动态与状态样式</string>
+    <string name="feat_status_style_desc">使用 WhatsApp 原生界面样式自定义动态与状态布局</string>
+    <string name="sending_read_blue_tick">正在向对方发送已读蓝勾…</string>
+    <string name="diag_target_sheet_custom_rule_warning">所有应用均已注入并处于活动状态。自定义版本规则生效中；此版本的兼容性尚未经过官方验证。</string>
+    <string name="feat_bypass_screenshot_restriction_title">允许截图</string>
+    <string name="feat_bypass_screenshot_restriction_desc">允许在整个 WhatsApp 中截图和录制屏幕</string>
+    <string name="waex_ui_selected_icon_color">已选图标颜色</string>
+    <string name="waex_ui_unselected_icon_color">未选图标颜色</string>
+    <string name="waex_ui_using_app_default_color">使用应用默认颜色</string>
 </resources>

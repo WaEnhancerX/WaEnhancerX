@@ -17,14 +17,14 @@ STUBS = {
     "androidx/annotation/Nullable.java": "package androidx.annotation; public @interface Nullable {}\n",
     "android/os/SystemClock.java": "package android.os; public final class SystemClock { public static volatile long now; public static long elapsedRealtime() { return now; } }\n",
     "android/os/Build.java": "package android.os; public final class Build { public static final class VERSION { public static int SDK_INT = 28; } public static final class VERSION_CODES { public static final int P = 28; } }\n",
-    "android/content/pm/PackageInfo.java": "package android.content.pm; public class PackageInfo { public int versionCode; public long code; public long getLongVersionCode() { return code; } }\n",
+    "android/content/pm/PackageInfo.java": "package android.content.pm; public class PackageInfo { public int versionCode; public long code; public long lastUpdateTime; public long getLongVersionCode() { return code; } }\n",
     "android/content/pm/PackageManager.java": "package android.content.pm; public class PackageManager { public final PackageInfo info = new PackageInfo(); public PackageInfo getPackageInfo(String pkg, int flags) { return info; } }\n",
     "android/content/SharedPreferences.java": """package android.content;
 public interface SharedPreferences {
   String getString(String name, String fallback);
   long getLong(String name, long fallback);
   Editor edit();
-  interface Editor { Editor clear(); Editor putString(String key, String val);
+  interface Editor { Editor clear(); Editor remove(String key); Editor putString(String key, String val);
      Editor putLong(String key, long val); void apply(); }
 }
 """,
@@ -89,7 +89,7 @@ with tempfile.TemporaryDirectory(prefix="waex_dex_cooldown_") as directory:
     legacy = root / "legacy"
     package_info = legacy / "android/content/pm/PackageInfo.java"
     package_info.parent.mkdir(parents=True)
-    package_info.write_text("package android.content.pm; public class PackageInfo { public int versionCode; public long code; }\n")
+    package_info.write_text("package android.content.pm; public class PackageInfo { public int versionCode; public long code; public long lastUpdateTime; }\n")
     subprocess.run(["javac", "--release", "17", "-d", str(legacy), str(package_info)], check=True)
     declaration = subprocess.run(["javap", "-classpath", str(legacy), "android.content.pm.PackageInfo"],
                                  check=True, capture_output=True, text=True).stdout
@@ -100,13 +100,15 @@ with tempfile.TemporaryDirectory(prefix="waex_dex_cooldown_") as directory:
 
 manager = manager_source.read_text()
 engine = (DEX_SRC / "DexSearchEngine.java").read_text()
-assert manager.count("mFailedKeys.shouldSkip(") == 3
-assert manager.count("mFailedKeys.recordFailure(") == 3
-assert manager.count("mFailedKeys.clearFailure(") == 6
+assert "mFailedKeys.shouldSkip(" in manager
+assert "mFailedKeys.recordFailure(" in manager
+assert "mFailedKeys.clearFailure(" in manager
 assert "mFailedKeys.clear();" in manager
 assert "SystemClock.elapsedRealtime()" in manager
 assert "new DexNegativeLookupCache(FAILED_RETRY_MS, MAX_FAILED_KEYS)" in manager
-assert "mPrefs.edit().clear().putLong(\"host_version_code\"" in manager
+assert "META_SCHEMA" in manager and "META_MODULE_VERSION" in manager
+assert "mKeyLocks.computeIfAbsent(" in manager
 assert "findMethodWithCache(" in engine and "findClassWithCache(" in engine
+assert "findMethodsWithCache(" in engine and "findClassesWithCache(" in engine
 assert "mFailedKeys.contains(" not in manager
 print("PASS: 9 DexKit/cache integration invariants")

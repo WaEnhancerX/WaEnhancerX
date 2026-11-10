@@ -32,6 +32,7 @@ import android.widget.TextView;
 import androidx.core.widget.NestedScrollView;
 import com.waenhancer.config.DndPreferencePolicy;
 import de.robv.android.xposed.XposedBridge;
+import android.view.Window;
 
 /**
  * Native WhatsApp WDS-style quick-action sheet for WAEX Separate menu mode.
@@ -79,7 +80,7 @@ final class WaexQuickActionsSheet {
         float density = activity.getResources().getDisplayMetrics().density;
         int screenHeight = activity.getResources().getDisplayMetrics().heightPixels;
 
-        // ── Colors (matches AlertDialogWpp / WaexBottomSheet exact palette) ──
+        // ── Colors (matches AlertDialogWaex / WaexBottomSheet exact palette) ──
         boolean isDark = isDarkTheme(activity);
         int bgColor          = isDark ? 0xFF12181C : 0xFFFFFFFF;
         int primaryText      = isDark ? 0xFFE9EDEF : 0xFF111B21;
@@ -225,7 +226,7 @@ final class WaexQuickActionsSheet {
                     boolean freezeOn = gActive || prefs.getBoolean("freeze_last_seen_active", false);
                     addSwitchRow(dependentContainer, activity, dialog,
                             UiText.get(R.string.feat_freezelastseen_title, "Freeze Last Seen"),
-                            gActive ? UiText.get(R.string.waex_ui_managed_by_ghost_mode_43c1f096, "Managed by Ghost Mode") : UiText.get(R.string.waex_ui_lock_your_last_seen_timestamp_3ffb4b47, "Lock your last seen timestamp"),
+                            gActive ? UiText.get(R.string.waex_ui_managed_by_ghost_mode, "Managed by Ghost Mode") : UiText.get(R.string.waex_ui_lock_your_last_seen_timestamp, "Lock your last seen timestamp"),
                             freezeOn,
                             gActive,
                             finalPrimaryText, finalSecondaryText,
@@ -239,8 +240,8 @@ final class WaexQuickActionsSheet {
                     boolean dndOn = gActive || DndPreferencePolicy.isEnabled(
                             prefs::contains, key -> prefs.getBoolean(key, false));
                     addSwitchRow(dependentContainer, activity, dialog,
-                            UiText.get(R.string.waex_ui_dnd_mode_09024263, "DND Mode"),
-                            gActive ? UiText.get(R.string.waex_ui_managed_by_ghost_mode_43c1f096, "Managed by Ghost Mode") : UiText.get(R.string.waex_ui_mute_all_incoming_notifications_543d04fe, "Mute all incoming notifications"),
+                            UiText.get(R.string.waex_ui_dnd_mode, "DND Mode"),
+                            gActive ? UiText.get(R.string.waex_ui_managed_by_ghost_mode, "Managed by Ghost Mode") : UiText.get(R.string.waex_ui_mute_all_incoming_notifications, "Mute all incoming notifications"),
                             dndOn,
                             gActive,
                             finalPrimaryText, finalSecondaryText,
@@ -254,8 +255,8 @@ final class WaexQuickActionsSheet {
             if (prefs.getBoolean("ghostmode", false)) {
                 boolean ghostActive = prefs.getBoolean("ghostmode_active", false);
                 addSwitchRow(content, activity, dialog,
-                        UiText.get(R.string.waex_ui_ghost_mode_48b2b30e, "Ghost Mode"),
-                        UiText.get(R.string.waex_ui_hide_online_status_typing_read_receipt_d3490518, "Hide online status, typing & read receipts"),
+                        UiText.get(R.string.waex_ui_ghost_mode, "Ghost Mode"),
+                        UiText.get(R.string.waex_ui_hide_online_status_typing_read_receipt, "Hide online status, typing & read receipts"),
                         ghostActive,
                         false,
                         finalPrimaryText, finalSecondaryText,
@@ -280,8 +281,8 @@ final class WaexQuickActionsSheet {
 
             if (prefs.getBoolean("restartbutton", false)) {
                 addTileRow(content, activity,
-                        UiText.get(R.string.waex_ui_restart_whatsapp_e68a0fd3, "Restart WhatsApp"),
-                        UiText.get(R.string.waex_ui_force_close_and_relaunch_whatsapp_780fd6fd, "Force close and relaunch WhatsApp"),
+                        UiText.get(R.string.waex_ui_restart_whatsapp, "Restart WhatsApp"),
+                        UiText.get(R.string.waex_ui_force_close_and_relaunch_whatsapp, "Force close and relaunch WhatsApp"),
                         finalPrimaryText, finalSecondaryText,
                         () -> {
                             dialog.dismiss();
@@ -291,8 +292,8 @@ final class WaexQuickActionsSheet {
 
             if (prefs.getBoolean("open_wae", false)) {
                 addTileRow(content, activity,
-                        UiText.get(R.string.waex_ui_wa_enhancer_settings_ff30ce0c, "WA Enhancer Settings"),
-                        UiText.get(R.string.waex_ui_open_waex_settings_and_preferences_8ec5880a, "Open WAEX settings and preferences"),
+                        UiText.get(R.string.waex_ui_wa_enhancer_settings, "WA Enhancer Settings"),
+                        UiText.get(R.string.waex_ui_open_waex_settings_and_preferences, "Open WAEX settings and preferences"),
                         finalPrimaryText, finalSecondaryText,
                         () -> {
                             dialog.dismiss();
@@ -312,7 +313,7 @@ final class WaexQuickActionsSheet {
 
         dialog.setContentView(container);
 
-        android.view.Window window = dialog.getWindow();
+        Window window = dialog.getWindow();
         if (window != null) {
             window.setGravity(Gravity.BOTTOM);
             window.getDecorView().setPadding(0, 0, 0, 0);

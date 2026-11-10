@@ -34,7 +34,13 @@ for operation in ('getIdFromKey','getMediaFromId','findAccountDataDir'):
 for operation in ('setTitle(', 'setMessage(', 'setPositiveButton('):
  assert operation in dialog
 assert 'saveMediaFile' in status
-# Translation may wrap the static prefix; retain exactly one UI error path and
-# do not relax the separate log-privacy assertions above.
-assert len(re.findall(r'showToast\(ctx,\s*(?:UiText\.get\(R\.string\.[a-z0-9_]+,\s*)?"Error saving status media: "\)?\s*\+\s*t\.getMessage\(\)\)', status)) == 1
+# The status helper now propagates failed closes/publication to one localized UI path.
+# Keep all diagnostic counts and private-payload negative controls above intact.
+start=status.index('    private void saveMediaFile(')
+end=status.index('    private void copyToClipboard(', start)
+save=status[start:end]
+assert 'StatusMediaExporter.export(ctx, srcFile);' in save
+assert 'waex_ui_failed_to_download_status_19426d76' in save
+assert 'failure.getClass().getSimpleName()' in save
+assert 'getMessage()' not in save
 print('PASS: 18 DB, native dialog, and status-save diagnostics redact private exception texts')

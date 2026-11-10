@@ -18,7 +18,7 @@ STUBS = {
     }''',
     'android/os/Bundle.java': '''package android.os; import java.util.*; public class Bundle {
       public final Map<String,Object> values=new HashMap<>();
-      public void putString(String k,String v){values.put(k,v);} public String getString(String k){return (String)values.get(k);}
+      public void putLong(String k,long v){values.put(k,v);} public void putBoolean(String k,boolean v){values.put(k,v);} public void putString(String k,String v){values.put(k,v);} public String getString(String k){return (String)values.get(k);}
       @SuppressWarnings("unchecked") public <T>T getParcelable(String k){return (T)values.get(k);}
       public <T>T getParcelable(String k,Class<T> type){return type.cast(values.get(k));}
     }''',
@@ -33,13 +33,14 @@ STUBS = {
       void unregisterOnSharedPreferenceChangeListener(OnSharedPreferenceChangeListener listener);
     }''',
     'android/content/Context.java': '''package android.content; import android.os.*; import android.net.Uri; import java.util.*;
-    public class Context {public final ContentResolver resolver=new ContentResolver();
+    public class Context {public String getPackageName(){return "com.whatsapp";} public final ContentResolver resolver=new ContentResolver();
       public ContentResolver getContentResolver(){return resolver;} public Context getApplicationContext(){return this;}
-      public static class ContentResolver {public final List<ParcelFileDescriptor> files=new ArrayList<>(); public int deletes,creates; public boolean fail;
+      public static class ContentResolver {public final List<ParcelFileDescriptor> files=new ArrayList<>(); public int deletes,creates,finishes; public final List<Bundle> finished=new ArrayList<>(); public boolean fail;
         public Bundle call(Uri uri,String method,String argument,Bundle request){
           if(method.equals("create_call_recording")){creates++;if(fail)return null;
             Bundle result=new Bundle(); ParcelFileDescriptor fd=new ParcelFileDescriptor();files.add(fd);
             result.values.put("descriptor",fd);result.putString("path","private/"+request.getString("name"));return result;}
+          if(method.equals("finish_call_recording")){finishes++;finished.add(request);return new Bundle();}
           if(method.equals("delete_call_recording")){deletes++;return new Bundle();}
           throw new AssertionError("Unexpected IPC operation: "+method);
         }
@@ -64,6 +65,7 @@ STUBS = {
       public static final class OutputFormat {public static final int MPEG_4=2,OGG=11;}
       public static final class AudioEncoder {public static final int AAC=3,OPUS=7;}
     }''',
+    'com/waenhancer/utils/ContactNameResolver.java': '''package com.waenhancer.utils; public final class ContactNameResolver { public static final ContactNameResolver INSTANCE=new ContactNameResolver(); public static int calls; public String resolveName(android.content.Context c,String jid,String fallback,String unused){calls++;throw new AssertionError("Contact resolution is outside this lifecycle fixture");} }''',
     'com/waenhancer/xposed/core/BaseFeature.java': '''package com.waenhancer.xposed.core; import android.content.*;
     public abstract class BaseFeature {protected final Context context;protected final ClassLoader classLoader;protected final SharedPreferences prefs;
       protected BaseFeature(Context c,ClassLoader l,SharedPreferences p){context=c;classLoader=l;prefs=p;}
@@ -138,6 +140,7 @@ STUBS = {
       public void soundPortCreated(int engine){original();}
       public void callStateChanged(CallState oldState,CallInfo info){original();}
       public void callEnding(CallLogInfo info,int interval,String timeSeries,String log){original();if(clearAtEnd)current=null;}
+      public void callEnding(String decoy) {original();}
       public void fieldstatsReady(WamCall info,UserJid user,boolean lastReport,boolean realtime){original();}
     }''',
     'com/whatsapp/voipcalling/VoipActivityV2.java': 'package com.whatsapp.voipcalling; public class VoipActivityV2 {public void onDestroy(){}}',
@@ -201,7 +204,7 @@ def main():
         print('PASS: complete recorder hook compiles against the real DexKit API; native matching is not executed')
     else:
         with (directory/'behavior.log').open('w') as f:
-            result=subprocess.run(['java','-Xmx64m','-cp',classpath,'CallRecordingLifecycleChecks',args.scenario],stdout=f,stderr=subprocess.STDOUT,timeout=60)
+            result=subprocess.run(['java','-Xmx64m','-Dwaex.fixture.ending='+args.host_variant,'-cp',classpath,'CallRecordingLifecycleChecks',args.scenario],stdout=f,stderr=subprocess.STDOUT,timeout=60)
         print((directory/'behavior.log').read_text());result.check_returncode()
 
 if __name__=='__main__':main()
