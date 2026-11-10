@@ -23,7 +23,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -38,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
+import com.waenhancer.ui.components.WaexCircularProgressIndicator
 
 enum class RootAccessState { Checking, Required, Granted }
 
@@ -73,7 +73,7 @@ fun RootAccessRequirementScreen(
             contentAlignment = Alignment.Center
         ) {
             if (checking) {
-                CircularProgressIndicator(
+                WaexCircularProgressIndicator(
                     modifier = Modifier.size(34.dp),
                     color = colors.primary,
                     strokeWidth = 3.dp
@@ -91,7 +91,7 @@ fun RootAccessRequirementScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = if (checking) UiText.get(R.string.waex_ui_checking_root_access_76c86676, "Checking root access") else UiText.get(R.string.waex_ui_root_access_is_required_a22936b2, "Root access is required"),
+            text = if (checking) UiText.get(R.string.waex_ui_checking_root_access, "Checking root access") else UiText.get(R.string.waex_ui_root_access_is_required, "Root access is required"),
             style = typography.displayLgMobile,
             fontWeight = FontWeight.Bold,
             color = colors.onBackground,
@@ -102,9 +102,9 @@ fun RootAccessRequirementScreen(
 
         Text(
             text = if (checking) {
-                UiText.get(R.string.waex_ui_approve_the_superuser_request_if_your_eb6a2e6a, "Approve the superuser request if your root manager asks for permission.")
+                UiText.get(R.string.waex_ui_approve_the_superuser_request_if_your, "Approve the superuser request if your root manager asks for permission.")
             } else {
-                UiText.get(R.string.waex_ui_waenhancerx_supports_rooted_devices_wi_a07ec3e0, "WaEnhancerX supports rooted devices with an approved Xposed framework only. The app cannot continue until root access is available.")
+                UiText.get(R.string.waex_ui_waenhancerx_supports_rooted_devices_wi, "WaEnhancerX supports rooted devices with an approved Xposed framework only. The app cannot continue until root access is available.")
             },
             style = typography.bodyMd,
             color = colors.onSurfaceVariant,
@@ -125,16 +125,16 @@ fun RootAccessRequirementScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 RequirementRow(
-                    title = UiText.get(R.string.waex_ui_why_this_is_required_78ad78a4, "Why this is required"),
-                    description = UiText.get(R.string.waex_ui_root_lets_waenhancerx_verify_the_modul_415333af, "Root lets WAEnhancerX verify the module scope and supported runtime environment. Non-root injection methods such as LSPatch and Shizuku-based alternatives are not supported.")
+                    title = UiText.get(R.string.waex_ui_why_this_is_required, "Why this is required"),
+                    description = UiText.get(R.string.waex_ui_root_lets_waenhancerx_verify_the_modul, "Root lets WAEnhancerX verify the module scope and supported runtime environment. Non-root injection methods such as LSPatch and Shizuku-based alternatives are not supported.")
                 )
                 RequirementRow(
-                    title = UiText.get(R.string.waex_ui_account_protection_2b24d9b9, "Account protection"),
-                    description = UiText.get(R.string.waex_ui_unsupported_setups_may_behave_unpredic_ac8b9130, "Unsupported setups may behave unpredictably and may increase the risk of WhatsApp restrictions. Root access does not remove every risk of using modifications.")
+                    title = UiText.get(R.string.waex_ui_account_protection, "Account protection"),
+                    description = UiText.get(R.string.waex_ui_unsupported_setups_may_behave_unpredic, "Unsupported setups may behave unpredictably and may increase the risk of WhatsApp restrictions. Root access does not remove every risk of using modifications.")
                 )
                 RequirementRow(
-                    title = UiText.get(R.string.waex_ui_your_privacy_d2a7115d, "Your privacy"),
-                    description = UiText.get(R.string.waex_ui_this_check_runs_locally_using_the_syst_53890e09, "This check runs locally using the system identity command. No root details or command output are uploaded.")
+                    title = UiText.get(R.string.waex_ui_your_privacy, "Your privacy"),
+                    description = UiText.get(R.string.waex_ui_this_check_runs_locally_using_the_syst, "This check runs locally using the system identity command. No root details or command output are uploaded.")
                 )
             }
         }
@@ -159,7 +159,7 @@ fun RootAccessRequirementScreen(
                 modifier = Modifier.size(20.dp)
             )
             Text(
-                text = if (checking) UiText.get(R.string.diag_status_checking, "Checking…") else UiText.get(R.string.waex_ui_check_again_fb7099ad, "Check again"),
+                text = if (checking) UiText.get(R.string.diag_status_checking, "Checking…") else UiText.get(R.string.waex_ui_check_again, "Check again"),
                 modifier = Modifier.padding(start = 8.dp),
                 style = typography.bodyLg,
                 fontWeight = FontWeight.Bold
@@ -177,7 +177,7 @@ fun RootAccessRequirementScreen(
             border = BorderStroke(1.dp, colors.outlineVariant)
         ) {
             Text(
-                text = UiText.get(R.string.waex_ui_exit_waenhancerx_7cb55953, "Exit WaEnhancerX"),
+                text = UiText.get(R.string.waex_ui_exit_waenhancerx, "Exit WaEnhancerX"),
                 style = typography.bodyMd,
                 color = colors.onSurface
             )

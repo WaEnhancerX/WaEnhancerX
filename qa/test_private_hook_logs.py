@@ -11,12 +11,12 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1]
 FILES = {
-    "app/src/main/java/com/waenhancer/xposed/features/privacy/BlueOnReplyHook.java": 11,
-    "app/src/main/java/com/waenhancer/xposed/features/privacy/AntiRevokeHook.java": 29,
-    "app/src/main/java/com/waenhancer/xposed/features/conversation/PreserveDeleteForMeHook.kt": 10,
+    "app/src/main/java/com/waenhancer/xposed/features/privacy/BlueOnReplyHook.java": 7,
+    "app/src/main/java/com/waenhancer/xposed/features/privacy/AntiRevokeHook.java": 26,
+    "app/src/main/java/com/waenhancer/xposed/features/conversation/PreserveDeleteForMeHook.kt": 9,
     "app/src/main/java/com/waenhancer/xposed/features/conversation/AntiEditMessagesHook.kt": 6,
-    "app/src/main/java/com/waenhancer/xposed/core/db/EditMessageStore.kt": 2,
-    "app/src/main/java/com/waenhancer/xposed/features/customization/OnlinePresenceIndicatorsHook.kt": 4,
+    "app/src/main/java/com/waenhancer/xposed/core/db/EditMessageStore.kt": 4,
+    "app/src/main/java/com/waenhancer/xposed/features/customization/OnlinePresenceIndicatorsHook.kt": 3,
 }
 
 # Each source is scanned as an expression, including Java multi-line logs
@@ -133,21 +133,17 @@ anti = (ROOT / "app/src/main/java/com/waenhancer/xposed/features/privacy/AntiRev
 preserve = (ROOT / "app/src/main/java/com/waenhancer/xposed/features/conversation/PreserveDeleteForMeHook.kt").read_text()
 edit = (ROOT / "app/src/main/java/com/waenhancer/xposed/features/conversation/AntiEditMessagesHook.kt").read_text()
 store = (ROOT / "app/src/main/java/com/waenhancer/xposed/core/db/EditMessageStore.kt").read_text()
-# Both the standalone privacy-log PR and the bounded-recipient PR must retain
-# a safe capture diagnostic, although their queues use different implementations.
-if 'PendingReadReceiptStore<ReadJobRecipe>' in blue:
-    assert 'PENDING_JOBS.pendingCount(key)' in blue
-    assert 'XposedBridge.log(TAG + " Captured hidden read job (pending="' in blue
-else:
-    assert 'XposedBridge.log(TAG + " Captured hidden read job (pending=" + pending.size() + ")")' in blue
+# Upstream removed these hot-path diagnostics. Preserve the removal while
+# keeping strict exposure checks for every remaining log expression.
+for removed in ('Captured hidden read job (pending=', 'No captured read jobs for reply',
+                'Enqueued blue-on-reply receipt'):
+    assert removed not in blue
+for removed in ('Status root view still null after delay', 'No timestamp TextView in status view'):
+    assert removed not in anti
 assert 'XposedBridge.log(TAG + " Cannot dispatch: WaJobManager or enqueueJobMethod is not ready")' in blue
-assert 'XposedBridge.log(TAG + " No captured read jobs for reply")' in blue
-assert 'XposedBridge.log(TAG + " Enqueued blue-on-reply receipt")' in blue
-assert 'XposedBridge.log(TAG + " Status root view still null after delay")' in anti
-assert 'XposedBridge.log(TAG + " No timestamp TextView in status view")' in anti
 assert 'Preserved Delete-For-Me: chat=' not in preserve
 online_presence = (ROOT / "app/src/main/java/com/waenhancer/xposed/features/customization/OnlinePresenceIndicatorsHook.kt").read_text()
-assert 'contactIdResolved=$hasContactId' in online_presence
+assert 'contactIdResolved=$hasContactId' not in online_presence
 assert 'Presence request failed: ${t.javaClass.simpleName}' in online_presence
 assert 'Setup failed: ${t.javaClass.simpleName}' in online_presence
 assert 'Setup failed: $t' not in online_presence

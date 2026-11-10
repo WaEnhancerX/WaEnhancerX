@@ -304,4 +304,107 @@ public final class MediaPreviewLifecycleTest {
         try{callback.onPrepared(player);assertEquals("A late prepare callback must not restart cancelled playback",ShadowVideoView.STOP,Shadows.shadowOf(view).getCurrentVideoState());}
         finally{player.release();}
     }
+
+    private Object activeSession() throws Exception {
+        Field f=MediaPreviewHook.class.getDeclaredField("activePreview");f.setAccessible(true);return f.get(hook);
+    }
+    private Method sessionMethod(String name,Class<?>...tail)throws Exception {
+        Class<?>[] args=new Class<?>[tail.length+1];args[0]=Class.forName(MediaPreviewHook.class.getName()+"$PreviewSession");
+        System.arraycopy(tail,0,args,1,tail.length);Method m=MediaPreviewHook.class.getDeclaredMethod(name,args);m.setAccessible(true);return m;
+    }
+    public static final class CountingProgress extends android.widget.ProgressBar {
+        int writes;
+        CountingProgress(Context c){super(c,null,android.R.attr.progressBarStyleHorizontal);writes=0;}
+        @Override public synchronized void setProgress(int n){writes++;super.setProgress(n);}
+    }
+    @Test public void progressBurstCoalescesAndShowsLatestValue()throws Exception {
+        open(null,"image/png",local(".png"));settle();Object session=activeSession();assertNotNull(session);
+        CountingProgress progress=new CountingProgress(activity);android.widget.TextView text=new android.widget.TextView(activity);
+        Method post=sessionMethod("postDownloadProgress",android.widget.ProgressBar.class,android.widget.TextView.class,int.class,String.class);
+        for(int i=0;i<5000;i++)post.invoke(hook,session,progress,text,100+i,"size-"+i);
+        assertEquals("Progress is queued, not applied on the worker",0,progress.writes);
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+        assertEquals("Underestimated size must not enqueue one UI callback per read",1,progress.writes);
+        assertEquals(100,progress.getProgress());assertTrue(text.getText().toString().contains("size-4999"));
+    }
+    @Test public void progressCancellationDropsPendingUi()throws Exception {
+        open(null,"image/png",local(".png"));settle();Object session=activeSession();
+        CountingProgress progress=new CountingProgress(activity);android.widget.TextView text=new android.widget.TextView(activity);
+        Method post=sessionMethod("postDownloadProgress",android.widget.ProgressBar.class,android.widget.TextView.class,int.class,String.class);
+        post.invoke(hook,session,progress,text,101,"obsolete");latest().dismiss();Shadows.shadowOf(Looper.getMainLooper()).idle();
+        assertEquals("Cancelled progress must not update old controls",0,progress.writes);
+    }
+    @Test public void pendingDecodedImageRecycledOnDismiss()throws Exception {
+        open(null,"image/png",local(".png"));settle();Object session=activeSession();
+        android.graphics.Bitmap bitmap=android.graphics.Bitmap.createBitmap(2,2,android.graphics.Bitmap.Config.ARGB_8888);
+        Method post=sessionMethod("postDecodedImage",android.graphics.Bitmap.class,Context.class,android.widget.FrameLayout.class,android.widget.LinearLayout.class);
+        android.widget.FrameLayout target=new android.widget.FrameLayout(activity);
+        post.invoke(hook,session,bitmap,activity,target,new android.widget.LinearLayout(activity));
+        assertFalse(bitmap.isRecycled());latest().dismiss();Shadows.shadowOf(Looper.getMainLooper()).idle();
+        assertTrue("Cancelled unpublished bitmap must be released",bitmap.isRecycled());assertEquals(0,target.getChildCount());
+    }
+    @Test public void alreadyCancelledDecodeResultIsRecycled()throws Exception {
+        open(null,"image/png",local(".png"));settle();Object session=activeSession();latest().dismiss();Shadows.shadowOf(Looper.getMainLooper()).idle();
+        android.graphics.Bitmap bitmap=android.graphics.Bitmap.createBitmap(2,2,android.graphics.Bitmap.Config.ARGB_8888);
+        sessionMethod("postDecodedImage",android.graphics.Bitmap.class,Context.class,android.widget.FrameLayout.class,android.widget.LinearLayout.class)
+            .invoke(hook,session,bitmap,activity,new android.widget.FrameLayout(activity),new android.widget.LinearLayout(activity));
+        assertTrue("Result decoded after cancellation must be released",bitmap.isRecycled());
+    }
+    @Test public void borrowedFileNamedLikeTemporaryRetainsBytes()throws Exception {
+        File file=new File(activity.getCacheDir(),"mediapreview_host_owned.png");Files.write(file.toPath(),FixtureNetwork.PNG);
+        byte[] original=Files.readAllBytes(file.toPath());open(null,"image/png",file);settle();
+        latest().dismiss();Shadows.shadowOf(Looper.getMainLooper()).idle();
+        assertTrue(file.isFile());assertArrayEquals("A cache directory or prefix does not transfer ownership",original,Files.readAllBytes(file.toPath()));
+    }
+    @Test public void cancelledLateResponseClosesBody()throws Exception {
+        FixtureNetwork.Scenario scenario=new FixtureNetwork.Scenario(true,false);scenario.ignoreCancellation=true;
+        openBlocking("https://example.invalid/late-body",scenario);latest().dismiss();Shadows.shadowOf(Looper.getMainLooper()).idle();
+        scenario.release.countDown();settle();
+        assertTrue("Response arriving after cancellation must still close its body",FixtureNetwork.calls.get(0).closed);
+        assertTrue(previews().isEmpty());
+    }
+    @Test public void publicationWaitsForSessionCancellationMonitor()throws Exception {
+        open(null,"image/png",local(".png"));settle();Object session=activeSession();
+        Method post=sessionMethod("postPreview",kotlin.jvm.functions.Function0.class);
+        CountDownLatch entered=new CountDownLatch(1);java.util.concurrent.atomic.AtomicReference<Throwable> error=new java.util.concurrent.atomic.AtomicReference<>();
+        java.util.concurrent.atomic.AtomicInteger effects=new java.util.concurrent.atomic.AtomicInteger();
+        Thread thread=new Thread(()->{entered.countDown();try{post.invoke(hook,session,(kotlin.jvm.functions.Function0<kotlin.Unit>)()->{effects.incrementAndGet();return kotlin.Unit.INSTANCE;});}catch(Throwable t){error.set(t);}});
+        synchronized(session){thread.start();assertTrue(entered.await(2,TimeUnit.SECONDS));
+            long deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(2);
+            while(thread.getState()!=Thread.State.BLOCKED&&thread.isAlive()&&System.nanoTime()<deadline)Thread.yield();
+            assertEquals("Post registration must serialize with cancellation",Thread.State.BLOCKED,thread.getState());
+            latest().dismiss();Shadows.shadowOf(Looper.getMainLooper()).idle();
+        }
+        thread.join(2000);assertFalse(thread.isAlive());assertNull(error.get());Shadows.shadowOf(Looper.getMainLooper()).idle();assertEquals(0,effects.get());
+    }
+
+
+    @Test public void identityReplacementBeforeTempRegistrationRemovesOrphan()throws Exception {
+        open(null,"image/png",local(".png"));settle();Object previous=activeSession();
+        Field active=MediaPreviewHook.class.getDeclaredField("activePreview");active.setAccessible(true);
+        Constructor<?> ctor=previous.getClass().getDeclaredConstructor(ThreadPoolExecutor.class);ctor.setAccessible(true);
+        Object replacement=ctor.newInstance(worker());
+        Method download=sessionMethod("downloadAndDisplayMedia",String.class,String.class,String.class,long.class,boolean.class,
+                Context.class,android.widget.FrameLayout.class,android.widget.LinearLayout.class,android.widget.ProgressBar.class,android.widget.TextView.class);
+        android.widget.FrameLayout content=new android.widget.FrameLayout(activity);
+        android.widget.LinearLayout loading=new android.widget.LinearLayout(activity);
+        android.widget.ProgressBar progress=new android.widget.ProgressBar(activity);
+        android.widget.TextView text=new android.widget.TextView(activity);
+        Set<File> before=previews();java.util.concurrent.atomic.AtomicReference<Throwable> error=new java.util.concurrent.atomic.AtomicReference<>();
+        Thread thread=new Thread(()->{try{download.invoke(hook,previous,"https://example.invalid/unregistered-temp",null,"image/png",0L,true,
+                activity,content,loading,progress,text);}catch(Throwable t){error.set(t);}},"WAEX-MediaPreview-orphan-fixture");
+        synchronized(previous){
+            thread.start();
+            await(()->thread.getState()==Thread.State.BLOCKED&&!previews().equals(before));
+            // This models preemption between publishing the new identity and closing the old one.
+            active.set(hook,replacement);
+        }
+        thread.join(4000);assertFalse("Old worker must finish its failed registration",thread.isAlive());assertNull(error.get());
+        sessionMethod("closePreview").invoke(hook,previous);Shadows.shadowOf(Looper.getMainLooper()).idle();
+        assertEquals("Identity-invalidated unregistered temporary must be removed",before,previews());
+        assertSame("Old cleanup must not replace the new session",replacement,activeSession());
+        assertEquals(0,FixtureNetwork.calls.size());
+        sessionMethod("closePreview").invoke(hook,replacement);
+    }
+
 }

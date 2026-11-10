@@ -1,3 +1,5 @@
+import java.net.URI
+
 pluginManagement {
     repositories {
         google {
@@ -22,8 +24,8 @@ dependencyResolutionManagement {
             }
         }
         mavenCentral()
-        maven { url = java.net.URI("https://jitpack.io") }
-        maven { url = java.net.URI("https://api.xposed.info/") }
+        maven { url = URI("https://jitpack.io") }
+        maven { url = URI("https://api.xposed.info/") }
     }
 }
 
@@ -35,5 +37,4 @@ plugins {
 rootProject.name = "Wa Enhancer X"
 include(":app")
 include(":licensing")
-
 

@@ -57,7 +57,7 @@ def main() -> None:
         subprocess.run(["java", "-cp", str(temp), "StatusHookBindingChecks", args.scenario], check=True)
     if args.source.resolve() == (PRIVACY / "AntiRevokeHook.java").resolve():
         # Cache invalidation and call binding are checked alongside the compiled behavior.
-        for key in ("wpp_status_to_message_mapper_v2", "wpp_status_key_class_v3", "wpp_revoke_status_manager_v3"):
+        for key in ("waex_status_to_message_mapper_v2", "waex_status_key_class_v3", "waex_revoke_status_manager_v3"):
             assert '"' + key + '"' in source, key
         assert "findArgumentOfType" not in method(source, "hookStatusBytecodeRevocation")
         assert "setHandledResult(param)" not in method(source, "hookStatusBytecodeRevocation")

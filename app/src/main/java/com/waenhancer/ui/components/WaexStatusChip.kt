@@ -24,8 +24,8 @@ fun WaexStatusChip(
     Box(
         modifier = modifier
             .clip(radius.fullShape)
-            .background(color.copy(alpha = 0.1f))
-            .padding(horizontal = 12.dp, vertical = 4.dp),
+            .background(color.copy(alpha = 0.16f))
+            .padding(horizontal = 12.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(

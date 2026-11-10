@@ -41,13 +41,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.VolunteerActivism
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.LoadingIndicator
+import com.waenhancer.ui.components.WaexModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -69,8 +69,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
+
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.LocalContext
@@ -91,6 +93,7 @@ import com.waenhancer.app.R
 import com.waenhancer.config.PreferenceStores
 import com.waenhancer.licensing.LicenseManager
 import com.waenhancer.ui.components.WaexTopBar
+import com.waenhancer.ui.components.NetworkErrorCenter
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
@@ -109,6 +112,7 @@ import kotlin.random.Random
 import android.content.Context
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import java.text.DateFormat
 
 private const val PROJECT_URL = "https://github.com/WaEnhancerX/WaEnhancerX"
 private const val STARGAZERS_DATA_URL = "https://waex.mubashar.dev/api/stargazers"
@@ -169,6 +173,7 @@ fun StargazersScreen() {
     var searchQuery by remember { mutableStateOf("") }
     val confettiProgress = remember { Animatable(0f) }
     val supportSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val pullToRefreshState = rememberPullToRefreshState()
     val scope = rememberCoroutineScope()
     val filteredStargazers = remember(stargazers, searchQuery) {
         val query = searchQuery.trim()
@@ -198,7 +203,7 @@ fun StargazersScreen() {
     fun openProjectForStar() {
         Toast.makeText(
             context,
-            UiText.get(R.string.waex_ui_tap_star_on_github_and_your_profile_wi_89e8efe3, "Tap Star on GitHub and your profile will appear after the list updates."),
+            UiText.get(R.string.waex_ui_tap_star_on_github_and_your_profile_wi, "Tap Star on GitHub and your profile will appear after the list updates."),
             Toast.LENGTH_SHORT
         ).show()
         openUrl(PROJECT_URL)
@@ -211,9 +216,12 @@ fun StargazersScreen() {
         result.onSuccess { snapshot ->
             stargazers = sortStargazers(context, snapshot.stargazers)
             lastUpdated = formatUpdatedAt(snapshot.updatedAt)
-        }.onFailure {
-            errorMessage = UiText.get(R.string.waex_ui_we_couldn_t_load_the_supporters_right_f4aba896, "We couldn't load the supporters right now.")
+        }.onFailure { failure ->
+            errorMessage = UiText.get(R.string.waex_ui_we_couldn_t_load_the_supporters_right, "We couldn't load the supporters right now.")
             stargazers = emptyList()
+            if (NetworkErrorCenter.isNetworkError(failure)) {
+                NetworkErrorCenter.show(failure) { refreshKey++ }
+            }
         }
         isLoading = false
     }
@@ -225,7 +233,12 @@ fun StargazersScreen() {
         isLoadingProfile = true
         loadStargazerProfile(context, stargazer.login)
             .onSuccess { selectedProfile = it }
-            .onFailure { profileError = UiText.get(R.string.waex_ui_could_not_load_this_github_profile_eb4f568a, "Could not load this GitHub profile.") }
+            .onFailure { failure ->
+                profileError = UiText.get(R.string.waex_ui_could_not_load_this_github_profile, "Could not load this GitHub profile.")
+                if (NetworkErrorCenter.isNetworkError(failure)) {
+                    NetworkErrorCenter.show(failure)
+                }
+            }
         isLoadingProfile = false
     }
 
@@ -243,7 +256,7 @@ fun StargazersScreen() {
                     ) {
                         Icon(
                             imageVector = if (isSearchVisible) WaexIcons.Clear else WaexIcons.Search,
-                            contentDescription = if (isSearchVisible) UiText.get(R.string.waex_ui_close_search_55656b5e, "Close search") else UiText.get(R.string.waex_ui_search_supporters_d4975694, "Search supporters"),
+                            contentDescription = if (isSearchVisible) UiText.get(R.string.waex_ui_close_search, "Close search") else UiText.get(R.string.waex_ui_search_supporters, "Search supporters"),
                             tint = colors.onSurface
                         )
                     }
@@ -263,7 +276,7 @@ fun StargazersScreen() {
                         ) {
                             AsyncAvatarImage(
                                 url = currentUserProfile?.avatarUrl.orEmpty(),
-                                contentDescription = UiText.get(R.string.waex_ui_open_your_github_profile_9303415f, "Open your GitHub profile"),
+                                contentDescription = UiText.get(R.string.waex_ui_open_your_github_profile, "Open your GitHub profile"),
                                 modifier = Modifier
                                     .size(34.dp)
                                     .clip(CircleShape)
@@ -277,7 +290,7 @@ fun StargazersScreen() {
                                 style = typography.headlineMd,
                                 modifier = Modifier
                                     .padding(bottom = 2.dp)
-                                    .semantics { contentDescription = UiText.get(R.string.waex_ui_join_the_supporters_list_b169de4a, "Join the supporters list") }
+                                    .semantics { contentDescription = UiText.get(R.string.waex_ui_join_the_supporters_list, "Join the supporters list") }
                             )
                         }
                     }
@@ -289,6 +302,41 @@ fun StargazersScreen() {
         PullToRefreshBox(
             isRefreshing = isLoading && refreshKey > 0,
             onRefresh = { refreshKey++ },
+            state = pullToRefreshState,
+            indicator = {
+                val isRefreshing = isLoading && refreshKey > 0
+                if (isRefreshing || pullToRefreshState.distanceFraction > 0f) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = 12.dp)
+                            .size(52.dp)
+                            .shadow(6.dp, RoundedCornerShape(18.dp)),
+                        shape = RoundedCornerShape(18.dp),
+                        color = colors.primaryContainer,
+                        contentColor = colors.primary
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            if (isRefreshing) {
+                                LoadingIndicator(
+                                    modifier = Modifier.size(30.dp),
+                                    color = colors.primary
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = WaexIcons.Refresh,
+                                    contentDescription = UiText.get(R.string.waex_ui_refresh, "Refresh"),
+                                    modifier = Modifier
+                                        .size(22.dp)
+                                        .graphicsLayer {
+                                            rotationZ = 180f * pullToRefreshState.distanceFraction.coerceIn(0f, 1f)
+                                        }
+                                )
+                            }
+                        }
+                    }
+                }
+            },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(scaffoldPadding)
@@ -311,19 +359,19 @@ fun StargazersScreen() {
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text(UiText.get(R.string.waex_ui_search_github_usernames_968bd7a0, "Search GitHub usernames")) },
+                        placeholder = { Text(UiText.get(R.string.waex_ui_search_github_usernames, "Search GitHub usernames")) },
                         leadingIcon = {
                             Icon(WaexIcons.Search, contentDescription = null)
                         },
                         trailingIcon = {
                             if (searchQuery.isNotEmpty()) {
                                 IconButton(onClick = { searchQuery = "" }) {
-                                    Icon(WaexIcons.Clear, contentDescription = UiText.get(R.string.waex_ui_clear_search_3b7ea517, "Clear search"))
+                                    Icon(WaexIcons.Clear, contentDescription = UiText.get(R.string.waex_ui_clear_search, "Clear search"))
                                 }
                             }
                         },
                         singleLine = true,
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(20.dp)
                     )
                 }
             }
@@ -335,25 +383,25 @@ fun StargazersScreen() {
                     exit = fadeOut(tween(200)) + shrinkVertically(animationSpec = tween(250))
                 ) {
                     Surface(
-                        shape = radius.bentoCardShape,
-                        color = colors.surfaceContainerLow,
-                        border = BorderStroke(1.dp, colors.outlineVariant),
+                        shape = RoundedCornerShape(28.dp),
+                        color = colors.primaryContainer,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
                             modifier = Modifier.padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                            horizontalAlignment = Alignment.Start
                         ) {
                             Surface(
-                                shape = CircleShape,
-                                color = colors.primary.copy(alpha = 0.12f),
-                                modifier = Modifier.size(56.dp)
+                                shape = RoundedCornerShape(18.dp),
+                                color = colors.primary,
+                                contentColor = colors.onPrimary,
+                                modifier = Modifier.size(58.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = WaexIcons.Premium,
                                         contentDescription = null,
-                                        tint = colors.primary,
+                                        tint = colors.onPrimary,
                                         modifier = Modifier.size(28.dp)
                                     )
                                 }
@@ -364,22 +412,22 @@ fun StargazersScreen() {
                                 style = typography.headlineMd,
                                 fontWeight = FontWeight.Bold,
                                 color = colors.onSurface,
-                                textAlign = TextAlign.Center
+                                textAlign = TextAlign.Start
                             )
                             Spacer(Modifier.height(8.dp))
                             Text(
                                 text = stringResource(R.string.stargazers_message),
                                 style = typography.bodyMd,
                                 color = colors.onSurfaceVariant,
-                                textAlign = TextAlign.Center
+                                textAlign = TextAlign.Start
                             )
                             if (stargazers.isNotEmpty()) {
                                 Spacer(Modifier.height(14.dp))
                                 Text(
-                                    text = UiText.get(R.string.waex_ui_1_s_supporters_and_counting_0c9807fc, "%1\$s supporters and counting", stargazers.size),
+                                    text = UiText.get(R.string.waex_ui_1_s_supporters_and_counting, "%1\$s supporters and counting", stargazers.size),
                                     style = typography.bodyLg,
                                     fontWeight = FontWeight.Bold,
-                                    color = colors.primary
+                                    color = colors.onSurface
                                 )
                                 if (lastUpdated.isNotEmpty()) {
                                     Spacer(Modifier.height(6.dp))
@@ -387,7 +435,7 @@ fun StargazersScreen() {
                                         text = stringResource(R.string.stargazers_last_updated, lastUpdated),
                                         style = typography.bodyMd,
                                         color = colors.onSurfaceVariant,
-                                        textAlign = TextAlign.Center
+                                        textAlign = TextAlign.Start
                                     )
                                 }
                             }
@@ -421,7 +469,7 @@ fun StargazersScreen() {
                         Button(onClick = { refreshKey++ }) {
                             Icon(WaexIcons.Refresh, contentDescription = null)
                             Spacer(Modifier.size(8.dp))
-                            Text(UiText.get(R.string.waex_ui_try_again_d8b8392e, "Try again"))
+                            Text(UiText.get(R.string.waex_ui_try_again, "Try again"))
                         }
                     }
                 }
@@ -434,7 +482,7 @@ fun StargazersScreen() {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = UiText.get(R.string.waex_ui_be_the_first_supporter_featured_here_b_c40e50c7, "Be the first supporter featured here by starring WaEnhancerX on GitHub."),
+                            text = UiText.get(R.string.waex_ui_be_the_first_supporter_featured_here_b, "Be the first supporter featured here by starring WaEnhancerX on GitHub."),
                             style = typography.bodyLg,
                             color = colors.onSurfaceVariant,
                             textAlign = TextAlign.Center
@@ -443,7 +491,7 @@ fun StargazersScreen() {
                         Button(onClick = { showSupportSheet = true }) {
                             Icon(WaexIcons.Premium, contentDescription = null)
                             Spacer(Modifier.size(8.dp))
-                            Text(UiText.get(R.string.waex_ui_open_github_0d2cda15, "Open GitHub"))
+                            Text(UiText.get(R.string.waex_ui_open_github, "Open GitHub"))
                         }
                     }
                 }
@@ -463,14 +511,14 @@ fun StargazersScreen() {
                         )
                         Spacer(Modifier.height(10.dp))
                         Text(
-                            text = UiText.get(R.string.waex_ui_couldn_t_find_you_or_your_friend_here_68192ff2, "Couldn’t find you or your friend here?"),
+                            text = UiText.get(R.string.waex_ui_couldn_t_find_you_or_your_friend_here, "Couldn’t find you or your friend here?"),
                             style = typography.bodyLg,
                             fontWeight = FontWeight.SemiBold,
                             color = colors.onSurface
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = UiText.get(R.string.waex_ui_join_our_supporters_and_get_your_githu_3a43f85e, "Join our supporters and get your GitHub profile featured in this list."),
+                            text = UiText.get(R.string.waex_ui_join_our_supporters_and_get_your_githu, "Join our supporters and get your GitHub profile featured in this list."),
                             style = typography.bodyMd,
                             color = colors.onSurfaceVariant,
                             textAlign = TextAlign.Center
@@ -479,7 +527,7 @@ fun StargazersScreen() {
                         Button(onClick = { showSupportSheet = true }) {
                             Text("🫵")
                             Spacer(Modifier.width(8.dp))
-                            Text(UiText.get(R.string.waex_ui_become_a_supporter_868a6b05, "Become a supporter"), fontWeight = FontWeight.Bold)
+                            Text(UiText.get(R.string.waex_ui_become_a_supporter, "Become a supporter"), fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -487,9 +535,8 @@ fun StargazersScreen() {
                 items(filteredStargazers, key = { it.login }) { stargazer ->
                     val isDev = stargazer.login.equals(BuildConfig.DEV_GH.trim(), ignoreCase = true)
                     Surface(
-                        shape = radius.bentoCardShape,
+                        shape = RoundedCornerShape(22.dp),
                         color = colors.surfaceContainerLow,
-                        border = BorderStroke(1.dp, colors.outlineVariant),
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
@@ -507,7 +554,7 @@ fun StargazersScreen() {
                             ) {
                                 AsyncAvatarImage(
                                     url = stargazer.avatarUrl,
-                                    contentDescription = UiText.get(R.string.waex_ui_1_s_s_avatar_21ab3ff2, "%1\$s's avatar", stargazer.login),
+                                    contentDescription = UiText.get(R.string.waex_ui_1_s_s_avatar, "%1\$s's avatar", stargazer.login),
                                     modifier = Modifier
                                         .size(56.dp)
                                         .clip(CircleShape)
@@ -557,7 +604,7 @@ fun StargazersScreen() {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             imageVector = Icons.Rounded.VolunteerActivism,
-                                            contentDescription = stringResource(R.string.contributors),
+                                            contentDescription = stringResource(R.string.contributor),
                                             tint = colors.primary,
                                             modifier = Modifier.size(13.dp)
                                         )
@@ -574,7 +621,7 @@ fun StargazersScreen() {
     }
 
     selectedStargazer?.let { stargazer ->
-        ModalBottomSheet(
+        WaexModalBottomSheet(
             onDismissRequest = { selectedStargazer = null },
             containerColor = colors.surface,
             contentColor = colors.onSurface,
@@ -617,7 +664,7 @@ fun StargazersScreen() {
                                             contentColor = colors.onSurface
                                         ) {
                                             Text(
-                                                text = UiText.get(R.string.waex_ui_developer_3fb7b394, "Developer"),
+                                                text = UiText.get(R.string.waex_ui_developer, "Developer"),
                                                 style = typography.labelSm,
                                                 fontWeight = FontWeight.Medium
                                             )
@@ -657,7 +704,7 @@ fun StargazersScreen() {
                                             contentColor = colors.onSurface
                                         ) {
                                             Text(
-                                                text = stringResource(R.string.contributors),
+                                                text = stringResource(R.string.contributor),
                                                 style = typography.labelSm,
                                                 fontWeight = FontWeight.Medium
                                             )
@@ -678,7 +725,7 @@ fun StargazersScreen() {
                                         Box(contentAlignment = Alignment.Center) {
                                             Icon(
                                                 imageVector = Icons.Rounded.VolunteerActivism,
-                                                contentDescription = stringResource(R.string.contributors),
+                                                contentDescription = stringResource(R.string.contributor),
                                                 tint = colors.primary,
                                                 modifier = Modifier.size(13.dp)
                                             )
@@ -700,7 +747,7 @@ fun StargazersScreen() {
                 if (isCurrentUserStargazer) {
                     Spacer(Modifier.height(14.dp))
                     Text(
-                        text = UiText.get(R.string.waex_ui_thank_you_for_being_a_pro_subscriber_a_65080d96, "Thank you for being a Pro subscriber and a WaEnhancerX stargazer!"),
+                        text = UiText.get(R.string.waex_ui_thank_you_for_being_a_pro_subscriber_a, "Thank you for being a Pro subscriber and a WaEnhancerX stargazer!"),
                         style = typography.bodyLg,
                         fontWeight = FontWeight.SemiBold,
                         color = colors.primary
@@ -708,7 +755,7 @@ fun StargazersScreen() {
                 } else if (stargazer.starredAt.isNotBlank()) {
                     Spacer(Modifier.height(14.dp))
                     Text(
-                        text = UiText.get(R.string.waex_ui_supporting_since_1_s_2957c30c, "Supporting since %1\$s", formatUpdatedAt(stargazer.starredAt).ifEmpty { UiText.get(R.string.waex_ui_date_unavailable_616fdd79, "date unavailable") }),
+                        text = UiText.get(R.string.waex_ui_supporting_since_1_s, "Supporting since %1\$s", formatUpdatedAt(stargazer.starredAt).ifEmpty { UiText.get(R.string.waex_ui_date_unavailable, "date unavailable") }),
                         style = typography.bodyMd,
                         fontWeight = FontWeight.SemiBold,
                         color = colors.primary
@@ -733,7 +780,7 @@ fun StargazersScreen() {
                             }
                             val prefix = if (profile.location.isNotEmpty()) " | " else ""
                             Text(
-                                text = UiText.get(R.string.waex_ui_1_s_2_s_followers_3_s_repositories_3525e760, "%1\$s%2\$s followers | %3\$s repositories", prefix, profile.followers, profile.publicRepos),
+                                text = UiText.get(R.string.waex_ui_1_s_2_s_followers_3_s_repositories, "%1\$s%2\$s followers | %3\$s repositories", prefix, profile.followers, profile.publicRepos),
                                 style = typography.labelSm,
                                 color = colors.onSurfaceVariant
                             )
@@ -767,14 +814,14 @@ fun StargazersScreen() {
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text(UiText.get(R.string.waex_ui_view_github_profile_1a49fe64, "View GitHub Profile"), fontWeight = FontWeight.SemiBold)
+                    Text(UiText.get(R.string.waex_ui_view_github_profile, "View GitHub Profile"), fontWeight = FontWeight.SemiBold)
                 }
             }
         }
     }
 
     if (showSupportSheet) {
-        ModalBottomSheet(
+        WaexModalBottomSheet(
             onDismissRequest = { showSupportSheet = false },
             sheetState = supportSheetState,
             containerColor = colors.surface,
@@ -802,7 +849,7 @@ fun StargazersScreen() {
                 }
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    text = UiText.get(R.string.waex_ui_want_to_see_yourself_here_b2789bdc, "Want to see yourself here?"),
+                    text = UiText.get(R.string.waex_ui_want_to_see_yourself_here, "Want to see yourself here?"),
                     style = typography.headlineMd,
                     fontWeight = FontWeight.Bold,
                     color = colors.onSurface,
@@ -810,7 +857,7 @@ fun StargazersScreen() {
                 )
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    text = UiText.get(R.string.waex_ui_star_waenhancerx_on_github_and_your_pr_9240b818, "Star WaEnhancerX on GitHub and your profile can join this supporters list. It’s free, takes only a moment, and helps more people discover the project. New stars may take a little while to appear."),
+                    text = UiText.get(R.string.waex_ui_star_waenhancerx_on_github_and_your_pr, "Star WaEnhancerX on GitHub and your profile can join this supporters list. It’s free, takes only a moment, and helps more people discover the project. New stars may take a little while to appear."),
                     style = typography.bodyMd,
                     color = colors.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -832,7 +879,7 @@ fun StargazersScreen() {
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text(UiText.get(R.string.waex_ui_add_me_to_the_list_6c6e9342, "Add me to the list"), fontWeight = FontWeight.Bold)
+                    Text(UiText.get(R.string.waex_ui_add_me_to_the_list, "Add me to the list"), fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -1073,47 +1120,63 @@ private fun parseStargazerProfile(json: String, fallbackLogin: String): Stargaze
 }
 
 @Composable
-private fun StargazerProfileShimmer() {
+private fun stargazerShimmerBrush(): androidx.compose.ui.graphics.Brush {
     val colors = WaexTheme.colors
-    val transition = rememberInfiniteTransition(label = "profile shimmer")
-    val alpha by transition.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 0.75f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 800),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "profile shimmer alpha"
+    val shimmerColors = listOf(
+        colors.surfaceContainerHighest,
+        colors.surfaceContainerHighest.copy(alpha = 0.55f),
+        colors.onSurface.copy(alpha = 0.07f),
+        colors.surfaceContainerHighest.copy(alpha = 0.55f),
+        colors.surfaceContainerHighest
     )
+    val transition = rememberInfiniteTransition(label = "stargazer shimmer")
+    val translateAnim by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1400f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1200, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "stargazer shimmer translate"
+    )
+    return androidx.compose.ui.graphics.Brush.linearGradient(
+        colors = shimmerColors,
+        start = androidx.compose.ui.geometry.Offset(translateAnim - 700f, 0f),
+        end = androidx.compose.ui.geometry.Offset(translateAnim, 0f)
+    )
+}
+
+@Composable
+private fun StargazerProfileShimmer() {
+    val shimmer = stargazerShimmerBrush()
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(120.dp)
-            .alpha(alpha),
+            .height(120.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Surface(
-            color = colors.surfaceContainerHighest,
-            shape = RoundedCornerShape(6.dp),
+        Box(
             modifier = Modifier
                 .fillMaxWidth(0.72f)
                 .height(14.dp)
-        ) {}
-        Surface(
-            color = colors.surfaceContainerHighest,
-            shape = RoundedCornerShape(6.dp),
+                .clip(RoundedCornerShape(6.dp))
+                .background(shimmer)
+        )
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(16.dp)
-        ) {}
-        Surface(
-            color = colors.surfaceContainerHighest,
-            shape = RoundedCornerShape(6.dp),
+                .clip(RoundedCornerShape(6.dp))
+                .background(shimmer)
+        )
+        Box(
             modifier = Modifier
                 .fillMaxWidth(0.86f)
                 .height(16.dp)
-        ) {}
+                .clip(RoundedCornerShape(6.dp))
+                .background(shimmer)
+        )
     }
 }
 
@@ -1121,16 +1184,7 @@ private fun StargazerProfileShimmer() {
 private fun StargazerCardShimmer() {
     val colors = WaexTheme.colors
     val radius = WaexTheme.radius
-    val transition = rememberInfiniteTransition(label = "stargazer card shimmer")
-    val alpha by transition.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 0.75f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 800),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "stargazer card shimmer alpha"
-    )
+    val shimmer = stargazerShimmerBrush()
 
     Surface(
         shape = radius.bentoCardShape,
@@ -1140,23 +1194,23 @@ private fun StargazerCardShimmer() {
     ) {
         Column(
             modifier = Modifier
-                .padding(horizontal = 8.dp, vertical = 14.dp)
-                .alpha(alpha),
+                .padding(horizontal = 8.dp, vertical = 14.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Surface(
-                shape = CircleShape,
-                color = colors.surfaceContainerHighest,
-                modifier = Modifier.size(56.dp)
-            ) {}
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(shimmer)
+            )
             Spacer(Modifier.height(9.dp))
-            Surface(
-                shape = RoundedCornerShape(6.dp),
-                color = colors.surfaceContainerHighest,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth(0.72f)
                     .height(14.dp)
-            ) {}
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(shimmer)
+            )
         }
     }
 }
@@ -1170,7 +1224,7 @@ private fun formatUpdatedAt(timestamp: String): String {
             timeZone = TimeZone.getTimeZone("UTC")
         }
         val cleanTimestamp = timestamp.replace(Regex("\\.\\d+Z$|Z$"), "")
-        val formatter = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT, UiText.displayLocale())
+        val formatter = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, UiText.displayLocale())
         formatter.format(parser.parse(cleanTimestamp) ?: Date())
     }.getOrDefault(timestamp)
 }

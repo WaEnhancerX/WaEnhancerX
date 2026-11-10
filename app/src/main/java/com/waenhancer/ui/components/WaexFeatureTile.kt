@@ -57,13 +57,13 @@ fun WaexFeatureTile(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(radius.mdShape)
-                            .background(colors.primaryContainer.copy(alpha = 0.1f)),
+                            .background(colors.primaryContainer),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = colors.primaryContainer,
+                            tint = colors.primary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -92,13 +92,13 @@ fun WaexFeatureTile(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(radius.mdShape)
-                            .background(colors.primaryContainer.copy(alpha = 0.1f)),
+                            .background(colors.primaryContainer),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = colors.primaryContainer,
+                            tint = colors.primary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -140,13 +140,13 @@ fun WaexFeatureTile(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(radius.mdShape)
-                                .background(colors.primaryContainer.copy(alpha = 0.1f)),
+                                .background(colors.primaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = icon,
                                 contentDescription = null,
-                                tint = colors.primaryContainer,
+                                tint = colors.primary,
                                 modifier = Modifier.size(20.dp)
                             )
                         }

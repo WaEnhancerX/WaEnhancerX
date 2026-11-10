@@ -37,15 +37,26 @@ class StickerConfirmHook(
     }
 
     override fun hook() {
+        if (!isEnabled(PREF_KEY, false)) return
         try {
+            val stickerContainerId = context.resources.getIdentifier("stickerContainer", "id", context.getPackageName())
+            val stickerItemId = context.resources.getIdentifier("sticker_item", "id", context.getPackageName())
+
             XposedHelpers.findAndHookMethod(
                 View::class.java,
                 "onAttachedToWindow",
                 object : XC_MethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
                         val view = param.thisObject as? View ?: return
-                        val resName = getResourceEntryName(view)
-                        if (resName != "stickerContainer" && resName != "sticker_item") return
+                        val id = view.id
+                        if (id == View.NO_ID) return
+
+                        if (stickerContainerId != 0 || stickerItemId != 0) {
+                            if (id != stickerContainerId && id != stickerItemId) return
+                        } else {
+                            val resName = getResourceEntryName(view)
+                            if (resName != "stickerContainer" && resName != "sticker_item") return
+                        }
 
                         if (view.getTag(TAG_HOOKED.hashCode()) != null) return
                         view.setTag(TAG_HOOKED.hashCode(), true)
@@ -72,8 +83,8 @@ class StickerConfirmHook(
         val drawable = stickerImageView?.drawable
 
         val bottomSheet = WaexBottomSheet(currentActivity).asBottomSheet()
-        bottomSheet.setTitle(UiText.get(R.string.waex_ui_send_sticker_29e230ec, "Send Sticker?"))
-        bottomSheet.setMessage(UiText.get(R.string.waex_ui_do_you_want_to_send_this_sticker_to_th_962b373b, "Do you want to send this sticker to the chat?"))
+        bottomSheet.setTitle(UiText.get(R.string.waex_ui_send_sticker, "Send Sticker?"))
+        bottomSheet.setMessage(UiText.get(R.string.waex_ui_do_you_want_to_send_this_sticker_to_th, "Do you want to send this sticker to the chat?"))
 
         if (drawable != null) {
             val previewContainer = LinearLayout(currentActivity).apply {
@@ -91,7 +102,7 @@ class StickerConfirmHook(
             bottomSheet.setView(previewContainer)
         }
 
-        bottomSheet.setPositiveButton(UiText.get(R.string.waex_ui_send_f6f4688f, "Send")) { _, _ ->
+        bottomSheet.setPositiveButton(UiText.get(R.string.waex_ui_send, "Send")) { _, _ ->
             onConfirmListener?.onClick(view)
         }
         bottomSheet.setNegativeButton(UiText.get(R.string.action_cancel, "Cancel"), null)

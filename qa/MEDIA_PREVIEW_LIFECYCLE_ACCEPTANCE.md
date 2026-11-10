@@ -1,59 +1,51 @@
-# Media preview lifecycle acceptance
+# Media preview ownership, bounded UI publication and current lifecycle
 
-This change keeps one active preview per `MediaPreviewHook` instance. A new open
-replaces the previous preview, and dismissing or detaching its Android window
-cancels that session's HTTP call, queued work and UI callbacks. A session owns
-only the temporary file that it created; an existing WhatsApp media file is never
-deleted by preview cleanup. The shared executor keeps one worker and at most one
-pending task, so rapid taps cannot accumulate an unbounded queue of old previews.
+## Source and integration
 
-## Automated checks
+PR #90 is reconciled with upstream 4750124e36223dd21d8535c14f2fb658025d8480. Retain upstream's waex cache/resource names, shared ViewHookDispatcher, fallback only when both primary containers are missing, and detach cleanup for the global-layout listener. Do not replace those current paths with the historical preview file.
 
-`android_media_preview_test.py` compiles the complete production
-`MediaPreviewHook.kt`, `BaseFeature.kt` and `HKDFv3.kt`; it does not extract a
-replacement implementation. It first compiles them against actual Android,
-DexKit 2.2 and OkHttp 4.12 APIs. It then compiles the same production sources with
-the explicitly named runtime fixtures and exercises Android dialog, view,
-window-detach and looper behavior through Robolectric 4.17 on API 24, 28 and 34.
+Each preview owns its task, HTTP call, dialog, video and created temporary file. Only a file created by that preview is eligible for cleanup. Cache location, filename or a mediapreview_ prefix never transfer ownership of host media. The one-worker executor retains at most one pending preview; closing a session cancels its registered work/call and removes its queued task.
 
-The 12 scenarios run on each of the three SDKs:
+## Additional fixes in this reconciliation
 
-1. Hold the worker and issue 100 rapid opens: retain at most one pending task,
-   then download and show exactly the newest request after the worker is freed.
-2. Replace a preview before its metadata callback reaches the main looper:
-   display only the newest dialog.
-3. Dismiss during a blocked HTTP request: cancel its call and remove its owned
-   temporary file.
-4. Dismiss while `newCall()` is still returning: cancel that call before execute.
-5. Detach the actual dialog decor from Android's window manager: cancel the
-   request even before a dialog-dismiss callback is delivered.
-6. Close while a local video result is already queued for the main looper:
-   prevent the result from attaching a new `VideoView` to the closed dialog.
-7. Release a deliberately non-cooperative, failing old request after opening a
-   replacement: preserve the replacement dialog and suppress the old error toast.
-8. Complete two downloads and dismiss the old dialog: preserve the replacement's
-   own temporary file and visible dialog.
-9. Open an existing local media file and dismiss: retain the original file.
-10. Replace a video preview and advance the Android looper by three seconds:
-    stop the old video and perform no more updates on it.
-11. Invoke a previously captured prepared callback after dismiss:
-    prevent cancelled playback from restarting.
-12. Prepare both dialogs before starting a failing old download:
-    keep the already prepared replacement visible after the old error arrives.
+Register UI callbacks under the same session monitor used by cancellation. A cancelled session cannot pass the current-session check and register a callback after cancellation has finished removing its messages. The callback itself still rechecks identity.
 
-The fixture uses latches for controlled transport races and worker barriers for
-completion. It does not use throughput or timing thresholds as proof of device
-performance. The progress cadence remains 100 ms and the active video update
-cadence remains 500 ms; cancelled sessions stop posting those updates.
+Keep one pending progress runnable per session. New observations update its latest percentage/size rather than enqueueing one message per read. Clamp displayed percentage to 0..100; an underestimated content size must not flood a paused UI queue. This does not establish a global bound on all Android messages.
 
-## Running
+Retain an explicit ownership slot only for newly decoded, not-yet-published bitmaps. Cancellation recycles a pending owned bitmap; a result arriving after cancellation is recycled immediately. Published images and host-owned bitmaps are not recycled by this pending-result path. Native full-size decoding is unchanged and not guaranteed interruptible.
 
-On a clean machine, use JDK 17 or later, Kotlin 2.0.20 on `PATH`, Maven, and public
-network access:
+## Reproducible QA
 
-```sh
-python3 qa/android_media_preview_test.py --out /tmp/waex-media-preview-check
-```
+    python3 qa/android_media_preview_test.py --out /tmp/waex-preview
+    python3 qa/mutate_media_preview_lifecycle.py --out /tmp/waex-preview-mutants --deps /tmp/waex-preview/deps --dexkit-jar /tmp/waex-preview/public-apis/dexkit-2.2.0.jar --http-api-jar /tmp/waex-preview/public-apis/okhttp-4.12.0.jar
+
+JDK 17+, a complete Kotlin distribution via KOTLIN_HOME, Python and Maven are required. Optional dependency/API/SDK paths reuse verified public artifacts. New output directories are required; failed runs are retained. Compilation launches the real Kotlin compiler JVM, avoiding Windows launcher/classpath splitting.
+
+The complete MediaPreviewHook, BaseFeature, HookRegistrar, ViewHookDispatcher and HKDFv3 compile. One compilation uses the real OkHttp 4.12 and DexKit 2.2 APIs. Execution uses Robolectric 4.17 Android dialogs/views/handlers on API 24, 28 and 34. HTTP, host database discovery, Xposed transport and audio decoding remain explicit boundaries. The runner checks every generated R.string name against real default XML resources before compilation; that is not a full Android resource/package build.
+
+Initial common matrix: 12 methods x 3 SDKs = 36 JUnit executions. Unchanged current main compiles and completes with 33 assertion failures. The initially reconciled candidate passes 36/36. The expanded final suite has 20 methods x 3 SDKs = 60 executions, all passing. Do not attribute its seven new tests to the earlier 36-case baseline or add repetitions into unique coverage.
+
+The expanded suite checks a 5,000-event progress burst, cancelled pending UI, bitmap ownership before and after cancellation, original bytes of host-owned cache files, response-body closure after late cancellation, and a two-thread lock-order probe. Five deliberately compiled regressions complete all 60 and are rejected by 3, 3, 3, 6 and 3 assertion failures: unbounded progress, leaked pending bitmap, unlocked UI registration, uncancelled HTTP call and a temporary orphaned during replacement. Setup/compilation failures never qualify as mutation detections.
+
+## Replacement before temporary registration
+
+A separate composed test models main-thread preemption between publishing the new session identity and closing the previous session. The old worker has created its temporary file but has not registered it. Identity invalidation rejects registration before the cancelled flag is set; cleanup must therefore check !isCurrent(session), not only session.cancelled. Only the worker-created ownedFile is removed. The replacement and borrowed host media remain intact.
+
+The unchanged pre-fix candidate completes the same 60-execution suite with exactly three assertion failures in this new case (one per configured SDK). The corrected candidate passes all60. This is a race reproduction with Android framework objects and an explicitly controlled interleaving, not an observed document-loss incident on WhatsApp.
+
+## Manual acceptance
+
+With a legitimate contributor APK, compare rapid image/video opens, back/dismiss/window teardown and Activity recreation. Exercise delayed and cancelled HTTP, local files, media formats, screen-scoped install/dispose, and the current message lookup. Hash host files before/after; inspect actual owned temporary cleanup and native player behavior. Test supported WhatsApp versions and Debug/Release independently. Record module/host SHA, Android/profile/framework and sanitized diagnostics.
+
+## Explicit remaining limits
+
+No candidate APK was installed. No real messages or calls were made in this reconciliation. The tests do not establish native DexKit matching, actual host selector support, codecs, remote HTTP behavior, file identity from a WhatsApp database, ARM64/16 KiB compatibility, or cross-profile IPC.
+
+Encrypted downloads still use the inherited whole-buffer decryption path, and image decoding still uses the inherited full-size decoder. No bounded memory, authenticated-media result, improved cryptographic integrity, total-operation deadline or immediate abort of native/DB work is claimed. Those require separate narrowly scoped changes and proper format/host evidence. The fixture currently exercises local media and unencrypted synthetic newsletter downloads; it does not certify encrypted downloads.
+
+The observed performance benefit is bounded pending work and coalesced UI updates within controlled tests, not a measured end-user startup, battery, throughput or frame-time improvement. Preserve existing general CI; a focused preview PASS is not whole-project acceptance.
+
+## Dependency and offline invocation details
 
 The runner derives `KOTLIN_HOME` from the real `kotlinc` executable when the
 variable is absent. It resolves Robolectric 4.17, JUnit 4.13.2 and
@@ -103,36 +95,3 @@ dependency hashes, compiler output and the full JUnit log. A failed compilation,
 missing dependency or unexpected JUnit result must fail the check.
 The framework JVM has a 1 GiB heap limit; this is a QA resource bound and is not
 a measurement of the app's memory use.
-
-## Scope and remaining device acceptance
-
-Android views, windows and loopers are framework implementations. The runtime
-transport is a deterministic double, and the media-player decoder/audio path is
-an explicit shadow. Message database access, Xposed registration, host reflection,
-text lookup and drawable compatibility are named test boundaries. The complete
-hook also compiles against real OkHttp and DexKit APIs, but these tests do not
-execute an actual WhatsApp process, LSPosed injection, a CDN transfer, native
-DexKit searches or a device media decoder.
-
-The hook resolver, entry buttons, message selection, database SQL, CDN selection,
-media-key normalization, HKDF and AES/decryption algorithm are preserved. The
-change adds a cancellation check after metadata lookup without changing its
-results. All three current entry paths call `startPreview` from Android click
-listeners; the active-session transition and dialog callbacks run on the main
-looper. Worker-to-UI delivery checks session identity both before posting and
-when the callback executes.
-
-On a supported device, check local and downloaded images/videos, cancel in the
-middle of a real transfer, open another item rapidly, leave the host activity,
-and verify playback controls, file cleanup and a later successful reopen. Cover
-both newsletter and encrypted message media. Keep the existing cryptographic
-format and host resolvers under separate acceptance.
-
-Encrypted downloads still buffer the complete ciphertext before decryption and
-image decoding can still allocate a full bitmap. Those memory limits are outside
-this lifecycle change. A database lookup or decoder that ignores interruption may
-still delay the single worker; pending preview work is bounded, and cancelled
-results are suppressed, but this is not a promise that every host operation can
-be interrupted immediately. These tests establish lifecycle behavior and bounded
-pending work; they do not establish an APK build, host compatibility, device FPS
-or a percentage improvement in speed.

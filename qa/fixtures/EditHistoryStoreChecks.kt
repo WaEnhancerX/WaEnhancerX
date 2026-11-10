@@ -1,5 +1,7 @@
 package test
 
+import android.database.Cursor
+
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
@@ -129,13 +131,13 @@ fun main(args: Array<String>) {
             when (failure) {
                 "throw" -> db.rejectHistoryQueries = true
                 "null" -> db.nullHistoryCursor = true
-                "partial" -> android.database.Cursor.failAtRow = 1
-                "close" -> android.database.Cursor.failClose = true
+                "partial" -> Cursor.failAtRow = 1
+                "close" -> Cursor.failClose = true
             }
             store.recordTransition(20, "history", "two", "three", 20000)
             checkCase(db.insertCalls == inserted, "$failure query cannot masquerade as empty/truncated history")
             db.rejectHistoryQueries = false; db.nullHistoryCursor = false
-            android.database.Cursor.failAtRow = -1; android.database.Cursor.failClose = false
+            Cursor.failAtRow = -1; Cursor.failClose = false
             checkCase(texts(store, 20, "history") == listOf("one", "two"), "$failure recovery reads confirmed versions")
             store.recordTransition(20, "history", "two", "three", 20000)
             checkCase(texts(store, 20, "history") == listOf("one", "two", "three"), "$failure retry preserves full history")
@@ -144,9 +146,9 @@ fun main(args: Array<String>) {
         val store = newStore()
         val db = SQLiteOpenHelper.nextDatabase
         store.recordTransition(30, "reader", "one", "two", 10000)
-        android.database.Cursor.failAtRow = 1
+        Cursor.failAtRow = 1
         checkCase(texts(store, 30, null).isEmpty(), "partial read must not escape as confirmed history")
-        android.database.Cursor.failAtRow = -1
+        Cursor.failAtRow = -1
         checkCase(texts(store, 30, null) == listOf("one", "two"), "partial read must not poison later cache")
     }
     if (scenario == "aliases" || scenario == "all") {

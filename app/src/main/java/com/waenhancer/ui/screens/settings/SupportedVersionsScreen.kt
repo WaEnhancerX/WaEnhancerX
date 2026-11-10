@@ -37,7 +37,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
+import com.waenhancer.ui.components.WaexModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -87,11 +87,11 @@ fun SupportedVersionsScreen() {
 
     val prefs = remember(context) { PreferenceStores.publicStore(context) }
 
-    var isCustomizeEnabled by remember {
+    var isCustomizeEnabled by remember(prefManager.targetEpoch) {
         mutableStateOf(prefManager.getBoolean("customize_supported_versions", false))
     }
 
-    var isBypassEnabled by remember {
+    var isBypassEnabled by remember(prefManager.targetEpoch) {
         mutableStateOf(prefManager.getBoolean("bypass_version_check", false))
     }
 
@@ -142,7 +142,7 @@ fun SupportedVersionsScreen() {
             // 1. Installed App Status Banner
             item {
                 Text(
-                    text = UiText.get(R.string.waex_ui_target_applications_compatibility_4941b8c2, "TARGET APPLICATIONS COMPATIBILITY"),
+                    text = UiText.get(R.string.waex_ui_target_applications_compatibility, "TARGET APPLICATIONS COMPATIBILITY"),
                     style = typography.labelSm,
                     color = colors.primary,
                     fontWeight = FontWeight.Bold,
@@ -168,7 +168,7 @@ fun SupportedVersionsScreen() {
                                     refreshCustomList()
                                     Toast.makeText(
                                         context,
-                                        UiText.get(R.string.waex_ui_added_universal_rule_1_s_6af7d00f, "Added universal rule %1\$s", wildcardRule),
+                                        UiText.get(R.string.waex_ui_added_universal_rule_1_s, "Added universal rule %1\$s", wildcardRule),
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }
@@ -181,7 +181,7 @@ fun SupportedVersionsScreen() {
             // 2. Global Version Controls
             item {
                 Text(
-                    text = UiText.get(R.string.waex_ui_settings_enforcement_4ea541a3, "SETTINGS & ENFORCEMENT"),
+                    text = UiText.get(R.string.waex_ui_settings_enforcement, "SETTINGS & ENFORCEMENT"),
                     style = typography.labelSm,
                     color = colors.primary,
                     fontWeight = FontWeight.Bold,
@@ -210,13 +210,13 @@ fun SupportedVersionsScreen() {
                         ) {
                             Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                                 Text(
-                                    text = UiText.get(R.string.waex_ui_enable_custom_versions_9be60a96, "Enable Custom Versions"),
+                                    text = UiText.get(R.string.waex_ui_enable_custom_versions, "Enable Custom Versions"),
                                     style = typography.bodyMd,
                                     color = colors.onSurface,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
-                                    text = UiText.get(R.string.waex_ui_allow_user_defined_versions_and_wildca_ac9bee29, "Allow user-defined versions and wildcard rules to load hooks"),
+                                    text = UiText.get(R.string.waex_ui_allow_user_defined_versions_and_wildca, "Allow user-defined versions and wildcard rules to load hooks"),
                                     style = typography.labelSm,
                                     color = colors.onSurfaceVariant
                                 )
@@ -246,13 +246,13 @@ fun SupportedVersionsScreen() {
                         ) {
                             Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                                 Text(
-                                    text = UiText.get(R.string.waex_ui_bypass_version_verification_cc98aed9, "Bypass Version Verification"),
+                                    text = UiText.get(R.string.waex_ui_bypass_version_verification, "Bypass Version Verification"),
                                     style = typography.bodyMd,
                                     color = if (isBypassEnabled) colors.error else colors.onSurface,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
-                                    text = UiText.get(R.string.waex_ui_force_waex_hooks_to_run_on_any_version_ffdfb190, "Force WAEX hooks to run on any version without checking (Advanced)"),
+                                    text = UiText.get(R.string.waex_ui_force_waex_hooks_to_run_on_any_version, "Force WAEX hooks to run on any version without checking (Advanced)"),
                                     style = typography.labelSm,
                                     color = colors.onSurfaceVariant
                                 )
@@ -277,7 +277,7 @@ fun SupportedVersionsScreen() {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = UiText.get(R.string.waex_ui_user_defined_versions_1_s_5f331ced, "USER-DEFINED VERSIONS (%1\$s)", customVersionsList.size),
+                        text = UiText.get(R.string.waex_ui_user_defined_versions_1_s, "USER-DEFINED VERSIONS (%1\$s)", customVersionsList.size),
                         style = typography.labelSm,
                         color = colors.primary,
                         fontWeight = FontWeight.Bold,
@@ -311,7 +311,7 @@ fun SupportedVersionsScreen() {
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = UiText.get(R.string.waex_ui_add_rule_968c3cb8, "Add Rule"),
+                            text = UiText.get(R.string.waex_ui_add_rule, "Add Rule"),
                             style = typography.labelSm,
                             fontWeight = FontWeight.Bold
                         )
@@ -329,7 +329,7 @@ fun SupportedVersionsScreen() {
                     ) {
                         Box(modifier = Modifier.padding(20.dp), contentAlignment = Alignment.Center) {
                             Text(
-                                text = UiText.get(R.string.waex_ui_no_custom_version_rules_added_yet_tap_f86be378, "No custom version rules added yet.\nTap \"Add Rule\" to select an unsupported app and automatically register its version branch."),
+                                text = UiText.get(R.string.waex_ui_no_custom_version_rules_added_yet_tap, "No custom version rules added yet.\nTap \"Add Rule\" to select an unsupported app and automatically register its version branch."),
                                 style = typography.labelSm,
                                 color = colors.onSurfaceVariant,
                                 textAlign = TextAlign.Center
@@ -341,7 +341,7 @@ fun SupportedVersionsScreen() {
                 items(customVersionsList) { customVer ->
                     VersionRuleItem(
                         version = customVer,
-                        badge = UiText.get(R.string.waex_ui_user_defined_7b3c9074, "User Defined"),
+                        badge = UiText.get(R.string.waex_ui_user_defined, "User Defined"),
                         badgeColor = colors.primary,
                         onDeleteClick = {
                             UniversalVersionValidator.removeCustomVersion(prefs, customVer)
@@ -355,7 +355,7 @@ fun SupportedVersionsScreen() {
             item {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = UiText.get(R.string.waex_ui_universal_built_in_versions_3e18e512, "UNIVERSAL BUILT-IN VERSIONS"),
+                    text = UiText.get(R.string.waex_ui_universal_built_in_versions, "UNIVERSAL BUILT-IN VERSIONS"),
                     style = typography.labelSm,
                     color = colors.onSurfaceVariant,
                     fontWeight = FontWeight.Bold,
@@ -366,7 +366,7 @@ fun SupportedVersionsScreen() {
             items(UniversalVersionValidator.getBuiltinSupportedVersions(context)) { sysVer ->
                 VersionRuleItem(
                     version = sysVer,
-                    badge = UiText.get(R.string.waex_ui_universal_base_c5227bf4, "Universal Base"),
+                    badge = UiText.get(R.string.waex_ui_universal_base, "Universal Base"),
                     badgeColor = colors.secondary,
                     onDeleteClick = null
                 )
@@ -376,7 +376,7 @@ fun SupportedVersionsScreen() {
 
     // App Selection Sheet for Adding Version Rule
     if (showSelectAppDialog) {
-        ModalBottomSheet(
+        WaexModalBottomSheet(
             onDismissRequest = { showSelectAppDialog = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = colors.surface,
@@ -393,13 +393,13 @@ fun SupportedVersionsScreen() {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = UiText.get(R.string.waex_ui_select_unsupported_app_294b5650, "Select Unsupported App"),
+                    text = UiText.get(R.string.waex_ui_select_unsupported_app, "Select Unsupported App"),
                     style = typography.headlineMd,
                     color = colors.onSurface,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = UiText.get(R.string.waex_ui_select_an_installed_app_to_automatical_35b59d2f, "Select an installed app to automatically generate and register its universal version rule:"),
+                    text = UiText.get(R.string.waex_ui_select_an_installed_app_to_automatical, "Select an installed app to automatically generate and register its universal version rule:"),
                     style = typography.labelSm,
                     color = colors.onSurfaceVariant
                 )
@@ -421,7 +421,7 @@ fun SupportedVersionsScreen() {
                                     showSelectAppDialog = false
                                     Toast.makeText(
                                         context,
-                                        UiText.get(R.string.waex_ui_added_universal_rule_1_s_6af7d00f, "Added universal rule %1\$s", wildcard),
+                                        UiText.get(R.string.waex_ui_added_universal_rule_1_s, "Added universal rule %1\$s", wildcard),
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }
@@ -492,8 +492,8 @@ private fun AppVersionStatusCard(
         border = BorderStroke(
             1.dp,
             if (!isInstalled) colors.outlineVariant
-            else if (isSupported) Color(0xFF10B981).copy(alpha = 0.4f)
-            else Color(0xFFF59E0B).copy(alpha = 0.5f)
+            else if (isSupported) colors.success.copy(alpha = 0.55f)
+            else colors.warning.copy(alpha = 0.6f)
         ),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -532,7 +532,7 @@ private fun AppVersionStatusCard(
                             color = colors.onSurface
                         )
                         Text(
-                            text = if (isInstalled) UiText.get(R.string.waex_ui_installed_v_1_s_5bf3b702, "Installed: v%1\$s", versionName) else UiText.get(R.string.waex_ui_not_installed_on_this_device_6aac8f5e, "Not installed on this device"),
+                            text = if (isInstalled) UiText.get(R.string.waex_ui_installed_v_1_s, "Installed: v%1\$s", versionName) else UiText.get(R.string.waex_ui_not_installed_on_this_device, "Not installed on this device"),
                             style = typography.labelSm,
                             color = colors.onSurfaceVariant
                         )
@@ -544,15 +544,15 @@ private fun AppVersionStatusCard(
                     shape = radius.smShape,
                     color = when {
                         !isInstalled -> colors.outlineVariant.copy(alpha = 0.3f)
-                        isSupported -> Color(0xFF10B981).copy(alpha = 0.15f)
-                        else -> Color(0xFFF59E0B).copy(alpha = 0.15f)
+                        isSupported -> colors.successContainer
+                        else -> colors.warningContainer
                     }
                 ) {
                     Text(
                         text = when {
-                            !isInstalled -> UiText.get(R.string.waex_ui_unavailable_ca184496, "Unavailable")
+                            !isInstalled -> UiText.get(R.string.waex_ui_unavailable, "Unavailable")
                             decision == UniversalVersionValidator.Decision.BUILTIN_RULE -> UiText.get(R.string.waex_l10n_builtin_match, "Supported")
-                            decision == UniversalVersionValidator.Decision.CUSTOM_RULE -> UiText.get(R.string.waex_l10n_custom_unverified, "Custom allowance (unverified)")
+                            decision == UniversalVersionValidator.Decision.CUSTOM_RULE -> UiText.get(R.string.waex_l10n_custom_unverified, "Custom")
                             decision == UniversalVersionValidator.Decision.EXPLICIT_BYPASS -> UiText.get(R.string.waex_l10n_bypass_unverified, "Bypass active (unverified)")
                             decision == UniversalVersionValidator.Decision.UNSUPPORTED -> UiText.get(R.string.waex_l10n_rejected_rules, "Version rejected by rules")
                             else -> UiText.get(R.string.waex_l10n_version_check_unavailable, "Version check unavailable")
@@ -561,8 +561,8 @@ private fun AppVersionStatusCard(
                         fontWeight = FontWeight.Bold,
                         color = when {
                             !isInstalled -> colors.onSurfaceVariant
-                            isSupported -> Color(0xFF10B981)
-                            else -> Color(0xFFF59E0B)
+                            isSupported -> colors.onSuccessContainer
+                            else -> colors.onWarningContainer
                         },
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
@@ -575,8 +575,8 @@ private fun AppVersionStatusCard(
                 Button(
                     onClick = onAddCurrentClick,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFF59E0B),
-                        contentColor = Color.Black
+                        containerColor = colors.warning,
+                        contentColor = colors.onWarning
                     ),
                     shape = radius.smShape,
                     modifier = Modifier.fillMaxWidth().height(36.dp),
@@ -585,7 +585,7 @@ private fun AppVersionStatusCard(
                     Icon(imageVector = Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = UiText.get(R.string.waex_ui_add_universal_rule_1_s_2944d582, "Add Universal Rule (%1\$s)", wildcard),
+                        text = UiText.get(R.string.waex_ui_add_universal_rule_1_s, "Add Universal Rule (%1\$s)", wildcard),
                         style = typography.labelSm,
                         fontWeight = FontWeight.Bold
                     )

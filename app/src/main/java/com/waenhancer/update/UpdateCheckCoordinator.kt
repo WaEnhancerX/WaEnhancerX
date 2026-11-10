@@ -56,7 +56,7 @@ object UpdateCheckCoordinator {
         scope.launch {
             try {
                 val installed = app.packageManager.getPackageInfo(app.packageName, 0).versionName ?: "0"
-                val releases = ReleaseRepository.fetchReleases()
+                val releases = ReleaseRepository.fetchReleases(app)
                 prefs.edit().putLong("update_last_check", now).apply()
                 val release = ReleaseRepository.findUpdate(releases, installed)
                 if (release == null) {
@@ -133,7 +133,7 @@ object UpdateCheckCoordinator {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         manager.notify(NOTIFICATION_ID, NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_waex_download)
-            .setContentTitle(UiText.get(R.string.waex_ui_waex_1_s_is_available_8b796483, "WAEX %1\$s is available", release.version))
+            .setContentTitle(UiText.get(R.string.waex_ui_waex_1_s_is_available, "WAEX %1\$s is available", release.version))
             .setContentText(release.name)
             .setStyle(NotificationCompat.BigTextStyle().bigText(release.body.take(500)))
             .setContentIntent(pending)

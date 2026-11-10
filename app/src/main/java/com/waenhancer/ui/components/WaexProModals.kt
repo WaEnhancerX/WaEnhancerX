@@ -20,7 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import com.waenhancer.ui.components.WaexCircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -106,13 +106,13 @@ fun LicenseActivationModal(
                 }
                 Column {
                     Text(
-                        text = UiText.get(R.string.waex_ui_activate_pro_license_9b27501f, "Activate Pro License"),
+                        text = UiText.get(R.string.waex_ui_activate_pro_license, "Activate Pro License"),
                         style = typography.headlineMd,
                         fontWeight = FontWeight.Bold,
                         color = colors.onSurface
                     )
                     Text(
-                        text = UiText.get(R.string.waex_ui_hardware_locked_feature_activation_946923fc, "Hardware-locked feature activation"),
+                        text = UiText.get(R.string.waex_ui_hardware_locked_feature_activation, "Hardware-locked feature activation"),
                         style = typography.labelSm,
                         color = colors.onSurfaceVariant
                     )
@@ -129,7 +129,7 @@ fun LicenseActivationModal(
             ) {
                 Icon(
                     imageVector = WaexIcons.Clear,
-                    contentDescription = UiText.get(R.string.waex_ui_close_7d9eb7ac, "Close"),
+                    contentDescription = UiText.get(R.string.waex_ui_close, "Close"),
                     tint = colors.onSurfaceVariant,
                     modifier = Modifier.size(14.dp)
                 )
@@ -224,12 +224,12 @@ fun LicenseActivationModal(
                 val trimmedKey = licenseKey.trim().uppercase(Locale.US)
                 if (trimmedKey.isEmpty()) {
                     verifyState = "error"
-                    errorMessage = UiText.get(R.string.waex_ui_please_enter_your_license_key_49b0976f, "Please enter your license key.")
+                    errorMessage = UiText.get(R.string.waex_ui_please_enter_your_license_key, "Please enter your license key.")
                     return@Button
                 }
                 if (!LicenseManager.isValidLicensePattern(trimmedKey)) {
                     verifyState = "error"
-                    errorMessage = UiText.get(R.string.waex_ui_invalid_key_format_expected_waex_xxxx_8bf26cd1, "Invalid key format. Expected: WAEX-XXXX-XXXX-XXXX")
+                    errorMessage = UiText.get(R.string.waex_ui_invalid_key_format_expected_waex_xxxx, "Invalid key format. Expected: WAEX-XXXX-XXXX-XXXX")
                     return@Button
                 }
 
@@ -248,7 +248,7 @@ fun LicenseActivationModal(
 
                         override fun onError(message: String?) {
                             verifyState = "error"
-                            errorMessage = message ?: UiText.get(R.string.waex_ui_verification_failed_f07240d4, "Verification failed.")
+                            errorMessage = message ?: UiText.get(R.string.waex_ui_verification_failed, "Verification failed.")
                         }
                     }
                 )
@@ -265,13 +265,13 @@ fun LicenseActivationModal(
                 .height(52.dp)
         ) {
             if (verifyState == "verifying") {
-                CircularProgressIndicator(
+                WaexCircularProgressIndicator(
                     color = colors.onPrimary,
                     modifier = Modifier.size(18.dp),
                     strokeWidth = 2.dp
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = UiText.get(R.string.waex_ui_verifying_with_server_88342cf7, "Verifying with Server…"), style = typography.bodyMd, fontWeight = FontWeight.Bold)
+                Text(text = UiText.get(R.string.waex_ui_verifying_with_server, "Verifying with Server…"), style = typography.bodyMd, fontWeight = FontWeight.Bold)
             } else if (verifyState == "success") {
                 Icon(
                     imageVector = WaexIcons.Success,
@@ -280,9 +280,9 @@ fun LicenseActivationModal(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = UiText.get(R.string.waex_ui_pro_license_activated_b27626fb, "Pro License Activated!"), style = typography.bodyMd, fontWeight = FontWeight.Bold)
+                Text(text = UiText.get(R.string.waex_ui_pro_license_activated, "Pro License Activated!"), style = typography.bodyMd, fontWeight = FontWeight.Bold)
             } else {
-                Text(text = UiText.get(R.string.waex_ui_verify_activate_acf94d3b, "Verify & Activate"), style = typography.bodyMd, fontWeight = FontWeight.Bold)
+                Text(text = UiText.get(R.string.waex_ui_verify_activate, "Verify & Activate"), style = typography.bodyMd, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -320,7 +320,7 @@ fun LicenseActivationModal(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = UiText.get(R.string.waex_ui_get_or_manage_license_via_waenhancerx_266f2cff, "Get or manage license via @waenhancerx_bot"),
+                    text = UiText.get(R.string.waex_ui_get_or_manage_license_via_waenhancerx, "Get or manage license via @waenhancerx_bot"),
                     style = typography.bodyMd.copy(color = colors.primary, fontWeight = FontWeight.Medium),
                     fontSize = 13.sp
                 )

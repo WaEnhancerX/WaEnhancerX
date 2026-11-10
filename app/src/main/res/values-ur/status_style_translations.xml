@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="status_style_default">پہلے سے طے شدہ</string>
+    <string name="status_style_vertical_rows">عمودی قطاریں</string>
+    <string name="status_style_facebook_grid">فیس بک کارڈز (گرڈ)</string>
+    <string name="status_style_vertical_compact">عمودی فہرست (مختصر)</string>
+    <string name="status_style_vertical_circle">عمودی فہرست (گول اوتار)</string>
+    <string name="status_style_vertical_square">عمودی فہرست (مربع کارڈز)</string>
+</resources>

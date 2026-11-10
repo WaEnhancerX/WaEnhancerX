@@ -9,6 +9,7 @@ import android.os.Handler;
 import android.os.Looper;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import com.waenhancer.config.PreferenceRestartTracker;
 import de.robv.android.xposed.XSharedPreferences;
 import de.robv.android.xposed.XposedBridge;
 import java.util.ArrayList;
@@ -248,6 +249,7 @@ public final class PreferenceBridgeClient implements SharedPreferences {
         for (PendingEdit edit : pendingEdits.values()) {
             if (edit.optimistic) view = applyEdits(view, edit);
         }
+        view = applyTargetConfiguration(view);
         Map<String, Object> next = Collections.unmodifiableMap(copyValues(view));
         Map<String, Object> previous = memoryCache;
         memoryCache = next;
@@ -255,6 +257,36 @@ public final class PreferenceBridgeClient implements SharedPreferences {
         modified.addAll(next.keySet());
         modified.removeIf(key -> Objects.equals(previous.get(key), next.get(key)));
         return modified;
+    }
+
+    /**
+     * Resolves the snapshot for the injected target process. The settings UI stores universal
+     * values as {@code key} and per-target overrides as {@code package:key}. Keeping this
+     * resolution here makes provider reads and disk fallback behave identically.
+     */
+    private Map<String, Object> applyTargetConfiguration(Map<String, Object> source) {
+        Object mode = source.get("module_config_mode");
+        if (!"Per Target App".equals(String.valueOf(mode))) return source;
+        String packageName = context.getPackageName();
+        if (packageName == null || packageName.isEmpty()) return source;
+
+        Map<String, Object> resolved = new HashMap<>(source);
+        String prefix = packageName + ":";
+        for (Map.Entry<String, Object> entry : source.entrySet()) {
+            String key = entry.getKey();
+            if (key != null && key.startsWith(prefix) && key.length() > prefix.length()) {
+                resolved.put(key.substring(prefix.length()), entry.getValue());
+            }
+        }
+        resolved.put(PreferenceRestartTracker.NEED_RESTART,
+                Boolean.TRUE.equals(source.get(prefix + PreferenceRestartTracker.NEED_RESTART)));
+        Object pending = source.get(prefix + PreferenceRestartTracker.PENDING_CHANGES);
+        if (pending instanceof Set<?>) {
+            resolved.put(PreferenceRestartTracker.PENDING_CHANGES, pending);
+        } else {
+            resolved.remove(PreferenceRestartTracker.PENDING_CHANGES);
+        }
+        return resolved;
     }
 
     private void dispatchChanges(Set<String> modified) {
@@ -345,7 +377,7 @@ public final class PreferenceBridgeClient implements SharedPreferences {
 
     @Override
     public Map<String, ?> getAll() {
-        return copyValues(memoryCache);
+        return memoryCache;
     }
 
     @Nullable

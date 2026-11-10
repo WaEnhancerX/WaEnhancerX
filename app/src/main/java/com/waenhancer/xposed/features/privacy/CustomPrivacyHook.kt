@@ -162,7 +162,7 @@ class CustomPrivacyHook(
 
         if (menu.findItem(MENU_ID_CUSTOM_PRIVACY) != null) return
 
-        val menuItem = menu.add(0, MENU_ID_CUSTOM_PRIVACY, 100, UiText.get(R.string.waex_ui_custom_privacy_76f9c20d, "Custom Privacy"))
+        val menuItem = menu.add(0, MENU_ID_CUSTOM_PRIVACY, 100, UiText.get(R.string.waex_ui_custom_privacy, "Custom Privacy"))
         menuItem.setOnMenuItemClickListener {
             val jid = extractJid(activity)
             showCustomPrivacyBottomSheet(activity, jid)
@@ -281,14 +281,14 @@ class CustomPrivacyHook(
         }
 
         val titleView = TextView(activity).apply {
-            text = UiText.get(R.string.waex_ui_custom_privacy_76f9c20d, "Custom Privacy")
+            text = UiText.get(R.string.waex_ui_custom_privacy, "Custom Privacy")
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
             setTextColor(if (isDark) 0xFFE9EDEF.toInt() else 0xFF111B21.toInt())
         }
         textContainer.addView(titleView)
 
         val summaryView = TextView(activity).apply {
-            text = UiText.get(R.string.waex_ui_enable_or_customize_per_contact_privac_50106974, "Enable or customize per-contact privacy rules")
+            text = UiText.get(R.string.waex_ui_enable_or_customize_per_contact_privac, "Enable or customize per-contact privacy rules")
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f)
             setTextColor(if (isDark) 0xFF8696A0.toInt() else 0xFF667781.toInt())
             setPadding(0, dp(activity, 2), 0, 0)
@@ -306,13 +306,13 @@ class CustomPrivacyHook(
         val existingJson = getContactPrivacy(prefs, jid) ?: JSONObject()
 
         val rulesList = listOf(
-            Triple("HideSeen", UiText.get(R.string.waex_ui_hide_blue_ticks_4e92202b, "Hide Blue Ticks"), UiText.get(R.string.waex_ui_don_t_send_read_receipts_for_received_2768604b, "Don't send read receipts for received messages")),
-            Triple("HideViewStatus", UiText.get(R.string.waex_ui_hide_status_view_9e96ff07, "Hide Status View"), UiText.get(R.string.waex_ui_view_contact_s_status_updates_anonymou_f261e1d8, "View contact's status updates anonymously")),
-            Triple("HideReceipt", UiText.get(R.string.waex_ui_hide_delivered_receipts_ebd5864a, "Hide Delivered Receipts"), UiText.get(R.string.waex_ui_don_t_send_second_delivery_checkmark_2ec75e29, "Don't send second delivery checkmark")),
-            Triple("HideTyping", UiText.get(R.string.waex_ui_hide_typing_indicator_e48b0c04, "Hide Typing Indicator"), UiText.get(R.string.waex_ui_don_t_show_typing_status_when_composin_53881600, "Don't show typing status when composing")),
-            Triple("HideRecording", UiText.get(R.string.waex_ui_hide_voice_recording_5ddf1ff6, "Hide Voice Recording"), UiText.get(R.string.waex_ui_don_t_show_recording_audio_status_2771c3ab, "Don't show recording audio status")),
-            Triple("AntiRevoke", UiText.get(R.string.feat_anti_revoke_title, "Anti-Revoke Messages"), UiText.get(R.string.waex_ui_preserve_deleted_messages_in_this_chat_33da3410, "Preserve deleted messages in this chat")),
-            Triple("BlockCall", UiText.get(R.string.waex_ui_block_incoming_calls_caf90480, "Block Incoming Calls"), UiText.get(R.string.waex_ui_silently_decline_calls_from_this_conta_ff63b7eb, "Silently decline calls from this contact"))
+            Triple("HideSeen", UiText.get(R.string.waex_ui_hide_blue_ticks, "Hide Blue Ticks"), UiText.get(R.string.waex_ui_don_t_send_read_receipts_for_received, "Don't send read receipts for received messages")),
+            Triple("HideViewStatus", UiText.get(R.string.waex_ui_hide_status_view, "Hide Status View"), UiText.get(R.string.waex_ui_view_contact_s_status_updates_anonymou, "View contact's status updates anonymously")),
+            Triple("HideReceipt", UiText.get(R.string.waex_ui_hide_delivered_receipts, "Hide Delivered Receipts"), UiText.get(R.string.waex_ui_don_t_send_second_delivery_checkmark, "Don't send second delivery checkmark")),
+            Triple("HideTyping", UiText.get(R.string.waex_ui_hide_typing_indicator, "Hide Typing Indicator"), UiText.get(R.string.waex_ui_don_t_show_typing_status_when_composin, "Don't show typing status when composing")),
+            Triple("HideRecording", UiText.get(R.string.waex_ui_hide_voice_recording, "Hide Voice Recording"), UiText.get(R.string.waex_ui_don_t_show_recording_audio_status, "Don't show recording audio status")),
+            Triple("AntiRevoke", UiText.get(R.string.feat_anti_revoke_title, "Anti-Revoke Messages"), UiText.get(R.string.waex_ui_preserve_deleted_messages_in_this_chat, "Preserve deleted messages in this chat")),
+            Triple("BlockCall", UiText.get(R.string.waex_ui_block_incoming_calls, "Block Incoming Calls"), UiText.get(R.string.waex_ui_silently_decline_calls_from_this_conta, "Silently decline calls from this contact"))
         )
 
         val checkStateMap = mutableMapOf<String, Boolean>()
@@ -349,7 +349,7 @@ class CustomPrivacyHook(
 
         // WhatsApp WDS Bottom Sheet
         val bottomSheet = WaexBottomSheet(activity)
-            .setTitle(UiText.get(R.string.waex_ui_custom_privacy_76f9c20d, "Custom Privacy"))
+            .setTitle(UiText.get(R.string.waex_ui_custom_privacy, "Custom Privacy"))
             .setView(contentLayout)
             .setPositiveButton(UiText.get(R.string.action_save, "Save"), DialogInterface.OnClickListener { dialog, _ ->
                 try {
@@ -367,7 +367,7 @@ class CustomPrivacyHook(
                         .putString("per_contact_rules_$jid", jsonStr)
                         .apply()
 
-                    Toast.makeText(activity, UiText.get(R.string.waex_ui_custom_privacy_saved_f499fef5, "Custom privacy saved"), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(activity, UiText.get(R.string.waex_ui_custom_privacy_saved, "Custom privacy saved"), Toast.LENGTH_SHORT).show()
                 } catch (t: Throwable) {
                     XposedBridge.log("$TAG Failed to save custom privacy: ${t.javaClass.simpleName}")
                 }

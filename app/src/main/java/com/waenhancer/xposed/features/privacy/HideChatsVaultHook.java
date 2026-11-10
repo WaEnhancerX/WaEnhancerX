@@ -33,6 +33,7 @@ public class HideChatsVaultHook extends BaseFeature {
     private static final String HEADER_COMBO_ID = "conversations_swipe_to_reveal_header_combo";
 
     private volatile int lockedHeaderViewId;
+    private volatile int headerComboViewId;
     private final Set<View> collapsedHeaders = Collections.synchronizedSet(
             Collections.newSetFromMap(new WeakHashMap<>())
     );
@@ -55,8 +56,15 @@ public class HideChatsVaultHook extends BaseFeature {
 
     @Override
     public void hook() {
+        if (!isHideChatsEnabled()) return;
+
         lockedHeaderViewId = context.getResources().getIdentifier(
                 LOCKED_HEADER_ID,
+                "id",
+                context.getPackageName()
+        );
+        headerComboViewId = context.getResources().getIdentifier(
+                HEADER_COMBO_ID,
                 "id",
                 context.getPackageName()
         );
@@ -125,7 +133,7 @@ public class HideChatsVaultHook extends BaseFeature {
     private boolean isLockedHeader(View view) {
         int viewId = view.getId();
         if (viewId == View.NO_ID) return false;
-        if (lockedHeaderViewId != 0 && viewId == lockedHeaderViewId) return true;
+        if (lockedHeaderViewId != 0) return viewId == lockedHeaderViewId;
 
         // Resource IDs vary between WhatsApp and WhatsApp Business builds.
         try {
@@ -138,6 +146,9 @@ public class HideChatsVaultHook extends BaseFeature {
     private boolean hasResourceName(View view, String expectedName) {
         int viewId = view.getId();
         if (viewId == View.NO_ID) return false;
+        if (HEADER_COMBO_ID.equals(expectedName) && headerComboViewId != 0) {
+            return viewId == headerComboViewId;
+        }
         try {
             return expectedName.equals(view.getResources().getResourceEntryName(viewId));
         } catch (Throwable ignored) {

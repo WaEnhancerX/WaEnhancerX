@@ -1,5 +1,10 @@
 package com.waenhancer.core.preferences;
 
+import java.util.Set;
+import java.util.LinkedHashSet;
+import java.util.Arrays;
+import java.util.HashSet;
+
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -38,11 +43,11 @@ public final class TestMediaPreferenceBatch {
             return v == null ? fallback : (String) v;
         }
         @Override @SuppressWarnings("unchecked")
-        public java.util.Set<String> getStringSet(String key, java.util.Set<String> fallback) {
+        public Set<String> getStringSet(String key, Set<String> fallback) {
             Object value = values.get(key);
             if (value == null) return fallback;
-            if (!(value instanceof java.util.Set)) throw new ClassCastException();
-            return (java.util.Set<String>) value;
+            if (!(value instanceof Set)) throw new ClassCastException();
+            return (Set<String>) value;
         }
         @Override public int getInt(String key, int fallback) {
             Object v = values.get(key);
@@ -62,7 +67,7 @@ public final class TestMediaPreferenceBatch {
             private final Map<String, Object> adds = new HashMap<>();
             @Override public Editor putBoolean(String key, boolean value) { adds.put(key, value); return this; }
             @Override public Editor putString(String key, String value) { adds.put(key, value); return this; }
-            @Override public Editor putStringSet(String key, java.util.Set<String> value) {
+            @Override public Editor putStringSet(String key, Set<String> value) {
                 // Retain the reference deliberately: the manager must snapshot its input.
                 adds.put(key, value); return this;
             }
@@ -112,11 +117,11 @@ public final class TestMediaPreferenceBatch {
             check(c.publicStore.commits == commits + 1, "typed string commits exactly once");
             check(c.resolver.notifications == notifications + 1, "typed string notification");
         }
-        java.util.Set<String> tabs = new java.util.LinkedHashSet<>(java.util.Arrays.asList("300", "600"));
+        Set<String> tabs = new LinkedHashSet<>(Arrays.asList("300", "600"));
         check(m.putPublicStringSet("hidetabs", tabs), "valid typed set rejected");
         tabs.add("400");
         check(!m.getStringSet("hidetabs", Collections.emptySet()).contains("400"), "caller mutated stored set");
-        java.util.Set<String> read = m.getStringSet("hidetabs", Collections.emptySet());
+        Set<String> read = m.getStringSet("hidetabs", Collections.emptySet());
         read.clear();
         check(m.getStringSet("hidetabs", Collections.emptySet()).size() == 2, "read leaked mutable storage");
         check(m.putPublicStringSet("hidetabs", Collections.emptySet()), "empty typed set rejected");
@@ -131,8 +136,8 @@ public final class TestMediaPreferenceBatch {
             check(!m.putPublicStringSet(key, tabs), "unknown, private or wrong-type set accepted: " + key);
         }
         check(!m.putPublicStringSet("hidetabs", null), "null set accepted");
-        check(!m.putPublicStringSet("hidetabs", new java.util.HashSet<>(java.util.Arrays.asList("300", null))), "null element accepted");
-        java.util.Set raw = new java.util.HashSet(); raw.add(Integer.valueOf(300));
+        check(!m.putPublicStringSet("hidetabs", new HashSet<>(Arrays.asList("300", null))), "null element accepted");
+        Set raw = new HashSet(); raw.add(Integer.valueOf(300));
         check(!m.putPublicStringSet("hidetabs", raw), "non-string element accepted");
         check(c.publicStore.commits == commits, "rejected data reached storage");
         check(c.privateStore.commits == 0, "typed writer reached private store");

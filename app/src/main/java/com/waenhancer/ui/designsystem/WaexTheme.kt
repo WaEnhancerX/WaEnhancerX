@@ -13,6 +13,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -22,6 +23,7 @@ import android.app.Activity
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import androidx.compose.material3.Shapes
 
 val LocalThemeMode = staticCompositionLocalOf { "System" }
 val LocalThemeModeUpdater = staticCompositionLocalOf<(String) -> Unit> { {} }
@@ -118,8 +120,10 @@ fun WaexTheme(
     val targetColors = systemPalette?.let { monetWaexColors(it, darkTheme) }
         ?: if (darkTheme) darkColors else lightColors
     val colors = animateWaexColors(targetColors)
-    val typography = WaexTypography(scale = interfaceSize.scale)
-    val spacing = WaexSpacing(scale = interfaceSize.scale)
+    // LocalDensity applies the interface scale to every dp/sp value below.
+    // Keep tokens in their base units so text and gaps grow once, like fixed controls.
+    val typography = remember { WaexTypography() }
+    val spacing = remember { WaexSpacing() }
     val radius = WaexRadius()
     val elevation = WaexElevation()
 
@@ -149,7 +153,9 @@ fun WaexTheme(
             outline = colors.outline,
             outlineVariant = colors.outlineVariant,
             error = colors.error,
-            onError = colors.onError
+            onError = colors.onError,
+            errorContainer = colors.errorContainer,
+            onErrorContainer = colors.onErrorContainer
         )
     } else {
         lightColorScheme(
@@ -177,7 +183,9 @@ fun WaexTheme(
             outline = colors.outline,
             outlineVariant = colors.outlineVariant,
             error = colors.error,
-            onError = colors.onError
+            onError = colors.onError,
+            errorContainer = colors.errorContainer,
+            onErrorContainer = colors.onErrorContainer
         )
     }
 
@@ -206,8 +214,8 @@ fun WaexTheme(
     ) {
         MaterialTheme(
             colorScheme = m3ColorScheme,
-            typography = materialTypography(scale = interfaceSize.scale),
-            shapes = androidx.compose.material3.Shapes(
+            typography = MaterialTypography,
+            shapes = Shapes(
                 extraSmall = radius.smShape,
                 small = radius.defaultShape,
                 medium = radius.mdShape,

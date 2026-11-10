@@ -15,6 +15,8 @@ public final class DexSearchEngine {
 
     private static volatile DexSearchEngine sInstance;
     private DexKitBridge mBridge;
+    private int leases;
+    private boolean closePending;
 
     static {
         try {
@@ -42,12 +44,30 @@ public final class DexSearchEngine {
             File libFile = new File(nativeLibraryDir, "libdexkit.so");
             if (libFile.exists()) {
                 System.load(libFile.getAbsolutePath());
+                return;
             }
-        } catch (Throwable t) {
-            try {
-                System.loadLibrary("dexkit");
-            } catch (Throwable ignored) {}
-        }
+        } catch (Throwable ignored) {}
+
+        try {
+            String modulePath = com.waenhancer.xposed.MainHook.sModulePath;
+            if (modulePath != null) {
+                File baseApk = new File(modulePath);
+                File parent = baseApk.getParentFile();
+                if (parent != null) {
+                    for (String abi : android.os.Build.SUPPORTED_ABIS) {
+                        File libFile = new File(parent, "lib/" + abi + "/libdexkit.so");
+                        if (libFile.exists()) {
+                            System.load(libFile.getAbsolutePath());
+                            return;
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+
+        try {
+            System.loadLibrary("dexkit");
+        } catch (Throwable ignored) {}
     }
 
     public synchronized void initialize(@NonNull Context context) {
@@ -60,6 +80,18 @@ public final class DexSearchEngine {
                 XposedBridge.log("[WAEX] Failed to initialize DexKitBridge: " + t.getMessage());
             }
         }
+    }
+
+    /** Keeps the native bridge alive across one complete feature-resolution transaction. */
+    public synchronized void acquireLease() {
+        leases++;
+        closePending = false;
+    }
+
+    /** Releases a feature-resolution lease and honors a close requested while it was active. */
+    public synchronized void releaseLease() {
+        if (leases > 0) leases--;
+        if (leases == 0 && closePending) closeNow();
     }
 
     @Nullable
@@ -107,13 +139,54 @@ public final class DexSearchEngine {
         });
     }
 
+    /** Resolves and persists multiple methods produced by one DexKit query. */
+    @Nullable
+    public Method[] findMethodsWithCache(
+            @NonNull Context context,
+            @NonNull ClassLoader loader,
+            @NonNull String cacheKey,
+            @NonNull DexKitMethodsQuery query
+    ) {
+        DexCacheManager cache = DexCacheManager.getInstance(context);
+        return cache.getMethods(loader, cacheKey, () -> {
+            if (mBridge == null) initialize(context);
+            if (mBridge == null) return null;
+            return query.execute(mBridge, loader);
+        });
+    }
+
+    /** Resolves and persists multiple classes produced by one DexKit query. */
+    @Nullable
+    public Class<?>[] findClassesWithCache(
+            @NonNull Context context,
+            @NonNull ClassLoader loader,
+            @NonNull String cacheKey,
+            @NonNull DexKitClassesQuery query
+    ) {
+        DexCacheManager cache = DexCacheManager.getInstance(context);
+        return cache.getClasses(loader, cacheKey, () -> {
+            if (mBridge == null) initialize(context);
+            if (mBridge == null) return null;
+            return query.execute(mBridge, loader);
+        });
+    }
+
     public synchronized void close() {
+        if (leases > 0) {
+            closePending = true;
+            return;
+        }
+        closeNow();
+    }
+
+    private void closeNow() {
         if (mBridge != null) {
             try {
                 mBridge.close();
             } catch (Throwable ignored) {}
             mBridge = null;
         }
+        closePending = false;
     }
 
     @FunctionalInterface
@@ -124,5 +197,15 @@ public final class DexSearchEngine {
     @FunctionalInterface
     public interface DexKitClassQuery {
         Class<?> execute(@NonNull DexKitBridge bridge, @NonNull ClassLoader loader) throws Throwable;
+    }
+
+    @FunctionalInterface
+    public interface DexKitMethodsQuery {
+        Method[] execute(@NonNull DexKitBridge bridge, @NonNull ClassLoader loader) throws Throwable;
+    }
+
+    @FunctionalInterface
+    public interface DexKitClassesQuery {
+        Class<?>[] execute(@NonNull DexKitBridge bridge, @NonNull ClassLoader loader) throws Throwable;
     }
 }

@@ -66,20 +66,18 @@
     <!-- Universal Supported WhatsApp Versions (Single universal standard across all WhatsApp packages) -->
     <!-- Formatted strictly as 2.xx.xx.xx (e.g. 2.26.37.xx, 2.26.36.xx, 2.26.35.xx) -->
     <string-array name="universal_supported_versions">
+        <item>2.26.45.xx</item>
+        <item>2.26.44.xx</item>
+        <item>2.26.43.xx</item>
         <item>2.26.42.xx</item>
         <item>2.26.41.xx</item>
         <item>2.26.40.xx</item>
         <item>2.26.39.xx</item>
-        <item>2.26.38.xx</item>
-        <item>2.26.37.xx</item>
-        <item>2.26.36.xx</item>
     </string-array>
 
     <string-array name="status_style_entries">
         <item>@string/status_style_default</item>
         <item>@string/status_style_vertical_rows</item>
-        <item>@string/status_style_facebook_grid</item>
-        <item>@string/status_style_vertical_compact</item>
         <item>@string/status_style_vertical_circle</item>
         <item>@string/status_style_vertical_square</item>
     </string-array>
@@ -87,8 +85,6 @@
     <string-array name="status_style_values">
         <item>1</item>
         <item>0</item>
-        <item>5</item>
-        <item>4</item>
         <item>3</item>
         <item>9</item>
     </string-array>

@@ -12,6 +12,7 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.CountDownLatch;
 
 /** Compiles and executes the actual production DexCacheManager against Android/Xposed doubles. */
 public final class TestDexCacheManager {
@@ -33,12 +34,15 @@ public final class TestDexCacheManager {
             boolean clear;
             Map<String,Object> modifications = new HashMap<>();
             @Override public Editor clear() { clear = true; return this; }
+            @Override public Editor remove(String key) { modifications.put(key, null); return this; }
             @Override public Editor putString(String key, String value) { modifications.put(key, value); return this; }
             @Override public Editor putLong(String key, long value) { modifications.put(key, value); return this; }
             @Override public void apply() {
                 synchronized (MemoryPrefs.this) {
                     if (clear) values.clear();
-                    values.putAll(modifications);
+                    modifications.forEach((key, value) -> {
+                        if (value == null) values.remove(key); else values.put(key, value);
+                    });
                 }
             }
         }
@@ -96,13 +100,13 @@ public final class TestDexCacheManager {
                 "persistent class cache");
 
         // A stale persisted descriptor is not treated as a permanent failure.
-        context.preferences.values.put("stale-class", "old.removed.HostClass");
+        context.preferences.values.put("class:stale-class", "old.removed.HostClass");
         AtomicInteger staleLookups = new AtomicInteger();
         check(cache.getClass(loader, "stale-class", () -> {
             staleLookups.incrementAndGet(); return Sample.class;
         }) == Sample.class, "stale descriptor falls back to resolver");
         check(staleLookups.get() == 1, "resolver called after stale persisted class");
-        check(Sample.class.getName().equals(context.preferences.getString("stale-class", null)),
+        check(context.preferences.getString("class:stale-class", "").startsWith("{\"schema\":2,"),
                 "stale persisted class replaced with valid descriptor");
 
         // Failed method and failed field are independent of each other, even with same key.
@@ -134,6 +138,56 @@ public final class TestDexCacheManager {
         check(cache.getField(loader, "field-key", () -> {throw new AssertionError("persistent field ignored");}).equals(field),
                 "persistent field deserialization");
 
+        // Typed namespaces allow the same caller key to safely identify different result kinds.
+        check(cache.getMethod(loader, "typed-shared", () -> length).equals(length),
+                "typed method namespace");
+        check(cache.getField(loader, "typed-shared", () -> field).equals(field),
+                "typed field namespace");
+        check(context.preferences.getString("method:typed-shared", null) != null
+                        && context.preferences.getString("field:typed-shared", null) != null,
+                "typed descriptors persisted independently");
+
+        Method[] methodArray = cache.getMethods(loader, "method-array", () -> new Method[]{length});
+        Class<?>[] classArray = cache.getClasses(loader, "class-array", () -> new Class<?>[]{Sample.class});
+        check(methodArray != null && methodArray.length == 1 && methodArray[0].equals(length),
+                "method array resolver success");
+        check(classArray != null && classArray.length == 1 && classArray[0] == Sample.class,
+                "class array resolver success");
+        cache.clearMemoryCache();
+        check(cache.getMethods(loader, "method-array", () -> {throw new AssertionError("method array disk cache ignored");})[0].equals(length),
+                "method array persistent cache");
+        check(cache.getClasses(loader, "class-array", () -> {throw new AssertionError("class array disk cache ignored");})[0] == Sample.class,
+                "class array persistent cache");
+
+        // Concurrent misses for one typed key execute exactly one expensive resolver.
+        cache.evict(DexCacheManager.Kind.METHOD, "single-flight");
+        DexCacheManager flightCache = cache;
+        AtomicInteger concurrentScans = new AtomicInteger();
+        CountDownLatch ready = new CountDownLatch(8);
+        CountDownLatch start = new CountDownLatch(1);
+        Thread[] workers = new Thread[8];
+        for (int i = 0; i < workers.length; i++) {
+            workers[i] = new Thread(() -> {
+                ready.countDown();
+                try { start.await(); } catch (InterruptedException e) { throw new AssertionError(e); }
+                Method found = flightCache.getMethod(loader, "single-flight", () -> {
+                    concurrentScans.incrementAndGet();
+                    return length;
+                });
+                if (!length.equals(found)) throw new AssertionError("single-flight result");
+            });
+            workers[i].start();
+        }
+        ready.await();
+        start.countDown();
+        for (Thread worker : workers) worker.join();
+        check(concurrentScans.get() == 1, "single-flight resolver invoked once");
+
+        DexCacheManager.Diagnostics diagnostics = cache.diagnostics();
+        check(diagnostics.memoryHits() > 0 && diagnostics.diskHits() > 0
+                        && diagnostics.resolutions() > 0,
+                "cache diagnostics report activity");
+
         AtomicInteger err = new AtomicInteger();
         SystemClock.now = 200_000L;
         check(cache.getMethod(loader, "temporary-exception", () -> {
@@ -156,13 +210,13 @@ public final class TestDexCacheManager {
         check(reset.get()==2, "two resolver calls after invalidation");
 
         // Reinstantiation with new host version invalidates positive descriptors.
-        long versionOld = context.preferences.getLong("host_version_code", -1L);
+        long versionOld = context.preferences.getLong("__meta__.host_version_code", -1L);
         check(versionOld == initialVersion, "first host version persisted on API " + api);
         context.manager.info.code = updatedVersion;
         context.manager.info.versionCode = (int) updatedVersion;
         cache = newManager(context);
-        check(context.preferences.getLong("host_version_code", -1L)==updatedVersion, "host update recorded");
-        check(context.preferences.getString("method-key", null)==null, "old host descriptor removed");
+        check(context.preferences.getLong("__meta__.host_version_code", -1L)==updatedVersion, "host update recorded");
+        check(context.preferences.getString("method:method-key", null)==null, "old host descriptor removed");
         AtomicInteger reread = new AtomicInteger();
         check(cache.getMethod(loader, "method-key", () -> {reread.incrementAndGet(); return length;}) == length,
                 "method re-resolved on host update");
@@ -172,7 +226,7 @@ public final class TestDexCacheManager {
         AtomicInteger fresh = new AtomicInteger();
         check(cache.getMethod(loader, "no-disk-negative", () -> {fresh.incrementAndGet(); return null;}) == null,
                 "temporary negative recorded");
-        check(context.preferences.getString("no-disk-negative", null)==null, "negative must not be persisted");
+        check(context.preferences.getString("method:no-disk-negative", null)==null, "negative must not be persisted");
         DexCacheManager restarted = newManager(context);
         check(restarted.getMethod(loader, "no-disk-negative", () -> {fresh.incrementAndGet(); return length;}) == length,
                 "new process retries previous missing key");
