@@ -2,6 +2,7 @@ package com.waenhancer.ui.screens.dashboard
 
 import com.waenhancer.utils.UiText
 import com.waenhancer.utils.InternalLabels
+import com.waenhancer.utils.DeclaredWhatsAppTargets
 
 import android.content.Context
 import android.content.Intent
@@ -773,7 +774,7 @@ fun MainDashboardScreen(
         if (showHmaDetailSheet && hmaStatus != null) {
             HmaDetailsBottomSheet(
                 report = hmaStatus!!,
-                visiblePackages = detectedApps.filter { it.isInstalled && it.inLsposedScope && it.isHooked }.map { it.packageName }.toSet(),
+                visiblePackages = detectedApps.filter { it.isInstalled }.map { it.packageName }.toSet().ifEmpty { DeclaredWhatsAppTargets.packages() },
                 isFixing = isFixingHma,
                 onFixTarget = { targetPkg ->
                     isFixingHma = true
@@ -804,7 +805,7 @@ fun MainDashboardScreen(
         if (showDenylistDetailSheet && denylistStatus != null) {
             DenylistDetailsBottomSheet(
                 report = denylistStatus!!,
-                visiblePackages = detectedApps.filter { it.isInstalled && it.inLsposedScope && it.isHooked }.map { it.packageName }.toSet(),
+                visiblePackages = detectedApps.filter { it.isInstalled }.map { it.packageName }.toSet().ifEmpty { DeclaredWhatsAppTargets.packages() },
                 isFixing = isFixingDenylist,
                 onFixTarget = { targetPkg ->
                     isFixingDenylist = true
