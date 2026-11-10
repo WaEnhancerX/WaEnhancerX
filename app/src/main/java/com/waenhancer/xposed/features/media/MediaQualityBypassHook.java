@@ -15,25 +15,32 @@ import org.luckypray.dexkit.query.enums.StringMatchType;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.ClassData;
-import org.luckypray.dexkit.result.FieldData;
 import org.luckypray.dexkit.result.MethodData;
-import org.luckypray.dexkit.result.UsingFieldData;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.HashMap;
+import java.lang.reflect.Modifier;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Media Quality & Size Bypass Hook:
- * Allows sending full-quality uncompressed HD images, 60fps videos, real video resolution,
- * and higher file size limits.
+ * Applies bounded image-quality configuration and optional verified host predicates.
+ * A configured hint does not establish lossless output, resolution or actual FPS.
  */
 public class MediaQualityBypassHook extends BaseFeature {
 
     private static final String TAG = "[WAEX][MediaQuality]";
     private static final int IMAGE_MAX_KB = 50 * 1024;
     private static final int IMAGE_MAX_EDGE = 6000;
+    private static final Pattern PROCESS_IMAGE_FORMAT = Pattern.compile(
+            "^ProcessImageQuality[(]maxKb=(-?[0-9]+),[ ]*quality=(-?[0-9]+),[ ]*maxEdge=(-?[0-9]+)[)]$");
+    private final Set<Method> installedMethods = new LinkedHashSet<>();
+    private final Set<Class<?>> installedConstructors = new LinkedHashSet<>();
 
     private static final int[] IMAGE_MAX_SIZE_PROPS = {1577, 6030, 2656, 15752, 15746};
     private static final int[] IMAGE_QUALITY_PROPS = {1581, 1575, 1578, 6029, 2655, 15749};
@@ -44,85 +51,227 @@ public class MediaQualityBypassHook extends BaseFeature {
     }
 
     @Override
-    public void hook() throws Throwable {
+    public synchronized void hook() throws Throwable {
+        // The profile is bound to the complete inspected base APK, not just a
+        // version label or opcode list. This does not alter shared AB preferences.
+        if (!MediaHostFingerprint.accepts(context)) {
+            if (isImageQualityMaxEnabled() || isVideo60FpsEnabled()) {
+                throw unsupportedHost();
+            }
+            return;
+        }
+        // Keep the current AB-property path and the exact constructor route.
+        // Optional legacy candidates must never replace unknown host arguments.
         hookProcessImageQuality();
         hookImageQuality();
         hookVideoQuality();
+        hookQualitySelector();
+        if (installedMethods.isEmpty() && installedConstructors.isEmpty()
+                && (isImageQualityMaxEnabled() || isVideo60FpsEnabled())) {
+            throw new IllegalStateException("Media quality contract unavailable");
+        }
+    }
+
+    private static IllegalStateException unsupportedHost() {
+        return new IllegalStateException("Media quality contract unavailable");
     }
 
     private void hookProcessImageQuality() {
-        if (!isImageQualityMaxEnabled()) return;
         try {
             Class<?> qualityClass = DexSearchEngine.getInstance().findClassWithCache(
                     context,
                     classLoader,
-                    "waex_process_image_quality_class",
+                    "waex_process_image_quality_exact_v3",
                     (bridge, loader) -> {
-                        ClassData data = bridge.findClass(FindClass.create()
+                        Class<?> unique = null;
+                        for (ClassData data : bridge.findClass(FindClass.create()
                                 .matcher(ClassMatcher.create().addUsingString(
-                                        "ProcessImageQuality(", StringMatchType.StartsWith)))
-                                .firstOrNull();
-                        return data != null ? data.getInstance(loader) : null;
+                                        "ProcessImageQuality(maxKb=", StringMatchType.StartsWith)))) {
+                            Class<?> current = data.getInstance(loader);
+                            if (current == null || current.isInterface()
+                                    || Modifier.isAbstract(current.getModifiers())) continue;
+                            if (unique != null && unique != current) return null;
+                            unique = current;
+                        }
+                        return unique;
                     });
             if (qualityClass == null) {
                 XposedBridge.log(TAG + " ProcessImageQuality class not found");
                 return;
             }
 
-            Map<String, Field> fields = resolveToStringFields(qualityClass);
-            Field maxKb = fields.get("maxKb");
-            Field quality = fields.get("quality");
-            Field maxEdge = fields.get("maxEdge");
-            if (maxKb == null || quality == null || maxEdge == null) {
-                XposedBridge.log(TAG + " ProcessImageQuality fields incomplete: " + fields.keySet());
+            List<Field> fields = ProcessImageQualityContract.resolve(
+                    DexSearchEngine.getInstance().getBridge(), qualityClass, classLoader);
+            if (fields == null || fields.size() != 3) {
+                XposedBridge.log(TAG + " ProcessImageQuality value-object contract unavailable");
                 return;
             }
+            // Candidates are deliberately unordered. Labels are associated with
+            // unique field values independently for each completed construction.
+            Field maxKb = fields.get(0), quality = fields.get(1), maxEdge = fields.get(2);
+            if (installedConstructors.contains(qualityClass)) return;
             maxKb.setAccessible(true);
             quality.setAccessible(true);
             maxEdge.setAccessible(true);
-            XposedBridge.hookAllConstructors(qualityClass, new XC_MethodHook() {
-                @Override protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                    maxKb.setInt(param.thisObject, IMAGE_MAX_KB);
-                    quality.setInt(param.thisObject, 100);
-                    maxEdge.setInt(param.thisObject, IMAGE_MAX_EDGE);
-                }
-            });
-            XposedBridge.log(TAG + " Installed ProcessImageQuality constructor hook: "
-                    + qualityClass.getName());
-        } catch (Throwable error) {
-            XposedBridge.log(TAG + " Error hooking ProcessImageQuality: " + error);
+            Set<?> handles = XposedBridge.hookAllConstructors(qualityClass,
+                    createProcessImageCallback(qualityClass, maxKb, quality, maxEdge));
+            if (handles != null && !handles.isEmpty()) {
+                installedConstructors.add(qualityClass);
+                XposedBridge.log(TAG + " ProcessImageQuality callback installed; per-instance validation required");
+            }
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError error) {
+            XposedBridge.log(TAG + " ProcessImageQuality unavailable: " + error.getClass().getSimpleName());
         }
     }
 
-    private Map<String, Field> resolveToStringFields(Class<?> targetClass) throws Throwable {
-        Method toStringMethod = targetClass.getDeclaredMethod("toString");
-        MethodData methodData = DexSearchEngine.getInstance().getBridge()
-                .getMethodData(toStringMethod);
-        Map<String, Field> result = new HashMap<>();
-        if (methodData == null) return result;
-        List<String> strings = methodData.getUsingStrings();
-        List<UsingFieldData> usingFields = methodData.getUsingFields();
-        int fieldIndex = 0;
-        for (String raw : strings) {
-            if (fieldIndex >= usingFields.size()) break;
-            String text = raw.trim();
-            int equals = text.lastIndexOf('=');
-            if (equals < 1) continue;
-            int start = 0;
-            for (int index = equals - 1; index >= 0; index--) {
-                char character = text.charAt(index);
-                if (character == '\'' || character == ',' || character == ' '
-                        || character == '(' || character == ')' || character == ':'
-                        || character == '{' || character == '}') {
-                    start = index + 1;
-                    break;
+    /** Callback factory is package-private so the exact production path is executable in QA. */
+    XC_MethodHook createProcessImageCallback(Class<?> qualityClass, Field maxKb,
+                                             Field quality, Field maxEdge) {
+        final AtomicBoolean warned = new AtomicBoolean(false);
+        final AtomicBoolean writeFailed = new AtomicBoolean(false);
+        return new XC_MethodHook() {
+                @Override protected void afterHookedMethod(MethodHookParam param) {
+                    if (!isImageQualityMaxEnabled() || param.hasThrowable()
+                            || writeFailed.get() || param.thisObject == null
+                            || param.thisObject.getClass() != qualityClass) return;
+                    Object instance = param.thisObject;
+                    Field[] resolved = resolveImageFields(instance, maxKb, quality, maxEdge);
+                    if (resolved == null) {
+                        // No semantic field mapping: preserve the constructor's original values.
+                        if (warned.compareAndSet(false, true)) {
+                            XposedBridge.log(TAG + " ProcessImageQuality field identity unconfirmed");
+                        }
+                        return;
+                    }
+                    Field actualKb = resolved[0], actualQuality = resolved[1], actualEdge = resolved[2];
+                    int[] effective = effectiveImageParameters();
+                    if (effective == null) return;
+                    try {
+                        int oldKb = actualKb.getInt(instance);
+                        int oldQuality = actualQuality.getInt(instance);
+                        int oldEdge = actualEdge.getInt(instance);
+                        try {
+                            // Use the final property map, after user Custom A/B overrides.
+                            // Never silently overwrite explicit custom values with defaults.
+                            actualKb.setInt(instance, Math.max(oldKb, effective[0]));
+                            actualQuality.setInt(instance, effective[1]);
+                            actualEdge.setInt(instance, Math.max(oldEdge, effective[2]));
+                        } catch (ReflectiveOperationException | RuntimeException unavailable) {
+                            writeFailed.set(true);
+                            // Stop future writes on this route. Rollback is best effort,
+                            // never claim an atomic update when any field cannot be restored.
+                            boolean restored = restoreField(actualKb, instance, oldKb);
+                            restored &= restoreField(actualQuality, instance, oldQuality);
+                            restored &= restoreField(actualEdge, instance, oldEdge);
+                            XposedBridge.log(restored
+                                    ? TAG + " ProcessImageQuality write failed; route disabled"
+                                    : TAG + " ProcessImageQuality rollback incomplete; route disabled");
+                        }
+                    } catch (ReflectiveOperationException | RuntimeException unavailable) {
+                        if (warned.compareAndSet(false, true)) {
+                            XposedBridge.log(TAG + " ProcessImageQuality field read unavailable");
+                        }
+                    }
                 }
-            }
-            if (start >= equals) continue;
-            FieldData fieldData = usingFields.get(fieldIndex++).getField();
-            result.put(text.substring(start, equals), fieldData.getFieldInstance(classLoader));
+        };
+    }
+
+    /** Best effort only; false must never be reported as a completed rollback. */
+    static boolean restoreField(Field field, Object instance, int original) {
+        try {
+            field.setInt(instance, original);
+            return true;
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            // Do not suppress the host result or report private reflective values.
+            return false;
         }
-        return result;
+    }
+
+    /**
+     * Preserve the existing MobileConfig precedence: explicit user Custom A/B
+     * properties are written after the built-in quality defaults.
+     *
+     * The 2477/2475/2476 property family is an observed alternative host route;
+     * when explicitly configured it is not safe to apply the 1577/1578/1576
+     * constructor profile without proving which provider built this instance.
+     */
+    static int[] effectiveImageParameters() {
+        // A constructor has no property-ID provenance. Do not guess which custom
+        // route produced it or force one ID family's value onto another family.
+        // Explicit non-default or missing configuration disables this extra write;
+        // the independent property dispatcher remains responsible for its values.
+        if (PropsOverrideHook.INTEGERS.containsKey(2477)
+                || PropsOverrideHook.INTEGERS.containsKey(2475)
+                || PropsOverrideHook.INTEGERS.containsKey(2476)) return null;
+        for (int id : IMAGE_MAX_SIZE_PROPS) {
+            if (!Integer.valueOf(IMAGE_MAX_KB).equals(PropsOverrideHook.INTEGERS.get(id))) return null;
+        }
+        for (int id : IMAGE_QUALITY_PROPS) {
+            if (!Integer.valueOf(100).equals(PropsOverrideHook.INTEGERS.get(id))) return null;
+        }
+        for (int id : IMAGE_MAX_EDGE_PROPS) {
+            if (!Integer.valueOf(IMAGE_MAX_EDGE).equals(PropsOverrideHook.INTEGERS.get(id))) return null;
+        }
+        if (!Boolean.TRUE.equals(PropsOverrideHook.BOOLEANS.get(6033))
+                || !Boolean.FALSE.equals(PropsOverrideHook.BOOLEANS.get(9569))
+                || !Boolean.TRUE.equals(PropsOverrideHook.BOOLEANS.get(26289))
+                || !Boolean.TRUE.equals(PropsOverrideHook.BOOLEANS.get(22375))
+                || !Boolean.FALSE.equals(PropsOverrideHook.BOOLEANS.get(14447))) return null;
+        return new int[]{IMAGE_MAX_KB, 100, IMAGE_MAX_EDGE};
+    }
+
+    /** Field names are not inferred from positional integers or reflection order. */
+    static boolean distinctPrimitiveIntFields(Field first, Field second, Field third) {
+        if (first == null || second == null || third == null
+                || first.equals(second) || first.equals(third) || second.equals(third)
+                || first.getDeclaringClass() != second.getDeclaringClass()
+                || first.getDeclaringClass() != third.getDeclaringClass()) return false;
+        for (Field field : new Field[]{first, second, third}) {
+            if (field.getType() != int.class || Modifier.isStatic(field.getModifiers())
+                    || field.isSynthetic()) return false;
+        }
+        return true;
+    }
+
+    /**
+     * Validate the field-to-label mapping on a real constructed value before writing.
+     * DexKit's using-string and using-field collections do not prove positional identity.
+     * Equal values are ambiguous and intentionally left untouched.
+     */
+    static boolean verifiedImageFieldValues(Object value, Field maxKb, Field quality, Field maxEdge) {
+        Field[] resolved = resolveImageFields(value, maxKb, quality, maxEdge);
+        return resolved != null && resolved[0].equals(maxKb)
+                && resolved[1].equals(quality) && resolved[2].equals(maxEdge);
+    }
+
+    /** Resolve semantic labels from unique values, never relative metadata-list order. */
+    static Field[] resolveImageFields(Object instance, Field first, Field second, Field third) {
+        if (instance == null || !distinctPrimitiveIntFields(first, second, third)
+                || instance.getClass() != first.getDeclaringClass()) return null;
+        try {
+            String rendered = instance.toString();
+            if (rendered == null || rendered.length() > 192) return null;
+            Matcher matcher = PROCESS_IMAGE_FORMAT.matcher(rendered);
+            if (!matcher.matches()) return null;
+            int[] expected = {Integer.parseInt(matcher.group(1)), Integer.parseInt(matcher.group(2)),
+                    Integer.parseInt(matcher.group(3))};
+            if (expected[0] <= 0 || expected[2] <= 0 || expected[1] <= 0 || expected[1] > 100
+                    || expected[0] == expected[1] || expected[0] == expected[2] || expected[1] == expected[2]) return null;
+            Field[] candidates = {first, second, third};
+            int[] observed = {first.getInt(instance), second.getInt(instance), third.getInt(instance)};
+            Field[] result = new Field[3];
+            for (int label = 0; label < 3; label++) {
+                for (int field = 0; field < 3; field++) {
+                    if (observed[field] != expected[label]) continue;
+                    if (result[label] != null) return null;
+                    result[label] = candidates[field];
+                }
+                if (result[label] == null) return null;
+            }
+            return distinctPrimitiveIntFields(result[0], result[1], result[2]) ? result : null;
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError | AssertionError unavailable) {
+            return null;
+        }
     }
 
     /**
@@ -148,80 +297,105 @@ public class MediaQualityBypassHook extends BaseFeature {
         PropsOverrideHook.setBooleanOverride(14447, imageEnabled, false);
     }
 
+    /**
+     * Accept only one concrete method per cache generation. Never choose the first
+     * match from obfuscated methods and never mutate unrelated integer parameters.
+     */
+    private Method uniqueMethod(String key, String anchor, StringMatchType match,
+                                Predicate<Method> accepts) {
+        Method resolved = DexSearchEngine.getInstance().findMethodWithCache(context, classLoader, key,
+                (bridge, loader) -> {
+                    Method unique = null;
+                    for (MethodData data : bridge.findMethod(FindMethod.create()
+                            .matcher(MethodMatcher.create().addUsingString(anchor, match)))) {
+                        if (!data.isMethod()) continue;
+                        Method candidate = data.getMethodInstance(loader);
+                        if (!concreteInstance(candidate) || !accepts.test(candidate)) continue;
+                        if (unique != null && !unique.equals(candidate)) return null;
+                        unique = candidate;
+                    }
+                    return unique;
+                });
+        // A persisted descriptor must not bypass the current shape checks.
+        return concreteInstance(resolved) && accepts.test(resolved) ? resolved : null;
+    }
+
     private void hookImageQuality() {
         try {
-            Method imageQualityMethod = DexSearchEngine.getInstance().findMethodWithCache(
-                    context,
-                    classLoader,
-                    "waex_image_compress_quality",
-                    (bridge, loader) -> {
-                        MethodData md = bridge.findMethod(FindMethod.create()
-                                .matcher(MethodMatcher.create()
-                                        .addUsingString("image/compress quality", StringMatchType.Contains)
-                                )
-                        ).firstOrNull();
-                        return md != null ? md.getMethodInstance(loader) : null;
-                    }
-            );
-
-            if (imageQualityMethod != null) {
-                XposedBridge.hookMethod(imageQualityMethod, new XC_MethodHook() {
-                    @Override
-                    protected void beforeHookedMethod(MethodHookParam param) {
-                        if (isImageQualityMaxEnabled()) {
-                            // Obfuscation has moved the quality argument between releases. The
-                            // matched method is specifically anchored by "image/compress quality",
-                            // so normalize its percentage-like integer argument wherever it sits.
-                            for (int index = 0; index < param.args.length; index++) {
-                                Object argument = param.args[index];
-                                if (argument instanceof Integer) {
-                                    int value = (Integer) argument;
-                                    if (value >= 1 && value <= 100) param.args[index] = 100;
-                                }
-                            }
-                        }
-                    }
-                });
-                XposedBridge.log(TAG + " Installed image encoder quality hook: "
-                        + imageQualityMethod.getDeclaringClass().getName() + "#"
-                        + imageQualityMethod.getName());
-            } else {
-                XposedBridge.log(TAG + " Image encoder quality method not found");
-            }
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + " Error hooking image quality: " + t.getMessage());
+            Method method = uniqueMethod("waex_image_quality_semantic_v3",
+                    "image/compress quality", StringMatchType.Contains,
+                    candidate -> candidate.getReturnType() == void.class
+                            && candidate.getParameterCount() == 1
+                            && candidate.getParameterTypes()[0] == int.class);
+            if (!concreteInstance(method) || installedMethods.contains(method)) return;
+            XposedBridge.hookMethod(method, new XC_MethodHook() {
+                @Override protected void beforeHookedMethod(MethodHookParam param) {
+                    if (!isImageQualityMaxEnabled() || effectiveImageParameters() == null
+                            || param.args == null || param.args.length != 1 || !(param.args[0] instanceof Integer)) return;
+                    int quality = (Integer) param.args[0];
+                    // 0 and negatives can be caller-specific sentinel values, not percentages.
+                    if (quality >= 1 && quality <= 100) param.args[0] = 100;
+                }
+            });
+            installedMethods.add(method);
+        } catch (RuntimeException | LinkageError unavailable) {
+            XposedBridge.log(TAG + " Image quality contract unavailable: "
+                    + unavailable.getClass().getSimpleName());
         }
     }
 
     private void hookVideoQuality() {
         try {
-            Method videoFpsMethod = DexSearchEngine.getInstance().findMethodWithCache(
-                    context,
-                    classLoader,
-                    "waex_video_fps_encoder",
-                    (bridge, loader) -> {
-                        MethodData md = bridge.findMethod(FindMethod.create()
-                                .matcher(MethodMatcher.create()
-                                        .addUsingString("video/encoder fps", StringMatchType.Contains)
-                                )
-                        ).firstOrNull();
-                        return md != null ? md.getMethodInstance(loader) : null;
-                    }
-            );
-
-            if (videoFpsMethod != null && HookReturnTypeGuard.returnsInteger(videoFpsMethod)) {
-                XposedBridge.hookMethod(videoFpsMethod, new XC_MethodHook() {
-                    @Override
-                    protected void afterHookedMethod(MethodHookParam param) {
-                        if (isVideo60FpsEnabled()) {
-                            param.setResult(60); // Force 60 FPS output
-                        }
-                    }
-                });
-            }
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + " Error hooking video quality: " + t.getMessage());
+            Method method = uniqueMethod("waex_video_fps_encoder_v3",
+                    "video/encoder fps", StringMatchType.Contains,
+                    candidate -> candidate.getParameterCount() == 0
+                            && HookReturnTypeGuard.returnsInteger(candidate));
+            if (!concreteInstance(method) || installedMethods.contains(method)) return;
+            XposedBridge.hookMethod(method, new XC_MethodHook() {
+                @Override protected void afterHookedMethod(MethodHookParam param) {
+                    if (!isVideo60FpsEnabled() || param.hasThrowable()
+                            || !(param.getResult() instanceof Integer)) return;
+                    int original = (Integer) param.getResult();
+                    if (original > 0 && original < 60) param.setResult(60);
+                }
+            });
+            installedMethods.add(method);
+        } catch (RuntimeException | LinkageError unavailable) {
+            XposedBridge.log(TAG + " Video FPS contract unavailable: "
+                    + unavailable.getClass().getSimpleName());
         }
+    }
+
+    private void hookQualitySelector() {
+        try {
+            Method method = MediaQualitySelectorContract.resolve(
+                    DexSearchEngine.getInstance().getBridge(), classLoader);
+            if (method == null || installedMethods.contains(method)) return;
+            final Class<?> owner = method.getDeclaringClass();
+            XposedBridge.hookMethod(method, new XC_MethodHook() {
+                @Override protected void afterHookedMethod(MethodHookParam param) {
+                    if (param.hasThrowable() || !(param.getResult() instanceof Boolean)
+                            || param.args == null || param.args.length != 3
+                            || !owner.isInstance(param.args[0])
+                            || !MediaQualitySelectorContract.FLAG.equals(param.args[1])
+                            || !(param.args[2] instanceof Boolean)) return;
+                    // This changes only the requested presentation flag. The
+                    // enclosing gallery predicate still evaluates every later guard.
+                    if (isImageQualityMaxEnabled() || isVideo60FpsEnabled()) param.setResult(true);
+                }
+            });
+            installedMethods.add(method);
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError unavailable) {
+            XposedBridge.log(TAG + " HD flag-reader contract unavailable: "
+                    + unavailable.getClass().getSimpleName());
+        }
+    }
+
+    private static boolean concreteInstance(Method method) {
+        if (method == null) return false;
+        int flags = method.getModifiers();
+        return !Modifier.isAbstract(flags) && !Modifier.isNative(flags)
+                && !Modifier.isStatic(flags) && !method.isBridge() && !method.isSynthetic();
     }
 
     private boolean isImageQualityMaxEnabled() {
