@@ -3,14 +3,13 @@ package com.waenhancer.xposed.features.media;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.media.MediaRecorder;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
 
 import androidx.annotation.NonNull;
 
-import com.waenhancer.xposed.bridge.HookProvider;
+import com.waenhancer.xposed.bridge.client.HookProviderIpc;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.utils.ContactNameResolver;
@@ -40,7 +39,6 @@ import de.robv.android.xposed.XposedHelpers;
 public final class CallRecordingHook extends BaseFeature {
     private static final String TAG = "[WAEX][CallRecording]";
     private static final String ENABLED = "call_recording_enabled";
-    private static final Uri BRIDGE_URI = Uri.parse("content://" + HookProvider.AUTHORITY);
 
     private final AtomicBoolean recording = new AtomicBoolean(false);
     private final ScheduledThreadPoolExecutor worker = createWorker();
@@ -262,8 +260,8 @@ public final class CallRecordingHook extends BaseFeature {
             request.putString("direction", expected.direction);
             request.putString("target_package", context.getPackageName());
             request.putLong("started_at", expected.startedAt);
-            Bundle response = context.getContentResolver().call(
-                    BRIDGE_URI, "create_call_recording", null, request);
+            Bundle response = HookProviderIpc.call(context,
+                    "create_call_recording", null, request);
             if (response == null) throw new IllegalStateException("WAEX storage bridge unavailable");
             destination = Build.VERSION.SDK_INT >= 33
                     ? response.getParcelable("descriptor", ParcelFileDescriptor.class)
@@ -361,8 +359,8 @@ public final class CallRecordingHook extends BaseFeature {
             try {
                 Bundle request = new Bundle();
                 request.putString("name", outputName);
-                context.getContentResolver().call(
-                        BRIDGE_URI, "delete_call_recording", null, request);
+                HookProviderIpc.call(context,
+                        "delete_call_recording", null, request);
             } catch (Throwable ignored) {}
         }
         if (outputCallId != null) {
@@ -371,8 +369,8 @@ public final class CallRecordingHook extends BaseFeature {
                 request.putString("call_id", outputCallId);
                 request.putLong("ended_at", System.currentTimeMillis());
                 request.putBoolean("successful", !deleteInvalid);
-                context.getContentResolver().call(
-                        BRIDGE_URI, "finish_call_recording", null, request);
+                HookProviderIpc.call(context,
+                        "finish_call_recording", null, request);
             } catch (Throwable ignored) {}
         }
         outputPath = null;

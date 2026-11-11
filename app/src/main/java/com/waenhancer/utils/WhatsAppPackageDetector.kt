@@ -9,12 +9,12 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
-import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import com.waenhancer.config.PreferenceStores
+import com.waenhancer.xposed.bridge.client.HookProviderIpc
 import com.waenhancer.xposed.utils.ModuleStatus
 import org.json.JSONArray
 import java.io.File
@@ -82,13 +82,12 @@ object WhatsAppPackageDetector {
     fun registerHookedPackage(context: Context, packageName: String) {
         // 1. Cross-process IPC to WAEX HookProvider
         try {
-            val uri = Uri.parse("content://com.waenhancer.hookprovider")
             val extras = Bundle().apply {
                 putString("package", packageName)
                 putLong("timestamp", System.currentTimeMillis())
                 putInt("boot_count", currentBootCount(context))
             }
-            context.contentResolver.call(uri, "register_hooked_package", packageName, extras)
+            HookProviderIpc.call(context, "register_hooked_package", packageName, extras)
         } catch (_: Throwable) {}
 
         // 2. Broadcast to WAEX process
@@ -133,8 +132,8 @@ object WhatsAppPackageDetector {
                 putLong("timestamp", System.currentTimeMillis())
                 putInt("boot_count", currentBootCount(context))
             }
-            accepted = context.contentResolver.call(
-                Uri.parse("content://com.waenhancer.hookprovider"),
+            accepted = HookProviderIpc.call(
+                context,
                 "report_runtime_health",
                 packageName,
                 extras

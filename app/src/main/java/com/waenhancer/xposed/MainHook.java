@@ -10,7 +10,6 @@ import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -27,6 +26,7 @@ import com.waenhancer.config.PreferenceStores;
 import com.waenhancer.licensing.customprops.CustomAbPropsRuntime;
 import com.waenhancer.utils.UiText;
 import com.waenhancer.utils.WhatsAppPackageDetector;
+import com.waenhancer.xposed.bridge.client.HookProviderIpc;
 import com.waenhancer.xposed.bridge.client.PreferenceBridgeClient;
 import com.waenhancer.xposed.core.FeatureRegistry;
 import com.waenhancer.xposed.core.RestartPromptController;
@@ -377,8 +377,7 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                 }
                 reportTargetRuntime(appContext, packageName, "INJECTED", "PENDING", null);
                 try {
-                    appContext.getContentResolver().call(
-                            Uri.parse("content://com.waenhancer.hookprovider"),
+                    HookProviderIpc.call(appContext,
                             "request_update_check", packageName, null);
                 } catch (Throwable ignored) {}
 
