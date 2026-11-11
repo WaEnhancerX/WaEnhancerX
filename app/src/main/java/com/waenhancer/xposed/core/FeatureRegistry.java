@@ -695,7 +695,7 @@ public final class FeatureRegistry {
     }
 
     private void disposeLazyEntry(FeatureEntry entry, @NonNull Activity activity) {
-        if (entry.installation == Installation.STARTUP) return;
+        if (entry.installation == Installation.STARTUP || HookingModePolicy.COMPATIBILITY.equals(hookingMode)) return;
         synchronized (entry) {
             BaseFeature feature = entry.feature;
             if (feature == null) return;
