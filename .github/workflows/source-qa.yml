@@ -49,6 +49,27 @@ jobs:
           fi
           kotlinc -version
 
+      - name: Verify call-blocking opt-out and target-switch contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_call_privacy_optout.py --out "$RUNNER_TEMP/call-privacy-optout"
+          python3 qa/mutate_call_privacy_optout.py --out "$RUNNER_TEMP/call-privacy-optout-mutants"
+
+      - name: Preserve call-blocking opt-out evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: call-privacy-optout-evidence
+          path: |
+            ${{ runner.temp }}/call-privacy-optout/*.json
+            ${{ runner.temp }}/call-privacy-optout/*.log
+            ${{ runner.temp }}/call-privacy-optout/*.kt
+            ${{ runner.temp }}/call-privacy-optout-mutants/**/*.json
+            ${{ runner.temp }}/call-privacy-optout-mutants/**/*.log
+          retention-days: 14
+          if-no-files-found: error
+
       - name: Verify bounded Maven dependency recovery
         shell: bash
         run: |
