@@ -2,6 +2,7 @@
 
 
 [Fixes]
+- Fixed call recording toggle to respect on/off states of individual apps.
 
 
 [Improvements]
