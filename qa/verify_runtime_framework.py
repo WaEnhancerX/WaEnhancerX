@@ -61,8 +61,10 @@ class RuntimeResourcesTest {
    assertEquals(D.BUILTIN_RULE,UniversalVersionValidator.evaluate(module,"2.26.40.76",null))
    assertEquals(D.BUILTIN_RULE,UniversalVersionValidator.evaluate(host(module),"2.26.40.76",null))
    assertEquals(D.UNSUPPORTED,UniversalVersionValidator.evaluate(host(module),"99.99.99.99",null))
-   assertEquals(D.BUILTIN_RULE,UniversalVersionValidator.evaluate(host(module,false),"2.26.40.76",null))
-   assertEquals(D.UNSUPPORTED,UniversalVersionValidator.evaluate(host(module,false),"99.99.99.99",null))
+   // A hidden module is not the owner of any readable version-rule table.
+   // Missing rules must remain distinguishable from an actual version mismatch.
+   assertEquals(D.RULES_UNAVAILABLE,UniversalVersionValidator.evaluate(host(module,false),"2.26.40.76",null))
+   assertEquals(D.RULES_UNAVAILABLE,UniversalVersionValidator.evaluate(host(module,false),"99.99.99.99",null))
    contexts++
   }
   println("PASSED $contexts real compiled-resource contexts; host visibility wrappers, not HMA")
@@ -82,16 +84,21 @@ class RuntimeResourcesTest {
   val misleading=object:ContextWrapper(application){
    override fun getPackageName()="com.waenhancer"
   }
-  assertEquals(D.UNSUPPORTED,UniversalVersionValidator.evaluate(misleading,"9.99.1",null))
-  assertEquals(D.BUILTIN_RULE,UniversalVersionValidator.evaluate(misleading,"2.26.40.76",null))
+  // Neither the foreign fixture's numeric ID nor its resource owner can
+  // authorize a host: this is unavailable, not a known rejected rule.
+  assertEquals(D.RULES_UNAVAILABLE,UniversalVersionValidator.evaluate(misleading,"9.99.1",null))
+  assertEquals(D.RULES_UNAVAILABLE,UniversalVersionValidator.evaluate(misleading,"2.26.40.76",null))
  }
  @Test fun explicitPermissionsRemainDistinct(){
   val p=RuntimeEnvironment.getApplication().getSharedPreferences("explicit-test",0)
   val hidden=host(resourceContext("release","es-CL"),false)
   assertTrue(p.edit().clear().putBoolean("customize_supported_versions",true).putStringSet("custom_supported_versions",setOf("9.99.1")).commit())
   assertEquals(D.CUSTOM_RULE,UniversalVersionValidator.evaluate(hidden,"9.99.1",p))
-  assertEquals(D.UNSUPPORTED,UniversalVersionValidator.evaluate(hidden,"9.99.2",p))
-  assertEquals(D.BUILTIN_RULE,UniversalVersionValidator.evaluate(hidden,"2.26.40.76",p))
+  assertEquals(D.RULES_UNAVAILABLE,UniversalVersionValidator.evaluate(hidden,"9.99.2",p))
+  assertEquals(D.RULES_UNAVAILABLE,UniversalVersionValidator.evaluate(hidden,"2.26.40.76",p))
+  val visible=host(resourceContext("release","es-CL"))
+  assertEquals(D.BUILTIN_RULE,UniversalVersionValidator.evaluate(visible,"2.26.40.76",p))
+  assertEquals(D.UNSUPPORTED,UniversalVersionValidator.evaluate(visible,"9.99.2",p))
   assertTrue(p.edit().putBoolean("bypass_version_check",true).commit())
   assertEquals(D.EXPLICIT_BYPASS,UniversalVersionValidator.evaluate(hidden,"99.99.99.99",p))
  }
@@ -112,12 +119,18 @@ class RuntimeResourcesTest {
 '''
 
 def main():
- ap=argparse.ArgumentParser();ap.add_argument('--root',type=Path,default=Path.cwd());ap.add_argument('--out',type=Path,required=True);a=ap.parse_args()
+ ap=argparse.ArgumentParser();ap.add_argument('--root',type=Path,default=Path.cwd());ap.add_argument('--out',type=Path,required=True)
+ ap.add_argument('--public-apk-cache',type=Path,help='Optional directory containing hash-verified 2.0.3 debug.apk and release.apk')
+ a=ap.parse_args()
  root=a.root.resolve();out=a.out.resolve();out.mkdir(parents=True,exist_ok=False);e=out/'evidence';e.mkdir();project=out/'fixture';project.mkdir();apks=out/'apks';apks.mkdir()
  pins={'debug':'c4531d92851c5f251614e8af822f340737981adeb7128341463f8897e3d42114','release':'f19d64239b493785b48540dce068a32a295f33bd33b18e48b46d168896c4ac0f'}
  for variant,digest in pins.items():
-  url=f'https://github.com/WaEnhancerX/WaEnhancerX/releases/download/2.0.3/WaEnhancerX-v2.0.3_{variant}.apk'
-  with urllib.request.urlopen(url,timeout=60) as response:data=response.read(64*1024*1024+1)
+  if a.public_apk_cache:
+   source=a.public_apk_cache.resolve(strict=True)/(variant+'.apk')
+   with source.open('rb') as handle:data=handle.read(64*1024*1024+1)
+  else:
+   url=f'https://github.com/WaEnhancerX/WaEnhancerX/releases/download/2.0.3/WaEnhancerX-v2.0.3_{variant}.apk'
+   with urllib.request.urlopen(url,timeout=60) as response:data=response.read(64*1024*1024+1)
   if hashlib.sha256(data).hexdigest()!=digest:raise ValueError('Public APK changed; do not use stale acceptance: '+variant)
   (apks/(variant+'.apk')).write_bytes(data)
  v=tomllib.loads((root/'gradle/libs.versions.toml').read_text())['versions']
@@ -149,13 +162,18 @@ dependencies {
  testImplementation("junit:junit:4.13.2")
 }
 '''
- for key,val in {'AGP':v['androidGradlePlugin'],'KOTLIN':v['kotlin'],'BOM':v['androidxComposeBom'],'LIFE':v['androidxLifecycle'],'CORO':v['coroutines'],'APKS':str(apks)}.items():build=build.replace(key,val)
+ # Windows backslashes are escape characters in generated Kotlin DSL strings.
+ # Forward slashes remain valid filesystem paths for the Java test process.
+ for key,val in {'AGP':v['androidGradlePlugin'],'KOTLIN':v['kotlin'],'BOM':v['androidxComposeBom'],'LIFE':v['androidxLifecycle'],'CORO':v['coroutines'],'APKS':apks.as_posix()}.items():build=build.replace(key,val)
  (probe/'build.gradle.kts').write_text(build)
  def write(path,text):
   p=probe/path;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(text)
  identities={}
  # Compile all of these source files unchanged; unrelated private services are test doubles.
- files=['utils/UniversalVersionValidator.kt','utils/WhatsAppPackageDetector.kt','utils/XposedRuntimeInspector.kt','utils/InjectionEvidence.kt','utils/TargetRuntimePresentation.kt','ui/components/RuntimeObservationClock.kt','xposed/core/VersionGuard.kt']
+ # The real detector's signature and fail-closed scope path reference both
+ # LsposedScopeReader and LsposedScopeSnapshot. Compile their production source
+ # instead of substituting a scope-always-true test double.
+ files=['utils/UniversalVersionValidator.kt','utils/WhatsAppPackageDetector.kt','utils/LsposedScopeReader.kt','utils/XposedRuntimeInspector.kt','utils/InjectionEvidence.kt','utils/TargetRuntimePresentation.kt','ui/components/RuntimeObservationClock.kt','xposed/core/VersionGuard.kt']
  if (root/'app/src/main/java/com/waenhancer/utils/DeclaredWhatsAppTargets.java').exists():files+=['utils/DeclaredWhatsAppTargets.java']
  for name in files:
   p=root/'app/src/main/java/com/waenhancer'/name
@@ -186,7 +204,7 @@ class WaexBottomSheet(a:Activity){fun setTitle(s:String)=this;fun setMessage(s:S
  localized = stage_localization(root, probe, identities)
  if localized:
   locale_apk = build_localization_table(root, out/'locale-table')
-  build += '\ntasks.withType<Test>().configureEach { systemProperty("waex.locale.apk", "'+str(locale_apk)+'") }\n'
+  build += '\ntasks.withType<Test>().configureEach { systemProperty("waex.locale.apk", "'+locale_apk.as_posix()+'") }\n'
   (probe/'build.gradle.kts').write_text(build)
   fixture=root/'qa/fixtures/LocalizationResourcesTest.kt'
   write('src/test/java/com/waenhancer/utils/LocalizationResourcesTest.kt',fixture.read_text())
@@ -195,7 +213,12 @@ class WaexBottomSheet(a:Activity){fun setTitle(s:String)=this;fun setMessage(s:S
  write('src/test/java/com/waenhancer/utils/RuntimeResourcesTest.kt',TEST)
  identities['fixture/RuntimeResourcesTest.kt']=hashlib.sha256(TEST.encode()).hexdigest()
  (e/'source-sha256.json').write_text(json.dumps(identities,indent=2));(e/'RuntimeResourcesTest.kt').write_text(TEST);(e/'build.gradle.kts').write_text(build)
- cmd=['bash',str(root/'gradlew'),'-p',str(project),'--no-daemon',':probe:testDebugUnitTest']
+ # On Windows, CreateProcess may resolve System32 WSL bash instead of Git Bash
+ # unless the selected executable is passed explicitly. Use forward slashes for
+ # gradlew's APP_HOME/dirname calculation on both platforms.
+ bash=shutil.which('bash')
+ if not bash:raise RuntimeError('Compatible bash executable required for Gradle wrapper')
+ cmd=[bash,(root/'gradlew').as_posix(),'-p',str(project),'--no-daemon',':probe:testDebugUnitTest']
  with (e/'framework-build.log').open('w') as log:
   result=subprocess.run(cmd,stdout=log,stderr=subprocess.STDOUT,timeout=720)
  for p in (probe/'build/test-results/testDebugUnitTest').glob('*.xml'):shutil.copy2(p,e/p.name)
