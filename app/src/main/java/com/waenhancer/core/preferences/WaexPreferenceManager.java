@@ -151,7 +151,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
 
     @Override
     public void putBoolean(String key, boolean value) {
-        getStore(key).edit().putBoolean(key(key), value).commit();
+        if (!getStore(key).edit().putBoolean(key(key), value).commit()) return;
         if (isPublicStore(key)) {
             PreferenceRestartTracker.onPreferenceChanged(PreferenceStores.publicStore(context), key(key));
             notifyChange();
@@ -219,7 +219,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
 
     @Override
     public void putString(String key, String value) {
-        getStore(key).edit().putString(key(key), value).commit();
+        if (!getStore(key).edit().putString(key(key), value).commit()) return;
         if (isPublicStore(key)) {
             PreferenceRestartTracker.onPreferenceChanged(PreferenceStores.publicStore(context), key(key));
             notifyChange();
@@ -283,7 +283,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
     }
 
     public void putStringSet(String key, Set<String> value) {
-        getStore(key).edit().putStringSet(key(key), new LinkedHashSet<>(value)).commit();
+        if (!getStore(key).edit().putStringSet(key(key), new LinkedHashSet<>(value)).commit()) return;
         if (isPublicStore(key)) {
             PreferenceRestartTracker.onPreferenceChanged(PreferenceStores.publicStore(context), key(key));
             notifyChange();
@@ -295,7 +295,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
     }
 
     public void putInt(String key, int value) {
-        getStore(key).edit().putInt(key(key), value).commit();
+        if (!getStore(key).edit().putInt(key(key), value).commit()) return;
         if (isPublicStore(key)) {
             PreferenceRestartTracker.onPreferenceChanged(PreferenceStores.publicStore(context), key(key));
             notifyChange();
@@ -307,7 +307,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
     }
 
     public void putFloat(String key, float value) {
-        getStore(key).edit().putFloat(key(key), value).commit();
+        if (!getStore(key).edit().putFloat(key(key), value).commit()) return;
         if (isPublicStore(key)) {
             PreferenceRestartTracker.onPreferenceChanged(PreferenceStores.publicStore(context), key(key));
             notifyChange();
@@ -315,8 +315,9 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
     }
 
     public void remove(String key) {
-        getStore(key).edit().remove(key(key)).commit();
+        if (!getStore(key).edit().remove(key(key)).commit()) return;
         if (isPublicStore(key)) {
+            PreferenceRestartTracker.onPreferenceChanged(PreferenceStores.publicStore(context), key(key));
             notifyChange();
         }
     }

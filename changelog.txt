@@ -1,52 +1,14 @@
 [Added]
-- Added support for versions upto 2.26.45.xx
-- Parallel Downloading: Multi-connection acceleration for downloading large photos, videos, and documents
-- Custom A/B Props support: Override WhatsApp AB properties
-- Search bar style
-- AI audio transcription with multiple models (Offline + Custom API)
-- Custom Timestamp
-- Device Default Emojis: Use device default system emojis (iOS, Samsung, Google) instead of WhatsApp's built-in emojis in both WhatsApp and WhatsApp Business
-- Config Mode: Universal, Target App Specific 
+
 
 [Fixes]
-- Fixed Unread chats counter not showing on Groups tab in latest version
-- Fixed Status tabs indicator position
-- Fixed Delete for me message deletion delay
-- Other privacy and performance bug fixes
+- Fixed call recording toggle to respect on/off states of individual apps.
+- Fixed incorrect behaviour of some features being in Waiting state in max mode.
 
 [Improvements]
-- Improved Module Status and Target App detection
-- Improved Restart WhatsApp button to not turn on Auto Rotate.
-- Send original quality images and videos
-- Improved Call Recording Module [Under Development]:
-    • Record calls from multiple WhatsApp variants
-    • Save calls from any WhatsApp with call recording support
-    • Link to original contacts and apps
-    • Improved UI
-    • More reliable detection
-- Improved module's UI
-- Improved chats pin logic
+- Improved Message Device Source
+- Improved WhatsApp startup
 
-
-[Feature: AI Audio Transcription]
-- Local whisper models (Offline)
-- Custom API support (Web API)
-- Multiple models support
-- Download models locally
-
-[Feature: Custom Timestamp]
-- Preset time formats (HH:mm a, HH:mm:ss, HH:mm:ss.SSS, h:mm:ss a, h:mm:ss.SSS a)
-- Custom format patterns supporting date and time
-- Modify timestamp text with ${t} variable
-- Live preview for custom patterns and text templates
-
-[Feature: Config Mode]
-- Universal mode for sharing one configuration across all supported target apps.
-- Target App Specific mode for independent WhatsApp and WhatsApp Business preferences.
-- On first use, a target app inherits the current universal preferences as its starting configuration.
-- Existing target-app values are preserved when switching between universal and target-specific modes.
-- Newly scoped or installed target apps inherit universal values without pre-creating keys for every app.
-- Switching target apps in the settings UI refreshes preference controls while preserving the current tab and scroll position.
 
 [Community contribution]
-- Thanks to @Tttim0o for valuable contributions in audio transcription.
+- Thanks to TheKillerMax, @Tttim0o for valuable contributions.

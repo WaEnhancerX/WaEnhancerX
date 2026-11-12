@@ -73,7 +73,7 @@ with tempfile.TemporaryDirectory(prefix='waex_string_scope_') as temp:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding='utf-8')
     classes = work / 'classes'; classes.mkdir()
-    subprocess.run(['javac', '-Xlint:unchecked', '-d', str(classes),
+    subprocess.run(['javac', '--release', '17', '-Xlint:unchecked', '-d', str(classes),
                     *map(str, sorted(work.rglob('*.java'))), *map(str, sources),
                     str(HERE / 'java/PreferenceManagerStringScopeChecks.java')], check=True)
     subprocess.run(['java', '-cp', str(classes), 'test.PreferenceManagerStringScopeChecks'], check=True)
