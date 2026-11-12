@@ -12,7 +12,7 @@ import android.os.ParcelFileDescriptor;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -23,6 +23,7 @@ import com.waenhancer.config.PreferenceRestartTracker;
 import com.waenhancer.config.PreferenceSchema;
 import com.waenhancer.calls.CallRecordingRecord;
 import com.waenhancer.calls.CallRecordingStore;
+import com.waenhancer.calls.RecordingOutputFiles;
 import com.waenhancer.core.transcription.TranscriptionRequestHandler;
 import com.waenhancer.licensing.LicenseManager;
 import com.waenhancer.licensing.ProFeatureGate;
@@ -90,19 +91,22 @@ public class HookProvider extends ContentProvider {
             if ("create_call_recording".equals(method)) {
                 if (extras == null) return null;
                 String requestedName = extras.getString("name", "Call.m4a");
-                String safeName = requestedName.replaceAll("[^A-Za-z0-9._-]", "_");
-                if (safeName.isEmpty()) safeName = "Call.m4a";
+                String safeName = RecordingOutputFiles.safeName(requestedName);
+                if (safeName == null) return null;
                 File base = context.getExternalFilesDir(null);
                 if (base == null) base = context.getFilesDir();
                 File directory = new File(base, "CallRecordings");
-                if (!directory.exists() && !directory.mkdirs()) return null;
-                File output = new File(directory, safeName);
+                final File output;
                 try {
-                    ParcelFileDescriptor descriptor = ParcelFileDescriptor.open(
-                            output,
-                            ParcelFileDescriptor.MODE_CREATE
-                                    | ParcelFileDescriptor.MODE_TRUNCATE
-                                    | ParcelFileDescriptor.MODE_READ_WRITE);
+                    output = RecordingOutputFiles.reserve(directory, safeName);
+                } catch (IOException ignored) {
+                    return null;
+                }
+                if (output == null) return null;
+                ParcelFileDescriptor descriptor = null;
+                try {
+                    // Only open the file exclusively created above; never truncate it.
+                    descriptor = ParcelFileDescriptor.open(output, ParcelFileDescriptor.MODE_READ_WRITE);
                     Bundle result = new Bundle();
                     result.putParcelable("descriptor", descriptor);
                     result.putString("path", output.getAbsolutePath());
@@ -120,7 +124,12 @@ public class HookProvider extends ContentProvider {
                                 "recording"));
                     }
                     return result;
-                } catch (FileNotFoundException ignored) {
+                } catch (IOException | RuntimeException ignored) {
+                    // Do not leave an orphaned empty file if opening or indexing fails.
+                    if (descriptor != null) {
+                        try { descriptor.close(); } catch (IOException closeFailure) { /* best effort */ }
+                    }
+                    output.delete();
                     return null;
                 }
             }
@@ -139,11 +148,15 @@ public class HookProvider extends ContentProvider {
             if ("delete_call_recording".equals(method)) {
                 if (extras == null) return null;
                 String requestedName = extras.getString("name", "");
-                String safeName = requestedName.replaceAll("[^A-Za-z0-9._-]", "_");
+                String safeName = RecordingOutputFiles.safeName(requestedName);
+                if (safeName == null) {
+                    Bundle result = new Bundle();
+                    result.putBoolean("deleted", false);
+                    return result;
+                }
                 File base = context.getExternalFilesDir(null);
                 if (base == null) base = context.getFilesDir();
-                boolean deleted = !safeName.isEmpty()
-                        && new File(new File(base, "CallRecordings"), safeName).delete();
+                boolean deleted = new File(new File(base, "CallRecordings"), safeName).delete();
                 String path = new File(new File(base, "CallRecordings"), safeName).getAbsolutePath();
                 CallRecordingStore.get(context).deleteByPath(path);
                 Bundle result = new Bundle();

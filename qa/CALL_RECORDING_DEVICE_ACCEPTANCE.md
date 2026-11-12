@@ -46,6 +46,14 @@ consenting participants and the normal module permissions/settings.
    microphone, wired/Bluetooth routes and speakerphone separately. Confirm
    what is actually audible in the file; successful `MediaRecorder.start()`
    does not establish that both participants were captured.
+10. With authorized test accounts and a legitimate candidate APK, exercise two
+    recording sessions whose requested timestamps fall in the same second (or
+    use an isolated, authenticated provider harness to force the collision).
+    Verify distinct saved paths, intact audio/metadata for both sessions and
+    correct playback. Re-requesting the *same* filename must fail without
+    truncating or deleting its existing bytes. Check this in personal and work
+    profiles where the manager/provider bridge is available. A successful
+    standalone file-allocation test does not replace this provider acceptance.
 
 ## Audio-source limitation
 

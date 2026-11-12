@@ -16,19 +16,30 @@ public class RecorderCleanupProbe {
  static final String TAG="[probe]", BRIDGE_URI="fixture";
  final AtomicBoolean recording=new AtomicBoolean(false);
  MediaRecorder recorder; ParcelFileDescriptor destination;
- String outputPath,outputName; Context context=new Context();
+ String outputPath,outputName,outputCallId; Context context=new Context();
  static class MediaRecorder {
   boolean throwsOnStop,throwsOnRelease;int stops,releases,resets;
   void stop(){stops++;if(throwsOnStop)throw new RuntimeException("controlled stop failure");}
   void reset(){resets++;}void release(){releases++;if(throwsOnRelease)throw new IllegalStateException("release failed");}
  }
  static class ParcelFileDescriptor {int closes;void close(){closes++;}}
- static class Bundle {void putString(String k,String v){}}
- static class Context {int deletes;Context getContentResolver(){return this;}Object call(String u,String op,String arg,Bundle b){if("delete_call_recording".equals(op))deletes++;return null;}}
+ static class Bundle {java.util.Map<String,Object> values=new java.util.HashMap<>();
+  void putString(String k,String v){values.put(k,v);} void putLong(String k,long v){values.put(k,v);}
+  void putBoolean(String k,boolean v){values.put(k,v);}}
+ static class Context {int deletes,finishes;Boolean success;Context getContentResolver(){return this;}
+  Object call(String u,String op,String arg,Bundle b){
+   if("delete_call_recording".equals(op)){deletes++;return null;}
+   if("finish_call_recording".equals(op)){
+    if(!"fixture-call".equals(b.values.get("call_id")) || !(b.values.get("ended_at") instanceof Long))
+      throw new AssertionError("Invalid recording completion metadata");
+    finishes++;success=(Boolean)b.values.get("successful");return null;
+   }
+   throw new AssertionError("Unexpected recorder IPC: "+op);
+  }}
  static class XposedBridge {static void log(String s){}}
  BODY
  static RecorderCleanupProbe fixture(boolean stopFails){
-  RecorderCleanupProbe p=new RecorderCleanupProbe();p.recording.set(true);p.recorder=new MediaRecorder();p.recorder.throwsOnStop=stopFails;p.destination=new ParcelFileDescriptor();p.outputPath="fixture/call.m4a";p.outputName="call.m4a";return p;
+  RecorderCleanupProbe p=new RecorderCleanupProbe();p.recording.set(true);p.recorder=new MediaRecorder();p.recorder.throwsOnStop=stopFails;p.destination=new ParcelFileDescriptor();p.outputPath="fixture/call.m4a";p.outputName="call.m4a";p.outputCallId="fixture-call";return p;
  }
  public static void main(String[] args){
   for(boolean failure:new boolean[]{false,true}){
@@ -39,15 +50,17 @@ public class RecorderCleanupProbe {
    if(r.releases!=1)throw new AssertionError("release omitted on stop failure");
    if(!failure && r.releases!=1)throw new AssertionError("success control failed");
    if(p.context.deletes!=(failure?1:0))throw new AssertionError("unexpected deletion");
+   if(p.context.finishes!=1||!Boolean.valueOf(!failure).equals(p.context.success))
+    throw new AssertionError("recording completion notification omitted or incorrect");
   }
   for(int i=0;i<2000;i++){
    RecorderCleanupProbe x=fixture(i%2==0);MediaRecorder rr=x.recorder;rr.throwsOnRelease=i%3==0;ParcelFileDescriptor dd=x.destination;
    x.stopRecorder("cycle");x.stopRecorder("duplicate");
-   if(rr.releases!=1||rr.stops!=1||dd.closes!=1||x.recorder!=null||x.destination!=null)throw new AssertionError("cleanup cycle "+i);
+   if(rr.releases!=1||rr.stops!=1||dd.closes!=1||x.recorder!=null||x.destination!=null||x.context.finishes!=1)throw new AssertionError("cleanup cycle "+i);
   }
   RecorderCleanupProbe direct=fixture(false);MediaRecorder r=direct.recorder;direct.releaseRecorder(false);if(r.releases!=1||r.resets!=1)throw new AssertionError("release helper control failed");
   RecorderCleanupProbe inactive=fixture(false);r=inactive.recorder;inactive.recording.set(false);inactive.stopRecorder("inactive");if(r.stops!=0||r.releases!=0)throw new AssertionError("inactive control failed");
-  System.out.println("COMPILE_OK; PASS: cleanup after stop/release failures, success/helper/inactive controls and 2000 repeated cycles. No microphone, Android media server, root or real recording.");
+  System.out.println("COMPILE_OK; PASS: cleanup, once-only completion metadata, stop/release failure, success/helper/inactive controls and 2000 repeated cycles. No microphone, Android media server, root or real recording.");
  }
 }
 '''.replace('BODY','\n'.join(parts))
