@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="diag_capture_title">Optional support diagnostics</string>
+    <string name="diag_capture_description">When enabled, WAEX saves its own crash types and limited WhatsApp hook startup status reports for up to 7 days (maximum 1.75 MiB). It never collects chats, contacts, media, message IDs, passwords, raw logcat or WhatsApp crash stacks. It does not monitor in the background.</string>
+    <string name="diag_capture_enable">Record support diagnostics</string>
+    <string name="diag_capture_share">Share diagnostic ZIP to Telegram</string>
+    <string name="diag_capture_clear">Delete saved diagnostics</string>
+    <string name="diag_capture_consent">A ZIP stays on this device until you choose a receiving app, select the developer group in Telegram and confirm Send. Review the report first; nothing is uploaded automatically.</string>
+    <string name="diag_capture_no_events">No diagnostic events are available yet.</string>
+    <string name="diag_capture_export_failed">Could not prepare the diagnostic report. Check free storage and try again.</string>
+    <string name="diag_capture_share_failed">No app accepted the diagnostic share. You can use another app from the Android share sheet.</string>
+    <string name="diag_capture_pref_failed">Could not save the diagnostic setting.</string>
+    <string name="diag_capture_confirm_clear_title">Delete recorded diagnostics?</string>
+    <string name="diag_capture_confirm_clear_body">This removes locally recorded diagnostic events and previously generated ZIP copies. It does not delete any report you already sent.</string>
+    <string name="diag_capture_cancel">Cancel</string>
+    <string name="diag_capture_confirm">Delete</string>
+    <string name="diag_capture_cleared">Local diagnostics deleted.</string>
+    <string name="diag_capture_share_chooser">Choose Telegram to share WAEX diagnostics</string>
+</resources>

@@ -30,6 +30,7 @@ import com.waenhancer.licensing.features.BootloaderSpooferFeature;
 import com.waenhancer.xposed.core.db.PreservedMessageStore;
 import com.waenhancer.update.UpdateCheckCoordinator;
 import com.waenhancer.utils.WhatsAppPackageDetector;
+import com.waenhancer.utils.DiagnosticsRecorder;
 import com.waenhancer.xposed.utils.AppRestartHelper;
 
 /**
@@ -193,6 +194,8 @@ public class HookProvider extends ContentProvider {
                     else editor.putString("runtime_error_" + pkg, error);
                     boolean committed = editor.commit();
                     if (committed) {
+                        DiagnosticsRecorder.recordHookHealth(context, pkg, runtimeStatus,
+                                bridgeStatus, error != null);
                         context.getContentResolver().notifyChange(
                                 Uri.parse("content://" + AUTHORITY + "/runtime_health"), null);
                         context.getContentResolver().notifyChange(

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="diag_capture_title">Diagnósticos de soporte opcionales</string>
+    <string name="diag_capture_description">Al activarlo, WAEX guarda tipos de fallos propios y estados limitados de inicio de hooks de WhatsApp durante un máximo de 7 días (1,75 MiB). No recopila chats, contactos, multimedia, identificadores de mensajes, contraseñas, logcat completo ni fallos internos de WhatsApp. No supervisa en segundo plano.</string>
+    <string name="diag_capture_enable">Registrar diagnósticos de soporte</string>
+    <string name="diag_capture_share">Compartir ZIP de diagnóstico por Telegram</string>
+    <string name="diag_capture_clear">Eliminar diagnósticos guardados</string>
+    <string name="diag_capture_consent">El ZIP permanece en este dispositivo hasta que eliges una aplicación, seleccionas el grupo de desarrolladores en Telegram y confirmas el envío. Revisa el informe antes; nada se sube automáticamente.</string>
+    <string name="diag_capture_no_events">Todavía no hay eventos de diagnóstico disponibles.</string>
+    <string name="diag_capture_export_failed">No se pudo preparar el informe. Comprueba el espacio libre e inténtalo de nuevo.</string>
+    <string name="diag_capture_share_failed">Ninguna aplicación pudo recibir el archivo. Puedes elegir otra desde el menú de Android.</string>
+    <string name="diag_capture_pref_failed">No se pudo guardar el ajuste de diagnóstico.</string>
+    <string name="diag_capture_confirm_clear_title">¿Eliminar los diagnósticos registrados?</string>
+    <string name="diag_capture_confirm_clear_body">Se borrarán los eventos locales y las copias ZIP generadas anteriormente. No se borrarán los informes ya enviados.</string>
+    <string name="diag_capture_cancel">Cancelar</string>
+    <string name="diag_capture_confirm">Eliminar</string>
+    <string name="diag_capture_cleared">Diagnósticos locales eliminados.</string>
+    <string name="diag_capture_share_chooser">Elige Telegram para compartir diagnósticos de WAEX</string>
+</resources>
