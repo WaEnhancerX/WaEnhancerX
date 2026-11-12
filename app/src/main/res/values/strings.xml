@@ -189,6 +189,8 @@
     <string name="feat_removeforwardlimit_desc">Remove forward limit for 5 chats (normal) and 1 chat (multiple times)</string>
     <string name="feat_sticker_confirm_alert_title">Confirmation Before Sending Sticker</string>
     <string name="feat_sticker_confirm_alert_desc">Show a dialog before sending the sticker</string>
+    <string name="feat_remove_sticker_white_outline_title">Remove Sticker White Outline</string>
+    <string name="feat_remove_sticker_white_outline_desc">Remove the white border WhatsApp adds when you create a sticker</string>
     <string name="feat_stamp_copied_message_title">Remove Stamp from Copied Messages</string>
     <string name="feat_stamp_copied_message_desc">Removes name and date when copying more than one message</string>
     <string name="feat_doubletap2like_title">Enable Double Click to React</string>

@@ -37,6 +37,7 @@ import com.waenhancer.xposed.features.conversation.MessageDeviceSourceHook;
 import com.waenhancer.xposed.features.conversation.MinorFixesHook;
 import com.waenhancer.xposed.features.conversation.PreserveDeleteForMeHook;
 import com.waenhancer.xposed.features.conversation.StickerConfirmHook;
+import com.waenhancer.xposed.features.conversation.StickerOutlineHook;
 import com.waenhancer.xposed.features.customization.ChannelRecommendationsFilterHook;
 import com.waenhancer.xposed.features.customization.ChatFilterDisplayHook;
 import com.waenhancer.xposed.features.customization.CustomDpiHook;
@@ -309,6 +310,10 @@ public final class FeatureRegistry {
         registerFeature(StickerConfirmHook.class, "Conversation",
                 () -> prefs.getBoolean("sticker_confirm_alert", false),
                 () -> new StickerConfirmHook(context, classLoader, prefs));
+
+        registerFeature(StickerOutlineHook.class, "Conversation",
+                () -> prefs.getBoolean(StickerOutlineHook.PREF_KEY, false),
+                () -> new StickerOutlineHook(context, classLoader, prefs));
 
         registerFeature(JumpFirstMessageHook.class, "Conversation",
                 () -> prefs.getBoolean("jump_to_first_message", false),

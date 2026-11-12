@@ -357,6 +357,7 @@ public final class PreferenceSchema {
         add(entries, "remove_status_quick_reactions", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "removechannel_rec", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "removeforwardlimit", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "remove_sticker_white_outline", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "removeseemore", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "repo_stats_json", Type.STRING, Sensitivity.CACHE, Store.PRIVATE);
         add(entries, "repo_stats_time", Type.LONG, Sensitivity.CACHE, Store.PRIVATE);
