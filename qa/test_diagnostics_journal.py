@@ -17,6 +17,8 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 JOURNAL = ROOT / "app/src/main/java/com/waenhancer/utils/DiagnosticsJournal.java"
 CRASH_HANDLER = ROOT / "app/src/main/java/com/waenhancer/utils/DiagnosticsCrashHandler.java"
+SNAPSHOT = ROOT / "app/src/main/java/com/waenhancer/utils/DiagnosticsSnapshot.java"
+HEALTH_GATE = ROOT / "app/src/main/java/com/waenhancer/utils/DiagnosticsHealthGate.java"
 TARGETS = ROOT / "app/src/main/java/com/waenhancer/utils/DeclaredWhatsAppTargets.java"
 SCHEMA = ROOT / "app/src/main/java/com/waenhancer/config/PreferenceSchema.java"
 HARNESS = ROOT / "qa/fixtures/DiagnosticsJournalSelfTest.java"
@@ -27,16 +29,19 @@ def run_once(javac: str, java: str, work: Path, mutate: bool) -> subprocess.Comp
     source.mkdir(parents=True)
     content = JOURNAL.read_text(encoding="utf-8")
     if mutate:
-        needle = "!DeclaredWhatsAppTargets.contains(target)"
+        needle = ("!DeclaredWhatsAppTargets.contains(target)\n"
+                  "                || !RUNTIME_STATUSES.contains(runtime)")
         if content.count(needle) != 1:
             raise AssertionError("Negative control injection point changed")
-        content = content.replace(needle, "false")
+        content = content.replace(needle, "false\n"
+                                  "                || !RUNTIME_STATUSES.contains(runtime)")
     (source / "DiagnosticsJournal.java").write_text(content, encoding="utf-8")
     classes = work / "classes"
     classes.mkdir()
     build = subprocess.run(
         [javac, "--release", "17", "-d", str(classes),
-         str(source / "DiagnosticsJournal.java"), str(CRASH_HANDLER),
+         str(source / "DiagnosticsJournal.java"), str(CRASH_HANDLER), str(SNAPSHOT),
+         str(HEALTH_GATE),
          str(TARGETS), str(SCHEMA), str(HARNESS)],
         text=True, capture_output=True, timeout=90
     )

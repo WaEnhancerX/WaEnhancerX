@@ -1,5 +1,7 @@
 import com.waenhancer.utils.DiagnosticsJournal;
 import com.waenhancer.utils.DiagnosticsCrashHandler;
+import com.waenhancer.utils.DiagnosticsSnapshot;
+import com.waenhancer.utils.DiagnosticsHealthGate;
 import com.waenhancer.config.PreferenceSchema;
 
 import java.io.File;
@@ -23,6 +25,9 @@ public final class DiagnosticsJournalSelfTest {
         File root = Files.createTempDirectory("waex-diagnostics-qa-").toFile();
         try {
             testOptInPreferenceContract();
+            testHeartbeatDeduplication();
+            testUserBreadcrumbsAndHookFailures(root);
+            testOnDemandSnapshotPrivacy(root);
             testCrashHandlerDelegation();
             testExportEmpty(root);
             testOnlySafeEvents(root);
@@ -35,6 +40,121 @@ public final class DiagnosticsJournalSelfTest {
             System.out.println("PASS DiagnosticsJournalSelfTest cases=" + cases);
         } finally {
             deleteTree(root);
+        }
+    }
+
+    private static void testHeartbeatDeduplication() throws Exception {
+        DiagnosticsHealthGate gate = new DiagnosticsHealthGate();
+        AtomicInteger writes = new AtomicInteger();
+        DiagnosticsHealthGate.Writer writer = writes::incrementAndGet;
+        check(gate.recordIfChanged("com.whatsapp", 1234, "READY", "PROVIDER", false, writer),
+                "first authenticated process health recorded");
+        for (int i = 0; i < 100; i++) {
+            check(!gate.recordIfChanged("com.whatsapp", 1234, "READY", "PROVIDER",
+                    false, writer), "identical ten-second heartbeat not written");
+        }
+        check(writes.get() == 1, "one journal write for 101 identical heartbeats");
+        check(gate.recordIfChanged("com.whatsapp", 1234, "READY_WITH_ERRORS",
+                "PROVIDER", true, writer), "error transition captured");
+        check(gate.recordIfChanged("com.whatsapp", 5678, "READY_WITH_ERRORS",
+                "PROVIDER", true, writer), "new host PID captured");
+        check(!gate.recordIfChanged("com.evil.app", 5678, "READY",
+                "PROVIDER", false, writer), "undeclared host rejected");
+        check(writes.get() == 3, "only meaningful transitions written");
+        gate.clear();
+        check(gate.recordIfChanged("com.whatsapp", 5678, "READY_WITH_ERRORS",
+                "PROVIDER", true, writer), "new consent session resets heartbeat gate");
+
+        DiagnosticsHealthGate failing = new DiagnosticsHealthGate();
+        try {
+            failing.recordIfChanged("com.whatsapp", 999, "READY", "PROVIDER", false,
+                    () -> { throw new IOException("injected storage failure"); });
+            throw new AssertionError("Expected write failure");
+        } catch (IOException expected) {
+            check(true, "negative control: writer failure propagated");
+        }
+        check(failing.recordIfChanged("com.whatsapp", 999, "READY",
+                "PROVIDER", false, writer), "failed write is retried on the next heartbeat");
+    }
+
+    private static void testUserBreadcrumbsAndHookFailures(File root) throws Exception {
+        File dir = new File(root, "structured");
+        DiagnosticsJournal journal = new DiagnosticsJournal(dir);
+        long now = 20_000 * DAY;
+        journal.recordScreen(now, "MainDashboard");
+        journal.recordScreen(now + 1, "ReleaseDetails");
+        journal.recordScreen(now + 2, "release/SECRET_TAG");
+        journal.recordScreen(now + 3, "InjectedHooks/com.whatsapp/private-user");
+        journal.recordPreferenceChange(now + 4, "anti_revoke", false, "PUT");
+        journal.recordPreferenceChange(now + 5, "anti_revoke", true, "REMOVE");
+        journal.recordPreferenceChange(now + 6, "assemblyai_key", false, "PUT");
+        journal.recordPreferenceChange(now + 7, "contact:+56911111111", false, "PUT");
+        journal.recordPreferenceChange(now + 8, "anti_revoke", true, "INVALID");
+        journal.recordSettingsTransfer(now + 9, "IMPORT", 42);
+        journal.recordSettingsTransfer(now + 10, "EXPORT", 15);
+        journal.recordSettingsTransfer(now + 11, "IMPORT", -1);
+        journal.recordHookSummary(now + 12, "com.whatsapp", 22, 2, 7, 1, 0,
+                List.of("DownloadProfileFeature", "PrivacyFeature",
+                        "SECRET\nUSER_TEXT", "com.waenhancer.sensitive.Phone"));
+        journal.recordHookSummary(now + 13, "com.evil.app", 1, 0, 0, 0, 0,
+                List.of("Forged"));
+        journal.recordHookSummary(now + 14, "com.whatsapp", 500, 20, 0, 0, 0,
+                List.of("Oversized"));
+        String text = content(dir);
+        check(text.contains("WAEX_SCREEN type=MainDashboard"), "static screen recorded");
+        check(text.contains("WAEX_SCREEN type=ReleaseDetails"), "dynamic screen class retained");
+        check(text.contains("WAEX_SETTING key=anti_revoke scope=universal action=PUT"),
+                "known setting key without value");
+        check(text.contains("WAEX_SETTING key=anti_revoke scope=target action=REMOVE"),
+                "target scope and removal distinguished");
+        check(text.contains("WAEX_SETTINGS_IMPORT count=42"), "import summary");
+        check(text.contains("WAEX_SETTINGS_EXPORT count=15"), "export summary");
+        check(text.contains("HOOK_SUMMARY package=com.whatsapp total=32"),
+                "hook installation totals");
+        check(text.contains("HOOK_FAILED package=com.whatsapp class=PrivacyFeature"),
+                "safe failed hook identifiers");
+        for (String secret : List.of("SECRET_TAG", "private-user", "assemblyai_key",
+                "contact:", "+56911111111", "USER_TEXT", "com.evil.app",
+                "Oversized", "status=INVALID")) {
+            check(!text.contains(secret), "sensitive or invalid breadcrumb omitted: " + secret);
+        }
+    }
+
+    private static void testOnDemandSnapshotPrivacy(File root) throws Exception {
+        DiagnosticsSnapshot snapshot = new DiagnosticsSnapshot();
+        snapshot.addDevice("Google", "Pixel 8", "2026-11-01", "arm64-v8a");
+        snapshot.addRuntime("LSPosed", 100);
+        snapshot.addResources(8_000_000_000L, 4_000_000_000L, 128_000_000L,
+                20_000_000_000L, 47);
+        snapshot.addTargetVersion("com.whatsapp", "2.26.42.10", 20422010);
+        snapshot.addTargetVersion("com.evil.private", "PRIVATE_VERSION", 123);
+        snapshot.addPreference("anti_revoke", true, false);
+        snapshot.addPreference("assemblyai_key", true, false);
+        snapshot.addPreference("unknown_personal_key", true, true);
+        snapshot.addExit(20_000 * DAY, 20_000 * DAY - 1000, 6, 0, 35000, 49000);
+        snapshot.addExit(20_000 * DAY, 20_000 * DAY - 8 * DAY, 6, 0, 35000, 49000);
+        String rendered = snapshot.render();
+        check(rendered.contains("device.model=Pixel 8"), "device model captured at export");
+        check(rendered.contains("target.com.whatsapp.version=2.26.42.10"),
+                "declared target version captured");
+        check(rendered.contains("setting.universal.anti_revoke=true"),
+                "known public feature flag captured");
+        check(rendered.contains("exit.at_ms="), "own-process exit metadata captured");
+        for (String secret : List.of("PRIVATE_VERSION", "com.evil.private",
+                "assemblyai_key", "unknown_personal_key", "serial=")) {
+            check(!rendered.contains(secret), "snapshot omits sensitive content: " + secret);
+        }
+        DiagnosticsJournal journal = new DiagnosticsJournal(new File(root, "snapshot"));
+        journal.recordEnabled(20_000 * DAY);
+        File exports = new File(root, "snapshot-exports");
+        check(exports.mkdir(), "create snapshot export directory");
+        File zipFile = journal.export(exports, 20_000 * DAY, "2.0.4", 35, snapshot);
+        try (ZipFile zip = new ZipFile(zipFile)) {
+            ZipEntry entry = zip.getEntry("environment.txt");
+            check(entry != null, "environment in consented export ZIP");
+            String text = new String(zip.getInputStream(entry).readAllBytes(),
+                    StandardCharsets.UTF_8);
+            check(text.equals(rendered), "ZIP environment bytes equal validated snapshot");
         }
     }
 

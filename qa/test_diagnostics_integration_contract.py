@@ -36,6 +36,13 @@ require(provider.get(ANDROID + "exported") == "false",
         "diagnostic FileProvider must not be exported")
 require(provider.get(ANDROID + "grantUriPermissions") == "true",
         "temporary URI permission grants are required")
+hook_provider = next(
+    (item for item in providers
+     if item.get(ANDROID + "name") == "com.waenhancer.xposed.bridge.HookProvider"),
+    None
+)
+require(hook_provider is not None and hook_provider.get(ANDROID + "process") is None,
+        "manager and hook provider must share the journal's in-process serialization")
 file_paths = ET.parse(APP / "res/xml/file_paths.xml").getroot()
 require(any(element.tag == "cache-path" and element.get("path") == "."
             for element in file_paths), "FileProvider must include private cache directory")
@@ -58,6 +65,31 @@ require(provider_source.index("if (committed) {") <
 manager_source = (SOURCE / "app/WaexApp.kt").read_text(encoding="utf-8")
 require("DiagnosticsRecorder.installManagerCrashCapture(this)" in manager_source,
         "manager startup must install opt-in crash handler")
+activity_source = (SOURCE / "app/MainActivity.kt").read_text(encoding="utf-8")
+require("navController.currentScreen.javaClass.simpleName" in activity_source,
+        "navigation must capture static Screen class, not dynamic route contents")
+require("DiagnosticsRecorder.recordScreen(this@MainActivity" in activity_source,
+        "navigation events must be connected to the recorder")
+
+preferences_source = (SOURCE / "core/preferences/WaexPreferenceManager.java").read_text(encoding="utf-8")
+require("recordChanged(key, \"PUT\")" in preferences_source,
+        "successful setting writes must produce a value-free breadcrumb")
+require("recordChanged(key, \"REMOVE\")" in preferences_source,
+        "preference deletion must be distinguishable from setting a value")
+require("DiagnosticsRecorder.recordSettingsTransfer(context, \"IMPORT\"" in preferences_source,
+        "successful settings imports must be observable")
+
+environment_source = (SOURCE / "utils/DiagnosticsEnvironment.java").read_text(encoding="utf-8")
+require("getHistoricalProcessExitReasons(context.getPackageName(), 0, 16)" in environment_source,
+        "only own-package OS exit reasons may be requested")
+require("getTraceInputStream" not in environment_source
+        and "getDescription()" not in environment_source,
+        "private ANR traces and free-form OS descriptions must not be collected")
+require("DiagnosticsSnapshot environment" in
+        (SOURCE / "utils/DiagnosticsRecorder.java").read_text(encoding="utf-8"),
+        "one-shot environment snapshot must be wired to explicit export")
+require("DiagnosticsRecorder.recordHookSummary(context, pkg, hooksJson)" in provider_source,
+        "hook failure summaries must reuse existing authenticated IPC")
 
 default = ET.parse(APP / "res/values/diagnostic_capture_strings.xml").getroot()
 spanish = ET.parse(APP / "res/values-es/diagnostic_capture_strings.xml").getroot()

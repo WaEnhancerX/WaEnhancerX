@@ -8,6 +8,7 @@ import java.io.OutputStream;
 import com.waenhancer.config.PreferenceSchema;
 import com.waenhancer.config.PreferenceStores;
 import com.waenhancer.config.PreferenceRestartTracker;
+import com.waenhancer.utils.DiagnosticsRecorder;
 import com.waenhancer.licensing.customprops.CustomAbPropsStore;
 import dagger.hilt.android.qualifiers.ApplicationContext;
 import javax.inject.Inject;
@@ -152,6 +153,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
     @Override
     public void putBoolean(String key, boolean value) {
         if (!getStore(key).edit().putBoolean(key(key), value).commit()) return;
+        recordChanged(key, "PUT");
         if (isPublicStore(key)) {
             PreferenceRestartTracker.onPreferenceChanged(PreferenceStores.publicStore(context), key(key));
             notifyChange();
@@ -181,6 +183,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
                 editor.putBoolean(resolvedKey(change.getKey()), change.getValue());
             }
             if (!editor.commit()) return false;
+            for (String key : batch.keySet()) recordChanged(key, "PUT");
             for (Map.Entry<String, Boolean> change : batch.entrySet()) {
                 PreferenceRestartTracker.onPreferenceChanged(
                         PreferenceStores.publicStore(context), resolvedKey(change.getKey()));
@@ -209,6 +212,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
     @Override
     public void putString(String key, String value) {
         if (!getStore(key).edit().putString(key(key), value).commit()) return;
+        recordChanged(key, "PUT");
         if (isPublicStore(key)) {
             PreferenceRestartTracker.onPreferenceChanged(PreferenceStores.publicStore(context), key(key));
             notifyChange();
@@ -226,6 +230,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
             if (!PreferenceStores.publicStore(context).edit().putString(resolvedKey(key), value).commit()) {
                 return false;
             }
+            recordChanged(key, "PUT");
             PreferenceRestartTracker.onPreferenceChanged(
                     PreferenceStores.publicStore(context), resolvedKey(key));
             notifyChange();
@@ -247,6 +252,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
             if (!PreferenceStores.publicStore(context).edit().putStringSet(resolvedKey(key), snapshot).commit()) {
                 return false;
             }
+            recordChanged(key, "PUT");
             PreferenceRestartTracker.onPreferenceChanged(
                     PreferenceStores.publicStore(context), resolvedKey(key));
             notifyChange();
@@ -273,6 +279,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
 
     public void putStringSet(String key, Set<String> value) {
         if (!getStore(key).edit().putStringSet(key(key), new LinkedHashSet<>(value)).commit()) return;
+        recordChanged(key, "PUT");
         if (isPublicStore(key)) {
             PreferenceRestartTracker.onPreferenceChanged(PreferenceStores.publicStore(context), key(key));
             notifyChange();
@@ -285,6 +292,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
 
     public void putInt(String key, int value) {
         if (!getStore(key).edit().putInt(key(key), value).commit()) return;
+        recordChanged(key, "PUT");
         if (isPublicStore(key)) {
             PreferenceRestartTracker.onPreferenceChanged(PreferenceStores.publicStore(context), key(key));
             notifyChange();
@@ -297,6 +305,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
 
     public void putFloat(String key, float value) {
         if (!getStore(key).edit().putFloat(key(key), value).commit()) return;
+        recordChanged(key, "PUT");
         if (isPublicStore(key)) {
             PreferenceRestartTracker.onPreferenceChanged(PreferenceStores.publicStore(context), key(key));
             notifyChange();
@@ -305,6 +314,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
 
     public void remove(String key) {
         if (!getStore(key).edit().remove(key(key)).commit()) return;
+        recordChanged(key, "REMOVE");
         if (isPublicStore(key)) {
             PreferenceRestartTracker.onPreferenceChanged(PreferenceStores.publicStore(context), key(key));
             notifyChange();
@@ -318,15 +328,26 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
     public int exportSettings(Uri destination) throws Exception {
         OutputStream output = context.getContentResolver().openOutputStream(destination, "wt");
         if (output == null) throw new IOException("Could not open backup destination");
-        return SettingsBackupCodec.INSTANCE.encode(context, output);
+        int count = SettingsBackupCodec.INSTANCE.encode(context, output);
+        DiagnosticsRecorder.recordSettingsTransfer(context, "EXPORT", count);
+        return count;
     }
 
     public int importSettings(Uri source) throws Exception {
         InputStream input = context.getContentResolver().openInputStream(source);
         if (input == null) throw new IOException("Could not open backup file");
         int count = SettingsBackupCodec.INSTANCE.decode(context, input);
+        DiagnosticsRecorder.recordSettingsTransfer(context, "IMPORT", count);
         notifyChange();
         return count;
+    }
+
+    private void recordChanged(String key, String operation) {
+        try {
+            // Never serialize the value, target package, or an unknown/dynamic preference key.
+            DiagnosticsRecorder.recordPreferenceChange(context, key,
+                    !java.util.Objects.equals(resolvedKey(key), key), operation);
+        } catch (RuntimeException ignored) {}
     }
 
     private void notifyChange() {

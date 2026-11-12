@@ -195,7 +195,7 @@ public class HookProvider extends ContentProvider {
                     boolean committed = editor.commit();
                     if (committed) {
                         DiagnosticsRecorder.recordHookHealth(context, pkg, runtimeStatus,
-                                bridgeStatus, error != null);
+                                bridgeStatus, error != null, callerPid);
                         context.getContentResolver().notifyChange(
                                 Uri.parse("content://" + AUTHORITY + "/runtime_health"), null);
                         context.getContentResolver().notifyChange(
@@ -220,11 +220,14 @@ public class HookProvider extends ContentProvider {
                     editor.putLong("injected_hooks_time_" + pkg, timestamp);
                     editor.putLong("last_active_" + pkg, timestamp);
                     editor.putInt("runtime_pid_" + pkg, callerPid);
-                    editor.commit();
-                    context.getContentResolver().notifyChange(Uri.parse("content://" + AUTHORITY + "/injected_hooks"), null);
-                    context.getContentResolver().notifyChange(Uri.parse("content://" + AUTHORITY + "/preferences"), null);
+                    boolean committed = editor.commit();
+                    if (committed) {
+                        DiagnosticsRecorder.recordHookSummary(context, pkg, hooksJson);
+                        context.getContentResolver().notifyChange(Uri.parse("content://" + AUTHORITY + "/injected_hooks"), null);
+                        context.getContentResolver().notifyChange(Uri.parse("content://" + AUTHORITY + "/preferences"), null);
+                    }
                     Bundle result = new Bundle();
-                    result.putBoolean("success", true);
+                    result.putBoolean("success", committed);
                     return result;
                 }
             }

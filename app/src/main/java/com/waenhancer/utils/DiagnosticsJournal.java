@@ -9,6 +9,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.zip.ZipEntry;
@@ -31,6 +33,16 @@ public final class DiagnosticsJournal {
             "UNSUPPORTED_VERSION", "COMPATIBILITY_UNAVAILABLE", "INITIALIZATION_FAILED"));
     private static final Set<String> BRIDGE_STATUSES = new HashSet<>(Arrays.asList(
             "PENDING", "PROVIDER", "DISK_FALLBACK", "FAILED"));
+    // These are Screen subclasses, not dynamic routes containing release tags or package data.
+    private static final Set<String> SCREEN_NAMES = new HashSet<>(Arrays.asList(
+            "MainDashboard", "DashboardBento", "SystemHealth", "GlobalPrivacySettings",
+            "ConversationEnhancements", "MediaStatusHub", "AutomationTasker", "AudioTranscription",
+            "LicenseActivation", "Search", "PerContactPrivacyList", "StylesSettings",
+            "Changelog", "ReleaseDetails", "About", "Stargazers", "ModuleSettings",
+            "HookingModeHelp", "UpdateSettings", "SupportedVersions", "BootloaderSpoofer",
+            "DeletedMessages", "CallRecordingSettings", "TaskerGuide", "TaskerHistory",
+            "ManageDevices", "FloatingBottomBarCustomizer", "FilterItems", "CustomAbProps",
+            "CustomAbPropEditor", "InjectedHooks"));
 
     private final File directory;
 
@@ -81,12 +93,63 @@ public final class DiagnosticsJournal {
                 + " bridge=" + bridge + " has_error=" + (errorPresent ? "1" : "0"));
     }
 
+    public synchronized void recordScreen(long now, String screenType) throws IOException {
+        if (!SCREEN_NAMES.contains(screenType)) return;
+        append(now, "WAEX_SCREEN type=" + screenType);
+    }
+
+    /** Records which known setting was changed, never any old/new value or target identity. */
+    public synchronized void recordPreferenceChange(long now, String key, boolean targetScoped,
+                                                     String operation)
+            throws IOException {
+        com.waenhancer.config.PreferenceSchema.Entry entry =
+                com.waenhancer.config.PreferenceSchema.entry(key);
+        if (entry == null || !entry.isExportable()
+                || (!"PUT".equals(operation) && !"REMOVE".equals(operation))) return;
+        append(now, "WAEX_SETTING key=" + entry.key
+                + " scope=" + (targetScoped ? "target" : "universal")
+                + " action=" + operation);
+    }
+
+    public synchronized void recordSettingsTransfer(long now, String kind, int count)
+            throws IOException {
+        if (count < 0 || count > 10000 || (!"IMPORT".equals(kind) && !"EXPORT".equals(kind)))
+            return;
+        append(now, "WAEX_SETTINGS_" + kind + " count=" + count);
+    }
+
+    /** Compact aggregate, with only validated WAEX feature class names for failed hooks. */
+    public synchronized void recordHookSummary(long now, String target, int active, int failed,
+                                                int disabled, int waiting, int other,
+                                                List<String> failedClasses) throws IOException {
+        if (!DeclaredWhatsAppTargets.contains(target)) return;
+        long total = (long) active + failed + disabled + waiting + other;
+        if (active < 0 || failed < 0 || disabled < 0 || waiting < 0 || other < 0
+                || total > 512) return;
+        append(now, "HOOK_SUMMARY package=" + target + " total=" + total
+                + " active=" + active + " failed=" + failed
+                + " disabled=" + disabled + " waiting=" + waiting + " other=" + other);
+        if (failed == 0 || failedClasses == null) return;
+        Set<String> unique = new LinkedHashSet<>();
+        for (String name : failedClasses) {
+            if (unique.size() >= Math.min(8, failed)) break;
+            if (name != null && name.length() <= 64
+                    && name.matches("[A-Za-z_$][A-Za-z0-9_$]*")) unique.add(name);
+        }
+        for (String name : unique) append(now, "HOOK_FAILED package=" + target + " class=" + name);
+    }
+
     /**
      * Generates a local ZIP for Android's user-confirmed share sheet. Never initiates a send.
      * Only files with our own narrowly defined names are included.
      */
     public synchronized File export(File cacheDirectory, long now, String version, int sdk)
             throws IOException {
+        return export(cacheDirectory, now, version, sdk, null);
+    }
+
+    public synchronized File export(File cacheDirectory, long now, String version, int sdk,
+                                    DiagnosticsSnapshot environment) throws IOException {
         if (cacheDirectory == null || !cacheDirectory.isDirectory()) {
             throw new IOException("Private export cache is unavailable");
         }
@@ -99,17 +162,25 @@ public final class DiagnosticsJournal {
                 new BufferedOutputStream(new FileOutputStream(output)))) {
             zip.putNextEntry(new ZipEntry("README.txt"));
             String safeVersion = safeVersion(version);
-            String summary = "WaEnhancerX opt-in diagnostics v1\n"
+            String summary = "WaEnhancerX opt-in diagnostics v2\n"
                     + "Module version: " + safeVersion + "\n"
                     + "Android SDK: " + Math.max(0, sdk) + "\n"
                     + "Generated epoch ms: " + Math.max(0L, now) + "\n"
-                    + "Scope: WAEX manager crashes and authenticated hook startup health only.\n"
+                    + "Scope: WAEX manager crashes, screen types, changed setting keys, "
+                    + "authenticated hook startup health and failure counts.\n"
+                    + "environment.txt, when present, is an on-demand, filtered device and "
+                    + "non-secret Boolean configuration snapshot.\n"
                     + "Not collected: chat contents, contacts, message IDs, raw logcat, media, "
                     + "WhatsApp crash stacks or private app storage.\n"
                     + "Retention: seven days, at most two 128-KiB parts per day.\n"
                     + "Review before choosing a Telegram recipient and confirming send.\n";
             zip.write(summary.getBytes(StandardCharsets.UTF_8));
             zip.closeEntry();
+            if (environment != null) {
+                zip.putNextEntry(new ZipEntry("environment.txt"));
+                zip.write(environment.render().getBytes(StandardCharsets.UTF_8));
+                zip.closeEntry();
+            }
             byte[] buffer = new byte[8192];
             for (File file : files) {
                 if (file.length() > MAX_PART_BYTES + 512L) continue;

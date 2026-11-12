@@ -14,12 +14,42 @@ on another installation or Android user/profile.
 - Existing **authenticated** HookProvider startup reports from declared
   WhatsApp targets after their preference update is committed: target package,
   a fixed-vocabulary runtime status, a fixed-vocabulary bridge status, and a
-  Boolean indicating whether an error was reported. Recording adds no new
-  IPC calls to WhatsApp and no new per-hook callbacks.
+  Boolean indicating whether an error was reported. The existing hook
+  registration payload also yields counts of active, failed, disabled and
+  waiting features, plus at most eight validated failed *class names*.
+  Raw JSON, user-facing names and exception messages are never exported.
+  The existing runtime report is repeated by a 10-second heartbeat. A
+  per-target, per-PID transition gate stores only changes (or a fresh process
+  PID), not identical heartbeats. A failed journal write is retried at the
+  next heartbeat without claiming that the write succeeded.
+- A chronological breadcrumb for the **static WAEX screen class**, not its
+  dynamic route or arguments. For settings changed through WaexPreferenceManager,
+  record only an exportable schema key, universal/target scope and PUT/REMOVE;
+  never the changed value or actual target-specific key prefix. Also report
+  successful settings import/export counts.
+
+**Only when a user explicitly generates a report**, an on-demand
+`environment.txt` is assembled containing:
+
+- Device manufacturer/model, Android security-patch level, first supported ABI,
+  module and installed reported WhatsApp target versions where visible.
+- A memory/storage/battery snapshot and recorded hook framework/API label.
+- Actual Boolean settings that the exportable public preference schema allows,
+  including universal/target scope; **no string, list, path or secret values**.
+- On Android 11+ (API 30+), up to 16 own-package OS process termination
+  reason codes, exit statuses, timestamp and PSS/RSS; no free-form description,
+  process identifiers, stack contents or ANR traces. Android does not permit
+  reading other apps' exit history without privileged DUMP access.
+
+This wider snapshot may identify device models and reveal which WAEX privacy
+features are enabled. The UI discloses this before export; users should inspect
+the resulting ZIP before choosing a recipient, especially in public groups.
+It has **no sampling/collection cost during normal WhatsApp use**, because
+all system and package queries run only when exporting.
 
 There is deliberately **no** WhatsApp chat content, attachments, contacts,
 message IDs, raw Android logcat, private WhatsApp databases, full exception
-messages, credentials, device identifiers, continuous performance tracing,
+messages, credentials, serial/Android IDs, continuous performance tracing,
 or host-side crash interception. A green hook status also does not prove
 correct end-user behavior. Android's isolation prevents a normal application
 from silently collecting every event/crash from another application's process.
@@ -48,7 +78,8 @@ from silently collecting every event/crash from another application's process.
 Run `python qa/test_diagnostics_journal.py --negative-control` with JDK 17+
 and `python qa/test_diagnostics_integration_contract.py`. The first compiles
 production journal, crash-handler, preference schema and declared target
-classes and tests rotation, seven-day retention, ZIP, data minimization,
+classes and environment snapshot, and tests rotation, seven-day retention,
+ZIP, structured breadcrumbs, failed hook summaries, data minimization,
 concurrency, consent-backup isolation, and fatal-handler delegation. The
 negative control intentionally permits forged target names and must FAIL.
 The second verifies Android source/manifest/FileProvider wiring statically.
