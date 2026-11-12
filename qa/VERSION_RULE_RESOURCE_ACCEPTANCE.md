@@ -69,7 +69,9 @@ distinct decisions and are never silently enabled by this change.
   generated resource-array and JUnit fixture bytes use stable LF endings with
   matching SHA-256 readback. Otherwise Python's Windows newline conversion
   made the recorded generated-fixture digest disagree with the file executed
-  by Gradle, defeating the purpose of the evidence manifest.
+  by Gradle, defeating the purpose of the evidence manifest. Source and JUnit
+  acceptance gates raise explicit errors even under optimized `python -O`;
+  they cannot silently disappear with Python's `assert` statements.
 
 ## Device acceptance
 

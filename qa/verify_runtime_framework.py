@@ -172,6 +172,9 @@ dependencies {
   # Generated fixture hashes describe the bytes actually compiled. On Windows,
   # write_text's default newline translation otherwise changes their digest.
   p=probe/path;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(text.encode('utf-8'))
+ def verify_hash(path,expected,label):
+  if hashlib.sha256(path.read_bytes()).hexdigest()!=expected:
+   raise ValueError('Staged source/evidence SHA-256 mismatch: '+label)
  identities={}
  # Compile all of these source files unchanged; unrelated private services are test doubles.
  # The real detector's signature and fail-closed scope path reference both
@@ -184,7 +187,7 @@ dependencies {
   dest=probe/'src/main/java/com/waenhancer'/name
   dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(p,dest)
   identities[name]=hashlib.sha256(p.read_bytes()).hexdigest()
-  assert hashlib.sha256(dest.read_bytes()).hexdigest()==identities[name],name
+  verify_hash(dest,identities[name],name)
  arrays_source=root/'app/src/main/res/values/arrays.xml'
  arrays=ET.fromstring(arrays_source.read_bytes())
  foreign_rules=arrays.find("string-array[@name='universal_supported_versions']")
@@ -198,7 +201,8 @@ dependencies {
  (e/'fixture-arrays.xml').write_bytes(fixture_arrays.encode('utf-8'))
  identities['app/src/main/res/values/arrays.xml']=hashlib.sha256(arrays_source.read_bytes()).hexdigest()
  identities['fixture/src/main/res/values/arrays.xml']=hashlib.sha256(fixture_arrays.encode()).hexdigest()
- assert hashlib.sha256((probe/'src/main/res/values/arrays.xml').read_bytes()).hexdigest()==identities['fixture/src/main/res/values/arrays.xml']
+ verify_hash(probe/'src/main/res/values/arrays.xml',identities['fixture/src/main/res/values/arrays.xml'],'fixture arrays')
+ verify_hash(e/'fixture-arrays.xml',identities['fixture/src/main/res/values/arrays.xml'],'arrays evidence')
  write('src/main/AndroidManifest.xml','<manifest xmlns:android="http://schemas.android.com/apk/res/android"/>')
  write('src/main/java/com/waenhancer/config/PreferenceStores.java','package com.waenhancer.config; import android.content.*; public final class PreferenceStores {public static SharedPreferences publicStore(Context c){return c.getSharedPreferences("probe",0);} public static SharedPreferences privateStore(Context c){return c.getSharedPreferences("probe-private",0);}}')
  write('src/main/java/com/waenhancer/xposed/utils/ModuleStatus.java','package com.waenhancer.xposed.utils; public final class ModuleStatus {public static boolean isModuleActive(){return false;}}')
@@ -219,11 +223,12 @@ class WaexBottomSheet(a:Activity){fun setTitle(s:String)=this;fun setMessage(s:S
   dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(fixture,dest)
   shutil.copy2(fixture,e/fixture.name)
   identities[str(fixture.relative_to(root))]=hashlib.sha256(fixture.read_bytes()).hexdigest()
-  assert hashlib.sha256(dest.read_bytes()).hexdigest()==identities[str(fixture.relative_to(root))]
+  verify_hash(dest,identities[str(fixture.relative_to(root))],'localization fixture')
  write_exact('src/test/java/com/waenhancer/utils/RuntimeResourcesTest.kt',TEST)
  identities['fixture/RuntimeResourcesTest.kt']=hashlib.sha256(TEST.encode()).hexdigest()
  (e/'source-sha256.json').write_text(json.dumps(identities,indent=2));(e/'RuntimeResourcesTest.kt').write_bytes(TEST.encode('utf-8'));(e/'build.gradle.kts').write_text(build)
- assert hashlib.sha256((probe/'src/test/java/com/waenhancer/utils/RuntimeResourcesTest.kt').read_bytes()).hexdigest()==identities['fixture/RuntimeResourcesTest.kt']
+ verify_hash(probe/'src/test/java/com/waenhancer/utils/RuntimeResourcesTest.kt',identities['fixture/RuntimeResourcesTest.kt'],'runtime JUnit fixture')
+ verify_hash(e/'RuntimeResourcesTest.kt',identities['fixture/RuntimeResourcesTest.kt'],'runtime fixture evidence')
  # On Windows, CreateProcess may resolve System32 WSL bash instead of Git Bash
  # unless the selected executable is passed explicitly. Use forward slashes for
  # gradlew's APP_HOME/dirname calculation on both platforms.
@@ -236,11 +241,12 @@ class WaexBottomSheet(a:Activity){fun setTitle(s:String)=this;fun setMessage(s:S
  if result.returncode:
   print((e/'framework-build.log').read_text()[-18000:]);raise RuntimeError('Isolated framework validation failed')
  results=list(e.glob('TEST-*.xml'))
- assert results,'No JUnit reports'
+ if not results:raise RuntimeError('No JUnit reports')
  tests=failures=errors=skipped=0
  for p in results:
   t=ET.parse(p).getroot();tests+=int(t.get('tests',0));failures+=int(t.get('failures',0));errors+=int(t.get('errors',0));skipped+=int(t.get('skipped',0))
- assert tests==(12 if localized else 5) and failures==0 and errors==0 and skipped==0,(tests,failures,errors,skipped)
+ if (tests,failures,errors,skipped)!=((12 if localized else 5),0,0,0):
+  raise RuntimeError(f'Android resource JUnit acceptance failed: {(tests,failures,errors,skipped)}')
  (e/'result.json').write_text(json.dumps({'tests':tests,'contexts':22,'locale_resource_tests':7 if localized else 0,'failures':failures,'errors':errors,'skipped':skipped,'limits':'Compiled public utilities and clock with test service doubles. No full WAEX APK, Compose screen rendering, HMA or LSPosed.'},indent=2))
  print(f'PASS: real Android/Compose API compilation; {tests} Android 14 JUnit methods, 22 compiled-resource contexts; localized tests={localized}; no full app/LSPosed')
 
