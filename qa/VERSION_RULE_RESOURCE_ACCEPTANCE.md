@@ -65,6 +65,11 @@ distinct decisions and are never silently enabled by this change.
   evidence-reuse paths, without changing the Android sources, JUnit fixture
   or resource provenance checks. Build and test results must still be assessed
   independently for the exact JDK/SDK and source revision.
+  Copied production and localization sources are staged byte-for-byte, while
+  generated resource-array and JUnit fixture bytes use stable LF endings with
+  matching SHA-256 readback. Otherwise Python's Windows newline conversion
+  made the recorded generated-fixture digest disagree with the file executed
+  by Gradle, defeating the purpose of the evidence manifest.
 
 ## Device acceptance
 

@@ -168,6 +168,10 @@ dependencies {
  (probe/'build.gradle.kts').write_text(build)
  def write(path,text):
   p=probe/path;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(text)
+ def write_exact(path,text):
+  # Generated fixture hashes describe the bytes actually compiled. On Windows,
+  # write_text's default newline translation otherwise changes their digest.
+  p=probe/path;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(text.encode('utf-8'))
  identities={}
  # Compile all of these source files unchanged; unrelated private services are test doubles.
  # The real detector's signature and fail-closed scope path reference both
@@ -177,7 +181,10 @@ dependencies {
  if (root/'app/src/main/java/com/waenhancer/utils/DeclaredWhatsAppTargets.java').exists():files+=['utils/DeclaredWhatsAppTargets.java']
  for name in files:
   p=root/'app/src/main/java/com/waenhancer'/name
-  write('src/main/java/com/waenhancer/'+name,p.read_text());identities[name]=hashlib.sha256(p.read_bytes()).hexdigest()
+  dest=probe/'src/main/java/com/waenhancer'/name
+  dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(p,dest)
+  identities[name]=hashlib.sha256(p.read_bytes()).hexdigest()
+  assert hashlib.sha256(dest.read_bytes()).hexdigest()==identities[name],name
  arrays_source=root/'app/src/main/res/values/arrays.xml'
  arrays=ET.fromstring(arrays_source.read_bytes())
  foreign_rules=arrays.find("string-array[@name='universal_supported_versions']")
@@ -187,10 +194,11 @@ dependencies {
  for item in list(foreign_rules):foreign_rules.remove(item)
  ET.SubElement(foreign_rules,'item').text='9.99.1'
  fixture_arrays=ET.tostring(arrays,encoding='unicode')
- write('src/main/res/values/arrays.xml',fixture_arrays)
- (e/'fixture-arrays.xml').write_text(fixture_arrays)
+ write_exact('src/main/res/values/arrays.xml',fixture_arrays)
+ (e/'fixture-arrays.xml').write_bytes(fixture_arrays.encode('utf-8'))
  identities['app/src/main/res/values/arrays.xml']=hashlib.sha256(arrays_source.read_bytes()).hexdigest()
  identities['fixture/src/main/res/values/arrays.xml']=hashlib.sha256(fixture_arrays.encode()).hexdigest()
+ assert hashlib.sha256((probe/'src/main/res/values/arrays.xml').read_bytes()).hexdigest()==identities['fixture/src/main/res/values/arrays.xml']
  write('src/main/AndroidManifest.xml','<manifest xmlns:android="http://schemas.android.com/apk/res/android"/>')
  write('src/main/java/com/waenhancer/config/PreferenceStores.java','package com.waenhancer.config; import android.content.*; public final class PreferenceStores {public static SharedPreferences publicStore(Context c){return c.getSharedPreferences("probe",0);} public static SharedPreferences privateStore(Context c){return c.getSharedPreferences("probe-private",0);}}')
  write('src/main/java/com/waenhancer/xposed/utils/ModuleStatus.java','package com.waenhancer.xposed.utils; public final class ModuleStatus {public static boolean isModuleActive(){return false;}}')
@@ -207,12 +215,15 @@ class WaexBottomSheet(a:Activity){fun setTitle(s:String)=this;fun setMessage(s:S
   build += '\ntasks.withType<Test>().configureEach { systemProperty("waex.locale.apk", "'+locale_apk.as_posix()+'") }\n'
   (probe/'build.gradle.kts').write_text(build)
   fixture=root/'qa/fixtures/LocalizationResourcesTest.kt'
-  write('src/test/java/com/waenhancer/utils/LocalizationResourcesTest.kt',fixture.read_text())
+  dest=probe/'src/test/java/com/waenhancer/utils/LocalizationResourcesTest.kt'
+  dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(fixture,dest)
   shutil.copy2(fixture,e/fixture.name)
   identities[str(fixture.relative_to(root))]=hashlib.sha256(fixture.read_bytes()).hexdigest()
- write('src/test/java/com/waenhancer/utils/RuntimeResourcesTest.kt',TEST)
+  assert hashlib.sha256(dest.read_bytes()).hexdigest()==identities[str(fixture.relative_to(root))]
+ write_exact('src/test/java/com/waenhancer/utils/RuntimeResourcesTest.kt',TEST)
  identities['fixture/RuntimeResourcesTest.kt']=hashlib.sha256(TEST.encode()).hexdigest()
- (e/'source-sha256.json').write_text(json.dumps(identities,indent=2));(e/'RuntimeResourcesTest.kt').write_text(TEST);(e/'build.gradle.kts').write_text(build)
+ (e/'source-sha256.json').write_text(json.dumps(identities,indent=2));(e/'RuntimeResourcesTest.kt').write_bytes(TEST.encode('utf-8'));(e/'build.gradle.kts').write_text(build)
+ assert hashlib.sha256((probe/'src/test/java/com/waenhancer/utils/RuntimeResourcesTest.kt').read_bytes()).hexdigest()==identities['fixture/RuntimeResourcesTest.kt']
  # On Windows, CreateProcess may resolve System32 WSL bash instead of Git Bash
  # unless the selected executable is passed explicitly. Use forward slashes for
  # gradlew's APP_HOME/dirname calculation on both platforms.
