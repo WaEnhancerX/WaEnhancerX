@@ -130,6 +130,7 @@ jobs:
             qa/test_bridge_contract.py
             qa/test_bridge_ordering.py
             qa/test_media_preference_sync.py
+            qa/mutate_media_preference_sync.py
             qa/test_dnd_preference_policy.py
             qa/test_dex_negative_cache.py
             qa/test_android24_compatibility.py
