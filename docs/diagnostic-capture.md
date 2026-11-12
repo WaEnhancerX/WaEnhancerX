@@ -5,6 +5,12 @@ default. Consent is stored as the non-exportable, device-local Boolean
 `diagnostic_capture_enabled`. A settings restore does not silently enable it
 on another installation or Android user/profile.
 
+**Advanced WhatsApp crash and ANR history** is a separate opt-in toggle,
+available on Android 11+ (API 30+). `diagnostic_target_exit_enabled` and the
+consent timestamp `diagnostic_target_exit_since_ms` are local runtime preferences
+excluded from settings exports. Disabling the main capture switch also revokes
+advanced consent; advanced capture cannot be enabled while basic consent is off.
+
 ## What is recorded
 
 - WAEX manager process start and the instant capture was enabled.
@@ -22,6 +28,29 @@ on another installation or Android user/profile.
   per-target, per-PID transition gate stores only changes (or a fresh process
   PID), not identical heartbeats. A failed journal write is retried at the
   next heartbeat without claiming that the write succeeded.
+- **Optional WhatsApp process exit history** when *both* diagnostic switches
+  have been explicitly enabled: on the next WhatsApp process startup, a
+  low-priority, one-shot worker asks Android's `ActivityManager` for at most 16
+  recent `ApplicationExitInfo` records **belonging to the calling WhatsApp
+  package/UID**, never WAEX or another UID. This detects OS-classified Java and
+  native crashes, killed ANRs, memory pressure, dependency/freezer deaths and
+  other exits where the OS still retains them. Only events **after the explicit
+  advanced-consent timestamp** and within seven days are sent as bounded typed
+  fields (time, PID, reason/status codes, PSS/RSS). The existing HookProvider
+  authenticates the caller UID and package again, verifies both consent flags,
+  validates all array sizes and values, and appends the filtered metadata to
+  the same private journal. A bounded, manager-private seen-set avoids writing
+  the same OS ring-buffer entries again on repeated WhatsApp starts. No raw
+  exception messages, stack traces, ANR traces or tombstones cross the bridge.
+  Android may evict ring-buffer records; recovered (non-killed) ANRs, failures
+  before module initialization, and other unreported events are **not** detected.
+  Every successful advanced query delivered to the provider produces a small
+  `TARGET_EXIT_SCAN` receipt, even when the OS returned no post-consent events;
+  this distinguishes an empty history from missing delivery, although a scan
+  receipt does not guarantee that Android retained every earlier crash.
+  On API 29 and below, the advanced toggle cannot collect this OS history.
+  This feature performs no recurring reads, no crash-thread IPC and no active
+  interception of host exceptions; it only queries once after an opted-in launch.
 - A chronological breadcrumb for the **static WAEX screen class**, not its
   dynamic route or arguments. For settings changed through WaexPreferenceManager,
   record only an exportable schema key, universal/target scope and PUT/REMOVE;
@@ -53,6 +82,11 @@ messages, credentials, serial/Android IDs, continuous performance tracing,
 or host-side crash interception. A green hook status also does not prove
 correct end-user behavior. Android's isolation prevents a normal application
 from silently collecting every event/crash from another application's process.
+Reading OS exit metadata *from the WhatsApp UID itself* avoids that permission
+boundary without trying to obtain `DUMP`, root privileges or other users' data.
+The manager cannot reliably capture every WhatsApp crash: collection requires
+the target to restart with injection, the OS to retain exit history and the
+authenticated provider to accept the report. The manager may also be absent.
 
 ## Storage and export
 
@@ -72,6 +106,9 @@ from silently collecting every event/crash from another application's process.
 - Turning capture off stops subsequent records; retained files can still be
   reviewed/exported or manually deleted. Turning it back on records a new
   consent marker.
+- Enabling advanced capture after WhatsApp is already open requires reopening
+  the target once for the startup-only OS history query; only subsequent exit
+  records qualify. This is explicitly described next to the UI toggle.
 
 ## Verification boundaries
 

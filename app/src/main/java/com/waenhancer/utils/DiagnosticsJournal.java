@@ -98,6 +98,31 @@ public final class DiagnosticsJournal {
         append(now, "WAEX_SCREEN type=" + screenType);
     }
 
+    /** Authenticated, consent-filtered Android exit metadata; never a raw WhatsApp trace. */
+    public synchronized boolean recordTargetExit(long now, long consentAt, String target,
+                                                 long exitAt, int pid, int reason, int status,
+                                                 long pssKiB, long rssKiB) throws IOException {
+        if (!TargetExitContract.isValid(target, now, consentAt, exitAt,
+                pid, reason, pssKiB, rssKiB)) return false;
+        append(now, "TARGET_EXIT package=" + target + " at_ms=" + exitAt
+                + " pid=" + pid + " reason=" + TargetExitContract.reasonName(reason)
+                + " reason_code=" + reason + " status=" + status
+                + " pss_kib=" + pssKiB + " rss_kib=" + rssKiB);
+        return true;
+    }
+
+    /** One bounded receipt per opted-in target startup, including an empty OS history. */
+    public synchronized boolean recordTargetExitScan(long now, String target,
+                                                     int candidates, int recorded)
+            throws IOException {
+        if (!DeclaredWhatsAppTargets.contains(target) || candidates < 0
+                || candidates > TargetExitContract.MAX_EVENTS
+                || recorded < 0 || recorded > candidates) return false;
+        append(now, "TARGET_EXIT_SCAN package=" + target
+                + " candidates=" + candidates + " recorded=" + recorded);
+        return true;
+    }
+
     /** Records which known setting was changed, never any old/new value or target identity. */
     public synchronized void recordPreferenceChange(long now, String key, boolean targetScoped,
                                                      String operation)
@@ -162,12 +187,16 @@ public final class DiagnosticsJournal {
                 new BufferedOutputStream(new FileOutputStream(output)))) {
             zip.putNextEntry(new ZipEntry("README.txt"));
             String safeVersion = safeVersion(version);
-            String summary = "WaEnhancerX opt-in diagnostics v2\n"
+            String summary = "WaEnhancerX opt-in diagnostics v3\n"
                     + "Module version: " + safeVersion + "\n"
                     + "Android SDK: " + Math.max(0, sdk) + "\n"
                     + "Generated epoch ms: " + Math.max(0L, now) + "\n"
                     + "Scope: WAEX manager crashes, screen types, changed setting keys, "
                     + "authenticated hook startup health and failure counts.\n"
+                    + "Optional advanced capture: WhatsApp-owned Android process exit reasons "
+                    + "reported on a later startup, only for events after explicit consent "
+                    + "(Java/native crashes, killed ANR, memory and other OS exits). "
+                    + "No WhatsApp stack traces.\n"
                     + "environment.txt, when present, is an on-demand, filtered device and "
                     + "non-secret Boolean configuration snapshot.\n"
                     + "Not collected: chat contents, contacts, message IDs, raw logcat, media, "

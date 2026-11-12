@@ -14,7 +14,10 @@ import org.json.JSONObject;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -29,6 +32,7 @@ public final class DiagnosticsRecorder {
     private static final ConcurrentHashMap<String, DiagnosticsJournal> JOURNALS =
             new ConcurrentHashMap<>();
     private static final DiagnosticsHealthGate HEALTH_GATE = new DiagnosticsHealthGate();
+    private static final String SEEN_TARGET_EXITS_PREFIX = "diagnostic_seen_target_exits_";
 
     private DiagnosticsRecorder() {}
 
@@ -46,8 +50,14 @@ public final class DiagnosticsRecorder {
         boolean committed;
         try {
             SharedPreferences prefs = PreferenceStores.publicStore(context);
-            committed = prefs.edit().putBoolean(
-                    PreferenceSchema.KEY_DIAGNOSTIC_CAPTURE_ENABLED, enabled).commit();
+            SharedPreferences.Editor editor = prefs.edit().putBoolean(
+                    PreferenceSchema.KEY_DIAGNOSTIC_CAPTURE_ENABLED, enabled);
+            if (!enabled) {
+                // Turning off basic capture also revokes advanced host-process consent.
+                editor.putBoolean(PreferenceSchema.KEY_DIAGNOSTIC_TARGET_EXIT_ENABLED, false)
+                        .putLong(PreferenceSchema.KEY_DIAGNOSTIC_TARGET_EXIT_SINCE, 0L);
+            }
+            committed = editor.commit();
         } catch (RuntimeException ignored) {
             return false;
         }
@@ -64,6 +74,34 @@ public final class DiagnosticsRecorder {
             }
         }
         return true;
+    }
+
+    public static boolean isAdvancedEnabled(Context context) {
+        try {
+            SharedPreferences store = PreferenceStores.publicStore(context);
+            return store.getBoolean(PreferenceSchema.KEY_DIAGNOSTIC_CAPTURE_ENABLED, false)
+                    && store.getBoolean(PreferenceSchema.KEY_DIAGNOSTIC_TARGET_EXIT_ENABLED, false)
+                    && store.getLong(PreferenceSchema.KEY_DIAGNOSTIC_TARGET_EXIT_SINCE, 0L) > 0L;
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+    }
+
+    /** Advanced consent begins now: previous WhatsApp exits are never backfilled. */
+    public static boolean setAdvancedEnabled(Context context, boolean enabled) {
+        try {
+            if (enabled && Build.VERSION.SDK_INT < 30) return false;
+            SharedPreferences store = PreferenceStores.publicStore(context);
+            if (enabled && !store.getBoolean(
+                    PreferenceSchema.KEY_DIAGNOSTIC_CAPTURE_ENABLED, false)) return false;
+            long since = enabled ? System.currentTimeMillis() : 0L;
+            return store.edit()
+                    .putBoolean(PreferenceSchema.KEY_DIAGNOSTIC_TARGET_EXIT_ENABLED, enabled)
+                    .putLong(PreferenceSchema.KEY_DIAGNOSTIC_TARGET_EXIT_SINCE, since)
+                    .commit();
+        } catch (RuntimeException ignored) {
+            return false;
+        }
     }
 
     /** Register once at manager startup; do not displace the existing crash handler. */
@@ -122,6 +160,67 @@ public final class DiagnosticsRecorder {
             if (!isEnabled(context)) return;
             journal(context).recordSettingsTransfer(System.currentTimeMillis(), kind, count);
         } catch (IOException | RuntimeException ignored) {}
+    }
+
+    /**
+     * Called only after the existing HookProvider UID/package authentication.
+     * The caller submits only fixed typed OS fields; no user strings or trace streams.
+     * A private seen-set prevents the same OS ring-buffer entries from being logged
+     * again after each WhatsApp process restart, including within a work profile.
+     */
+    public static synchronized int recordTargetExitHistory(Context context, String target,
+            long[] times, int[] pids, int[] reasons, int[] statuses,
+            long[] pss, long[] rss) {
+        if (!DeclaredWhatsAppTargets.contains(target) || !isAdvancedEnabled(context)
+                || times == null || pids == null || reasons == null || statuses == null
+                || pss == null || rss == null
+                || times.length > TargetExitContract.MAX_EVENTS
+                || pids.length != times.length || reasons.length != times.length
+                || statuses.length != times.length || pss.length != times.length
+                || rss.length != times.length) return -1;
+        try {
+            long now = System.currentTimeMillis();
+            long since = PreferenceStores.publicStore(context).getLong(
+                    PreferenceSchema.KEY_DIAGNOSTIC_TARGET_EXIT_SINCE, 0L);
+            if (times.length == 0) {
+                journal(context).recordTargetExitScan(now, target, 0, 0);
+                return 0;
+            }
+            SharedPreferences privateStore = PreferenceStores.privateStore(context);
+            String seenKey = SEEN_TARGET_EXITS_PREFIX + target;
+            Set<String> seen = new LinkedHashSet<>(privateStore.getStringSet(
+                    seenKey, java.util.Collections.emptySet()));
+            // Expired IDs are not retained indefinitely; only recent exit IDs are relevant.
+            seen.removeIf(id -> {
+                try {
+                    int colon = id.indexOf(':');
+                    return colon <= 0 || now - Long.parseLong(id.substring(0, colon))
+                            > TargetExitContract.RETENTION_MS;
+                } catch (RuntimeException ignored) { return true; }
+            });
+            int recorded = 0;
+            for (int i = times.length - 1; i >= 0; i--) {
+                if (!TargetExitContract.isValid(target, now, since, times[i],
+                        pids[i], reasons[i], pss[i], rss[i])) continue;
+                String id = TargetExitContract.identity(times[i], pids[i], reasons[i], statuses[i]);
+                if (seen.contains(id)) continue;
+                if (journal(context).recordTargetExit(now, since, target, times[i],
+                        pids[i], reasons[i], statuses[i], pss[i], rss[i])) {
+                    seen.add(id);
+                    recorded++;
+                }
+            }
+            while (seen.size() > TargetExitContract.MAX_SEEN_KEYS) {
+                Iterator<String> iterator = seen.iterator();
+                iterator.next();
+                iterator.remove();
+            }
+            if (!privateStore.edit().putStringSet(seenKey, seen).commit()) return -1;
+            journal(context).recordTargetExitScan(now, target, times.length, recorded);
+            return recorded;
+        } catch (IOException | RuntimeException ignored) {
+            return -1;
+        }
     }
 
     /**

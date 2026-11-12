@@ -2,6 +2,7 @@ import com.waenhancer.utils.DiagnosticsJournal;
 import com.waenhancer.utils.DiagnosticsCrashHandler;
 import com.waenhancer.utils.DiagnosticsSnapshot;
 import com.waenhancer.utils.DiagnosticsHealthGate;
+import com.waenhancer.utils.TargetExitContract;
 import com.waenhancer.config.PreferenceSchema;
 
 import java.io.File;
@@ -26,6 +27,7 @@ public final class DiagnosticsJournalSelfTest {
         try {
             testOptInPreferenceContract();
             testHeartbeatDeduplication();
+            testWhatsAppExitMetadata(root);
             testUserBreadcrumbsAndHookFailures(root);
             testOnDemandSnapshotPrivacy(root);
             testCrashHandlerDelegation();
@@ -75,6 +77,90 @@ public final class DiagnosticsJournalSelfTest {
         }
         check(failing.recordIfChanged("com.whatsapp", 999, "READY",
                 "PROVIDER", false, writer), "failed write is retried on the next heartbeat");
+    }
+
+    private static void testWhatsAppExitMetadata(File root) throws Exception {
+        File dir = new File(root, "host-exits");
+        DiagnosticsJournal journal = new DiagnosticsJournal(dir);
+        long now = 20_000 * DAY;
+        long consentAt = now - DAY;
+        long exitAt = now - 60_000;
+        check(TargetExitContract.MAX_EVENTS == 16, "host OS exit transfer size bounded");
+        check("JAVA_CRASH".equals(TargetExitContract.reasonName(4)), "Java crash classified");
+        check("NATIVE_CRASH".equals(TargetExitContract.reasonName(5)), "native crash classified");
+        check("ANR_KILLED".equals(TargetExitContract.reasonName(6)), "killed ANR classified");
+        check("LOW_MEMORY".equals(TargetExitContract.reasonName(3)), "memory death classified");
+        check("DEPENDENCY_DIED".equals(TargetExitContract.reasonName(12)),
+                "provider dependency death classified");
+        check("UNKNOWN".equals(TargetExitContract.reasonName(99)),
+                "future reason is not falsely classified as a crash");
+        check(TargetExitContract.isValid("com.whatsapp", now, consentAt, exitAt,
+                3333, 4, 5000, 10000), "consented target process exit accepted");
+        check(!TargetExitContract.isValid("com.evil.app", now, consentAt, exitAt,
+                3333, 4, 5000, 10000), "forged target exit metadata rejected");
+        check(!TargetExitContract.isValid("com.whatsapp", now, consentAt, consentAt - 1,
+                3333, 4, 5000, 10000), "pre-consent host death not backfilled");
+        check(!TargetExitContract.isValid("com.whatsapp", now, 0, exitAt,
+                3333, 4, 5000, 10000), "missing consent timestamp rejected");
+        check(!TargetExitContract.isValid("com.whatsapp", now, consentAt, now + 1,
+                3333, 4, 5000, 10000), "future host exit rejected");
+        check(!TargetExitContract.isValid("com.whatsapp", now, now - 9 * DAY,
+                now - 8 * DAY, 3333, 4, 5000, 10000), "expired host exit rejected");
+        check(!TargetExitContract.isValid("com.whatsapp", now, consentAt, exitAt,
+                -1, 4, 5000, 10000), "invalid PID rejected");
+        check(!TargetExitContract.isValid("com.whatsapp", now, consentAt, exitAt,
+                3333, -1, 5000, 10000), "negative OS reason rejected");
+        check(!TargetExitContract.isValid("com.whatsapp", now, consentAt, exitAt,
+                3333, 4, -1, 10000), "invalid memory sample rejected");
+        check(!TargetExitContract.isValid("com.whatsapp", now, consentAt, exitAt,
+                3333, 4, 5000, Long.MAX_VALUE), "oversized memory sample rejected");
+        check(TargetExitContract.identity(exitAt, 3333, 4, -1)
+                .equals(TargetExitContract.identity(exitAt, 3333, 4, -1)),
+                "same OS record yields deterministic private deduplication identity");
+        check(!TargetExitContract.identity(exitAt, 3333, 4, -1)
+                .equals(TargetExitContract.identity(exitAt, 3334, 4, -1)),
+                "different host PID is a distinct OS event");
+
+        check(journal.recordTargetExit(now, consentAt, "com.whatsapp", exitAt,
+                3333, 4, -1, 5000, 10000), "consented Java crash recorded");
+        check(journal.recordTargetExit(now + 1, consentAt, "com.whatsapp.w4b", exitAt,
+                4444, 5, 11, 7000, 14000), "Business native crash recorded");
+        check(journal.recordTargetExit(now + 2, consentAt, "com.whatsapp", exitAt,
+                5555, 6, 0, 15000, 20000), "killed ANR recorded");
+        check(journal.recordTargetExitScan(now + 2, "com.whatsapp", 3, 3),
+                "accepted exit report records a startup scan receipt");
+        check(journal.recordTargetExitScan(now + 2, "com.whatsapp", 0, 0),
+                "empty OS history still records that the provider was reached");
+        check(!journal.recordTargetExitScan(now + 2, "com.evil.app", 0, 0),
+                "untrusted target cannot forge successful OS scan");
+        check(!journal.recordTargetExitScan(now + 2, "com.whatsapp", 2, 3),
+                "scan cannot claim more recorded events than candidates");
+        check(!journal.recordTargetExit(now + 3, consentAt, "com.evil.app", exitAt,
+                3333, 4, 0, 100, 100), "undeclared app never written");
+        check(!journal.recordTargetExit(now + 4, consentAt, "com.whatsapp", consentAt - 1,
+                3333, 4, 0, 100, 100), "pre-consent event never written");
+        String events = content(dir);
+        check(events.contains("TARGET_EXIT package=com.whatsapp at_ms=" + exitAt),
+                "original OS exit timestamp included");
+        check(events.contains("reason=JAVA_CRASH reason_code=4"),
+                "Java reason retains numeric OS classification");
+        check(events.contains("reason=NATIVE_CRASH reason_code=5"),
+                "native reason retained");
+        check(events.contains("reason=ANR_KILLED reason_code=6"),
+                "killed ANR retained without a trace stream");
+        check(events.contains("TARGET_EXIT_SCAN package=com.whatsapp candidates=0 recorded=0"),
+                "empty OS history receipt is distinguishable from missing injection");
+        check(events.lines().count() == 5, "rejected host exits do not create events");
+        for (String forbidden : List.of("com.evil.app", "chat", "jid", "stack=",
+                "exception_message", "getTraceInputStream", "contact:")) {
+            check(!events.contains(forbidden), "host diagnostic contains no private payload: " + forbidden);
+        }
+        File out = new File(root, "host-exit-exports");
+        check(out.mkdir(), "create host exit ZIP directory");
+        try (ZipFile zip = new ZipFile(journal.export(out, now + 5, "2.0.6", 36))) {
+            check(zip.getEntry("events-20000-0.log") != null,
+                    "consented target deaths included in support ZIP");
+        }
     }
 
     private static void testUserBreadcrumbsAndHookFailures(File root) throws Exception {

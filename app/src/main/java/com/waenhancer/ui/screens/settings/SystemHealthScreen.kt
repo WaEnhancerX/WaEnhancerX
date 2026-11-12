@@ -2,6 +2,7 @@ package com.waenhancer.ui.screens.settings
 
 import android.content.ClipData
 import android.content.Intent
+import android.os.Build
 import androidx.core.content.FileProvider
 import com.waenhancer.app.R
 import com.waenhancer.utils.UiText
@@ -79,6 +80,7 @@ fun SystemHealthScreen() {
     val radius = WaexTheme.radius
     val scope = rememberCoroutineScope()
     var captureEnabled by remember { mutableStateOf(DiagnosticsRecorder.isEnabled(context)) }
+    var advancedExitEnabled by remember { mutableStateOf(DiagnosticsRecorder.isAdvancedEnabled(context)) }
     var captureChanging by remember { mutableStateOf(false) }
     var captureExporting by remember { mutableStateOf(false) }
     var captureFeedback by remember { mutableStateOf<String?>(null) }
@@ -329,7 +331,10 @@ fun SystemHealthScreen() {
                                             val saved = withContext(Dispatchers.IO) {
                                                 DiagnosticsRecorder.setEnabled(context, enabled)
                                             }
-                                            if (saved) captureEnabled = enabled
+                                            if (saved) {
+                                                captureEnabled = enabled
+                                                if (!enabled) advancedExitEnabled = false
+                                            }
                                             else captureFeedback = context.getString(R.string.diag_capture_pref_failed)
                                             captureChanging = false
                                         }
@@ -337,6 +342,40 @@ fun SystemHealthScreen() {
                                 }
                             )
                         }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                stringResource(R.string.diag_capture_target_exit_enable),
+                                modifier = Modifier.weight(1f),
+                                style = typography.bodyMd,
+                                color = colors.onSurface
+                            )
+                            StitchSwitch(
+                                checked = advancedExitEnabled,
+                                enabled = captureEnabled && !captureChanging
+                                        && Build.VERSION.SDK_INT >= 30,
+                                onCheckedChange = { enabled ->
+                                    if (captureEnabled && !captureChanging) {
+                                        captureChanging = true
+                                        scope.launch {
+                                            val saved = withContext(Dispatchers.IO) {
+                                                DiagnosticsRecorder.setAdvancedEnabled(context, enabled)
+                                            }
+                                            if (saved) advancedExitEnabled = enabled
+                                            else captureFeedback = context.getString(R.string.diag_capture_pref_failed)
+                                            captureChanging = false
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                        Text(
+                            stringResource(R.string.diag_capture_target_exit_description),
+                            style = typography.bodyMd,
+                            color = colors.onSurfaceVariant
+                        )
                         Text(
                             stringResource(R.string.diag_capture_consent),
                             style = typography.bodyMd,

@@ -35,6 +35,7 @@ import com.waenhancer.xposed.core.components.WaexBottomSheet;
 import com.waenhancer.xposed.features.customization.PropsOverrideHook;
 import com.waenhancer.xposed.features.updates.WhatsAppUpdateSheet;
 import com.waenhancer.xposed.utils.ActivityTracker;
+import com.waenhancer.xposed.utils.TargetExitReporter;
 import com.waenhancer.xposed.utils.ModuleStatus;
 
 import java.io.PrintWriter;
@@ -412,6 +413,18 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                     }
                     final PreferenceBridgeClient bridgeClient = resolvedBridge;
                     UiText.initialize(appContext, bridgeClient);
+                    // Only on an explicitly consented WhatsApp launch, read the OS ring buffer
+                    // as the host's own UID. Runs once on a low-priority background thread,
+                    // independent of version support and without any crash-path interception.
+                    try {
+                        boolean advancedConsent = bridgeClient.getBoolean(
+                                PreferenceSchema.KEY_DIAGNOSTIC_CAPTURE_ENABLED, false)
+                                && bridgeClient.getBoolean(
+                                PreferenceSchema.KEY_DIAGNOSTIC_TARGET_EXIT_ENABLED, false);
+                        TargetExitReporter.scheduleOnce(appContext, packageName, advancedConsent,
+                                bridgeClient.getLong(
+                                        PreferenceSchema.KEY_DIAGNOSTIC_TARGET_EXIT_SINCE, 0L));
+                    } catch (RuntimeException ignored) {}
                     reportTargetRuntime(
                             appContext,
                             packageName,

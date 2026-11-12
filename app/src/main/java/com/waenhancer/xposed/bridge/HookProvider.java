@@ -232,6 +232,24 @@ public class HookProvider extends ContentProvider {
                 }
             }
 
+            if ("report_target_exit_history".equals(method) && extras != null) {
+                String pkg = extras.getString("package", arg);
+                if (pkg == null || !callerOwnsPackage(context, callerUid, pkg)
+                        || !DiagnosticsRecorder.isAdvancedEnabled(context)) return writeResult(false);
+                // Only primitive OS fields are accepted; never a Bundle of arbitrary strings.
+                long[] times = extras.getLongArray("exit_times");
+                int[] pids = extras.getIntArray("exit_pids");
+                int[] reasons = extras.getIntArray("exit_reasons");
+                int[] statuses = extras.getIntArray("exit_statuses");
+                long[] pss = extras.getLongArray("exit_pss_kib");
+                long[] rss = extras.getLongArray("exit_rss_kib");
+                int recorded = DiagnosticsRecorder.recordTargetExitHistory(
+                        context, pkg, times, pids, reasons, statuses, pss, rss);
+                Bundle result = writeResult(recorded >= 0);
+                result.putInt("recorded", Math.max(0, recorded));
+                return result;
+            }
+
             if ("get_all_preferences".equals(method)) {
                 var all = new HashMap<String, Object>(prefs.getAll());
                 String targetPackage = targetPackageForCaller(context, callerUid);
