@@ -338,14 +338,21 @@ class PreserveDeleteForMeHook(
             // SQLite write; all metadata needed for preservation is already in the bundle.
             preservationExecutor.execute {
                 try {
-                    context.contentResolver.call(
+                    val acknowledgement = context.contentResolver.call(
                         Uri.parse(PROVIDER_URI),
                         "record_preserved_message",
                         null,
                         bundle
                     )
+                    // The enqueue result only acknowledges scheduling. The manager's
+                    // explicit persistence acknowledgement must be checked on this worker,
+                    // without blocking WhatsApp's original Delete-for-me callback.
+                    if (acknowledgement?.getBoolean("success", false) != true) {
+                        warnPreservationUnconfirmed()
+                    }
                 } catch (_: Throwable) {
-                    XposedBridge.log("$TAG Async message preservation failed")
+                    // Do not log private message content, message IDs or transport errors.
+                    warnPreservationUnconfirmed()
                 }
             }
             true
@@ -431,10 +438,9 @@ class PreserveDeleteForMeHook(
                 method.returnTypeName == "void"
         } ?: return null
 
+        // Supports older WhatsApp ("int", "boolean") and newer versions (boxed "java.lang.Integer", "boolean")
         val deleteRunnableConstructor = onClick.invokes.firstOrNull { invoked ->
             if (!invoked.isConstructor) return@firstOrNull false
-            val params = invoked.paramTypeNames
-            if ("int" !in params || "boolean" !in params) return@firstOrNull false
             val declaredClass = invoked.declaredClass ?: return@firstOrNull false
             declaredClass.interfaces.any { it.name == "java.lang.Runnable" }
         } ?: return null
