@@ -393,7 +393,13 @@ fun FloatingBottomBarCustomizerScreen() {
                         checked = enabled,
                         onCheckedChange = { isChecked ->
                             enabled = isChecked
-                            preferenceManager.putBoolean("floating_bottom_bar", isChecked)
+                            if (isChecked) {
+                                preferenceManager.putBooleans(
+                                    mapOf("floating_bottom_bar" to true, "native_floating_navigation" to false)
+                                )
+                            } else {
+                                preferenceManager.putBoolean("floating_bottom_bar", false)
+                            }
                         }
                     )
                 }

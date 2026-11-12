@@ -110,6 +110,7 @@ public final class InternalLabels {
             case "Instagram Status Layout": return UiText.get(R.string.waex_ui_instagram_status_layout, "Instagram Status Layout");
             case "Separate Groups": return UiText.get(R.string.feat_separate_groups_tabs_title, "Separate Groups");
             case "Floating Bottom Bar": return UiText.get(R.string.feat_floating_bottom_bar_title, "Floating Bottom Bar");
+            case "Native Floating Navigation": return UiText.get(R.string.feat_native_floating_navigation_title, "Native Floating Navigation");
             case "CSS Theme": return UiText.get(R.string.waex_ui_css_theme, "CSS Theme");
             case "Chat Filters": return UiText.get(R.string.waex_ui_chat_filters, "Chat Filters");
             case "Stickers": return UiText.get(R.string.waex_ui_stickers, "Stickers");

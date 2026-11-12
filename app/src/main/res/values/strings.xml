@@ -317,6 +317,8 @@
     <string name="feat_seen_tick_customization_desc">When Hide Blue Ticks is enabled, show an action to send held read receipts</string>
     <string name="feat_floating_bottom_bar_title">Floating Bottom Bar</string>
     <string name="feat_floating_bottom_bar_desc">Enable iOS-style floating bottom navigation bar</string>
+    <string name="feat_native_floating_navigation_title">Native Floating Navigation</string>
+    <string name="feat_native_floating_navigation_desc">Turn on WhatsApp\'s own floating bottom bar, which it is still rolling out (Android 11+)</string>
     <string name="feat_unlock_premium_customization_title">Unlock WA Plus</string>
     <string name="feat_unlock_premium_customization_desc">Unlock official WhatsApp Plus subscription features including app icons, themes, and premium stickers.</string>
     <string name="feat_filter_items_title">Filter Items By ID</string>
