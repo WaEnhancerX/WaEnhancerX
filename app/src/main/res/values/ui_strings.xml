@@ -1115,4 +1115,10 @@
     <string name="waex_ui_theme_delete_confirm" formatted="false">"Delete this theme?"</string>
     <string name="waex_ui_custom_css" formatted="false">"Custom CSS"</string>
     <string name="waex_ui_locked_chat_notifications" formatted="false">"Locked Chat Notifications"</string>
+    <string name="waex_ui_customize_native_floating_navigation" formatted="false">"Customize Native Floating Navigation"</string>
+    <string name="waex_ui_native_floating_navigation_exclusive" formatted="false">"Uses WhatsApp's own floating bar. Turning it on turns off the module's Floating Bottom Bar."</string>
+    <string name="waex_ui_native_floating_navigation_colors" formatted="false">"Colors"</string>
+    <string name="waex_ui_native_floating_navigation_colors_hint" formatted="false">"Leave on default to keep WhatsApp's theme colors"</string>
+    <string name="waex_ui_native_floating_navigation_bg_color" formatted="false">"Background color"</string>
+    <string name="waex_ui_native_floating_navigation_selection_color" formatted="false">"Selection color"</string>
 </resources>

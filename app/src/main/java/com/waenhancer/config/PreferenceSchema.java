@@ -313,6 +313,9 @@ public final class PreferenceSchema {
         add(entries, "ignored_version", Type.STRING, Sensitivity.RUNTIME, Store.PRIVATE);
         add(entries, "igstatus", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "native_igstatus", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "native_floating_navigation", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "native_floating_navigation_bg_color", Type.INT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "native_floating_navigation_selection_color", Type.INT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "imagequality", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "init_prefs_creation", Type.BOOLEAN, Sensitivity.RUNTIME, Store.PRIVATE);
         add(entries, "inline_translation", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);

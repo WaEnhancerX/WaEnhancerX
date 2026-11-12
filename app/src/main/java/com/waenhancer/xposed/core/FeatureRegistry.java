@@ -44,6 +44,7 @@ import com.waenhancer.xposed.features.customization.CustomTimeHook;
 import com.waenhancer.xposed.features.customization.CssThemeHook;
 import com.waenhancer.xposed.features.customization.FilterItemsHook;
 import com.waenhancer.xposed.features.customization.FloatingBottomBarHook;
+import com.waenhancer.xposed.features.customization.NativeFloatingNavigationHook;
 import com.waenhancer.xposed.features.customization.OnlinePresenceIndicatorsHook;
 import com.waenhancer.xposed.features.customization.HideHomeTabsHook;
 import com.waenhancer.xposed.features.customization.NewSettingsStyleHook;
@@ -543,6 +544,10 @@ public final class FeatureRegistry {
                 () -> prefs.getBoolean("floating_bottom_bar", false),
                 () -> new FloatingBottomBarHook(context, classLoader, prefs));
 
+        registerFeature(NativeFloatingNavigationHook.class, "Customization",
+                () -> NativeFloatingNavigationHook.isActive(prefs),
+                () -> new NativeFloatingNavigationHook(context, classLoader, prefs));
+
         registerFeature(FilterItemsHook.class, "Customization",
                 () -> {
                     String raw = prefs.getString("filter_items", null);
@@ -644,6 +649,8 @@ public final class FeatureRegistry {
         boolean newSettingsEnabled = prefs.getBoolean("novaconfig", false);
         PropsOverrideHook.setBooleanOverride(14862, newSettingsEnabled, true);
         PropsOverrideHook.setIntegerOverride(18564, newSettingsEnabled, 2);
+        PropsOverrideHook.setBooleanOverride(NativeFloatingNavigationHook.FLOATING_NAVIGATION_PROP,
+                NativeFloatingNavigationHook.isActive(prefs), true);
         boolean metaAiFullyDisabled = prefs.getBoolean("metaai", false)
                 && prefs.getBoolean("metaai_remove_entry_points", true)
                 && prefs.getBoolean("metaai_block_chat", true);

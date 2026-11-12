@@ -176,7 +176,7 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
     val stylesKeys = remember {
         listOf(
             "bubble_colors", "custom_theme", "custom_time_format", "custom_toolbar",
-            "custom_view_dpi", "seen_tick_customization", "floating_bottom_bar",
+            "custom_view_dpi", "seen_tick_customization", "floating_bottom_bar", "native_floating_navigation",
             "unlock_premium_customization", "custom_filters", "custom_ab_props",
             "dotonline", "showonlinetext", "typing_online_toasts",
             "metaai", "channels_enhancements", "chat_filters", "hide_ui_tabs",
@@ -223,9 +223,13 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
             return@update
         }
         val canonicalKey = StyleBooleanAliasPolicy.canonicalKey(key)
-        val changes = mapOf(canonicalKey to value)
+        // WhatsApp's native floating bar and the module's own floating bar are exclusive.
+        val exclusiveKey = FloatingNavigationExclusivity.counterpart(canonicalKey)
+        val exclusiveOff = if (value && exclusiveKey != null) mapOf(exclusiveKey to false) else emptyMap()
+        val changes = mapOf(canonicalKey to value) + exclusiveOff
         if (preferenceManager.putBooleans(changes)) {
             settingsState[key] = preferenceManager.getBoolean(canonicalKey, value)
+            if (value && exclusiveKey != null) settingsState[exclusiveKey] = false
         } else {
             // Failed commits must not appear as successful changes in the UI.
             Toast.makeText(context, UiText.get(R.string.waex_ui_unable_to_save_setting, "Unable to save setting"), Toast.LENGTH_SHORT).show()
@@ -422,6 +426,21 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
                                                 Icon(
                                                     imageVector = WaexIcons.Settings,
                                                     contentDescription = UiText.get(R.string.waex_ui_customize_floating_bottom_bar, "Customize Floating Bottom Bar"),
+                                                    tint = colors.primary,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+                                        if (item.key == "native_floating_navigation") {
+                                            IconButton(
+                                                onClick = {
+                                                    navController.navigateTo(Screen.NativeFloatingNavigation)
+                                                },
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = WaexIcons.Settings,
+                                                    contentDescription = UiText.get(R.string.waex_ui_customize_native_floating_navigation, "Customize Native Floating Navigation"),
                                                     tint = colors.primary,
                                                     modifier = Modifier.size(20.dp)
                                                 )
