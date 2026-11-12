@@ -391,4 +391,61 @@
     <string name="waex_ui_selected_icon_color">Warna ikon terpilih</string>
     <string name="waex_ui_unselected_icon_color">Warna ikon tidak terpilih</string>
     <string name="waex_ui_using_app_default_color">Menggunakan warna default aplikasi</string>
+
+    <!-- WaEnhancerX 2.0.6 strings -->
+    <string name="config_mode_desc">Konfigurasikan preferensi secara global atau terpisah untuk setiap aplikasi target</string>
+    <string name="config_mode_per_target_app">Per Aplikasi Target</string>
+    <string name="config_mode_per_target_app_desc">Sesuaikan fitur dan preferensi secara independen untuk setiap aplikasi target.</string>
+    <string name="config_mode_title">Mode Konfigurasi</string>
+    <string name="config_mode_universal">Universal</string>
+    <string name="config_mode_universal_desc">Terapkan preferensi yang sama ke semua aplikasi WhatsApp yang dicakup.</string>
+    <string name="diag_denylist_active_targets">Target yang Masuk DenyList</string>
+    <string name="diag_denylist_blocked">WhatsApp Diblokir</string>
+    <string name="diag_denylist_btn_fix">Perbaiki</string>
+    <string name="diag_denylist_btn_fix_all">Perbaiki Semua</string>
+    <string name="diag_denylist_checking">Memeriksa…</string>
+    <string name="diag_denylist_clean">Tidak ada target yang diblokir</string>
+    <string name="diag_denylist_fix_all_message">Ini akan menghapus semua paket WhatsApp yang terdeteksi dari Magisk DenyList dan memaksanya berhenti agar Zygisk/LSPosed dapat mengaitkannya saat peluncuran berikutnya.</string>
+    <string name="diag_denylist_fix_failed">Gagal menghapus dari Magisk DenyList</string>
+    <string name="diag_denylist_fix_message">Ini akan menghapus %1$s dari Magisk DenyList dan memaksanya berhenti agar Zygisk/LSPosed dapat mengaitkannya saat peluncuran berikutnya.</string>
+    <string name="diag_denylist_fix_success">Berhasil dihapus dari Magisk DenyList</string>
+    <string name="diag_denylist_fix_title">Perbaiki Magisk DenyList</string>
+    <string name="diag_denylist_inactive_targets">Target Lainnya</string>
+    <string name="diag_denylist_not_active">Tidak aktif</string>
+    <string name="diag_denylist_sheet_desc">Ikhtisar aturan Magisk DenyList yang memengaruhi paket target dan injeksi modul Zygisk.</string>
+    <string name="diag_denylist_sheet_title">Diagnostik Magisk DenyList</string>
+    <string name="diag_denylist_target_blocked">Diblokir oleh DenyList yang diterapkan</string>
+    <string name="diag_denylist_target_clean">Tidak ada dalam DenyList yang diterapkan</string>
+    <string name="diag_denylist_target_magisk_inactive">Magisk tidak aktif</string>
+    <string name="diag_denylist_target_not_enforced">Penegakan DenyList dinonaktifkan</string>
+    <string name="diag_label_denylist">Magisk DenyList</string>
+    <string name="feat_custom_ab_props_desc">Ganti properti WhatsApp AB berdasarkan ID properti saat startup</string>
+    <string name="feat_custom_ab_props_title">Properti AB Kustom</string>
+    <string name="feat_disable_defemojis_desc">Gunakan emoji sistem (iOS, Samsung, Google) alih-alih emoji bawaan WhatsApp</string>
+    <string name="feat_disable_defemojis_title">Gunakan Emoji Default Perangkat</string>
+    <string name="feat_parallel_downloading_desc">Unduh media dan file besar melalui beberapa koneksi simultan sekaligus</string>
+    <string name="feat_parallel_downloading_title">Unduhan Paralel</string>
+    <string name="navigation_drawer_open">Buka panel navigasi</string>
+    <string name="parallel_downloading_2">2 koneksi</string>
+    <string name="parallel_downloading_4">4 koneksi (Direkomendasikan)</string>
+    <string name="parallel_downloading_8">8 koneksi</string>
+    <string name="parallel_downloading_connections_desc">Pilih jumlah koneksi simultan yang digunakan per unduhan</string>
+    <string name="parallel_downloading_connections_title">KONEKSI PARALEL</string>
+    <string name="requires_setting_enabled">Memerlukan %1$s diaktifkan</string>
+    <string name="target_whatsapp">WhatsApp</string>
+    <string name="target_whatsapp_business">WhatsApp Business</string>
+    <string name="timestamp_custom_pattern_hint">mis. HH:mm a, dd/MM HH:mm:ss</string>
+    <string name="timestamp_custom_pattern_label">Pola Kustom</string>
+    <string name="timestamp_format_title">Format tanda waktu</string>
+    <string name="timestamp_invalid_pattern">Pola tanggal/waktu tidak valid</string>
+    <string name="timestamp_modify_text_instructions">Gunakan ${t} sebagai variabel waktu sesuai format yang dipilih. Anda dapat menambahkan teks sebelum dan sesudah ${t}, atau memasukkan teks kustom.</string>
+    <string name="timestamp_modify_text_preview">Pratinjau</string>
+    <string name="timestamp_modify_text_title">Ubah teks</string>
+    <string name="waex_ui_github_rate_limited" formatted="false">Batas Permintaan GitHub Terlampaui</string>
+    <string name="waex_ui_github_rate_limited_desc" formatted="false">Batas API GitHub tercapai. Tarik untuk menyegarkan atau coba lagi dalam beberapa menit.</string>
+    <string name="waex_ui_native_igstatus" formatted="false">IGStatus Asli</string>
+    <string name="waex_ui_network_timeout_message" formatted="false">Permintaan memakan waktu terlalu lama. Periksa koneksi Anda dan coba lagi.</string>
+    <string name="waex_ui_network_unreachable_message" formatted="false">WAEX tidak dapat menjangkau layanan. Periksa koneksi Anda dan coba lagi.</string>
+    <string name="waex_ui_show_as_deleted" formatted="false">Tampilkan sebagai Pesan Dihapus</string>
+    <string name="waex_ui_show_as_deleted_desc" formatted="false">Tampilkan pesan yang dihapus menggunakan tata letak pesan dihapus asli WhatsApp</string>
 </resources>

@@ -391,4 +391,61 @@
     <string name="waex_ui_selected_icon_color">Seçili simge rengi</string>
     <string name="waex_ui_unselected_icon_color">Seçilmemiş simge rengi</string>
     <string name="waex_ui_using_app_default_color">Uygulamanın varsayılan rengi kullanılıyor</string>
+
+    <!-- WaEnhancerX 2.0.6 strings -->
+    <string name="config_mode_desc">Tercihleri genel olarak veya her hedef uygulama için ayrı ayrı yapılandırın</string>
+    <string name="config_mode_per_target_app">Hedef Uygulama Başına</string>
+    <string name="config_mode_per_target_app_desc">Her hedef uygulama için özellikleri ve tercihleri bağımsız olarak özelleştirin.</string>
+    <string name="config_mode_title">Yapılandırma Modu</string>
+    <string name="config_mode_universal">Evrensel</string>
+    <string name="config_mode_universal_desc">Kapsamdaki tüm WhatsApp uygulamalarına aynı tercihleri uygulayın.</string>
+    <string name="diag_denylist_active_targets">DenyList Kapsamındaki Hedefler</string>
+    <string name="diag_denylist_blocked">WhatsApp Engelleniyor</string>
+    <string name="diag_denylist_btn_fix">Düzelt</string>
+    <string name="diag_denylist_btn_fix_all">Tümünü Düzelt</string>
+    <string name="diag_denylist_checking">Denetleniyor…</string>
+    <string name="diag_denylist_clean">Engellenen hedef yok</string>
+    <string name="diag_denylist_fix_all_message">Bu işlem, tespit edilen tüm WhatsApp paketlerini Magisk DenyList listesinden kaldıracak ve bir sonraki başlatmada Zygisk/LSPosed tarafından kancalanabilmesi için zorla durduracaktır.</string>
+    <string name="diag_denylist_fix_failed">Magisk DenyList listesinden kaldırılamadı</string>
+    <string name="diag_denylist_fix_message">Bu işlem, %1$s paketini Magisk DenyList listesinden kaldıracak ve bir sonraki başlatmada Zygisk/LSPosed tarafından kancalanabilmesi için zorla durduracaktır.</string>
+    <string name="diag_denylist_fix_success">Magisk DenyList listesinden başarıyla kaldırıldı</string>
+    <string name="diag_denylist_fix_title">Magisk DenyList Listesini Düzelt</string>
+    <string name="diag_denylist_inactive_targets">Diğer Hedefler</string>
+    <string name="diag_denylist_not_active">Etkin değil</string>
+    <string name="diag_denylist_sheet_desc">Hedef paketleri ve Zygisk modül enjeksiyonunu etkileyen Magisk DenyList kurallarına genel bakış.</string>
+    <string name="diag_denylist_sheet_title">Magisk DenyList Tanılaması</string>
+    <string name="diag_denylist_target_blocked">Uygulanan DenyList tarafından engellendi</string>
+    <string name="diag_denylist_target_clean">Uygulanan DenyList listesinde bulunmuyor</string>
+    <string name="diag_denylist_target_magisk_inactive">Magisk etkin değil</string>
+    <string name="diag_denylist_target_not_enforced">DenyList zorlaması devre dışı</string>
+    <string name="diag_label_denylist">Magisk DenyList</string>
+    <string name="feat_custom_ab_props_desc">Başlangıçta özellik kimliğine göre WhatsApp AB özelliklerini geçersiz kılın</string>
+    <string name="feat_custom_ab_props_title">Özel AB Özellikleri</string>
+    <string name="feat_disable_defemojis_desc">WhatsApp\'ın yerleşik emojileri yerine sistem emojilerini (iOS, Samsung, Google) kullanın</string>
+    <string name="feat_disable_defemojis_title">Cihaz Varsayılan Emojilerini Kullan</string>
+    <string name="feat_parallel_downloading_desc">Büyük medyaları ve dosyaları aynı anda birden çok eşzamanlı bağlantı üzerinden indirin</string>
+    <string name="feat_parallel_downloading_title">Paralel İndirme</string>
+    <string name="navigation_drawer_open">Gezinme çekmecesini aç</string>
+    <string name="parallel_downloading_2">2 bağlantı</string>
+    <string name="parallel_downloading_4">4 bağlantı (Önerilen)</string>
+    <string name="parallel_downloading_8">8 bağlantı</string>
+    <string name="parallel_downloading_connections_desc">İndirme başına kullanılan eşzamanlı bağlantı sayısını seçin</string>
+    <string name="parallel_downloading_connections_title">PARALEL BAĞLANTILAR</string>
+    <string name="requires_setting_enabled">%1$s ayarının etkinleştirilmesini gerektirir</string>
+    <string name="target_whatsapp">WhatsApp</string>
+    <string name="target_whatsapp_business">WhatsApp Business</string>
+    <string name="timestamp_custom_pattern_hint">örn. HH:mm a, dd/MM HH:mm:ss</string>
+    <string name="timestamp_custom_pattern_label">Özel Desen</string>
+    <string name="timestamp_format_title">Zaman damgası biçimi</string>
+    <string name="timestamp_invalid_pattern">Geçersiz tarih/saat deseni</string>
+    <string name="timestamp_modify_text_instructions">Seçtiğiniz biçime göre zaman değişkeni olarak ${t} kullanın. ${t} öncesine ve sonrasına metin ekleyebilir veya özel metin girebilirsiniz.</string>
+    <string name="timestamp_modify_text_preview">Önizleme</string>
+    <string name="timestamp_modify_text_title">Metni değiştir</string>
+    <string name="waex_ui_github_rate_limited" formatted="false">GitHub İstek Sınırı Aşıldı</string>
+    <string name="waex_ui_github_rate_limited_desc" formatted="false">GitHub API sınırına ulaşıldı. Yenilemek için aşağı çekin veya birkaç dakika sonra tekrar deneyin.</string>
+    <string name="waex_ui_native_igstatus" formatted="false">Yerel IGStatus</string>
+    <string name="waex_ui_network_timeout_message" formatted="false">İstek çok uzun sürdü. Bağlantınızı kontrol edip tekrar deneyin.</string>
+    <string name="waex_ui_network_unreachable_message" formatted="false">WAEX hizmete ulaşamadı. Bağlantınızı kontrol edip tekrar deneyin.</string>
+    <string name="waex_ui_show_as_deleted" formatted="false">Silinmiş Mesaj Olarak Göster</string>
+    <string name="waex_ui_show_as_deleted_desc" formatted="false">Silinen mesajları WhatsApp\'ın yerel silinmiş mesaj düzenini kullanarak görüntüleyin</string>
 </resources>
