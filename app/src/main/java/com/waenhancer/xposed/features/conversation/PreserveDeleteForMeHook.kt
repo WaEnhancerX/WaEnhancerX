@@ -438,10 +438,9 @@ class PreserveDeleteForMeHook(
                 method.returnTypeName == "void"
         } ?: return null
 
+        // Supports older WhatsApp ("int", "boolean") and newer versions (boxed "java.lang.Integer", "boolean")
         val deleteRunnableConstructor = onClick.invokes.firstOrNull { invoked ->
             if (!invoked.isConstructor) return@firstOrNull false
-            val params = invoked.paramTypeNames
-            if ("int" !in params || "boolean" !in params) return@firstOrNull false
             val declaredClass = invoked.declaredClass ?: return@firstOrNull false
             declaredClass.interfaces.any { it.name == "java.lang.Runnable" }
         } ?: return null
