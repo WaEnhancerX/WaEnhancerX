@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- WaEnhancerX 2.0.6: feature, diagnostics, and configuration strings. -->
+    <string name="config_mode_desc">Konfigurirajte nastavitve globalno ali ločeno za vsako ciljno aplikacijo</string>
+    <string name="config_mode_per_target_app">Za vsako ciljno aplikacijo</string>
+    <string name="config_mode_per_target_app_desc">Prilagodite funkcije in nastavitve neodvisno za vsako ciljno aplikacijo.</string>
+    <string name="config_mode_title">Način konfiguracije</string>
+    <string name="config_mode_universal">Univerzalno</string>
+    <string name="config_mode_universal_desc">Uporabite enake nastavitve za vse zajete aplikacije WhatsApp.</string>
+    <string name="diag_denylist_active_targets">Cilji na seznamu DenyList</string>
+    <string name="diag_denylist_blocked">Blokiranje aplikacije WhatsApp</string>
+    <string name="diag_denylist_btn_fix">Popravi</string>
+    <string name="diag_denylist_btn_fix_all">Popravi vse</string>
+    <string name="diag_denylist_checking">Preverjanje…</string>
+    <string name="diag_denylist_clean">Ni blokiranih ciljev</string>
+    <string name="diag_denylist_fix_all_message">To bo odstranilo vse zaznane pakete WhatsApp iz seznama Magisk DenyList in jih prisilno ustavilo, da jih lahko Zygisk/LSPosed prestreže ob naslednjem zagonu.</string>
+    <string name="diag_denylist_fix_failed">Odstranitev iz seznama Magisk DenyList ni uspela</string>
+    <string name="diag_denylist_fix_message">To bo odstranilo %1$s iz seznama Magisk DenyList in ga prisilno ustavilo, da ga lahko Zygisk/LSPosed prestreže ob naslednjem zagonu.</string>
+    <string name="diag_denylist_fix_success">Uspešno odstranjeno iz seznama Magisk DenyList</string>
+    <string name="diag_denylist_fix_title">Popravi Magisk DenyList</string>
+    <string name="diag_denylist_inactive_targets">Drugi cilji</string>
+    <string name="diag_denylist_not_active">Ni aktivno</string>
+    <string name="diag_denylist_sheet_desc">Pregled pravil seznama Magisk DenyList, ki vplivajo na ciljne pakete in vbrizgavanje modula prek Zygisk.</string>
+    <string name="diag_denylist_sheet_title">Diagnostika Magisk DenyList</string>
+    <string name="diag_denylist_target_blocked">Blokirano z uveljavljenim seznamom DenyList</string>
+    <string name="diag_denylist_target_clean">Ni prisotno na uveljavljenem seznamu DenyList</string>
+    <string name="diag_denylist_target_magisk_inactive">Magisk ni aktiven</string>
+    <string name="diag_denylist_target_not_enforced">Uveljavljanje seznama DenyList je onemogočeno</string>
+    <string name="diag_label_denylist">Magisk DenyList</string>
+    <string name="feat_custom_ab_props_desc">Pregazi lastnosti WhatsApp AB po ID-ju lastnosti ob zagonu</string>
+    <string name="feat_custom_ab_props_title">Prilagojene lastnosti AB</string>
+    <string name="feat_disable_defemojis_desc">Uporabite sistemske emojije (iOS, Samsung, Google) namesto vgrajenih emojijev WhatsApp</string>
+    <string name="feat_disable_defemojis_title">Uporabi privzete emojije naprave</string>
+    <string name="feat_parallel_downloading_desc">Prenašanje velikih medijev in datotek prek več hkratnih povezav naenkrat</string>
+    <string name="feat_parallel_downloading_title">Vzporedno prenašanje</string>
+    <string name="navigation_drawer_open">Odpri navigacijski predal</string>
+    <string name="parallel_downloading_2">2 povezavi</string>
+    <string name="parallel_downloading_4">4 povezave (Priporočeno)</string>
+    <string name="parallel_downloading_8">8 povezav</string>
+    <string name="parallel_downloading_connections_desc">Izberite število hkratnih povezav za posamezen prenos</string>
+    <string name="parallel_downloading_connections_title">VZPOREDNE POVEZAVE</string>
+    <string name="requires_setting_enabled">Zahteva omogočeno nastavitev %1$s</string>
+    <string name="target_whatsapp">WhatsApp</string>
+    <string name="target_whatsapp_business">WhatsApp Business</string>
+    <string name="timestamp_custom_pattern_hint">npr. HH:mm a, dd/MM HH:mm:ss</string>
+    <string name="timestamp_custom_pattern_label">Vzorec po meri</string>
+    <string name="timestamp_format_title">Oblika časovnega žiga</string>
+    <string name="timestamp_invalid_pattern">Neveljaven vzorec datuma/časa</string>
+    <string name="timestamp_modify_text_instructions">Uporabite ${t} kot spremenljivko časa glede na izbrano obliko. Dodate lahko poljubno besedilo pred in za ${t} ali vnesete besedilo po meri.</string>
+    <string name="timestamp_modify_text_preview">Predogled</string>
+    <string name="timestamp_modify_text_title">Spremeni besedilo</string>
+    <string name="waex_ui_github_rate_limited" formatted="false">Presežena omejitev zahtevkov GitHub</string>
+    <string name="waex_ui_github_rate_limited_desc" formatted="false">Dosežena je omejitev API-ja GitHub. Povlecite za osvežitev ali poskusite znova čez nekaj minut.</string>
+    <string name="waex_ui_native_igstatus" formatted="false">Izvorni IGStatus</string>
+    <string name="waex_ui_network_timeout_message" formatted="false">Zahtevek je trajal predolgo. Preverite povezavo in poskusite znova.</string>
+    <string name="waex_ui_network_unreachable_message" formatted="false">WAEX ni mogel doseči storitve. Preverite povezavo in poskusite znova.</string>
+    <string name="waex_ui_show_as_deleted" formatted="false">Prikaži kot izbrisano sporočilo</string>
+    <string name="waex_ui_show_as_deleted_desc" formatted="false">Prikaz izbrisanih sporočil z izvorno postavitvijo WhatsApp za izbrisana sporočila</string>
+</resources>

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- WaEnhancerX 2.0.6: feature, diagnostics, and configuration strings. -->
+    <string name="config_mode_desc">Einstellungen global oder separat für jede Ziel-App konfigurieren</string>
+    <string name="config_mode_per_target_app">Pro Ziel-App</string>
+    <string name="config_mode_per_target_app_desc">Funktionen und Einstellungen für jede Ziel-App unabhängig anpassen.</string>
+    <string name="config_mode_title">Konfigurationsmodus</string>
+    <string name="config_mode_universal">Universal</string>
+    <string name="config_mode_universal_desc">Dieselben Einstellungen auf alle erfassten WhatsApp-Apps anwenden.</string>
+    <string name="diag_denylist_active_targets">In DenyList enthaltene Ziele</string>
+    <string name="diag_denylist_blocked">WhatsApp wird blockiert</string>
+    <string name="diag_denylist_btn_fix">Beheben</string>
+    <string name="diag_denylist_btn_fix_all">Alle beheben</string>
+    <string name="diag_denylist_checking">Wird überprüft…</string>
+    <string name="diag_denylist_clean">Keine Ziele blockiert</string>
+    <string name="diag_denylist_fix_all_message">Dadurch werden alle erkannten WhatsApp-Pakete aus der Magisk-DenyList entfernt und erzwungen beendet, damit Zygisk/LSPosed sie beim nächsten Start einbinden kann.</string>
+    <string name="diag_denylist_fix_failed">Entfernen aus der Magisk-DenyList fehlgeschlagen</string>
+    <string name="diag_denylist_fix_message">Dadurch wird %1$s aus der Magisk-DenyList entfernt und erzwungen beendet, damit Zygisk/LSPosed es beim nächsten Start einbinden kann.</string>
+    <string name="diag_denylist_fix_success">Erfolgreich aus der Magisk-DenyList entfernt</string>
+    <string name="diag_denylist_fix_title">Magisk-DenyList reparieren</string>
+    <string name="diag_denylist_inactive_targets">Andere Ziele</string>
+    <string name="diag_denylist_not_active">Nicht aktiv</string>
+    <string name="diag_denylist_sheet_desc">Übersicht über Magisk-DenyList-Regeln, die Zielpakete und die Modulinjektion über Zygisk betreffen.</string>
+    <string name="diag_denylist_sheet_title">Magisk-DenyList-Diagnose</string>
+    <string name="diag_denylist_target_blocked">Durch die erzwungene DenyList blockiert</string>
+    <string name="diag_denylist_target_clean">Nicht in der erzwungenen DenyList vorhanden</string>
+    <string name="diag_denylist_target_magisk_inactive">Magisk ist nicht aktiv</string>
+    <string name="diag_denylist_target_not_enforced">DenyList-Erzwingung ist deaktiviert</string>
+    <string name="diag_label_denylist">Magisk-DenyList</string>
+    <string name="feat_custom_ab_props_desc">WhatsApp-AB-Eigenschaften beim Start anhand der Eigenschafts-ID überschreiben</string>
+    <string name="feat_custom_ab_props_title">Benutzerdefinierte AB-Eigenschaften</string>
+    <string name="feat_disable_defemojis_desc">System-Emojis (iOS, Samsung, Google) anstelle der integrierten WhatsApp-Emojis verwenden</string>
+    <string name="feat_disable_defemojis_title">Standard-Emojis des Geräts verwenden</string>
+    <string name="feat_parallel_downloading_desc">Große Medien und Dateien über mehrere gleichzeitige Verbindungen herunterladen</string>
+    <string name="feat_parallel_downloading_title">Paralleles Herunterladen</string>
+    <string name="navigation_drawer_open">Navigationsleiste öffnen</string>
+    <string name="parallel_downloading_2">2 Verbindungen</string>
+    <string name="parallel_downloading_4">4 Verbindungen (Empfohlen)</string>
+    <string name="parallel_downloading_8">8 Verbindungen</string>
+    <string name="parallel_downloading_connections_desc">Wähle die Anzahl der gleichzeitigen Verbindungen pro Download</string>
+    <string name="parallel_downloading_connections_title">PARALLELE VERBINDUNGEN</string>
+    <string name="requires_setting_enabled">Erfordert aktiviertes %1$s</string>
+    <string name="target_whatsapp">WhatsApp</string>
+    <string name="target_whatsapp_business">WhatsApp Business</string>
+    <string name="timestamp_custom_pattern_hint">z. B. HH:mm a, dd/MM HH:mm:ss</string>
+    <string name="timestamp_custom_pattern_label">Benutzerdefiniertes Muster</string>
+    <string name="timestamp_format_title">Zeitstempelformat</string>
+    <string name="timestamp_invalid_pattern">Ungültiges Datums-/Zeitmuster</string>
+    <string name="timestamp_modify_text_instructions">Verwende ${t} als Zeitvariable gemäß dem ausgewählten Format. Du kannst Text vor und nach ${t} hinzufügen oder benutzerdefinierten Text eingeben.</string>
+    <string name="timestamp_modify_text_preview">Vorschau</string>
+    <string name="timestamp_modify_text_title">Text anpassen</string>
+    <string name="waex_ui_github_rate_limited" formatted="false">GitHub-Ratenlimit überschritten</string>
+    <string name="waex_ui_github_rate_limited_desc" formatted="false">GitHub-API-Limit erreicht. Zum Aktualisieren nach unten wischen oder in einigen Minuten erneut versuchen.</string>
+    <string name="waex_ui_native_igstatus" formatted="false">Natives IGStatus</string>
+    <string name="waex_ui_network_timeout_message" formatted="false">Die Anfrage hat zu lange gedauert. Überprüfe deine Verbindung und versuche es erneut.</string>
+    <string name="waex_ui_network_unreachable_message" formatted="false">WAEX konnte den Dienst nicht erreichen. Überprüfe deine Verbindung und versuche es erneut.</string>
+    <string name="waex_ui_show_as_deleted" formatted="false">Als gelöschte Nachricht anzeigen</string>
+    <string name="waex_ui_show_as_deleted_desc" formatted="false">Gelöschte Nachrichten im nativen WhatsApp-Design für gelöschte Nachrichten anzeigen</string>
+</resources>
