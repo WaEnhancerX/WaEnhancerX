@@ -89,7 +89,8 @@ def main():
         if not shutil.which(tool): raise RuntimeError('Required compiler/runtime missing: '+tool)
     source=RENDERER.read_text(encoding='utf-8')
     guards={
-        'weak overlay values': 'WeakHashMap<View, WeakReference<FrameLayout>>',
+        'visible rows use weak keys': 'Collections.synchronizedMap(WeakHashMap<View, String>())',
+        'pending rows use weak keys': 'Collections.synchronizedMap(WeakHashMap<View, Any>())',
         'cached aliases use ordered state': 'PresenceStateStore.getLatest(keys)',
         'new binds restore cached state': 'render(row, stateForRow(jid))',
         'late observations read current state': 'render(row, stateForRow(boundJid))',
@@ -98,8 +99,9 @@ def main():
         'failed bind clears previous contact': 'queueBindRow(row, null)',
         'invalidated rows clear tag': 'row.setTag(TAG_BOUND_JID, null)',
         'refresh burst coalescing': 'refreshPending.compareAndSet(false, true)',
-        'explicit overlay measurement': 'overlay.measure(',
-        'host layout direction': 'overlay.layoutDirection = row.layoutDirection',
+        'dot participates in real parent layout': 'targetGroup.addView(dot, params)',
+        'dot uses relative avatar-end gravity': 'Gravity.BOTTOM or Gravity.END',
+        'text participates in real parent layout': 'group.addView(text, params)',
         'ambiguous alias tombstone': 'if (previous == null || previous == jid) jid else ""',
     }
     for name,required in guards.items():
@@ -110,7 +112,7 @@ def main():
         test=Path(td)/'TestPresenceReplay.java';test.write_text(TEST)
         subprocess.run(['javac','--release','17','-d',td,str(STORE),str(test)],check=True,timeout=60)
         subprocess.run(['java','-cp',td,'com.waenhancer.xposed.features.automation.TestPresenceReplay'],check=True,timeout=60)
-    print('PASS: 14 renderer source guards; run Android/Robolectric tests separately')
+    print('PASS: '+str(len(guards)+2)+' renderer source guards; run Android/Robolectric tests separately')
 
 if __name__=='__main__':
     main()
