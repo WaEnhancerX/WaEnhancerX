@@ -71,6 +71,13 @@ re-enable/reconciliation failures. The identical Java fixture against the
 four-file candidate passed **59/59**. The candidate also passed **59/59** under
 JBR 25.0.3. This is JVM policy coverage, not real media/WhatsApp acceptance.
 
+The public `.github/workflows/source-qa.yml` now executes the same independent
+fixture under the workflow's JDK 21 with required exit status, before the
+other source-regression suites, and preserves text-only result, source and
+toolchain identities, and logs. These CI steps have **not** been asserted as
+passed on a GitHub Actions run from this branch; the two local JDK runs above
+are the executed evidence.
+
 ## Real acceptance still pending
 
 1. Verify the enabled/disabled preference is correctly delivered through the

@@ -102,6 +102,24 @@ jobs:
           set -euo pipefail
           python3 qa/test_syntax_checker.py
 
+      - name: Verify screenshot and default image-quality MobileConfig contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_media_quality_screenshot_props.py \
+            --source-root . --out "$RUNNER_TEMP/waex-media-screenshot-props"
+
+      - name: Preserve image-quality property contract evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: media-screenshot-props-evidence
+          path: |
+            ${{ runner.temp }}/waex-media-screenshot-props/*.json
+            ${{ runner.temp }}/waex-media-screenshot-props/*.log
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Validate complete status style and property hook contracts
         shell: bash
         run: |
