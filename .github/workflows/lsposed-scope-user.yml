@@ -1,0 +1,57 @@
+name: LSPosed scope Android-user isolation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/src/main/java/com/waenhancer/utils/LsposedScopeReader.kt'
+      - 'qa/test_lsposed_scope_reader.py'
+      - 'qa/fixtures/lsposed_scope/**'
+      - '.github/workflows/lsposed-scope-user.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scope-user-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out public source only
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: false
+      - name: Install JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Require the Kotlin compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -version
+          javac -version
+          command -v kotlinc || { echo '::error::Kotlin CLI is missing'; exit 1; }
+          kotlinc -version
+      - name: Compile the production reader and check personal/work scope isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_lsposed_scope_reader.py \
+            --mutation-control \
+            --out "$RUNNER_TEMP/lsposed-scope-user.json"
+      - name: Preserve the positive and mutation control evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lsposed-scope-user-isolation
+          path: ${{ runner.temp }}/lsposed-scope-user.json
+          retention-days: 14
+          if-no-files-found: warn
