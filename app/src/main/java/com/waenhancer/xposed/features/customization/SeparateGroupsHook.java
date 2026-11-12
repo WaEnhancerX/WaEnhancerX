@@ -385,7 +385,7 @@ public final class SeparateGroupsHook extends BaseFeature {
                         for (var data : subclasses) {
                             Class<?> cls = data.getInstance(loader);
                             for (Constructor<?> ctor : cls.getDeclaredConstructors()) {
-                                if (ctor.getParameterCount() == 0) {
+                                if (ctor.getParameterTypes().length == 0) {
                                     return cls;
                                 }
                             }
@@ -400,7 +400,7 @@ public final class SeparateGroupsHook extends BaseFeature {
                         for (var data : subclasses) {
                             Class<?> cls = data.getInstance(loader);
                             for (Constructor<?> ctor : cls.getDeclaredConstructors()) {
-                                int count = ctor.getParameterCount();
+                                int count = ctor.getParameterTypes().length;
                                 if (count >= 1 && !ctor.getParameterTypes()[0].isPrimitive()) {
                                     return cls;
                                 }
@@ -416,9 +416,9 @@ public final class SeparateGroupsHook extends BaseFeature {
 
             Constructor<?> foundWrapperCtor = null;
             for (Constructor<?> ctor : badgeWrapperClass.getDeclaredConstructors()) {
-                int count = ctor.getParameterCount();
+                int count = ctor.getParameterTypes().length;
                 if (count >= 1 && !ctor.getParameterTypes()[0].isPrimitive()) {
-                    if (foundWrapperCtor == null || count < foundWrapperCtor.getParameterCount()) {
+                    if (foundWrapperCtor == null || count < foundWrapperCtor.getParameterTypes().length) {
                         foundWrapperCtor = ctor;
                     }
                 }
@@ -431,7 +431,7 @@ public final class SeparateGroupsHook extends BaseFeature {
             Class<?> badgeItemClass = engine.findClassWithCache(context, classLoader,
                     "separate_groups.badge_item_class", (bridge, loader) -> {
                         for (Constructor<?> ctor : badgeItemBaseClass.getDeclaredConstructors()) {
-                            if (ctor.getParameterCount() == 1 && ctor.getParameterTypes()[0] == int.class) {
+                            if (ctor.getParameterTypes().length == 1 && ctor.getParameterTypes()[0] == int.class) {
                                 return badgeItemBaseClass;
                             }
                         }
@@ -440,7 +440,7 @@ public final class SeparateGroupsHook extends BaseFeature {
                         for (var data : candidates) {
                             Class<?> cls = data.getInstance(loader);
                             for (Constructor<?> ctor : cls.getDeclaredConstructors()) {
-                                if (ctor.getParameterCount() == 1 && ctor.getParameterTypes()[0] == int.class) {
+                                if (ctor.getParameterTypes().length == 1 && ctor.getParameterTypes()[0] == int.class) {
                                     return cls;
                                 }
                             }
@@ -455,7 +455,7 @@ public final class SeparateGroupsHook extends BaseFeature {
 
             Constructor<?> foundItemCtor = null;
             for (Constructor<?> ctor : badgeItemClass.getDeclaredConstructors()) {
-                if (ctor.getParameterCount() == 1 && ctor.getParameterTypes()[0] == int.class) {
+                if (ctor.getParameterTypes().length == 1 && ctor.getParameterTypes()[0] == int.class) {
                     ctor.setAccessible(true);
                     foundItemCtor = ctor;
                     break;
@@ -565,7 +565,7 @@ public final class SeparateGroupsHook extends BaseFeature {
             }
         }
         for (Constructor<?> ctor : emptyBadgeClass.getDeclaredConstructors()) {
-            if (ctor.getParameterCount() == 0) {
+            if (ctor.getParameterTypes().length == 0) {
                 try {
                     ctor.setAccessible(true);
                     return ctor.newInstance();
