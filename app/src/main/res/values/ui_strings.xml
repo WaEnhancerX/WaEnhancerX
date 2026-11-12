@@ -1114,4 +1114,7 @@
     <string name="waex_ui_theme_active" formatted="false">"Active"</string>
     <string name="waex_ui_theme_delete_confirm" formatted="false">"Delete this theme?"</string>
     <string name="waex_ui_custom_css" formatted="false">"Custom CSS"</string>
+    <string name="waex_ui_feature_loading_channel" formatted="false">"WAEX feature loading"</string>
+    <string name="waex_ui_feature_loading_title" translatable="false">"WaEnhancer X"</string>
+    <string name="waex_ui_feature_loading_progress">"Preparing features after an update… %1$d/%2$d"</string>
 </resources>

@@ -55,6 +55,8 @@ public final class DexCacheManager {
     private final Context mContext;
     private final SharedPreferences mPrefs;
     private final boolean mPersistentCacheValid;
+    /** True when this process found a stale cache and every target must be resolved again. */
+    private volatile boolean mColdStart;
     private final Map<String, Object> mMemoryCache = new ConcurrentHashMap<>();
     private final Map<String, Object> mKeyLocks = new ConcurrentHashMap<>();
     private final DexNegativeLookupCache mFailedKeys =
@@ -119,6 +121,7 @@ public final class DexCacheManager {
                 mMemoryCache.clear();
                 mFailedKeys.clear();
                 mInvalidations.incrementAndGet();
+                mColdStart = true;
             }
             return true;
         } catch (Throwable error) {
@@ -127,6 +130,14 @@ public final class DexCacheManager {
             // Do not read or rewrite descriptors from an unverified host generation.
             return false;
         }
+    }
+
+    /**
+     * Whether the persisted descriptors were discarded at startup (WhatsApp, module or schema
+     * update), so hooks are resolved by a full DexKit scan and startup is noticeably slower.
+     */
+    public boolean isColdStart() {
+        return mColdStart;
     }
 
     public void clearMemoryCache() {
