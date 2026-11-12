@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.net.Uri;
 import java.io.InputStream;
 import java.io.OutputStream;
+import com.waenhancer.config.ExclusivePreferences;
 import com.waenhancer.config.PreferenceSchema;
 import com.waenhancer.config.PreferenceStores;
 import com.waenhancer.config.PreferenceRestartTracker;
@@ -14,6 +15,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -162,6 +164,11 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
 
     @Override
     public void putBoolean(String key, boolean value) {
+        if (value && ExclusivePreferences.partnerOf(key) != null) {
+            // Switching on a mutually exclusive setting switches its partner off, atomically.
+            putBooleans(Collections.singletonMap(key, true));
+            return;
+        }
         if (!getStore(key).edit().putBoolean(key(key), value).commit()) return;
         recordChanged(key, "PUT");
         if (isPublicStore(key)) {
@@ -188,6 +195,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
                 if (definition != null && (definition.type != PreferenceSchema.Type.BOOLEAN
                         || definition.store != PreferenceSchema.Store.PUBLIC)) return false;
             }
+            batch = ExclusivePreferences.expand(batch);
             SharedPreferences.Editor editor = PreferenceStores.publicStore(context).edit();
             for (Map.Entry<String, Boolean> change : batch.entrySet()) {
                 editor.putBoolean(resolvedKey(change.getKey()), change.getValue());
@@ -370,9 +378,19 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
         InputStream input = context.getContentResolver().openInputStream(source);
         if (input == null) throw new IOException("Could not open backup file");
         int count = SettingsBackupCodec.INSTANCE.decode(context, input);
+        resolveExclusiveConflicts();
         DiagnosticsRecorder.recordSettingsTransfer(context, "IMPORT", count);
         notifyChange();
         return count;
+    }
+
+    /** A restored backup may hold two mutually exclusive settings as on; keep only one. */
+    private void resolveExclusiveConflicts() {
+        for (Map.Entry<String, String> pair : ExclusivePreferences.clearedOnConflict().entrySet()) {
+            if (getBoolean(pair.getKey(), false) && getBoolean(pair.getValue(), false)) {
+                putBooleans(Collections.singletonMap(pair.getKey(), true));
+            }
+        }
     }
 
     private void recordChanged(String key, String operation) {
