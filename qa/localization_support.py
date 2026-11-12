@@ -56,7 +56,7 @@ def write_r(root, destination):
     lines += ['}', 'public static final class plurals { public static final int waex_recordings_deleted = 0x7f010000; }', '}']
     path = Path(destination)/'com/waenhancer/app/R.java'
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text('\n'.join(lines))
+    path.write_text('\n'.join(lines), encoding="utf-8")
     return path, ids
 
 
@@ -74,5 +74,5 @@ public final class UiText {
  public static String get(int id, String fallback, Object... args) {
   return args.length == 0 ? fallback : String.format(java.util.Locale.ENGLISH, fallback, args);
  }
-}''')
+}''', encoding="utf-8")
     return [r, path]

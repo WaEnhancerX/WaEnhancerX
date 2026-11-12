@@ -651,7 +651,11 @@ public final class FeatureRegistry {
 
     private void installLocked(FeatureEntry entry) {
         if (entry.factory == null || !isEntryEnabled(entry)) {
+            boolean changed = !"DISABLED".equals(entry.status);
             markDisabled(entry);
+            if (changed && entry.installation != Installation.STARTUP) {
+                    reportInjectedHooks(reportingContext, reportingPackage);
+            }
             return;
         }
         if (!entry.installationStarted.compareAndSet(false, true)) return;
@@ -666,6 +670,7 @@ public final class FeatureRegistry {
             } finally {
                 entry.feature.endHookTracking();
             }
+            entry.error = null; // A successful retry must not retain an earlier failure.
             entry.status = "ACTIVE";
         } catch (Throwable t) {
             if (entry.feature != null) entry.feature.unhookAll();
@@ -679,13 +684,18 @@ public final class FeatureRegistry {
             dexSearchEngine.releaseLease();
             if (entry.installation != Installation.STARTUP) {
                 dexSearchEngine.close();
+                // Lazy installs may run during startup or on a later Activity event.
+                // Report their state changes immediately, including failures.
+                reportInjectedHooks(reportingContext, reportingPackage);
             }
-            reportInjectedHooks(reportingContext, reportingPackage);
+            // MainHook publishes the complete catalogue after initializeAll().
+            // Reporting it for every STARTUP entry duplicates JSON serialization and
+            // synchronous provider IPC on the target's initialization thread.
         }
     }
 
     private void disposeLazyEntry(FeatureEntry entry, @NonNull Activity activity) {
-        if (entry.installation == Installation.STARTUP) return;
+        if (entry.installation == Installation.STARTUP || HookingModePolicy.COMPATIBILITY.equals(hookingMode)) return;
         synchronized (entry) {
             BaseFeature feature = entry.feature;
             if (feature == null) return;

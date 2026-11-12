@@ -141,7 +141,10 @@ public final class WaexKotlinSyntaxRunner {
             KtPsiFactory factory = new KtPsiFactory(env.getProject(), false);
             for (String path : paths) {
                 File file = new File(path);
-                KtFile kt = factory.createFile(file.getName(), Files.readString(file.toPath()));
+                // IntelliJ PSI requires LF even when Git checks out CRLF on Windows.
+                // Normalize the parser input only; never rewrite production sources.
+                String input = Files.readString(file.toPath()).replace("\r\n", "\n").replace('\r', '\n');
+                KtFile kt = factory.createFile(file.getName(), input);
                 for (PsiErrorElement error : PsiTreeUtil.collectElementsOfType(kt, PsiErrorElement.class)) {
                     errors++;
                     String message = error.getErrorDescription().replace('\n', ' ').replace('\t', ' ');
