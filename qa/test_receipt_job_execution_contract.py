@@ -51,7 +51,7 @@ install = extract(text, '    private void hookSendReadReceiptJob()')
 resolve = extract(text, '    private Method resolveReadReceiptExecution(')
 assert 'getDeclaredMethods()' not in install, 'Do not blanket-hook receipt job methods'
 assert 'matches.size() != 1' in resolve, 'Ambiguous DEX matches must be rejected'
-assert 'waex_send_read_receipt_execution_v1' in resolve
+assert 'waex_send_read_receipt_execution_v2' in resolve
 
 body = r"""
 package com.waenhancer.xposed.features.privacy;
@@ -83,6 +83,7 @@ public class TestReceiptExecutionContract {
  }
  static abstract class AbstractJob { public abstract void body(); }
  static class ChildJob extends Job {}
+ static class GrandChildJob extends ChildJob {}
  interface Generic<T> {T value();}
  static class BridgeJob implements Generic<String> {public String value(){return "v";}}
  static class XC_MethodHook {
@@ -102,11 +103,29 @@ public class TestReceiptExecutionContract {
  }
  static class XposedHelpers {
   static final Map<Object,Object> marks=new IdentityHashMap<>();
-  static Class<?> findClassIfExists(String n,ClassLoader l){return Job.class;}
+  static Class<?> jobType=Job.class;
+  static Class<?> findClassIfExists(String n,ClassLoader l){return jobType;}
   static Object getAdditionalInstanceField(Object j,String k){return marks.get(j);}
   static void setAdditionalInstanceField(Object j,String k,Object v){marks.put(j,v);}
  }
- static class BlueOnReplyHook {static final List<String> captured=new ArrayList<>();static void captureSuppressedReadJob(String j,Constructor<?> c,Object[] a){captured.add(j);}static boolean isManualStatusSeenEnabled(Object prefs){return false;}static void captureSuppressedStatusReadJob(Constructor<?> c,Object[] a){}static boolean isManualStatusReceipt(Object job){return false;}}
+ static class BlueOnReplyHook {
+  static final List<String> captured=new ArrayList<>();
+  static void prepareSuppressedReadJob(String jid,Constructor<?> c,Object[] args,Object job){captured.add(jid);}
+  static void recordSuppressedReadJob(Object job){}
+  static Set<String> readReceiptMessageIds(Object job){return Collections.emptySet();}
+  static boolean isManualStatusSeenEnabled(Object prefs){return false;}
+  static void captureSuppressedStatusReadJob(Constructor<?> c,Object[] args){throw new AssertionError("Manual status service outside installer fixture");}
+  static boolean isManualStatusReceipt(Object job){return false;}
+  static boolean isManualChatReceipt(Object job){return false;}
+ }
+ static class HideSeenStore {
+  static final int TYPE_READ=0;static HideSeenStore getInstance(Object c){return new HideSeenStore();}
+  void insertHideSeenMessagesAsync(String jid,Set<String> ids,int type,boolean v){throw new AssertionError("Store writes outside installer fixture");}
+ }
+ static void allowExplicitReceiptIds(String jid,Object[] args){throw new AssertionError("Manual receipt exercised in full-hook fixture");}
+ boolean shouldHideReadReceipt(String jid){return false;}
+ static final RecipientReceiptAllowance EXPLICIT_RECEIPT_IDS=new RecipientReceiptAllowance(30000,4096);
+ static class SystemClock {static long elapsedRealtime(){return 0L;}}
  Object prefs=new Object();
  boolean blueEnabled;
  boolean isEnabled(String key,boolean value){return blueEnabled||value;}
@@ -125,7 +144,12 @@ public class TestReceiptExecutionContract {
  enum StringMatchType {Equals,EndsWith}
  static class ClassMatcher {static ClassMatcher create(){return new ClassMatcher();} ClassMatcher className(String n,StringMatchType t){return this;}}
  static class FindClass {static FindClass create(){return new FindClass();} FindClass matcher(ClassMatcher m){return this;}}
- static class ClassData {Class<?> getInstance(ClassLoader l){return Job.class;}}
+ static class ClassData {
+  final Class<?> owner;ClassData(){this(Job.class);}ClassData(Class<?> c){owner=c;}
+  Class<?> getInstance(ClassLoader l){return owner;}
+  MethodDataList findMethod(FindMethod query){return new Bridge().findMethodFor(owner,query);}
+  ClassData getSuperClass(){Class<?> parent=owner.getSuperclass();return parent==null||parent==Object.class?null:new ClassData(parent);}
+ }
  static class ClassDataList {ClassData firstOrNull(){return new ClassData();}}
  static class MethodMatcher {
   String owner, returns; int count=-1; Map<String,StringMatchType> anchors=new LinkedHashMap<>();
@@ -141,13 +165,13 @@ public class TestReceiptExecutionContract {
  static class Bridge {
   static List<Method> candidates=new ArrayList<>();
   ClassDataList findClass(FindClass f){return new ClassDataList();}
-  MethodDataList findMethod(FindMethod query){
+  ClassData getClassData(Class<?> c){return new ClassData(c);}
+  MethodDataList findMethodFor(Class<?> owner,FindMethod query){
    MethodMatcher m=query.matcher;
-   check(Job.class.getName().equals(m.owner),"DEX query restricted to resolved job class");
+   check(owner==XposedHelpers.jobType||owner==XposedHelpers.jobType.getSuperclass(),"DEX query restricted to job or its direct superclass");
    check(m.count==0&&"void".equals(m.returns),"DEX query requires no arguments and void");
-   check(m.anchors.size()==2&&m.anchors.get("receipt")==StringMatchType.Equals
-       &&m.anchors.get("status")==StringMatchType.Equals,"Both exact semantic literals required");
-   MethodDataList out=new MethodDataList();for(Method method:candidates)out.add(new MethodData(method));return out;
+   check(m.anchors.size()==1&&m.anchors.get("receipt")==StringMatchType.Equals,"Current exact receipt anchor retained with scoped shape checks");
+   MethodDataList out=new MethodDataList();for(Method method:candidates)if(method.getDeclaringClass()==owner)out.add(new MethodData(method));return out;
   }
  }
  interface MethodFinder {Method find(Bridge b,ClassLoader l)throws Throwable;}
@@ -170,7 +194,7 @@ public class TestReceiptExecutionContract {
   method.setAccessible(true);return method.invoke(job,args);
  }
  static void setup(Method... candidates){
-  Bridge.candidates=Arrays.asList(candidates);DexSearchEngine.cached=null;
+  Bridge.candidates=Arrays.asList(candidates);DexSearchEngine.cached=null;XposedHelpers.jobType=Job.class;
   XposedBridge.hooks.clear();XposedBridge.constructors=0;XposedHelpers.marks.clear();hide=true;hideDelivery=false;
  }
  public static void main(String[] args)throws Throwable{
@@ -204,7 +228,8 @@ public class TestReceiptExecutionContract {
   check(!ReceiptJobExecutionPolicy.isExecutionMethod(null,body)&&!ReceiptJobExecutionPolicy.isExecutionMethod(Job.class,null),"Missing method/class rejected");
   for(Method m:new Method[]{method("retry",Exception.class),method("diagnostic"),method("readObject",java.io.ObjectInputStream.class),method("initialize",Context.class),method("staticBody"),method("nativeBody")})
    check(!ReceiptJobExecutionPolicy.isExecutionMethod(Job.class,m),"Incompatible shape rejected: "+m.getName());
-  check(!ReceiptJobExecutionPolicy.isExecutionMethod(ChildJob.class,body),"Wrong declaring class rejected");
+  check(ReceiptJobExecutionPolicy.isExecutionMethod(ChildJob.class,body),"Direct inherited execution supported");
+  check(!ReceiptJobExecutionPolicy.isExecutionMethod(GrandChildJob.class,body),"Distant undeclared execution owner rejected");
   check(!ReceiptJobExecutionPolicy.isExecutionMethod(AbstractJob.class,AbstractJob.class.getDeclaredMethod("body")),"Abstract body rejected");
   for(Method m:BridgeJob.class.getDeclaredMethods())check(!ReceiptJobExecutionPolicy.isExecutionMethod(BridgeJob.class,m),"Synthetic/bridge or non-void method rejected");
   setup();hook.hookSendReadReceiptJob();check(XposedBridge.hooks.isEmpty(),"Missing DEX body does not install broad fallback");
@@ -212,6 +237,9 @@ public class TestReceiptExecutionContract {
   setup(method("retry",Exception.class));hook.hookSendReadReceiptJob();check(XposedBridge.hooks.isEmpty(),"Malformed resolver candidate rejected");
   setup(body);DexSearchEngine.cached=method("retry",Exception.class);hook.hookSendReadReceiptJob();
   check(XposedBridge.hooks.isEmpty(),"Cached non-void method revalidated and rejected");
+  setup(body);XposedHelpers.jobType=ChildJob.class;hook.hookSendReadReceiptJob();
+  check(XposedBridge.hooks.containsKey(body),"Current host direct-superclass execution installed");
+  ChildJob child=new ChildJob();invoke(child,body);check(child.ran==1,"Inherited execution preserves original");
   setup(body);hook.hookSendReadReceiptJob();hook.blueEnabled=true;
   XC_MethodHook.MethodHookParam cp=new XC_MethodHook.MethodHookParam();
   Job captureJob=new Job();cp.thisObject=captureJob;cp.method=Job.class.getDeclaredConstructor();cp.args=new Object[]{"456@s.whatsapp.net",new String[]{"fixture-id"}};
@@ -236,4 +264,4 @@ public class TestReceiptExecutionContract {
  }
 }
 """
-run_java('TestReceiptExecutionContract', body, [src / 'ReceiptJobExecutionPolicy.java', src / 'ReceiptJidPolicy.java'])
+run_java('TestReceiptExecutionContract', body, [src / n for n in ('ReceiptJobExecutionPolicy.java','ReceiptJidPolicy.java','ExplicitReadReceiptPolicy.java','RecipientReceiptAllowance.java','BoundedReceiptAllowance.java')])

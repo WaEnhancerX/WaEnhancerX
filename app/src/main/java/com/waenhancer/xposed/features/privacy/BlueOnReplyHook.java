@@ -67,6 +67,7 @@ public class BlueOnReplyHook extends BaseFeature {
     // status that is being opened.
     private static final Object MANUAL_STATUS_RECEIPT = new Object();
     private static final String PENDING_CHAT_RECEIPT = "waex_pending_chat_receipt";
+    private static final String MANUAL_CHAT_ATTEMPT = "waex_manual_chat_attempt";
 
     private static final class ReadJobRecipe {
         final Constructor<?> constructor;
@@ -216,6 +217,13 @@ public class BlueOnReplyHook extends BaseFeature {
 
     /** Called by the verified SendReadReceiptJob execution hook once hiding is confirmed. */
     public static void recordSuppressedReadJob(Object job) {
+        Object attempt = XposedHelpers.getAdditionalInstanceField(job, MANUAL_CHAT_ATTEMPT);
+        if (attempt instanceof ManualReadAttempt) {
+            // A local privacy veto is not a successful receipt. Retain only the original
+            // action-time recipe for another explicit action, never for automatic retry.
+            ((ManualReadAttempt) attempt).recordLocalVeto();
+            return;
+        }
         Object value = XposedHelpers.getAdditionalInstanceField(job, PENDING_CHAT_RECEIPT);
         if (!(value instanceof PendingChatReceipt)) {
             return;
@@ -223,6 +231,42 @@ public class BlueOnReplyHook extends BaseFeature {
         PendingChatReceipt pending = (PendingChatReceipt) value;
         markEvictedHandled(pending.recipient, PENDING_JOBS.add(pending.recipient, pending.recipe));
         XposedHelpers.removeAdditionalInstanceField(job, PENDING_CHAT_RECEIPT);
+    }
+
+    /** Coordinates enqueue acknowledgement with synchronous or delayed local vetoes. */
+    private static final class ManualReadAttempt {
+        final String recipient;
+        final ReadJobRecipe original;
+        final ReadJobRecipe retryRecipe;
+        private boolean accepted;
+        private boolean vetoed;
+
+        ManualReadAttempt(String recipient, ReadJobRecipe recipe) {
+            this.recipient = recipient;
+            this.original = recipe;
+            // The synthetic or host job may mutate its arrays after construction.
+            // Retry the private original snapshot, not fields from the executing job.
+            this.retryRecipe = new ReadJobRecipe(recipe.constructor, copyArguments(recipe.arguments));
+        }
+
+        synchronized void acknowledgeEnqueue() {
+            if (accepted) return;
+            accepted = true;
+            PENDING_JOBS.remove(recipient, original);
+            if (vetoed) restoreRecipe();
+        }
+
+        synchronized void recordLocalVeto() {
+            if (vetoed) return;
+            vetoed = true;
+            // A synchronous veto inside enqueue must wait for its acknowledgement.
+            // If enqueue throws, the original remains pending and no duplicate is added.
+            if (accepted) restoreRecipe();
+        }
+
+        private void restoreRecipe() {
+            markEvictedHandled(recipient, PENDING_JOBS.add(recipient, retryRecipe));
+        }
     }
 
     private static final class PendingChatReceipt {
@@ -480,11 +524,16 @@ public class BlueOnReplyHook extends BaseFeature {
         int sent = 0;
         for (ReadJobRecipe recipe : pending) {
             try {
+                Object grant = ExplicitReadReceiptPolicy.captureJobGrant(key, recipe.arguments);
+                if (grant == null) continue;
                 HideReceiptsHook.allowExplicitReceiptIds(key, recipe.arguments);
                 Object job = recipe.constructor.newInstance(copyArguments(recipe.arguments));
                 XposedHelpers.setAdditionalInstanceField(job, "blue_on_reply", true);
+                XposedHelpers.setAdditionalInstanceField(job, ExplicitReadReceiptPolicy.JOB_GRANT_KEY, grant);
+                ManualReadAttempt attempt = new ManualReadAttempt(key, recipe);
+                XposedHelpers.setAdditionalInstanceField(job, MANUAL_CHAT_ATTEMPT, attempt);
                 enqueue.invoke(manager, job);
-                PENDING_JOBS.remove(key, recipe);
+                attempt.acknowledgeEnqueue();
                 sent++;
             } catch (Throwable t) {
                 // Constructor or dispatch failure must not leave a stale permission.
