@@ -188,6 +188,7 @@ jobs:
             qa/test_bridge_ordering.py
             qa/test_media_preference_sync.py
             qa/mutate_media_preference_sync.py
+            qa/test_parallel_download_stream_contract.py
             qa/test_dnd_preference_policy.py
             qa/test_dex_negative_cache.py
             qa/test_android24_compatibility.py
@@ -275,6 +276,10 @@ jobs:
           if grep -q 'release failed:' app/src/main/java/com/waenhancer/xposed/features/media/CallRecordingHook.java; then
             test -f qa/test_recorder_cleanup.py
           fi
+          if [[ -f app/src/main/java/com/waenhancer/calls/RecordingOutputFiles.java ]]; then
+            test -f qa/test_call_recording_output_safety.py
+            test -f qa/fixtures/RecordingOutputFilesProbe.java
+          fi
           if [[ -f app/src/main/java/com/waenhancer/xposed/features/media/CallRecordingEventContract.java ]]; then
             test -f qa/test_call_recording_lifecycle.py
             test -f qa/fixtures/CallRecordingLifecycleChecks.java
@@ -352,6 +357,7 @@ jobs:
             qa/test_runtime_observation_clock.py \
             qa/test_filter_work.py \
             qa/test_recorder_cleanup.py \
+            qa/test_call_recording_output_safety.py \
             qa/test_call_recording_lifecycle.py \
             qa/test_gallery_export.py \
             qa/test_contact_identity.py \

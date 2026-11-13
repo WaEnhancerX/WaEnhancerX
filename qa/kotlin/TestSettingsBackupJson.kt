@@ -130,6 +130,22 @@ fun main() {
         val dest=TestContext();check(SettingsBackupCodec.decode(dest,ByteArrayInputStream(bytes.toByteArray()))==count)
         check(dest.get("waex_prefs","hidetabs")==setOf("300"))
     }
+    test("parallel media downloader choices survive a typed binary backup") {
+        val source=TestContext()
+        source.seed("waex_prefs","parallel_downloading",true)
+        source.seed("waex_prefs","parallel_downloading_connections",6)
+        val bytes=ByteArrayOutputStream()
+        check(SettingsBackupCodec.encode(source,bytes)==2)
+        val restored=TestContext()
+        check(SettingsBackupCodec.decode(restored,ByteArrayInputStream(bytes.toByteArray()))==2)
+        check(restored.get("waex_prefs","parallel_downloading")==true)
+        check(restored.get("waex_prefs","parallel_downloading_connections")==6)
+    }
+    test("parallel media downloader choices restore from legacy JSON with correct types") {
+        val restored=decode("{\"parallel_downloading\":true,\"parallel_downloading_connections\":8}")
+        check(restored.get("waex_prefs","parallel_downloading")==true)
+        check(restored.get("waex_prefs","parallel_downloading_connections")==8)
+    }
     test("binary trailing byte rejected") { rejects(binary("hide_read_receipts",PreferenceSchema.Type.BOOLEAN.ordinal){writeBoolean(false)}+byteArrayOf(0)) }
     test("binary noncanonical Boolean rejected") { rejects(binary("hide_read_receipts",PreferenceSchema.Type.BOOLEAN.ordinal){writeByte(2)}) }
     test("binary invalid UTF8 rejected") { rejects(binary("css_theme",PreferenceSchema.Type.STRING.ordinal){writeInt(2);write(byteArrayOf(0xc3.toByte(),0x28))}) }

@@ -15,6 +15,7 @@ PRODUCTION=[
  PKG/'xposed/features/conversation/PreserveDeleteForMeHook.kt',
  PKG/'xposed/core/BaseFeature.kt',
  PKG/'calls/CallRecordingStore.kt',
+ PKG/'calls/RecordingOutputFiles.java',
  PKG/'xposed/core/HookRegistrar.java',
  PKG/'xposed/core/ViewHookDispatcher.java',
  PKG/'xposed/core/db/PreservedMessageStore.kt',

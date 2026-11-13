@@ -138,6 +138,11 @@ public final class PreferenceSchema {
         // set is a local, non-exported cache read by the injected WhatsApp process.
         add(entries, "download_profile_save_duplicates", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "download_profile_saved_identities", Type.STRING_SET, Sensitivity.CACHE, Store.PUBLIC);
+        // Both options are read by the injected media downloader. Older builds
+        // stored them as unknown public keys, so preserve that store while
+        // making them eligible for per-target inheritance and settings backups.
+        add(entries, "parallel_downloading", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "parallel_downloading_connections", Type.INT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "call_type", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "call_type_controller", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "call_white_contacts", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
@@ -304,6 +309,7 @@ public final class PreferenceSchema {
         add(entries, "metaai_remove_entry_points", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "metaai_block_chat", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "module_heartbeat", Type.LONG, Sensitivity.RUNTIME, Store.PRIVATE);
+        add(entries, "module_config_mode", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "need_restart", Type.BOOLEAN, Sensitivity.RUNTIME, Store.PUBLIC);
         add(entries, "newchat", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "novaconfig", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
