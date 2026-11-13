@@ -7,6 +7,8 @@ Requires JDK17+, kotlinc and the Kotlin runner on PATH.
 """
 import subprocess
 import tempfile
+import os
+import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,7 +18,17 @@ STUBS = {
 public abstract class Context {
  public static final int MODE_PRIVATE = 0;
  public abstract SharedPreferences getSharedPreferences(String name, int mode);
+ // Keep external Android filesystem APIs explicit. The backup fixture never
+ // needs them; fail if production starts using these paths during a test.
+ public android.content.pm.ApplicationInfo getApplicationInfo(){
+  throw new UnsupportedOperationException("Unexpected Context.getApplicationInfo");
+ }
+ public java.io.File getFilesDir(){
+  throw new UnsupportedOperationException("Unexpected Context.getFilesDir");
+ }
 }''',
+    'android/content/pm/ApplicationInfo.java': '''package android.content.pm;
+public final class ApplicationInfo { public String dataDir; }''',
     'android/content/SharedPreferences.java': '''package android.content;
 import java.util.Map; import java.util.Set;
 public interface SharedPreferences {
@@ -347,6 +359,15 @@ fun main(){
 '''
 
 with tempfile.TemporaryDirectory(prefix='waex_backup_binary_') as workspace:
+    # Windows Python CreateProcess does not resolve a bare `kotlinc` to the
+    # installed .bat wrapper; use the actual executable path on every host.
+    commands = {tool: shutil.which(tool) for tool in ('javac', 'kotlinc', 'java')}
+    if not all(commands.values()):
+        raise FileNotFoundError(f'Missing JVM tools: {[k for k, v in commands.items() if not v]}')
+    kotlin_lib = Path(commands['kotlinc']).parent.parent / 'lib'
+    stdlib = kotlin_lib / 'kotlin-stdlib.jar'
+    if not stdlib.is_file():
+        raise FileNotFoundError(f'Missing compiler-matched Kotlin standard library: {stdlib}')
     root = Path(workspace)
     files = []
     for name, code in STUBS.items():
@@ -355,12 +376,12 @@ with tempfile.TemporaryDirectory(prefix='waex_backup_binary_') as workspace:
         path.write_text(code, encoding='utf-8')
         files.append(str(path))
     out_java, out_kotlin = root / 'java', root / 'kotlin'
-    subprocess.run(['javac','--release','17','-d',str(out_java),*files,
+    subprocess.run([commands['javac'],'--release','17','-d',str(out_java),*files,
                     str(SRC/'config/PreferenceSchema.java'),
                     str(SRC/'config/PreferenceStores.java')],check=True)
     test_kotlin=root/'TestBinaryRoundTrip.kt'
     test_kotlin.write_text(KOTLIN_TEST,encoding='utf-8')
-    subprocess.run(['kotlinc','-jvm-target','17','-cp',str(out_java),'-d',str(out_kotlin),
+    subprocess.run([commands['kotlinc'],'-jvm-target','17','-cp',str(out_java),'-d',str(out_kotlin),
                     str(SRC/'core/preferences/SettingsBackupCodec.kt'),str(test_kotlin)],check=True)
-    subprocess.run(['kotlin','-cp',str(out_java)+':'+str(out_kotlin),
+    subprocess.run([commands['java'],'-cp',os.pathsep.join((str(out_java),str(out_kotlin),str(stdlib))),
                     'com.waenhancer.core.preferences.TestBinaryRoundTripKt'],check=True)

@@ -66,7 +66,9 @@ def main():
     schema = parse_schema((SRC / 'config/PreferenceSchema.java').read_text(encoding='utf-8'))
     aliases = parse_aliases((SRC / 'core/preferences/SettingsBackupCodec.kt').read_text(encoding='utf-8'))
     count, missing = validate(cat, schema, aliases)
-    assert count == 91, 'Catalog size changed; review and update feature acceptance matrix'
+    assert count == 93, 'Catalog size changed; review and update feature acceptance matrix'
+    assert schema['parallel_downloading'] == 'BOOLEAN', 'Parallel downloader toggle is not a typed Boolean'
+    assert schema['parallel_downloading_connections'] == 'INT', 'Parallel downloader connection count is not a typed integer'
     assert schema['app_interface_size'] == 'STRING', 'Interface size must remain a typed choice'
     assert schema['status_style'] == 'STRING', 'Status style must remain a typed choice'
     assert missing in (13, 14), f'Unexpected intentionally non-schema keys: {missing}'
@@ -76,6 +78,7 @@ def main():
         (cat + ['unknown_new_feature'], schema, aliases),
         (cat, schema, {**aliases, 'hide_ui_tabs': 'hideread'}),
         (cat, {**schema, 'license_verification': 'BOOLEAN'}, aliases),
+        (cat, {k: v for k, v in schema.items() if k != 'parallel_downloading'}, aliases),
     ]:
         try:
             validate(invalid_catalog, invalid_schema, invalid_aliases)
