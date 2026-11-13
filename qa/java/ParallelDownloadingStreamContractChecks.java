@@ -22,6 +22,8 @@ public final class ParallelDownloadingStreamContractChecks {
             switch (args[0]) {
                 case "truncated-single": singleChunkTruncatedMustFail(); break;
                 case "range-end": incorrectRangeEndMustFallBackToSequential(); break;
+                case "fallback-truncated": fallbackTruncatedMustFail(); break;
+                case "fallback-overrun": fallbackOverrunMustBeCapped(); break;
                 case "invalid-slice": boundsMustRejectInvalidSlices(); break;
                 default: throw new IllegalArgumentException("Unknown case: " + args[0]);
             }
@@ -38,8 +40,10 @@ public final class ParallelDownloadingStreamContractChecks {
         incorrectRangeTotalMustFallBackToSequential();
         malformedRangeTotalMustFallBackToSequential();
         http200MustFallBackToSequential();
+        fallbackTruncatedMustFail();
+        fallbackOverrunMustBeCapped();
         boundsMustRejectInvalidSlices();
-        System.out.println("PASS " + passed + "/10 parallel stream integrity cases");
+        System.out.println("PASS " + passed + "/12 parallel stream integrity cases");
     }
 
     private static void singleChunkComplete() throws Exception {
@@ -148,6 +152,28 @@ public final class ParallelDownloadingStreamContractChecks {
         try (InputStream stream = stream(data, data.length, handler, 0)) {
             require(Arrays.equals(data, readFully(stream)), "non-partial response fallback bytes");
             require(handler.bodyOpened == 0, "HTTP 200 body must not be consumed as a range");
+        }
+        passed++;
+    }
+
+    private static void fallbackTruncatedMustFail() throws Exception {
+        byte[] data = largePayload();
+        FakeRangeHandler handler = new FakeRangeHandler(null, null, 200);
+        try (InputStream stream = stream(Arrays.copyOf(data,
+                ParallelDownloadingInputStream.CHUNK_SIZE + 5), data.length, handler, 0)) {
+            expectTruncation(stream, "sequential fallback truncated");
+        }
+        passed++;
+    }
+
+    private static void fallbackOverrunMustBeCapped() throws Exception {
+        byte[] expected = largePayload();
+        byte[] extraBytes = Arrays.copyOf(expected, expected.length + 11);
+        Arrays.fill(extraBytes, expected.length, extraBytes.length, (byte) 'Z');
+        FakeRangeHandler handler = new FakeRangeHandler(null, null, 200);
+        try (InputStream stream = stream(extraBytes, expected.length, handler, 0)) {
+            require(Arrays.equals(expected, readFully(stream)),
+                    "fallback must not expose bytes after advertised content length");
         }
         passed++;
     }

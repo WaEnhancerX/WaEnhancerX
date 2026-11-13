@@ -41,7 +41,7 @@ def main() -> None:
 
         report = {
             "source": str(SOURCES[0].relative_to(ROOT)),
-            "cases": 10,
+            "cases": 12,
             "compiler_command": compiler,
             "compile_returncode": compiled.returncode,
             "run_returncode": executed.returncode if executed else None,

@@ -46,6 +46,7 @@ public final class ParallelDownloadingInputStream extends InputStream {
     private int currentChunkIndex = 0;
     private byte[] currentChunkBuffer = null;
     private int currentChunkOffset = 0;
+    private long originalBytesConsumed = 0L;
 
     private boolean fallbackToSequential = false;
     private boolean isClosed = false;
@@ -179,7 +180,7 @@ public final class ParallelDownloadingInputStream extends InputStream {
         if (length == 0) return 0;
 
         if (fallbackToSequential) {
-            return originalStream.read(buffer, offset, length);
+            return readSequentialOrThrow(buffer, offset, length);
         }
 
         // Chunk 0 is read directly from the initial WhatsApp stream
@@ -189,6 +190,7 @@ public final class ParallelDownloadingInputStream extends InputStream {
                 int bytesRead = originalStream.read(buffer, offset, Math.min(length, chunk0Remaining));
                 if (bytesRead > 0) {
                     currentChunkOffset += bytesRead;
+                    originalBytesConsumed += bytesRead;
                 } else if (bytesRead < 0) {
                     // Returning EOF here reports success to callers even though the known
                     // response length has not been consumed (including a single-chunk file).
@@ -216,7 +218,7 @@ public final class ParallelDownloadingInputStream extends InputStream {
                 // Graceful fallback to sequential if range request failed
                 fallbackToSequential = true;
                 cancelPendingTasks();
-                return originalStream.read(buffer, offset, length);
+                return readSequentialOrThrow(buffer, offset, length);
             }
 
             // Close the initial connection safely; subsequent chunks come from our range workers
@@ -271,6 +273,19 @@ public final class ParallelDownloadingInputStream extends InputStream {
         System.arraycopy(activeBuffer, currentChunkOffset, buffer, offset, bytesToCopy);
         currentChunkOffset += bytesToCopy;
         return bytesToCopy;
+    }
+
+    private int readSequentialOrThrow(byte[] buffer, int offset, int length) throws IOException {
+        long remaining = totalLength - originalBytesConsumed;
+        if (remaining == 0) return -1;
+
+        int bytesRead = originalStream.read(buffer, offset, (int) Math.min(remaining, (long) length));
+        if (bytesRead < 0) {
+            throw new IOException("Original sequential download truncated at " + originalBytesConsumed
+                    + " of " + totalLength + " bytes");
+        }
+        if (bytesRead > 0) originalBytesConsumed += bytesRead;
+        return bytesRead;
     }
 
     @Override
