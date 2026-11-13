@@ -49,6 +49,24 @@ jobs:
           fi
           kotlinc -version
 
+      - name: Verify WhatsApp runtime heartbeat uses a bounded background worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_runtime_heartbeat_thread.py --out "$RUNNER_TEMP/runtime-heartbeat"
+
+      - name: Preserve runtime heartbeat thread evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-heartbeat-thread-evidence
+          path: |
+            ${{ runner.temp }}/runtime-heartbeat/result.json
+            ${{ runner.temp }}/runtime-heartbeat/candidate/*.log
+            ${{ runner.temp }}/runtime-heartbeat/candidate/RuntimeHeartbeatChecks.java
+          retention-days: 14
+          if-no-files-found: error
+
       - name: Verify call-blocking opt-out and target-switch contracts
         shell: bash
         run: |
