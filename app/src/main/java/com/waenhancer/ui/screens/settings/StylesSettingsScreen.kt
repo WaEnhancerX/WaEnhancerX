@@ -160,6 +160,9 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
     }
     var showTimestampFormatSheet by remember { mutableStateOf(false) }
     var showModifyTextSheet by remember { mutableStateOf(false) }
+    var timestampRelative by remember(targetEpoch, typedValueRevision) {
+        mutableStateOf(preferenceManager.getBoolean("timestamp_relative", false))
+    }
     var timestampFormat by remember(targetEpoch, typedValueRevision) {
         mutableStateOf(preferenceManager.getString("timestamp_format", "HH:mm a") ?: "HH:mm a")
     }
@@ -509,11 +512,28 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
                                     color = colors.outlineVariant.copy(alpha = 0.4f),
                                     modifier = Modifier.padding(start = 32.dp)
                                 )
+                                // Sub-pref 0: Relative time (disables format + modify text)
+                                MetaAiRemovalSwitch(
+                                    title = UiText.get(R.string.timestamp_relative_title, "Relative time"),
+                                    summary = UiText.get(R.string.timestamp_relative_summary, "Show time as \"Just now\", \"5 minutes ago\", \"Yesterday at 4:15 PM\" or \"Nov 13\". Disables Timestamp format and Modify text."),
+                                    checked = timestampRelative,
+                                    onCheckedChange = { enabled ->
+                                        if (preferenceManager.putBooleans(mapOf("timestamp_relative" to enabled))) {
+                                            timestampRelative = enabled
+                                        }
+                                    }
+                                )
+                                HorizontalDivider(
+                                    thickness = 1.dp,
+                                    color = colors.outlineVariant.copy(alpha = 0.4f),
+                                    modifier = Modifier.padding(start = 32.dp)
+                                )
                                 // Sub-pref 1: Timestamp format
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable { showTimestampFormatSheet = true }
+                                        .alpha(if (timestampRelative) 0.4f else 1f)
+                                        .clickable(enabled = !timestampRelative) { showTimestampFormatSheet = true }
                                         .padding(start = 32.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -548,7 +568,7 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
                                 }
 
                                 // Custom pattern input field appears right after the format pref when Custom Pattern is selected
-                                if (timestampFormat == "Custom Pattern") {
+                                if (timestampFormat == "Custom Pattern" && !timestampRelative) {
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -610,7 +630,8 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable { showModifyTextSheet = true }
+                                        .alpha(if (timestampRelative) 0.4f else 1f)
+                                        .clickable(enabled = !timestampRelative) { showModifyTextSheet = true }
                                         .padding(start = 32.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -722,7 +743,8 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
 private fun MetaAiRemovalSwitch(
     title: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    summary: String? = null
 ) {
     val colors = WaexTheme.colors
     val typography = WaexTheme.typography
@@ -733,12 +755,21 @@ private fun MetaAiRemovalSwitch(
             .padding(start = 32.dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = title,
-            modifier = Modifier.weight(1f),
-            style = typography.bodyMd,
-            color = colors.onSurface
-        )
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = title,
+                style = typography.bodyMd,
+                color = colors.onSurface
+            )
+            if (summary != null) {
+                Text(
+                    text = summary,
+                    style = typography.bodyMd,
+                    color = colors.onSurfaceVariant,
+                    fontSize = 12.sp
+                )
+            }
+        }
         StitchSwitch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }

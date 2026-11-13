@@ -40,6 +40,35 @@ public class CustomTimeHook extends BaseFeature {
         return "Customization";
     }
 
+    static String formatRelative(long millis) {
+        long now = System.currentTimeMillis();
+        long diff = now - millis;
+        Locale loc = Locale.getDefault();
+        if (diff < 0) diff = 0;
+        long minutes = diff / 60_000L;
+        long hours = diff / 3_600_000L;
+        if (diff < 60_000L) return "Just now";
+        if (minutes < 60) return minutes == 1 ? "1 minute ago" : minutes + " minutes ago";
+        if (hours < 24) return hours == 1 ? "1 hour ago" : hours + " hours ago";
+
+        ZoneId zone = ZoneId.systemDefault();
+        java.time.LocalDate today = java.time.LocalDate.now(zone);
+        java.time.ZonedDateTime then = Instant.ofEpochMilli(millis).atZone(zone);
+        long days = java.time.temporal.ChronoUnit.DAYS.between(then.toLocalDate(), today);
+        if (days <= 1) {
+            return "Yesterday at " + DateTimeFormatter.ofPattern("h:mm a", loc).format(then);
+        }
+        if (days < 7) return days + " days ago";
+        if (days < 35) {
+            long weeks = days / 7;
+            return weeks == 1 ? "Last week" : weeks + " weeks ago";
+        }
+        if (then.getYear() == today.getYear()) {
+            return DateTimeFormatter.ofPattern("MMM d", loc).format(then);
+        }
+        return DateTimeFormatter.ofPattern("MMM d, yyyy", loc).format(then);
+    }
+
     @Override
     public void hook() throws Throwable {
         boolean secondsToTime = prefs.getBoolean("segundos", false);
@@ -75,6 +104,10 @@ public class CustomTimeHook extends BaseFeature {
                     protected void afterHookedMethod(MethodHookParam param) {
                         if (param.args != null && param.args.length > 1 && param.args[1] instanceof Calendar) {
                             Calendar calendar = (Calendar) param.args[1];
+                            if (prefs.getBoolean("timestamp_relative", false)) {
+                                param.setResult(formatRelative(calendar.getTimeInMillis()));
+                                return;
+                            }
                             String formatChoice = prefs.getString("timestamp_format", "HH:mm a");
                             String pattern;
                             if ("Custom Pattern".equals(formatChoice)) {

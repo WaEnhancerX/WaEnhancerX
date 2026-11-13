@@ -378,6 +378,7 @@ public final class PreferenceSchema {
         add(entries, "tasker_secret", Type.STRING, Sensitivity.SECRET, Store.PRIVATE);
         add(entries, "text_color", Type.INT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "thememode", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "timestamp_relative", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "timestamp_format", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "timestamp_custom_pattern", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "timestamp_custom_text", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
