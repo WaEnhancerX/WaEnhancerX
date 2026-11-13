@@ -443,6 +443,11 @@ public class MessageDeviceSourceHook extends BaseFeature {
         // Unknown device: leave the view alone; clearing it would also remove listeners other
         // features put on this timestamp.
         if (deviceId < 0) return;
+        // Record the source for the anti-revoke indicator, which routes taps on the emoji itself.
+        XposedHelpers.setAdditionalInstanceField(textView, "waex_device_id", deviceId);
+        // Deleted-message rows own this timestamp's click listener (it handles both the delete
+        // time and this source toast by tap position); do not overwrite it.
+        if (XposedHelpers.getAdditionalInstanceField(textView, "waex_deleted_ts") != null) return;
         // Voice notes use their timestamp for the transcript sheet (VoiceNoteRowTranscriptHook,
         // #110); keep that tap. Matched by field name so this has no compile-time dependency.
         if (XposedHelpers.getAdditionalInstanceField(textView, "waex_stt_file") != null) {

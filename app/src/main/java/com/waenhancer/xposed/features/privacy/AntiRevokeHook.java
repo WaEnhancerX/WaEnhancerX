@@ -2125,16 +2125,63 @@ public class AntiRevokeHook extends BaseFeature {
                 }
             }
 
-            // Clickable deletion timestamp toast
+            // Tap handling: the trailing source emoji (added by MessageDeviceSourceHook) toasts the
+            // sending source; any other tap on the indicator toasts the deletion time. Both share
+            // one TextView, so the tapped x-position decides.
             if (deletedTimestamp > 0) {
-                String formattedTime = TIME_FORMAT.get().format(new Date(deletedTimestamp));
+                XposedHelpers.setAdditionalInstanceField(dateTextView, "waex_deleted_ts", deletedTimestamp);
                 dateTextView.getPaint().setUnderlineText(true);
-                dateTextView.setOnClickListener(v ->
-                        Toast.makeText(rowContext, UiText.get(R.string.waex_ui_deleted_at, "Deleted at: ") + formattedTime, Toast.LENGTH_LONG).show()
-                );
+                dateTextView.setOnTouchListener((v, ev) -> {
+                    if (ev.getAction() == android.view.MotionEvent.ACTION_DOWN
+                            || ev.getAction() == android.view.MotionEvent.ACTION_UP) {
+                        XposedHelpers.setAdditionalInstanceField(v, "waex_last_touch_x", ev.getX());
+                    }
+                    return false;
+                });
+                dateTextView.setOnClickListener(v -> {
+                    TextView tv = (TextView) v;
+                    if (isTapOnSourceSuffix(tv)) {
+                        Object idObj = XposedHelpers.getAdditionalInstanceField(tv, "waex_device_id");
+                        int deviceId = idObj instanceof Integer ? (Integer) idObj : -1;
+                        if (deviceId == 0) {
+                            Toast.makeText(rowContext, UiText.get(R.string.message_sent_via_phone,
+                                    "This message was sent via Phone"), Toast.LENGTH_SHORT).show();
+                            return;
+                        } else if (deviceId > 0) {
+                            Toast.makeText(rowContext, UiText.get(R.string.waex_ui_this_message_was_sent_via_a_linked_dev,
+                                    "This message was sent via a Linked Device (Desktop/Phone)"), Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                    }
+                    Object tsObj = XposedHelpers.getAdditionalInstanceField(tv, "waex_deleted_ts");
+                    long ts = tsObj instanceof Long ? (Long) tsObj : deletedTimestamp;
+                    Toast.makeText(rowContext, UiText.get(R.string.waex_ui_deleted_at, "Deleted at: ")
+                            + TIME_FORMAT.get().format(new Date(ts)), Toast.LENGTH_LONG).show();
+                });
             }
         } catch (Throwable t) {
             XposedBridge.log(TAG + " decorateRevokedTextView error: " + t.getClass().getSimpleName());
+        }
+    }
+
+    /** True when the last touch landed on the trailing source emoji of the date TextView. */
+    private static boolean isTapOnSourceSuffix(@NonNull TextView tv) {
+        try {
+            Object suffixObj = XposedHelpers.getAdditionalInstanceField(tv, "wae_device_source_suffix");
+            Object xObj = XposedHelpers.getAdditionalInstanceField(tv, "waex_last_touch_x");
+            android.text.Layout layout = tv.getLayout();
+            CharSequence text = tv.getText();
+            if (!(suffixObj instanceof String) || ((String) suffixObj).isEmpty()
+                    || !(xObj instanceof Float) || layout == null || text == null) return false;
+            int suffixLen = ((String) suffixObj).length();
+            if (text.length() < suffixLen || !text.toString().endsWith((String) suffixObj)) return false;
+            int line = layout.getLineCount() - 1;
+            float a = layout.getPrimaryHorizontal(text.length() - suffixLen) + tv.getTotalPaddingLeft();
+            float b = layout.getLineRight(line) + tv.getTotalPaddingLeft();
+            float x = (Float) xObj;
+            return x >= Math.min(a, b) && x <= Math.max(a, b);
+        } catch (Throwable ignored) {
+            return false;
         }
     }
 
@@ -2197,6 +2244,8 @@ public class AntiRevokeHook extends BaseFeature {
             dateTextView.setCompoundDrawables(null, null, null, null);
             dateTextView.getPaint().setUnderlineText(false);
             dateTextView.setOnClickListener(null);
+            dateTextView.setOnTouchListener(null);
+            XposedHelpers.removeAdditionalInstanceField(dateTextView, "waex_deleted_ts");
         } catch (Throwable ignored) {}
     }
 
