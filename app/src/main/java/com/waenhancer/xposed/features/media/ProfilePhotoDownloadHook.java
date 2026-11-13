@@ -111,6 +111,8 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
                         || !(param.thisObject instanceof Activity)
                         || param.args.length == 0
                         || !(param.args[0] instanceof Menu)) return;
+                // Hooks may sit on shared base classes; only act on the profile photo viewer itself.
+                if (!viewer.isInstance(param.thisObject)) return;
                 installMenuAction((Activity) param.thisObject, (Menu) param.args[0]);
             }
         };

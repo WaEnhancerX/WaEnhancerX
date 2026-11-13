@@ -117,6 +117,8 @@ public class DownloadViewOnceHook extends BaseFeature {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
                     if (!isEnabled("downloadviewonce", false) || !(param.thisObject instanceof Activity)) return;
+                    // Hooks may sit on shared base classes; only act on the view-once viewer itself.
+                    if (!viewOnceClass.isInstance(param.thisObject)) return;
 
                     Menu menu = null;
                     if (param.args.length > 0 && param.args[0] instanceof Menu) {
@@ -208,19 +210,7 @@ public class DownloadViewOnceHook extends BaseFeature {
                 }
             }
 
-            if (menuMethod == null) {
-                Class<?> mediaViewFragmentClass = XposedHelpers.findClassIfExists("com.whatsapp.mediaview.MediaViewFragment", classLoader);
-                if (mediaViewFragmentClass != null) {
-                    for (Method m : mediaViewFragmentClass.getMethods()) {
-                        Class<?>[] parameterTypes = m.getParameterTypes();
-                        if (parameterTypes.length >= 2 && parameterTypes[0] == Menu.class) {
-                            menuMethod = m;
-                            break;
-                        }
-                    }
-                }
-            }
-
+            // No generic MediaViewFragment fallback: it would add the icon to every media screen.
             if (menuMethod != null) {
                 XposedBridge.hookMethod(menuMethod, new XC_MethodHook() {
                     @Override
