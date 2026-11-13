@@ -106,7 +106,6 @@ public class ParallelDownloadingHook extends BaseFeature {
                 }
             });
 
-            XposedBridge.log(TAG + " Installed parallel downloading hook on: " + downloadMethod.getName());
         } catch (Throwable error) {
             XposedBridge.log(TAG + " Error installing hook: " + error.getMessage());
         }

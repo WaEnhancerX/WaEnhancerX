@@ -185,7 +185,6 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
             try {
                 Method method = current.getDeclaredMethod(name, parameters);
                 XposedBridge.hookMethod(method, callback);
-                XposedBridge.log(TAG + " Hooked " + name + " on " + current.getName());
                 return;
             } catch (NoSuchMethodException ignored) {
                 current = current.getSuperclass();

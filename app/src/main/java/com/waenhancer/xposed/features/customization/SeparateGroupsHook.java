@@ -495,7 +495,6 @@ public final class SeparateGroupsHook extends BaseFeature {
                 }
             });
 
-            XposedBridge.log(TAG + " successfully hooked tab badge setter");
         } catch (Throwable t) {
             XposedBridge.log(TAG + " unread badge hook unavailable: " + t);
         }

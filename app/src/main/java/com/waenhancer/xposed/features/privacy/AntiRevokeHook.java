@@ -864,7 +864,6 @@ public class AntiRevokeHook extends BaseFeature {
                         if (param.thisObject != null) hookRecyclerBind(param.thisObject);
                     }
                 });
-                XposedBridge.log(TAG + " RecyclerView Adapter bind fallback installed");
             } catch (Throwable fallback) {
                 XposedBridge.log(TAG + " RecyclerView bind fallback failed: "
                         + fallback.getClass().getSimpleName());
@@ -900,11 +899,6 @@ public class AntiRevokeHook extends BaseFeature {
                     }
                     currentAdapter = adapter;
 
-                    // Diagnostic log: report the full adapter class chain
-                    XposedBridge.log(TAG + " ListView.setAdapter:"
-                            + " outer=" + ((ListAdapter) param.args[0]).getClass().getName()
-                            + " wrapped=" + adapter.getClass().getName()
-                            + " underlying=" + getUnderlyingAdapter(adapter).getClass().getName());
 
                     final ListAdapter boundAdapter = adapter;
                     final ListAdapter underlyingAdapter = getUnderlyingAdapter(adapter);
@@ -932,9 +926,6 @@ public class AntiRevokeHook extends BaseFeature {
                             return;
                         }
 
-                        XposedBridge.log(TAG + " Hooking getView on "
-                                + getViewMethod.getDeclaringClass().getName()
-                                + "#" + getViewMethod.getName());
 
                         previousGetViewHook = XposedBridge.hookMethod(getViewMethod, new XC_MethodHook() {
                             @Override
@@ -1100,7 +1091,6 @@ public class AntiRevokeHook extends BaseFeature {
                             long ts = getRevokedTimestamp(key);
                             if (key == null || ts <= 0) return;
                             HideAntiRevokeProFeature.renderRecyclerBoundDeletedRow((ViewGroup) itemView, message, key, ts);
-                            XposedBridge.log(TAG + " Recycler native revoked bind: " + key);
                         }
                     });
                 }

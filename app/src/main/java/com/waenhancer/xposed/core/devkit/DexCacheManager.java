@@ -219,7 +219,6 @@ public final class DexCacheManager {
                         // A descriptor that no longer validates must never be retried forever.
                         mPrefs.edit().remove(typedKey).apply();
                         mInvalidations.incrementAndGet();
-                        XposedBridge.log("[WAEX][DexCache] evicted invalid " + typedKey);
                     }
                 }
 

@@ -95,8 +95,6 @@ public class MediaQualityBypassHook extends BaseFeature {
                     maxEdge.setInt(param.thisObject, IMAGE_MAX_EDGE);
                 }
             });
-            XposedBridge.log(TAG + " Installed ProcessImageQuality constructor hook: "
-                    + qualityClass.getName());
         } catch (Throwable error) {
             XposedBridge.log(TAG + " Error hooking ProcessImageQuality: " + error);
         }
@@ -197,9 +195,6 @@ public class MediaQualityBypassHook extends BaseFeature {
                         }
                     }
                 });
-                XposedBridge.log(TAG + " Installed image encoder quality hook: "
-                        + imageQualityMethod.getDeclaringClass().getName() + "#"
-                        + imageQualityMethod.getName());
             } else {
                 XposedBridge.log(TAG + " Image encoder quality method not found");
             }

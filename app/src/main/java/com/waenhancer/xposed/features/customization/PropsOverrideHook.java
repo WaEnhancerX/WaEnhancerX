@@ -58,8 +58,6 @@ public final class PropsOverrideHook extends BaseFeature {
             Method resolver = findCentralResolver(booleanGetter);
             if (resolver != null) {
                 hookInstalled = hookPropertyMethod(resolver);
-                if (hookInstalled) XposedBridge.log(TAG + " Installed central resolver: "
-                        + resolver.getDeclaringClass().getName() + "#" + resolver.getName());
                 return;
             }
             XposedBridge.log(TAG + " Central resolver unavailable; installing fallback getters");
@@ -134,13 +132,6 @@ public final class PropsOverrideHook extends BaseFeature {
                 if (param.args == null || idIndex >= param.args.length
                         || !(param.args[idIndex] instanceof Integer)) return;
                 Object override = resolveOverride((Integer) param.args[idIndex], param.getResult());
-                int propertyId = (Integer) param.args[idIndex];
-                if (CustomAbPropsRuntime.shouldLogObservation(propertyId)) {
-                    Object original = param.getResult();
-                    XposedBridge.log(TAG + " Observed custom id=" + propertyId
-                            + " originalType=" + (original == null ? "null" : original.getClass().getName())
-                            + " overrideType=" + (override == null ? "none" : override.getClass().getName()));
-                }
                 if (override != null) param.setResult(override);
             }
         });

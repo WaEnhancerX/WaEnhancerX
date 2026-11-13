@@ -120,7 +120,6 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                         if (prefs.getBoolean(PreferenceSchema.KEY_FORCE_TARGET_DEBUGGABLE, false)) {
                                             int runtimeFlags = ((Number) param.args[5]).intValue();
                                             param.args[5] = runtimeFlags | 1; // 1 = Zygote.DEBUG_ENABLE_JDWP
-                                            XposedBridge.log("[WAEX] Debugger (JDWP) enabled for: " + processName);
                                         }
                                     }
                                 }
@@ -149,7 +148,6 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                                     prefs.reload();
                                                     if (prefs.getBoolean(PreferenceSchema.KEY_FORCE_TARGET_DEBUGGABLE, false)) {
                                                         info.flags |= ApplicationInfo.FLAG_DEBUGGABLE;
-                                                        XposedBridge.log("[WAEX] ProcessList: forced FLAG_DEBUGGABLE on ProcessRecord." + info.packageName);
                                                     }
                                                 }
                                             }
@@ -161,7 +159,6 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                                     prefs.reload();
                                                     if (prefs.getBoolean(PreferenceSchema.KEY_FORCE_TARGET_DEBUGGABLE, false)) {
                                                         ai.flags |= ApplicationInfo.FLAG_DEBUGGABLE;
-                                                        XposedBridge.log("[WAEX] ProcessList: forced FLAG_DEBUGGABLE on ApplicationInfo." + ai.packageName);
                                                     }
                                                 }
                                             }
@@ -192,7 +189,6 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                                     prefs.reload();
                                                     if (prefs.getBoolean(PreferenceSchema.KEY_FORCE_TARGET_DEBUGGABLE, false)) {
                                                         ai.flags |= ApplicationInfo.FLAG_DEBUGGABLE;
-                                                        XposedBridge.log("[WAEX] AMS: forced FLAG_DEBUGGABLE on " + ai.packageName);
                                                     }
                                                 }
                                             }
@@ -308,7 +304,6 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                             try {
                                                 android.webkit.WebView.setWebContentsDebuggingEnabled(true);
                                             } catch (Throwable ignored) {}
-                                            XposedBridge.log("[WAEX] Forced FLAG_DEBUGGABLE on " + lpparam.packageName);
                                         }
                                     } catch (Throwable t) {
                                         XposedBridge.log("[WAEX] Error setting debuggable flag: " + t.getMessage());
@@ -359,7 +354,6 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                 if (!TARGET_INITIALIZED.compareAndSet(false, true)) {
                     return;
                 }
-                XposedBridge.log("[WAEX] Triggering target initialization with context: " + appContext.getClass().getName());
                 try {
                     if (appContext instanceof Application) {
                         ActivityTracker.install((Application) appContext);
