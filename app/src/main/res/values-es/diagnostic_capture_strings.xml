@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="diag_capture_title">Diagnósticos de soporte opcionales</string>
-    <string name="diag_capture_description">Al activarlo, WAEX conserva tipos de fallos propios, pantallas abiertas, claves de ajustes modificadas (no sus valores) y resúmenes de inicio y fallos de hooks durante los últimos 7 días (máximo 1,75 MiB de eventos). Al exportar, añade modelo del dispositivo, versiones de Android y las aplicaciones, memoria, almacenamiento, batería, opciones booleanas de WAEX y motivos de finalización del proceso WAEX. No recopila chats, contactos, identificadores de mensajes, multimedia, contraseñas, logcat completo ni fallos internos de WhatsApp. No supervisa en segundo plano.</string>
-    <string name="diag_capture_enable">Registrar diagnósticos de soporte</string>
-    <string name="diag_capture_target_exit_enable">Historial avanzado de cierres y ANR de WhatsApp</string>
-    <string name="diag_capture_target_exit_description">Consentimiento adicional opcional (Android 11 o posterior). Después de activarlo, reinicia WhatsApp una vez. Al abrir WhatsApp, WAEX consulta los motivos de cierre que Android conserva para el propio proceso de WhatsApp e incorpora solo los ocurridos después del consentimiento: crasheos Java y nativos, ANR que terminaron el proceso, falta de memoria y otros cierres del sistema. Se agregan al mismo ZIP local. No se incluyen mensajes, pilas de crasheos, trazas ni monitoreo continuo. Algunos cierres o ANR recuperados pueden no estar disponibles.</string>
-    <string name="diag_capture_share">Compartir ZIP de diagnóstico por Telegram</string>
-    <string name="diag_capture_clear">Eliminar diagnósticos guardados</string>
-    <string name="diag_capture_consent">El informe puede revelar el modelo del dispositivo y las funciones de WAEX activadas. Revísalo antes de compartirlo. Tú eliges Telegram, el grupo de desarrolladores y confirmas el envío; nada se sube automáticamente.</string>
-    <string name="diag_capture_no_events">Todavía no hay eventos de diagnóstico disponibles.</string>
-    <string name="diag_capture_export_failed">No se pudo preparar el informe. Comprueba el espacio libre e inténtalo de nuevo.</string>
-    <string name="diag_capture_share_failed">Ninguna aplicación pudo recibir el archivo. Puedes elegir otra desde el menú de Android.</string>
-    <string name="diag_capture_pref_failed">No se pudo guardar el ajuste de diagnóstico.</string>
-    <string name="diag_capture_confirm_clear_title">¿Eliminar los diagnósticos registrados?</string>
-    <string name="diag_capture_confirm_clear_body">Se borrarán los eventos locales y las copias ZIP generadas anteriormente. No se borrarán los informes ya enviados.</string>
+    <string name="diag_capture_title">Ayúdanos a corregir problemas</string>
+    <string name="diag_capture_description">Actívalo, usa WAEX con normalidad y, cuando algo falle, comparte un informe pequeño con los desarrolladores. Está desactivado por defecto y permanece en tu teléfono hasta que lo compartas.\n\nSe guarda hasta 7 días: las pantallas de WAEX que abres, qué ajustes cambias (nunca sus valores), fallos de WAEX y si los hooks de WAEX arrancaron bien en WhatsApp.\n\nNunca se guarda: chats, contactos, multimedia, contraseñas ni registros de otras aplicaciones.</string>
+    <string name="diag_capture_enable">Guardar informes de problemas</string>
+    <string name="diag_capture_target_exit_enable">Incluir historial de cierres de WhatsApp</string>
+    <string name="diag_capture_target_exit_description">Añade los motivos por los que Android cerró WhatsApp recientemente (fallo, bloqueo, poca memoria). Reinicia WhatsApp una vez tras activarlo. Requiere Android 11 o superior.</string>
+    <string name="diag_capture_share">Compartir informe</string>
+    <string name="diag_capture_clear">Eliminar datos guardados</string>
+    <string name="diag_capture_consent">Al compartir, el informe incluye también el modelo del teléfono, las versiones de Android y de las apps, y qué funciones de WAEX están activas. No se envía nada automáticamente. Tú eliges la app y el destinatario.</string>
+    <string name="diag_capture_no_events">Todavía no hay nada que compartir. Usa WAEX un tiempo y vuelve a intentarlo cuando ocurra el problema.</string>
+    <string name="diag_capture_export_failed">No se pudo crear el informe. Comprueba el espacio libre e inténtalo de nuevo.</string>
+    <string name="diag_capture_share_failed">Ninguna aplicación pudo recibir el informe. Prueba con otra app del menú de compartir.</string>
+    <string name="diag_capture_pref_failed">No se pudo guardar este ajuste. Inténtalo de nuevo.</string>
+    <string name="diag_capture_confirm_clear_title">¿Eliminar los datos guardados?</string>
+    <string name="diag_capture_confirm_clear_body">Se borrarán los datos de problemas guardados en tu teléfono. Los informes que ya compartiste no se ven afectados.</string>
     <string name="diag_capture_cancel">Cancelar</string>
     <string name="diag_capture_confirm">Eliminar</string>
-    <string name="diag_capture_cleared">Diagnósticos locales eliminados.</string>
-    <string name="diag_capture_share_chooser">Elige Telegram para compartir diagnósticos de WAEX</string>
+    <string name="diag_capture_cleared">Datos guardados eliminados.</string>
+    <string name="diag_capture_share_chooser">Compartir informe de WAEX</string>
 </resources>
