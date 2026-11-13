@@ -240,6 +240,7 @@ public final class FeatureRegistry {
 
         registerFeature(HideReceiptsHook.class, "Privacy",
                 () -> prefs.getBoolean("hide_read_receipts", false) || prefs.getBoolean("hideread", false)
+                        || prefs.getBoolean("hideread_group", false)
                         || prefs.getBoolean("hide_delivery_receipts", false) || prefs.getBoolean("hidereceipt", false)
                         || prefs.getBoolean("hide_seen_receipts", false) || prefs.getBoolean("hideaudioseen", false)
                         || prefs.getBoolean("hideonceseen", false) || prefs.getBoolean("ghostmode_active", false)
@@ -296,7 +297,9 @@ public final class FeatureRegistry {
 
         // Conversation & Message Controls
         registerFeature(AntiEditMessagesHook.class, "Conversation",
-                () -> prefs.getBoolean("anti_edit", false) || prefs.getBoolean("antieditmessages", false),
+                () -> prefs.getBoolean("anti_edit_messages", false)
+                        || prefs.getBoolean("anti_edit", false)
+                        || prefs.getBoolean("antieditmessages", false),
                 () -> new AntiEditMessagesHook(context, classLoader, prefs));
 
         registerFeature(StickerConfirmHook.class, "Conversation",
