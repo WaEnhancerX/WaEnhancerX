@@ -490,7 +490,7 @@ fun MainDashboardScreen(
 
                                     // Active hooks row: shown for every injected target. Counts come from the
                                     // target's own report; refresh asks the running app to report again.
-                                    if (app.isInstalled && app.isHooked) {
+                                    if (app.isInstalled && (app.isHooked || app.injectedHooks.isNotEmpty())) {
                                         Spacer(modifier = Modifier.height(10.dp))
                                         HorizontalDivider(thickness = 0.5.dp, color = colors.outlineVariant.copy(alpha = 0.5f))
                                         Spacer(modifier = Modifier.height(8.dp))
@@ -523,7 +523,8 @@ fun MainDashboardScreen(
                                             Column(modifier = Modifier.weight(1f)) {
                                                 Text(
                                                     text = when {
-                                                        hasReport -> stringResource(R.string.injected_hooks_active_count, activeCount, totalCount)
+                                                        hasReport -> stringResource(R.string.injected_hooks_active_count, activeCount, totalCount) +
+                                                            if (app.isHooked) "" else " · " + UiText.get(R.string.waex_ui_hooks_last_report, "last report")
                                                         paused -> UiText.get(R.string.waex_ui_hooks_paused_short, "Hooks paused")
                                                         else -> UiText.get(R.string.waex_ui_hooks_not_reported_short, "Hooks not reported yet")
                                                     },
@@ -551,18 +552,9 @@ fun MainDashboardScreen(
                                                     )
                                                 }
                                             }
-                                            Text(
-                                                text = stringResource(R.string.view_all),
-                                                style = typography.labelSm,
-                                                color = colors.primary,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Medium,
-                                                maxLines = 1,
-                                                softWrap = false
-                                            )
                                             Icon(
                                                 imageVector = WaexIcons.ChevronRight,
-                                                contentDescription = null,
+                                                contentDescription = stringResource(R.string.view_all),
                                                 tint = colors.primary,
                                                 modifier = Modifier.size(13.dp)
                                             )

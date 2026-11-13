@@ -304,7 +304,8 @@ object WhatsAppPackageDetector {
                     versionName = "v${pInfo.versionName ?: UiText.get(R.string.waex_ui_unknown, "Unknown")}",
                     isInstalled = true,
                     isHooked = isInjected,
-                    injectedHooks = if (isInjected) getInjectedHooks(context, pkg) else emptyList(),
+                    // Last known report is kept for stopped targets too; the UI labels it as not current.
+                    injectedHooks = getInjectedHooks(context, pkg),
                     lastActiveTime = lastActiveTime,
                     runtimeStatus = prefs.getString("runtime_status_$pkg", "NOT_DETECTED") ?: "NOT_DETECTED",
                     bridgeStatus = prefs.getString("bridge_status_$pkg", "NOT_REPORTED") ?: "NOT_REPORTED",

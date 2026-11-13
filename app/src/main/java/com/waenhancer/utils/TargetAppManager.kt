@@ -134,7 +134,10 @@ object TargetAppManager {
     fun syncHooks(context: Context, packages: Collection<String>? = null) {
         val appContext = context.applicationContext
         scope.launch {
-            val targets = (packages ?: _detectedApps.value.filter { it.isInstalled && it.isHooked }.map { it.packageName })
+            // Do not depend on "hooked" evidence here: right after a cold start the cached list has no
+            // process data yet, so nothing would be marked hooked and no request would ever go out.
+            // A package that is not running simply does not answer and is reported as such.
+            val targets = (packages ?: _detectedApps.value.filter { it.isInstalled }.map { it.packageName })
                 .filter { it !in _hooksSyncing.value }
             if (targets.isEmpty()) { refresh(appContext); return@launch }
             _hooksSyncing.value = _hooksSyncing.value + targets
