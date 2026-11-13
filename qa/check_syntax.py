@@ -54,7 +54,10 @@ public final class WaexJavaSyntaxRunner {
         List<File> files = new ArrayList<>();
         for (String path : paths) files.add(new File(path));
         DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
-        try (StandardJavaFileManager manager = compiler.getStandardFileManager(diagnostics, null, null)) {
+        // Repository source files are UTF-8 regardless of the host's default
+        // code page (notably Windows-1252). Never silently misparse characters.
+        try (StandardJavaFileManager manager = compiler.getStandardFileManager(
+                diagnostics, null, java.nio.charset.StandardCharsets.UTF_8)) {
             Iterable<? extends JavaFileObject> sources = manager.getJavaFileObjectsFromFiles(files);
             JavacTask task = (JavacTask) compiler.getTask(
                     null, manager, diagnostics,
