@@ -29,6 +29,19 @@ restore the reverted feature behavior. Where the Java selector also examines
 parameter elements, it reuses the same array. DexKit
 `getParamCount`/`paramCount` calls are a separate API and are unchanged.
 
+### Follow-up against upstream `a0b047ae` (2026-11-12)
+
+This later `main` revision still contained nine direct
+`getParameterCount()` calls: eight constructor checks in
+`SeparateGroupsHook` and one method check in `ParallelDownloadingHook`.
+All nine triggered the source policy in the Android 24 CI job. Replacing them
+with `getParameterTypes().length` preserves the zero-/one-argument checks,
+the shortest-constructor comparison, and the response method filter. The
+unchanged `a0b047ae` tree is a negative control: the policy must reject all
+nine sites. This is an explicit API-level cleanup, **not proof of a crash in
+the packaged APK**; Android 24/25 device execution and final DEX linkage
+remain unverified.
+
 ## Required regression checks
 
 Run `python3 qa/test_android24_compatibility.py` with the JDK available. This
