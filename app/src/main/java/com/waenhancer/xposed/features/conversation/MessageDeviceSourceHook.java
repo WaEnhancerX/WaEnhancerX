@@ -34,11 +34,12 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
@@ -71,10 +72,33 @@ public class MessageDeviceSourceHook extends BaseFeature {
     private static Class<?> fMessageClass;
     private static Class<?> deviceJidClass;
 
-    private static final Executor UI_EXECUTOR = action -> {
-        Handler handler = new Handler(Looper.getMainLooper());
-        handler.post(action);
-    };
+    private static final Pattern MESSAGE_ID_PATTERN =
+            Pattern.compile("(?:messageId|messageID|keyId|Key\\(id)=([A-Za-z0-9_-]+)");
+    /** Message class -> field holding the key object; resolved once, never rescanned per bind. */
+    private static final Map<Class<?>, Field> KEY_FIELD_CACHE = new ConcurrentHashMap<>();
+    private static final Set<Class<?>> KEYLESS_CLASSES = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    /** Key class -> its String id field. */
+    private static final Map<Class<?>, Field> KEY_ID_FIELD_CACHE = new ConcurrentHashMap<>();
+    /** Resolved device ids (>= 0) by message id, so rebinds while scrolling skip all work. */
+    private static final Map<String, Integer> RESOLVED_DEVICE_IDS = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Field> WRAPPER_FIELD_CACHE = new ConcurrentHashMap<>();
+    private static final Set<Class<?>> WRAPPER_MISSES = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private static final Executor RESOLVE_EXECUTOR = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "waex-device-source");
+        t.setDaemon(true);
+        return t;
+    });
+
+    private static final View.OnClickListener PHONE_CLICK = v -> Toast.makeText(v.getContext(),
+            UiText.get(R.string.message_sent_via_phone, "This message was sent via Phone"),
+            Toast.LENGTH_SHORT).show();
+    private static final View.OnClickListener LINKED_CLICK = v -> Toast.makeText(v.getContext(),
+            UiText.get(R.string.waex_ui_this_message_was_sent_via_a_linked_dev,
+                    "This message was sent via a Linked Device (Desktop/Phone)"),
+            Toast.LENGTH_SHORT).show();
+
+    private static final Handler UI_HANDLER = new Handler(Looper.getMainLooper());
+    private static final Executor UI_EXECUTOR = UI_HANDLER::post;
 
     public MessageDeviceSourceHook(
             @NonNull Context context,
@@ -270,23 +294,33 @@ public class MessageDeviceSourceHook extends BaseFeature {
         if (candidate == null || fMessageClass == null) return null;
         if (fMessageClass.isInstance(candidate)) return candidate;
 
-        Class<?> current = candidate.getClass();
-        while (current != null && current != Object.class) {
-            for (Field field : current.getDeclaredFields()) {
-                if (Modifier.isStatic(field.getModifiers())
-                        || !fMessageClass.isAssignableFrom(field.getType())) {
-                    continue;
-                }
-                try {
-                    field.setAccessible(true);
-                    Object nested = field.get(candidate);
-                    if (nested != null) return nested;
-                } catch (Throwable ignored) {
+        Class<?> type = candidate.getClass();
+        Field cached = WRAPPER_FIELD_CACHE.get(type);
+        if (cached == null && !WRAPPER_MISSES.contains(type)) {
+            for (Class<?> current = type; current != null && current != Object.class && cached == null;
+                 current = current.getSuperclass()) {
+                for (Field field : current.getDeclaredFields()) {
+                    if (Modifier.isStatic(field.getModifiers())
+                            || !fMessageClass.isAssignableFrom(field.getType())) {
+                        continue;
+                    }
+                    try {
+                        field.setAccessible(true);
+                        cached = field;
+                        WRAPPER_FIELD_CACHE.put(type, field);
+                        break;
+                    } catch (Throwable ignored) {
+                    }
                 }
             }
-            current = current.getSuperclass();
+            if (cached == null) WRAPPER_MISSES.add(type);
         }
-        return null;
+        if (cached == null) return null;
+        try {
+            return cached.get(candidate);
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 
     @Nullable
@@ -316,21 +350,36 @@ public class MessageDeviceSourceHook extends BaseFeature {
         if (messageId == null || messageId.isEmpty()) return;
 
         XposedHelpers.setAdditionalInstanceField(dateTextView, FIELD_DEVICE_MSG_ID, messageId);
+        // A recycled row must not carry the previous message's emoji into WhatsApp's own
+        // date rebind (the setText hook would append it, then we would relayout again).
+        XposedHelpers.setAdditionalInstanceField(dateTextView, FIELD_DEVICE_SUFFIX, "");
         dateTextView.setTag(R.id.wae_device_source_tag, Boolean.TRUE);
 
-        CompletableFuture.supplyAsync(() -> resolveMessageDeviceId(messageId, messageObj))
-                .thenAcceptAsync(resolvedDeviceId -> {
-                    Object currentId = XposedHelpers.getAdditionalInstanceField(dateTextView, FIELD_DEVICE_MSG_ID);
-                    if (!Objects.equals(currentId, messageId)) return;
+        // Known id: bind synchronously, no thread hop or reflection while scrolling.
+        Integer known = RESOLVED_DEVICE_IDS.get(messageId);
+        if (known != null) {
+            applyResolvedDeviceId(row, dateTextView, messageId, known);
+            return;
+        }
 
-                    String suffix = getDeviceEmojiSuffix(resolvedDeviceId);
-                    XposedHelpers.setAdditionalInstanceField(dateTextView, FIELD_DEVICE_SUFFIX, suffix);
+        RESOLVE_EXECUTOR.execute(() -> {
+            int resolvedDeviceId = resolveMessageDeviceId(messageId, messageObj);
+            if (resolvedDeviceId >= 0) RESOLVED_DEVICE_IDS.put(messageId, resolvedDeviceId);
+            UI_EXECUTOR.execute(() -> applyResolvedDeviceId(row, dateTextView, messageId, resolvedDeviceId));
+        });
+    }
 
-                    bindDeviceSourceUi(dateTextView, resolvedDeviceId);
-                    if (!suffix.isEmpty()) {
-                        applyDeviceSourceToMatchingViews(row, dateTextView, suffix, resolvedDeviceId);
-                    }
-                }, UI_EXECUTOR);
+    private void applyResolvedDeviceId(ViewGroup row, TextView dateTextView, String messageId, int resolvedDeviceId) {
+        Object currentId = XposedHelpers.getAdditionalInstanceField(dateTextView, FIELD_DEVICE_MSG_ID);
+        if (!Objects.equals(currentId, messageId)) return;
+
+        String suffix = getDeviceEmojiSuffix(resolvedDeviceId);
+        XposedHelpers.setAdditionalInstanceField(dateTextView, FIELD_DEVICE_SUFFIX, suffix);
+
+        bindDeviceSourceUi(dateTextView, resolvedDeviceId);
+        if (!suffix.isEmpty()) {
+            applyDeviceSourceToMatchingViews(row, dateTextView, suffix, resolvedDeviceId);
+        }
     }
 
     private static volatile int sDateResId = -1;
@@ -419,7 +468,11 @@ public class MessageDeviceSourceHook extends BaseFeature {
         XposedHelpers.setAdditionalInstanceField(dateTextView, FIELD_DEVICE_SUFFIX, suffix);
 
         attachClickToast(dateTextView, deviceId);
-        dateTextView.setText(baseText + suffix);
+        String desired = baseText + suffix;
+        // Re-setting identical text still rebuilds the TextView layout; skip when unchanged.
+        if (!desired.contentEquals(dateTextView.getText())) {
+            dateTextView.setText(desired);
+        }
     }
 
     private void applyDeviceSourceToMatchingViews(ViewGroup root, TextView anchor, String suffix, int deviceId) {
@@ -454,14 +507,7 @@ public class MessageDeviceSourceHook extends BaseFeature {
             return;
         }
 
-        textView.setOnClickListener(v -> {
-            Context ctx = v.getContext();
-            if (deviceId == 0) {
-                Toast.makeText(ctx, UiText.get(R.string.message_sent_via_phone, "This message was sent via Phone"), Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(ctx, UiText.get(R.string.waex_ui_this_message_was_sent_via_a_linked_dev, "This message was sent via a Linked Device (Desktop/Phone)"), Toast.LENGTH_SHORT).show();
-            }
-        });
+        textView.setOnClickListener(deviceId == 0 ? PHONE_CLICK : LINKED_CLICK);
     }
 
     private void forEachTextView(View view, Consumer<TextView> consumer) {
@@ -541,47 +587,65 @@ public class MessageDeviceSourceHook extends BaseFeature {
 
     private String extractMessageId(Object messageObj) {
         if (messageObj == null) return null;
+        Class<?> type = messageObj.getClass();
         try {
-            Class<?> curr = messageObj.getClass();
-            while (curr != null && curr != Object.class) {
-                for (Field field : curr.getDeclaredFields()) {
-                    field.setAccessible(true);
-                    Object val = field.get(messageObj);
-                    if (val == null) continue;
-                    String className = val.getClass().getName();
-                    if (className.contains("Key") || val.toString().startsWith("Key(")) {
-                        String id = extractIdFromKeyObj(val);
-                        if (id != null && !id.isEmpty()) return id;
+            Field cached = KEY_FIELD_CACHE.get(type);
+            if (cached != null) {
+                Object keyObj = cached.get(messageObj);
+                String id = keyObj != null ? extractIdFromKeyObj(keyObj) : null;
+                if (id != null && !id.isEmpty()) return id;
+            } else if (!KEYLESS_CLASSES.contains(type)) {
+                // First sight of this class: discover the key field once.
+                for (Class<?> curr = type; curr != null && curr != Object.class; curr = curr.getSuperclass()) {
+                    for (Field field : curr.getDeclaredFields()) {
+                        if (Modifier.isStatic(field.getModifiers()) || field.getType().isPrimitive()) continue;
+                        field.setAccessible(true);
+                        Object val = field.get(messageObj);
+                        if (val == null) continue;
+                        if (val.getClass().getName().contains("Key") || val.toString().startsWith("Key(")) {
+                            String id = extractIdFromKeyObj(val);
+                            if (id != null && !id.isEmpty()) {
+                                KEY_FIELD_CACHE.put(type, field);
+                                return id;
+                            }
+                        }
                     }
                 }
-                curr = curr.getSuperclass();
+                var matcher = MESSAGE_ID_PATTERN.matcher(messageObj.toString());
+                if (matcher.find()) return matcher.group(1);
+                KEYLESS_CLASSES.add(type);
             }
-
-            Pattern pattern = Pattern.compile("(?:messageId|messageID|keyId|Key\\(id)=([A-Za-z0-9_-]+)");
-            var matcher = pattern.matcher(messageObj.toString());
-            if (matcher.find()) return matcher.group(1);
         } catch (Throwable ignored) {}
         return null;
     }
 
     private String extractIdFromKeyObj(Object keyObj) {
         try {
-            Class<?> curr = keyObj.getClass();
-            while (curr != null && curr != Object.class) {
+            Class<?> keyType = keyObj.getClass();
+            Field cached = KEY_ID_FIELD_CACHE.get(keyType);
+            if (cached != null) {
+                String value = (String) cached.get(keyObj);
+                if (isMessageIdValue(value)) return value;
+            }
+            for (Class<?> curr = keyType; curr != null && curr != Object.class; curr = curr.getSuperclass()) {
                 for (Field f : curr.getDeclaredFields()) {
+                    if (f.getType() != String.class || Modifier.isStatic(f.getModifiers())) continue;
                     f.setAccessible(true);
-                    if (f.getType() == String.class) {
-                        // Message-key member names are obfuscated (often A00/A01). The key has a
-                        // single String payload, so validate its value instead of its field name.
-                        String value = (String) f.get(keyObj);
-                        if (value != null && value.length() >= 8 && !value.contains("@")
-                                && value.indexOf(' ') < 0) return value;
+                    // Message-key member names are obfuscated (often A00/A01). The key has a
+                    // single String payload, so validate its value instead of its field name.
+                    String value = (String) f.get(keyObj);
+                    if (isMessageIdValue(value)) {
+                        KEY_ID_FIELD_CACHE.put(keyType, f);
+                        return value;
                     }
                 }
-                curr = curr.getSuperclass();
             }
         } catch (Throwable ignored) {}
         return null;
+    }
+
+    private static boolean isMessageIdValue(String value) {
+        return value != null && value.length() >= 8 && !value.contains("@") && value.indexOf(' ') < 0;
     }
 
     private int extractDeviceId(Object messageObj) {

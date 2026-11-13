@@ -31,6 +31,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.waenhancer.xposed.core.BaseFeature;
+import com.waenhancer.xposed.utils.HostResourceIds;
 import com.waenhancer.xposed.core.db.DelMessageStore;
 import com.waenhancer.xposed.features.conversation.PreserveDeleteForMeHook;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
@@ -1052,7 +1053,7 @@ public class AntiRevokeHook extends BaseFeature {
         try {
             int textId = sMessageTextResId;
             if (textId == 0) {
-                textId = row.getResources().getIdentifier("message_text", "id", row.getContext().getPackageName());
+                textId = HostResourceIds.id(row.getContext(), "message_text");
                 if (textId != 0) sMessageTextResId = textId;
             }
             View view = textId == 0 ? null : row.findViewById(textId);
@@ -1294,8 +1295,8 @@ public class AntiRevokeHook extends BaseFeature {
                     context, classLoader, "waex_status_playback_view_class",
                     (bridge, loader) -> {
                         try {
-                            int statusHeaderId = context.getResources().getIdentifier("status_header", "id", context.getPackageName());
-                            int menuId = context.getResources().getIdentifier("menu", "id", context.getPackageName());
+                            int statusHeaderId = HostResourceIds.id(context, "status_header");
+                            int menuId = HostResourceIds.id(context, "menu");
                             if (statusHeaderId != 0 && menuId != 0) {
                                 ClassData cd = bridge.findClass(FindClass.create()
                                         .matcher(ClassMatcher.create()
@@ -1583,7 +1584,7 @@ public class AntiRevokeHook extends BaseFeature {
             }
             if (playbackView == null) return null;
 
-            int dateId = context.getResources().getIdentifier("date", "id", context.getPackageName());
+            int dateId = HostResourceIds.id(context, "date");
             curr = playbackViewClass;
             while (curr != null && curr != Object.class) {
                 for (Field field : curr.getDeclaredFields()) {
@@ -1819,7 +1820,7 @@ public class AntiRevokeHook extends BaseFeature {
         String[] idNames = {"date", "time", "timestamp", "subtitle", "status_time", "story_time", "caption_time"};
         for (String name : idNames) {
             try {
-                int id = ctx.getResources().getIdentifier(name, "id", ctx.getPackageName());
+                int id = HostResourceIds.id(ctx, name);
                 if (id != 0) {
                     View v = root.findViewById(id);
                     if (v instanceof TextView) return (TextView) v;
@@ -2063,8 +2064,8 @@ public class AntiRevokeHook extends BaseFeature {
             rowView.setTag(TAG_DECORATED, Boolean.TRUE);
             Context rowContext = rowView.getContext();
             if (sDateResId == 0) {
-                sDateResId = rowContext.getResources().getIdentifier("date", "id", rowContext.getPackageName());
-                sMsgTextResId = rowContext.getResources().getIdentifier("message_text", "id", rowContext.getPackageName());
+                sDateResId = HostResourceIds.id(rowContext, "date");
+                sMsgTextResId = HostResourceIds.id(rowContext, "message_text");
             }
 
             TextView dateTextView = sDateResId != 0 ? rowView.findViewById(sDateResId) : null;
@@ -2274,8 +2275,8 @@ public class AntiRevokeHook extends BaseFeature {
             rowView.setVisibility(View.VISIBLE);
             Context rowContext = rowView.getContext();
             if (sDateResId == 0) {
-                sDateResId = rowContext.getResources().getIdentifier("date", "id", rowContext.getPackageName());
-                sMsgTextResId = rowContext.getResources().getIdentifier("message_text", "id", rowContext.getPackageName());
+                sDateResId = HostResourceIds.id(rowContext, "date");
+                sMsgTextResId = HostResourceIds.id(rowContext, "message_text");
             }
 
             TextView dateTextView = sDateResId != 0 ? rowView.findViewById(sDateResId) : null;

@@ -28,6 +28,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.waenhancer.xposed.core.BaseFeature;
+import com.waenhancer.xposed.utils.HostResourceIds;
 import com.waenhancer.xposed.core.components.WaexBottomSheet;
 import com.waenhancer.xposed.utils.ActivityTracker;
 import de.robv.android.xposed.XC_MethodHook;
@@ -69,6 +70,7 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
     private static final int TAG_CC_BTN = 0x57414343;   // 'WACC'
     private static final int TAG_FILE = 0x57414346;     // 'WACF'
     private static final int TAG_LISTENER = 0x5741434C; // 'WACL'
+    private static final int TAG_ROW_KIND = 0x5741434B; // 'WACK' - memoized voice-row check
 
     private static final AtomicBoolean LOOKUP_WARNED = new AtomicBoolean(false);
 
@@ -212,10 +214,21 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
      */
     @Nullable
     private ViewGroup findVoiceNoteRow(ViewGroup row) {
+        // A recycled row view always keeps the same layout, so the (7x findViewById) probe
+        // runs once per view instance instead of on every scroll bind.
+        Object memo = row.getTag(TAG_ROW_KIND);
+        if (memo != null) return Boolean.TRUE.equals(memo) ? row : null;
+        ViewGroup found = probeVoiceNoteRow(row);
+        row.setTag(TAG_ROW_KIND, found != null);
+        return found;
+    }
+
+    @Nullable
+    private ViewGroup probeVoiceNoteRow(ViewGroup row) {
         int id = sVoiceNoteRowId;
         Context ctx = row.getContext();
         if (id == 0) {
-            id = ctx.getResources().getIdentifier("conversation_row_voice_note", "id", ctx.getPackageName());
+            id = HostResourceIds.id(ctx, "conversation_row_voice_note");
             if (id != 0) sVoiceNoteRowId = id;
         }
         if (id != 0 && (row.getId() == id || row.findViewById(id) != null)) {
@@ -223,19 +236,19 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
         }
         int audioPlayerId = sAudioPlayerId;
         if (audioPlayerId == 0) {
-            audioPlayerId = ctx.getResources().getIdentifier("conversation_row_audio_player_view", "id", ctx.getPackageName());
+            audioPlayerId = HostResourceIds.id(ctx, "conversation_row_audio_player_view");
             if (audioPlayerId != 0) sAudioPlayerId = audioPlayerId;
         }
         if (audioPlayerId != 0 && row.findViewById(audioPlayerId) != null) {
             return row;
         }
         for (String name : EXTRA_AUDIO_IDS) {
-            int extra = ctx.getResources().getIdentifier(name, "id", ctx.getPackageName());
+            int extra = HostResourceIds.id(ctx, name);
             if (extra != 0 && row.findViewById(extra) != null) return row;
         }
         int audioRowId = sAudioRowId;
         if (audioRowId == 0) {
-            audioRowId = ctx.getResources().getIdentifier("conversation_row_audio", "id", ctx.getPackageName());
+            audioRowId = HostResourceIds.id(ctx, "conversation_row_audio");
             if (audioRowId != 0) sAudioRowId = audioRowId;
         }
         if (audioRowId != 0 && (row.getId() == audioRowId || row.findViewById(audioRowId) != null)) {
@@ -249,7 +262,7 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
         int id = sMainLayoutId;
         if (id == 0) {
             Context ctx = row.getContext();
-            id = ctx.getResources().getIdentifier("main_layout", "id", ctx.getPackageName());
+            id = HostResourceIds.id(ctx, "main_layout");
             if (id != 0) sMainLayoutId = id;
         }
         if (id != 0) {
@@ -257,7 +270,7 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
             if (main != null) return main;
         }
         // Fallback: bubble containing audio_root_layout
-        int rootId = row.getContext().getResources().getIdentifier("audio_root_layout", "id", row.getContext().getPackageName());
+        int rootId = HostResourceIds.id(row.getContext(), "audio_root_layout");
         if (rootId != 0) {
             View root = row.findViewById(rootId);
             if (root != null && root.getParent() instanceof View && root.getParent() != row) {
@@ -265,7 +278,7 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
             }
         }
         // Fallback: search for child containing conversation_row_audio_player_view
-        int audioPlayerId = row.getContext().getResources().getIdentifier("conversation_row_audio_player_view", "id", row.getContext().getPackageName());
+        int audioPlayerId = HostResourceIds.id(row.getContext(), "conversation_row_audio_player_view");
         if (audioPlayerId != 0) {
             View player = row.findViewById(audioPlayerId);
             if (player != null) {

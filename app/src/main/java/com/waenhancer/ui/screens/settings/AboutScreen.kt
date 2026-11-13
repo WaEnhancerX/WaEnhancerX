@@ -487,7 +487,7 @@ fun AboutScreen() {
                                 color = colors.onSurfaceVariant
                             )
                             Text(
-                                text = if (BuildConfig.DEBUG) stringResource(R.string.build_variant_debug) else stringResource(R.string.build_variant_release),
+                                text = if (BuildConfig.IS_DEBUG_VARIANT) stringResource(R.string.build_variant_debug) else stringResource(R.string.build_variant_release),
                                 style = typography.labelSm,
                                 color = colors.onSurfaceVariant
                             )

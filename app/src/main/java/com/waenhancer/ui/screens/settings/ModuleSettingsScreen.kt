@@ -235,7 +235,7 @@ fun ModuleSettingsScreen() {
             }
 
             // ─── SECTION 4: DEVELOPER OPTIONS (Debug only) ───────────────────
-            if (BuildConfig.DEBUG) {
+            if (BuildConfig.IS_DEBUG_VARIANT) {
                 var forceTargetDebuggable by remember {
                     mutableStateOf(preferences.getBoolean(PreferenceSchema.KEY_FORCE_TARGET_DEBUGGABLE, false))
                 }

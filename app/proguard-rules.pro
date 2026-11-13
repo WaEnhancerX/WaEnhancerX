@@ -84,3 +84,42 @@
 
 # On-device transcription: libwaexwhisper.so binds to these JNI names.
 -keep class com.waenhancer.core.transcription.local.WhisperNative { native <methods>; }
+
+# 11. Cross-Module Reflection Bridge (:licensing -> :app)
+# :licensing is merged into :app and obfuscated in the same R8 pass, so a normal
+# compile-time call between the two modules is renamed consistently on both ends
+# and needs no rule. The exceptions below are places where :licensing reaches
+# back into :app by a hardcoded fully-qualified name instead (XposedHelpers
+# findClass/callMethod, Class.forName + getMethod/getField), which R8 cannot see,
+# so the class/member names those string literals depend on must be pinned here.
+
+# PropsOverrideHook.BOOLEANS is read via Class.forName(...).getField("BOOLEANS")
+# from CustomEmojisFeature / DeviceDefaultEmojisFeature. The class name itself is
+# already covered by the -keepnames rule above; only the field needs pinning.
+-keepclassmembers class com.waenhancer.xposed.features.customization.PropsOverrideHook {
+    public static final java.util.concurrent.ConcurrentHashMap BOOLEANS;
+}
+
+# DexSearchEngine.getInstance()/findClassWithCache(...) and its DexKitClassQuery
+# callback interface are invoked via Class.forName(...) + getMethod(...) from
+# CustomEmojisFeature / DeviceDefaultEmojisFeature.
+-keep class com.waenhancer.xposed.core.devkit.DexSearchEngine {
+    public static com.waenhancer.xposed.core.devkit.DexSearchEngine getInstance();
+    public java.lang.Class findClassWithCache(android.content.Context, java.lang.ClassLoader, java.lang.String, com.waenhancer.xposed.core.devkit.DexSearchEngine$DexKitClassQuery);
+}
+-keep interface com.waenhancer.xposed.core.devkit.DexSearchEngine$DexKitClassQuery { *; }
+
+# WaexBottomSheet is constructed and driven entirely through XposedHelpers
+# string-based reflection from FileSizeSpooferFeature, MessageBomberFeature and
+# StatusSplitterFeature (all in :licensing).
+-keepclassmembers class com.waenhancer.xposed.core.components.WaexBottomSheet {
+    <init>(android.content.Context);
+    public *** asBottomSheet();
+    public *** setTitle(java.lang.CharSequence);
+    public *** setMessage(java.lang.CharSequence);
+    public *** setView(android.view.View);
+    public *** setPositiveButton(java.lang.CharSequence, android.content.DialogInterface$OnClickListener);
+    public *** setNegativeButton(java.lang.CharSequence, android.content.DialogInterface$OnClickListener);
+    public *** show();
+}
+-keepnames class com.waenhancer.xposed.core.components.WaexBottomSheet

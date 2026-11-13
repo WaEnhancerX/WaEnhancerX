@@ -105,15 +105,28 @@ android {
             // Debug APKs are distributed to testers, so run the same whole-program
             // shrinking/obfuscation pass as release. The mapping file remains under
             // app/build/outputs/mapping/debug for local crash retracing.
-            // AGP deliberately disables R8 obfuscation for debuggable variants.
+            // R8 only renames (obfuscates) classes/members when the variant's merged
+            // manifest is non-debuggable; with the default isDebuggable = true it
+            // still shrinks with isMinifyEnabled = true but silently skips renaming,
+            // which left :licensing fully readable in debug APKs. Forcing
+            // isDebuggable = false makes R8 run its real release-equivalent pass here
+            // too.
+            // NOTE: AGP derives BuildConfig.DEBUG from isDebuggable, so flipping it
+            // also flips BuildConfig.DEBUG to false. Code that needs "is this WAEX's
+            // debug variant" (update-channel asset switching, the JDWP developer
+            // option, ...) must use BuildConfig.IS_DEBUG_VARIANT below instead, which
+            // tracks the buildType identity, not manifest debuggability.
+            isDebuggable = false
             isMinifyEnabled = true
             isShrinkResources = true
+            buildConfigField("boolean", "IS_DEBUG_VARIANT", "true")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName("releaseConfig")
         }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            buildConfigField("boolean", "IS_DEBUG_VARIANT", "false")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName("releaseConfig")
         }

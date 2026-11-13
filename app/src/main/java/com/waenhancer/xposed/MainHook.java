@@ -107,7 +107,7 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
 
         // System Framework Hook (Developer Options: JDWP debugger for target WhatsApp packages)
         if ("android".equals(packageName)) {
-            if (BuildConfig.DEBUG) {
+            if (BuildConfig.IS_DEBUG_VARIANT) {
                 try {
                     XC_MethodHook startHook = new XC_MethodHook() {
                         @Override
@@ -298,7 +298,7 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                             @Override
                             protected void afterHookedMethod(MethodHookParam param) {
                                 Context context = (Context) param.thisObject;
-                                if (BuildConfig.DEBUG) {
+                                if (BuildConfig.IS_DEBUG_VARIANT) {
                                     try {
                                         boolean isDebuggableRequested = (preloadedPrefs != null
                                                 && preloadedPrefs.getBoolean(PreferenceSchema.KEY_FORCE_TARGET_DEBUGGABLE, false));

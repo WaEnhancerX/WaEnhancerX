@@ -51,6 +51,7 @@ import android.widget.Toast
 import android.widget.VideoView
 import androidx.core.graphics.drawable.DrawableCompat
 import com.waenhancer.xposed.core.BaseFeature
+import com.waenhancer.xposed.utils.HostResourceIds
 import com.waenhancer.xposed.core.ViewHookDispatcher
 import com.waenhancer.xposed.core.db.MessageStore
 import com.waenhancer.xposed.core.devkit.DexSearchEngine
@@ -1505,7 +1506,7 @@ class MediaPreviewHook(
     }
 
     private fun getWaexId(context: Context, name: String): Int {
-        return context.resources.getIdentifier(name, "id", context.packageName)
+        return HostResourceIds.id(context, name)
     }
 
     private fun dipToPixels(context: Context, dip: Float): Int {

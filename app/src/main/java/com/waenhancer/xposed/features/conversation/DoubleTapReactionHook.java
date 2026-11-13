@@ -15,6 +15,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.waenhancer.xposed.core.BaseFeature;
+import com.waenhancer.xposed.utils.HostResourceIds;
 import com.waenhancer.utils.EmojiInputPolicy;
 import com.waenhancer.xposed.utils.ActivityTracker;
 import de.robv.android.xposed.XC_MethodHook;
@@ -439,8 +440,7 @@ public class DoubleTapReactionHook extends BaseFeature {
 
     /** The chip nests its emoji (Button > FrameLayout > TextView), so search the whole subtree. */
     private boolean chipShowsEmoji(View rowView, String emoji) {
-        int bubbleResId = context.getResources().getIdentifier(
-                "reactions_bubble_layout", "id", context.getPackageName());
+        int bubbleResId = HostResourceIds.id(context, "reactions_bubble_layout");
         if (bubbleResId <= 0 || !(rowView instanceof ViewGroup)) return false;
         View chip = rowView.findViewById(bubbleResId);
         if (chip == null || chip.getVisibility() != View.VISIBLE) return false;
