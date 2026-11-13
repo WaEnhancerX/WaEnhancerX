@@ -338,6 +338,13 @@ public class HookProvider extends ContentProvider {
                 Bundle result = new Bundle();
                 if (key != null) {
                     Object value = prefs.getAll().get(key);
+                    String callerPackage = targetPackageForCaller(context, callerUid);
+                    if (callerPackage != null && !"module_config_mode".equals(key)
+                            && "Per Target App".equals(prefs.getString("module_config_mode", "Universal"))) {
+                        // A target only ever sees its own override, never another target's value.
+                        Object scopedValue = prefs.getAll().get(callerPackage + ":" + key);
+                        if (scopedValue != null) value = scopedValue;
+                    }
                     if (value instanceof Boolean) result.putBoolean("value", (Boolean) value);
                     else if (value instanceof String) result.putString("value", (String) value);
                     else if (value instanceof Integer) result.putInt("value", (Integer) value);

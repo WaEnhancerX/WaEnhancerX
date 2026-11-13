@@ -325,8 +325,19 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
         }
     }
 
+    /** Effective values for the selected target: its overrides win over universal values. */
     public Map<String, ?> getAll() {
-        return PreferenceStores.publicStore(context).getAll();
+        Map<String, Object> all = new LinkedHashMap<>(PreferenceStores.publicStore(context).getAll());
+        String target = targetPackage;
+        if (target == null || !PER_TARGET_MODE.equals(rawString(MODE_KEY, "Universal"))) return all;
+        String prefix = target + ":";
+        for (Map.Entry<String, ?> entry : PreferenceStores.publicStore(context).getAll().entrySet()) {
+            String key = entry.getKey();
+            if (key != null && key.startsWith(prefix) && key.length() > prefix.length()) {
+                all.put(key.substring(prefix.length()), entry.getValue());
+            }
+        }
+        return all;
     }
 
     public int exportSettings(Uri destination) throws Exception {

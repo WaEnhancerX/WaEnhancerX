@@ -3,7 +3,7 @@ package com.waenhancer.theme
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
-import com.waenhancer.config.PreferenceStores
+import com.waenhancer.core.preferences.WaexPreferenceManager
 import java.io.File
 
 /** One installed WAEX theme package. */
@@ -15,7 +15,11 @@ data class InstalledTheme(val id: String, val header: ThemeHeader, val assetCoun
  * Theme library kept in app-private storage (`files/waex_themes/<id>/`). WhatsApp never reads
  * these folders directly; assets are served through the WAEX hook provider.
  */
-class ThemeRepository(private val context: Context) {
+class ThemeRepository(
+    private val context: Context,
+    /** Scoped to the target app being edited, so a theme chosen for WA Business never reaches WhatsApp. */
+    private val preferences: WaexPreferenceManager
+) {
 
     fun list(): List<InstalledTheme> =
         root(context).listFiles(File::isDirectory).orEmpty()
@@ -27,7 +31,7 @@ class ThemeRepository(private val context: Context) {
             .sortedBy { it.displayName.lowercase() }
 
     /** The active theme id, or null when none is set or its folder is gone (e.g. after restoring a backup). */
-    fun activeId(): String? = PreferenceStores.publicStore(context).getString(KEY_ACTIVE, null)
+    fun activeId(): String? = preferences.getString(KEY_ACTIVE, null)
         ?.takeIf { ThemeIds.isValidId(it) && File(File(root(context), it), ThemeArchive.STYLE_FILE).isFile }
 
     /** Reads only the active theme's folder, so it is cheap enough to call from UI summaries. */
@@ -61,16 +65,15 @@ class ThemeRepository(private val context: Context) {
 
     /** Makes [id] the active theme, or clears the theme when [id] is null. */
     fun activate(id: String?): Boolean {
-        val store = PreferenceStores.publicStore(context).edit()
         if (id == null) {
-            store.remove(KEY_ACTIVE).putString(KEY_CSS, "")
-        } else {
-            if (!ThemeIds.isValidId(id)) return false
-            val css = File(File(root(context), id), ThemeArchive.STYLE_FILE).takeIf(File::isFile)?.readText() ?: return false
-            if (!ThemeCssValidator.validate(css).valid) return false
-            store.putString(KEY_ACTIVE, id).putString(KEY_CSS, css)
+            preferences.remove(KEY_ACTIVE)
+            return preferences.putPublicString(KEY_CSS, "")
         }
-        return store.commit()
+        if (!ThemeIds.isValidId(id)) return false
+        val css = File(File(root(context), id), ThemeArchive.STYLE_FILE).takeIf(File::isFile)?.readText() ?: return false
+        if (!ThemeCssValidator.validate(css).valid) return false
+        // CSS first: if the second write fails the theme still renders, just without a selected name.
+        return preferences.putPublicString(KEY_CSS, css) && preferences.putPublicString(KEY_ACTIVE, id)
     }
 
     fun delete(id: String): Boolean {

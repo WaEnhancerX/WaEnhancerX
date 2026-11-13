@@ -655,6 +655,7 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
     typedEditorKey?.let { key ->
         if (key == "custom_theme" && !writeThemeCss) {
             ThemeLibrarySheet(
+                preferenceManager = preferenceManager,
                 onDismiss = { typedEditorKey = null },
                 onChanged = { typedValueRevision++ },
                 onWriteCss = { writeThemeCss = true }
@@ -1381,7 +1382,7 @@ private fun typedStyleSummary(
 ): String = when (key) {
     "custom_theme" -> when {
         preferenceManager.getString("css_theme", "").isNullOrBlank() -> UiText.get(R.string.waex_ui_not_configured, "Not configured")
-        else -> com.waenhancer.theme.ThemeRepository(context.applicationContext).activeTheme()?.displayName
+        else -> com.waenhancer.theme.ThemeRepository(context.applicationContext, preferenceManager).activeTheme()?.displayName
             ?: UiText.get(R.string.waex_ui_custom_css, "Custom CSS")
     }
     "custom_view_dpi" -> preferenceManager.getString("change_dpi", "0")?.let { if (it == "0") UiText.get(R.string.waex_ui_device_default, "Device default") else "$it DPI" } ?: UiText.get(R.string.waex_ui_device_default, "Device default")

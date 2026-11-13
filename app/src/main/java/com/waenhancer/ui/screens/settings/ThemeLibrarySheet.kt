@@ -46,12 +46,13 @@ import kotlinx.coroutines.withContext
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ThemeLibrarySheet(
+    preferenceManager: com.waenhancer.core.preferences.WaexPreferenceManager,
     onDismiss: () -> Unit,
     onChanged: () -> Unit,
     onWriteCss: () -> Unit
 ) {
     val context = LocalContext.current
-    val repository = remember { ThemeRepository(context.applicationContext) }
+    val repository = remember(preferenceManager.targetEpoch) { ThemeRepository(context.applicationContext, preferenceManager) }
     val scope = rememberCoroutineScope()
     val colors = WaexTheme.colors
     val radius = WaexTheme.radius
