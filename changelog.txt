@@ -23,6 +23,8 @@
 - Improved Message Device Source
 - Improved Chats Limit Bypass according to latest WA versions
 - Improved WhatsApp startup
+- Media Preview button now sits beside the message, like the transcription button, instead of over the media.
+- Double Tap to React is now more reliable across WhatsApp updates.
 - More reliable feature detection after updating WhatsApp.
 - Various internal reliability and testing improvements.
 

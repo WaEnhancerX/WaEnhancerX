@@ -60,7 +60,6 @@ public final class PropsOverrideHook extends BaseFeature {
                 hookInstalled = hookPropertyMethod(resolver);
                 return;
             }
-            XposedBridge.log(TAG + " Central resolver unavailable; installing fallback getters");
             boolean hooked = hookPropertyMethod(booleanGetter);
             hooked |= hookPropertyMethod(integerGetter);
             hooked |= hookPropertyMethod(floatGetter);
