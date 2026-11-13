@@ -4,6 +4,7 @@
 [Fixes]
 - Fixed call recording toggle to respect on/off states of individual apps.
 - Fixed incorrect behaviour of some features being in Waiting state in max mode.
+- Fixed Privacy features
 
 [Improvements]
 - Improved Message Device Source

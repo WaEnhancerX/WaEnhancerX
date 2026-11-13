@@ -122,7 +122,14 @@ tasks.register("writeQaDependencyHashes") {
             continue
         target.parent.mkdir(parents=True, exist_ok=True); target.write_bytes(content)
     (evidence / 'source-sha256.json').write_text(json.dumps(identities, indent=2))
-    command = ['bash', str(root / 'gradlew'), '-p', str(project), '--no-daemon',
+    # Use the resolved executable path: on Windows CreateProcess may select the
+    # System32 WSL launcher ahead of Git Bash even when Git Bash leads PATH.
+    bash = shutil.which('bash')
+    if not bash:
+        raise RuntimeError('A compatible bash executable is required for gradlew')
+    # Bash needs slash-separated script paths: a `C:\...` argument makes its
+    # `dirname` treat the entire path as a filename and loses APP_HOME.
+    command = [bash, (root / 'gradlew').as_posix(), '-p', str(project), '--no-daemon',
                ':probe:writeQaDependencyHashes', ':probe:testDebugUnitTest']
     (evidence / 'command.json').write_text(json.dumps(command, indent=2))
     returncode = None; failure = None

@@ -339,10 +339,12 @@ jobs:
             test -f qa/android_presence_row_test.py
             test -f qa/fixtures/PresenceRowRenderingTest.kt
             test -f qa/test_presence_state_replay.py
+            test -f qa/test_presence_runner_controls.py
+            test -f qa/mutate_presence_rows.py
             echo 'present=true' >> "$GITHUB_OUTPUT"
           else
             echo 'present=false' >> "$GITHUB_OUTPUT"
-            echo '::notice::V17 renderer not in this tree; Android presence rendering was NOT tested by this job.'
+            echo '::notice::Presence renderer not in this tree; Android presence rendering was NOT tested by this job.'
           fi
       - uses: actions/setup-java@v4
         if: steps.presence.outputs.present == 'true'
@@ -354,7 +356,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 qa/android_presence_row_test.py --out "$RUNNER_TEMP/waex-android-rows"
+          python3 qa/test_presence_runner_controls.py
+          python3 qa/android_presence_row_test.py --out "$RUNNER_TEMP/waex-android-rows" --mutations
+          python3 qa/mutate_presence_rows.py \
+            "$RUNNER_TEMP/waex-android-row-mutations" "$RUNNER_TEMP/waex-android-rows/deps"
           echo 'Extracted production renderer passed Android framework/Skia tests. NOT an APK build, WhatsApp binder or LSPosed test.'
       - name: Preserve source identities and text-only rendering evidence
         if: always() && steps.presence.outputs.present == 'true'
@@ -366,6 +371,12 @@ jobs:
             ${{ runner.temp }}/waex-android-rows/*.log
             ${{ runner.temp }}/waex-android-rows/*/*.log
             ${{ runner.temp }}/waex-android-rows/*/*.kt
+            ${{ runner.temp }}/waex-android-rows/*/*.json
+            ${{ runner.temp }}/waex-android-rows/*/*.args
+            ${{ runner.temp }}/waex-android-row-mutations/*.json
+            ${{ runner.temp }}/waex-android-row-mutations/*/*.log
+            ${{ runner.temp }}/waex-android-row-mutations/*/*.json
+            ${{ runner.temp }}/waex-android-row-mutations/*/*.kt
           retention-days: 14
           if-no-files-found: warn
 

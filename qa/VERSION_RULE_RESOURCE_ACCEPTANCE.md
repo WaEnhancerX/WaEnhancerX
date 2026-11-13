@@ -29,9 +29,49 @@ distinct decisions and are never silently enabled by this change.
   variant to compile and then fail a behavioral assertion.
 - `python qa/verify_runtime_framework.py --out /tmp/waex-version-framework`
   compiles the unchanged production utilities against Android/Compose APIs.
-  Its four JUnit tests include the supplied, hash-pinned public Debug/Release
-  resource tables in 22 locale/variant contexts and rejection of a numeric
-  fallback into the fixture application's actual resource table.
+  Its current five core JUnit methods include the supplied, hash-pinned public
+  Debug/Release resource tables in 22 locale/variant contexts and rejection of
+  a numeric fallback into the fixture application's actual resource table.
+  When the localization fixture is present, seven additional resource methods
+  are required (12 executions total). The harness also compiles the actual
+  `LsposedScopeReader.kt`, which defines the `LsposedScopeSnapshot` type used
+  by the production package detector. Omitting that source causes unresolved
+  Kotlin symbols before any test can run, as observed in general CI. Including
+  it is a compile-contract repair, **not** proof of LSPosed database access,
+  per-user scope correctness or injection on Android.
+
+  The framework resource expectations are tied to the verified contracts.
+  `UniversalVersionValidator.readBuiltinRules` classifies a hidden module or
+  foreign resource owner as `RULES_UNAVAILABLE`, even when the version would
+  match a visible module's rules. Visible module resources must still accept
+  `2.26.40.76` from the pinned public table and reject unknown versions;
+  explicit custom rules and bypass remain distinct. No rules were read in
+  the hidden/foreign cases, so `UNSUPPORTED` would be a false diagnosis.
+  The localization fixture uses the current production identifiers
+  `waex_ui_online`, `waex_ui_unable_to_save_setting`, and
+  `waex_ui_last_seen_1_s`, replacing former hash-suffixed names removed
+  during upstream resource reconciliation (`4c6f443`). The test retains
+  independent Spanish text, plural, preference and fallback expectations.
+
+  On Windows, the runner resolves its Git Bash executable from `PATH` and
+  supplies a slash-separated Gradle wrapper path. Its shared localization
+  builder locates the real SDK `aapt2.exe` in Windows build-tools as well as
+  extensionless `aapt2` on Unix. A previous hash-verified **public** 2.0.3
+  Debug/Release APK pair may be supplied with `--public-apk-cache <directory>`
+  to avoid repeat downloads; each APK is read with the same size limit and
+  SHA-256 gate as the direct download. Generated Kotlin Gradle-DSL string
+  arguments also use slash-separated paths so Windows backslashes cannot
+  become invalid escape sequences. These are tool portability and
+  evidence-reuse paths, without changing the Android sources, JUnit fixture
+  or resource provenance checks. Build and test results must still be assessed
+  independently for the exact JDK/SDK and source revision.
+  Copied production and localization sources are staged byte-for-byte, while
+  generated resource-array and JUnit fixture bytes use stable LF endings with
+  matching SHA-256 readback. Otherwise Python's Windows newline conversion
+  made the recorded generated-fixture digest disagree with the file executed
+  by Gradle, defeating the purpose of the evidence manifest. Source and JUnit
+  acceptance gates raise explicit errors even under optimized `python -O`;
+  they cannot silently disappear with Python's `assert` statements.
 
 ## Device acceptance
 
