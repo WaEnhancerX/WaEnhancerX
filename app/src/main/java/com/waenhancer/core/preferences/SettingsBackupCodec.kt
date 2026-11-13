@@ -115,10 +115,19 @@ object SettingsBackupCodec {
 
     fun encode(context: Context, output: OutputStream): Int =
         DataOutputStream(BufferedOutputStream(output)).use { out ->
-            val records = PreferenceSchema.exportableKeys().sorted().mapNotNull { key ->
-                val value = PreferenceStores.read(context, key) ?: return@mapNotNull null
-                val entry = PreferenceSchema.entry(key) ?: return@mapNotNull null
-                normalizeForKey(key, entry.type, value)?.let { Record(key, entry.type, it) }
+            // Enumerate persisted keys, not only the unqualified schema catalogue:
+            // target overrides are stored as package:key. Keep each complete key
+            // and use its canonical definition only for type/store/sensitivity.
+            val publicValues = PreferenceStores.publicStore(context).all
+            val privateValues = PreferenceStores.privateStore(context).all
+            val records = (publicValues.keys + privateValues.keys).sorted().mapNotNull { key ->
+                val entry = backupEntry(key) ?: return@mapNotNull null
+                val value = if (entry.store == PreferenceSchema.Store.PRIVATE) {
+                    privateValues[key] ?: publicValues[key]
+                } else {
+                    publicValues[key] ?: privateValues[key]
+                } ?: return@mapNotNull null
+                normalizeForKey(entry.key, entry.type, value)?.let { Record(key, entry.type, it) }
             }
             // Validate the complete container before emitting a header. Otherwise
             // encode() could succeed with a file decode() necessarily rejects.
@@ -198,7 +207,7 @@ object SettingsBackupCodec {
         val publicEditor = publicStore.edit()
         val privateEditor = privateStore.edit()
         records.forEach { record ->
-            val schema = PreferenceSchema.entry(record.key)!!
+            val schema = backupEntry(record.key)!!
             val isPrivate = schema.store == PreferenceSchema.Store.PRIVATE
             val editor = if (isPrivate) privateEditor else publicEditor
             if (isPrivate) privateKeys.add(record.key) else publicKeys.add(record.key)
@@ -318,9 +327,9 @@ object SettingsBackupCodec {
                     }
 
                     if (key != null) {
-                        val schema = PreferenceSchema.entry(key)
-                        if (schema != null && schema.isExportable()) {
-                            val normalized = normalizeForKey(key, schema.type, value)
+                        val schema = backupEntry(key)
+                        if (schema != null) {
+                            val normalized = normalizeForKey(schema.key, schema.type, value)
                             if (normalized != null) {
                                 add(Record(key, schema.type, normalized))
                             }
@@ -368,14 +377,12 @@ object SettingsBackupCodec {
             // when both are present in one unversioned JSON backup, regardless
             // of the JSONObject key iteration order.
             if (legacy && rawKey != key && source.has(key)) continue
-            if (isSensitive(key)) continue
-
-            val schema = PreferenceSchema.entry(key) ?: continue
-            if (!schema.isExportable()) continue
+            val schema = backupEntry(key) ?: continue
+            if (isSensitive(schema.key)) continue
 
             val rawVal = source.opt(rawKey) ?: continue
             val decodedValue = decodeJsonValue(rawVal, legacy) ?: continue
-            val normalized = normalizeForKey(key, schema.type, decodedValue) ?: continue
+            val normalized = normalizeForKey(schema.key, schema.type, decodedValue) ?: continue
             records.add(Record(key, schema.type, normalized))
         }
         return records
@@ -456,6 +463,43 @@ object SettingsBackupCodec {
         }
     }
 
+    /**
+     * Target qualification never grants exportability to an unknown/secret key.
+     * Accept Android application IDs without requiring installation, so backups
+     * remain portable. A package scope is not an Android user/profile identity.
+     * Only the unqualified configuration-mode key has meaning in production.
+     */
+    private fun backupEntry(key: String): PreferenceSchema.Entry? {
+        PreferenceSchema.entry(key)?.let { return it.takeIf { entry -> entry.isExportable() } }
+        val separator = key.indexOf(':')
+        if (separator <= 0 || separator == key.lastIndex || key.indexOf(':', separator + 1) >= 0) return null
+        val target = key.substring(0, separator)
+        if (!isTargetPackage(target)) return null
+        val canonical = key.substring(separator + 1)
+        if (canonical == "module_config_mode") return null
+        val entry = PreferenceSchema.entry(canonical)
+        return if (entry != null && entry.isExportable()) entry else null
+    }
+
+    // Iterative validation avoids regex recursion on an untrusted, long key.
+    private fun isTargetPackage(value: String): Boolean {
+        var segmentStart = true
+        var hasSeparator = false
+        for (char in value) {
+            if (char == '.') {
+                if (segmentStart) return false
+                hasSeparator = true
+                segmentStart = true
+            } else {
+                val letter = char in 'a'..'z' || char in 'A'..'Z'
+                if (segmentStart && !letter) return false
+                if (!letter && char !in '0'..'9' && char != '_') return false
+                segmentStart = false
+            }
+        }
+        return hasSeparator && !segmentStart
+    }
+
     private fun resolveKey(originalKey: String, legacyJson: Boolean): String? {
         // Every key already present in the schema retains its OWN meaning, even
         // in old unversioned JSON backups. Same-type legacy aliases can denote
@@ -463,6 +507,7 @@ object SettingsBackupCodec {
         // hide_seen_receipts vs hidereceipt). Rewriting them changes privacy
         // settings without the user's intention.
         if (PreferenceSchema.entry(originalKey) != null) return originalKey
+        if (backupEntry(originalKey) != null) return originalKey
 
         // Only truly unknown old keys may migrate, and only from legacy JSON.
         // New binary/JSON backup formats must never guess missing key names.
