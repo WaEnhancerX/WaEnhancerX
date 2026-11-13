@@ -122,8 +122,9 @@ def main() -> int:
     parser.add_argument('--json-source-dir', type=Path,
                         default=os.environ.get('WAEX_AOSP_JSON_SOURCE_DIR'))
     args = parser.parse_args()
-    for tool in ('javac', 'kotlinc', 'kotlin'):
-        if not shutil.which(tool):
+    resolved = {tool: shutil.which(tool) for tool in ('javac', 'kotlinc', 'kotlin')}
+    for tool, executable in resolved.items():
+        if not executable:
             raise FileNotFoundError(f'Required JVM tool unavailable: {tool}')
     root = args.root.resolve()
     source = root / 'app/src/main/java/com/waenhancer'
@@ -142,12 +143,12 @@ def main() -> int:
             java_files.append(path)
         out_java, out_kotlin = work / 'java', work / 'kotlin'
         commands = [
-            ['javac', '--release', '17', '-d', str(out_java),
+            [resolved['javac'], '--release', '17', '-d', str(out_java),
              *map(str, java_files + aosp), str(source / 'config/PreferenceSchema.java'),
              str(source / 'config/PreferenceStores.java')],
-            ['kotlinc', '-jvm-target', '17', '-cp', str(out_java), '-d', str(out_kotlin),
+            [resolved['kotlinc'], '-jvm-target', '17', '-cp', str(out_java), '-d', str(out_kotlin),
              str(codec), str(ROOT / 'qa/kotlin/TestSettingsBackupJson.kt')],
-            ['kotlin', '-J-Xmx128m', '-J-Xss1m', '-cp',
+            [resolved['kotlin'], '-J-Xmx128m', '-J-Xss1m', '-cp',
              os.pathsep.join(map(str, (out_java, out_kotlin))),
              'com.waenhancer.core.preferences.TestSettingsBackupJsonKt'],
         ]
