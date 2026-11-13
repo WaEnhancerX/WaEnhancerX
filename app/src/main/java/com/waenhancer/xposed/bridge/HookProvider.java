@@ -31,6 +31,7 @@ import com.waenhancer.licensing.features.BootloaderSpooferFeature;
 import com.waenhancer.xposed.core.db.PreservedMessageStore;
 import com.waenhancer.update.UpdateCheckCoordinator;
 import com.waenhancer.utils.WhatsAppPackageDetector;
+import com.waenhancer.utils.DiagnosticsRecorder;
 import com.waenhancer.xposed.utils.AppRestartHelper;
 
 /**
@@ -235,6 +236,8 @@ public class HookProvider extends ContentProvider {
                     else editor.putString("runtime_error_" + pkg, error);
                     boolean committed = editor.commit();
                     if (committed) {
+                        DiagnosticsRecorder.recordHookHealth(context, pkg, runtimeStatus,
+                                bridgeStatus, error != null, callerPid);
                         context.getContentResolver().notifyChange(
                                 Uri.parse("content://" + AUTHORITY + "/runtime_health"), null);
                         context.getContentResolver().notifyChange(
@@ -259,13 +262,34 @@ public class HookProvider extends ContentProvider {
                     editor.putLong("injected_hooks_time_" + pkg, timestamp);
                     editor.putLong("last_active_" + pkg, timestamp);
                     editor.putInt("runtime_pid_" + pkg, callerPid);
-                    editor.commit();
-                    context.getContentResolver().notifyChange(Uri.parse("content://" + AUTHORITY + "/injected_hooks"), null);
-                    context.getContentResolver().notifyChange(Uri.parse("content://" + AUTHORITY + "/preferences"), null);
+                    boolean committed = editor.commit();
+                    if (committed) {
+                        DiagnosticsRecorder.recordHookSummary(context, pkg, hooksJson);
+                        context.getContentResolver().notifyChange(Uri.parse("content://" + AUTHORITY + "/injected_hooks"), null);
+                        context.getContentResolver().notifyChange(Uri.parse("content://" + AUTHORITY + "/preferences"), null);
+                    }
                     Bundle result = new Bundle();
-                    result.putBoolean("success", true);
+                    result.putBoolean("success", committed);
                     return result;
                 }
+            }
+
+            if ("report_target_exit_history".equals(method) && extras != null) {
+                String pkg = extras.getString("package", arg);
+                if (pkg == null || !callerOwnsPackage(context, callerUid, pkg)
+                        || !DiagnosticsRecorder.isAdvancedEnabled(context)) return writeResult(false);
+                // Only primitive OS fields are accepted; never a Bundle of arbitrary strings.
+                long[] times = extras.getLongArray("exit_times");
+                int[] pids = extras.getIntArray("exit_pids");
+                int[] reasons = extras.getIntArray("exit_reasons");
+                int[] statuses = extras.getIntArray("exit_statuses");
+                long[] pss = extras.getLongArray("exit_pss_kib");
+                long[] rss = extras.getLongArray("exit_rss_kib");
+                int recorded = DiagnosticsRecorder.recordTargetExitHistory(
+                        context, pkg, times, pids, reasons, statuses, pss, rss);
+                Bundle result = writeResult(recorded >= 0);
+                result.putInt("recorded", Math.max(0, recorded));
+                return result;
             }
 
             if ("get_all_preferences".equals(method)) {
