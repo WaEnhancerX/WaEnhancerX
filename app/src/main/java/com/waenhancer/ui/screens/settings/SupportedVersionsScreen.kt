@@ -44,6 +44,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -62,6 +63,7 @@ import com.waenhancer.ui.components.WaexTopBar
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
+import com.waenhancer.utils.TargetAppManager
 import com.waenhancer.utils.UniversalVersionValidator
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.PaddingValues
@@ -107,9 +109,7 @@ fun SupportedVersionsScreen() {
     }
 
     // Dynamic list of detected WhatsApp packages & clones
-    val detectedApps = remember(customVersionsList.size, isCustomizeEnabled, isBypassEnabled) {
-        WhatsAppPackageDetector.detectWhatsAppApps(context)
-    }
+    val detectedApps by TargetAppManager.detectedApps.collectAsState()
 
     val decisions = detectedApps.associate {
         it.packageName to UniversalVersionValidator.evaluate(context, it.versionName, prefs)

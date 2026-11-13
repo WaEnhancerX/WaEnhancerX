@@ -8,7 +8,6 @@ import com.waenhancer.config.PreferenceStores
 import com.waenhancer.app.BuildConfig
 import com.waenhancer.update.UpdateDownloader
 import com.waenhancer.xposed.utils.AppRestartHelper
-import com.waenhancer.xposed.utils.ModuleStatus
 import java.io.File
 
 data class FrameworkInfo(val name: String, val packageName: String?, val version: String?, val api: Int?)
@@ -49,7 +48,7 @@ object SystemDiagnosticsReader {
      * Fast, non-blocking synchronous snapshot using in-memory state and constants.
      * Takes < 1ms: zero root execution and zero full PackageManager iterations.
      */
-    fun getOrFastSnapshot(context: Context, moduleActive: Boolean = ModuleStatus.isModuleActive()): SystemDiagnostics {
+    fun getOrFastSnapshot(context: Context, moduleActive: Boolean = TargetAppManager.isModuleActive()): SystemDiagnostics {
         cachedDiagnostics?.let {
             if (it.moduleActive == moduleActive) return it
         }
@@ -92,7 +91,7 @@ object SystemDiagnosticsReader {
         )
     }
 
-    fun read(context: Context, moduleActive: Boolean = ModuleStatus.isModuleActive(), forceRefresh: Boolean = false): SystemDiagnostics {
+    fun read(context: Context, moduleActive: Boolean = TargetAppManager.isModuleActive(), forceRefresh: Boolean = false): SystemDiagnostics {
         val pm = context.packageManager
         @Suppress("DEPRECATION") val own = runCatching { pm.getPackageInfo(context.packageName, 0) }.getOrNull()
         val runtimeStore = PreferenceStores.publicStore(context)

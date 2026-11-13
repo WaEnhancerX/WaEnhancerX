@@ -41,8 +41,34 @@ data class HookedAppInfo(
     val initializationError: String? = null,
     val injectionEvidence: InjectionEvidence = if (isHooked) InjectionEvidence.CURRENT else InjectionEvidence.NO_REPORT,
     val processObservedAtElapsed: Long = -1L,
-    val inLsposedScope: Boolean = false
+    /** True for every target the module should treat as active (anything but NOT_IN_SCOPE). */
+    val inLsposedScope: Boolean = false,
+    val scopeState: TargetScopeState = TargetScopeState.UNVERIFIED
 )
+
+/** How a target's membership in the module's LSPosed scope was established. */
+enum class TargetScopeState {
+    /** Framework scope lists the target (live read, or last known when the framework is unreachable). */
+    IN_SCOPE,
+    /** Scope could not be read, but a current runtime report proves the module is injected. */
+    INJECTED,
+    /** Scope could not be read and there is no evidence either way; keep the target visible. */
+    UNVERIFIED,
+    /** A live framework read shows the target is not in scope. Never shown as an active target. */
+    NOT_IN_SCOPE
+}
+
+/**
+ * Scope decision for one installed target. Unknown must never hide a target: only a live
+ * framework read can say "not in scope", and current injection always wins over stale data.
+ */
+internal fun classifyScope(packageName: String, scope: LsposedScopeSnapshot, injected: Boolean): TargetScopeState = when {
+    scope.isLive && scope.contains(packageName) -> TargetScopeState.IN_SCOPE
+    injected -> TargetScopeState.INJECTED
+    scope.isLive -> TargetScopeState.NOT_IN_SCOPE
+    scope.contains(packageName) -> TargetScopeState.IN_SCOPE
+    else -> TargetScopeState.UNVERIFIED
+}
 
 internal fun hasCurrentInjection(
     isModuleActive: Boolean,
@@ -211,8 +237,18 @@ object WhatsAppPackageDetector {
         }
     }
 
+    /** Declared targets that are installed (cheap PackageManager lookups, no root, no scope filter). */
+    @JvmStatic
+    fun installedTargets(context: Context): List<String> {
+        val pm = context.packageManager
+        return getSupportedPackages(context).filter { pkg ->
+            pkg != MODULE_PACKAGE && runCatching { pm.getPackageInfo(pkg, 0) }.isSuccess
+        }
+    }
+
     /**
-     * Discovers all installed and active WhatsApp-based applications on the device.
+     * Discovers the installed target apps that are active for the module. Targets are listed unless
+     * a live LSPosed read proves they are out of scope, so a missing root/DB never empties the list.
      */
     @JvmStatic
     fun detectWhatsAppApps(
@@ -221,115 +257,79 @@ object WhatsAppPackageDetector {
         scopeSnapshot: LsposedScopeSnapshot? = null
     ): List<HookedAppInfo> {
         val pm = context.packageManager
-        val discoveredPackages = LinkedHashSet<String>()
-
-        // 1. Use the same declared targets as the pre-Context Xposed entry point.
-        discoveredPackages.addAll(getSupportedPackages(context))
-
-        val isGlobalModuleActive = ModuleStatus.isModuleActive()
-        // This method is also called from Compose remember blocks. Never launch a root shell
-        // synchronously on the UI thread. Use the passed scopeSnapshot or last known cached scope.
-        val scope = scopeSnapshot ?: LsposedScopeReader.cached() ?: LsposedScopeSnapshot(
+        val sentinelActive = ModuleStatus.isModuleActive()
+        // Never launch a root shell here (callers run on the UI thread): use the supplied or cached scope.
+        val scope = scopeSnapshot ?: LsposedScopeReader.cached(context) ?: LsposedScopeSnapshot(
             modulePackage = MODULE_PACKAGE,
             packages = emptySet(),
             frameworkReachable = false,
             source = LsposedScopeSnapshot.Source.UNAVAILABLE,
             error = "Scope check pending"
         )
-
-        // 2. Read packages that have been hooked by Xposed runtime
-        var hookedSet: Set<String>? = null
         val prefs = PreferenceStores.publicStore(context)
-        try {
-            hookedSet = prefs.getStringSet("hooked_whatsapp_packages", null)
-            if (hookedSet != null) {
-                discoveredPackages.addAll(hookedSet.filter { isWhatsAppPackageName(it) })
-            }
-        } catch (_: Throwable) {}
-
-        // Do not scan labels/substrings or promote historical reports to new targets.
-        // Membership does not bypass HookProvider caller authorization or LSPosed scope.
-
-        discoveredPackages.remove(MODULE_PACKAGE)
-
+        val currentBoot = currentBootCount(context)
         val result = mutableListOf<HookedAppInfo>()
 
-        for (pkg in discoveredPackages) {
-            if (!scope.frameworkReachable || !scope.contains(pkg)) continue
-            try {
-                val pInfo = pm.getPackageInfo(pkg, 0)
-                val label = pm.getApplicationLabel(pInfo.applicationInfo ?: continue).toString()
-                val friendlyName = when {
-                    label.isNotBlank() && label != pkg -> label
-                    pkg == "com.whatsapp" -> "WhatsApp"
-                    pkg == "com.whatsapp.w4b" -> "WhatsApp Business"
-                    pkg == "com.gbwhatsapp" -> "GBWhatsApp"
-                    pkg == "com.fmwhatsapp" -> "FMWhatsApp"
-                    pkg == "com.yowhatsapp" || pkg == "com.yowa" -> "YoWhatsApp"
-                    pkg == "com.aerowtsapp" || pkg == "com.aero" -> "Aero WhatsApp"
-                    pkg == "com.delta" -> "Delta WhatsApp"
-                    pkg == "com.ultra" -> "Ultra WhatsApp"
-                    pkg == "com.delight" -> "Delight WhatsApp"
-                    pkg == "com.ymwhatsapp" -> "YMWhatsApp"
-                    pkg == "com.nowha" || pkg == "com.nowha2" -> "NO-WA"
-                    pkg.contains("litex") -> "WhatsApp LiteX"
-                    else -> "WhatsApp ($pkg)"
-                }
+        for (pkg in getSupportedPackages(context)) {
+            if (pkg == MODULE_PACKAGE) continue
+            val pInfo = try { pm.getPackageInfo(pkg, 0) } catch (_: PackageManager.NameNotFoundException) { continue }
+            val label = runCatching { pm.getApplicationLabel(pInfo.applicationInfo ?: return@runCatching "").toString() }
+                .getOrDefault("")
+            val friendlyName = friendlyName(pkg, label)
 
-                val lastActiveTime = prefs.getLong("last_active_$pkg", 0L)
-                val recordedBoot = prefs.getInt("runtime_boot_$pkg", Int.MIN_VALUE)
-                val currentBoot = currentBootCount(context)
-                val reportedPid = prefs.getInt("runtime_pid_$pkg", -1)
-                val evidence = classifyInjection(
-                    isModuleActive = isGlobalModuleActive,
-                    recordedBoot = recordedBoot,
-                    currentBoot = currentBoot,
-                    reportedPid = reportedPid,
-                    runningPids = runtimeSnapshot?.pidsFor(pkg, SystemClock.elapsedRealtime()),
+            val lastActiveTime = prefs.getLong("last_active_$pkg", 0L)
+            // A report delivered by the target through the authorized provider proves the module
+            // loaded there even if the manager process itself is outside the LSPosed scope.
+            val moduleActive = sentinelActive || lastActiveTime > 0L
+            val evidence = classifyInjection(
+                isModuleActive = moduleActive,
+                recordedBoot = prefs.getInt("runtime_boot_$pkg", Int.MIN_VALUE),
+                currentBoot = currentBoot,
+                reportedPid = prefs.getInt("runtime_pid_$pkg", -1),
+                runningPids = runtimeSnapshot?.pidsFor(pkg, SystemClock.elapsedRealtime()),
+                lastActiveTime = lastActiveTime,
+                now = System.currentTimeMillis()
+            )
+            val isInjected = evidence == InjectionEvidence.CURRENT
+            val scopeState = classifyScope(pkg, scope, isInjected)
+            if (scopeState == TargetScopeState.NOT_IN_SCOPE) continue
+
+            result.add(
+                HookedAppInfo(
+                    packageName = pkg,
+                    appName = friendlyName,
+                    versionName = "v${pInfo.versionName ?: UiText.get(R.string.waex_ui_unknown, "Unknown")}",
+                    isInstalled = true,
+                    isHooked = isInjected,
+                    injectedHooks = if (isInjected) getInjectedHooks(context, pkg) else emptyList(),
                     lastActiveTime = lastActiveTime,
-                    now = System.currentTimeMillis()
+                    runtimeStatus = prefs.getString("runtime_status_$pkg", "NOT_DETECTED") ?: "NOT_DETECTED",
+                    bridgeStatus = prefs.getString("bridge_status_$pkg", "NOT_REPORTED") ?: "NOT_REPORTED",
+                    initializationError = prefs.getString("runtime_error_$pkg", null),
+                    injectionEvidence = evidence,
+                    processObservedAtElapsed = runtimeSnapshot?.observedAtElapsed ?: -1L,
+                    inLsposedScope = true,
+                    scopeState = scopeState
                 )
-                val isInjected = evidence == InjectionEvidence.CURRENT
-                val injectedHooks = if (isInjected) getInjectedHooks(context, pkg) else emptyList()
-
-                result.add(
-                    HookedAppInfo(
-                        packageName = pkg,
-                        appName = friendlyName,
-                        versionName = "v${pInfo.versionName ?: UiText.get(R.string.waex_ui_unknown, "Unknown")}",
-                        isInstalled = true,
-                        isHooked = isInjected,
-                        injectedHooks = injectedHooks,
-                        lastActiveTime = lastActiveTime,
-                        runtimeStatus = prefs.getString("runtime_status_$pkg", "NOT_DETECTED") ?: "NOT_DETECTED",
-                        bridgeStatus = prefs.getString("bridge_status_$pkg", "NOT_REPORTED") ?: "NOT_REPORTED",
-                        initializationError = prefs.getString("runtime_error_$pkg", null),
-                        injectionEvidence = evidence,
-                        processObservedAtElapsed = runtimeSnapshot?.observedAtElapsed ?: -1L,
-                        inLsposedScope = true
-                    )
-                )
-            } catch (e: PackageManager.NameNotFoundException) {
-                // Only list standard WAEX / Business if uninstalled as placeholders if no apps are installed
-                if (pkg == "com.whatsapp" || pkg == "com.whatsapp.w4b") {
-                    val name = if (pkg == "com.whatsapp") "WhatsApp" else "WhatsApp Business"
-                    result.add(
-                        HookedAppInfo(
-                            packageName = pkg,
-                            appName = name,
-                            versionName = UiText.get(R.string.waex_ui_not_installed, "Not Installed"),
-                            isInstalled = false,
-                            isHooked = false,
-                            injectedHooks = emptyList(),
-                            lastActiveTime = 0L
-                        )
-                    )
-                }
-            }
+            )
         }
+        return result.sortedBy { it.appName.lowercase() }
+    }
 
-        // Filter out uninstalled placeholders if at least one app is installed
-        return result.filter { it.isInstalled && it.inLsposedScope }
-            .sortedBy { it.appName.lowercase() }
+    private fun friendlyName(pkg: String, label: String): String = when {
+        label.isNotBlank() && label != pkg -> label
+        pkg == "com.whatsapp" -> "WhatsApp"
+        pkg == "com.whatsapp.w4b" -> "WhatsApp Business"
+        pkg == "com.gbwhatsapp" -> "GBWhatsApp"
+        pkg == "com.fmwhatsapp" -> "FMWhatsApp"
+        pkg == "com.yowhatsapp" || pkg == "com.yowa" -> "YoWhatsApp"
+        pkg == "com.aerowtsapp" || pkg == "com.aero" -> "Aero WhatsApp"
+        pkg == "com.delta" -> "Delta WhatsApp"
+        pkg == "com.ultra" -> "Ultra WhatsApp"
+        pkg == "com.delight" -> "Delight WhatsApp"
+        pkg == "com.ymwhatsapp" -> "YMWhatsApp"
+        pkg == "com.nowha" || pkg == "com.nowha2" -> "NO-WA"
+        pkg.contains("litex") -> "WhatsApp LiteX"
+        else -> "WhatsApp ($pkg)"
     }
 }

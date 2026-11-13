@@ -730,7 +730,7 @@ fun MainContainerScreen() {
                                             modifier = Modifier.align(Alignment.CenterVertically)
                                         ) {
                                             Text(
-                                                text = "No Scoped App",
+                                                text = "No Active Target",
                                                 style = typography.labelSm,
                                                 color = colors.onSurfaceVariant,
                                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)

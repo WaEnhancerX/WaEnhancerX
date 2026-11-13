@@ -136,7 +136,8 @@ fun MainDashboardScreen(
     val coroutineScope = rememberCoroutineScope()
     val preferenceManager = LocalWaexPreferenceManager.current
     var refreshTrigger by remember { mutableIntStateOf(0) }
-    val isModuleActive = remember(refreshTrigger) { ModuleStatus.isModuleActive() }
+    val moduleActivation by TargetAppManager.moduleActivation.collectAsState()
+    val isModuleActive = moduleActivation.active
 
     val backupLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream")
@@ -186,7 +187,7 @@ fun MainDashboardScreen(
 
     // Target heartbeats arrive every ten seconds. They refresh target evidence, while the
     // root/framework/package inventory only needs a screen resume or an explicit refresh.
-    LaunchedEffect(diagnosticsRefreshTrigger) {
+    LaunchedEffect(diagnosticsRefreshTrigger, isModuleActive) {
         systemDiagnostics = withContext(Dispatchers.IO) { SystemDiagnosticsReader.read(context, isModuleActive) }
     }
 

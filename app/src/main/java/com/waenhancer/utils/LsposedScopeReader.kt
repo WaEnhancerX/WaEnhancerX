@@ -9,12 +9,19 @@ import java.io.File
 data class LsposedScopeSnapshot(
     val modulePackage: String,
     val packages: Set<String>,
+    /** True only when the framework database was read live in this process lifetime. */
     val frameworkReachable: Boolean,
     val source: Source,
-    val error: String? = null
+    val error: String? = null,
+    /** Framework-reported enabled flag for the module; null when unknown. */
+    val moduleEnabled: Boolean? = null
 ) {
-    enum class Source { DATABASE, UNAVAILABLE }
+    /** DATABASE = live framework read, CACHE = last known persisted scope, UNAVAILABLE = no knowledge. */
+    enum class Source { DATABASE, CACHE, UNAVAILABLE }
     fun contains(packageName: String): Boolean = packages.contains(packageName)
+
+    /** A live snapshot is authoritative: absence from it really means "not in scope". */
+    val isLive: Boolean get() = frameworkReachable && source == Source.DATABASE
 }
 
 /** Reads LSPosed's framework-owned scope database without treating unknown as in-scope. */
@@ -23,23 +30,25 @@ object LsposedScopeReader {
     private const val CACHE = "waex_lsposed_scope.db"
     private const val MODULE = "com.waenhancer"
     private const val PREF_KEY_CACHED_SCOPE = "cached_lsposed_scope"
+    private const val PREF_KEY_CACHED_SCOPE_TIME = "cached_lsposed_scope_time"
     private val packageToken = Regex("\\b[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z0-9_]+)+\\b")
 
     @Volatile
     private var lastSnapshot: LsposedScopeSnapshot? = null
 
+    /** Last known scope: the in-memory snapshot, else the persisted one (never treated as live). */
     fun cached(context: Context? = null): LsposedScopeSnapshot? {
-        if (lastSnapshot != null) return lastSnapshot
+        lastSnapshot?.let { return it }
         if (context != null) {
             runCatching {
                 val prefs = PreferenceStores.publicStore(context)
-                val saved = prefs.getStringSet(PREF_KEY_CACHED_SCOPE, null)
-                if (!saved.isNullOrEmpty()) {
+                // An empty set is a valid cached answer, so presence is tracked by the timestamp.
+                if (prefs.getLong(PREF_KEY_CACHED_SCOPE_TIME, 0L) > 0L) {
                     val snapshot = LsposedScopeSnapshot(
                         modulePackage = MODULE,
-                        packages = saved,
-                        frameworkReachable = true,
-                        source = LsposedScopeSnapshot.Source.DATABASE
+                        packages = prefs.getStringSet(PREF_KEY_CACHED_SCOPE, emptySet()).orEmpty().toSet(),
+                        frameworkReachable = false,
+                        source = LsposedScopeSnapshot.Source.CACHE
                     )
                     lastSnapshot = snapshot
                     return snapshot
@@ -47,6 +56,19 @@ object LsposedScopeReader {
             }
         }
         return lastSnapshot
+    }
+
+    private fun staleFallback(context: Context, error: String): LsposedScopeSnapshot {
+        val known = cached(context)
+        // Never re-label an old live read as live: the framework could not be reached just now.
+        return LsposedScopeSnapshot(
+            MODULE,
+            known?.packages.orEmpty(),
+            false,
+            if (known != null) LsposedScopeSnapshot.Source.CACHE else LsposedScopeSnapshot.Source.UNAVAILABLE,
+            error,
+            known?.moduleEnabled
+        ).also { lastSnapshot = it }
     }
 
     @Synchronized
@@ -62,21 +84,18 @@ object LsposedScopeReader {
             "echo WAEX_LSPOSED_DB_OK; else echo WAEX_LSPOSED_DB_MISSING; fi"
         val rootResult = runCatching { AppRestartHelper.runRootCommand(command).orEmpty() }.getOrDefault("")
         if (!rootResult.contains("WAEX_LSPOSED_DB_OK") || !copy.exists()) {
-            val fallback = cached(context) ?: LsposedScopeSnapshot(
-                MODULE,
-                emptySet(),
-                false,
-                LsposedScopeSnapshot.Source.UNAVAILABLE,
-                "LSPosed scope database unavailable"
-            )
-            return fallback.also { if (lastSnapshot == null) lastSnapshot = it }
+            return staleFallback(context, "LSPosed scope database unavailable")
         }
         return try {
             val packages = LinkedHashSet<String>()
+            var moduleEnabled: Boolean? = null
             SQLiteDatabase.openDatabase(copy.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { db ->
                 // Current LSPosed schema: module identity and scope are normalized into
                 // separate tables and joined by modules.mid.
-                runCatching {
+                val normalizedSchema = runCatching {
+                    db.rawQuery("SELECT enabled FROM modules WHERE module_pkg_name = ?", arrayOf(MODULE)).use { rows ->
+                        if (rows.moveToFirst()) moduleEnabled = rows.getInt(0) == 1
+                    }
                     db.rawQuery(
                         "SELECT s.app_pkg_name FROM scope s JOIN modules m ON m.mid = s.mid " +
                             "WHERE m.module_pkg_name = ? AND m.enabled = 1",
@@ -87,53 +106,52 @@ object LsposedScopeReader {
                             if (pkg in declared) packages.add(pkg)
                         }
                     }
+                }.isSuccess
+                // Vendor forks that denormalize module and scope: only used when the standard
+                // schema is absent, so unrelated rows never widen a valid answer.
+                if (!normalizedSchema) readDenormalizedScope(db, declared, packages)
+            }
+            runCatching {
+                PreferenceStores.publicStore(context).edit()
+                    .putStringSet(PREF_KEY_CACHED_SCOPE, packages)
+                    .putLong(PREF_KEY_CACHED_SCOPE_TIME, System.currentTimeMillis())
+                    .apply()
+            }
+            LsposedScopeSnapshot(
+                MODULE, packages, true, LsposedScopeSnapshot.Source.DATABASE,
+                moduleEnabled = moduleEnabled
+            ).also { lastSnapshot = it }
+        } catch (e: Throwable) {
+            staleFallback(context, "Could not parse LSPosed scope: ${e.javaClass.simpleName}")
+        } finally {
+            listOf(copy, wal, shm).forEach { runCatching { it.delete() } }
+        }
+    }
+
+    private fun readDenormalizedScope(db: SQLiteDatabase, declared: Set<String>, out: MutableSet<String>) {
+        db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'", null).use { tables ->
+            while (tables.moveToNext()) {
+                val table = tables.getString(0)
+                if (!table.matches(Regex("[A-Za-z_][A-Za-z0-9_]*"))) continue
+                val columns = db.rawQuery("PRAGMA table_info($table)", null).use { c ->
+                    buildList { while (c.moveToNext()) add(c.getString(1)) }
                 }
-                db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'", null).use { tables ->
-                    while (tables.moveToNext()) {
-                        val table = tables.getString(0)
-                        if (!table.matches(Regex("[A-Za-z_][A-Za-z0-9_]*"))) continue
-                        val columns = db.rawQuery("PRAGMA table_info($table)", null).use { c ->
-                            buildList { while (c.moveToNext()) add(c.getString(1)) }
-                        }
-                        val scopeColumns = columns.filter { it.contains("scope", true) ||
-                            it.contains("app_pkg", true) || it.contains("target", true) || it.contains("package", true) }
-                        if (scopeColumns.isEmpty()) continue
-                        val projection = scopeColumns.joinToString(",") { "\"$it\"" }
-                        db.rawQuery("SELECT $projection FROM \"$table\"", null).use { rows ->
-                            while (rows.moveToNext()) for (i in scopeColumns.indices) {
-                                val values = scopeColumns.indices.map { rows.getString(it) ?: "" }
-                                // Fallback for vendor forks that denormalize module and scope.
-                                if (values.none { it == MODULE || it.contains(MODULE) }) continue
-                                packageToken.findAll(values[i]).map { it.value }
-                                    .filter { it in declared }.forEach { packages.add(it) }
-                            }
+                val scopeColumns = columns.filter {
+                    it.contains("scope", true) || it.contains("app_pkg", true) ||
+                        it.contains("target", true) || it.contains("package", true)
+                }
+                if (scopeColumns.isEmpty()) continue
+                val projection = scopeColumns.joinToString(",") { "\"$it\"" }
+                db.rawQuery("SELECT $projection FROM \"$table\"", null).use { rows ->
+                    while (rows.moveToNext()) {
+                        val values = scopeColumns.indices.map { rows.getString(it) ?: "" }
+                        if (values.none { it.contains(MODULE) }) continue
+                        values.forEach { v ->
+                            packageToken.findAll(v).map { it.value }.filter { it in declared }.forEach(out::add)
                         }
                     }
                 }
             }
-            if (packages.isNotEmpty()) {
-                runCatching {
-                    PreferenceStores.publicStore(context).edit()
-                        .putStringSet(PREF_KEY_CACHED_SCOPE, packages)
-                        .apply()
-                }
-            }
-            LsposedScopeSnapshot(MODULE, packages, true, LsposedScopeSnapshot.Source.DATABASE).also {
-                lastSnapshot = it
-            }
-        } catch (e: Throwable) {
-            val fallback = cached(context) ?: LsposedScopeSnapshot(
-                MODULE,
-                emptySet(),
-                true,
-                LsposedScopeSnapshot.Source.UNAVAILABLE,
-                "Could not parse LSPosed scope: ${e.javaClass.simpleName}"
-            )
-            fallback.also {
-                if (lastSnapshot == null) lastSnapshot = it
-            }
-        } finally {
-            listOf(copy, wal, shm).forEach { runCatching { it.delete() } }
         }
     }
 }

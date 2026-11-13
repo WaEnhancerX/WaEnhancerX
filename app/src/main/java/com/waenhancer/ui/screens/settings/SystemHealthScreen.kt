@@ -22,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -47,7 +48,7 @@ import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
 import com.waenhancer.utils.SystemDiagnostics
 import com.waenhancer.utils.SystemDiagnosticsReader
 import com.waenhancer.utils.WhatsAppPackageDetector
-import com.waenhancer.utils.XposedRuntimeInspector
+import com.waenhancer.utils.TargetAppManager
 import com.waenhancer.utils.LsposedScopeReader
 import com.waenhancer.utils.LsposedScopeSnapshot
 import com.waenhancer.utils.TargetRuntimePresentation
@@ -67,14 +68,13 @@ fun SystemHealthScreen() {
     val spacing = WaexTheme.spacing
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
+    val moduleActivation by TargetAppManager.moduleActivation.collectAsState()
     var diagnostics by remember {
-        mutableStateOf(SystemDiagnosticsReader.getOrFastSnapshot(context))
+        mutableStateOf(SystemDiagnosticsReader.getOrFastSnapshot(context, moduleActivation.active))
     }
     var refreshTrigger by remember { mutableIntStateOf(0) }
-    var runtimeSnapshot by remember {
-        mutableStateOf(XposedRuntimeInspector.cached())
-    }
-    var scopeSnapshot by remember { mutableStateOf<LsposedScopeSnapshot?>(null) }
+    val scopeSnapshot by TargetAppManager.scopeSnapshot.collectAsState()
+    val activeTargets by TargetAppManager.detectedApps.collectAsState()
     var denylistReport by remember {
         mutableStateOf<MagiskDenylistDiagnostics.DenylistReport?>(MagiskDenylistDiagnostics.cached())
     }
@@ -85,23 +85,20 @@ fun SystemHealthScreen() {
         mutableStateOf(preferences.getBoolean("show_restart_sheet", true))
     }
     LaunchedEffect(refreshTrigger) {
-        val liveScope = withContext(Dispatchers.IO) { LsposedScopeReader.read(context) }
-        scopeSnapshot = liveScope
-        diagnostics = withContext(Dispatchers.IO) { SystemDiagnosticsReader.read(context) }
-        val packages = withContext(Dispatchers.IO) {
-            WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot, liveScope)
-                .filter { it.isInstalled }.map { it.packageName }
+        if (refreshTrigger > 0) TargetAppManager.refresh(context, force = true)
+    }
+    LaunchedEffect(refreshTrigger, moduleActivation.active) {
+        diagnostics = withContext(Dispatchers.IO) {
+            SystemDiagnosticsReader.read(context, moduleActivation.active)
         }
-        val refreshed = withContext(Dispatchers.IO) {
-            XposedRuntimeInspector.inspect(packages)
-        }
-        runtimeSnapshot = refreshed
-        val denylist = withContext(Dispatchers.IO) {
+    }
+    LaunchedEffect(refreshTrigger, scopeSnapshot, activeTargets.map { it.packageName }) {
+        val packages = activeTargets.filter { it.isInstalled }.map { it.packageName }
+        denylistReport = withContext(Dispatchers.IO) {
             MagiskDenylistDiagnostics.checkDenylistStatus(
-                context, packages, liveScope, forceRefresh = refreshTrigger > 0
+                context, packages, scopeSnapshot, forceRefresh = refreshTrigger > 0
             )
         }
-        denylistReport = denylist
     }
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -131,10 +128,7 @@ fun SystemHealthScreen() {
         containerColor = colors.background
     ) { insets ->
         val data = diagnostics
-        val reportedApps = remember(data, refreshTrigger, runtimeSnapshot, scopeSnapshot) {
-            WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot, scopeSnapshot)
-                .filter { it.isInstalled }
-        }
+        val reportedApps = activeTargets.filter { it.isInstalled }
             val observationTime = rememberRuntimeObservationClock()
             val targetApps = reportedApps.map {
                 TargetRuntimePresentation.asOf(it, observationTime.wall, observationTime.elapsed)

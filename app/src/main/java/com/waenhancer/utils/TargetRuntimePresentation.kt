@@ -21,6 +21,8 @@ object TargetRuntimePresentation {
     fun card(app: HookedAppInfo, moduleActive: Boolean, decision: UniversalVersionValidator.Decision): Status = when {
         !app.isInstalled -> Status("Not installed", Severity.UNKNOWN)
         !moduleActive -> Status("Module inactive", Severity.REVIEW)
+        !app.isHooked && app.scopeState == TargetScopeState.UNVERIFIED ->
+            Status("Scope unverified • ${app.injectionEvidence.label}", Severity.UNKNOWN)
         !app.isHooked -> Status(app.injectionEvidence.label, Severity.UNKNOWN)
         app.runtimeStatus == "COMPATIBILITY_UNAVAILABLE" -> Status("Injected • Compatibility check unavailable", Severity.REVIEW)
         app.runtimeStatus == "UNSUPPORTED_VERSION" -> Status("Injected • Paused by target version guard", Severity.REVIEW)
