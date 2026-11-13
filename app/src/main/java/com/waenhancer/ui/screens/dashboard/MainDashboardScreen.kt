@@ -1696,7 +1696,8 @@ private fun DashboardDiagnosticsCard(
                 label = stringResource(R.string.diag_label_framework),
                 value = InternalLabels.text(frameworkName),
                 healthy = if (isModuleActive) true else diagnostics?.let { it.moduleActive && it.framework.name != "Not detected" },
-                isLoading = !isModuleActive && diagnostics == null
+                isLoading = !isModuleActive && diagnostics == null,
+                showValueText = true
             )
             HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.65f))
             DashboardDiagnosticRow(
