@@ -930,7 +930,6 @@ public class AntiRevokeHook extends BaseFeature {
                         previousGetViewHook = XposedBridge.hookMethod(getViewMethod, new XC_MethodHook() {
                             @Override
                             protected void beforeHookedMethod(MethodHookParam p) {
-                                if (REVOKED_MESSAGES.isEmpty()) return;
                                 if (p.args != null && p.args.length > 1 && p.args[1] instanceof ViewGroup) {
                                     ViewGroup recycledRow = (ViewGroup) p.args[1];
                                     if (recycledRow.getTag(TAG_DECORATED) != null) {
@@ -947,13 +946,6 @@ public class AntiRevokeHook extends BaseFeature {
                                 Object renderedRow = p.getResult();
                                 if (!(renderedRow instanceof ViewGroup)) return;
                                 ViewGroup row = (ViewGroup) renderedRow;
-
-                                if (REVOKED_MESSAGES.isEmpty()) {
-                                    if (row.getTag(TAG_DECORATED) != null) {
-                                        resetRowDecoration(row);
-                                    }
-                                    return;
-                                }
 
                                 int pos = (int) p.args[0];
                                 Object item;
@@ -1072,7 +1064,6 @@ public class AntiRevokeHook extends BaseFeature {
                             if (!isAntiRevokeEnabled() && !isPreserveOwnRevokeEnabled()) return;
                             Activity activity = ActivityTracker.getCurrentActivity();
                             if (activity == null || !activity.getClass().getSimpleName().contains("Conversation")) return;
-                            if (REVOKED_MESSAGES.isEmpty()) return;
                             if (hook.args == null || hook.args.length < 1) return;
                             Object holder = hook.args[0];
                             View itemView = null;
