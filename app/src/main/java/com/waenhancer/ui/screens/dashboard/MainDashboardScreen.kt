@@ -1158,321 +1158,21 @@ private fun TargetCompatibilityBottomSheet(
     }
 }
 
+/** Shared scaffold for the diagnostics detail sheets: drag handle, title/description, content, OK button. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HmaDetailsBottomSheet(
-    report: HmaDiagnostics.HmaReport,
-    visiblePackages: Set<String>,
-    onFixTarget: (String) -> Unit,
-    isFixing: Boolean = false,
-    onDismiss: () -> Unit
+private fun DiagnosticsDetailsSheet(
+    title: String,
+    description: String,
+    isFixing: Boolean,
+    onDismiss: () -> Unit,
+    headerAction: (@Composable () -> Unit)? = null,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit
 ) {
     val colors = WaexTheme.colors
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    val activeTargets = remember(report, visiblePackages) { report.targetDetails.filter { it.isBlocking && it.packageName in visiblePackages } }
-    val cleanTargets = remember(report, visiblePackages) { report.targetDetails.filter { !it.isBlocking && it.packageName in visiblePackages } }
-
-    var targetToConfirm by remember { mutableStateOf<HmaDiagnostics.TargetIsolationDetail?>(null) }
-
-    WaexModalBottomSheet(
-        onDismissRequest = { if (!isFixing) onDismiss() },
-        sheetState = sheetState,
-        containerColor = colors.surface,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .width(36.dp)
-                    .height(4.dp)
-                    .clip(CircleShape)
-                    .background(colors.outlineVariant)
-            )
-        }
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = stringResource(R.string.diag_hma_sheet_title),
-                    style = typography.titleLg,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurface
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = stringResource(R.string.diag_hma_sheet_desc),
-                    style = typography.bodySm,
-                    color = colors.onSurfaceVariant
-                )
-            }
-
-            // Inline Confirmation Card if a target was selected for fix
-            if (targetToConfirm != null) {
-                val current = targetToConfirm!!
-                Surface(
-                    shape = radius.mdShape,
-                    color = colors.primary.copy(alpha = 0.08f),
-                    border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.3f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.diag_hma_fix_title),
-                            style = typography.titleMd,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.onSurface
-                        )
-                        Text(
-                            text = stringResource(R.string.diag_hma_fix_message, current.appName),
-                            style = typography.bodySm,
-                            color = colors.onSurfaceVariant
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = { targetToConfirm = null },
-                                enabled = !isFixing,
-                                shape = radius.smShape,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(40.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(android.R.string.cancel),
-                                    style = typography.labelSm
-                                )
-                            }
-                            Button(
-                                onClick = {
-                                    val pkg = current.packageName
-                                    targetToConfirm = null
-                                    onFixTarget(pkg)
-                                },
-                                enabled = !isFixing,
-                                shape = radius.smShape,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = colors.primary,
-                                    contentColor = colors.onPrimary
-                                ),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(40.dp)
-                            ) {
-                                if (isFixing) {
-                                    WaexCircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
-                                        color = colors.onPrimary,
-                                        strokeWidth = 2.dp
-                                    )
-                                } else {
-                                    Text(
-                                        text = stringResource(R.string.diag_hma_btn_fix),
-                                        style = typography.labelSm,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (activeTargets.isNotEmpty()) {
-                Text(
-                    text = stringResource(R.string.diag_hma_active_targets),
-                    style = typography.labelSm,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.error
-                )
-                activeTargets.forEach { item ->
-                    Surface(
-                        shape = radius.smShape,
-                        color = colors.error.copy(alpha = 0.08f),
-                        border = BorderStroke(1.dp, colors.error.copy(alpha = 0.25f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = colors.errorContainer,
-                                modifier = Modifier.size(26.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = WaexIcons.Clear,
-                                        contentDescription = null,
-                                        tint = colors.onErrorContainer,
-                                        modifier = Modifier.size(15.dp)
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = item.appName,
-                                    style = typography.bodyMd,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = colors.onSurface
-                                )
-                                Text(
-                                    text = item.packageName,
-                                    style = typography.labelSm,
-                                    color = colors.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = InternalLabels.hmaReason(item.reason),
-                                    style = typography.labelSm,
-                                    fontWeight = FontWeight.Medium,
-                                    color = colors.error
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Button(
-                                onClick = { targetToConfirm = item },
-                                enabled = !isFixing,
-                                shape = radius.smShape,
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = colors.error,
-                                    contentColor = Color.White
-                                ),
-                                modifier = Modifier.height(34.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.diag_hma_btn_fix),
-                                    style = typography.labelSm,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (cleanTargets.isNotEmpty()) {
-                Text(
-                    text = stringResource(R.string.diag_hma_inactive_targets),
-                    style = typography.labelSm,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurfaceVariant
-                )
-                cleanTargets.forEach { item ->
-                    Surface(
-                        shape = radius.smShape,
-                        color = colors.surfaceDim.copy(alpha = 0.6f),
-                        border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.6f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = colors.successContainer,
-                                modifier = Modifier.size(26.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = WaexIcons.Check,
-                                        contentDescription = null,
-                                        tint = colors.onSuccessContainer,
-                                        modifier = Modifier.size(15.dp)
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = item.appName,
-                                    style = typography.bodyMd,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = colors.onSurface
-                                )
-                                Text(
-                                    text = item.packageName,
-                                    style = typography.labelSm,
-                                    color = colors.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = InternalLabels.hmaReason(item.reason),
-                                    style = typography.labelSm,
-                                    color = colors.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Button(
-                onClick = onDismiss,
-                shape = radius.buttonShape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colors.primary,
-                    contentColor = colors.onPrimary
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(42.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.action_ok),
-                    style = typography.bodyMd,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DenylistDetailsBottomSheet(
-    report: MagiskDenylistDiagnostics.DenylistReport,
-    visiblePackages: Set<String>,
-    onFixTarget: (String) -> Unit,
-    onFixAll: (List<String>) -> Unit,
-    isFixing: Boolean = false,
-    onDismiss: () -> Unit
-) {
-    val colors = WaexTheme.colors
-    val typography = WaexTheme.typography
-    val radius = WaexTheme.radius
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    val blockedTargets = remember(report, visiblePackages) { report.targets.filter { it.isBlocked && it.packageName in visiblePackages } }
-    val allTargets = remember(report, visiblePackages) { report.targets.filter { it.packageName in visiblePackages }.sortedByDescending { it.isBlocked } }
-
-    var targetToConfirm by remember { mutableStateOf<MagiskDenylistDiagnostics.DenylistedTarget?>(null) }
-    var confirmFixAll by remember { mutableStateOf(false) }
 
     WaexModalBottomSheet(
         onDismissRequest = { if (!isFixing) onDismiss() },
@@ -1503,296 +1203,25 @@ private fun DenylistDetailsBottomSheet(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = stringResource(R.string.diag_denylist_sheet_title),
+                        text = title,
                         style = typography.titleLg,
                         fontWeight = FontWeight.Bold,
                         color = colors.onSurface
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = stringResource(R.string.diag_denylist_sheet_desc),
+                        text = description,
                         style = typography.bodySm,
                         color = colors.onSurfaceVariant
                     )
                 }
-                if (blockedTargets.isNotEmpty()) {
+                if (headerAction != null) {
                     Spacer(modifier = Modifier.width(8.dp))
-                    Button(
-                        onClick = { confirmFixAll = true },
-                        enabled = !isFixing,
-                        shape = radius.smShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colors.error,
-                            contentColor = Color.White
-                        ),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                        modifier = Modifier.height(34.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.diag_denylist_btn_fix_all),
-                            style = typography.labelSm,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    headerAction()
                 }
             }
 
-            // Inline Confirmation Card for Fix All
-            if (confirmFixAll) {
-                Surface(
-                    shape = radius.mdShape,
-                    color = colors.error.copy(alpha = 0.08f),
-                    border = BorderStroke(1.dp, colors.error.copy(alpha = 0.3f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.diag_denylist_fix_title),
-                            style = typography.titleMd,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.onSurface
-                        )
-                        Text(
-                            text = stringResource(R.string.diag_denylist_fix_all_message),
-                            style = typography.bodySm,
-                            color = colors.onSurfaceVariant
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = { confirmFixAll = false },
-                                enabled = !isFixing,
-                                shape = radius.smShape,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(40.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(android.R.string.cancel),
-                                    style = typography.labelSm
-                                )
-                            }
-                            Button(
-                                onClick = {
-                                    confirmFixAll = false
-                                    onFixAll(blockedTargets.map { it.packageName })
-                                },
-                                enabled = !isFixing,
-                                shape = radius.smShape,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = colors.error,
-                                    contentColor = Color.White
-                                ),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(40.dp)
-                            ) {
-                                if (isFixing) {
-                                    WaexCircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
-                                        color = Color.White,
-                                        strokeWidth = 2.dp
-                                    )
-                                } else {
-                                    Text(
-                                        text = stringResource(R.string.diag_denylist_btn_fix_all),
-                                        style = typography.labelSm,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Inline Confirmation Card if a single target was selected for fix
-            if (targetToConfirm != null) {
-                val current = targetToConfirm!!
-                Surface(
-                    shape = radius.mdShape,
-                    color = colors.primary.copy(alpha = 0.08f),
-                    border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.3f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.diag_denylist_fix_title),
-                            style = typography.titleMd,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.onSurface
-                        )
-                        Text(
-                            text = stringResource(R.string.diag_denylist_fix_message, current.appName),
-                            style = typography.bodySm,
-                            color = colors.onSurfaceVariant
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = { targetToConfirm = null },
-                                enabled = !isFixing,
-                                shape = radius.smShape,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(40.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(android.R.string.cancel),
-                                    style = typography.labelSm
-                                )
-                            }
-                            Button(
-                                onClick = {
-                                    val pkg = current.packageName
-                                    targetToConfirm = null
-                                    onFixTarget(pkg)
-                                },
-                                enabled = !isFixing,
-                                shape = radius.smShape,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = colors.primary,
-                                    contentColor = colors.onPrimary
-                                ),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(40.dp)
-                            ) {
-                                if (isFixing) {
-                                    WaexCircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
-                                        color = colors.onPrimary,
-                                        strokeWidth = 2.dp
-                                    )
-                                } else {
-                                    Text(
-                                        text = stringResource(R.string.diag_denylist_btn_fix),
-                                        style = typography.labelSm,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (allTargets.isNotEmpty()) {
-                Text(
-                    text = stringResource(R.string.diag_denylist_active_targets_title),
-                    style = typography.labelSm,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurfaceVariant
-                )
-                allTargets.forEach { item ->
-                    val blocked = item.isBlocked
-                    val statusColor = if (blocked) colors.error else colors.onSurfaceVariant
-                    Surface(
-                        shape = radius.smShape,
-                        color = if (blocked) colors.error.copy(alpha = 0.08f) else colors.surfaceDim.copy(alpha = 0.6f),
-                        border = BorderStroke(
-                            1.dp,
-                            if (blocked) colors.error.copy(alpha = 0.25f) else colors.outlineVariant.copy(alpha = 0.6f)
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = if (blocked) colors.errorContainer else colors.successContainer,
-                                modifier = Modifier.size(26.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = if (blocked) WaexIcons.Clear else WaexIcons.Check,
-                                        contentDescription = null,
-                                        tint = if (blocked) colors.onErrorContainer else colors.onSuccessContainer,
-                                        modifier = Modifier.size(15.dp)
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = item.appName,
-                                    style = typography.bodyMd,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = colors.onSurface
-                                )
-                                Text(
-                                    text = item.packageName,
-                                    style = typography.labelSm,
-                                    color = colors.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = when (item.state) {
-                                        MagiskDenylistDiagnostics.TargetState.BLOCKED ->
-                                            stringResource(R.string.diag_denylist_target_blocked)
-                                        MagiskDenylistDiagnostics.TargetState.NOT_DENYLISTED ->
-                                            stringResource(R.string.diag_denylist_target_clean)
-                                        MagiskDenylistDiagnostics.TargetState.DENYLIST_NOT_ENFORCED ->
-                                            stringResource(R.string.diag_denylist_target_not_enforced)
-                                        MagiskDenylistDiagnostics.TargetState.MAGISK_NOT_ACTIVE ->
-                                            stringResource(R.string.diag_denylist_target_magisk_inactive)
-                                    },
-                                    style = typography.labelSm,
-                                    fontWeight = if (blocked) FontWeight.Medium else FontWeight.Normal,
-                                    color = statusColor
-                                )
-                                if (blocked && !item.processDetails.isNullOrBlank()) {
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = item.processDetails,
-                                        style = typography.labelSm,
-                                        fontWeight = FontWeight.Medium,
-                                        color = colors.error
-                                    )
-                                }
-                            }
-                            if (blocked) {
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Button(
-                                    onClick = { targetToConfirm = item },
-                                    enabled = !isFixing,
-                                    shape = radius.smShape,
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = colors.error,
-                                        contentColor = Color.White
-                                    ),
-                                    modifier = Modifier.height(34.dp)
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.diag_denylist_btn_fix),
-                                        style = typography.labelSm,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            content()
 
             Spacer(modifier = Modifier.height(4.dp))
 
@@ -1811,6 +1240,340 @@ private fun DenylistDetailsBottomSheet(
                     text = stringResource(R.string.action_ok),
                     style = typography.bodyMd,
                     fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+/** Inline confirmation card used before applying a diagnostics fix. */
+@Composable
+private fun DiagnosticsConfirmCard(
+    title: String,
+    message: String,
+    confirmLabel: String,
+    accent: Color,
+    onAccent: Color,
+    isFixing: Boolean,
+    onCancel: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    val colors = WaexTheme.colors
+    val typography = WaexTheme.typography
+    val radius = WaexTheme.radius
+    Surface(
+        shape = radius.mdShape,
+        color = accent.copy(alpha = 0.08f),
+        border = BorderStroke(1.dp, accent.copy(alpha = 0.3f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = title,
+                style = typography.titleMd,
+                fontWeight = FontWeight.Bold,
+                color = colors.onSurface
+            )
+            Text(
+                text = message,
+                style = typography.bodySm,
+                color = colors.onSurfaceVariant
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onCancel,
+                    enabled = !isFixing,
+                    shape = radius.smShape,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(40.dp)
+                ) {
+                    Text(text = stringResource(android.R.string.cancel), style = typography.labelSm)
+                }
+                Button(
+                    onClick = onConfirm,
+                    enabled = !isFixing,
+                    shape = radius.smShape,
+                    colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = onAccent),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(40.dp)
+                ) {
+                    if (isFixing) {
+                        WaexCircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = onAccent,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(text = confirmLabel, style = typography.labelSm, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** One target row: green check card when healthy, red card with a Fix button when [blocked]. */
+@Composable
+private fun DiagnosticsTargetCard(
+    appName: String,
+    packageName: String,
+    status: String,
+    blocked: Boolean,
+    isFixing: Boolean,
+    onFix: () -> Unit,
+    extraDetail: String? = null
+) {
+    val colors = WaexTheme.colors
+    val typography = WaexTheme.typography
+    val radius = WaexTheme.radius
+    Surface(
+        shape = radius.smShape,
+        color = if (blocked) colors.error.copy(alpha = 0.08f) else colors.surfaceDim.copy(alpha = 0.6f),
+        border = BorderStroke(
+            1.dp,
+            if (blocked) colors.error.copy(alpha = 0.25f) else colors.outlineVariant.copy(alpha = 0.6f)
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = if (blocked) colors.errorContainer else colors.successContainer,
+                modifier = Modifier.size(26.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = if (blocked) WaexIcons.Clear else WaexIcons.Check,
+                        contentDescription = null,
+                        tint = if (blocked) colors.onErrorContainer else colors.onSuccessContainer,
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = appName,
+                    style = typography.bodyMd,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.onSurface
+                )
+                Text(
+                    text = packageName,
+                    style = typography.labelSm,
+                    color = colors.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = status,
+                    style = typography.labelSm,
+                    fontWeight = if (blocked) FontWeight.Medium else FontWeight.Normal,
+                    color = if (blocked) colors.error else colors.onSurfaceVariant
+                )
+                if (blocked && !extraDetail.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = extraDetail,
+                        style = typography.labelSm,
+                        fontWeight = FontWeight.Medium,
+                        color = colors.error
+                    )
+                }
+            }
+            if (blocked) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Button(
+                    onClick = onFix,
+                    enabled = !isFixing,
+                    shape = radius.smShape,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.error, contentColor = Color.White),
+                    modifier = Modifier.height(34.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.diag_btn_fix),
+                        style = typography.labelSm,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Section header for the "Active Targets" list shared by the diagnostics sheets. */
+@Composable
+private fun DiagnosticsTargetsHeader() {
+    Text(
+        text = stringResource(R.string.diag_active_targets_title),
+        style = WaexTheme.typography.labelSm,
+        fontWeight = FontWeight.Bold,
+        color = WaexTheme.colors.onSurfaceVariant
+    )
+}
+
+@Composable
+private fun HmaDetailsBottomSheet(
+    report: HmaDiagnostics.HmaReport,
+    visiblePackages: Set<String>,
+    onFixTarget: (String) -> Unit,
+    isFixing: Boolean = false,
+    onDismiss: () -> Unit
+) {
+    val colors = WaexTheme.colors
+    val allTargets = remember(report, visiblePackages) {
+        report.targetDetails.filter { it.packageName in visiblePackages }.sortedByDescending { it.isBlocking }
+    }
+    var targetToConfirm by remember { mutableStateOf<HmaDiagnostics.TargetIsolationDetail?>(null) }
+
+    DiagnosticsDetailsSheet(
+        title = stringResource(R.string.diag_hma_sheet_title),
+        description = stringResource(R.string.diag_hma_sheet_desc),
+        isFixing = isFixing,
+        onDismiss = onDismiss
+    ) {
+        targetToConfirm?.let { current ->
+            DiagnosticsConfirmCard(
+                title = stringResource(R.string.diag_hma_fix_title),
+                message = stringResource(R.string.diag_hma_fix_message, current.appName),
+                confirmLabel = stringResource(R.string.diag_btn_fix),
+                accent = colors.primary,
+                onAccent = colors.onPrimary,
+                isFixing = isFixing,
+                onCancel = { targetToConfirm = null },
+                onConfirm = {
+                    targetToConfirm = null
+                    onFixTarget(current.packageName)
+                }
+            )
+        }
+
+        if (allTargets.isNotEmpty()) {
+            DiagnosticsTargetsHeader()
+            allTargets.forEach { item ->
+                DiagnosticsTargetCard(
+                    appName = item.appName,
+                    packageName = item.packageName,
+                    status = InternalLabels.hmaReason(item.reason),
+                    blocked = item.isBlocking,
+                    isFixing = isFixing,
+                    onFix = { targetToConfirm = item }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DenylistDetailsBottomSheet(
+    report: MagiskDenylistDiagnostics.DenylistReport,
+    visiblePackages: Set<String>,
+    onFixTarget: (String) -> Unit,
+    onFixAll: (List<String>) -> Unit,
+    isFixing: Boolean = false,
+    onDismiss: () -> Unit
+) {
+    val colors = WaexTheme.colors
+    val typography = WaexTheme.typography
+    val radius = WaexTheme.radius
+    val allTargets = remember(report, visiblePackages) {
+        report.targets.filter { it.packageName in visiblePackages }.sortedByDescending { it.isBlocked }
+    }
+    val blockedTargets = remember(allTargets) { allTargets.filter { it.isBlocked } }
+    var targetToConfirm by remember { mutableStateOf<MagiskDenylistDiagnostics.DenylistedTarget?>(null) }
+    var confirmFixAll by remember { mutableStateOf(false) }
+
+    DiagnosticsDetailsSheet(
+        title = stringResource(R.string.diag_denylist_sheet_title),
+        description = stringResource(R.string.diag_denylist_sheet_desc),
+        isFixing = isFixing,
+        onDismiss = onDismiss,
+        headerAction = if (blockedTargets.isNotEmpty()) {
+            {
+                Button(
+                    onClick = { confirmFixAll = true },
+                    enabled = !isFixing,
+                    shape = radius.smShape,
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.error, contentColor = Color.White),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier.height(34.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.diag_denylist_btn_fix_all),
+                        style = typography.labelSm,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        } else null
+    ) {
+        if (confirmFixAll) {
+            DiagnosticsConfirmCard(
+                title = stringResource(R.string.diag_denylist_fix_title),
+                message = stringResource(R.string.diag_denylist_fix_all_message),
+                confirmLabel = stringResource(R.string.diag_denylist_btn_fix_all),
+                accent = colors.error,
+                onAccent = Color.White,
+                isFixing = isFixing,
+                onCancel = { confirmFixAll = false },
+                onConfirm = {
+                    confirmFixAll = false
+                    onFixAll(blockedTargets.map { it.packageName })
+                }
+            )
+        }
+
+        targetToConfirm?.let { current ->
+            DiagnosticsConfirmCard(
+                title = stringResource(R.string.diag_denylist_fix_title),
+                message = stringResource(R.string.diag_denylist_fix_message, current.appName),
+                confirmLabel = stringResource(R.string.diag_btn_fix),
+                accent = colors.primary,
+                onAccent = colors.onPrimary,
+                isFixing = isFixing,
+                onCancel = { targetToConfirm = null },
+                onConfirm = {
+                    targetToConfirm = null
+                    onFixTarget(current.packageName)
+                }
+            )
+        }
+
+        if (allTargets.isNotEmpty()) {
+            DiagnosticsTargetsHeader()
+            allTargets.forEach { item ->
+                DiagnosticsTargetCard(
+                    appName = item.appName,
+                    packageName = item.packageName,
+                    status = when (item.state) {
+                        MagiskDenylistDiagnostics.TargetState.BLOCKED ->
+                            stringResource(R.string.diag_denylist_target_blocked)
+                        MagiskDenylistDiagnostics.TargetState.NOT_DENYLISTED ->
+                            stringResource(R.string.diag_denylist_target_clean)
+                        MagiskDenylistDiagnostics.TargetState.DENYLIST_NOT_ENFORCED ->
+                            stringResource(R.string.diag_denylist_target_not_enforced)
+                        MagiskDenylistDiagnostics.TargetState.MAGISK_NOT_ACTIVE ->
+                            stringResource(R.string.diag_denylist_target_magisk_inactive)
+                    },
+                    blocked = item.isBlocked,
+                    isFixing = isFixing,
+                    onFix = { targetToConfirm = item },
+                    extraDetail = item.processDetails
                 )
             }
         }
@@ -1958,7 +1721,7 @@ private fun DashboardDiagnosticsCard(
                     HmaDiagnostics.HmaState.CHECKING, null -> null
                 },
                 isLoading = hmaReport == null || hmaReport.state == HmaDiagnostics.HmaState.CHECKING,
-                onClick = if (hmaReport?.targetDetails?.isNotEmpty() == true) onOpenHmaDetails else null
+                onClick = if (hmaReport != null) onOpenHmaDetails else null
             )
             HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.65f))
             DashboardDiagnosticRow(
@@ -1975,7 +1738,7 @@ private fun DashboardDiagnosticsCard(
                     MagiskDenylistDiagnostics.DenylistState.CHECKING, null -> null
                 },
                 isLoading = denylistReport == null || denylistReport.state == MagiskDenylistDiagnostics.DenylistState.CHECKING,
-                onClick = if (denylistReport?.targets?.isNotEmpty() == true) onOpenDenylistDetails else null
+                onClick = if (denylistReport != null) onOpenDenylistDetails else null
             )
 
             Spacer(modifier = Modifier.height(14.dp))

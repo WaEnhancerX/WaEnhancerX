@@ -323,9 +323,7 @@
     <string name="diag_hma_checking">چیک کیا جا رہا ہے…</string>
     <string name="diag_hma_sheet_title">ایپ آئسولیشن تشخیص</string>
     <string name="diag_hma_sheet_desc">ہائیڈ مائی ایپ لسٹ کے آئسولیشن قواعد کا جائزہ جو ہدف پیکیجز اور ماڈیول کی نمائش پر اثر انداز ہوتے ہیں۔</string>
-    <string name="diag_hma_active_targets">کنفیگرڈ اہداف</string>
-    <string name="diag_hma_inactive_targets">دیگر اہداف</string>
-    <string name="diag_hma_btn_fix">درست کریں</string>
+    <string name="diag_btn_fix">درست کریں</string>
     <string name="diag_hma_fix_title">ایپ آئسولیشن درست کریں</string>
     <string name="diag_hma_fix_message">یہ %1$s سے ماڈیول بلاکنگ کے قواعد اور پری سیٹس کو ہٹانے کے لیے Hide My Applist کی ترتیبات کو اپ ڈیٹ کرے گا۔</string>
     <string name="diag_hma_fix_success">ایپ آئسولیشن کے قواعد کامیابی سے اپ ڈیٹ ہو گئے</string>
@@ -400,7 +398,6 @@
     <string name="config_mode_universal">عالمگیر (Universal)</string>
     <string name="config_mode_universal_desc">تمام شامل واٹس ایپ ایپس پر یکساں ترجیحات لاگو کریں۔</string>
     <string name="diag_denylist_blocked">واٹس ایپ بلاک ہو رہا ہے</string>
-    <string name="diag_denylist_btn_fix">درست کریں</string>
     <string name="diag_denylist_btn_fix_all">سب درست کریں</string>
     <string name="diag_denylist_checking">چیک کیا جا رہا ہے…</string>
     <string name="diag_denylist_clean">کوئی ہدف ایپ بلاک نہیں ہے</string>

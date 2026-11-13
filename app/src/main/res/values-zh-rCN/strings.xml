@@ -323,9 +323,7 @@
     <string name="diag_hma_checking">正在检查…</string>
     <string name="diag_hma_sheet_title">应用隔离诊断</string>
     <string name="diag_hma_sheet_desc">影响目标软件包和模块可见性的 Hide My Applist 隔离规则概览。</string>
-    <string name="diag_hma_active_targets">已配置目标</string>
-    <string name="diag_hma_inactive_targets">其他目标</string>
-    <string name="diag_hma_btn_fix">修复</string>
+    <string name="diag_btn_fix">修复</string>
     <string name="diag_hma_fix_title">修复应用隔离</string>
     <string name="diag_hma_fix_message">这将更新 Hide My Applist 配置，从 %1$s 中移除模块阻止规则和预设，确保 WaEnhancerX 正常运行。</string>
     <string name="diag_hma_fix_success">应用隔离规则更新成功</string>
@@ -400,7 +398,6 @@
     <string name="config_mode_universal">通用模式</string>
     <string name="config_mode_universal_desc">将相同的偏好设置应用于范围内所有 WhatsApp 应用。</string>
     <string name="diag_denylist_blocked">正在拦截 WhatsApp</string>
-    <string name="diag_denylist_btn_fix">修复</string>
     <string name="diag_denylist_btn_fix_all">全部修复</string>
     <string name="diag_denylist_checking">正在检查…</string>
     <string name="diag_denylist_clean">没有被拦截的目标</string>

@@ -323,9 +323,7 @@
     <string name="diag_hma_checking">Проверка…</string>
     <string name="diag_hma_sheet_title">Диагностика изоляции приложений</string>
     <string name="diag_hma_sheet_desc">Обзор правил изоляции Hide My Applist, влияющих на целевые пакеты и видимость модуля.</string>
-    <string name="diag_hma_active_targets">Настроенные цели</string>
-    <string name="diag_hma_inactive_targets">Другие цели</string>
-    <string name="diag_hma_btn_fix">Исправить</string>
+    <string name="diag_btn_fix">Исправить</string>
     <string name="diag_hma_fix_title">Исправить изоляцию приложений</string>
     <string name="diag_hma_fix_message">Это обновит конфигурацию Hide My Applist для удаления правил блокировки модуля и пресетов для %1$s.</string>
     <string name="diag_hma_fix_success">Правила изоляции приложений успешно обновлены</string>
@@ -400,7 +398,6 @@
     <string name="config_mode_universal">Универсальный</string>
     <string name="config_mode_universal_desc">Применять одинаковые настройки ко всем охваченным приложениям WhatsApp.</string>
     <string name="diag_denylist_blocked">Блокировка WhatsApp</string>
-    <string name="diag_denylist_btn_fix">Исправить</string>
     <string name="diag_denylist_btn_fix_all">Исправить все</string>
     <string name="diag_denylist_checking">Проверка…</string>
     <string name="diag_denylist_clean">Нет заблокированных целей</string>

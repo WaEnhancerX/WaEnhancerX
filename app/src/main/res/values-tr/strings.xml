@@ -323,9 +323,7 @@
     <string name="diag_hma_checking">Kontrol ediliyor…</string>
     <string name="diag_hma_sheet_title">Uygulama İzolasyon Tanılaması</string>
     <string name="diag_hma_sheet_desc">Hedef paketleri ve modül görünürlüğünü etkileyen Hide My Applist izolasyon kurallarına genel bakış.</string>
-    <string name="diag_hma_active_targets">Yapılandırılmış Hedefler</string>
-    <string name="diag_hma_inactive_targets">Diğer Hedefler</string>
-    <string name="diag_hma_btn_fix">Düzelt</string>
+    <string name="diag_btn_fix">Düzelt</string>
     <string name="diag_hma_fix_title">Uygulama İzolasyonunu Düzelt</string>
     <string name="diag_hma_fix_message">Bu işlem, %1$s için modül engelleme kurallarını ve ön ayarları kaldırmak üzere Hide My Applist yapılandırmasını güncelleyecektir.</string>
     <string name="diag_hma_fix_success">Uygulama izolasyon kuralları başarıyla güncellendi</string>
@@ -400,7 +398,6 @@
     <string name="config_mode_universal">Evrensel</string>
     <string name="config_mode_universal_desc">Kapsamdaki tüm WhatsApp uygulamalarına aynı tercihleri uygulayın.</string>
     <string name="diag_denylist_blocked">WhatsApp Engelleniyor</string>
-    <string name="diag_denylist_btn_fix">Düzelt</string>
     <string name="diag_denylist_btn_fix_all">Tümünü Düzelt</string>
     <string name="diag_denylist_checking">Denetleniyor…</string>
     <string name="diag_denylist_clean">Engellenen hedef yok</string>

@@ -1030,6 +1030,7 @@
     <string name="waex_runtime_status_rules_accepted_runtime_unconfirmed">"Version rules accepted; runtime unconfirmed"</string>
     <string name="waex_runtime_status_rules_accepted_initialization_reported">"Rules accepted; initialization reported"</string>
     <string name="waex_ui_hma_reason_not_configured">Not configured in HMA scope</string>
+    <string name="waex_ui_hma_reason_not_active">HMA not active</string>
     <string name="waex_ui_hma_reason_visible">Active in HMA, module visible</string>
     <string name="waex_ui_hma_reason_allowlist_invisible">Hidden via Whitelist mode (in invisible apps list)</string>
     <string name="waex_ui_hma_reason_allowlist_missing">Hidden via Whitelist mode (module not included in visible apps)</string>

@@ -323,9 +323,7 @@
     <string name="diag_hma_checking">Memeriksa…</string>
     <string name="diag_hma_sheet_title">Diagnostik Isolasi Aplikasi</string>
     <string name="diag_hma_sheet_desc">Ikhtisar aturan isolasi Hide My Applist yang mempengaruhi paket target dan visibilitas modul.</string>
-    <string name="diag_hma_active_targets">Target Dikonfigurasi</string>
-    <string name="diag_hma_inactive_targets">Target Lainnya</string>
-    <string name="diag_hma_btn_fix">Perbaiki</string>
+    <string name="diag_btn_fix">Perbaiki</string>
     <string name="diag_hma_fix_title">Perbaiki Isolasi Aplikasi</string>
     <string name="diag_hma_fix_message">Ini akan memperbarui konfigurasi Hide My Applist untuk menghapus aturan pemblokiran modul dan preset dari %1$s.</string>
     <string name="diag_hma_fix_success">Aturan isolasi aplikasi berhasil diperbarui</string>
@@ -400,7 +398,6 @@
     <string name="config_mode_universal">Universal</string>
     <string name="config_mode_universal_desc">Terapkan preferensi yang sama ke semua aplikasi WhatsApp yang dicakup.</string>
     <string name="diag_denylist_blocked">WhatsApp Diblokir</string>
-    <string name="diag_denylist_btn_fix">Perbaiki</string>
     <string name="diag_denylist_btn_fix_all">Perbaiki Semua</string>
     <string name="diag_denylist_checking">Memeriksa…</string>
     <string name="diag_denylist_clean">Tidak ada target yang diblokir</string>

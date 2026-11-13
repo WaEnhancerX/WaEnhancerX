@@ -49,6 +49,9 @@ object HmaDiagnostics {
         val message: String? = null
     )
 
+    private const val REASON_NOT_CONFIGURED = "Not configured in HMA scope"
+    private const val REASON_HMA_NOT_ACTIVE = "HMA not active"
+
     fun cached(): HmaReport? = cachedResult.get()
 
     /**
@@ -71,30 +74,37 @@ object HmaDiagnostics {
     }
 
     private fun runCheck(context: Context, targetPackages: Collection<String>, scopeSnapshot: LsposedScopeSnapshot?): HmaReport {
-        val allConfigPaths = findAllHmaConfigPaths()
-        if (allConfigPaths.isEmpty()) {
-            return if (!isHmaInstalledAndActive(context)) {
-                HmaReport(HmaState.NOT_ACTIVE)
-            } else {
-                HmaReport(HmaState.NOT_CONFIGURED)
-            }
-        }
-
-        val allConfigs = readAllHmaConfigs(allConfigPaths)
-        if (allConfigs.isEmpty()) {
-            return HmaReport(HmaState.NOT_CONFIGURED)
-        }
-
-        // Known module package identifiers to check for concealment
-        val currentPackage = context.packageName
-        val moduleSignatures = setOf(currentPackage, "com.waenhancer", "com.waenhancer.debug")
-
         // Empty means no live scoped targets. Never fall back to every installed/declared app:
         // scope is the security boundary for this diagnostic.
         val liveScope = (scopeSnapshot ?: LsposedScopeReader.read(context)).packages
         val packagesToCheck = targetPackages.filterTo(linkedSetOf()) {
             it in DeclaredWhatsAppTargets.packages() && it in liveScope
         }
+
+        fun inactiveReport(state: HmaState, reason: String) = HmaReport(
+            state,
+            targetDetails = packagesToCheck.map {
+                TargetIsolationDetail(it, resolveAppLabel(context, it), isBlocking = false, reason = reason)
+            }
+        )
+
+        val allConfigPaths = findAllHmaConfigPaths()
+        if (allConfigPaths.isEmpty()) {
+            return if (!isHmaInstalledAndActive(context)) {
+                inactiveReport(HmaState.NOT_ACTIVE, REASON_HMA_NOT_ACTIVE)
+            } else {
+                inactiveReport(HmaState.NOT_CONFIGURED, REASON_NOT_CONFIGURED)
+            }
+        }
+
+        val allConfigs = readAllHmaConfigs(allConfigPaths)
+        if (allConfigs.isEmpty()) {
+            return inactiveReport(HmaState.NOT_CONFIGURED, REASON_NOT_CONFIGURED)
+        }
+
+        // Known module package identifiers to check for concealment
+        val currentPackage = context.packageName
+        val moduleSignatures = setOf(currentPackage, "com.waenhancer", "com.waenhancer.debug")
 
         val details = mutableListOf<TargetIsolationDetail>()
         val blockedList = mutableListOf<String>()
@@ -123,7 +133,7 @@ object HmaDiagnostics {
                         packageName = pkg,
                         appName = appLabel,
                         isBlocking = false,
-                        reason = "Not configured in HMA scope"
+                        reason = REASON_NOT_CONFIGURED
                     )
                 )
             } else if (primaryBlockReason != null) {

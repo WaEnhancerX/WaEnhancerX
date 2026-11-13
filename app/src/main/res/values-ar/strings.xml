@@ -323,9 +323,7 @@
     <string name="diag_hma_checking">جاري الفحص…</string>
     <string name="diag_hma_sheet_title">تشخيص عزل التطبيقات</string>
     <string name="diag_hma_sheet_desc">نظرة عامة على قواعد عزل Hide My Applist التي تؤثر على حزم الأهداف وظهور الموديول.</string>
-    <string name="diag_hma_active_targets">الأهداف المكونة</string>
-    <string name="diag_hma_inactive_targets">أهداف أخرى</string>
-    <string name="diag_hma_btn_fix">إصلاح</string>
+    <string name="diag_btn_fix">إصلاح</string>
     <string name="diag_hma_fix_title">إصلاح عزل التطبيقات</string>
     <string name="diag_hma_fix_message">سيؤدي هذا إلى تعديل إعدادات Hide My Applist لإزالة قواعد حظر الموديول والإعدادات المسبقة من %1$s، مما يسمح لـ WaEnhancerX بالعمل بشكل صحيح.</string>
     <string name="diag_hma_fix_success">تم تحديث قواعد عزل التطبيقات بنجاح</string>
@@ -400,7 +398,6 @@
     <string name="config_mode_universal">عام (شامل)</string>
     <string name="config_mode_universal_desc">تطبيق نفس التفضيلات على جميع تطبيقات واتساب المشمولة.</string>
     <string name="diag_denylist_blocked">حظر واتساب</string>
-    <string name="diag_denylist_btn_fix">إصلاح</string>
     <string name="diag_denylist_btn_fix_all">إصلاح الكل</string>
     <string name="diag_denylist_checking">جارٍ الفحص…</string>
     <string name="diag_denylist_clean">لا توجد تطبيقات مستهدفة محظورة</string>

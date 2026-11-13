@@ -323,9 +323,7 @@
     <string name="diag_hma_checking">जाँच हो रही है…</string>
     <string name="diag_hma_sheet_title">ऐप आइसोलेशन डायग्नोस्टिक्स</string>
     <string name="diag_hma_sheet_desc">Hide My Applist आइसोलेशन नियमों का विवरण जो लक्ष्य पैकेज और मॉड्यूल दृश्यता को प्रभावित करते हैं।</string>
-    <string name="diag_hma_active_targets">कॉन्फ़िगर किए गए लक्ष्य</string>
-    <string name="diag_hma_inactive_targets">अन्य लक्ष्य</string>
-    <string name="diag_hma_btn_fix">ठीक करें</string>
+    <string name="diag_btn_fix">ठीक करें</string>
     <string name="diag_hma_fix_title">ऐप आइसोलेशन ठीक करें</string>
     <string name="diag_hma_fix_message">यह %1$s से मॉड्यूल ब्लॉकिंग नियमों और प्रीसेट को हटाने के लिए Hide My Applist कॉन्फ़िगरेशन को अपडेट करेगा।</string>
     <string name="diag_hma_fix_success">ऐप आइसोलेशन नियम सफलतापूर्वक अपडेट किए गए</string>
@@ -400,7 +398,6 @@
     <string name="config_mode_universal">सार्वभौमिक (Universal)</string>
     <string name="config_mode_universal_desc">सभी संबंधित WhatsApp ऐप्स पर समान प्राथमिकताएं लागू करें।</string>
     <string name="diag_denylist_blocked">WhatsApp ब्लॉक हो रहा है</string>
-    <string name="diag_denylist_btn_fix">ठीक करें</string>
     <string name="diag_denylist_btn_fix_all">सभी ठीक करें</string>
     <string name="diag_denylist_checking">जाँच हो रही है…</string>
     <string name="diag_denylist_clean">कोई ऐप ब्लॉक नहीं है</string>

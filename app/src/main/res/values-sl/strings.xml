@@ -333,9 +333,7 @@
     <string name="diag_hma_checking">Preverjanje …</string>
     <string name="diag_hma_sheet_title">Diagnostika izolacije aplikacij</string>
     <string name="diag_hma_sheet_desc">Pregled pravil izolacije Hide My Applist, ki vplivajo na ciljne pakete in vidnost modulov.</string>
-    <string name="diag_hma_active_targets">Konfigurirani cilji</string>
-    <string name="diag_hma_inactive_targets">Drugi cilji</string>
-    <string name="diag_hma_btn_fix">Popravek</string>
+    <string name="diag_btn_fix">Popravek</string>
     <string name="diag_hma_fix_title">Popravek izolacije aplikacij</string>
     <string name="diag_hma_fix_message">S tem se bo posodobila konfiguracija Hide My Applist, da se odstranijo pravila blokiranja modulov in prednastavitve iz %1$s, kar bo omogočilo pravilno delovanje WaEnhancerX-ja.</string>
     <string name="diag_hma_fix_success">Pravila izolacije aplikacij so bila uspešno posodobljena</string>
@@ -401,7 +399,6 @@
     <string name="config_mode_universal">Univerzalno</string>
     <string name="config_mode_universal_desc">Uporabite enake nastavitve za vse zajete aplikacije WhatsApp.</string>
     <string name="diag_denylist_blocked">Blokiranje aplikacije WhatsApp</string>
-    <string name="diag_denylist_btn_fix">Popravi</string>
     <string name="diag_denylist_btn_fix_all">Popravi vse</string>
     <string name="diag_denylist_checking">Preverjanje…</string>
     <string name="diag_denylist_clean">Ni blokiranih ciljev</string>

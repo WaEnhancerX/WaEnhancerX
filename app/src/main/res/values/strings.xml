@@ -376,9 +376,8 @@
     <string name="diag_hma_checking">Checking…</string>
     <string name="diag_hma_sheet_title">App Isolation Diagnostics</string>
     <string name="diag_hma_sheet_desc">Overview of Hide My Applist isolation rules affecting target packages and module visibility.</string>
-    <string name="diag_hma_active_targets">Configured Targets</string>
-    <string name="diag_hma_inactive_targets">Other Targets</string>
-    <string name="diag_hma_btn_fix">Fix</string>
+    <string name="diag_active_targets_title">Active Targets</string>
+    <string name="diag_btn_fix">Fix</string>
     <string name="diag_hma_fix_title">Fix App Isolation</string>
     <string name="diag_hma_fix_message">This will update Hide My Applist configuration to remove module blocking rules and presets from %1$s, allowing WaEnhancerX to function properly.</string>
     <string name="diag_hma_fix_success">App isolation rules updated successfully</string>
@@ -390,8 +389,6 @@
     <string name="diag_denylist_checking">Checking…</string>
     <string name="diag_denylist_sheet_title">Magisk DenyList Diagnostics</string>
     <string name="diag_denylist_sheet_desc">Overview of Magisk DenyList rules affecting target packages and Zygisk module injection.</string>
-    <string name="diag_denylist_active_targets_title">Active Targets</string>
-    <string name="diag_denylist_btn_fix">Fix</string>
     <string name="diag_denylist_btn_fix_all">Fix All</string>
     <string name="diag_denylist_fix_title">Fix Magisk DenyList</string>
     <string name="diag_denylist_fix_message">This will remove %1$s from the Magisk DenyList and force-stop it so Zygisk/LSPosed can hook it on next launch.</string>
