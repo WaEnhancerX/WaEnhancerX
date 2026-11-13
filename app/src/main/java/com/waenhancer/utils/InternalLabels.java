@@ -198,6 +198,7 @@ public final class InternalLabels {
             case "Version bypass active; compatibility unverified": return UiText.get(R.string.waex_runtime_status_bypass_unverified, "Version bypass active; compatibility unverified");
             case "Custom version allowance; compatibility unverified": return UiText.get(R.string.waex_runtime_status_custom_version_unverified, "Custom version allowance; compatibility unverified");
             case "Version rules accepted; runtime unconfirmed": return UiText.get(R.string.waex_runtime_status_rules_accepted_runtime_unconfirmed, "Version rules accepted; runtime unconfirmed");
+            case "Rules accepted; open a target app to confirm injection": return UiText.get(R.string.waex_runtime_status_rules_accepted_open_target, "Rules accepted; open a target app to confirm injection");
             case "Rules accepted; initialization reported": return UiText.get(R.string.waex_runtime_status_rules_accepted_initialization_reported, "Rules accepted; initialization reported");
             default: return value;
         }

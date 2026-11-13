@@ -60,6 +60,19 @@ class TargetScopeStateTest {
         assertEquals(null, RootProbe.parseRuntime("", 0L))
     }
 
+    @Test fun `process probe filters on the shell side and always includes the manager`() {
+        val command = RootProbe.processListCommand()
+        assertTrue(command.contains("com\\.whatsapp\\.w4b"))
+        assertTrue(command.contains("com\\.waenhancer"))
+        assertTrue(command.contains("grep -E"))
+    }
+
+    @Test fun `filtered process output with a target and the manager parses`() {
+        val snap = RootProbe.parseRuntime("WAEX_PS_BEGIN\n 4242 com.whatsapp\n 99 com.waenhancer\nWAEX_PS_END\n", 0L)
+        assertEquals(setOf(4242), snap?.pidsFor("com.whatsapp"))
+        assertEquals(emptySet<Int>(), snap?.pidsFor("com.whatsapp.w4b"))
+    }
+
     @Test fun `complete process probe yields snapshot`() {
         val snap = RootProbe.parseRuntime("WAEX_LSPOSED_DB_OK\nWAEX_PS_BEGIN\n PID NAME\n 9 com.a.b\nWAEX_PS_END\n", 0L)
         assertEquals(setOf(9), snap?.pidsFor("com.a.b"))

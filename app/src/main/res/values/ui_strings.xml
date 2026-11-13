@@ -775,6 +775,7 @@
     <string name="waex_ui_hooks_paused_short" formatted="false">"Hooks paused"</string>
     <string name="waex_ui_hooks_not_reported_short" formatted="false">"Hooks not reported yet"</string>
     <string name="waex_ui_hooks_last_report" formatted="false">"last report"</string>
+    <string name="waex_ui_hooks_active_short" formatted="false">"%1$d/%2$d hooks active"</string>
     <string name="waex_ui_hooks_checking" formatted="false">"Checking…"</string>
     <string name="waex_ui_hooks_paused_hint" formatted="false">"Version not supported. Add support, then restart."</string>
     <string name="waex_ui_hooks_unresponsive_hint" formatted="false">"No response. Open %1$s, then refresh."</string>
@@ -1036,6 +1037,7 @@
     <string name="waex_runtime_status_bypass_unverified">"Version bypass active; compatibility unverified"</string>
     <string name="waex_runtime_status_custom_version_unverified">"Custom version allowance; compatibility unverified"</string>
     <string name="waex_runtime_status_rules_accepted_runtime_unconfirmed">"Version rules accepted; runtime unconfirmed"</string>
+    <string name="waex_runtime_status_rules_accepted_open_target">"Rules accepted; open a target app to confirm injection"</string>
     <string name="waex_runtime_status_rules_accepted_initialization_reported">"Rules accepted; initialization reported"</string>
     <string name="waex_ui_hma_reason_not_configured">Not configured in HMA scope</string>
     <string name="waex_ui_hma_reason_not_active">HMA not active</string>

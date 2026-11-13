@@ -51,10 +51,23 @@ internal data class RootProbeResult(val scope: LsposedScopeSnapshot, val runtime
 internal object RootProbe {
     private const val PS_BEGIN = "WAEX_PS_BEGIN"
     private const val PS_END = "WAEX_PS_END"
+    private const val MODULE_PACKAGE_NAME = "com.waenhancer"
+
+    /**
+     * Only the target packages and the manager itself are kept. A full process list is 15 KB or more
+     * on a normal phone, but the shared root runner captures at most 8 KB, so the end marker was cut
+     * off and every target fell back to "root process check failed". The manager's own process is
+     * always running, so an empty filtered list still means the probe itself failed.
+     */
+    internal fun processListCommand(): String {
+        val names = (DeclaredWhatsAppTargets.packages() + MODULE_PACKAGE_NAME)
+            .joinToString("|") { it.replace(".", "\\.") }
+        return "(ps -A -o PID,NAME 2>/dev/null || ps 2>/dev/null) | grep -E ' ($names)[[:space:]]*$'"
+    }
 
     fun run(context: Context): RootProbeResult {
         val script = LsposedScopeReader.stageCommand(context) +
-            "\necho $PS_BEGIN\n(ps -A -o PID,NAME 2>/dev/null || ps 2>/dev/null)\necho $PS_END"
+            "\necho $PS_BEGIN\n${processListCommand()}\necho $PS_END"
         val startedAt = SystemClock.elapsedRealtime()
         val output = try { AppRestartHelper.runRootCommand(script).orEmpty() }
             catch (_: RuntimeException) { "" } catch (_: LinkageError) { "" }

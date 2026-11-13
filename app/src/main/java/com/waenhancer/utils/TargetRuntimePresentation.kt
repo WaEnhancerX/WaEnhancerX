@@ -48,18 +48,35 @@ object TargetRuntimePresentation {
     private fun lastReport(app: HookedAppInfo, value: String): String =
         if (app.isHooked || value == "Not reported") value else "Last report (not current): $value"
 
+    /**
+     * Overall target health. Runtime readiness is judged only for targets that are actually running
+     * with the module injected; an installed target that is simply not open must not turn the
+     * summary into "unconfirmed". Per-target rows use [card], so the summary, the dashboard cards
+     * and the compatibility sheet always agree.
+     */
     fun summarize(apps: List<HookedAppInfo>, decisions: Map<String, UniversalVersionValidator.Decision>): Summary {
         val installed = apps.filter { it.isInstalled }
         if (installed.isEmpty()) return Summary("No installed target detected", null)
         if (installed.any { !decisions.getOrDefault(it.packageName, UniversalVersionValidator.Decision.RULES_UNAVAILABLE).allowed })
             return Summary("Version rules require review", false)
-        if (installed.any { it.isHooked && it.runtimeStatus in setOf("UNSUPPORTED_VERSION", "COMPATIBILITY_UNAVAILABLE", "INITIALIZATION_FAILED", "READY_WITH_ERRORS") })
+        val running = installed.filter { it.isHooked }
+        if (running.any { it.runtimeStatus in setOf("UNSUPPORTED_VERSION", "COMPATIBILITY_UNAVAILABLE", "INITIALIZATION_FAILED", "READY_WITH_ERRORS") })
             return Summary("Target runtime requires review", false)
         if (installed.any { decisions[it.packageName] == UniversalVersionValidator.Decision.EXPLICIT_BYPASS })
             return Summary("Version bypass active; compatibility unverified", false)
         if (installed.any { decisions[it.packageName] == UniversalVersionValidator.Decision.CUSTOM_RULE })
             return Summary("Custom version allowance; compatibility unverified", null)
-        if (installed.any { !it.isHooked || it.runtimeStatus != "READY" || it.bridgeStatus != "PROVIDER" })
+        if (running.isEmpty()) {
+            // Distinguish "we could not check" from "nothing is open".
+            val blocked = installed.firstOrNull {
+                it.injectionEvidence == InjectionEvidence.PROCESS_OBSERVATION_UNAVAILABLE ||
+                    it.injectionEvidence == InjectionEvidence.BOOT_UNKNOWN ||
+                    it.injectionEvidence == InjectionEvidence.MODULE_INACTIVE
+            }
+            return if (blocked != null) Summary(blocked.injectionEvidence.label, null)
+            else Summary("Rules accepted; open a target app to confirm injection", null)
+        }
+        if (running.any { it.runtimeStatus != "READY" || it.bridgeStatus != "PROVIDER" })
             return Summary("Version rules accepted; runtime unconfirmed", null)
         // Even current READY reports are not acceptance tests of all individual features.
         return Summary("Rules accepted; initialization reported", true)

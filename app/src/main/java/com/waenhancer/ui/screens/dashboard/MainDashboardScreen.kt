@@ -927,6 +927,8 @@ fun MainDashboardScreen(
             TargetCompatibilityBottomSheet(
                 apps = detectedApps,
                 targetSummary = targetSummary,
+                decisions = versionDecisions,
+                moduleActive = isModuleActive,
                 onDismiss = { showTargetCompatibilitySheet = false }
             )
         }
@@ -938,6 +940,8 @@ fun MainDashboardScreen(
 private fun TargetCompatibilityBottomSheet(
     apps: List<HookedAppInfo>,
     targetSummary: TargetRuntimePresentation.Summary,
+    decisions: Map<String, UniversalVersionValidator.Decision>,
+    moduleActive: Boolean,
     onDismiss: () -> Unit
 ) {
     val colors = WaexTheme.colors
@@ -1064,8 +1068,15 @@ private fun TargetCompatibilityBottomSheet(
                     val appIcon = remember(app.packageName) {
                         WhatsAppPackageDetector.getAppIcon(context, app.packageName)
                     }
-                    val isAppReady = app.isHooked && app.runtimeStatus == "READY" && app.bridgeStatus == "PROVIDER"
-                    val itemColor = if (isAppReady) colors.success else colors.warning
+                    // Same per-target status as the dashboard card, so both always agree.
+                    val appDecision = decisions[app.packageName] ?: UniversalVersionValidator.Decision.RULES_UNAVAILABLE
+                    val appStatus = TargetRuntimePresentation.card(app, moduleActive, appDecision)
+                    val isAppReady = appStatus.severity == TargetRuntimePresentation.Severity.OK
+                    val itemColor = when (appStatus.severity) {
+                        TargetRuntimePresentation.Severity.OK -> colors.success
+                        TargetRuntimePresentation.Severity.REVIEW -> colors.error
+                        TargetRuntimePresentation.Severity.UNKNOWN -> colors.warning
+                    }
 
                     Surface(
                         shape = radius.smShape,
@@ -1123,7 +1134,7 @@ private fun TargetCompatibilityBottomSheet(
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )
-                                        if (isAppReady) {
+                                        if (app.isHooked) {
                                             Surface(
                                                 shape = CircleShape,
                                                 color = itemColor.copy(alpha = 0.12f),
@@ -1162,7 +1173,11 @@ private fun TargetCompatibilityBottomSheet(
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
-                                            imageVector = if (isAppReady) WaexIcons.Check else WaexIcons.Help,
+                                            imageVector = when (appStatus.severity) {
+                                                TargetRuntimePresentation.Severity.OK -> WaexIcons.Check
+                                                TargetRuntimePresentation.Severity.REVIEW -> WaexIcons.Clear
+                                                TargetRuntimePresentation.Severity.UNKNOWN -> WaexIcons.Help
+                                            },
                                             contentDescription = null,
                                             tint = itemColor,
                                             modifier = Modifier.size(13.dp)
@@ -1176,19 +1191,11 @@ private fun TargetCompatibilityBottomSheet(
                             HorizontalDivider(thickness = 0.5.dp, color = colors.outlineVariant.copy(alpha = 0.35f))
                             Spacer(modifier = Modifier.height(6.dp))
 
-                            val detailStatusText = when {
-                                isAppReady && app.injectedHooks.isNotEmpty() -> {
-                                    val activeCount = app.injectedHooks.count { it.status == "ACTIVE" }
-                                    UiText.get(R.string.waex_l10n_detail_active,
-                                        "Injected & active (%1\$d/%2\$d hooks active)", activeCount, app.injectedHooks.size)
-                                }
-                                isAppReady -> InternalLabels.text("Injected • Initialization reported complete")
-                                !app.isHooked -> InternalLabels.text(app.injectionEvidence.label)
-                                app.runtimeStatus != "READY" -> UiText.get(R.string.waex_l10n_detail_init,
-                                    "Injected • Initialization: %1\$s", InternalLabels.text(TargetRuntimePresentation.initialization(app)))
-                                else -> UiText.get(R.string.waex_l10n_detail_bridge,
-                                    "Injected • Bridge: %1\$s", InternalLabels.text(TargetRuntimePresentation.bridge(app)))
-                            }
+                            val hookSuffix = if (app.isHooked && app.injectedHooks.isNotEmpty()) {
+                                " · " + UiText.get(R.string.waex_ui_hooks_active_short, "%1\$d/%2\$d hooks active",
+                                    app.injectedHooks.count { it.status == "ACTIVE" }, app.injectedHooks.size)
+                            } else ""
+                            val detailStatusText = InternalLabels.text(appStatus.text) + hookSuffix
 
                             Text(
                                 text = detailStatusText,
