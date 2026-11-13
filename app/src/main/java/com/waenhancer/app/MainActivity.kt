@@ -40,6 +40,7 @@ import javax.inject.Inject
 import android.content.Context
 import com.waenhancer.ui.navigation.Screen
 import com.waenhancer.utils.LocaleHelper
+import com.waenhancer.utils.DiagnosticsRecorder
 
 internal object StartupRootAccess {
     @Volatile private var pendingResult: Boolean? = null
@@ -144,6 +145,13 @@ class MainActivity : ComponentActivity() {
                                 openTargetScreen(intent, controller)
                             }
                             controller
+                        }
+                        // Only the static Screen subclass name: never dynamic route arguments.
+                        val diagnosticScreenType = navController.currentScreen.javaClass.simpleName
+                        LaunchedEffect(diagnosticScreenType) {
+                            withContext(Dispatchers.IO) {
+                                DiagnosticsRecorder.recordScreen(this@MainActivity, diagnosticScreenType)
+                            }
                         }
 
                         LaunchedEffect(rootCheckAttempt) {

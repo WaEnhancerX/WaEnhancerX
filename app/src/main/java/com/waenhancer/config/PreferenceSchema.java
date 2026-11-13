@@ -62,6 +62,11 @@ public final class PreferenceSchema {
     }
 
     public static final String KEY_FORCE_TARGET_DEBUGGABLE = "force_target_debuggable";
+    /** Explicit, device-local consent. Never included in settings backup exports. */
+    public static final String KEY_DIAGNOSTIC_CAPTURE_ENABLED = "diagnostic_capture_enabled";
+    /** Second consent for WhatsApp-owned process exit history, never included in backups. */
+    public static final String KEY_DIAGNOSTIC_TARGET_EXIT_ENABLED = "diagnostic_target_exit_enabled";
+    public static final String KEY_DIAGNOSTIC_TARGET_EXIT_SINCE = "diagnostic_target_exit_since_ms";
 
     private static final Map<String, Entry> ENTRIES;
     private static final Set<String> EXPORTABLE;
@@ -72,6 +77,9 @@ public final class PreferenceSchema {
         Map<String, Entry> entries = new LinkedHashMap<>();
         add(entries, KEY_FORCE_TARGET_DEBUGGABLE, Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "active_theme", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, KEY_DIAGNOSTIC_CAPTURE_ENABLED, Type.BOOLEAN, Sensitivity.RUNTIME, Store.PUBLIC);
+        add(entries, KEY_DIAGNOSTIC_TARGET_EXIT_ENABLED, Type.BOOLEAN, Sensitivity.RUNTIME, Store.PUBLIC);
+        add(entries, KEY_DIAGNOSTIC_TARGET_EXIT_SINCE, Type.LONG, Sensitivity.RUNTIME, Store.PUBLIC);
         add(entries, "active_xposed_api_version", Type.INT, Sensitivity.RUNTIME, Store.PUBLIC);
         add(entries, "active_xposed_framework", Type.STRING, Sensitivity.RUNTIME, Store.PUBLIC);
         add(entries, "admin_emoji", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
