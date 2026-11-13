@@ -36,9 +36,12 @@ public class MediaQualityBypassHook extends BaseFeature {
     private static final int IMAGE_MAX_KB = 50 * 1024;
     private static final int IMAGE_MAX_EDGE = 6000;
 
-    private static final int[] IMAGE_MAX_SIZE_PROPS = {1577, 6030, 2656, 15752, 15746};
-    private static final int[] IMAGE_QUALITY_PROPS = {1581, 1575, 1578, 6029, 2655, 15749};
-    private static final int[] IMAGE_MAX_EDGE_PROPS = {1576, 2654, 6032, 15748, 3068};
+    // WhatsApp 2.26.43.76 also constructs a screenshot-specific ProcessImageQuality
+    // from MobileConfig ints 2477 (maxKb), 2475 (quality), 2476 (maxEdge).
+    // These are separate from the default image settings (1577/1578/1576).
+    private static final int[] IMAGE_MAX_SIZE_PROPS = {1577, 6030, 2656, 15752, 15746, 2477};
+    private static final int[] IMAGE_QUALITY_PROPS = {1581, 1575, 1578, 6029, 2655, 15749, 2475};
+    private static final int[] IMAGE_MAX_EDGE_PROPS = {1576, 2654, 6032, 15748, 3068, 2476};
 
     public MediaQualityBypassHook(@NonNull Context context, @NonNull ClassLoader classLoader, @NonNull SharedPreferences prefs) {
         super(context, classLoader, prefs);
