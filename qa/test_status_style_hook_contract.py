@@ -34,7 +34,18 @@ public interface SharedPreferences { String getString(String key,String fallback
 public class Context { public android.content.res.Resources getResources(){return new android.content.res.Resources();} public String getPackageName(){return "fixture.whatsapp";} }''',
  'android/content/res/Resources.java': '''package android.content.res;
 public class Resources { public int getIdentifier(String name,String type,String pkg){return 0;} }''',
- 'android/app/Activity.java': 'package android.app; public class Activity extends android.content.Context {}',
+ 'android/app/Activity.java': '''package android.app;
+// Real Android Activity invokes the supplied work on the UI thread and exposes
+// an options-menu invalidation entry point. The fixture runs on one JVM thread.
+public class Activity extends android.content.Context {
+    private int menuInvalidations;
+    public void runOnUiThread(Runnable action) {
+        if (action == null) throw new NullPointerException("action");
+        action.run();
+    }
+    public void invalidateOptionsMenu() { menuInvalidations++; }
+    public int getMenuInvalidationsForFixture() { return menuInvalidations; }
+}''',
  'android/view/Menu.java': 'package android.view; public interface Menu { MenuItem findItem(int id); }',
  'android/view/MenuItem.java': 'package android.view; public interface MenuItem { int SHOW_AS_ACTION_ALWAYS=2; void setShowAsAction(int action); }',
  'com/waenhancer/xposed/core/BaseFeature.java': '''package com.waenhancer.xposed.core;
@@ -50,6 +61,25 @@ public Method findMethodWithCache(Context c,ClassLoader l,String key,DexKitQuery
 public Class<?> findClassWithCache(Context c,ClassLoader l,String key,DexKitClassQuery q){return null;}
 public interface DexKitQuery { Method execute(DexKitBridge bridge,ClassLoader loader) throws Throwable; }
 public interface DexKitClassQuery { Class<?> execute(DexKitBridge bridge,ClassLoader loader) throws Throwable; } }''',
+ 'com/waenhancer/xposed/utils/ActivityTracker.java': '''package com.waenhancer.xposed.utils;
+import android.app.Activity;
+import java.lang.ref.WeakReference;
+// Default lifecycle state: there is no resumed host Activity in this JVM fixture.
+public final class ActivityTracker {
+    private static WeakReference<Activity> current = new WeakReference<>(null);
+    private ActivityTracker() {}
+    public static Activity getCurrentActivity() { return current.get(); }
+    public static void setCurrentActivityForFixture(Activity activity) {
+        current = new WeakReference<>(activity);
+    }
+}''',
+ 'com/waenhancer/licensing/customprops/CustomAbPropsRuntime.java': '''package com.waenhancer.licensing.customprops;
+// The private observation policy is unavailable. Use the conservative
+// non-logging default; property value selection is exercised by production code.
+public final class CustomAbPropsRuntime {
+    private CustomAbPropsRuntime() {}
+    public static boolean shouldLogObservation(int propertyId) { return false; }
+}''',
  'de/robv/android/xposed/callbacks/XCallback.java': 'package de.robv.android.xposed.callbacks; public class XCallback { public static final int PRIORITY_HIGHEST=10000; }',
  'de/robv/android/xposed/XC_MethodHook.java': '''package de.robv.android.xposed;
 import java.lang.reflect.Member;

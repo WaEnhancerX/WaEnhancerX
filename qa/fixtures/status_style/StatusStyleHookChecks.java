@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
@@ -59,6 +60,12 @@ public final class StatusStyleHookChecks {
         PropsOverrideHook.BOOLEANS.clear(); PropsOverrideHook.INTEGERS.clear();
         PropsOverrideHook.FLOATS.clear(); PropsOverrideHook.STRINGS.clear();
         XposedBridge.hooks.clear(); DexSearchEngine.methods.clear();
+        // Each case models a fresh injected process. Clearing the Xposed
+        // dispatcher without clearing the production one-time installation
+        // guard creates an impossible partial-reset state in the fixture.
+        Field installed = PropsOverrideHook.class.getDeclaredField("hookInstalled");
+        installed.setAccessible(true);
+        installed.setBoolean(null, false);
         DexSearchEngine.methods.put("waex_status_style_method", styleMethod());
     }
     private static XC_MethodHook.MethodHookParam after(Method method, Object result,
