@@ -130,9 +130,23 @@ public final class ParallelDownloadingInputStream extends InputStream {
             if (contentRange == null) contentRange = "";
 
             if (code == 206) {
-                String expectedPrefix = "bytes " + rangeStart + "-";
+                // A matching *start* is insufficient: a server may return an overlapping,
+                // short or differently bounded range while still delivering enough bytes.
+                // In that case the caller must fall back to the original sequential stream.
+                String expectedPrefix = "bytes " + rangeStart + "-" + rangeEnd + "/";
                 if (!contentRange.startsWith(expectedPrefix)) {
                     throw new IOException("Unexpected Content-Range: " + contentRange + ", expected: " + expectedPrefix);
+                }
+                String completeLength = contentRange.substring(expectedPrefix.length());
+                if (!"*".equals(completeLength)) {
+                    try {
+                        long reportedTotal = Long.parseLong(completeLength);
+                        if (reportedTotal <= rangeEnd) {
+                            throw new NumberFormatException("total does not include the returned range");
+                        }
+                    } catch (NumberFormatException invalid) {
+                        throw new IOException("Invalid Content-Range total: " + contentRange, invalid);
+                    }
                 }
 
                 byte[] data = new byte[length];
@@ -158,6 +172,9 @@ public final class ParallelDownloadingInputStream extends InputStream {
     @Override
     public int read(byte[] buffer, int offset, int length) throws IOException {
         if (buffer == null) throw new NullPointerException("buffer is null");
+        if (offset < 0 || length < 0 || offset > buffer.length - length) {
+            throw new IndexOutOfBoundsException("Invalid buffer offset=" + offset + " length=" + length);
+        }
         if (isClosed) throw new IOException("Stream closed");
         if (length == 0) return 0;
 
@@ -172,6 +189,11 @@ public final class ParallelDownloadingInputStream extends InputStream {
                 int bytesRead = originalStream.read(buffer, offset, Math.min(length, chunk0Remaining));
                 if (bytesRead > 0) {
                     currentChunkOffset += bytesRead;
+                } else if (bytesRead < 0) {
+                    // Returning EOF here reports success to callers even though the known
+                    // response length has not been consumed (including a single-chunk file).
+                    throw new IOException("Original download truncated at " + currentChunkOffset
+                            + " of " + getChunkLength(0) + " first-chunk bytes");
                 }
                 return bytesRead;
             }
