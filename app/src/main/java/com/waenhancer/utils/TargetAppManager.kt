@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.SystemClock
+import com.waenhancer.xposed.utils.AppRestartHelper
 import com.waenhancer.xposed.utils.ModuleStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,8 +21,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 enum class ModuleSignal {
     /** The manager process itself is hooked (ModuleStatus sentinel returned true). */
     MANAGER_HOOK,
-    /** The manager is not hooked, but a target reported through the authorized provider. */
-    TARGET_REPORT,
+    /** The manager is not hooked, but a target process is confirmed injected. */
+    TARGET_INJECTION,
     NONE
 }
 
@@ -31,46 +32,60 @@ data class ModuleActivation(val active: Boolean, val signal: ModuleSignal) {
 
         /**
          * The manager is only hooked when it is itself in the LSPosed scope, which users often skip.
-         * A fresh, boot-matched report from a target is equally valid proof that the module loaded.
+         * A confirmed injection in any target (same pid alive, same boot) is equally valid proof.
          */
-        fun resolve(sentinel: Boolean, apps: List<HookedAppInfo>, nowWall: Long): ModuleActivation = when {
+        fun resolve(sentinel: Boolean, apps: List<HookedAppInfo>): ModuleActivation = when {
             sentinel -> ModuleActivation(true, ModuleSignal.MANAGER_HOOK)
-            apps.any { it.hasFreshTargetReport(nowWall) } -> ModuleActivation(true, ModuleSignal.TARGET_REPORT)
+            apps.any { it.isHooked } -> ModuleActivation(true, ModuleSignal.TARGET_INJECTION)
             else -> INACTIVE
         }
+    }
+}
 
-        private fun HookedAppInfo.hasFreshTargetReport(nowWall: Long): Boolean =
-            isRecentTimestamp(lastActiveTime, nowWall) && injectionEvidence in setOf(
-                InjectionEvidence.CURRENT,
-                // No root to compare PIDs: the provider already authenticated the reporting uid.
-                InjectionEvidence.PROCESS_OBSERVATION_UNAVAILABLE
-            )
+/** Result of the one root call that supplies both scope and live processes. */
+internal data class RootProbeResult(val scope: LsposedScopeSnapshot, val runtime: XposedRuntimeSnapshot?)
+
+/** One `su` invocation per refresh: stage the LSPosed scope DB and list processes. */
+internal object RootProbe {
+    private const val PS_BEGIN = "WAEX_PS_BEGIN"
+    private const val PS_END = "WAEX_PS_END"
+
+    fun run(context: Context): RootProbeResult {
+        val script = LsposedScopeReader.stageCommand(context) +
+            "\necho $PS_BEGIN\n(ps -A -o PID,NAME 2>/dev/null || ps 2>/dev/null)\necho $PS_END"
+        val startedAt = SystemClock.elapsedRealtime()
+        val output = try { AppRestartHelper.runRootCommand(script).orEmpty() }
+            catch (_: RuntimeException) { "" } catch (_: LinkageError) { "" }
+        val scope = LsposedScopeReader.parseStaged(context, output.contains(LsposedScopeReader.STAGED_OK_MARKER))
+        return RootProbeResult(scope, parseRuntime(output, startedAt))
+    }
+
+    internal fun parseRuntime(output: String, observedAt: Long): XposedRuntimeSnapshot? {
+        val begin = output.indexOf(PS_BEGIN)
+        val end = output.indexOf(PS_END)
+        if (begin < 0 || end < begin) return null // truncated: an incomplete list must not mean "not running"
+        val snapshot = parseProcessList(output.substring(begin + PS_BEGIN.length, end), observedAt)
+        return snapshot.takeIf { it.runningPids.isNotEmpty() }
     }
 }
 
 /**
  * Universal source of truth for the module's active state and its active target apps (installed
- * targets that are in the module's LSPosed scope). The module card, the per-app target dropdown,
- * the target compatibility row/sheet and the diagnostics screens must all read from here.
+ * apps in the module's LSPosed scope). The module card, the per-app target dropdown, the target
+ * compatibility row/sheet and the diagnostics screens must all read from here.
  *
- * Rules:
- *  - A live LSPosed read is the only thing that can remove a target ([TargetScopeState.NOT_IN_SCOPE]).
- *  - Unknown scope (no root, DB unreadable, parse failure) keeps installed targets visible.
- *  - Runtime reports from a target prove injection and therefore scope.
- *  - Refreshes are coalesced, and the root scope read is throttled.
+ * WAEX is root-only, so state is read on demand with root (scope DB + live process list) when the
+ * home screen resumes or the user refreshes. Nothing polls and nothing listens while the screen is
+ * not visible; a visible screen additionally gets a refresh when a target reports.
  */
 object TargetAppManager {
 
     private const val ACTION_TARGET_ACTIVE = "com.waenhancer.ACTION_TARGET_APP_ACTIVE"
-    private const val LIVE_SCOPE_TTL_MS = 60_000L
-    private const val RETRY_SCOPE_TTL_MS = 30_000L
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val running = AtomicBoolean(false)
     private val rerunRequested = AtomicBoolean(false)
-    private val forceScopeRead = AtomicBoolean(false)
-    private var isReceiverRegistered = false
-    @Volatile private var lastScopeAttemptElapsed = 0L
+    private var receiverRegistered = false
 
     private val _scopeSnapshot = MutableStateFlow<LsposedScopeSnapshot?>(null)
     val scopeSnapshot: StateFlow<LsposedScopeSnapshot?> = _scopeSnapshot.asStateFlow()
@@ -79,16 +94,22 @@ object TargetAppManager {
     val runtimeSnapshot: StateFlow<XposedRuntimeSnapshot?> = _runtimeSnapshot.asStateFlow()
 
     private val _detectedApps = MutableStateFlow<List<HookedAppInfo>>(emptyList())
-    /** Active targets: installed and not proven out of scope. */
+    /** Active targets: installed apps in the module's scope (or confirmed injected). */
     val detectedApps: StateFlow<List<HookedAppInfo>> = _detectedApps.asStateFlow()
 
     private val _scopedPackages = MutableStateFlow<Set<String>>(emptySet())
     val scopedPackages: StateFlow<Set<String>> = _scopedPackages.asStateFlow()
 
-    private val _moduleActivation = MutableStateFlow(
-        ModuleActivation.resolve(ModuleStatus.isModuleActive(), emptyList(), System.currentTimeMillis())
-    )
+    private val _moduleActivation = MutableStateFlow(ModuleActivation.resolve(ModuleStatus.isModuleActive(), emptyList()))
     val moduleActivation: StateFlow<ModuleActivation> = _moduleActivation.asStateFlow()
+
+    private val _probeError = MutableStateFlow<String?>(null)
+    /** Non-null when the last root probe could not read the scope or processes; show it, don't hide it. */
+    val probeError: StateFlow<String?> = _probeError.asStateFlow()
+
+    private val _loaded = MutableStateFlow(false)
+    /** False until the first root probe finished, so UIs can show "checking" instead of "none". */
+    val loaded: StateFlow<Boolean> = _loaded.asStateFlow()
 
     private val _refreshEpoch = MutableStateFlow(0L)
     val refreshEpoch: StateFlow<Long> = _refreshEpoch.asStateFlow()
@@ -98,58 +119,60 @@ object TargetAppManager {
 
     private val targetReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            // Heartbeats arrive every few seconds: re-evaluate evidence but do not re-read the
-            // LSPosed database each time.
-            if (context != null) refresh(context.applicationContext, force = false)
+            if (context != null) refresh(context.applicationContext)
         }
     }
 
-    /** Primes from cache so the UI never starts blank, registers the listener once and refreshes. */
-    fun init(context: Context) {
+    /**
+     * Call when the home screen becomes visible: primes from cache so the UI never starts blank,
+     * listens for target reports while visible, and reads fresh state with root.
+     */
+    fun attach(context: Context) {
         val appContext = context.applicationContext
-
         if (_scopeSnapshot.value == null) {
             val cachedScope = LsposedScopeReader.cached(appContext)
-            val cachedRuntime = XposedRuntimeInspector.cached()
-            publish(
-                WhatsAppPackageDetector.detectWhatsAppApps(appContext, cachedRuntime, cachedScope),
-                cachedScope,
-                cachedRuntime
-            )
+            publish(WhatsAppPackageDetector.detectWhatsAppApps(appContext, null, cachedScope), cachedScope, null, probed = false)
         }
-
         synchronized(this) {
-            if (!isReceiverRegistered) {
+            if (!receiverRegistered) {
                 val filter = IntentFilter(ACTION_TARGET_ACTIVE)
                 if (Build.VERSION.SDK_INT >= 33) {
                     appContext.registerReceiver(targetReceiver, filter, Context.RECEIVER_EXPORTED)
                 } else {
                     appContext.registerReceiver(targetReceiver, filter)
                 }
-                isReceiverRegistered = true
+                receiverRegistered = true
             }
         }
+        refresh(appContext)
+    }
 
-        refresh(appContext, force = true)
+    /** Call when the home screen is no longer visible: stop listening. */
+    fun detach(context: Context) {
+        synchronized(this) {
+            if (receiverRegistered) {
+                runCatching { context.applicationContext.unregisterReceiver(targetReceiver) }
+                receiverRegistered = false
+            }
+        }
     }
 
     /**
-     * Re-evaluates targets and module state. [force] additionally re-reads the LSPosed scope now.
-     * Concurrent calls are coalesced; a request made during a run triggers exactly one more run.
+     * Re-reads scope and processes with root. Concurrent calls are coalesced: a request made during
+     * a run triggers exactly one more run, so no update is lost and no two probes overlap.
      */
-    fun refresh(context: Context, force: Boolean = false) {
+    fun refresh(context: Context) {
         val appContext = context.applicationContext
-        if (force) forceScopeRead.set(true)
         rerunRequested.set(true)
         scope.launch { drain(appContext) }
     }
 
     private fun drain(context: Context) {
         while (true) {
-            if (!running.compareAndSet(false, true)) return // active loop will observe the request
+            if (!running.compareAndSet(false, true)) return // the active loop will observe the request
             try {
                 while (rerunRequested.getAndSet(false)) {
-                    runCatching { refreshOnce(context, forceScopeRead.getAndSet(false)) }
+                    try { refreshOnce(context) } catch (e: Exception) { _probeError.value = "Refresh failed: ${e.javaClass.simpleName}" }
                 }
             } finally {
                 running.set(false)
@@ -158,38 +181,29 @@ object TargetAppManager {
         }
     }
 
-    private fun refreshOnce(context: Context, forceScope: Boolean) {
-        val nowElapsed = SystemClock.elapsedRealtime()
-        val previous = _scopeSnapshot.value
-        val ttl = if (previous?.isLive == true) LIVE_SCOPE_TTL_MS else RETRY_SCOPE_TTL_MS
-        val liveScope = if (forceScope || previous == null || nowElapsed - lastScopeAttemptElapsed >= ttl) {
-            lastScopeAttemptElapsed = nowElapsed
-            LsposedScopeReader.read(context)
-        } else previous
-
-        // Only probe processes for targets that could be active; skip ones a live read excludes.
-        val probeTargets = WhatsAppPackageDetector.installedTargets(context)
-            .filter { !liveScope.isLive || liveScope.contains(it) || hasReport(context, it) }
-        val runtime = XposedRuntimeInspector.inspect(probeTargets)
-
-        publish(WhatsAppPackageDetector.detectWhatsAppApps(context, runtime, liveScope), liveScope, runtime)
+    private fun refreshOnce(context: Context) {
+        val probe = RootProbe.run(context)
+        publish(
+            WhatsAppPackageDetector.detectWhatsAppApps(context, probe.runtime, probe.scope),
+            probe.scope, probe.runtime, probed = true
+        )
     }
-
-    private fun hasReport(context: Context, pkg: String): Boolean =
-        runCatching {
-            com.waenhancer.config.PreferenceStores.publicStore(context).getLong("last_active_$pkg", 0L) > 0L
-        }.getOrDefault(false)
 
     private fun publish(
         detected: List<HookedAppInfo>,
         scopeSnapshot: LsposedScopeSnapshot?,
-        runtime: XposedRuntimeSnapshot?
+        runtime: XposedRuntimeSnapshot?,
+        probed: Boolean
     ) {
         _scopeSnapshot.value = scopeSnapshot
         _runtimeSnapshot.value = runtime
         _detectedApps.value = detected
-        _scopedPackages.value = detected.filter { it.isInstalled && it.inLsposedScope }.map { it.packageName }.toCollection(LinkedHashSet())
-        _moduleActivation.value = ModuleActivation.resolve(ModuleStatus.isModuleActive(), detected, System.currentTimeMillis())
+        _scopedPackages.value = detected.map { it.packageName }.toCollection(LinkedHashSet())
+        _moduleActivation.value = ModuleActivation.resolve(ModuleStatus.isModuleActive(), detected)
+        if (probed) {
+            _probeError.value = scopeSnapshot?.error ?: if (runtime == null) "Root process check failed" else null
+            _loaded.value = true
+        }
         _refreshEpoch.value = System.currentTimeMillis()
     }
 }

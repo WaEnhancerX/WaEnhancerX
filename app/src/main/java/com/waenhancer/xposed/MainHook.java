@@ -66,9 +66,7 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
     private static XSharedPreferences sPrefs;
     private static volatile PreferenceBridgeClient sPreferenceBridge;
     private static final AtomicBoolean TARGET_INITIALIZED = new AtomicBoolean(false);
-    private static final AtomicBoolean HEARTBEAT_STARTED = new AtomicBoolean(false);
     private static final AtomicBoolean INJECTION_TOAST_SHOWN = new AtomicBoolean(false);
-    private static final long HEARTBEAT_INTERVAL_MS = 10_000L;
     private static volatile String sRuntimeStatus = "INJECTED";
     private static volatile String sBridgeStatus = "PENDING";
     private static volatile String sRuntimeError;
@@ -580,19 +578,6 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
         sRuntimeError = error;
         WhatsAppPackageDetector.reportRuntimeHealth(
                 appContext, packageName, runtimeStatus, bridgeStatus, error);
-
-        if (HEARTBEAT_STARTED.compareAndSet(false, true)) {
-            Handler handler = new Handler(Looper.getMainLooper());
-            Runnable heartbeat = new Runnable() {
-                @Override
-                public void run() {
-                    WhatsAppPackageDetector.reportRuntimeHealth(
-                            appContext, packageName, sRuntimeStatus, sBridgeStatus, sRuntimeError);
-                    handler.postDelayed(this, HEARTBEAT_INTERVAL_MS);
-                }
-            };
-            handler.postDelayed(heartbeat, HEARTBEAT_INTERVAL_MS);
-        }
     }
 
     /**

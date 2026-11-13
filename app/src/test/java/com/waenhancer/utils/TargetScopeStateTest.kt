@@ -30,24 +30,53 @@ class TargetScopeStateTest {
     @Test fun `current injection overrides a live read that omits the target`() =
         assertEquals(TargetScopeState.INJECTED, classifyScope("com.whatsapp", snap(true), true))
 
+    private fun app(hooked: Boolean) = HookedAppInfo("a.b", "A", "v1", true, hooked)
+
     @Test fun `manager hook marks module active`() {
-        assertTrue(ModuleActivation.resolve(true, emptyList(), 1_000L).active)
+        val r = ModuleActivation.resolve(true, emptyList())
+        assertTrue(r.active); assertEquals(ModuleSignal.MANAGER_HOOK, r.signal)
     }
 
-    @Test fun `no signal means inactive`() {
-        assertFalse(ModuleActivation.resolve(false, emptyList(), 1_000L).active)
+    @Test fun `no signal means inactive`() = assertFalse(ModuleActivation.resolve(false, listOf(app(false))).active)
+
+    @Test fun `confirmed target injection proves module active without manager hook`() {
+        val r = ModuleActivation.resolve(false, listOf(app(true)))
+        assertTrue(r.active); assertEquals(ModuleSignal.TARGET_INJECTION, r.signal)
     }
 
-    @Test fun `fresh target report proves module active without manager hook`() {
-        val app = HookedAppInfo("com.whatsapp", "WhatsApp", "v1", true, false,
-            lastActiveTime = 1_000L, injectionEvidence = InjectionEvidence.PROCESS_OBSERVATION_UNAVAILABLE)
-        val r = ModuleActivation.resolve(false, listOf(app), 2_000L)
-        assertTrue(r.active); assertEquals(ModuleSignal.TARGET_REPORT, r.signal)
+    @Test fun `process list parses modern ps output and skips header`() {
+        val snap = parseProcessList("  PID NAME\n  101 com.example.chat\n  202 com.example.chat:service\n  303 zygote64\n  404 com.example.chat\n", 5L)
+        assertEquals(setOf(101, 404), snap.pidsFor("com.example.chat"))
+        assertEquals(emptySet<Int>(), snap.pidsFor("com.other.app")) // exhaustive: absent means not running
     }
 
-    @Test fun `expired target report does not prove module active`() {
-        val app = HookedAppInfo("com.whatsapp", "WhatsApp", "v1", true, false,
-            lastActiveTime = 1_000L, injectionEvidence = InjectionEvidence.PROCESS_OBSERVATION_UNAVAILABLE)
-        assertFalse(ModuleActivation.resolve(false, listOf(app), 100_000L).active)
+    @Test fun `process list parses legacy toolbox layout`() {
+        val snap = parseProcessList("USER PID PPID VSIZE RSS WCHAN PC NAME\nu0_a12 777 1 100 50 x 0 S com.example.chat\n", 5L)
+        assertEquals(setOf(777), snap.pidsFor("com.example.chat"))
+    }
+
+    @Test fun `truncated process probe is not treated as nothing running`() {
+        assertEquals(null, RootProbe.parseRuntime("WAEX_PS_BEGIN\n 1 com.a.b\n", 0L))
+        assertEquals(null, RootProbe.parseRuntime("", 0L))
+    }
+
+    @Test fun `complete process probe yields snapshot`() {
+        val snap = RootProbe.parseRuntime("WAEX_LSPOSED_DB_OK\nWAEX_PS_BEGIN\n PID NAME\n 9 com.a.b\nWAEX_PS_END\n", 0L)
+        assertEquals(setOf(9), snap?.pidsFor("com.a.b"))
+    }
+
+    @Test fun `scoped app outside the supported list is never a target`() {
+        val out = WhatsAppPackageDetector.selectCandidates(setOf("com.whatsapp", "com.google.chrome", "com.waenhancer"), emptySet())
+        assertEquals(listOf("com.whatsapp"), out)
+    }
+
+    @Test fun `supported app that is not in scope and has not reported is not a candidate`() {
+        // Nothing scoped, nothing reported: the fixed list alone never makes a target.
+        assertEquals(emptyList<String>(), WhatsAppPackageDetector.selectCandidates(emptySet(), emptySet()))
+    }
+
+    @Test fun `reported supported app is a candidate but a reported unsupported one is not`() {
+        val out = WhatsAppPackageDetector.selectCandidates(emptySet(), setOf("com.whatsapp.w4b", "com.evil.app"))
+        assertEquals(listOf("com.whatsapp.w4b"), out)
     }
 }

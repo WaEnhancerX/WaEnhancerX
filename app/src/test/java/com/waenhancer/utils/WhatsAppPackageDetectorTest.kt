@@ -8,9 +8,7 @@ class WhatsAppPackageDetectorTest {
 
     @Test
     fun `runtime inspection reads live process ids`() {
-        val snapshot = parseXposedRuntimeSnapshot(
-            "PID|com.whatsapp|123 456\n"
-        )
+        val snapshot = parseProcessList("123 com.whatsapp\n456 com.whatsapp\n")
         assertTrue(snapshot.runningPids["com.whatsapp"] == setOf(123, 456))
     }
 
@@ -23,14 +21,13 @@ class WhatsAppPackageDetectorTest {
                 currentBoot = 42,
                 reportedPid = 1234,
                 runningPids = setOf(1234),
-                lastActiveTime = 1_000L,
-                now = 2_000L
+                lastActiveTime = 1_000L
             )
         )
     }
 
     @Test
-    fun `stale process id and heartbeat are not injected`() {
+    fun `different live process id is not injected`() {
         assertFalse(
             hasCurrentInjection(
                 isModuleActive = true,
@@ -38,8 +35,7 @@ class WhatsAppPackageDetectorTest {
                 currentBoot = 42,
                 reportedPid = 1234,
                 runningPids = setOf(5678),
-                lastActiveTime = 1_000L,
-                now = 30_001L
+                lastActiveTime = 1_000L
             )
         )
     }
@@ -53,8 +49,7 @@ class WhatsAppPackageDetectorTest {
                 currentBoot = 42,
                 reportedPid = 1234,
                 runningPids = setOf(1234),
-                lastActiveTime = 1_000L,
-                now = 2_000L
+                lastActiveTime = 1_000L
             )
         )
     }
@@ -68,8 +63,7 @@ class WhatsAppPackageDetectorTest {
                 currentBoot = 42,
                 reportedPid = 1234,
                 runningPids = setOf(1234),
-                lastActiveTime = 1_000L,
-                now = 2_000L
+                lastActiveTime = 1_000L
             )
         )
     }
@@ -83,39 +77,9 @@ class WhatsAppPackageDetectorTest {
                 currentBoot = 42,
                 reportedPid = 1234,
                 runningPids = emptySet(),
-                lastActiveTime = 10_000L,
-                now = 20_000L
+                lastActiveTime = 10_000L
             )
         )
     }
 
-    @Test
-    fun `stale heartbeat cannot confirm injection without a matching live pid`() {
-        assertFalse(
-            hasCurrentInjection(
-                isModuleActive = true,
-                recordedBoot = 42,
-                currentBoot = 42,
-                reportedPid = 1234,
-                runningPids = emptySet(),
-                lastActiveTime = 10_000L,
-                now = 40_001L
-            )
-        )
-    }
-
-    @Test
-    fun `running process with a stale heartbeat is not injected`() {
-        assertFalse(
-            hasCurrentInjection(
-                isModuleActive = true,
-                recordedBoot = 42,
-                currentBoot = 42,
-                reportedPid = 1234,
-                runningPids = setOf(1234),
-                lastActiveTime = 10_000L,
-                now = 40_001L
-            )
-        )
-    }
 }

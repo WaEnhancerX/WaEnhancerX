@@ -6,18 +6,6 @@ object TargetRuntimePresentation {
     data class Status(val text: String, val severity: Severity)
     data class Summary(val text: String, val healthy: Boolean?)
 
-    /** Expire positive evidence without another root process or PackageManager scan. */
-    fun asOf(app: HookedAppInfo, nowWall: Long, nowElapsed: Long): HookedAppInfo {
-        if (!app.isHooked) return app
-        val evidence = when {
-            !isRecentTimestamp(app.lastActiveTime, nowWall) -> InjectionEvidence.REPORT_EXPIRED
-            !isRecentTimestamp(app.processObservedAtElapsed, nowElapsed) -> InjectionEvidence.PROCESS_OBSERVATION_UNAVAILABLE
-            else -> app.injectionEvidence
-        }
-        return if (evidence == InjectionEvidence.CURRENT) app else
-            app.copy(isHooked = false, injectionEvidence = evidence, injectedHooks = emptyList())
-    }
-
     fun card(app: HookedAppInfo, moduleActive: Boolean, decision: UniversalVersionValidator.Decision): Status = when {
         !app.isInstalled -> Status("Not installed", Severity.UNKNOWN)
         !moduleActive -> Status("Module inactive", Severity.REVIEW)

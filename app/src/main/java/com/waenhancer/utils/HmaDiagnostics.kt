@@ -77,9 +77,7 @@ object HmaDiagnostics {
         // Empty means no live scoped targets. Never fall back to every installed/declared app:
         // scope is the security boundary for this diagnostic.
         val liveScope = (scopeSnapshot ?: LsposedScopeReader.read(context)).packages
-        val packagesToCheck = targetPackages.filterTo(linkedSetOf()) {
-            it in DeclaredWhatsAppTargets.packages() && it in liveScope
-        }
+        val packagesToCheck = targetPackages.filterTo(linkedSetOf()) { it in liveScope }
 
         fun inactiveReport(state: HmaState, reason: String) = HmaReport(
             state,
@@ -171,11 +169,7 @@ object HmaDiagnostics {
             val info = pm.getApplicationInfo(packageName, 0)
             pm.getApplicationLabel(info).toString()
         } catch (_: Exception) {
-            when {
-                packageName == "com.whatsapp" -> "WhatsApp"
-                packageName == "com.whatsapp.w4b" -> "WhatsApp Business"
-                else -> packageName
-            }
+            packageName
         }
     }
 
@@ -335,8 +329,7 @@ object HmaDiagnostics {
      * when whitelist mode is enabled).
      */
     suspend fun fixTargetIsolation(context: Context, targetPackage: String): Boolean = withContext(Dispatchers.IO) {
-        if (!DeclaredWhatsAppTargets.contains(targetPackage) ||
-            !LsposedScopeReader.read(context).contains(targetPackage)) return@withContext false
+        if (!LsposedScopeReader.read(context).contains(targetPackage)) return@withContext false
         // Force-stop HMA and any related processes BEFORE reading/modifying configuration
         forceStopHmaApps(context)
 

@@ -402,32 +402,26 @@ fun MainContainerScreen() {
     val configMode = preferenceManager.getString("module_config_mode", "Universal")
     val isPerTargetApp = configMode == "Per Target App"
 
-    val targetPackages = listOf("com.whatsapp", "com.whatsapp.w4b")
-    val fallbackNames = mapOf(
-        "com.whatsapp" to stringResource(R.string.target_whatsapp),
-        "com.whatsapp.w4b" to "WA Business"
-    )
-
     data class TargetAppInfo(
         val packageName: String,
         val label: String,
         val icon: androidx.compose.ui.graphics.ImageBitmap?
     )
 
-    LaunchedEffect(Unit) {
-        TargetAppManager.init(context)
-    }
-
+    // Targets are read on demand with root while the home screen is visible; nothing runs when it is not.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                TargetAppManager.refresh(context)
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> TargetAppManager.attach(context)
+                Lifecycle.Event.ON_PAUSE -> TargetAppManager.detach(context)
+                else -> Unit
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+            TargetAppManager.detach(context)
         }
     }
 
@@ -452,7 +446,7 @@ fun MainContainerScreen() {
             }.getOrNull()
 
             // Priority 3: Built-in localized fallback name
-            val label = launcherLabel ?: appLabel ?: fallbackNames[pkg].orEmpty()
+            val label = launcherLabel ?: appLabel ?: pkg
 
             val icon = runCatching {
                 pm.getApplicationIcon(pkg).toBitmap(64, 64).asImageBitmap()
@@ -462,14 +456,12 @@ fun MainContainerScreen() {
         }
     }
 
-    var selectedPackage by remember { mutableStateOf(targetPackages.first()) }
+    var chosenPackage by remember { mutableStateOf<String?>(null) }
+    // Always a package that is currently an active target, or null when there is none.
+    val selectedPackage = chosenPackage?.takeIf { pkg -> visibleTargetApps.any { it.packageName == pkg } }
+        ?: visibleTargetApps.firstOrNull()?.packageName
     // Update synchronously before any preference-backed screen is composed.
     preferenceManager.setTargetPackage(selectedPackage)
-    LaunchedEffect(visibleTargetApps) {
-        if (visibleTargetApps.isNotEmpty() && visibleTargetApps.none { it.packageName == selectedPackage }) {
-            selectedPackage = visibleTargetApps.first().packageName
-        }
-    }
     var showTargetMenu by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -828,7 +820,7 @@ fun MainContainerScreen() {
                                                             }
                                                         },
                                                         onClick = {
-                                                            selectedPackage = target.packageName
+                                                            chosenPackage = target.packageName
                                                             showTargetMenu = false
                                                         }
                                                     )

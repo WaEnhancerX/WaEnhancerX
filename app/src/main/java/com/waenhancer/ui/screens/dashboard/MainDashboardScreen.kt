@@ -102,12 +102,10 @@ import com.waenhancer.utils.SystemDiagnostics
 import com.waenhancer.utils.SystemDiagnosticsReader
 import com.waenhancer.utils.UniversalVersionValidator
 import com.waenhancer.utils.WhatsAppPackageDetector
-import com.waenhancer.utils.XposedRuntimeInspector
 import com.waenhancer.utils.LsposedScopeReader
 import com.waenhancer.utils.LsposedScopeSnapshot
 import com.waenhancer.utils.TargetAppManager
 import com.waenhancer.utils.TargetRuntimePresentation
-import com.waenhancer.ui.components.rememberRuntimeObservationClock
 import com.waenhancer.xposed.utils.AppRestartHelper
 import com.waenhancer.xposed.utils.ModuleStatus
 import androidx.compose.runtime.collectAsState
@@ -169,7 +167,6 @@ fun MainDashboardScreen(
 
     var diagnosticsRefreshTrigger by remember { mutableIntStateOf(0) }
     val scopeSnapshot by TargetAppManager.scopeSnapshot.collectAsState()
-    val runtimeSnapshot by TargetAppManager.runtimeSnapshot.collectAsState()
     val reportedApps by TargetAppManager.detectedApps.collectAsState()
     val refreshEpoch by TargetAppManager.refreshEpoch.collectAsState()
 
@@ -220,7 +217,6 @@ fun MainDashboardScreen(
             if (event == Lifecycle.Event.ON_RESUME) {
                 refreshTrigger++
                 diagnosticsRefreshTrigger++
-                TargetAppManager.refresh(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -229,10 +225,7 @@ fun MainDashboardScreen(
         }
     }
 
-    val observationTime = rememberRuntimeObservationClock()
-    val detectedApps = reportedApps.map {
-        TargetRuntimePresentation.asOf(it, observationTime.wall, observationTime.elapsed)
-    }
+    val detectedApps = reportedApps
     val prefs = remember(context) { PreferenceStores.publicStore(context) }
     val versionDecisions = remember(reportedApps, refreshTrigger, refreshEpoch) {
         reportedApps.associate { it.packageName to UniversalVersionValidator.evaluate(context, it.versionName, prefs) }
@@ -575,7 +568,7 @@ fun MainDashboardScreen(
                     diagnosticsRefreshTrigger++
                     hmaRefreshTrigger++
                     denylistRefreshTrigger++
-                    TargetAppManager.refresh(context, force = true)
+                    TargetAppManager.refresh(context)
                 },
                 onViewDetails = { navController.navigateTo(Screen.SystemHealth) },
                 onViewSupportedVersions = { navController.navigateTo(Screen.SupportedVersions) },

@@ -52,7 +52,6 @@ import com.waenhancer.utils.TargetAppManager
 import com.waenhancer.utils.LsposedScopeReader
 import com.waenhancer.utils.LsposedScopeSnapshot
 import com.waenhancer.utils.TargetRuntimePresentation
-import com.waenhancer.ui.components.rememberRuntimeObservationClock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.BorderStroke
@@ -85,7 +84,7 @@ fun SystemHealthScreen() {
         mutableStateOf(preferences.getBoolean("show_restart_sheet", true))
     }
     LaunchedEffect(refreshTrigger) {
-        if (refreshTrigger > 0) TargetAppManager.refresh(context, force = true)
+        if (refreshTrigger > 0) TargetAppManager.refresh(context)
     }
     LaunchedEffect(refreshTrigger, moduleActivation.active) {
         diagnostics = withContext(Dispatchers.IO) {
@@ -129,10 +128,7 @@ fun SystemHealthScreen() {
     ) { insets ->
         val data = diagnostics
         val reportedApps = activeTargets.filter { it.isInstalled }
-            val observationTime = rememberRuntimeObservationClock()
-            val targetApps = reportedApps.map {
-                TargetRuntimePresentation.asOf(it, observationTime.wall, observationTime.elapsed)
-            }
+            val targetApps = reportedApps
             Column(
                 Modifier.fillMaxSize().padding(insets).verticalScroll(rememberScrollState()).padding(horizontal = spacing.pageMargin, vertical = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
