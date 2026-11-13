@@ -177,6 +177,22 @@ public class HookProvider extends ContentProvider {
                 return result;
             }
 
+            if ("theme_asset".equals(method)) {
+                // Serves a bundled theme image/font to the hooked process; names are validated flat files.
+                File asset = com.waenhancer.theme.ThemeRepository.Companion.assetFile(
+                        context, arg, extras != null ? extras.getString("name") : null);
+                if (asset == null) return null;
+                try {
+                    Bundle result = new Bundle();
+                    result.putParcelable("descriptor",
+                            ParcelFileDescriptor.open(asset, ParcelFileDescriptor.MODE_READ_ONLY));
+                    result.putLong("length", asset.length());
+                    return result;
+                } catch (IOException ignored) {
+                    return null;
+                }
+            }
+
             if ("register_hooked_package".equals(method)) {
                 String pkg = (arg != null) ? arg : (extras != null ? extras.getString("package") : null);
                 if (pkg != null && callerOwnsPackage(context, callerUid, pkg)) {
@@ -322,6 +338,13 @@ public class HookProvider extends ContentProvider {
                 Bundle result = new Bundle();
                 if (key != null) {
                     Object value = prefs.getAll().get(key);
+                    String callerPackage = targetPackageForCaller(context, callerUid);
+                    if (callerPackage != null && !"module_config_mode".equals(key)
+                            && "Per Target App".equals(prefs.getString("module_config_mode", "Universal"))) {
+                        // A target only ever sees its own override, never another target's value.
+                        Object scopedValue = prefs.getAll().get(callerPackage + ":" + key);
+                        if (scopedValue != null) value = scopedValue;
+                    }
                     if (value instanceof Boolean) result.putBoolean("value", (Boolean) value);
                     else if (value instanceof String) result.putString("value", (String) value);
                     else if (value instanceof Integer) result.putInt("value", (Integer) value);
@@ -503,8 +526,12 @@ public class HookProvider extends ContentProvider {
     }
 
     private void initializeTarget(SharedPreferences prefs, String packageName) {
+        // Seed only once; see WaexPreferenceManager.TARGET_SEEDED_KEY.
+        String seededKey = packageName + ":" + com.waenhancer.core.preferences.WaexPreferenceManager.TARGET_SEEDED_KEY;
+        if (prefs.getBoolean(seededKey, false)) return;
         SharedPreferences.Editor editor = prefs.edit();
-        boolean changed = false;
+        boolean changed = true;
+        editor.putBoolean(seededKey, true);
         for (PreferenceSchema.Entry entry : PreferenceSchema.all().values()) {
             if (entry.store != PreferenceSchema.Store.PUBLIC || entry.sensitivity == PreferenceSchema.Sensitivity.RUNTIME) continue;
             String scoped = packageName + ":" + entry.key;

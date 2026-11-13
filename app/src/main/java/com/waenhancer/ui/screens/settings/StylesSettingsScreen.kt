@@ -397,7 +397,7 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
                                         )
                                         val reqPro = stringResource(R.string.requires_pro_label)
                                         Text(
-                                            text = if (needsTypedEditor) "$locDesc • ${typedStyleSummary(item.key, preferenceManager, typedValueRevision)}"
+                                            text = if (needsTypedEditor) "$locDesc • ${typedStyleSummary(item.key, preferenceManager, typedValueRevision, LocalContext.current)}"
                                                 else if (isLocked) "$locDesc • $reqPro" else locDesc,
                                             style = typography.bodyMd,
                                             color = colors.onSurfaceVariant,
@@ -651,14 +651,26 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
         }
     }
 
+    var writeThemeCss by remember { mutableStateOf(false) }
     typedEditorKey?.let { key ->
+        if (key == "custom_theme" && !writeThemeCss) {
+            ThemeLibrarySheet(
+                preferenceManager = preferenceManager,
+                onDismiss = { typedEditorKey = null },
+                onChanged = { typedValueRevision++ },
+                onWriteCss = { writeThemeCss = true }
+            )
+            return@let
+        }
+        if (key != "custom_theme") writeThemeCss = false
         TypedStyleEditorDialog(
             key = key,
             preferenceManager = preferenceManager,
-            onDismiss = { typedEditorKey = null },
+            onDismiss = { typedEditorKey = null; writeThemeCss = false },
             onSaved = {
                 typedValueRevision++
                 typedEditorKey = null
+                writeThemeCss = false
             }
         )
     }
@@ -1365,9 +1377,14 @@ private fun isValidCustomCss(css: String): Boolean {
 private fun typedStyleSummary(
     key: String,
     preferenceManager: WaexPreferenceManager,
-    @Suppress("UNUSED_PARAMETER") revision: Int
+    @Suppress("UNUSED_PARAMETER") revision: Int,
+    context: android.content.Context
 ): String = when (key) {
-    "custom_theme" -> if (preferenceManager.getString("css_theme", "").isNullOrBlank()) UiText.get(R.string.waex_ui_not_configured, "Not configured") else UiText.get(R.string.waex_ui_configured, "Configured")
+    "custom_theme" -> when {
+        preferenceManager.getString("css_theme", "").isNullOrBlank() -> UiText.get(R.string.waex_ui_not_configured, "Not configured")
+        else -> com.waenhancer.theme.ThemeRepository(context.applicationContext, preferenceManager).activeTheme()?.displayName
+            ?: UiText.get(R.string.waex_ui_custom_css, "Custom CSS")
+    }
     "custom_view_dpi" -> preferenceManager.getString("change_dpi", "0")?.let { if (it == "0") UiText.get(R.string.waex_ui_device_default, "Device default") else "$it DPI" } ?: UiText.get(R.string.waex_ui_device_default, "Device default")
     "chat_filters" -> when (preferenceManager.getString("chatfilter", "2")) { "0" -> UiText.get(R.string.waex_ui_search_hidden, "Search hidden"); "1" -> UiText.get(R.string.waex_ui_search_icon, "Search icon"); else -> UiText.get(R.string.waex_ui_search_bar, "Search bar") }
     "hide_ui_tabs" -> preferenceManager.getStringSet("hidetabs", emptySet())?.let { if (it.isEmpty()) UiText.get(R.string.waex_ui_no_tabs_hidden, "No tabs hidden") else UiText.get(R.string.waex_ui_1_s_hidden, "%1\$s hidden", it.size) } ?: UiText.get(R.string.waex_ui_no_tabs_hidden, "No tabs hidden")

@@ -257,7 +257,7 @@
     <string name="feat_bubble_colors_title">Change Bubble Colors</string>
     <string name="feat_bubble_colors_desc">Change Bubble Color on Conversation Screen</string>
     <string name="feat_custom_theme_title">Custom Theme CSS</string>
-    <string name="feat_custom_theme_desc">Customize your WhatsApp using CSS styles</string>
+    <string name="feat_custom_theme_desc">Import, switch and write themes (CSS styles with images) for WhatsApp</string>
     <string name="feat_custom_time_format_title">Custom Timestamp</string>
     <string name="feat_custom_time_format_desc">Customize the timestamp format and text on messages in WhatsApp</string>
     <string name="feat_bypass_screenshot_restriction_title">Allow screenshots</string>

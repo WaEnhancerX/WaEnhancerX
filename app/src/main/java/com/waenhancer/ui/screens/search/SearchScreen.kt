@@ -55,6 +55,7 @@ typealias SearchablePreference = FeatureItem
 
 private val preferenceSearchAliases = mapOf(
     "chat_filters" to "chat search display search bar search icon hide search no search chatfilter",
+    "custom_theme" to "theme themes library import theme zip package css style stylesheet custom theme wallpaper colors appearance",
     "anti_revoke" to "show as deleted native deleted message layout"
 )
 

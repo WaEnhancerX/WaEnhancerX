@@ -1,7 +1,6 @@
 package com.waenhancer.xposed.core.components;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
@@ -122,19 +121,15 @@ public final class NativeColorPickerDialog {
 
         ScrollView scroll = new ScrollView(activity);
         scroll.addView(content);
-        AlertDialog dialog = new AlertDialog.Builder(activity)
+        new com.waenhancer.xposed.core.components.WaexBottomSheet(activity)
                 .setTitle("Choose color")
                 .setView(scroll)
-                .setPositiveButton(android.R.string.ok, null)
-                .setNegativeButton(android.R.string.cancel, null)
-                .create();
-        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
-                .setOnClickListener(v -> {
+                .setPositiveButton(activity.getString(android.R.string.ok), (d, which) -> {
                     remember(selectedColor);
                     listener.onColorSelected(selectedColor);
-                    dialog.dismiss();
-                }));
-        dialog.show();
+                })
+                .setNegativeButton(activity.getString(android.R.string.cancel), null)
+                .show();
     }
 
     private GridLayout createPalette() {

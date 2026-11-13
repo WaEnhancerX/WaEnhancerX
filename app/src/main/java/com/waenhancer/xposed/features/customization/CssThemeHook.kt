@@ -26,6 +26,17 @@ import java.util.WeakHashMap
 import kotlin.math.roundToInt
 import android.graphics.drawable.ColorDrawable
 import android.util.TypedValue
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.ColorFilter
+import android.graphics.PixelFormat
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
+import android.net.Uri
+import android.os.ParcelFileDescriptor
+import android.util.LruCache
+import com.waenhancer.theme.ThemeIds
 
 /** Applies CSS-like rules to WhatsApp views without requiring a theme package. */
 class CssThemeHook(
@@ -40,6 +51,11 @@ class CssThemeHook(
     private var rules: List<StyleRule> = emptyList()
     private val forcedVisibility = Collections.synchronizedMap(WeakHashMap<View, Int>())
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val assetCache = LruCache<String, Bitmap>(24)
+    private val missingAssets = Collections.synchronizedSet(HashSet<String>())
+
+    @Volatile
+    private var themeId: String? = null
 
     override fun hook() {
         reloadRules()
@@ -77,7 +93,7 @@ class CssThemeHook(
             mainHandler.post { applyRecursively(activity.window?.decorView) }
         }
         prefs.registerOnSharedPreferenceChangeListener { _, key ->
-            if (key == CSS_KEY || key == LEGACY_CSS_KEY) {
+            if (key == CSS_KEY || key == LEGACY_CSS_KEY || key == THEME_KEY) {
                 reloadRules()
                 mainHandler.post {
                     applyRecursively(ActivityTracker.getCurrentActivity()?.window?.decorView)
@@ -88,9 +104,12 @@ class CssThemeHook(
 
     private fun reloadRules() {
         forcedVisibility.clear()
-        val css = prefs.getString("css_theme", "").orEmpty().ifBlank {
-            prefs.getString("custom_css", "").orEmpty()
-        }
+        assetCache.evictAll()
+        missingAssets.clear()
+        themeId = prefs.getString(THEME_KEY, null)?.takeIf(ThemeIds::isValidId)
+        // An explicit (even empty) css_theme wins; the legacy key only serves installs that never set it.
+        val css = if (prefs.contains(CSS_KEY)) prefs.getString("css_theme", "").orEmpty()
+        else prefs.getString("custom_css", "").orEmpty()
         rules = runCatching { parseRules(css) }
             .onFailure { XposedBridge.log("WAEX: invalid custom CSS: ${it.message}") }
             .getOrDefault(emptyList())
@@ -134,8 +153,9 @@ class CssThemeHook(
                     "alpha", "opacity" -> value.toFloatOrNull()?.let {
                         view.alpha = it.coerceIn(0f, 1f)
                     }
-                    "background", "background-color" -> applyBackground(view, value)
-                    "foreground" -> parseColor(view, value)?.let { view.foreground = ColorDrawable(it) }
+                    "background", "background-color", "background-image" -> applyBackground(view, value, declarations)
+                    "foreground" -> (parseUrlDrawable(view, value, declarations) ?: parseColor(view, value)?.let { ColorDrawable(it) })
+                        ?.let { view.foreground = it }
                     "width" -> view.layoutParams?.let { params ->
                         resolveDimension(view, value, true)?.let { params.width = it; requestLayout = true }
                     }
@@ -184,13 +204,75 @@ class CssThemeHook(
         if (requestLayout) view.requestLayout()
     }
 
-    private fun applyBackground(view: View, value: String) {
+    private fun applyBackground(view: View, value: String, declarations: Map<String, String>) {
         if (value.equals("none", true) || value.equals("transparent", true)) {
             view.background = null
             return
         }
         parseLinearGradient(view, value)?.let { view.background = it; return }
+        parseUrlDrawable(view, value, declarations)?.let { view.background = it; return }
         parseColor(view, value)?.let(view::setBackgroundColor)
+    }
+
+    /** Resolves `url('file.png')` against the active theme's bundled assets, honouring `background-size`. */
+    private fun parseUrlDrawable(view: View, value: String, declarations: Map<String, String>?): Drawable? {
+        val name = URL.find(value)?.groupValues?.get(1)?.trim('"', '\'', ' ') ?: return null
+        val bitmap = loadAsset(name) ?: return null
+        val size = declarations?.get("background-size")?.trim()?.lowercase()
+        return AssetDrawable(BitmapDrawable(view.resources, bitmap), cover = size == "cover", contain = size == "contain")
+    }
+
+    private fun loadAsset(name: String): Bitmap? {
+        val id = themeId ?: return null
+        if (!ThemeIds.isValidAssetName(name)) return null
+        val key = "$id/$name"
+        assetCache.get(key)?.let { return it }
+        if (key in missingAssets) return null
+        val bitmap = runCatching {
+            val result = context.contentResolver.call(
+                Uri.parse("content://com.waenhancer.hookprovider"), "theme_asset", id,
+                android.os.Bundle().apply { putString("name", name) }
+            )
+            val descriptor = result?.getParcelable<ParcelFileDescriptor>("descriptor") ?: return@runCatching null
+            ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { input ->
+                val bytes = input.readBytes()
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+                var sample = 1
+                while (bounds.outWidth / sample > MAX_ASSET_EDGE || bounds.outHeight / sample > MAX_ASSET_EDGE) sample *= 2
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })
+            }
+        }.onFailure { XposedBridge.log("WAEX: theme asset $name failed: ${it.message}") }.getOrNull()
+        if (bitmap != null) assetCache.put(key, bitmap) else missingAssets.add(key)
+        return bitmap
+    }
+
+    /** Draws a bitmap stretched (default), center-cropped (`cover`) or letterboxed (`contain`). */
+    private class AssetDrawable(private val bitmap: BitmapDrawable, private val cover: Boolean, private val contain: Boolean) : Drawable() {
+        override fun draw(canvas: Canvas) {
+            val b = bounds
+            val source = bitmap.bitmap
+            if (!cover && !contain) {
+                bitmap.setBounds(b.left, b.top, b.right, b.bottom)
+                bitmap.draw(canvas)
+                return
+            }
+            val scale = if (cover) maxOf(b.width() / source.width.toFloat(), b.height() / source.height.toFloat())
+            else minOf(b.width() / source.width.toFloat(), b.height() / source.height.toFloat())
+            val w = (source.width * scale).roundToInt()
+            val h = (source.height * scale).roundToInt()
+            val left = b.left + (b.width() - w) / 2
+            val top = b.top + (b.height() - h) / 2
+            val save = canvas.save()
+            canvas.clipRect(b)
+            bitmap.setBounds(left, top, left + w, top + h)
+            bitmap.draw(canvas)
+            canvas.restoreToCount(save)
+        }
+        override fun setAlpha(alpha: Int) { bitmap.alpha = alpha }
+        override fun setColorFilter(colorFilter: ColorFilter?) { bitmap.colorFilter = colorFilter }
+        @Suppress("OVERRIDE_DEPRECATION")
+        override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
     }
 
     private fun applyRoundedBackground(view: View, value: String) {
@@ -343,12 +425,31 @@ class CssThemeHook(
 
     private fun parseRules(css: String): List<StyleRule> {
         val cleanCss = COMMENTS.replace(css, "")
-        return RULE.findAll(cleanCss).flatMap { match ->
-            val declarations = parseDeclarations(match.groupValues[2])
+        val blocks = RULE.findAll(cleanCss).toList()
+        // `:root { --accent: #ff5500; }` defines variables usable anywhere as var(--accent).
+        val variables = HashMap<String, String>()
+        blocks.filter { it.groupValues[1].trim() == ":root" }.forEach { match ->
+            parseDeclarations(match.groupValues[2]).forEach { (key, value) ->
+                if (key.startsWith("--")) variables[key] = value
+            }
+        }
+        return blocks.asSequence().filter { it.groupValues[1].trim() != ":root" }.flatMap { match ->
+            val declarations = parseDeclarations(match.groupValues[2]).mapValues { (_, v) -> resolveVariables(v, variables) }
             match.groupValues[1].split(',').asSequence().mapNotNull { rawSelector ->
                 parseSelector(rawSelector.trim())?.let { StyleRule(it, declarations) }
             }
         }.toList()
+    }
+
+    private fun resolveVariables(value: String, variables: Map<String, String>): String {
+        var resolved = value
+        repeat(4) { // bounded depth: variables may reference other variables, but never loop forever
+            if (!resolved.contains("var(", ignoreCase = true)) return resolved
+            resolved = VAR.replace(resolved) { match ->
+                variables[match.groupValues[1].lowercase()] ?: match.groupValues[2].trim()
+            }
+        }
+        return resolved
     }
 
     private fun parseDeclarations(block: String): Map<String, String> = linkedMapOf<String, String>().apply {
@@ -435,6 +536,10 @@ class CssThemeHook(
     private companion object {
         const val CSS_KEY = "css_theme"
         const val LEGACY_CSS_KEY = "custom_css"
+        const val THEME_KEY = "active_theme"
+        const val MAX_ASSET_EDGE = 2048
+        val URL = Regex("(?i)url\\(([^)]*)\\)")
+        val VAR = Regex("(?i)var\\(\\s*(--[a-z0-9_-]+)\\s*(?:,([^)]*))?\\)")
         val COMMENTS = Regex("(?s)/\\*.*?\\*/")
         val RULE = Regex("(?s)([^{}]+)\\{([^{}]*)\\}")
         val CONTAINS = Regex("(?i):contains\\(([^)]*)\\)")
