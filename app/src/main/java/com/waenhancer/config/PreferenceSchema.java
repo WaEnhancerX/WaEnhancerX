@@ -68,6 +68,19 @@ public final class PreferenceSchema {
     public static final String KEY_DIAGNOSTIC_TARGET_EXIT_ENABLED = "diagnostic_target_exit_enabled";
     public static final String KEY_DIAGNOSTIC_TARGET_EXIT_SINCE = "diagnostic_target_exit_since_ms";
 
+    /**
+     * Version-compatibility rules decide whether WAEX may load at all, for every target app,
+     * so they are never scoped per target. Scoping them let a stale seeded copy (or a flag
+     * toggled while another target was selected) silently override the rules the user saw.
+     */
+    public static boolean isGlobalOnly(String key) {
+        return "module_config_mode".equals(key)
+                || "customize_supported_versions".equals(key)
+                || "custom_supported_versions".equals(key)
+                || "custom_supported_versions_str".equals(key)
+                || "bypass_version_check".equals(key);
+    }
+
     private static final Map<String, Entry> ENTRIES;
     private static final Set<String> EXPORTABLE;
     private static final Set<String> PUBLIC_KEYS;

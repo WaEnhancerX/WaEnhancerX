@@ -62,6 +62,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import com.waenhancer.xposed.features.automation.PresenceToastsHook;
 import java.lang.reflect.Constructor;
@@ -2059,14 +2060,52 @@ public class AntiRevokeHook extends BaseFeature {
                 dateTextView = findDateTextViewFallback(rowView);
             }
 
-            if (dateTextView == null) {
-                return;
+            if (dateTextView != null) {
+                decorateRevokedTextView(dateTextView, messageTextView, rowContext, deletedTimestamp);
             }
-
-            decorateRevokedTextView(dateTextView, messageTextView, rowContext, deletedTimestamp);
+            // WhatsApp binds (and re-binds) the date text of freshly created / media rows after
+            // getView returns, which either left no date view yet or overwrote our indicator.
+            // Verify a few times and re-apply, instead of leaving the row undecorated until the
+            // next full refresh.
+            scheduleDecorationVerification(rowView, rowView.getTag(TAG_KEY_ID), deletedTimestamp, 0);
         } catch (Throwable t) {
             XposedBridge.log(TAG + " decorateRevokedRow error: " + t.getClass().getSimpleName());
         }
+    }
+
+    private static final long[] VERIFY_DELAYS_MS = {80L, 250L, 700L, 1500L};
+
+    private void scheduleDecorationVerification(@NonNull ViewGroup rowView, @Nullable Object keyTag,
+                                                long deletedTimestamp, int attempt) {
+        if (attempt >= VERIFY_DELAYS_MS.length) return;
+        rowView.postDelayed(() -> {
+            try {
+                // Row was recycled/reset or now shows another message: nothing to heal.
+                if (rowView.getTag(TAG_DECORATED) == null) return;
+                if (!Objects.equals(keyTag, rowView.getTag(TAG_KEY_ID))) return;
+                if (!rowView.isAttachedToWindow()) return;
+
+                Context ctx = rowView.getContext();
+                TextView date = sDateResId != 0 ? rowView.findViewById(sDateResId) : null;
+                TextView msg = sMsgTextResId != 0 ? rowView.findViewById(sMsgTextResId) : null;
+                if (date == null) date = findDateTextViewFallback(rowView);
+                if (date != null && !isIndicatorApplied(date)) {
+                    decorateRevokedTextView(date, msg, ctx, deletedTimestamp);
+                }
+            } catch (Throwable ignored) {
+            }
+            scheduleDecorationVerification(rowView, keyTag, deletedTimestamp, attempt + 1);
+        }, VERIFY_DELAYS_MS[attempt]);
+    }
+
+    private boolean isIndicatorApplied(@NonNull TextView date) {
+        CharSequence text = date.getText();
+        if (text == null || text.length() == 0) return false;
+        if (getIndicatorType() == 1) {
+            return text.toString().startsWith(UiText.get(R.string.waex_ui_deleted, "Deleted • "));
+        }
+        Drawable[] drawables = date.getCompoundDrawables();
+        return drawables[2] != null || text.toString().startsWith("🚫");
     }
 
     public void decorateRevokedTextView(@NonNull TextView dateTextView, @Nullable TextView messageTextView, @NonNull Context rowContext, long deletedTimestamp) {
@@ -2099,9 +2138,18 @@ public class AntiRevokeHook extends BaseFeature {
 
             // Save original date text
             String originalDate = (String) XposedHelpers.getAdditionalInstanceField(dateTextView, "waex_original_date");
-            if (originalDate == null) {
-                originalDate = dateTextView.getText().toString();
+            String liveText = String.valueOf(dateTextView.getText());
+            // Keep the stored original in sync when WhatsApp (re)bound the date after our last
+            // decoration; never capture an empty or already-decorated string as the original.
+            boolean liveIsDecorated = liveText.startsWith(UiText.get(R.string.waex_ui_deleted, "Deleted • "))
+                    || liveText.startsWith("🚫");
+            if (!liveText.isEmpty() && !liveIsDecorated && !liveText.equals(originalDate)) {
+                originalDate = liveText;
                 XposedHelpers.setAdditionalInstanceField(dateTextView, "waex_original_date", originalDate);
+            }
+            if (originalDate == null || originalDate.isEmpty()) {
+                // Date not bound yet: leave the view alone; the verification pass retries.
+                return;
             }
 
             if (indicatorType == 1) { // Show "Deleted" text

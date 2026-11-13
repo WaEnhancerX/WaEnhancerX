@@ -47,6 +47,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -103,16 +104,23 @@ fun SupportedVersionsScreen() {
         }
     }
 
+    // Bumped whenever rules change. SharedPreferences is not Compose state, so the per-app
+    // decisions below must depend on something Compose observes or they go stale.
+    var rulesRevision by remember { mutableIntStateOf(0) }
+
     fun refreshCustomList() {
         customVersionsList.clear()
         customVersionsList.addAll(UniversalVersionValidator.getCustomVersions(prefs))
+        rulesRevision++
     }
 
     // Dynamic list of detected WhatsApp packages & clones
     val detectedApps by TargetAppManager.detectedApps.collectAsState()
 
-    val decisions = detectedApps.associate {
-        it.packageName to UniversalVersionValidator.evaluate(context, it.versionName, prefs)
+    val decisions = remember(detectedApps, rulesRevision, isCustomizeEnabled, isBypassEnabled) {
+        detectedApps.associate {
+            it.packageName to UniversalVersionValidator.evaluate(context, it.versionName, prefs)
+        }
     }
     val unsupportedApps = detectedApps.filter { app ->
         app.isInstalled && decisions[app.packageName] == UniversalVersionValidator.Decision.UNSUPPORTED
@@ -554,7 +562,7 @@ private fun AppVersionStatusCard(
                             decision == UniversalVersionValidator.Decision.BUILTIN_RULE -> UiText.get(R.string.waex_l10n_builtin_match, "Supported")
                             decision == UniversalVersionValidator.Decision.CUSTOM_RULE -> UiText.get(R.string.waex_l10n_custom_unverified, "Custom")
                             decision == UniversalVersionValidator.Decision.EXPLICIT_BYPASS -> UiText.get(R.string.waex_l10n_bypass_unverified, "Bypass active (unverified)")
-                            decision == UniversalVersionValidator.Decision.UNSUPPORTED -> UiText.get(R.string.waex_l10n_rejected_rules, "Version rejected by rules")
+                            decision == UniversalVersionValidator.Decision.UNSUPPORTED -> UiText.get(R.string.waex_ui_unsupported, "Unsupported")
                             else -> UiText.get(R.string.waex_l10n_version_check_unavailable, "Version check unavailable")
                         },
                         style = typography.labelSm,

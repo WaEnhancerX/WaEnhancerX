@@ -116,7 +116,11 @@ public final class DelMessageStore extends SQLiteOpenHelper {
                     return ts;
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {
+            // A transient read failure is not proof the message was never revoked; do not
+            // cache it as a miss, or the indicator stays hidden until the entry is evicted.
+            return 0L;
+        }
 
         timestampCache.put(msgId, -1L);
         return 0L;

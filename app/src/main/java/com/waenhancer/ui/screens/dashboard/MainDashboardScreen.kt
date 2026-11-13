@@ -374,10 +374,14 @@ fun MainDashboardScreen(
                                         }
                                     )
                             ) {
+                                Box {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(12.dp)
+                                        .padding(
+                                            start = 12.dp, end = 12.dp, bottom = 12.dp,
+                                            top = if (app.isInstalled && decision == UniversalVersionValidator.Decision.UNSUPPORTED) 34.dp else 12.dp
+                                        )
                                 ) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
@@ -548,6 +552,44 @@ fun MainDashboardScreen(
                                                     modifier = Modifier.size(13.dp)
                                                 )
                                             }
+                                        }
+                                    }
+                                }
+                                    if (app.isInstalled && decision == UniversalVersionValidator.Decision.UNSUPPORTED) {
+                                        // Floating call-to-action chip: noticeable, but the card keeps its normal look.
+                                        Row(
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .padding(top = 8.dp, end = 10.dp)
+                                                .clip(CircleShape)
+                                                .background(colors.error)
+                                                .clickable { navController.navigateTo(Screen.SupportedVersions) }
+                                                .padding(start = 8.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = WaexIcons.Warning,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                            Text(
+                                                text = UiText.get(R.string.waex_ui_unsupported, "Unsupported") + " · " +
+                                                    UiText.get(R.string.waex_ui_chip_add_support, "Add support"),
+                                                style = typography.labelSm,
+                                                color = Color.White,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                maxLines = 1,
+                                                softWrap = false
+                                            )
+                                            Icon(
+                                                imageVector = WaexIcons.ChevronRight,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(12.dp)
+                                            )
                                         }
                                     }
                                 }

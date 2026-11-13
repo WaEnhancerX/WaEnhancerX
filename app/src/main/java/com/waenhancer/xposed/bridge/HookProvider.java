@@ -300,7 +300,8 @@ public class HookProvider extends ContentProvider {
                     String prefix = targetPackage + ":";
                     for (Map.Entry<String, ?> entry : prefs.getAll().entrySet()) {
                         String key = entry.getKey();
-                        if (key != null && key.startsWith(prefix) && key.length() > prefix.length()) {
+                        if (key != null && key.startsWith(prefix) && key.length() > prefix.length()
+                    && !PreferenceSchema.isGlobalOnly(key.substring(prefix.length()))) {
                             all.put(key.substring(prefix.length()), entry.getValue());
                         }
                     }
@@ -557,7 +558,8 @@ public class HookProvider extends ContentProvider {
         boolean changed = true;
         editor.putBoolean(seededKey, true);
         for (PreferenceSchema.Entry entry : PreferenceSchema.all().values()) {
-            if (entry.store != PreferenceSchema.Store.PUBLIC || entry.sensitivity == PreferenceSchema.Sensitivity.RUNTIME) continue;
+            if (entry.store != PreferenceSchema.Store.PUBLIC || entry.sensitivity == PreferenceSchema.Sensitivity.RUNTIME
+                    || PreferenceSchema.isGlobalOnly(entry.key)) continue;
             String scoped = packageName + ":" + entry.key;
             if (!prefs.contains(scoped) && prefs.contains(entry.key)) {
                 Object value = prefs.getAll().get(entry.key);

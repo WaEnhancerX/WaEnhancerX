@@ -79,7 +79,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
 
     /** Package names are part of the key so old universal settings remain intact. */
     public String resolvedKey(String key) {
-        if (key == null || MODE_KEY.equals(key) || targetPackage == null
+        if (key == null || PreferenceSchema.isGlobalOnly(key) || targetPackage == null
                 || !PER_TARGET_MODE.equals(rawString(MODE_KEY, "Universal"))) return key;
         return targetPackage + ":" + key;
     }
@@ -95,7 +95,8 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
         boolean changed = true;
         editor.putBoolean(packageName + ":" + TARGET_SEEDED_KEY, true);
         for (PreferenceSchema.Entry entry : PreferenceSchema.all().values()) {
-            if (entry.store != PreferenceSchema.Store.PUBLIC || entry.sensitivity == PreferenceSchema.Sensitivity.RUNTIME) continue;
+            if (entry.store != PreferenceSchema.Store.PUBLIC || entry.sensitivity == PreferenceSchema.Sensitivity.RUNTIME
+                    || PreferenceSchema.isGlobalOnly(entry.key)) continue;
             String scoped = packageName + ":" + entry.key;
             if (!universal.contains(scoped) && universal.contains(entry.key)) {
                 Object value = universal.getAll().get(entry.key);
@@ -349,7 +350,8 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
         String prefix = target + ":";
         for (Map.Entry<String, ?> entry : PreferenceStores.publicStore(context).getAll().entrySet()) {
             String key = entry.getKey();
-            if (key != null && key.startsWith(prefix) && key.length() > prefix.length()) {
+            if (key != null && key.startsWith(prefix) && key.length() > prefix.length()
+                    && !PreferenceSchema.isGlobalOnly(key.substring(prefix.length()))) {
                 all.put(key.substring(prefix.length()), entry.getValue());
             }
         }
