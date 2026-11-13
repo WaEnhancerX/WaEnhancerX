@@ -79,6 +79,7 @@ class AntiEditMessagesHook(
         private const val FIELD_MSG_TEXT = "waex_msg_text"
         private const val FIELD_BINDING_TOKEN = "waex_edit_binding_token"
         private const val TAG_EDIT_DATA = 0x57414544 // 'WAED'
+        private const val TAG_EDIT_ORIGINAL_TEXT = 0x57414545 // 'WAEE'
         private var sEditLabelResId = 0
         private var sEditedLabelResId = 0
         private val hookedAdapterClasses = ConcurrentHashMap.newKeySet<Class<*>>()
@@ -265,7 +266,6 @@ class AntiEditMessagesHook(
                                 getViewMethod,
                                 object : XC_MethodHook() {
                                     override fun afterHookedMethod(p: MethodHookParam) {
-                                        if (!isFeatureEnabled()) return
                                         val row = p.result as? ViewGroup ?: return
 
                                         if (sEditLabelResId == 0) {
@@ -279,6 +279,12 @@ class AntiEditMessagesHook(
                                             ?: (if (sEditedLabelResId != 0) row.findViewById<View>(sEditedLabelResId) else null)
 
                                         if (editLabel == null) return
+
+                                        // The framework may reuse the same view for a different
+                                        // chat or an unsupported item. Drop our previous identity
+                                        // even when the feature has since been disabled.
+                                        invalidateEditLabelBinding(editLabel)
+                                        if (!isFeatureEnabled()) return
 
                                         val pos = p.args.getOrNull(0) as? Int ?: return
                                         val boundAdapter = p.thisObject as? ListAdapter ?: return
@@ -304,11 +310,31 @@ class AntiEditMessagesHook(
 
     private data class EditData(val rowId: Long, val keyId: String?, val msgText: String?)
 
+    private fun invalidateEditLabelBinding(labelView: View) {
+        if (labelView.getTag(TAG_EDIT_DATA) !is EditData) return
+
+        // WhatsApp may already have replaced this text while recycling the row:
+        // only undo WAEX's marker when the displayed text still matches ours.
+        val originalText = labelView.getTag(TAG_EDIT_ORIGINAL_TEXT) as? CharSequence
+        if (originalText != null && labelView is TextView &&
+            labelView.text.toString() == "$originalText 📝") {
+            labelView.text = originalText
+        }
+        labelView.setTag(TAG_EDIT_ORIGINAL_TEXT, null)
+        labelView.setTag(TAG_EDIT_DATA, null)
+        XposedHelpers.removeAdditionalInstanceField(labelView, FIELD_ROW_ID)
+        XposedHelpers.removeAdditionalInstanceField(labelView, FIELD_MSG_ID)
+        XposedHelpers.removeAdditionalInstanceField(labelView, FIELD_MSG_TEXT)
+        // Leave host-supplied click listeners untouched. Any stale WAEX listener
+        // now observes a missing tag and must not open a different history.
+    }
+
     private fun bindEditLabel(labelView: View, parentRow: View?, boundRowId: Long, boundKeyId: String?, boundText: String?) {
         if (boundRowId <= 0 && boundKeyId.isNullOrEmpty()) return
         if (labelView is TextView) {
             val originalText = labelView.text.toString()
             if (!originalText.contains("📝")) {
+                labelView.setTag(TAG_EDIT_ORIGINAL_TEXT, labelView.text)
                 val spannable = SpannableString("$originalText 📝")
                 spannable.setSpan(UnderlineSpan(), 0, spannable.length, 0)
                 labelView.text = spannable
@@ -331,6 +357,7 @@ class AntiEditMessagesHook(
         labelView.setOnClickListener { clickedView ->
             if (!isFeatureEnabled()) return@setOnClickListener
             val data = clickedView.getTag(TAG_EDIT_DATA) as? EditData
+                ?: return@setOnClickListener
             val row = parentRow ?: findParentMessageRow(clickedView)
             val rowId = data?.rowId
                 ?: (XposedHelpers.getAdditionalInstanceField(clickedView, FIELD_ROW_ID) as? Long)
