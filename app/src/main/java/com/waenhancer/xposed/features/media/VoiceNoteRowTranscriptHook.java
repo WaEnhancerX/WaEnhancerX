@@ -7,6 +7,7 @@ import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.TypedArray;
 import android.graphics.Color;
@@ -83,6 +84,7 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
             java.util.Collections.synchronizedSet(new java.util.HashSet<>());
     private WeakReference<ListView> listViewRef = new WeakReference<>(null);
     private boolean readyRefreshPending;
+    private volatile android.app.Dialog currentSheet;
     private final AtomicBoolean disabled = new AtomicBoolean(false);
 
     // Cached resource IDs (looked up once — getIdentifier is slow)
@@ -605,18 +607,22 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
         VoiceTranscriptionBridge.interactive().post(safe(() -> {
             Boolean ready = VoiceTranscriptionBridge.ready(context);
             if (ready == null || !ready) {
-                VoiceTranscriptionBridge.main().post(safe(() ->
-                        body.setText(ready == null
-                                ? "Could not reach WAEX — is the module active?"
-                                : "No transcription provider configured.\nOpen WAEX → Audio & AI to set one up.")));
+                String message = ready == null
+                        ? "Could not reach WAEX — is the module active?"
+                        : "No transcription provider configured.";
+                VoiceTranscriptionBridge.main().post(safe(() -> showErrorSheet(message)));
                 return;
             }
             VoiceTranscriptionBridge.Result result = VoiceTranscriptionBridge.transcribe(context, note);
             String shown = result.text != null ? displayText(result.text, note) : null;
-            VoiceTranscriptionBridge.main().post(safe(() -> body.setText(shown != null
-                    ? shown
-                    : UiText.get(R.string.waex_ui_transcription_failed, "Transcription failed")
-                            + "\n" + result.error)));
+            VoiceTranscriptionBridge.main().post(safe(() -> {
+                if (shown != null) {
+                    body.setText(shown);
+                } else {
+                    showErrorSheet(UiText.get(R.string.waex_ui_transcription_failed, "Transcription failed")
+                            + "\n" + result.error);
+                }
+            }));
         }));
     }
 
@@ -716,7 +722,8 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
     }
 
     private void showSheet(Activity activity, String title, TextView body, File note, View topRightView) {
-        new WaexBottomSheet(activity)
+        dismissCurrentSheet();
+        currentSheet = new WaexBottomSheet(activity)
                 .asBottomSheet()
                 .setTitle(title)
                 .setTopRightView(topRightView)
@@ -732,6 +739,45 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
                 })
                 .setNegativeButton(UiText.get(R.string.waex_ui_close, "Close"),
                         (dialog, which) -> dialog.dismiss())
+                .show();
+    }
+
+    private void dismissCurrentSheet() {
+        android.app.Dialog sheet = currentSheet;
+        currentSheet = null;
+        if (sheet != null && sheet.isShowing()) {
+            try { sheet.dismiss(); } catch (Throwable ignored) { }
+        }
+    }
+
+    /** Replaces the transcript sheet with an error sheet whose only action is "Fix". */
+    private void showErrorSheet(String message) {
+        Activity activity = ActivityTracker.getCurrentActivity();
+        if (activity == null || activity.isFinishing()) return;
+        dismissCurrentSheet();
+
+        TextView body = new TextView(activity);
+        body.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        body.setTextColor(themeTextColor(activity));
+        body.setText(message);
+
+        currentSheet = new WaexBottomSheet(activity)
+                .asBottomSheet()
+                .setTitle(UiText.get(R.string.waex_ui_voice_note_transcript, "Voice note transcript"))
+                .setView(body)
+                .setPositiveButton(UiText.get(R.string.waex_ui_fix, "Fix"), (dialog, which) -> {
+                    try {
+                        Intent intent = new Intent();
+                        intent.setClassName("com.waenhancer", "com.waenhancer.app.MainActivity");
+                        intent.putExtra("target_screen", "audio_transcription");
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                                | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                        activity.startActivity(intent);
+                    } catch (Throwable t) {
+                        VoiceTranscriptionBridge.log("Could not open WAEX: " + VoiceTranscriptionBridge.describe(t));
+                    }
+                    dialog.dismiss();
+                })
                 .show();
     }
 

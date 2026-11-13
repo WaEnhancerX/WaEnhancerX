@@ -208,6 +208,13 @@ class WaexNavController(initialScreen: Screen = Screen.MainDashboard) {
         navigateTo(rootScreen, clearStack = true)
     }
 
+    /** Home → Automation tab → Audio & AI sub-tab. */
+    fun navigateToAudioAi() {
+        targetPageIndex = 3
+        targetSubTabId = "ai"
+        navigateTo(Screen.AutomationTasker, clearStack = true)
+    }
+
     fun navigateTo(screen: Screen, clearStack: Boolean = false) {
         isLastTransitionForward = !(screen.isRootScreen || clearStack)
         if (clearStack) {

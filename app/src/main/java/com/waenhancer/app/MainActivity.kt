@@ -73,8 +73,8 @@ class MainActivity : ComponentActivity() {
         val releaseTag = releaseTagFrom(intent)
         if (releaseTag != null) {
             currentNavController?.navigateTo(Screen.ReleaseDetails(releaseTag))
-        } else if (intent.getStringExtra("target_screen") == "supported_versions") {
-            currentNavController?.navigateTo(Screen.SupportedVersions)
+        } else {
+            openTargetScreen(intent, currentNavController)
         }
     }
 
@@ -140,8 +140,8 @@ class MainActivity : ComponentActivity() {
                             val releaseTag = releaseTagFrom(intent)
                             if (releaseTag != null) {
                                 controller.navigateTo(Screen.ReleaseDetails(releaseTag))
-                            } else if (intent?.getStringExtra("target_screen") == "supported_versions") {
-                                controller.navigateTo(Screen.SupportedVersions)
+                            } else {
+                                openTargetScreen(intent, controller)
                             }
                             controller
                         }
@@ -190,6 +190,13 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+    }
+
+    private fun openTargetScreen(intent: Intent?, controller: WaexNavController?) {
+        when (intent?.getStringExtra("target_screen")) {
+            "supported_versions" -> controller?.navigateTo(Screen.SupportedVersions)
+            "audio_transcription" -> controller?.navigateToAudioAi()
         }
     }
 

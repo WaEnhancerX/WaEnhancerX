@@ -878,6 +878,7 @@
     <string name="waex_ui_preserve_delete_for_me" formatted="false">"Preserve Delete For Me"</string>
     <string name="waex_ui_copy_status_text" formatted="false">"Copy Status Text"</string>
     <string name="waex_ui_unknown_feature" formatted="false">"Unknown Feature"</string>
+    <string name="waex_ui_fix" formatted="false">"Fix"</string>
     <string name="waex_ui_fixes" formatted="false">"Fixes"</string>
     <string name="waex_ui_fixed" formatted="false">"Fixed"</string>
     <string name="waex_ui_improvements" formatted="false">"Improvements"</string>
