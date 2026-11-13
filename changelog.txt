@@ -1,5 +1,5 @@
 [Added]
-- Upgraded Custom Theme CSS - Theme library: import WAEX theme packages (.zip with style.css and images) from Styles > Custom Theme CSS, switch between them, and delete them.
+- Theme library: import WAEX theme packages (.zip with style.css and images) from Styles > Custom Theme CSS, switch between them, and delete them.
 - Themes can now use bundled images via url(), background-size, and :root variables with var(--name).
 
 
