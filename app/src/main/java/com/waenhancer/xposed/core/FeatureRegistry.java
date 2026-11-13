@@ -670,10 +670,17 @@ public final class FeatureRegistry {
             entry.feature = entry.factory.create();
             entry.name = entry.feature.getName();
             entry.feature.beginHookTracking();
+            final long hookStart = System.nanoTime();
             try {
                 entry.feature.hook();
             } finally {
                 entry.feature.endHookTracking();
+                long hookMs = (System.nanoTime() - hookStart) / 1_000_000L;
+                // Only report features that are noticeably slow, to keep the log readable.
+                if (hookMs >= SLOW_HOOK_LOG_MS) {
+                    XposedBridge.log("[WAEX][Startup] " + entry.name + " hook " + hookMs + "ms ("
+                            + entry.installation + ")");
+                }
             }
             entry.error = null; // A successful retry must not retain an earlier failure.
             entry.status = "ACTIVE";
@@ -752,6 +759,8 @@ public final class FeatureRegistry {
         }
         return false;
     }
+
+    private static final long SLOW_HOOK_LOG_MS = 15L;
 
     private static final ExecutorService HOOK_REPORT_EXECUTOR =
             Executors.newSingleThreadExecutor(r -> {

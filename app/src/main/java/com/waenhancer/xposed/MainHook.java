@@ -357,6 +357,7 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                 if (!TARGET_INITIALIZED.compareAndSet(false, true)) {
                     return;
                 }
+                final long initStart = System.nanoTime();
                 try {
                     if (appContext instanceof Application) {
                         ActivityTracker.install((Application) appContext);
@@ -414,7 +415,9 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                         resolvedBridge = new PreferenceBridgeClient(appContext, preloadedPrefs);
                         sPreferenceBridge = resolvedBridge;
                     } else {
+                        long bridgeWait = System.nanoTime();
                         resolvedBridge.awaitInitialSync();
+                        logStartupStage("bridge awaitInitialSync (blocked)", bridgeWait);
                     }
                     final PreferenceBridgeClient bridgeClient = resolvedBridge;
                     UiText.initialize(appContext, bridgeClient);
@@ -465,11 +468,13 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                     showHookToast = bridgeClient.getBoolean("show_hook_toast", true);
 
                     // Verify universal version compatibility before loading hooks
+                    long guardStart = System.nanoTime();
                     boolean isSupported = VersionGuard.verifyAndGuard(
                             appContext,
                             lpparam.classLoader,
                             bridgeClient
                     );
+                    logStartupStage("version guard", guardStart);
 
                     if (isSupported) {
                         try {
@@ -486,8 +491,13 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                         + t.getClass().getSimpleName());
                             }
                         }
+                        long registryStart = System.nanoTime();
                         FeatureRegistry registry = new FeatureRegistry(appContext, lpparam.classLoader, bridgeClient);
+                        logStartupStage("FeatureRegistry constructor", registryStart);
+                        long installStart = System.nanoTime();
                         registry.initializeAll();
+                        logStartupStage("initializeAll (startup features)", installStart);
+                        logStartupStage("TOTAL target init (main thread)", initStart);
                         queueDeferred(() -> registry.reportInjectedHooks(appContext, packageName));
                         registerHookReportReceiver(appContext, packageName, registry);
                         reportTargetRuntime(
@@ -639,6 +649,12 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
         sRuntimeError = error;
         queueDeferred(() -> WhatsAppPackageDetector.reportRuntimeHealth(
                 appContext, packageName, runtimeStatus, bridgeStatus, error));
+    }
+
+    /** Startup profiling: one log line per stage, tagged so it can be grepped from the Xposed log. */
+    private static void logStartupStage(String stage, long startNanos) {
+        long ms = (System.nanoTime() - startNanos) / 1_000_000L;
+        XposedBridge.log("[WAEX][Startup] " + stage + " " + ms + "ms");
     }
 
     // ── Deferred, off-main-thread reporting ─────────────────────────────────────────────────
