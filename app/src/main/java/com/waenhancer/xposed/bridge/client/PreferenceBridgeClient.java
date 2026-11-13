@@ -35,7 +35,6 @@ public final class PreferenceBridgeClient implements SharedPreferences {
 
     public static final String AUTHORITY = "com.waenhancer.hookprovider";
     public static final Uri PREFS_URI = Uri.parse("content://" + AUTHORITY + "/preferences");
-    private static final Uri PROVIDER_URI = Uri.parse("content://" + AUTHORITY);
     private static final Object REMOVED = new Object();
 
     private final Context context;
@@ -114,7 +113,7 @@ public final class PreferenceBridgeClient implements SharedPreferences {
         Map<String, Object> loaded = null;
         String providerError = null;
         try {
-            Bundle bundle = context.getContentResolver().call(PROVIDER_URI,
+            Bundle bundle = HookProviderIpc.call(context,
                     "get_all_preferences", null, null);
             if (bundle != null) {
                 loaded = decodePreferences(bundle);
@@ -532,8 +531,8 @@ public final class PreferenceBridgeClient implements SharedPreferences {
                 operations.add(operation);
             }
             request.putParcelableArrayList("operations", operations);
-            Bundle response = context.getContentResolver().call(
-                    PROVIDER_URI, "apply_preferences", null, request);
+            Bundle response = HookProviderIpc.call(context,
+                    "apply_preferences", null, request);
             return response != null && response.getBoolean("success", false);
         } catch (Throwable t) {
             XposedBridge.log("[WAEX] Preference batch write failed: " + t.getClass().getSimpleName());

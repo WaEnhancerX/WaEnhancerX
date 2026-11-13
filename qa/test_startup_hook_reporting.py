@@ -112,6 +112,13 @@ public class StartupReportChecks {
    last=new ArrayList<>(JSONArray.serialized);accepted++;return null;
   }
  }
+ // The production IPC helper's unstable Binder lifecycle is exercised separately
+ // by qa/provider_ipc_freezer/verify.py; keep this fixture's existing report oracle.
+ static class HookProviderIpc {
+  static Object call(Context context,String method,String arg,Bundle extras){
+   return context.call(Uri.parse("content://com.waenhancer.hookprovider"),method,arg,extras);
+  }
+ }
  final List<FeatureEntry> features=new ArrayList<>();final LazyHookCoordinator lazyHooks=new LazyHookCoordinator();
  final Context reportingContext=new Context();final String reportingPackage="fixture.whatsapp",hookingMode="fixture";
  void applyUiPreHooks(){}

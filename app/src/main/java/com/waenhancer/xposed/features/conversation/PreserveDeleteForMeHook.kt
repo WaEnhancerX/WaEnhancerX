@@ -4,9 +4,9 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
-import android.net.Uri
 import android.os.Bundle
 import android.os.SystemClock
+import com.waenhancer.xposed.bridge.client.HookProviderIpc
 import com.waenhancer.xposed.core.BaseFeature
 import com.waenhancer.xposed.core.devkit.DexSearchEngine
 import de.robv.android.xposed.XC_MethodHook
@@ -39,7 +39,6 @@ class PreserveDeleteForMeHook(
     companion object {
         private const val TAG = "[WAEX:PreserveDeleteForMe]"
         private const val PREF_KEY = "preserve_delete_for_me"
-        private const val PROVIDER_URI = "content://com.waenhancer.hookprovider"
 
         private val deleteForMeScope = ThreadLocal<Boolean>()
         private val preservationWarningLock = Any()
@@ -338,8 +337,8 @@ class PreserveDeleteForMeHook(
             // SQLite write; all metadata needed for preservation is already in the bundle.
             preservationExecutor.execute {
                 try {
-                    val acknowledgement = context.contentResolver.call(
-                        Uri.parse(PROVIDER_URI),
+                    val acknowledgement = HookProviderIpc.call(
+                        context,
                         "record_preserved_message",
                         null,
                         bundle

@@ -125,6 +125,7 @@ jobs:
         run: |
           set -euo pipefail
           tests=(
+            qa/provider_ipc_freezer/verify.py
             qa/test_provider_scope.py
             qa/test_preference_write_types.py
             qa/test_bridge_contract.py

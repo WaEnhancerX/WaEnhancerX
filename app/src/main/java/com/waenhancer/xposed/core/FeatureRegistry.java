@@ -3,7 +3,6 @@ package com.waenhancer.xposed.core;
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.net.Uri;
 import android.os.Bundle;
 import androidx.annotation.NonNull;
 import com.waenhancer.config.HookingModePolicy;
@@ -23,6 +22,7 @@ import com.waenhancer.licensing.features.PlayIntegrityBypassHook;
 import com.waenhancer.licensing.features.StatusSplitterFeature;
 import com.waenhancer.licensing.features.UnlockWaPlusFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.xposed.bridge.client.HookProviderIpc;
 import com.waenhancer.xposed.utils.ActivityTracker;
 import com.waenhancer.xposed.features.automation.PresenceToastsHook;
 import com.waenhancer.xposed.features.automation.TaskerIntegrationHook;
@@ -763,14 +763,13 @@ public final class FeatureRegistry {
                 array.put(obj);
             }
 
-            Uri uri = Uri.parse("content://com.waenhancer.hookprovider");
             Bundle extras = new Bundle();
             extras.putString("package", packageName);
             extras.putString("hooks_json", array.toString());
             extras.putString("hooking_mode", hookingMode);
             extras.putLong("timestamp", System.currentTimeMillis());
 
-            context.getContentResolver().call(uri, "register_injected_hooks", packageName, extras);
+            HookProviderIpc.call(context, "register_injected_hooks", packageName, extras);
         } catch (Throwable t) {
             XposedBridge.log("[WAEX] Failed to report injected hooks: " + t.getMessage());
         }

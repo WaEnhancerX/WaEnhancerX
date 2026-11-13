@@ -89,7 +89,7 @@ STUBS = {
         public abstract class Context {
             public Context getApplicationContext() { return this; }
             public abstract ContentResolver getContentResolver();
-            public abstract String getPackageName();
+            public String getPackageName() { return "com.whatsapp"; }
         }''',
     'com/waenhancer/config/PreferenceRestartTracker.java': '''package com.waenhancer.config;
         public final class PreferenceRestartTracker {
@@ -109,6 +109,16 @@ STUBS = {
     'de/robv/android/xposed/XSharedPreferences.java': '''package de.robv.android.xposed;
         public abstract class XSharedPreferences implements android.content.SharedPreferences {
             public void reload() {}
+        }''',
+    # Count/cache behavior belongs to this fixture; the actual unstable-client
+    # lifecycle and AOSP Binder-death semantics are checked in provider_ipc_freezer.
+    'com/waenhancer/xposed/bridge/client/HookProviderIpc.java': '''package com.waenhancer.xposed.bridge.client;
+        public final class HookProviderIpc {
+            public static android.os.Bundle call(android.content.Context context, String method,
+                    String arg, android.os.Bundle extras) {
+                return context.getContentResolver().call(android.net.Uri.parse(
+                        "content://com.waenhancer.hookprovider"), method, arg, extras);
+            }
         }''',
     'test/BridgeContract.java': r'''package test;
         import android.content.*;
@@ -199,6 +209,8 @@ STUBS = {
                 check(prefs.getInt("int_as_string", 0)==42, "numeric compatibility");
                 prefs.getStringSet("choices", null).clear();
                 check(prefs.getStringSet("choices", null).size()==2, "defensive string sets");
+                // SharedPreferences#getAll must expose a read-only snapshot; caller writes
+                // may neither change the source cache nor mutate the returned view.
                 try {
                     prefs.getAll().clear();
                     throw new AssertionError("getAll exposed a mutable external snapshot");

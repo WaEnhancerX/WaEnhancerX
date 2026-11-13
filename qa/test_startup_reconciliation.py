@@ -14,9 +14,13 @@ detector=(ROOT/'app/src/main/java/com/waenhancer/utils/WhatsAppPackageDetector.k
 C={
  'one per-process initializer': main.count('TARGET_INITIALIZED.compareAndSet(false, true)')==1,
  'onCreate fallback': '"onCreate", applicationInitializer' in main,
- 'Instrumentation fallback': '"callApplicationOnCreate", android.app.Application.class,' in main,
- 'one shared callback': main.count('applicationInitializer')==3,
- 'valid Application parameter': 'param.args[0]' in main and 'app instanceof android.app.Application' in main,
+ 'Instrumentation fallback': (
+     '"callApplicationOnCreate", android.app.Application.class,' in main or
+     ('import android.app.Application;' in main and
+      '"callApplicationOnCreate", Application.class,' in main)
+ ),
+ 'one shared callback': main.count('XC_MethodHook applicationInitializer = new XC_MethodHook()')==1 and main.count('applicationInitializer);')==3,
+ 'valid Application parameter': ('import android.app.Application;' in main and 'param.thisObject instanceof Application' in main and 'param.args[0] instanceof Application' in main and 'if (app instanceof Context)' in main),
  'disk pref read isolated': 'Disk preference snapshot unavailable:' in main and 'XSharedPreferences candidate =' in main,
  'disk pref snapshot nullable': 'if (diskPrefs == null) return null;' in bridge,
  'early bridge optional': 'Early preference bridge unavailable:' in main and 'preloadedPrefs, true' in main,
@@ -37,7 +41,7 @@ C={
  'restart prompt isolated': 'RestartPromptController.initialize(bridgeClient);' in main and 'Restart prompt setup failed:' in main,
  'update sheet isolated': 'WhatsAppUpdateSheet.init(bridgeClient);' in main and 'WhatsApp update-sheet setup failed:' in main,
  'injection toast isolated': 'showInjectionToastOnFirstVisibleActivity();' in main and 'Injection toast unavailable:' in main,
- 'visible-activity toast retained': 'public void onActivityResumed(android.app.Activity activity)' in main and '"WAEX hooks injected"' in main,
+ 'visible-activity toast retained': ('import android.app.Activity;' in main and 'public void onActivityResumed(Activity activity)' in main and '"WAEX hooks injected"' in main),
  'toast listener removed': 'ActivityTracker.removeListener(this);' in main,
  'toast per-process bound': 'INJECTION_TOAST_SHOWN.compareAndSet(false, true)' in main,
  'typed styles registry retained': all(name in registry for name in ('CustomDpiHook.class', 'ChatFilterDisplayHook.class', 'HideHomeTabsHook.class', 'CssThemeHook.class')),
