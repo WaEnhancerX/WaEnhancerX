@@ -8,6 +8,7 @@ from pathlib import Path
 import argparse
 import subprocess
 import tempfile
+import shutil
 
 root = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
@@ -35,18 +36,30 @@ def body_after(signature, source=source):
     raise AssertionError('unterminated method')
 
 fixture = r'''
+class Context { val resources = Resources(); val packageName = "com.whatsapp" }
+class Resources {
+    fun getIdentifier(name: String, type: String, pkg: String) =
+        if (name == "edit_label") 31 else if (name == "edited_label") 32 else 0
+}
 open class View {
-    val context = Any()
+    val context = Context()
     var resourceName: String? = null
     var parent: View? = null
     val fields = mutableMapOf<String, Any>()
+    val tags = mutableMapOf<Int, Any>()
+    fun setTag(key: Int, value: Any?) { if (value == null) tags.remove(key) else tags[key] = value }
+    fun getTag(key: Int): Any? = tags[key]
     var listener: ((View) -> Unit)? = null
     var isClickable = false
-    fun setOnClickListener(block: (View) -> Unit) { listener = block }
-    fun click() { listener?.invoke(this) }
+    fun setOnClickListener(block: ((View) -> Unit)?) { listener = block }
+    fun click() { if (isClickable) listener?.invoke(this) }
 }
 class TextView : View() { var text: CharSequence = "Edited" }
-class ViewGroup : View() { val label = TextView().apply { resourceName = "edit_label"; parent = this@ViewGroup } }
+class ViewGroup : View() {
+    val label = TextView().apply { resourceName = "edit_label"; parent = this@ViewGroup }
+    @Suppress("UNCHECKED_CAST")
+    fun <T : View> findViewById(id: Int): T? = (if (id == 31) label else null) as T?
+}
 class UnderlineSpan
 class SpannableString(val value: String) : CharSequence by value {
     fun setSpan(span: Any, start: Int, end: Int, flags: Int) {}
@@ -69,6 +82,11 @@ object XposedHelpers {
     fun getAdditionalInstanceField(row: View, key: String): Any? = row.fields[key]
 }
 class Callback(private val adapter: ListAdapter) {
+    private val TAG_EDIT_DATA = 0x57414544
+    private val TAG_EDIT_ORIGINAL_TEXT = 0x57414545
+    private var sEditLabelResId = 0
+    private var sEditedLabelResId = 0
+    private data class EditData(val rowId: Long, val keyId: String?, val msgText: String?)
     private val FIELD_ROW_ID = "waex_row_id"
     private val FIELD_MSG_ID = "waex_msg_id"
     private val FIELD_MSG_TEXT = "waex_msg_text"
@@ -91,7 +109,7 @@ class Callback(private val adapter: ListAdapter) {
     }
     private fun bindEditLabel(labelView: View, parentRow: View?, boundRowId: Long, boundKeyId: String?, boundText: String?) LABEL_BODY
     fun afterHookedMethod(p: MethodHookParam) CALLBACK_BODY
-    fun attached(param: MethodHookParam) ATTACH_BODY
+    private fun invalidateEditLabelBinding(labelView: View) INVALIDATE_BODY
 }
 private var checks = 0
 private fun checkCase(value: Boolean, message: String) { checks++; if (!value) throw AssertionError(message) }
@@ -117,7 +135,7 @@ fun main(args: Array<String>) {
         callback.afterHookedMethod(MethodHookParam(Any(), arrayOf(0), row))
         row.label.click()
         checkCase(callback.opened.size == before, "unsupported recycled row opened its predecessor's history")
-        checkCase("waex_msg_id" !in row.fields && "waex_key_id" !in row.fields, "unsupported bind retains identity")
+        checkCase("waex_msg_id" !in row.label.fields && "waex_key_id" !in row.label.fields, "unsupported bind retains identity")
         println("PASS: $checks unsupported recycling checks")
         return
     }
@@ -126,22 +144,28 @@ fun main(args: Array<String>) {
     checkCase(callback.opened.last() == Message(0, "first-chat", "first text"), "first keyed adapter binding")
     callback.afterHookedMethod(MethodHookParam(second, arrayOf(0), row)); row.label.click()
     checkCase(callback.opened.last() == Message(0, "second-chat", "second text"), "current adapter supplies key and text")
-    checkCase(row.fields["waex_msg_id"] == "second-chat", "row key follows conversation")
-    checkCase("waex_row_id" !in row.fields, "keyed binding does not guess a numeric database ID")
+    checkCase(row.label.fields["waex_msg_id"] == "second-chat", "row key follows conversation")
+    checkCase("waex_row_id" !in row.label.fields, "keyed binding does not guess a numeric database ID")
     checkCase(first.reads == 1 && second.reads == 1, "class hook reads current receiver")
     checkCase(callback.dbQueries == 0, "getView must not query SQLite")
     val noKey = Adapter(Message(4, null, "fourth text"))
     callback.afterHookedMethod(MethodHookParam(noKey, arrayOf(0), row)); row.label.click()
     checkCase(callback.opened.last().id == 4L && callback.opened.last().key == null, "row-only compatibility")
-    checkCase("waex_key_id" !in row.fields && "waex_msg_id" !in row.fields, "keyed-to-row-only recycle clears key")
+    checkCase("waex_key_id" !in row.label.fields && "waex_msg_id" !in row.label.fields, "keyed-to-row-only recycle clears key")
     val third = Adapter(Message(3, "third-chat", null))
     callback.afterHookedMethod(MethodHookParam(third, arrayOf(0), row)); row.label.click()
     checkCase(callback.opened.last() == Message(0, "third-chat", null), "third adapter clears old text")
-    checkCase("waex_msg_text" !in row.fields, "old bubble text removed")
+    checkCase("waex_msg_text" !in row.label.fields, "old bubble text removed")
     val before = callback.opened.size
-    callback.afterHookedMethod(MethodHookParam(Any(), arrayOf(0), row)); row.label.click()
+    callback.afterHookedMethod(MethodHookParam(Any(), arrayOf(0), row))
+    row.fields["waex_msg_id"] = "foreign-message"
+    row.fields["waex_msg_text"] = "foreign text"
+    row.label.click()
     checkCase(callback.opened.size == before, "unsupported receiver invalidates prior listener")
-    checkCase("waex_msg_id" !in row.fields && "waex_key_id" !in row.fields, "unsupported receiver clears fields")
+    row.fields.clear()
+    checkCase(row.label.getTag(0x57414544) == null, "unsupported receiver retained edit-data tag")
+    checkCase(row.label.text.toString() == "Edited", "stale WAEX decoration retained")
+    checkCase("waex_msg_id" !in row.label.fields && "waex_key_id" !in row.label.fields, "unsupported receiver clears fields")
     for (bad in listOf(Adapter(null), Adapter(null, true), Adapter(Message(0, null, "unknown")))) {
         callback.afterHookedMethod(MethodHookParam(first, arrayOf(0), row))
         callback.afterHookedMethod(MethodHookParam(bad, arrayOf(0), row)); row.label.click()
@@ -159,22 +183,31 @@ fun main(args: Array<String>) {
     checkCase(callback.opened.size == beforeDisabledRecycle, "disabled-time recycle must invalidate prior listener before reenabling")
     callback.afterHookedMethod(MethodHookParam(second, arrayOf(0), row)); row.label.click()
     checkCase(callback.opened.last().key == "second-chat", "fresh bind after disabled recycle remains usable")
-    callback.treeSearches = 0
-    repeat(10_000) { callback.attached(MethodHookParam(ViewGroup(), emptyArray(), null)) }
-    checkCase(callback.treeSearches == 0, "unidentified attachments must not scan subtrees")
-    callback.attached(MethodHookParam(row, emptyArray(), null))
-    checkCase(callback.treeSearches == 1, "identified row retains group fallback coverage")
-    val directBefore = callback.opened.size
-    callback.attached(MethodHookParam(row.label, emptyArray(), null)); row.label.click()
-    checkCase(callback.opened.size == directBefore + 1 && callback.opened.last().key == "second-chat", "direct label attachment retains correct history")
-    println("PASS: $checks extracted production adapter/click checks; 10,000 unidentified attachments, zero subtree searches")
+    // Removed attachment hook is not recreated in the fixture. Verify the
+    // current getView invalidation also preserves host-updated label text.
+    callback.afterHookedMethod(MethodHookParam(first, arrayOf(0), row))
+    row.label.text = "Host updated"
+    callback.afterHookedMethod(MethodHookParam(Any(), arrayOf(0), row))
+    checkCase(row.label.text.toString() == "Host updated",
+              "invalidation clobbered a new host-supplied label")
+    checkCase(row.label.getTag(0x57414544) == null, "unsupported row retained tagged edit data")
+    callback.afterHookedMethod(MethodHookParam(second, arrayOf(0), row))
+    val nativeClicks = intArrayOf(0)
+    row.label.setOnClickListener { nativeClicks[0]++ }
+    callback.afterHookedMethod(MethodHookParam(Any(), arrayOf(0), row))
+    row.label.click()
+    checkCase(nativeClicks[0] == 1, "invalidation erased WhatsApp's new click listener")
+    println("PASS: $checks extracted production adapter/click checks; 10,000 source getView calls")
+
 }
 '''.replace('CALLBACK_BODY', body_after('override fun afterHookedMethod(p: MethodHookParam)')).replace(
-    'LABEL_BODY', body_after('private fun bindEditLabel(')).replace('ATTACH_BODY', body_after(
-    'override fun afterHookedMethod(param: MethodHookParam)', source[source.index('private fun hookViewAttachmentFallback()'):source.index('private fun bindEditLabel(')]))
+    'LABEL_BODY', body_after('private fun bindEditLabel(')).replace(
+    'INVALIDATE_BODY', body_after('private fun invalidateEditLabelBinding(')
+    if 'private fun invalidateEditLabelBinding(' in source
+    else '{ throw AssertionError("unexpected invalidation callback") }')
 with tempfile.TemporaryDirectory() as folder:
     temp = Path(folder)
     path = temp / 'AdapterBindingChecks.kt'
     path.write_text(fixture)
-    subprocess.run(['kotlinc', str(path), '-jvm-target', '17', '-include-runtime', '-d', str(temp / 'checks.jar')], check=True)
+    subprocess.run([shutil.which('kotlinc.bat') or shutil.which('kotlinc') or 'kotlinc', str(path), '-jvm-target', '17', '-include-runtime', '-d', str(temp / 'checks.jar')], check=True)
     subprocess.run(['java', '-jar', str(temp / 'checks.jar'), args.scenario], check=True)

@@ -9,6 +9,7 @@ import com.waenhancer.xposed.core.devkit.HookReturnTypeGuard;
 import com.waenhancer.xposed.features.customization.PropsOverrideHook;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
+import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.enums.StringMatchType;
@@ -35,9 +36,12 @@ public class MediaQualityBypassHook extends BaseFeature {
     private static final int IMAGE_MAX_KB = 50 * 1024;
     private static final int IMAGE_MAX_EDGE = 6000;
 
-    private static final int[] IMAGE_MAX_SIZE_PROPS = {1577, 6030, 2656, 15752, 15746};
-    private static final int[] IMAGE_QUALITY_PROPS = {1581, 1575, 1578, 6029, 2655, 15749};
-    private static final int[] IMAGE_MAX_EDGE_PROPS = {1576, 2654, 6032, 15748, 3068};
+    // WhatsApp 2.26.43.76 also constructs a screenshot-specific ProcessImageQuality
+    // from MobileConfig ints 2477 (maxKb), 2475 (quality), 2476 (maxEdge).
+    // These are separate from the default image settings (1577/1578/1576).
+    private static final int[] IMAGE_MAX_SIZE_PROPS = {1577, 6030, 2656, 15752, 15746, 2477};
+    private static final int[] IMAGE_QUALITY_PROPS = {1581, 1575, 1578, 6029, 2655, 15749, 2475};
+    private static final int[] IMAGE_MAX_EDGE_PROPS = {1576, 2654, 6032, 15748, 3068, 2476};
 
     public MediaQualityBypassHook(@NonNull Context context, @NonNull ClassLoader classLoader, @NonNull SharedPreferences prefs) {
         super(context, classLoader, prefs);
@@ -82,6 +86,10 @@ public class MediaQualityBypassHook extends BaseFeature {
             maxEdge.setAccessible(true);
             XposedBridge.hookAllConstructors(qualityClass, new XC_MethodHook() {
                 @Override protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                    // A bridge refresh can disable this path before the required host restart.
+                    // Never mutate a failed construction or a now-disabled preference.
+                    if (param.hasThrowable() || param.thisObject == null
+                            || !isImageQualityMaxEnabled()) return;
                     maxKb.setInt(param.thisObject, IMAGE_MAX_KB);
                     quality.setInt(param.thisObject, 100);
                     maxEdge.setInt(param.thisObject, IMAGE_MAX_EDGE);
@@ -96,8 +104,15 @@ public class MediaQualityBypassHook extends BaseFeature {
 
     private Map<String, Field> resolveToStringFields(Class<?> targetClass) throws Throwable {
         Method toStringMethod = targetClass.getDeclaredMethod("toString");
-        MethodData methodData = DexSearchEngine.getInstance().getBridge()
-                .getMethodData(toStringMethod);
+        // A cached class descriptor does not open DexKit. This consumer still needs
+        // native metadata; FeatureRegistry's resolution lease keeps it alive here.
+        DexSearchEngine engine = DexSearchEngine.getInstance();
+        engine.initialize(context);
+        DexKitBridge bridge = engine.getBridge();
+        if (bridge == null) {
+            throw new IllegalStateException("DexKit bridge unavailable for ProcessImageQuality metadata");
+        }
+        MethodData methodData = bridge.getMethodData(toStringMethod);
         Map<String, Field> result = new HashMap<>();
         if (methodData == null) return result;
         List<String> strings = methodData.getUsingStrings();
@@ -213,8 +228,13 @@ public class MediaQualityBypassHook extends BaseFeature {
                 XposedBridge.hookMethod(videoFpsMethod, new XC_MethodHook() {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) {
-                        if (isVideo60FpsEnabled()) {
-                            param.setResult(60); // Force 60 FPS output
+                        if (param.hasThrowable() || !isVideo60FpsEnabled()) return;
+                        Object result = param.getResult();
+                        if (result instanceof Integer) {
+                            int fps = (Integer) result;
+                            // Preserve errors, unknown/sentinel values and higher host hints.
+                            // A successful positive hint below 60 is not measured output FPS.
+                            if (fps > 0 && fps < 60) param.setResult(60);
                         }
                     }
                 });

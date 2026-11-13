@@ -10,6 +10,7 @@
 - Fixed the app restarting itself even when a setting failed to save.
 - Fixed manual "mark as read" action sometimes ignoring your privacy settings.
 - Fixed Separate Groups and Parallel Downloading possibly not working on older Android versions.
+- Fixed Edit history
 
 [Improvements]
 - Improved Message Device Source

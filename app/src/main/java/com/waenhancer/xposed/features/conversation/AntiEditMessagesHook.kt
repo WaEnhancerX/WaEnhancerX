@@ -79,6 +79,8 @@ class AntiEditMessagesHook(
         private const val FIELD_MSG_TEXT = "waex_msg_text"
         private const val FIELD_BINDING_TOKEN = "waex_edit_binding_token"
         private const val TAG_EDIT_DATA = 0x57414544 // 'WAED'
+        private const val TAG_EDIT_ORIGINAL_TEXT = 0x57414545 // 'WAEE'
+        private val pendingEditText = ThreadLocal<String?>()
         private var sEditLabelResId = 0
         private var sEditedLabelResId = 0
         private val hookedAdapterClasses = ConcurrentHashMap.newKeySet<Class<*>>()
@@ -117,17 +119,12 @@ class AntiEditMessagesHook(
                             try {
                                 val fMessage = param.args.getOrNull(0) ?: return
                                 val keyId = extractStableKeyId(fMessage)
-                                var rowId = extractRowId(fMessage)
                                 val newMessage = extractMessageText(fMessage)
-                                rowId = resolveCanonicalRowId(rowId, keyId)
 
-                                if (!newMessage.isNullOrBlank() && (!keyId.isNullOrEmpty() || rowId > 0)) {
-                                    val ts = System.currentTimeMillis()
-                                    val previous = editStore.getCurrentMessageFromWhatsApp(rowId, keyId)
-                                    editStore.recordTransitionAsync(rowId, keyId, previous, newMessage, ts)
-                                    if (!keyId.isNullOrEmpty()) {
-                                    }
-                                }
+                                // The argument is the NEW edit message, so its key/row id are the
+                                // edit's own, not the original's. The message_edit_info insert that
+                                // follows on this thread carries the original key; record it there.
+                                pendingEditText.set(newMessage?.takeIf { it.isNotBlank() })
                             } catch (t: Throwable) {
                                 XposedBridge.log("$TAG Error in onMessageEdit: ${t.javaClass.simpleName}")
                             }
@@ -211,9 +208,12 @@ class AntiEditMessagesHook(
                             val values = param.args.getOrNull(2) as? ContentValues ?: return
                             val keyId = values.getAsString("original_key_id") ?: values.getAsString("key_id")
                             var rowId = values.getAsLong("message_row_id") ?: 0L
+                            val isEditInfo = table == "message_edit_info" || table == "message_add_on_edit_info"
                             val editedText = values.getAsString("edited_text")
                                 ?: values.getAsString("new_text")
                                 ?: values.getAsString("text_data")
+                                ?: if (isEditInfo) pendingEditText.get() else null
+                            if (isEditInfo) pendingEditText.remove()
                             val ts = values.getAsLong("edit_timestamp")
                                 ?: values.getAsLong("sender_timestamp")
                                 ?: System.currentTimeMillis()
@@ -254,18 +254,29 @@ class AntiEditMessagesHook(
 
                         try {
                             if (!hookedAdapterClasses.add(adapter.javaClass)) return
-                            val getViewMethod = XposedHelpers.findMethodBestMatch(
-                                adapter.javaClass,
-                                "getView",
-                                Int::class.javaPrimitiveType,
-                                View::class.java,
-                                ViewGroup::class.java
-                            ) ?: return
+                            // getView() satisfies android.widget.Adapter and cannot be renamed by
+                            // obfuscation; a direct JVM lookup resolves it even when Xposed's fuzzy
+                            // findMethodBestMatch fails to disambiguate bridge/synthetic overloads.
+                            val getViewMethod = try {
+                                adapter.javaClass.getMethod(
+                                    "getView",
+                                    Int::class.javaPrimitiveType,
+                                    View::class.java,
+                                    ViewGroup::class.java
+                                )
+                            } catch (t: Throwable) {
+                                XposedHelpers.findMethodBestMatch(
+                                    adapter.javaClass,
+                                    "getView",
+                                    Int::class.javaPrimitiveType,
+                                    View::class.java,
+                                    ViewGroup::class.java
+                                )
+                            } ?: return
                             XposedBridge.hookMethod(
                                 getViewMethod,
                                 object : XC_MethodHook() {
                                     override fun afterHookedMethod(p: MethodHookParam) {
-                                        if (!isFeatureEnabled()) return
                                         val row = p.result as? ViewGroup ?: return
 
                                         if (sEditLabelResId == 0) {
@@ -278,16 +289,40 @@ class AntiEditMessagesHook(
                                         val editLabel = (if (sEditLabelResId != 0) row.findViewById<View>(sEditLabelResId) else null)
                                             ?: (if (sEditedLabelResId != 0) row.findViewById<View>(sEditedLabelResId) else null)
 
-                                        if (editLabel == null) return
+                                        if (editLabel != null) {
+                                            // The framework may reuse the same view for a different
+                                            // chat or an unsupported item. Drop our previous identity
+                                            // even when the feature has since been disabled.
+                                            invalidateEditLabelBinding(editLabel)
+                                        }
+                                        if (!isFeatureEnabled()) return
 
                                         val pos = p.args.getOrNull(0) as? Int ?: return
                                         val boundAdapter = p.thisObject as? ListAdapter ?: return
                                         val item = try { boundAdapter.getItem(pos) } catch (t: Throwable) { null } ?: return
-                                        val keyId = extractStableKeyId(item)
+                                        var keyId = extractStableKeyId(item)
+                                        // Edited rows expose the edit's own key; history lives under the original's.
+                                        if (editLabel != null && !keyId.isNullOrEmpty()) {
+                                            keyId = editStore.resolveOriginalKey(keyId)
+                                        }
                                         val rowId = if (keyId.isNullOrEmpty()) extractRowId(item) else 0L
                                         val msgText = extractMessageText(item)
 
-                                        bindEditLabel(editLabel, row, rowId, keyId, msgText)
+                                        // Snapshot every bound message's current text, edited or not.
+                                        // By the time any edit-bookkeeping hook fires, WhatsApp has
+                                        // already overwritten its own row with the new text, so that
+                                        // is too late to recover the original from. Capturing it here,
+                                        // while the message is still unedited on screen, is what lets
+                                        // the later edit show up as version 2 instead of replacing the
+                                        // only version on record.
+                                        if (!msgText.isNullOrBlank() && !msgText.startsWith("/") && !extractTextFromMessageBubble(row).isNullOrBlank()
+                                            && (rowId > 0 || !keyId.isNullOrEmpty())) {
+                                            editStore.recordTransitionAsync(rowId, keyId, null, msgText, System.currentTimeMillis())
+                                        }
+
+                                        if (editLabel != null) {
+                                            bindEditLabel(editLabel, row, rowId, keyId, msgText)
+                                        }
                                     }
                                 }
                             )
@@ -304,11 +339,31 @@ class AntiEditMessagesHook(
 
     private data class EditData(val rowId: Long, val keyId: String?, val msgText: String?)
 
+    private fun invalidateEditLabelBinding(labelView: View) {
+        if (labelView.getTag(TAG_EDIT_DATA) !is EditData) return
+
+        // WhatsApp may already have replaced this text while recycling the row:
+        // only undo WAEX's marker when the displayed text still matches ours.
+        val originalText = labelView.getTag(TAG_EDIT_ORIGINAL_TEXT) as? CharSequence
+        if (originalText != null && labelView is TextView &&
+            labelView.text.toString() == "$originalText 📝") {
+            labelView.text = originalText
+        }
+        labelView.setTag(TAG_EDIT_ORIGINAL_TEXT, null)
+        labelView.setTag(TAG_EDIT_DATA, null)
+        XposedHelpers.removeAdditionalInstanceField(labelView, FIELD_ROW_ID)
+        XposedHelpers.removeAdditionalInstanceField(labelView, FIELD_MSG_ID)
+        XposedHelpers.removeAdditionalInstanceField(labelView, FIELD_MSG_TEXT)
+        // Leave host-supplied click listeners untouched. Any stale WAEX listener
+        // now observes a missing tag and must not open a different history.
+    }
+
     private fun bindEditLabel(labelView: View, parentRow: View?, boundRowId: Long, boundKeyId: String?, boundText: String?) {
         if (boundRowId <= 0 && boundKeyId.isNullOrEmpty()) return
         if (labelView is TextView) {
             val originalText = labelView.text.toString()
             if (!originalText.contains("📝")) {
+                labelView.setTag(TAG_EDIT_ORIGINAL_TEXT, labelView.text)
                 val spannable = SpannableString("$originalText 📝")
                 spannable.setSpan(UnderlineSpan(), 0, spannable.length, 0)
                 labelView.text = spannable
@@ -331,6 +386,7 @@ class AntiEditMessagesHook(
         labelView.setOnClickListener { clickedView ->
             if (!isFeatureEnabled()) return@setOnClickListener
             val data = clickedView.getTag(TAG_EDIT_DATA) as? EditData
+                ?: return@setOnClickListener
             val row = parentRow ?: findParentMessageRow(clickedView)
             val rowId = data?.rowId
                 ?: (XposedHelpers.getAdditionalInstanceField(clickedView, FIELD_ROW_ID) as? Long)
