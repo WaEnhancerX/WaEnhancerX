@@ -15,6 +15,8 @@ import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
+import android.view.MotionEvent;
+import android.text.Layout;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.HeaderViewListAdapter;
@@ -2193,8 +2195,8 @@ public class AntiRevokeHook extends BaseFeature {
                 XposedHelpers.setAdditionalInstanceField(dateTextView, "waex_deleted_ts", deletedTimestamp);
                 dateTextView.getPaint().setUnderlineText(true);
                 dateTextView.setOnTouchListener((v, ev) -> {
-                    if (ev.getAction() == android.view.MotionEvent.ACTION_DOWN
-                            || ev.getAction() == android.view.MotionEvent.ACTION_UP) {
+                    if (ev.getAction() == MotionEvent.ACTION_DOWN
+                            || ev.getAction() == MotionEvent.ACTION_UP) {
                         XposedHelpers.setAdditionalInstanceField(v, "waex_last_touch_x", ev.getX());
                     }
                     return false;
@@ -2230,7 +2232,7 @@ public class AntiRevokeHook extends BaseFeature {
         try {
             Object suffixObj = XposedHelpers.getAdditionalInstanceField(tv, "wae_device_source_suffix");
             Object xObj = XposedHelpers.getAdditionalInstanceField(tv, "waex_last_touch_x");
-            android.text.Layout layout = tv.getLayout();
+            Layout layout = tv.getLayout();
             CharSequence text = tv.getText();
             if (!(suffixObj instanceof String) || ((String) suffixObj).isEmpty()
                     || !(xObj instanceof Float) || layout == null || text == null) return false;

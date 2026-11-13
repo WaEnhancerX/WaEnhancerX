@@ -42,6 +42,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -569,7 +570,7 @@ fun MainDashboardScreen(
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 if (syncing) {
-                                                    androidx.compose.material3.CircularProgressIndicator(
+                                                    CircularProgressIndicator(
                                                         modifier = Modifier.size(14.dp),
                                                         strokeWidth = 2.dp,
                                                         color = colors.primary

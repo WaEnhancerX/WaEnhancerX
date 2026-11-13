@@ -91,6 +91,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Orchestrates and registers all modular hooks in WAEX and reports injected status.
@@ -751,6 +753,14 @@ public final class FeatureRegistry {
         return false;
     }
 
+    private static final ExecutorService HOOK_REPORT_EXECUTOR =
+            Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "WAEX-HookReportIpc");
+                t.setDaemon(true);
+                t.setPriority(Thread.MIN_PRIORITY);
+                return t;
+            });
+
     public void reportInjectedHooks(@NonNull Context context, @NonNull String packageName) {
         try {
             JSONArray array = new JSONArray();
@@ -773,7 +783,15 @@ public final class FeatureRegistry {
             extras.putString("hooking_mode", hookingMode);
             extras.putLong("timestamp", System.currentTimeMillis());
 
-            context.getContentResolver().call(uri, "register_injected_hooks", packageName, extras);
+            // The JSON snapshot above is built on the caller; the cross-process call is not, because
+            // lazy installs report from the UI thread while a screen is opening.
+            HOOK_REPORT_EXECUTOR.execute(() -> {
+                try {
+                    context.getContentResolver().call(uri, "register_injected_hooks", packageName, extras);
+                } catch (Throwable t) {
+                    XposedBridge.log("[WAEX] Failed to report injected hooks: " + t.getMessage());
+                }
+            });
         } catch (Throwable t) {
             XposedBridge.log("[WAEX] Failed to report injected hooks: " + t.getMessage());
         }

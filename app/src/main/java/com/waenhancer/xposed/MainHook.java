@@ -1,6 +1,7 @@
 package com.waenhancer.xposed;
 
 import android.app.Activity;
+import androidx.annotation.NonNull;
 import android.app.Application;
 import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
@@ -42,6 +43,9 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.IXposedHookZygoteInit;
@@ -362,18 +366,27 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                             + t.getClass().getSimpleName());
                 }
 
-                try {
-                    WhatsAppPackageDetector.registerHookedPackage(appContext, packageName);
-                } catch (Throwable t) {
-                    XposedBridge.log("[WAEX] Hooked-package reporting failed: "
-                            + t.getClass().getSimpleName());
-                }
+                // Dashboard bookkeeping (package registration, runtime status, update check) is not
+                // needed to start WhatsApp. Each is a cross-process call into the WAEX provider,
+                // which may have to cold-start the WAEX process, so none of them may run on this
+                // thread. They are queued and sent from one background thread once a screen shows.
+                installDeferredReporting(appContext);
+                queueDeferred(() -> {
+                    try {
+                        WhatsAppPackageDetector.registerHookedPackage(appContext, packageName);
+                    } catch (Throwable t) {
+                        XposedBridge.log("[WAEX] Hooked-package reporting failed: "
+                                + t.getClass().getSimpleName());
+                    }
+                });
                 reportTargetRuntime(appContext, packageName, "INJECTED", "PENDING", null);
-                try {
-                    appContext.getContentResolver().call(
-                            Uri.parse("content://com.waenhancer.hookprovider"),
-                            "request_update_check", packageName, null);
-                } catch (Throwable ignored) {}
+                queueDeferred(() -> {
+                    try {
+                        appContext.getContentResolver().call(
+                                Uri.parse("content://com.waenhancer.hookprovider"),
+                                "request_update_check", packageName, null);
+                    } catch (Throwable ignored) {}
+                });
 
                 try {
                     IntentFilter filter = new IntentFilter("com.waenhancer.WHATSAPP.RESTART");
@@ -475,7 +488,7 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                         }
                         FeatureRegistry registry = new FeatureRegistry(appContext, lpparam.classLoader, bridgeClient);
                         registry.initializeAll();
-                        registry.reportInjectedHooks(appContext, packageName);
+                        queueDeferred(() -> registry.reportInjectedHooks(appContext, packageName));
                         registerHookReportReceiver(appContext, packageName, registry);
                         reportTargetRuntime(
                                 appContext,
@@ -620,11 +633,72 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                             String error) {
         Context appContext = context.getApplicationContext() != null
                 ? context.getApplicationContext() : context;
+        // In-process state is updated immediately; only the provider IPC is deferred.
         sRuntimeStatus = runtimeStatus;
         sBridgeStatus = bridgeStatus;
         sRuntimeError = error;
-        WhatsAppPackageDetector.reportRuntimeHealth(
-                appContext, packageName, runtimeStatus, bridgeStatus, error);
+        queueDeferred(() -> WhatsAppPackageDetector.reportRuntimeHealth(
+                appContext, packageName, runtimeStatus, bridgeStatus, error));
+    }
+
+    // ── Deferred, off-main-thread reporting ─────────────────────────────────────────────────
+    private static final ExecutorService REPORT_EXECUTOR =
+            Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "WAEX-Report");
+                t.setDaemon(true);
+                t.setPriority(Thread.MIN_PRIORITY);
+                return t;
+            });
+    private static final ConcurrentLinkedQueue<Runnable> DEFERRED_REPORTS =
+            new ConcurrentLinkedQueue<>();
+    private static final AtomicBoolean REPORTING_RELEASED =
+            new AtomicBoolean(false);
+    private static final AtomicBoolean REPORTING_INSTALLED =
+            new AtomicBoolean(false);
+    private static final long REPORTING_FALLBACK_MS = 5_000L;
+
+    /** Runs {@code task} on the reporting thread; held back until WhatsApp is on screen. */
+    private static void queueDeferred(Runnable task) {
+        if (REPORTING_RELEASED.get()) {
+            REPORT_EXECUTOR.execute(task);
+        } else {
+            DEFERRED_REPORTS.add(task);
+            // Lost race: released between the check and the add, so drain now.
+            if (REPORTING_RELEASED.get()) drainDeferred();
+        }
+    }
+
+    private static void drainDeferred() {
+        Runnable task;
+        while ((task = DEFERRED_REPORTS.poll()) != null) {
+            REPORT_EXECUTOR.execute(task);
+        }
+    }
+
+    private static void releaseDeferredReporting() {
+        if (REPORTING_RELEASED.compareAndSet(false, true)) drainDeferred();
+    }
+
+    /**
+     * Releases queued reports when the first Activity resumes, or after a fallback delay so a
+     * process that never shows a screen (background start) still reports to the dashboard.
+     */
+    private static void installDeferredReporting(Context appContext) {
+        if (!REPORTING_INSTALLED.compareAndSet(false, true)) return;
+        try {
+            ActivityTracker.addListener(new ActivityTracker.ActivityListener() {
+                @Override public void onActivityCreated(@NonNull Activity activity) {}
+                @Override public void onActivityResumed(@NonNull Activity activity) {
+                    releaseDeferredReporting();
+                }
+                @Override public void onActivityStopped(@NonNull Activity activity) {}
+                @Override public void onActivityDestroyed(@NonNull Activity activity) {}
+            });
+        } catch (Throwable ignored) {}
+        // Already on screen (late injection): nothing to wait for.
+        if (ActivityTracker.getCurrentActivity() != null) releaseDeferredReporting();
+        new Handler(Looper.getMainLooper()).postDelayed(
+                MainHook::releaseDeferredReporting, REPORTING_FALLBACK_MS);
     }
 
     /**
