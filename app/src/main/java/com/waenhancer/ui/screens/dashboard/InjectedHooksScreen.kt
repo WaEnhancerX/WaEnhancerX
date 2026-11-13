@@ -32,6 +32,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -50,6 +51,7 @@ import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.utils.InjectedHookItem
+import com.waenhancer.utils.TargetAppManager
 import com.waenhancer.utils.WhatsAppPackageDetector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -72,7 +74,10 @@ fun InjectedHooksScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("All") }
 
-    LaunchedEffect(packageName, refreshTrigger) {
+    // Reload whenever the manager finishes a sync/refresh for any target.
+    val refreshEpoch by TargetAppManager.refreshEpoch.collectAsState()
+
+    LaunchedEffect(packageName, refreshTrigger, refreshEpoch) {
         withContext(Dispatchers.IO) {
             val list = WhatsAppPackageDetector.getInjectedHooks(context, packageName)
             withContext(Dispatchers.Main) {
@@ -192,7 +197,10 @@ fun InjectedHooksScreen(
                                 .clip(CircleShape)
                                 .background(colors.surfaceDim)
                                 .border(1.dp, colors.outlineVariant, CircleShape)
-                                .clickable { refreshTrigger++ },
+                                .clickable {
+                                    TargetAppManager.syncHooks(context, listOf(packageName))
+                                    refreshTrigger++
+                                },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
