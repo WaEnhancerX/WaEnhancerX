@@ -16,7 +16,17 @@ STUBS = {
 public abstract class Context {
  public static final int MODE_PRIVATE = 0;
  public abstract SharedPreferences getSharedPreferences(String name, int mode);
+ // Keep external Android filesystem APIs explicit. The backup fixture never
+ // needs them; fail if production starts using these paths during a test.
+ public android.content.pm.ApplicationInfo getApplicationInfo(){
+  throw new UnsupportedOperationException("Unexpected Context.getApplicationInfo");
+ }
+ public java.io.File getFilesDir(){
+  throw new UnsupportedOperationException("Unexpected Context.getFilesDir");
+ }
 }''',
+    'android/content/pm/ApplicationInfo.java': '''package android.content.pm;
+public final class ApplicationInfo { public String dataDir; }''',
     'android/content/SharedPreferences.java': '''package android.content;
 import java.util.Map; import java.util.Set;
 public interface SharedPreferences {

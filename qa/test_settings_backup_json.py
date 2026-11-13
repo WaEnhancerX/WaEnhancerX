@@ -99,6 +99,8 @@ def android_doubles(root: Path) -> dict[str, str]:
     if len(assignments) != 1:
         raise ValueError('Expected exactly one Android fixture definition')
     source = ast.literal_eval(assignments[0].value)
+    # Keep android.content.pm symbols used by the real PreferenceStores; all
+    # unexpected filesystem access still throws in the Context double.
     doubles = {p: s for p, s in source.items() if p.startswith('android/content/')}
     doubles['android/compat/annotation/UnsupportedAppUsage.java'] = (
         'package android.compat.annotation; public @interface UnsupportedAppUsage {}')
