@@ -34,6 +34,11 @@ import org.luckypray.dexkit.result.ClassData;
 public class ChatLimitsBypassHook extends BaseFeature {
 
     private static final String TAG = "[WAEX][ChatLimits]";
+    /** Replacement for WhatsApp's pin cap (3 normally, 20 for premium). */
+    private static final int PINNED_CHATS_EXPANDED_LIMIT = 100;
+
+    /** True once the pin-cap getter is hooked; the per-flow workarounds are then unnecessary. */
+    private volatile boolean pinLimitGetterHooked;
 
     public ChatLimitsBypassHook(@NonNull Context context, @NonNull ClassLoader classLoader, @NonNull SharedPreferences prefs) {
         super(context, classLoader, prefs);
@@ -50,8 +55,6 @@ public class ChatLimitsBypassHook extends BaseFeature {
         // Install these hooks regardless of the startup preference snapshot. WAEX settings may be
         // refreshed after WhatsApp starts; every callback below gates its behavior dynamically.
         try {
-            XposedBridge.log(TAG + " Installing pinned-chat compatibility hooks; enabled="
-                    + isPinnedLimitBypassEnabled());
             // Current WhatsApp has no standalone pin-limit getter. The limit is calculated inside
             // the pin/trim runnables, found below using durable log anchors.
             // ChatSettingsStore#setPin is only suppressed while the exact sync handler runs.
@@ -79,14 +82,11 @@ public class ChatLimitsBypassHook extends BaseFeature {
             );
 
             if (setPinMethod != null) {
-                logResolved("set-pin", setPinMethod);
                 XposedBridge.hookMethod(setPinMethod, new XC_MethodHook() {
                     @Override
                     protected void beforeHookedMethod(MethodHookParam param) {
                     }
                 });
-            } else {
-                XposedBridge.log(TAG + " Resolver miss: set-pin");
             }
 
             final ThreadLocal<Set<Object>> activePinBatch = new ThreadLocal<>();
@@ -119,7 +119,6 @@ public class ChatLimitsBypassHook extends BaseFeature {
             );
 
             if (pinnedHashSetMethod != null) {
-                logResolved("pinned-map", pinnedHashSetMethod);
                 XposedBridge.hookMethod(pinnedHashSetMethod, new XC_MethodHook() {
                     @Override
                     @SuppressWarnings("unchecked")
@@ -150,9 +149,9 @@ public class ChatLimitsBypassHook extends BaseFeature {
                         }
                     }
                 });
-            } else {
-                XposedBridge.log(TAG + " Resolver miss: pinned-map");
             }
+
+            hookPinLimitGetter();
 
             // Current WhatsApp applies the limit in three additional places. These hooks mirror
             // three, and hide the existing pins only while WhatsApp trims "excess" entries.
@@ -162,6 +161,102 @@ public class ChatLimitsBypassHook extends BaseFeature {
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Error setting up pinned limit bypass: " + t.getMessage());
         }
+    }
+
+    /** Log strings emitted by the pin flows that read the cap; any one of them is enough. */
+    private static final String[] PIN_FLOW_ANCHORS = {
+            "ConversationPinHelper/pinSelectedJids max=",
+            "ConversationPinHelper/pinSelectedJids channels max=",
+            "ConversationPinHelper/trimExcessPinnedChats",
+            "pinSelectedJids max=",
+    };
+
+    /**
+     * Resolves the pin-cap getter by behaviour, never by obfuscated name. The getter is a tiny
+     * int method ("premium ? 20 : 3") that the pin flows call. Regular WhatsApp exposes it as an
+     * instance no-arg method, WA Business as a static method taking its own helper class, so
+     * both shapes are accepted. Strategies, most to least specific:
+     *   1. int method using literals 3 and 20, called by a pin flow
+     *   2. int method using literal 3, called by a pin flow (premium cap changed)
+     *   3. the only int method in the app using literals 3 and 20
+     * Among several matches, the one called by the most pin-flow methods wins.
+     */
+    private void hookPinLimitGetter() {
+        try {
+            Method getter = DexSearchEngine.getInstance().findMethodWithCache(
+                    context, classLoader, "waex_pin_cap_getter_v4", (bridge, loader) -> {
+                        java.util.Map<Method, Integer> calledByPinFlows = new LinkedHashMap<>();
+                        for (String anchor : PIN_FLOW_ANCHORS) {
+                            for (MethodData caller : bridge.findMethod(FindMethod.create()
+                                    .matcher(MethodMatcher.create()
+                                            .addUsingString(anchor, StringMatchType.Contains)))) {
+                                for (MethodData invoked : caller.getInvokes()) {
+                                    if (!invoked.isMethod()) continue;
+                                    try {
+                                        Method m = invoked.getMethodInstance(loader);
+                                        if (isCapGetterShape(m)) calledByPinFlows.merge(m, 1, Integer::sum);
+                                    } catch (Throwable ignored) { }
+                                }
+                            }
+                        }
+
+                        Method match = pickCapGetter(bridge, loader, calledByPinFlows, true, true);
+                        if (match == null) match = pickCapGetter(bridge, loader, calledByPinFlows, true, false);
+                        if (match == null) match = pickCapGetter(bridge, loader, calledByPinFlows, false, true);
+                        return match;
+                    });
+            if (getter == null) {
+                return;
+            }
+            XposedBridge.hookMethod(getter, new XC_MethodHook() {
+                @Override protected void afterHookedMethod(MethodHookParam param) {
+                    if (!isPinnedLimitBypassEnabled()) return;
+                    Object original = param.getResult();
+                    // Only raise genuine caps (3 / 20 style); never touch an unexpected value.
+                    if (original instanceof Integer && (Integer) original >= 1
+                            && (Integer) original < PINNED_CHATS_EXPANDED_LIMIT) {
+                        param.setResult(PINNED_CHATS_EXPANDED_LIMIT);
+                    }
+                }
+            });
+            pinLimitGetterHooked = true;
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " Pin cap getter hook unavailable: " + t.getMessage());
+        }
+    }
+
+    /** int return; instance no-arg, or static taking exactly its own declaring class. */
+    private static boolean isCapGetterShape(Method m) {
+        if (m.getReturnType() != int.class) return false;
+        Class<?>[] params = m.getParameterTypes();
+        if (Modifier.isStatic(m.getModifiers())) {
+            return params.length == 0 || (params.length == 1 && params[0] == m.getDeclaringClass());
+        }
+        return params.length == 0;
+    }
+
+    private static Method pickCapGetter(org.luckypray.dexkit.DexKitBridge bridge, ClassLoader loader,
+                                        java.util.Map<Method, Integer> calledByPinFlows,
+                                        boolean requireTwenty, boolean requirePinFlowCaller) {
+        MethodMatcher matcher = MethodMatcher.create()
+                .returnType(int.class).paramCount(0, 1).addUsingNumber(3);
+        if (requireTwenty) matcher.addUsingNumber(20);
+        Method best = null;
+        int bestScore = -1;
+        int shapedMatches = 0;
+        for (MethodData data : bridge.findMethod(FindMethod.create().matcher(matcher))) {
+            try {
+                Method m = data.getMethodInstance(loader);
+                if (!isCapGetterShape(m)) continue;
+                shapedMatches++;
+                int score = calledByPinFlows.getOrDefault(m, 0);
+                if (requirePinFlowCaller && score == 0) continue;
+                if (score > bestScore) { best = m; bestScore = score; }
+            } catch (Throwable ignored) { }
+        }
+        // Without pin-flow evidence, accept only an unambiguous match.
+        if (!requirePinFlowCaller && shapedMatches != 1) return null;
+        return best;
     }
 
     private void hookModernPinnedWorkflow(ThreadLocal<Set<Object>> activePinBatch,
@@ -188,7 +283,6 @@ public class ChatLimitsBypassHook extends BaseFeature {
                     if (isPinnedLimitBypassEnabled()) param.setResult(false);
                 }
             });
-            if (upsell != null) logResolved("premium-gate", upsell);
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Pinned premium hook unavailable: " + t.getMessage());
         }
@@ -196,10 +290,10 @@ public class ChatLimitsBypassHook extends BaseFeature {
         try {
             Method trim = findPinnedMethod("waex_trim_excess_pins_v2",
                     "ConversationPinHelper/trimExcessPinnedChats");
-            if (trim != null) logResolved("trim-excess", trim);
             if (trim != null) XposedBridge.hookMethod(trim, new XC_MethodHook() {
                 @Override protected void beforeHookedMethod(MethodHookParam param) {
-                    if (isPinnedLimitBypassEnabled() && isRunnableBranch(param.thisObject, 22)) {
+                    if (!pinLimitGetterHooked && isPinnedLimitBypassEnabled()
+                            && isRunnableBranch(param.thisObject, 22)) {
                         trimmingPinnedChats.set(true);
                     }
                 }
@@ -214,16 +308,15 @@ public class ChatLimitsBypassHook extends BaseFeature {
         try {
             Method pinSelected = findPinnedMethod("waex_pin_selected_chats_v2",
                     "ConversationPinHelper/pinSelectedJids max=");
-            if (pinSelected != null) logResolved("pin-selected", pinSelected);
             if (pinSelected != null) XposedBridge.hookMethod(pinSelected, new XC_MethodHook() {
                 @Override protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                    if (!isPinnedLimitBypassEnabled() || !isRunnableBranch(param.thisObject, 4)) return;
+                    if (pinLimitGetterHooked || !isPinnedLimitBypassEnabled()
+                            || !isRunnableBranch(param.thisObject, 4)) return;
                     Field selectionField = findSelectedJidsField(param.thisObject);
                     if (selectionField == null) return;
                     @SuppressWarnings("unchecked") Set<Object> selection =
                             (Set<Object>) selectionField.get(param.thisObject);
                     if (selection == null || selection.isEmpty()) return;
-                    XposedBridge.log(TAG + " pin-selected branch: selection=" + selection.size());
                     if (selection.size() <= 3) {
                         activePinBatch.set(new LinkedHashSet<>(selection));
                         return;
@@ -254,7 +347,6 @@ public class ChatLimitsBypassHook extends BaseFeature {
 
         try {
             Method handler = findPinnedMethod("waex_pin_chat_handler_v2", "PinChatHandler/setArchive");
-            if (handler != null) logResolved("pin-sync-handler", handler);
             if (handler != null) XposedBridge.hookMethod(handler, new XC_MethodHook() {
                 @Override protected void beforeHookedMethod(MethodHookParam param) {
                     if (isPinnedLimitBypassEnabled()) applyingPinSync.set(true);
@@ -277,13 +369,6 @@ public class ChatLimitsBypassHook extends BaseFeature {
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Pinned sync hook unavailable: " + t.getMessage());
         }
-    }
-
-    private void logResolved(String role, Method method) {
-        XposedBridge.log(TAG + " Resolved " + role + " -> "
-                + method.getDeclaringClass().getName() + "#" + method.getName()
-                + java.util.Arrays.toString(method.getParameterTypes())
-                + ":" + method.getReturnType().getSimpleName());
     }
 
     private Method findPinnedMethod(String cacheKey, String marker) throws Throwable {
@@ -439,7 +524,10 @@ public class ChatLimitsBypassHook extends BaseFeature {
     }
 
     private boolean isPinnedLimitBypassEnabled() {
-        return isEnabled("unlimited_pinned_chats", false) || isEnabled("pinnedlimit", false);
+        // Presence matters: the current key written by the UI must override a stale legacy
+        // "pinnedlimit" value, otherwise turning the toggle off can never take effect.
+        return isEnabled(prefs.contains("unlimited_pinned_chats")
+                ? "unlimited_pinned_chats" : "pinnedlimit", false);
     }
 
     private boolean isForwardLimitBypassEnabled() {
