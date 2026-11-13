@@ -14,6 +14,7 @@
 
 [Improvements]
 - Improved Message Device Source
+- Improved Chats Limit Bypass according to latest WA versions
 - Improved WhatsApp startup
 - More reliable feature detection after updating WhatsApp.
 - Various internal reliability and testing improvements.
