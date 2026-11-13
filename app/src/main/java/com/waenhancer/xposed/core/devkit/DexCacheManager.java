@@ -1,6 +1,7 @@
 package com.waenhancer.xposed.core.devkit;
 
 import android.content.Context;
+import com.waenhancer.app.BuildConfig;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.os.Build;
@@ -35,6 +36,11 @@ public final class DexCacheManager {
     private static final String META_MODULE_VERSION = META_PREFIX + "module_version_code";
     private static final String META_MODULE_UPDATE = META_PREFIX + "module_update_time";
     private static final String META_SCHEMA = META_PREFIX + "schema";
+    private static final String META_MODULE_GENERATION = META_PREFIX + "module_generation";
+    // Advance this epoch when selector semantics change without a module version change.
+    private static final int DESCRIPTOR_SCHEMA_VERSION = 1;
+    private static final String MODULE_CACHE_GENERATION = DESCRIPTOR_SCHEMA_VERSION + ":"
+            + BuildConfig.VERSION_CODE + ":" + BuildConfig.VERSION_NAME;
 
     private static final String CLASS_PREFIX = "class:";
     private static final String METHOD_PREFIX = "method:";
@@ -48,6 +54,7 @@ public final class DexCacheManager {
 
     private final Context mContext;
     private final SharedPreferences mPrefs;
+    private final boolean mPersistentCacheValid;
     private final Map<String, Object> mMemoryCache = new ConcurrentHashMap<>();
     private final Map<String, Object> mKeyLocks = new ConcurrentHashMap<>();
     private final DexNegativeLookupCache mFailedKeys =
@@ -63,7 +70,7 @@ public final class DexCacheManager {
         Context app = context.getApplicationContext();
         mContext = app != null ? app : context;
         mPrefs = mContext.getSharedPreferences(STORE_NAME, Context.MODE_PRIVATE);
-        validateCacheVersion();
+        mPersistentCacheValid = validateCacheVersion();
     }
 
     public static DexCacheManager getInstance(@NonNull Context context) {
@@ -81,7 +88,7 @@ public final class DexCacheManager {
                 ? info.getLongVersionCode() : info.versionCode;
     }
 
-    private void validateCacheVersion() {
+    private boolean validateCacheVersion() {
         try {
             PackageInfo host = mContext.getPackageManager().getPackageInfo(mContext.getPackageName(), 0);
             long hostVersion = versionCode(host);
@@ -96,12 +103,14 @@ public final class DexCacheManager {
                 // remain available and stable sentinels avoid clearing on every process start.
             }
 
-            boolean stale = mPrefs.getLong(META_SCHEMA, -1L) != CACHE_SCHEMA_VERSION
+            boolean stale = !MODULE_CACHE_GENERATION.equals(mPrefs.getString(META_MODULE_GENERATION, null))
+                    || mPrefs.getLong(META_SCHEMA, -1L) != CACHE_SCHEMA_VERSION
                     || mPrefs.getLong(META_HOST_VERSION, -1L) != hostVersion
                     || mPrefs.getLong(META_MODULE_VERSION, -1L) != moduleVersion
                     || mPrefs.getLong(META_MODULE_UPDATE, -1L) != moduleUpdate;
             if (stale) {
                 mPrefs.edit().clear()
+                        .putString(META_MODULE_GENERATION, MODULE_CACHE_GENERATION)
                         .putLong(META_SCHEMA, CACHE_SCHEMA_VERSION)
                         .putLong(META_HOST_VERSION, hostVersion)
                         .putLong(META_MODULE_VERSION, moduleVersion)
@@ -111,9 +120,12 @@ public final class DexCacheManager {
                 mFailedKeys.clear();
                 mInvalidations.incrementAndGet();
             }
+            return true;
         } catch (Throwable error) {
             XposedBridge.log("[WAEX][DexCache] version validation failed: "
                     + error.getClass().getSimpleName());
+            // Do not read or rewrite descriptors from an unverified host generation.
+            return false;
         }
     }
 
@@ -126,7 +138,7 @@ public final class DexCacheManager {
     public void evict(@NonNull Kind kind, @NonNull String key) {
         String typedKey = typedKey(kind, key);
         mMemoryCache.remove(typedKey);
-        mPrefs.edit().remove(typedKey).apply();
+        if (mPersistentCacheValid) mPrefs.edit().remove(typedKey).apply();
         mFailedKeys.clearFailure(negativeKind(kind), typedKey);
         mInvalidations.incrementAndGet();
     }
@@ -193,7 +205,9 @@ public final class DexCacheManager {
                     mMemoryHits.incrementAndGet();
                     return (T) memory;
                 }
-                String persisted = mPrefs.getString(typedKey, null);
+                // A preceding owner may have recorded a miss while this caller waited.
+                if (mFailedKeys.shouldSkip(negativeKind, typedKey, SystemClock.elapsedRealtime())) return null;
+                String persisted = mPersistentCacheValid ? mPrefs.getString(typedKey, null) : null;
                 if (persisted != null) {
                     try {
                         T decoded = codec.decode(loader, persisted);
@@ -213,7 +227,7 @@ public final class DexCacheManager {
                 try {
                     T value = resolver.resolve();
                     if (value != null) {
-                        mPrefs.edit().putString(typedKey, codec.encode(value)).apply();
+                        if (mPersistentCacheValid) mPrefs.edit().putString(typedKey, codec.encode(value)).apply();
                         mMemoryCache.put(typedKey, value);
                         mFailedKeys.clearFailure(negativeKind, typedKey);
                         mResolutions.incrementAndGet();
