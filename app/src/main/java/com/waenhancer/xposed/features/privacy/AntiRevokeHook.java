@@ -90,6 +90,9 @@ public class AntiRevokeHook extends BaseFeature {
     private static volatile int sMsgTextResId = 0;
     private static final ConcurrentHashMap<Class<?>, Field> S_CLASS_TO_KEY_FIELD = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<Class<?>, Field> S_KEY_CLASS_TO_ID_FIELD = new ConcurrentHashMap<>();
+    /** Item classes (date headers, system rows...) that repeatedly yielded no message key. */
+    private static final ConcurrentHashMap<Class<?>, Integer> S_KEYLESS_CLASS_MISSES = new ConcurrentHashMap<>();
+    private static final int KEYLESS_MISS_LIMIT = 8;
     private final Set<Class<?>> recyclerBindHooks = Collections.synchronizedSet(new LinkedHashSet<>());
     private final Map<String, String> revokedTextKeyCache = Collections.synchronizedMap(new LinkedHashMap<String, String>(64, 0.75f, true) {
         @Override protected boolean removeEldestEntry(Map.Entry<String, String> eldest) { return size() > 128; }
@@ -146,6 +149,7 @@ public class AntiRevokeHook extends BaseFeature {
 
     @Override
     public void hook() throws Throwable {
+        DelMessageStore.getInstance(context).preloadAsync(() -> dispatchRealtimeRevokeUI("", 0L));
         initMessageClasses();
         hookBytecodeRevocation();
         hookStatusBytecodeRevocation();
@@ -947,6 +951,15 @@ public class AntiRevokeHook extends BaseFeature {
                                 Object renderedRow = p.getResult();
                                 if (!(renderedRow instanceof ViewGroup)) return;
                                 ViewGroup row = (ViewGroup) renderedRow;
+
+                                // Nothing has ever been revoked: skip item lookup and key
+                                // reflection for every row. Rows that were decorated earlier
+                                // (e.g. after a clear) are still restored.
+                                if (REVOKED_MESSAGES.isEmpty()
+                                        && !DelMessageStore.getInstance(context).mayHaveRevoked()) {
+                                    if (row.getTag(TAG_DECORATED) != null) resetRowDecoration(row);
+                                    return;
+                                }
 
                                 int pos = (int) p.args[0];
                                 Object item;
@@ -2417,6 +2430,8 @@ public class AntiRevokeHook extends BaseFeature {
         if (fMessageObj == null) return null;
         try {
             Class<?> objClass = fMessageObj.getClass();
+            Integer misses = S_KEYLESS_CLASS_MISSES.get(objClass);
+            if (misses != null && misses >= KEYLESS_MISS_LIMIT) return null;
 
             // 1. Fast Path: Use cached fields if already discovered
             Field cachedKField = S_CLASS_TO_KEY_FIELD.get(objClass);
@@ -2496,6 +2511,7 @@ public class AntiRevokeHook extends BaseFeature {
                 }
                 curr = curr.getSuperclass();
             }
+            S_KEYLESS_CLASS_MISSES.merge(objClass, 1, Integer::sum);
         } catch (Throwable t) {
             XposedBridge.log(TAG + " extractKeyIdFromFMessage error: " + t.getClass().getSimpleName());
         }
