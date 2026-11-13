@@ -399,7 +399,6 @@
     <string name="config_mode_title">Modo de configuração</string>
     <string name="config_mode_universal">Universal</string>
     <string name="config_mode_universal_desc">Aplicar as mesmas preferências a todos os aplicativos do WhatsApp incluídos.</string>
-    <string name="diag_denylist_active_targets">Aplicativos na DenyList</string>
     <string name="diag_denylist_blocked">Bloqueando o WhatsApp</string>
     <string name="diag_denylist_btn_fix">Corrigir</string>
     <string name="diag_denylist_btn_fix_all">Corrigir tudo</string>
@@ -410,7 +409,6 @@
     <string name="diag_denylist_fix_message">Isso removerá %1$s da DenyList do Magisk e forçará a parada para que o Zygisk/LSPosed possa interceptá-lo na próxima inicialização.</string>
     <string name="diag_denylist_fix_success">Removido com sucesso da DenyList do Magisk</string>
     <string name="diag_denylist_fix_title">Corrigir DenyList do Magisk</string>
-    <string name="diag_denylist_inactive_targets">Outros destinos</string>
     <string name="diag_denylist_not_active">Inativo</string>
     <string name="diag_denylist_sheet_desc">Visão geral das regras da DenyList do Magisk que afetam os pacotes de destino e a injeção do módulo Zygisk.</string>
     <string name="diag_denylist_sheet_title">Diagnóstico da DenyList do Magisk</string>

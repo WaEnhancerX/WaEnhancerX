@@ -399,7 +399,6 @@
     <string name="config_mode_title">وضع التكوين</string>
     <string name="config_mode_universal">عام (شامل)</string>
     <string name="config_mode_universal_desc">تطبيق نفس التفضيلات على جميع تطبيقات واتساب المشمولة.</string>
-    <string name="diag_denylist_active_targets">التطبيقات في DenyList</string>
     <string name="diag_denylist_blocked">حظر واتساب</string>
     <string name="diag_denylist_btn_fix">إصلاح</string>
     <string name="diag_denylist_btn_fix_all">إصلاح الكل</string>
@@ -410,7 +409,6 @@
     <string name="diag_denylist_fix_message">سيؤدي هذا إلى إزالة %1$s من Magisk DenyList وإيقافه إجبارياً حتى يتمكن Zygisk/LSPosed من حقنه في التشغيل التالي.</string>
     <string name="diag_denylist_fix_success">تمت الإزالة من Magisk DenyList بنجاح</string>
     <string name="diag_denylist_fix_title">إصلاح Magisk DenyList</string>
-    <string name="diag_denylist_inactive_targets">أهداف أخرى</string>
     <string name="diag_denylist_not_active">غير نشط</string>
     <string name="diag_denylist_sheet_desc">نظرة عامة على قواعد Magisk DenyList التي تؤثر على حزم التطبيقات وحقن الوحدة عبر Zygisk.</string>
     <string name="diag_denylist_sheet_title">تشخيص Magisk DenyList</string>

@@ -399,7 +399,6 @@
     <string name="config_mode_title">配置模式</string>
     <string name="config_mode_universal">通用模式</string>
     <string name="config_mode_universal_desc">将相同的偏好设置应用于范围内所有 WhatsApp 应用。</string>
-    <string name="diag_denylist_active_targets">已列入 DenyList 的目标</string>
     <string name="diag_denylist_blocked">正在拦截 WhatsApp</string>
     <string name="diag_denylist_btn_fix">修复</string>
     <string name="diag_denylist_btn_fix_all">全部修复</string>
@@ -410,7 +409,6 @@
     <string name="diag_denylist_fix_message">这将从 Magisk DenyList 中移除 %1$s 并强制停止它，以便 Zygisk/LSPosed 在下次启动时注入 Hook。</string>
     <string name="diag_denylist_fix_success">已成功从 Magisk DenyList 中移除</string>
     <string name="diag_denylist_fix_title">修复 Magisk DenyList</string>
-    <string name="diag_denylist_inactive_targets">其他目标</string>
     <string name="diag_denylist_not_active">未激活</string>
     <string name="diag_denylist_sheet_desc">影响目标软件包和 Zygisk 模块注入的 Magisk DenyList 规则概览。</string>
     <string name="diag_denylist_sheet_title">Magisk DenyList 诊断</string>

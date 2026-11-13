@@ -399,7 +399,6 @@
     <string name="config_mode_title">कॉन्फ़िगरेशन मोड</string>
     <string name="config_mode_universal">सार्वभौमिक (Universal)</string>
     <string name="config_mode_universal_desc">सभी संबंधित WhatsApp ऐप्स पर समान प्राथमिकताएं लागू करें।</string>
-    <string name="diag_denylist_active_targets">DenyList में शामिल ऐप्स</string>
     <string name="diag_denylist_blocked">WhatsApp ब्लॉक हो रहा है</string>
     <string name="diag_denylist_btn_fix">ठीक करें</string>
     <string name="diag_denylist_btn_fix_all">सभी ठीक करें</string>
@@ -410,7 +409,6 @@
     <string name="diag_denylist_fix_message">यह %1$s को Magisk DenyList से हटा देगा और इसे फ़ोर्स-स्टॉप कर देगा ताकि Zygisk/LSPosed अगले लॉन्च पर हुक कर सके।</string>
     <string name="diag_denylist_fix_success">Magisk DenyList से सफलतापूर्वक हटा दिया गया</string>
     <string name="diag_denylist_fix_title">Magisk DenyList ठीक करें</string>
-    <string name="diag_denylist_inactive_targets">अन्य लक्षित ऐप्स</string>
     <string name="diag_denylist_not_active">सक्रिय नहीं है</string>
     <string name="diag_denylist_sheet_desc">Magisk DenyList नियमों का अवलोकन जो लक्षित ऐप्स और Zygisk मॉड्यूल इंजेक्शन को प्रभावित करते हैं।</string>
     <string name="diag_denylist_sheet_title">Magisk DenyList निदान</string>

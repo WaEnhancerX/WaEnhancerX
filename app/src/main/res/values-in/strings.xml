@@ -399,7 +399,6 @@
     <string name="config_mode_title">Mode Konfigurasi</string>
     <string name="config_mode_universal">Universal</string>
     <string name="config_mode_universal_desc">Terapkan preferensi yang sama ke semua aplikasi WhatsApp yang dicakup.</string>
-    <string name="diag_denylist_active_targets">Target yang Masuk DenyList</string>
     <string name="diag_denylist_blocked">WhatsApp Diblokir</string>
     <string name="diag_denylist_btn_fix">Perbaiki</string>
     <string name="diag_denylist_btn_fix_all">Perbaiki Semua</string>
@@ -410,7 +409,6 @@
     <string name="diag_denylist_fix_message">Ini akan menghapus %1$s dari Magisk DenyList dan memaksanya berhenti agar Zygisk/LSPosed dapat mengaitkannya saat peluncuran berikutnya.</string>
     <string name="diag_denylist_fix_success">Berhasil dihapus dari Magisk DenyList</string>
     <string name="diag_denylist_fix_title">Perbaiki Magisk DenyList</string>
-    <string name="diag_denylist_inactive_targets">Target Lainnya</string>
     <string name="diag_denylist_not_active">Tidak aktif</string>
     <string name="diag_denylist_sheet_desc">Ikhtisar aturan Magisk DenyList yang memengaruhi paket target dan injeksi modul Zygisk.</string>
     <string name="diag_denylist_sheet_title">Diagnostik Magisk DenyList</string>

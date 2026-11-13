@@ -399,7 +399,6 @@
     <string name="config_mode_title">کنفیگ موڈ</string>
     <string name="config_mode_universal">عالمگیر (Universal)</string>
     <string name="config_mode_universal_desc">تمام شامل واٹس ایپ ایپس پر یکساں ترجیحات لاگو کریں۔</string>
-    <string name="diag_denylist_active_targets">DenyList میں شامل ایپس</string>
     <string name="diag_denylist_blocked">واٹس ایپ بلاک ہو رہا ہے</string>
     <string name="diag_denylist_btn_fix">درست کریں</string>
     <string name="diag_denylist_btn_fix_all">سب درست کریں</string>
@@ -410,7 +409,6 @@
     <string name="diag_denylist_fix_message">یہ %1$s کو Magisk DenyList سے ہٹا دے گا اور اسے فورس اسٹاپ کر دے گا تاکہ Zygisk/LSPosed اگلی بار ہک کر سکے۔</string>
     <string name="diag_denylist_fix_success">Magisk DenyList سے کامیابی کے ساتھ ہٹا دیا گیا</string>
     <string name="diag_denylist_fix_title">Magisk DenyList درست کریں</string>
-    <string name="diag_denylist_inactive_targets">دیگر اہداف</string>
     <string name="diag_denylist_not_active">غیر فعال</string>
     <string name="diag_denylist_sheet_desc">Magisk DenyList کے قواعد کا جائزہ جو ہدف ایپس اور ماڈیول انجیکشن کو متاثر کرتے ہیں۔</string>
     <string name="diag_denylist_sheet_title">Magisk DenyList کی تشخیص</string>
