@@ -102,6 +102,27 @@ jobs:
           set -euo pipefail
           python3 qa/test_syntax_checker.py
 
+      - name: Verify media constructor hook with cold and persisted DexKit caches
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_media_warm_cache.py \
+            --source-root . \
+            --out "$RUNNER_TEMP/media-warm-cache-contract"
+
+      - name: Preserve media cache and callback contract evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: media-warm-cache-contract-evidence
+          path: |
+            ${{ runner.temp }}/media-warm-cache-contract/RESULTS.json
+            ${{ runner.temp }}/media-warm-cache-contract/*.stdout.txt
+            ${{ runner.temp }}/media-warm-cache-contract/*.stderr.txt
+            ${{ runner.temp }}/media-warm-cache-contract/*/cache-input.properties
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Validate complete status style and property hook contracts
         shell: bash
         run: |
