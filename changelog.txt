@@ -4,11 +4,18 @@
 [Fixes]
 - Fixed call recording toggle to respect on/off states of individual apps.
 - Fixed incorrect behaviour of some features being in Waiting state in max mode.
-- Fixed Privacy features
+- Fixed Anti-Delete (preserved messages) issues that could cause crashes or lost message history after a WhatsApp update.
+- Fixed Anti-Delete not recognizing WhatsApp's newer "Delete message" dialog.
+- Fixed Message Device Source not showing which device sent a message.
+- Fixed the app restarting itself even when a setting failed to save.
+- Fixed manual "mark as read" action sometimes ignoring your privacy settings.
+- Fixed Separate Groups and Parallel Downloading possibly not working on older Android versions.
 
 [Improvements]
 - Improved Message Device Source
 - Improved WhatsApp startup
+- More reliable feature detection after updating WhatsApp.
+- Various internal reliability and testing improvements.
 
 
 [Community contribution]
