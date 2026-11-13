@@ -1,0 +1,42 @@
+name: Media preview ownership and bounded UI lifecycle
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile complete production with real APIs and run Android lifecycle cases
+        run: |
+          set -euo pipefail
+          kotlinc -version
+          python3 qa/android_media_preview_test.py --out "$RUNNER_TEMP/waex-preview/healthy"
+          python3 qa/mutate_media_preview_lifecycle.py --out "$RUNNER_TEMP/waex-preview/mutations" --deps "$RUNNER_TEMP/waex-preview/healthy/deps" --dexkit-jar "$RUNNER_TEMP/waex-preview/healthy/public-apis/dexkit-2.2.0.jar" --http-api-jar "$RUNNER_TEMP/waex-preview/healthy/public-apis/okhttp-4.12.0.jar"
+      - name: Retain test identities and failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: waex-preview-lifecycle-evidence
+          path: |
+            ${{ runner.temp }}/waex-preview/**/*.json
+            ${{ runner.temp }}/waex-preview/**/*.log
+          if-no-files-found: error
+          retention-days: 14

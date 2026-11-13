@@ -57,6 +57,7 @@ import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Call
 import org.luckypray.dexkit.query.FindClass
 import org.luckypray.dexkit.query.enums.StringMatchType
 import org.luckypray.dexkit.query.matchers.ClassMatcher
@@ -65,13 +66,17 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
+import java.io.InterruptedIOException
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Modifier
 import java.util.Collections
 import java.util.IdentityHashMap
 import java.util.Locale
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.FutureTask
+import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
@@ -89,12 +94,56 @@ class MediaPreviewHook(
 
     override val name: String get() = "Media Preview"
 
-    private var currentFilePath: File? = null
-    private var previewDialog: Dialog? = null
-    private var currentVideoView: VideoView? = null
-    private var currentMediaPlayer: MediaPlayer? = null
-    private var currentSpeed: Float = 1.0f
-    private var lastProgressPostAt: Long = 0L
+    @Volatile
+    private var activePreview: PreviewSession? = null
+
+    private class PreviewSession(val executor: ThreadPoolExecutor) {
+        @Volatile var cancelled = false
+        var task: FutureTask<Unit>? = null
+        var call: Call? = null
+        var temporaryFile: File? = null
+        var dialog: Dialog? = null
+        var videoView: VideoView? = null
+        var mediaPlayer: MediaPlayer? = null
+        var speed = 1.0f
+        var lastProgressPostAt = 0L
+        var progressTask: Runnable? = null
+        var latestProgress = 0
+        var latestSizeInfo = ""
+        var pendingBitmap: Bitmap? = null
+    }
+
+    private fun isCurrent(session: PreviewSession): Boolean =
+        activePreview === session && !session.cancelled
+
+    private fun checkCurrent(session: PreviewSession) {
+        if (!isCurrent(session) || Thread.currentThread().isInterrupted) {
+            throw InterruptedIOException("Preview cancelled")
+        }
+    }
+
+    private fun postPreview(session: PreviewSession, action: () -> Unit) {
+        synchronized(session) {
+            if (!isCurrent(session)) return
+            // Cancellation cannot remove callbacks between this check and registration.
+            mainHandler.postAtTime({ if (isCurrent(session)) action() }, session, SystemClock.uptimeMillis())
+        }
+    }
+
+    private fun executePreview(session: PreviewSession, context: Context, action: () -> Unit) {
+        val task = FutureTask<Unit> { if (isCurrent(session)) action() }
+        try {
+            synchronized(session) {
+                if (!isCurrent(session)) return
+                session.task = task
+                // Register and enqueue together so cleanup cannot remove a task
+                // before it has entered the bounded queue.
+                session.executor.execute(task)
+            }
+        } catch (e: RejectedExecutionException) {
+            handleError(e, session, context)
+        }
+    }
 
     override fun hook() {
         if (!isEnabled("media_preview", isEnabled("enable_media_preview", true))) return
@@ -408,9 +457,14 @@ class MediaPreviewHook(
         id: Long?, context: Context, isNewsletter: Boolean, sourceView: View?,
         inMemoryMedia: MediaInfo
     ) {
-        val executor = getPreviewExecutor()
-        executor.execute {
+        // Entry clicks and dialog callbacks are serialized on the main looper.
+        val session = PreviewSession(getPreviewExecutor())
+        val previous = activePreview
+        activePreview = session
+        previous?.let(::closePreview)
+        executePreview(session, context) {
             try {
+                checkCurrent(session)
                 var media = inMemoryMedia
                 if (id != null) {
                     try {
@@ -465,6 +519,7 @@ class MediaPreviewHook(
                     }
                 }
 
+                checkCurrent(session)
                 if (media.isUsable()) {
                     var url = media.url
                     val mimeType = media.mimeType ?: inferMimeType(media.localFile)
@@ -478,77 +533,86 @@ class MediaPreviewHook(
                     }
 
                     val finalUrl = url
-                    mainHandler.post {
-                        val dialog = Dialog(context, AndroidR.style.Theme_Black_NoTitleBar_Fullscreen).apply {
-                            requestWindowFeature(Window.FEATURE_NO_TITLE)
-                            setCancelable(true)
-                            window?.let { w ->
-                                w.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
-                                w.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    postPreview(session) {
+                        try {
+                            val dialog = Dialog(context, AndroidR.style.Theme_Black_NoTitleBar_Fullscreen).apply {
+                                requestWindowFeature(Window.FEATURE_NO_TITLE)
+                                setCancelable(true)
+                                window?.let { w ->
+                                    w.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
+                                    w.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                                }
                             }
-                        }
-                        previewDialog = dialog
+                            session.dialog = dialog
 
-                        val mainContainer = RelativeLayout(context).apply {
-                            layoutParams = ViewGroup.LayoutParams(
-                                ViewGroup.LayoutParams.MATCH_PARENT,
-                                ViewGroup.LayoutParams.MATCH_PARENT
-                            )
-                            setBackgroundColor(Color.BLACK)
-                        }
-
-                        val header = createHeader(context, mimeType, dialog)
-                        mainContainer.addView(header)
-
-                        val contentContainer = FrameLayout(context).apply {
-                            this.id = View.generateViewId()
-                            layoutParams = RelativeLayout.LayoutParams(
-                                RelativeLayout.LayoutParams.MATCH_PARENT,
-                                RelativeLayout.LayoutParams.MATCH_PARENT
-                            ).apply {
-                                addRule(RelativeLayout.BELOW, header.id)
-                            }
-                        }
-                        mainContainer.addView(contentContainer)
-
-                        val loadingUi = createLoadingView(context, dialog)
-                        val loadingContainer = loadingUi.container
-                        contentContainer.addView(loadingContainer)
-
-                        val progressBar = loadingUi.progressBar
-                        val progressText = loadingUi.statusText
-
-                        dialog.setContentView(mainContainer)
-                        dialog.setOnDismissListener { cleanupResources(executor) }
-                        dialog.show()
-
-                        val localFile = media.localFile
-                        if (localFile != null) {
-                            executor.execute {
-                                displayLocalMedia(localFile, mimeType, context, contentContainer, loadingContainer)
-                            }
-                        } else {
-                            executor.execute {
-                                downloadAndDisplayMedia(
-                                    finalUrl, mediaKey, mimeType, fileLength, isNewsletter, context,
-                                    contentContainer, loadingContainer, progressBar, progressText, executor, sourceView
+                            val mainContainer = RelativeLayout(context).apply {
+                                layoutParams = ViewGroup.LayoutParams(
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    ViewGroup.LayoutParams.MATCH_PARENT
                                 )
+                                setBackgroundColor(Color.BLACK)
                             }
+
+                            val header = createHeader(context, mimeType, session)
+                            mainContainer.addView(header)
+
+                            val contentContainer = FrameLayout(context).apply {
+                                this.id = View.generateViewId()
+                                layoutParams = RelativeLayout.LayoutParams(
+                                    RelativeLayout.LayoutParams.MATCH_PARENT,
+                                    RelativeLayout.LayoutParams.MATCH_PARENT
+                                ).apply {
+                                    addRule(RelativeLayout.BELOW, header.id)
+                                }
+                            }
+                            mainContainer.addView(contentContainer)
+
+                            val loadingUi = createLoadingView(context, session)
+                            val loadingContainer = loadingUi.container
+                            contentContainer.addView(loadingContainer)
+
+                            val progressBar = loadingUi.progressBar
+                            val progressText = loadingUi.statusText
+
+                            dialog.setContentView(mainContainer)
+                            dialog.setOnDismissListener { closePreview(session) }
+                            dialog.window?.decorView?.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+                                override fun onViewAttachedToWindow(view: View) {}
+                                override fun onViewDetachedFromWindow(view: View) { closePreview(session) }
+                            })
+                            dialog.show()
+
+                            val localFile = media.localFile
+                            if (localFile != null) {
+                                executePreview(session, context) {
+                                    displayLocalMedia(session, localFile, mimeType, context, contentContainer, loadingContainer)
+                                }
+                            } else {
+                                executePreview(session, context) {
+                                    downloadAndDisplayMedia(
+                                        session,
+                                        finalUrl, mediaKey, mimeType, fileLength, isNewsletter, context,
+                                        contentContainer, loadingContainer, progressBar, progressText
+                                    )
+                                }
+                            }
+                        } catch (e: Exception) {
+                            handleError(e, session, context)
                         }
                     }
                 } else {
-                    mainHandler.post {
+                    postPreview(session) {
                         Toast.makeText(context, UiText.get(R.string.waex_ui_full_quality_media_info_is_unavailable, "Full-quality media info is unavailable"), Toast.LENGTH_LONG).show()
+                        closePreview(session)
                     }
-                    cleanupDialog(executor)
                 }
             } catch (e: Exception) {
-                handleError(e, executor, context, sourceView)
+                handleError(e, session, context)
             }
         }
     }
 
-    private fun createHeader(context: Context, mimeType: String?, dialog: Dialog): RelativeLayout {
+    private fun createHeader(context: Context, mimeType: String?, session: PreviewSession): RelativeLayout {
         val header = RelativeLayout(context).apply {
             this.id = View.generateViewId()
             layoutParams = RelativeLayout.LayoutParams(
@@ -575,7 +639,7 @@ class MediaPreviewHook(
             setColorFilter(Color.WHITE)
             setImageResource(AndroidR.drawable.ic_menu_close_clear_cancel)
             setOnClickListener {
-                if (dialog.isShowing) dialog.dismiss()
+                closePreview(session)
             }
         }
         header.addView(closeBtn)
@@ -602,7 +666,7 @@ class MediaPreviewHook(
         val statusText: TextView
     )
 
-    private fun createLoadingView(context: Context, dialog: Dialog): LoadingUi {
+    private fun createLoadingView(context: Context, session: PreviewSession): LoadingUi {
         val loadingContainer = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
@@ -695,7 +759,7 @@ class MediaPreviewHook(
                 setColor(Color.parseColor("#183B4A54"))
             }
             setOnClickListener {
-                if (dialog.isShowing) dialog.dismiss()
+                closePreview(session)
             }
         }
         card.addView(cancel)
@@ -705,22 +769,28 @@ class MediaPreviewHook(
     }
 
     private fun downloadAndDisplayMedia(
+        session: PreviewSession,
         url: String?, mediaKey: String?, mimeType: String,
         expectedSize: Long, isNewsletter: Boolean, context: Context,
         contentContainer: FrameLayout, loadingContainer: LinearLayout,
-        progressBar: ProgressBar, progressText: TextView, executor: ExecutorService,
-        sourceView: View?
+        progressBar: ProgressBar, progressText: TextView
     ) {
+        var ownedFile: File? = null
+        var activeCall: Call? = null
         try {
+            checkCurrent(session)
             if (url.isNullOrBlank()) {
                 throw Exception("Media URL is unavailable")
             }
 
             val fileExtension = if (mimeType.startsWith("image")) ".jpg" else ".mp4"
-            val file = File(context.cacheDir, "mediapreview_${System.currentTimeMillis()}$fileExtension")
-            if (file.exists()) file.delete()
-            currentFilePath = file
-            lastProgressPostAt = 0L
+            val file = File.createTempFile("mediapreview_", fileExtension, context.cacheDir)
+            ownedFile = file
+            synchronized(session) {
+                checkCurrent(session)
+                session.temporaryFile = file
+            }
+            session.lastProgressPostAt = 0L
 
             val client = OkHttpClient.Builder()
                 .addInterceptor { chain ->
@@ -733,7 +803,17 @@ class MediaPreviewHook(
                 .build()
 
             val request = Request.Builder().url(url).build()
-            client.newCall(request).execute().use { response ->
+            val call = client.newCall(request)
+            activeCall = call
+            synchronized(session) {
+                if (!isCurrent(session)) {
+                    call.cancel()
+                    throw InterruptedIOException("Preview cancelled")
+                }
+                session.call = call
+            }
+            call.execute().use { response ->
+                checkCurrent(session)
                 if (!response.isSuccessful || response.body == null) {
                     throw Exception("Failed to download media: HTTP ${response.code}")
                 }
@@ -744,48 +824,53 @@ class MediaPreviewHook(
                 val inputStream = response.body!!.byteStream()
 
                 if (isNewsletter) {
-                    downloadWithProgress(inputStream, contentLength, progressBar, progressText, file)
+                    downloadWithProgress(session, inputStream, contentLength, progressBar, progressText, file)
                 } else {
-                    downloadAndDecryptWithProgress(inputStream, contentLength, mediaKey, mimeType, progressBar, progressText, file)
+                    downloadAndDecryptWithProgress(session, inputStream, contentLength, mediaKey, mimeType, progressBar, progressText, file)
                 }
 
+                checkCurrent(session)
                 val bitmap = if (mimeType.startsWith("image")) {
                     BitmapFactory.decodeFile(file.absolutePath)
                 } else null
 
-                mainHandler.post {
+                if (mimeType.startsWith("image")) {
+                    postDecodedImage(session, bitmap, context, contentContainer, loadingContainer)
+                } else postPreview(session) {
                     loadingContainer.visibility = View.GONE
-                    if (mimeType.startsWith("image")) {
-                        if (bitmap != null) {
-                            displayImage(context, contentContainer, bitmap)
-                        } else {
-                            Toast.makeText(context, UiText.get(R.string.waex_ui_the_full_quality_image_could_not_be_de, "The full-quality image could not be decoded"), Toast.LENGTH_LONG).show()
-                        }
-                    } else {
-                        displayVideo(context, contentContainer, file)
-                    }
+                    displayVideo(session, context, contentContainer, file)
                 }
             }
         } catch (e: Throwable) {
-            handleError(e, executor, context, sourceView)
+            handleError(e, session, context)
+        } finally {
+            synchronized(session) {
+                if (session.call === activeCall) session.call = null
+            }
+            // Cancellation may race file creation/opening. The worker owns this
+            // final cleanup even when the dialog already removed the pathname.
+            if (!isCurrent(session)) ownedFile?.delete()
         }
     }
 
     private fun downloadWithProgress(
+        session: PreviewSession,
         inputStream: InputStream, contentLength: Long,
         progressBar: ProgressBar, progressText: TextView, file: File
     ) {
+        checkCurrent(session)
         FileOutputStream(file).use { fos ->
             val buffer = ByteArray(8192)
             var totalBytesRead = 0L
             var bytesRead: Int
             while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                checkCurrent(session)
                 fos.write(buffer, 0, bytesRead)
                 totalBytesRead += bytesRead
                 if (contentLength > 0) {
                     val progress = ((totalBytesRead * 100) / contentLength).toInt()
                     val sizeInfo = "${formatSize(totalBytesRead)} / ${formatSize(contentLength)}"
-                    postDownloadProgress(progressBar, progressText, progress, sizeInfo)
+                    postDownloadProgress(session, progressBar, progressText, progress, sizeInfo)
                 }
             }
         }
@@ -793,47 +878,88 @@ class MediaPreviewHook(
     }
 
     private fun downloadAndDecryptWithProgress(
+        session: PreviewSession,
         inputStream: InputStream, contentLength: Long,
         mediaKey: String?, mimeType: String,
         progressBar: ProgressBar, progressText: TextView, file: File
     ) {
+        checkCurrent(session)
         val encryptedData = ByteArrayOutputStream().use { baos ->
             val buffer = ByteArray(8192)
             var totalBytesRead = 0L
             var bytesRead: Int
             while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                checkCurrent(session)
                 baos.write(buffer, 0, bytesRead)
                 totalBytesRead += bytesRead
                 if (contentLength > 0) {
                     val progress = ((totalBytesRead * 100) / contentLength).toInt()
                     val sizeInfo = "${formatSize(totalBytesRead)} / ${formatSize(contentLength)}"
-                    postDownloadProgress(progressBar, progressText, progress, sizeInfo)
+                    postDownloadProgress(session, progressBar, progressText, progress, sizeInfo)
                 }
             }
             baos.toByteArray()
         }
         inputStream.close()
 
-        mainHandler.post { progressText.text = "Decrypting..." }
+        checkCurrent(session)
+        postPreview(session) { progressText.text = "Decrypting..." }
 
         val decryptedData = decryptMedia(encryptedData, mediaKey, mimeType)
             ?: throw Exception("Decryption failed")
 
+        checkCurrent(session)
         FileOutputStream(file).use { fos ->
             fos.write(decryptedData)
         }
     }
 
     private fun postDownloadProgress(
+        session: PreviewSession,
         progressBar: ProgressBar, progressText: TextView,
         progress: Int, sizeInfo: String
     ) {
-        val now = SystemClock.uptimeMillis()
-        if (progress < 100 && now - lastProgressPostAt < 100L) return
-        lastProgressPostAt = now
-        mainHandler.post {
-            progressBar.progress = progress
-            progressText.text = UiText.get(R.string.waex_ui_downloading_1_s_2_s, "Downloading… %1\$s%%\n%2\$s", progress, sizeInfo)
+        synchronized(session) {
+            if (!isCurrent(session)) return
+            session.latestProgress = progress.coerceIn(0, 100)
+            session.latestSizeInfo = sizeInfo
+            if (session.progressTask != null) return
+            val now = SystemClock.uptimeMillis()
+            if (progress < 100 && now - session.lastProgressPostAt < 100L) return
+            session.lastProgressPostAt = now
+            val update = Runnable {
+                val value: Int
+                val size: String
+                synchronized(session) {
+                    session.progressTask = null
+                    if (!isCurrent(session)) return@Runnable
+                    value = session.latestProgress
+                    size = session.latestSizeInfo
+                }
+                progressBar.progress = value
+                progressText.text = UiText.get(R.string.waex_ui_downloading_1_s_2_s, "Downloading… %1\$s%%\n%2\$s", value, size)
+            }
+            session.progressTask = update
+            mainHandler.postAtTime(update, session, now)
+        }
+    }
+
+    /** Only bitmaps decoded by this preview enter this pending ownership slot. */
+    private fun postDecodedImage(session: PreviewSession, bitmap: Bitmap?, context: Context,
+                                 container: FrameLayout, loading: LinearLayout) {
+        synchronized(session) {
+            if (!isCurrent(session)) {
+                bitmap?.recycle()
+                return
+            }
+            session.pendingBitmap = bitmap
+            postPreview(session) {
+                synchronized(session) { session.pendingBitmap = null }
+                loading.visibility = View.GONE
+                if (bitmap != null) displayImage(context, container, bitmap)
+                else Toast.makeText(context, UiText.get(R.string.waex_ui_the_full_quality_image_could_not_be_de,
+                        "The full-quality image could not be decoded"), Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -853,27 +979,26 @@ class MediaPreviewHook(
     }
 
     private fun displayLocalMedia(
+        session: PreviewSession,
         file: File, mimeType: String, context: Context,
         contentContainer: FrameLayout, loadingContainer: LinearLayout
     ) {
         try {
+            checkCurrent(session)
             if (!file.isFile || file.length() <= 0L) throw Exception("Downloaded media file is unavailable")
             val bitmap = if (mimeType.startsWith("image")) BitmapFactory.decodeFile(file.absolutePath) else null
-            mainHandler.post {
+            if (mimeType.startsWith("image")) {
+                postDecodedImage(session, bitmap, context, contentContainer, loadingContainer)
+            } else postPreview(session) {
                 loadingContainer.visibility = View.GONE
-                if (mimeType.startsWith("image")) {
-                    if (bitmap != null) displayImage(context, contentContainer, bitmap)
-                    else Toast.makeText(context, UiText.get(R.string.waex_ui_the_full_quality_image_could_not_be_de, "The full-quality image could not be decoded"), Toast.LENGTH_LONG).show()
-                } else {
-                    displayVideo(context, contentContainer, file)
-                }
+                displayVideo(session, context, contentContainer, file)
             }
         } catch (t: Throwable) {
-            handleError(t, getPreviewExecutor(), context, null)
+            handleError(t, session, context)
         }
     }
 
-    private fun displayVideo(context: Context, container: FrameLayout, file: File) {
+    private fun displayVideo(session: PreviewSession, context: Context, container: FrameLayout, file: File) {
         try {
             val videoContainer = RelativeLayout(context).apply {
                 layoutParams = FrameLayout.LayoutParams(
@@ -891,16 +1016,20 @@ class MediaPreviewHook(
                     addRule(RelativeLayout.CENTER_IN_PARENT)
                 }
             }
-            currentVideoView = videoView
+            session.videoView = videoView
 
-            val controls = createVideoControls(context, videoView)
+            val controls = createVideoControls(session, context, videoView)
             videoContainer.addView(videoView)
             videoContainer.addView(controls)
             container.addView(videoContainer)
 
             videoView.setVideoURI(Uri.fromFile(file))
             videoView.setOnPreparedListener { mp ->
-                currentMediaPlayer = mp
+                if (!isCurrent(session)) {
+                    runCatching { videoView.stopPlayback() }
+                    return@setOnPreparedListener
+                }
+                session.mediaPlayer = mp
                 mp.isLooping = false
                 val isMuted = prefs.getBoolean("video_preview_muted", false)
                 mp.setVolume(if (isMuted) 0f else 1f, if (isMuted) 0f else 1f)
@@ -909,12 +1038,15 @@ class MediaPreviewHook(
             }
 
             videoView.setOnCompletionListener {
+                if (!isCurrent(session)) return@setOnCompletionListener
                 videoView.seekTo(0)
                 updatePlayPauseButton(controls, false)
             }
 
             videoView.setOnErrorListener { _, _, _ ->
-                Toast.makeText(context, UiText.get(R.string.waex_ui_error_playing_video, "Error playing video"), Toast.LENGTH_SHORT).show()
+                if (isCurrent(session)) {
+                    Toast.makeText(context, UiText.get(R.string.waex_ui_error_playing_video, "Error playing video"), Toast.LENGTH_SHORT).show()
+                }
                 true
             }
         } catch (e: Exception) {
@@ -922,8 +1054,8 @@ class MediaPreviewHook(
         }
     }
 
-    private fun createVideoControls(context: Context, videoView: VideoView): LinearLayout {
-        currentSpeed = 1.0f
+    private fun createVideoControls(session: PreviewSession, context: Context, videoView: VideoView): LinearLayout {
+        session.speed = 1.0f
         val controls = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = RelativeLayout.LayoutParams(
@@ -1019,17 +1151,18 @@ class MediaPreviewHook(
         }
 
         speedBtn.setOnClickListener {
-            currentSpeed = when (currentSpeed) {
+            if (!isCurrent(session)) return@setOnClickListener
+            session.speed = when (session.speed) {
                 1.0f -> 1.5f
                 1.5f -> 2.0f
                 2.0f -> 0.5f
                 else -> 1.0f
             }
-            speedBtn.text = "${currentSpeed}x"
-            currentMediaPlayer?.let { mp ->
+            speedBtn.text = "${session.speed}x"
+            session.mediaPlayer?.let { mp ->
                 try {
                     val wasPlaying = mp.isPlaying
-                    mp.playbackParams = mp.playbackParams.setSpeed(currentSpeed)
+                    mp.playbackParams = mp.playbackParams.setSpeed(session.speed)
                     if (!wasPlaying) {
                         mp.pause()
                         updatePlayPauseButton(controls, false)
@@ -1055,12 +1188,13 @@ class MediaPreviewHook(
         }
 
         muteBtn.setOnClickListener {
+            if (!isCurrent(session)) return@setOnClickListener
             val currentMuted = "muted" == muteBtn.tag
             val newMuted = !currentMuted
             muteBtn.setImageResource(if (newMuted) AndroidR.drawable.ic_lock_silent_mode else AndroidR.drawable.ic_lock_silent_mode_off)
             muteBtn.tag = if (newMuted) "muted" else "unmuted"
             prefs.edit().putBoolean("video_preview_muted", newMuted).apply()
-            currentMediaPlayer?.let { mp ->
+            session.mediaPlayer?.let { mp ->
                 try {
                     mp.setVolume(if (newMuted) 0f else 1f, if (newMuted) 0f else 1f)
                 } catch (_: Exception) {}
@@ -1070,6 +1204,7 @@ class MediaPreviewHook(
         controls.addView(buttonsContainer)
 
         playPauseBtn.setOnClickListener {
+            if (!isCurrent(session)) return@setOnClickListener
             if (videoView.isPlaying) {
                 videoView.pause()
                 playPauseBtn.setImageResource(AndroidR.drawable.ic_media_play)
@@ -1083,7 +1218,7 @@ class MediaPreviewHook(
 
         seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar, progress: Int, fromUser: Boolean) {
-                if (fromUser && videoView.duration > 0) {
+                if (isCurrent(session) && fromUser && videoView.duration > 0) {
                     val newPosition = (progress * videoView.duration) / 100
                     videoView.seekTo(newPosition)
                 }
@@ -1093,20 +1228,18 @@ class MediaPreviewHook(
             override fun onStopTrackingTouch(sb: SeekBar) {}
         })
 
-        val updateHandler = Handler(Looper.getMainLooper())
         val updateRunnable = object : Runnable {
             override fun run() {
+                if (!isCurrent(session) || session.dialog?.isShowing != true) return
                 if (videoView.isPlaying && videoView.duration > 0) {
                     val progress = (videoView.currentPosition * 100) / videoView.duration
                     seekBar.progress = progress
                     currentTime.text = formatTime(videoView.currentPosition)
                 }
-                if (previewDialog != null && previewDialog!!.isShowing) {
-                    updateHandler.postDelayed(this, 500)
-                }
+                mainHandler.postAtTime(this, session, SystemClock.uptimeMillis() + 500L)
             }
         }
-        updateHandler.post(updateRunnable)
+        mainHandler.postAtTime(updateRunnable, session, SystemClock.uptimeMillis())
 
         return controls
     }
@@ -1139,40 +1272,64 @@ class MediaPreviewHook(
         return String.format(Locale.getDefault(), "%.1f MB", bytes / (1024.0 * 1024.0))
     }
 
-    private fun handleError(e: Throwable, executor: ExecutorService, context: Context, fallbackView: View?) {
+    private fun handleError(e: Throwable, session: PreviewSession, context: Context) {
+        if (!isCurrent(session)) return
         val message = if (e is InvocationTargetException) e.cause?.message else e.message
         XposedBridge.log("[WAEX][MediaPreview] Error: ${e.javaClass.simpleName}")
-        mainHandler.post {
+        postPreview(session) {
             Toast.makeText(context, message ?: UiText.get(R.string.waex_ui_unknown_preview_error, "Unknown preview error"), Toast.LENGTH_LONG).show()
+            closePreview(session)
         }
-        cleanupDialog(executor)
     }
 
-    private fun cleanupResources(executor: ExecutorService?) {
-        currentMediaPlayer?.let {
-            try {
-                it.release()
-            } catch (_: Exception) {}
-            currentMediaPlayer = null
+    private fun closePreview(session: PreviewSession) {
+        val call: Call?
+        val task: FutureTask<Unit>?
+        val file: File?
+        val pendingBitmap: Bitmap?
+        synchronized(session) {
+            if (session.cancelled) return
+            session.cancelled = true
+            call = session.call
+            task = session.task
+            file = session.temporaryFile
+            session.call = null
+            session.task = null
+            session.temporaryFile = null
+            pendingBitmap = session.pendingBitmap
+            session.pendingBitmap = null
+            session.progressTask = null
         }
-        currentVideoView = null
+        if (activePreview === session) activePreview = null
+        call?.cancel()
+        task?.cancel(true)
+        task?.let { session.executor.remove(it) }
+        mainHandler.removeCallbacksAndMessages(session)
+        pendingBitmap?.recycle()
 
-        currentFilePath?.let {
-            if (it.exists()) it.delete()
-            currentFilePath = null
-        }
-
-        // previewExecutor is shared for the lifetime of the WhatsApp process. Shutting it down
-        // here makes every preview after the first dismissed dialog fail permanently.
-    }
-
-    private fun cleanupDialog(executor: ExecutorService?) {
-        mainHandler.post {
-            previewDialog?.let {
-                if (it.isShowing) it.dismiss()
+        val releaseUi = {
+            session.videoView?.let { video ->
+                video.setOnPreparedListener(null)
+                video.setOnCompletionListener(null)
+                video.setOnErrorListener(null)
+                // VideoView owns the MediaPlayer; stopPlayback releases it and
+                // clears VideoView's internal reference instead of releasing it twice.
+                runCatching { video.stopPlayback() }
             }
+            session.videoView = null
+            session.mediaPlayer = null
+            val dialog = session.dialog
+            session.dialog = null
+            // Activity teardown can detach the window before its dialog sends
+            // onDismiss. Cleanup remains safe when that window is already gone.
+            runCatching { if (dialog?.isShowing == true) dialog.dismiss() }
         }
-        cleanupResources(executor)
+        if (Looper.myLooper() == Looper.getMainLooper()) releaseUi()
+        else mainHandler.post { releaseUi() }
+        // Only a file created by this preview can be deleted; local host media
+        // never enters temporaryFile. The worker also retries cleanup on cancel.
+        file?.delete()
+        // Keep the bounded executor alive for later previews in this process.
     }
 
     private fun decryptMedia(encryptedData: ByteArray, mediaKey: String?, mimeType: String): ByteArray? {
@@ -1542,14 +1699,14 @@ class MediaPreviewHook(
 
         private val mainHandler = Handler(Looper.getMainLooper())
         @Volatile
-        private var previewExecutor: ExecutorService = createPreviewExecutor()
+        private var previewExecutor: ThreadPoolExecutor = createPreviewExecutor()
 
-        private fun createPreviewExecutor(): ExecutorService =
-            Executors.newSingleThreadExecutor { runnable ->
+        private fun createPreviewExecutor(): ThreadPoolExecutor =
+            ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, ArrayBlockingQueue(1), { runnable ->
                 Thread(runnable, "WAEX-MediaPreview").apply { isDaemon = true }
-            }
+            })
 
-        private fun getPreviewExecutor(): ExecutorService {
+        private fun getPreviewExecutor(): ThreadPoolExecutor {
             var executor = previewExecutor
             if (!executor.isShutdown && !executor.isTerminated) return executor
             synchronized(MediaPreviewHook::class.java) {
