@@ -18,7 +18,7 @@ my-theme.zip
 A single wrapping folder inside the zip is accepted. Import rules (enforced when importing):
 
 - `style.css` is required, at most 256 KB, with balanced braces.
-- At most 64 files, 8 MB per file, 24 MB total. Assets are flat files (no sub-folders).
+- At most 512 files, 32 MB per file, 128 MB total. Assets are flat files (no sub-folders).
 - Only image and font files are kept; everything else is ignored. Unsafe paths reject the whole theme.
 - Remote `@import` / `url(http…)` are rejected. Bundle images instead.
 

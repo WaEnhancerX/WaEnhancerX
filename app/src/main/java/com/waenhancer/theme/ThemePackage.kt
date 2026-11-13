@@ -111,9 +111,9 @@ object ThemeIds {
 
 /** Extracts an untrusted theme zip into a directory, rejecting anything outside the allowed shape. */
 object ThemeArchive {
-    const val MAX_ENTRIES = 64
-    const val MAX_ASSET_BYTES = 8L * 1024 * 1024
-    const val MAX_TOTAL_BYTES = 24L * 1024 * 1024
+    const val MAX_ENTRIES = 512
+    const val MAX_ASSET_BYTES = 32L * 1024 * 1024
+    const val MAX_TOTAL_BYTES = 128L * 1024 * 1024
     const val STYLE_FILE = "style.css"
     private val ASSET_EXTENSIONS = setOf("png", "jpg", "jpeg", "webp", "gif", "ttf", "otf")
 
@@ -146,9 +146,11 @@ object ThemeArchive {
                     if (extension !in ASSET_EXTENSIONS || !ThemeIds.isValidAssetName(name)) continue
                 }
                 val limit = if (isStyle) ThemeCssValidator.MAX_CSS_BYTES.toLong() else MAX_ASSET_BYTES
-                val bytes = readLimited(zip, limit)
+                val bytes = readLimited(zip, limit, name)
                 total += bytes.size
-                if (total > MAX_TOTAL_BYTES) throw InvalidThemeException("Theme is too large.")
+                if (total > MAX_TOTAL_BYTES) {
+                    throw InvalidThemeException("Theme is larger than ${MAX_TOTAL_BYTES shr 20} MB in total.")
+                }
                 if (isStyle) css = String(bytes, Charsets.UTF_8)
                 else File(target, name).writeBytes(bytes)
             }
@@ -160,14 +162,14 @@ object ThemeArchive {
         return source
     }
 
-    private fun readLimited(input: InputStream, limit: Long): ByteArray {
+    private fun readLimited(input: InputStream, limit: Long, name: String): ByteArray {
         val out = java.io.ByteArrayOutputStream()
         val buffer = ByteArray(8192)
         var read: Int
         var size = 0L
         while (input.read(buffer).also { read = it } != -1) {
             size += read
-            if (size > limit) throw InvalidThemeException("A theme file is too large.")
+            if (size > limit) throw InvalidThemeException("$name is larger than ${if (limit >= 1L shl 20) "${limit shr 20} MB" else "${limit shr 10} KB"}.")
             out.write(buffer, 0, read)
         }
         return out.toByteArray()
