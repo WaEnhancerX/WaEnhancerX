@@ -71,6 +71,7 @@ public final class PreferenceSchema {
     static {
         Map<String, Entry> entries = new LinkedHashMap<>();
         add(entries, KEY_FORCE_TARGET_DEBUGGABLE, Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "active_theme", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "active_xposed_api_version", Type.INT, Sensitivity.RUNTIME, Store.PUBLIC);
         add(entries, "active_xposed_framework", Type.STRING, Sensitivity.RUNTIME, Store.PUBLIC);
         add(entries, "admin_emoji", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);

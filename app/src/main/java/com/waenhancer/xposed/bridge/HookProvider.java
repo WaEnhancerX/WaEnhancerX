@@ -177,6 +177,22 @@ public class HookProvider extends ContentProvider {
                 return result;
             }
 
+            if ("theme_asset".equals(method)) {
+                // Serves a bundled theme image/font to the hooked process; names are validated flat files.
+                File asset = com.waenhancer.theme.ThemeRepository.Companion.assetFile(
+                        context, arg, extras != null ? extras.getString("name") : null);
+                if (asset == null) return null;
+                try {
+                    Bundle result = new Bundle();
+                    result.putParcelable("descriptor",
+                            ParcelFileDescriptor.open(asset, ParcelFileDescriptor.MODE_READ_ONLY));
+                    result.putLong("length", asset.length());
+                    return result;
+                } catch (IOException ignored) {
+                    return null;
+                }
+            }
+
             if ("register_hooked_package".equals(method)) {
                 String pkg = (arg != null) ? arg : (extras != null ? extras.getString("package") : null);
                 if (pkg != null && callerOwnsPackage(context, callerUid, pkg)) {

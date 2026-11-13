@@ -1094,4 +1094,14 @@
     <string name="waex_ui_suggested" formatted="false">"Suggested"</string>
     <string name="waex_ui_tap_a_model_to_choose_it_the_suggested" formatted="false">"Tap a model to choose it. The suggested one is used until you pick another."</string>
     <string name="waex_ui_this_phone" formatted="false">"This phone"</string>
+    <string name="waex_ui_theme_library" formatted="false">"Theme library"</string>
+    <string name="waex_ui_theme_library_desc" formatted="false">"Import a WAEX theme (.zip with style.css and optional images), then pick it below. Restart WhatsApp after changing themes."</string>
+    <string name="waex_ui_import_theme_zip" formatted="false">"Import theme (.zip)"</string>
+    <string name="waex_ui_no_theme_default" formatted="false">"Default (no theme)"</string>
+    <string name="waex_ui_theme_imported" formatted="false">"Theme imported"</string>
+    <string name="waex_ui_theme_import_failed" formatted="false">"Theme import failed: %1$s"</string>
+    <string name="waex_ui_theme_by_author" formatted="false">"by %1$s"</string>
+    <string name="waex_ui_write_custom_css" formatted="false">"Write custom CSS"</string>
+    <string name="waex_ui_theme_active" formatted="false">"Active"</string>
+    <string name="waex_ui_theme_delete_confirm" formatted="false">"Delete this theme?"</string>
 </resources>

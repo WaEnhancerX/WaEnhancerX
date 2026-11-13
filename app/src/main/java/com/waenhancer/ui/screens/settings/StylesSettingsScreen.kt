@@ -748,7 +748,15 @@ private fun TypedStyleEditorDialog(
         }
     }
     when (key) {
-        "custom_theme" -> TextValueEditorDialog(
+        "custom_theme" -> {
+            var editRawCss by remember { mutableStateOf(false) }
+            if (!editRawCss) {
+                ThemeLibrarySheet(
+                    onDismiss = onDismiss,
+                    onChanged = onSaved,
+                    onWriteCss = { editRawCss = true }
+                )
+            } else TextValueEditorDialog(
             title = UiText.get(R.string.feat_custom_theme_title, "Custom Theme CSS"),
             description = UiText.get(R.string.waex_ui_style_whatsapp_views_using_ids_widget, "Style WhatsApp views using IDs, widget types, scoped activities, and common CSS properties. Restart WhatsApp after saving."),
             initialValue = preferenceManager.getString("css_theme", "") ?: "",
@@ -758,7 +766,8 @@ private fun TypedStyleEditorDialog(
             errorMessage = UiText.get(R.string.waex_ui_check_that_every_selector_has_a_matchi, "Check that every selector has a matching { } block"),
             onDismiss = onDismiss,
             onSave = { completeSave(preferenceManager.putPublicString("css_theme", it.trim())) }
-        )
+            )
+        }
         "custom_view_dpi" -> TextValueEditorDialog(
             title = UiText.get(R.string.waex_ui_default_dpi, "Default DPI"),
             description = UiText.get(R.string.waex_ui_enter_0_to_use_the_device_default_or_a, "Enter 0 to use the device default, or a DPI value from 120 to 1000."),
