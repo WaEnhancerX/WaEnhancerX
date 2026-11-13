@@ -30,7 +30,13 @@ class ThemeRepository(private val context: Context) {
     fun activeId(): String? = PreferenceStores.publicStore(context).getString(KEY_ACTIVE, null)
         ?.takeIf { ThemeIds.isValidId(it) && File(File(root(context), it), ThemeArchive.STYLE_FILE).isFile }
 
-    fun activeTheme(): InstalledTheme? = activeId()?.let { id -> list().firstOrNull { it.id == id } }
+    /** Reads only the active theme's folder, so it is cheap enough to call from UI summaries. */
+    fun activeTheme(): InstalledTheme? {
+        val id = activeId() ?: return null
+        val dir = File(root(context), id)
+        val css = File(dir, ThemeArchive.STYLE_FILE).takeIf(File::isFile)?.readText() ?: return null
+        return InstalledTheme(id, ThemeHeader.parse(css), dir.listFiles().orEmpty().size - 1)
+    }
 
     /** Imports [uri] as a new theme (replacing a same-named one) and returns it. */
     fun import(uri: Uri): Result<InstalledTheme> = runCatching {

@@ -1104,4 +1104,5 @@
     <string name="waex_ui_write_custom_css" formatted="false">"Write custom CSS"</string>
     <string name="waex_ui_theme_active" formatted="false">"Active"</string>
     <string name="waex_ui_theme_delete_confirm" formatted="false">"Delete this theme?"</string>
+    <string name="waex_ui_custom_css" formatted="false">"Custom CSS"</string>
 </resources>

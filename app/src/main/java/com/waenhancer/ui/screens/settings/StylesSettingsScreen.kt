@@ -1382,7 +1382,7 @@ private fun typedStyleSummary(
     "custom_theme" -> when {
         preferenceManager.getString("css_theme", "").isNullOrBlank() -> UiText.get(R.string.waex_ui_not_configured, "Not configured")
         else -> com.waenhancer.theme.ThemeRepository(context.applicationContext).activeTheme()?.displayName
-            ?: UiText.get(R.string.waex_ui_configured, "Configured")
+            ?: UiText.get(R.string.waex_ui_custom_css, "Custom CSS")
     }
     "custom_view_dpi" -> preferenceManager.getString("change_dpi", "0")?.let { if (it == "0") UiText.get(R.string.waex_ui_device_default, "Device default") else "$it DPI" } ?: UiText.get(R.string.waex_ui_device_default, "Device default")
     "chat_filters" -> when (preferenceManager.getString("chatfilter", "2")) { "0" -> UiText.get(R.string.waex_ui_search_hidden, "Search hidden"); "1" -> UiText.get(R.string.waex_ui_search_icon, "Search icon"); else -> UiText.get(R.string.waex_ui_search_bar, "Search bar") }
