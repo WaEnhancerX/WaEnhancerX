@@ -11,6 +11,7 @@
 - Fixed manual "mark as read" action sometimes ignoring your privacy settings.
 - Fixed Separate Groups and Parallel Downloading possibly not working on older Android versions.
 - Fixed Edit history
+- Fixed Transcription error: Groq not set for device mode
 
 [Improvements]
 - Improved Message Device Source

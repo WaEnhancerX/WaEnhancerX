@@ -833,7 +833,7 @@ fun AutomationTaskerScreen(targetEpoch: Int = 0) {
                                             discoveryError = ""
                                             coroutineScope.launch {
                                                 val result = withContext(Dispatchers.IO) {
-                                                    runCatching { TranscriptionRequestHandler.listCustomModels(context.applicationContext) }
+                                                    runCatching { TranscriptionRequestHandler.listCustomModels(context.applicationContext, preferenceManager.targetPackage) }
                                                 }
                                                 discoveringModels = false
                                                 result.onSuccess {
@@ -939,7 +939,7 @@ fun AutomationTaskerScreen(targetEpoch: Int = 0) {
                                         connectionError = ""
                                         coroutineScope.launch {
                                             val error = withContext(Dispatchers.IO) {
-                                                TranscriptionRequestHandler.testConnection(context.applicationContext)
+                                                TranscriptionRequestHandler.testConnection(context.applicationContext, preferenceManager.targetPackage)
                                             }
                                             connectionStatus = if (error == null) "ok" else "fail"
                                             connectionError = error ?: ""

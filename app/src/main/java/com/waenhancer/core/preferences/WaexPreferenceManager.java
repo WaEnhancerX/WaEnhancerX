@@ -56,6 +56,9 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
         }
     }
 
+    /** The target whose settings the UI is currently editing, or null. */
+    public String getTargetPackage() { return targetPackage; }
+
     /** Selects the target whose settings are edited by the UI. */
     public void setTargetPackage(String packageName) {
         if (java.util.Objects.equals(targetPackage, packageName)) return;

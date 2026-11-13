@@ -52,6 +52,19 @@ public class HookProvider extends ContentProvider {
         return context.getSharedPreferences("waex_prefs", Context.MODE_PRIVATE);
     }
 
+    /** The WhatsApp variant the caller is, so per-target settings resolve to its own values. */
+    @Nullable
+    private static String callerTarget(Context context, int uid) {
+        try {
+            String[] packages = context.getPackageManager().getPackagesForUid(uid);
+            if (packages == null) return null;
+            for (String pkg : packages) {
+                if ("com.whatsapp".equals(pkg) || "com.whatsapp.w4b".equals(pkg)) return pkg;
+            }
+        } catch (Throwable ignored) { }
+        return null;
+    }
+
     @Nullable
     @Override
     public Bundle call(@NonNull String method, @Nullable String arg, @Nullable Bundle extras) {
@@ -318,11 +331,11 @@ public class HookProvider extends ContentProvider {
             }
 
             if (TranscriptionRequestHandler.METHOD.equals(method) && extras != null) {
-                return TranscriptionRequestHandler.handle(context, extras);
+                return TranscriptionRequestHandler.handle(context, extras, callerTarget(context, callerUid));
             }
 
             if (TranscriptionRequestHandler.METHOD_READY.equals(method)) {
-                return TranscriptionRequestHandler.ready(context);
+                return TranscriptionRequestHandler.ready(context, callerTarget(context, callerUid));
             }
 
             if (TranscriptionRequestHandler.METHOD_LOG.equals(method) && extras != null) {
