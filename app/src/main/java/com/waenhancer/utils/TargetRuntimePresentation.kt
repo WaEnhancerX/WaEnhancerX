@@ -23,7 +23,7 @@ object TargetRuntimePresentation {
         app.runtimeStatus != "READY" -> Status("Injected • Feature readiness unconfirmed", Severity.UNKNOWN)
         app.bridgeStatus != "PROVIDER" -> Status("Injected • Settings connection unconfirmed", Severity.UNKNOWN)
         decision == UniversalVersionValidator.Decision.EXPLICIT_BYPASS -> Status("Injected • Version bypass active", Severity.REVIEW)
-        decision == UniversalVersionValidator.Decision.CUSTOM_RULE -> Status("Injected • Custom version allowance; unverified", Severity.REVIEW)
+        decision == UniversalVersionValidator.Decision.CUSTOM_RULE -> Status("Injected • Initialization reported complete", Severity.OK)
         else -> Status("Injected • Initialization reported complete", Severity.OK)
     }
 
@@ -64,8 +64,6 @@ object TargetRuntimePresentation {
             return Summary("Target runtime requires review", false)
         if (installed.any { decisions[it.packageName] == UniversalVersionValidator.Decision.EXPLICIT_BYPASS })
             return Summary("Version bypass active; compatibility unverified", false)
-        if (installed.any { decisions[it.packageName] == UniversalVersionValidator.Decision.CUSTOM_RULE })
-            return Summary("Custom version allowance; compatibility unverified", null)
         if (running.isEmpty()) {
             // Distinguish "we could not check" from "nothing is open".
             val blocked = installed.firstOrNull {
