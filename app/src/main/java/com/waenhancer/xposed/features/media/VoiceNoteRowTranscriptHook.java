@@ -92,8 +92,13 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
     private static volatile int sMainLayoutId;
     private static volatile int sActionButtonId;
 
+    // Additional audio-row markers (voice notes, outgoing notes, plain audio files)
+    private static final String[] EXTRA_AUDIO_IDS = {
+            "audio_root_layout", "audio_seekbar", "audio_visualizer", "conversation_row_voice_note_profile_avatar"
+    };
+
     // Button size / margin in dp
-    private static final int BTN_SIZE_DP = 36;
+    private static final int BTN_SIZE_DP = 32; // matches WhatsApp's forward action_button (64px @ 320dpi)
     private static final int BTN_MARGIN_DP = 8;
 
     public VoiceNoteRowTranscriptHook(@NonNull Context context, @NonNull ClassLoader classLoader,
@@ -222,6 +227,10 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
         if (audioPlayerId != 0 && row.findViewById(audioPlayerId) != null) {
             return row;
         }
+        for (String name : EXTRA_AUDIO_IDS) {
+            int extra = ctx.getResources().getIdentifier(name, "id", ctx.getPackageName());
+            if (extra != 0 && row.findViewById(extra) != null) return row;
+        }
         int audioRowId = sAudioRowId;
         if (audioRowId == 0) {
             audioRowId = ctx.getResources().getIdentifier("conversation_row_audio", "id", ctx.getPackageName());
@@ -244,6 +253,14 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
         if (id != 0) {
             View main = row.findViewById(id);
             if (main != null) return main;
+        }
+        // Fallback: bubble containing audio_root_layout
+        int rootId = row.getContext().getResources().getIdentifier("audio_root_layout", "id", row.getContext().getPackageName());
+        if (rootId != 0) {
+            View root = row.findViewById(rootId);
+            if (root != null && root.getParent() instanceof View && root.getParent() != row) {
+                return (View) root.getParent();
+            }
         }
         // Fallback: search for child containing conversation_row_audio_player_view
         int audioPlayerId = row.getContext().getResources().getIdentifier("conversation_row_audio_player_view", "id", row.getContext().getPackageName());
@@ -293,29 +310,27 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
         Context ctx = row.getContext();
         int sizePx = dp(ctx, BTN_SIZE_DP);
 
-        // Circular background: subtle translucent white circle (or dark in dark mode)
+        // Match WhatsApp's own forward button: dark translucent circle + white glyph, no elevation.
+        boolean dark = isDarkTheme(ctx);
         GradientDrawable circle = new GradientDrawable();
         circle.setShape(GradientDrawable.OVAL);
-        circle.setColor(Color.argb(220, 255, 255, 255));
-        // Ripple for press feedback
+        circle.setColor(dark ? 0xFF0F181D : 0x66000000);
         GradientDrawable rippleMask = new GradientDrawable();
         rippleMask.setShape(GradientDrawable.OVAL);
         rippleMask.setColor(Color.WHITE);
-        android.content.res.ColorStateList rippleColor =
-                android.content.res.ColorStateList.valueOf(Color.argb(80, 0, 0, 0));
         android.graphics.drawable.RippleDrawable background =
-                new android.graphics.drawable.RippleDrawable(rippleColor, circle, rippleMask);
+                new android.graphics.drawable.RippleDrawable(
+                        android.content.res.ColorStateList.valueOf(Color.argb(60, 255, 255, 255)),
+                        circle, rippleMask);
 
-        // Build the CC icon matching close-caption-svgrepo-com.svg
-        CaptionDrawable icon = new CaptionDrawable(dp(ctx, 22), Color.argb(220, 30, 30, 30));
+        CaptionDrawable icon = new CaptionDrawable(dp(ctx, 22), Color.WHITE);
 
         ImageButton btn = new ImageButton(ctx);
         btn.setBackground(background);
         btn.setImageDrawable(icon);
-        btn.setPadding(dp(ctx, 4), dp(ctx, 4), dp(ctx, 4), dp(ctx, 4));
+        btn.setPadding(0, 0, 0, 0);
         btn.setScaleType(android.widget.ImageView.ScaleType.CENTER_INSIDE);
         btn.setContentDescription("Transcribe voice note");
-        btn.setElevation(dp(ctx, 2));
 
         ViewGroup.LayoutParams lp = new ViewGroup.MarginLayoutParams(sizePx, sizePx);
 
