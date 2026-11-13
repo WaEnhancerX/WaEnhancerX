@@ -265,7 +265,7 @@
     <string name="timestamp_format_title">Timestamp format</string>
     <string name="timestamp_modify_text_title">Modify text</string>
     <string name="timestamp_relative_title">Relative time</string>
-    <string name="timestamp_relative_summary">Show time as \"Just now\", \"5 minutes ago\", \"Yesterday at 4:15 PM\" or \"Nov 13\". Disables Timestamp format and Modify text.</string>
+    <string name="timestamp_relative_summary">Example: 5 minutes ago, Yesterday, Nov 13</string>
     <string name="timestamp_custom_pattern_label">Custom Pattern</string>
     <string name="timestamp_custom_pattern_hint">e.g. HH:mm a, dd/MM HH:mm:ss</string>
     <string name="timestamp_modify_text_instructions">Use ${t} as the timestamp variable according to your selected format. You can add any text before and after ${t}, or enter custom text.</string>

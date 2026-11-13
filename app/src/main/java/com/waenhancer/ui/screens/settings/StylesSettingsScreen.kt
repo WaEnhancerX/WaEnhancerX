@@ -515,7 +515,7 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
                                 // Sub-pref 0: Relative time (disables format + modify text)
                                 MetaAiRemovalSwitch(
                                     title = UiText.get(R.string.timestamp_relative_title, "Relative time"),
-                                    summary = UiText.get(R.string.timestamp_relative_summary, "Show time as \"Just now\", \"5 minutes ago\", \"Yesterday at 4:15 PM\" or \"Nov 13\". Disables Timestamp format and Modify text."),
+                                    summary = UiText.get(R.string.timestamp_relative_summary, "Example: 5 minutes ago, Yesterday, Nov 13"),
                                     checked = timestampRelative,
                                     onCheckedChange = { enabled ->
                                         if (preferenceManager.putBooleans(mapOf("timestamp_relative" to enabled))) {
