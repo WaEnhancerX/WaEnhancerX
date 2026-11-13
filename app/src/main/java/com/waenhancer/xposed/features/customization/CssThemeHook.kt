@@ -107,9 +107,9 @@ class CssThemeHook(
         assetCache.evictAll()
         missingAssets.clear()
         themeId = prefs.getString(THEME_KEY, null)?.takeIf(ThemeIds::isValidId)
-        val css = prefs.getString("css_theme", "").orEmpty().ifBlank {
-            prefs.getString("custom_css", "").orEmpty()
-        }
+        // An explicit (even empty) css_theme wins; the legacy key only serves installs that never set it.
+        val css = if (prefs.contains(CSS_KEY)) prefs.getString("css_theme", "").orEmpty()
+        else prefs.getString("custom_css", "").orEmpty()
         rules = runCatching { parseRules(css) }
             .onFailure { XposedBridge.log("WAEX: invalid custom CSS: ${it.message}") }
             .getOrDefault(emptyList())

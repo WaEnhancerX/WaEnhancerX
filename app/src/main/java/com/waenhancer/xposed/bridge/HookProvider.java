@@ -526,8 +526,12 @@ public class HookProvider extends ContentProvider {
     }
 
     private void initializeTarget(SharedPreferences prefs, String packageName) {
+        // Seed only once; see WaexPreferenceManager.TARGET_SEEDED_KEY.
+        String seededKey = packageName + ":" + com.waenhancer.core.preferences.WaexPreferenceManager.TARGET_SEEDED_KEY;
+        if (prefs.getBoolean(seededKey, false)) return;
         SharedPreferences.Editor editor = prefs.edit();
-        boolean changed = false;
+        boolean changed = true;
+        editor.putBoolean(seededKey, true);
         for (PreferenceSchema.Entry entry : PreferenceSchema.all().values()) {
             if (entry.store != PreferenceSchema.Store.PUBLIC || entry.sensitivity == PreferenceSchema.Sensitivity.RUNTIME) continue;
             String scoped = packageName + ":" + entry.key;

@@ -31,8 +31,12 @@ class ThemeRepository(
             .sortedBy { it.displayName.lowercase() }
 
     /** The active theme id, or null when none is set or its folder is gone (e.g. after restoring a backup). */
-    fun activeId(): String? = preferences.getString(KEY_ACTIVE, null)
-        ?.takeIf { ThemeIds.isValidId(it) && File(File(root(context), it), ThemeArchive.STYLE_FILE).isFile }
+    fun activeId(): String? = preferences.getString(KEY_ACTIVE, null)?.takeIf { id ->
+        if (!ThemeIds.isValidId(id)) return@takeIf false
+        val style = File(File(root(context), id), ThemeArchive.STYLE_FILE).takeIf(File::isFile) ?: return@takeIf false
+        // Hand-edited or cleared CSS detaches the selection, so a stale id never labels other CSS.
+        preferences.getString(KEY_CSS, "").orEmpty().trim() == style.readText().trim()
+    }
 
     /** Reads only the active theme's folder, so it is cheap enough to call from UI summaries. */
     fun activeTheme(): InstalledTheme? {
@@ -66,8 +70,11 @@ class ThemeRepository(
     /** Makes [id] the active theme, or clears the theme when [id] is null. */
     fun activate(id: String?): Boolean {
         if (id == null) {
-            preferences.remove(KEY_ACTIVE)
-            return preferences.putPublicString(KEY_CSS, "")
+            // Explicit empty values, never removals: a missing key falls back to the universal value.
+            return preferences.putPublicString(KEY_CSS, "") &&
+                preferences.putPublicString(KEY_ACTIVE, "") &&
+                preferences.putPublicString("custom_css", "") &&
+                preferences.putPublicString("custom_css_theme", "")
         }
         if (!ThemeIds.isValidId(id)) return false
         val css = File(File(root(context), id), ThemeArchive.STYLE_FILE).takeIf(File::isFile)?.readText() ?: return false

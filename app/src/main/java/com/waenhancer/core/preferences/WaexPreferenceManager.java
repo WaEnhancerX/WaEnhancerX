@@ -83,10 +83,16 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
         return targetPackage + ":" + key;
     }
 
+    /** Marks a target whose settings were seeded from the universal values exactly once. */
+    public static final String TARGET_SEEDED_KEY = "target_seeded";
+
     private void initializeTarget(String packageName) {
         SharedPreferences universal = PreferenceStores.publicStore(context);
+        // Seed only once. Re-seeding on every visit resurrected keys the user had reset to default.
+        if (universal.getBoolean(packageName + ":" + TARGET_SEEDED_KEY, false)) return;
         SharedPreferences.Editor editor = universal.edit();
-        boolean changed = false;
+        boolean changed = true;
+        editor.putBoolean(packageName + ":" + TARGET_SEEDED_KEY, true);
         for (PreferenceSchema.Entry entry : PreferenceSchema.all().values()) {
             if (entry.store != PreferenceSchema.Store.PUBLIC || entry.sensitivity == PreferenceSchema.Sensitivity.RUNTIME) continue;
             String scoped = packageName + ":" + entry.key;
