@@ -12,8 +12,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.Uri;
 import android.os.Build;
-import android.os.Handler;
-import android.os.Looper;
 import android.os.Process;
 import android.widget.Toast;
 import java.lang.reflect.Field;
@@ -40,6 +38,9 @@ import com.waenhancer.xposed.utils.ModuleStatus;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Locale;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
@@ -69,6 +70,14 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
     private static final AtomicBoolean HEARTBEAT_STARTED = new AtomicBoolean(false);
     private static final AtomicBoolean INJECTION_TOAST_SHOWN = new AtomicBoolean(false);
     private static final long HEARTBEAT_INTERVAL_MS = 10_000L;
+    // The heartbeat performs synchronous provider IPC. Never dispatch it on
+    // WhatsApp's UI Looper: a slow, frozen or dying manager must not stall frames.
+    private static final ScheduledExecutorService HEARTBEAT_EXECUTOR =
+            Executors.newSingleThreadScheduledExecutor(task -> {
+                Thread thread = new Thread(task, "WAEX Runtime Health");
+                thread.setDaemon(true);
+                return thread;
+            });
     private static volatile String sRuntimeStatus = "INJECTED";
     private static volatile String sBridgeStatus = "PENDING";
     private static volatile String sRuntimeError;
@@ -588,16 +597,25 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                 appContext, packageName, runtimeStatus, bridgeStatus, error);
 
         if (HEARTBEAT_STARTED.compareAndSet(false, true)) {
-            Handler handler = new Handler(Looper.getMainLooper());
-            Runnable heartbeat = new Runnable() {
-                @Override
-                public void run() {
-                    WhatsAppPackageDetector.reportRuntimeHealth(
-                            appContext, packageName, sRuntimeStatus, sBridgeStatus, sRuntimeError);
-                    handler.postDelayed(this, HEARTBEAT_INTERVAL_MS);
-                }
-            };
-            handler.postDelayed(heartbeat, HEARTBEAT_INTERVAL_MS);
+            try {
+                // Fixed delay preserves the existing interval measured from
+                // each completed report and prevents overlapping provider calls.
+                HEARTBEAT_EXECUTOR.scheduleWithFixedDelay(() -> {
+                    try {
+                        WhatsAppPackageDetector.reportRuntimeHealth(
+                                appContext, packageName, sRuntimeStatus, sBridgeStatus, sRuntimeError);
+                    } catch (RuntimeException t) {
+                        // A single failed report must not permanently cancel
+                        // the scheduled status refresh.
+                        XposedBridge.log("[WAEX] Runtime heartbeat failed: "
+                                + t.getClass().getSimpleName());
+                    }
+                }, HEARTBEAT_INTERVAL_MS, HEARTBEAT_INTERVAL_MS, TimeUnit.MILLISECONDS);
+            } catch (RuntimeException failure) {
+                HEARTBEAT_STARTED.set(false);
+                XposedBridge.log("[WAEX] Runtime heartbeat scheduling failed: "
+                        + failure.getClass().getSimpleName());
+            }
         }
     }
 
