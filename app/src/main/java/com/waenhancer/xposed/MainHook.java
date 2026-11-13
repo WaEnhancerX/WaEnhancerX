@@ -476,6 +476,7 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                         FeatureRegistry registry = new FeatureRegistry(appContext, lpparam.classLoader, bridgeClient);
                         registry.initializeAll();
                         registry.reportInjectedHooks(appContext, packageName);
+                        registerHookReportReceiver(appContext, packageName, registry);
                         reportTargetRuntime(
                                 appContext,
                                 packageName,
@@ -579,6 +580,39 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                     }
                 };
         ActivityTracker.addListener(listener);
+    }
+
+    /**
+     * The manager asks a running target to re-publish its hook catalogue (home-screen resume or
+     * the card's refresh button). Same signature-permission contract as the restart receiver; the
+     * IPC runs off the main thread.
+     */
+    private static void registerHookReportReceiver(Context appContext, String packageName,
+                                                   FeatureRegistry registry) {
+        try {
+            IntentFilter filter = new IntentFilter("com.waenhancer.action.REPORT_HOOKS");
+            BroadcastReceiver receiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    if (!packageName.equals(intent.getStringExtra("PKG"))) return;
+                    Thread worker = new Thread(() -> {
+                        try {
+                            registry.reportInjectedHooks(appContext, packageName);
+                        } catch (Throwable ignored) {}
+                    }, "WAEX-HookReport");
+                    worker.setDaemon(true);
+                    worker.start();
+                }
+            };
+            if (Build.VERSION.SDK_INT >= 33) {
+                appContext.registerReceiver(receiver, filter, RESTART_PERMISSION,
+                        null, Context.RECEIVER_EXPORTED);
+            } else {
+                appContext.registerReceiver(receiver, filter, RESTART_PERMISSION, null);
+            }
+        } catch (Throwable t) {
+            XposedBridge.log("[WAEX] Hook report receiver failed: " + t.getClass().getSimpleName());
+        }
     }
 
     private static void reportTargetRuntime(Context context, String packageName,

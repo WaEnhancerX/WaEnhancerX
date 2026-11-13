@@ -227,6 +227,8 @@ fun MainDashboardScreen(
 
     val detectedApps = reportedApps
     val prefs = remember(context) { PreferenceStores.publicStore(context) }
+    val hooksSyncing by TargetAppManager.hooksSyncing.collectAsState()
+    val hooksUnresponsive by TargetAppManager.hooksUnresponsive.collectAsState()
     val versionDecisions = remember(reportedApps, refreshTrigger, refreshEpoch) {
         reportedApps.associate { it.packageName to UniversalVersionValidator.evaluate(context, it.versionName, prefs) }
     }
@@ -486,14 +488,20 @@ fun MainDashboardScreen(
                                         }
                                     }
 
-                                    // Realtime Injected Hooks Badge / Pill (if injected and active)
-                                    if (app.isHooked && app.injectedHooks.isNotEmpty()) {
+                                    // Active hooks row: shown for every injected target. Counts come from the
+                                    // target's own report; refresh asks the running app to report again.
+                                    if (app.isInstalled && app.isHooked) {
                                         Spacer(modifier = Modifier.height(10.dp))
                                         HorizontalDivider(thickness = 0.5.dp, color = colors.outlineVariant.copy(alpha = 0.5f))
                                         Spacer(modifier = Modifier.height(8.dp))
 
+                                        val hasReport = app.injectedHooks.isNotEmpty()
                                         val activeCount = app.injectedHooks.count { it.status == "ACTIVE" }
                                         val totalCount = app.injectedHooks.size
+                                        val syncing = app.packageName in hooksSyncing
+                                        val unresponsive = app.packageName in hooksUnresponsive
+                                        val paused = app.runtimeStatus == "UNSUPPORTED_VERSION" ||
+                                            app.runtimeStatus == "COMPATIBILITY_UNAVAILABLE" || !decision.allowed
 
                                         Row(
                                             modifier = Modifier
@@ -502,55 +510,86 @@ fun MainDashboardScreen(
                                                 .background(colors.surface)
                                                 .border(1.dp, colors.outlineVariant, radius.smShape)
                                                 .clickable { navController.navigateTo(Screen.InjectedHooks(app.packageName, app.appName)) }
-                                                .padding(horizontal = 10.dp, vertical = 6.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween
+                                                .padding(start = 10.dp, top = 4.dp, bottom = 4.dp, end = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = WaexIcons.Extension,
-                                                    contentDescription = null,
-                                                    tint = colors.primary,
-                                                    modifier = Modifier.size(14.dp)
-                                                )
+                                            Icon(
+                                                imageVector = WaexIcons.Extension,
+                                                contentDescription = null,
+                                                tint = if (hasReport && activeCount == totalCount) colors.primary else colors.onSurfaceVariant,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
                                                 Text(
-                                                    text = stringResource(
-                                                        R.string.injected_hooks_active_count,
-                                                        activeCount,
-                                                        totalCount
-                                                    ),
+                                                    text = when {
+                                                        hasReport -> stringResource(R.string.injected_hooks_active_count, activeCount, totalCount)
+                                                        paused -> UiText.get(R.string.waex_ui_hooks_paused_short, "Hooks paused")
+                                                        else -> UiText.get(R.string.waex_ui_hooks_not_reported_short, "Hooks not reported yet")
+                                                    },
                                                     style = typography.labelSm,
                                                     fontWeight = FontWeight.SemiBold,
                                                     color = colors.onSurface,
                                                     fontSize = 11.sp,
-                                                    maxLines = 2,
-                                                    overflow = TextOverflow.Ellipsis,
-                                                    modifier = Modifier.weight(1f)
-                                                )
-                                            }
-                                            Row(
-                                                modifier = Modifier.padding(start = 8.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                            ) {
-                                                Text(
-                                                    text = stringResource(R.string.view_all),
-                                                    style = typography.labelSm,
-                                                    color = colors.primary,
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Medium,
                                                     maxLines = 1,
-                                                    softWrap = false
+                                                    overflow = TextOverflow.Ellipsis
                                                 )
-                                                Icon(
-                                                    imageVector = WaexIcons.ChevronRight,
-                                                    contentDescription = null,
-                                                    tint = colors.primary,
-                                                    modifier = Modifier.size(13.dp)
-                                                )
+                                                val hint = when {
+                                                    syncing -> UiText.get(R.string.waex_ui_hooks_checking, "Checking…")
+                                                    paused -> UiText.get(R.string.waex_ui_hooks_paused_hint, "Version not supported. Add support, then restart.")
+                                                    unresponsive -> UiText.get(R.string.waex_ui_hooks_unresponsive_hint, "No response. Open %1\$s, then refresh.", app.appName)
+                                                    else -> null
+                                                }
+                                                if (hint != null) {
+                                                    Text(
+                                                        text = hint,
+                                                        style = typography.labelSm,
+                                                        color = if (syncing) colors.onSurfaceVariant else colors.error,
+                                                        fontSize = 10.sp,
+                                                        maxLines = 2,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+                                            }
+                                            Text(
+                                                text = stringResource(R.string.view_all),
+                                                style = typography.labelSm,
+                                                color = colors.primary,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                maxLines = 1,
+                                                softWrap = false
+                                            )
+                                            Icon(
+                                                imageVector = WaexIcons.ChevronRight,
+                                                contentDescription = null,
+                                                tint = colors.primary,
+                                                modifier = Modifier.size(13.dp)
+                                            )
+                                            Box(
+                                                modifier = Modifier
+                                                    .padding(start = 4.dp)
+                                                    .size(30.dp)
+                                                    .clip(CircleShape)
+                                                    .clickable(enabled = !syncing) {
+                                                        TargetAppManager.syncHooks(context, listOf(app.packageName))
+                                                    },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                if (syncing) {
+                                                    androidx.compose.material3.CircularProgressIndicator(
+                                                        modifier = Modifier.size(14.dp),
+                                                        strokeWidth = 2.dp,
+                                                        color = colors.primary
+                                                    )
+                                                } else {
+                                                    Icon(
+                                                        imageVector = WaexIcons.Refresh,
+                                                        contentDescription = UiText.get(R.string.waex_ui_refresh_hooks, "Refresh hooks"),
+                                                        tint = colors.onSurfaceVariant,
+                                                        modifier = Modifier.size(15.dp)
+                                                    )
+                                                }
                                             }
                                         }
                                     }

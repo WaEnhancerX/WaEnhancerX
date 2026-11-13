@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.SystemClock
+import com.waenhancer.config.PreferenceStores
 import com.waenhancer.xposed.utils.AppRestartHelper
 import com.waenhancer.xposed.utils.ModuleStatus
 import kotlinx.coroutines.CoroutineScope
@@ -13,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
@@ -81,6 +83,8 @@ internal object RootProbe {
 object TargetAppManager {
 
     private const val ACTION_TARGET_ACTIVE = "com.waenhancer.ACTION_TARGET_APP_ACTIVE"
+    private const val ACTION_REPORT_HOOKS = "com.waenhancer.action.REPORT_HOOKS"
+    private const val REPORT_WAIT_MS = 2_500L
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val running = AtomicBoolean(false)
@@ -114,6 +118,48 @@ object TargetAppManager {
     private val _refreshEpoch = MutableStateFlow(0L)
     val refreshEpoch: StateFlow<Long> = _refreshEpoch.asStateFlow()
 
+    private val _hooksSyncing = MutableStateFlow<Set<String>>(emptySet())
+    /** Targets currently being asked to re-publish their hooks (drives the card's spinner). */
+    val hooksSyncing: StateFlow<Set<String>> = _hooksSyncing.asStateFlow()
+
+    private val _hooksUnresponsive = MutableStateFlow<Set<String>>(emptySet())
+    /** Targets that did not answer the last hook-report request (not running, or hooks paused). */
+    val hooksUnresponsive: StateFlow<Set<String>> = _hooksUnresponsive.asStateFlow()
+
+    /**
+     * Asks running targets to re-publish their hook catalogue, waits briefly for the provider to
+     * record it, then re-reads state. Read-on-demand, like everything else here: it runs when the
+     * home screen resumes or the user taps refresh, never on a timer.
+     */
+    fun syncHooks(context: Context, packages: Collection<String>? = null) {
+        val appContext = context.applicationContext
+        scope.launch {
+            val targets = (packages ?: _detectedApps.value.filter { it.isInstalled && it.isHooked }.map { it.packageName })
+                .filter { it !in _hooksSyncing.value }
+            if (targets.isEmpty()) { refresh(appContext); return@launch }
+            _hooksSyncing.value = _hooksSyncing.value + targets
+            try {
+                val prefs = PreferenceStores.publicStore(appContext)
+                val before = targets.associateWith { prefs.getLong("injected_hooks_time_$it", 0L) }
+                targets.forEach { pkg ->
+                    runCatching {
+                        appContext.sendBroadcast(Intent(ACTION_REPORT_HOOKS).setPackage(pkg).putExtra("PKG", pkg))
+                    }
+                }
+                val deadline = SystemClock.elapsedRealtime() + REPORT_WAIT_MS
+                var pending = targets.toSet()
+                while (pending.isNotEmpty() && SystemClock.elapsedRealtime() < deadline) {
+                    delay(150)
+                    pending = pending.filter { prefs.getLong("injected_hooks_time_$it", 0L) <= (before[it] ?: 0L) }.toSet()
+                }
+                _hooksUnresponsive.value = (_hooksUnresponsive.value - targets.toSet()) + pending
+                refresh(appContext)
+            } finally {
+                _hooksSyncing.value = _hooksSyncing.value - targets.toSet()
+            }
+        }
+    }
+
     /** Current module-active answer for non-Compose callers. */
     fun isModuleActive(): Boolean = _moduleActivation.value.active
 
@@ -145,6 +191,7 @@ object TargetAppManager {
             }
         }
         refresh(appContext)
+        syncHooks(appContext)
     }
 
     /** Call when the home screen is no longer visible: stop listening. */

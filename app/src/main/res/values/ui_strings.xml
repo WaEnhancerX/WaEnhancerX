@@ -772,6 +772,11 @@
     <string name="waex_ui_unlock_all_premium_pro_capabilities" formatted="false">"Unlock all premium Pro capabilities"</string>
     <string name="waex_ui_unsupported" formatted="false">"Unsupported"</string>
     <string name="waex_ui_chip_add_support" formatted="false">"Add support"</string>
+    <string name="waex_ui_hooks_paused_short" formatted="false">"Hooks paused"</string>
+    <string name="waex_ui_hooks_not_reported_short" formatted="false">"Hooks not reported yet"</string>
+    <string name="waex_ui_hooks_checking" formatted="false">"Checking…"</string>
+    <string name="waex_ui_hooks_paused_hint" formatted="false">"Version not supported. Add support, then restart."</string>
+    <string name="waex_ui_hooks_unresponsive_hint" formatted="false">"No response. Open %1$s, then refresh."</string>
     <string name="waex_ui_unsupported_setups_may_behave_unpredic" formatted="false">"Unsupported setups may behave unpredictably and may increase the risk of WhatsApp restrictions. Root access does not remove every risk of using modifications."</string>
     <string name="waex_ui_update_available" formatted="false">"Update Available"</string>
     <string name="waex_ui_update" formatted="false">"Update"</string>
