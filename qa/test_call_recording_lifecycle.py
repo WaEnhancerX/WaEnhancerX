@@ -19,6 +19,7 @@ STUBS = {
     'android/os/Bundle.java': '''package android.os; import java.util.*; public class Bundle {
       public final Map<String,Object> values=new HashMap<>();
       public void putString(String k,String v){values.put(k,v);} public String getString(String k){return (String)values.get(k);}
+      public void putLong(String k,long v){values.put(k,v);} public void putBoolean(String k,boolean v){values.put(k,v);}
       @SuppressWarnings("unchecked") public <T>T getParcelable(String k){return (T)values.get(k);}
       public <T>T getParcelable(String k,Class<T> type){return type.cast(values.get(k));}
     }''',
@@ -35,6 +36,7 @@ STUBS = {
     'android/content/Context.java': '''package android.content; import android.os.*; import android.net.Uri; import java.util.*;
     public class Context {public final ContentResolver resolver=new ContentResolver();
       public ContentResolver getContentResolver(){return resolver;} public Context getApplicationContext(){return this;}
+      public String getPackageName(){return "com.whatsapp";}
       public static class ContentResolver {public final List<ParcelFileDescriptor> files=new ArrayList<>(); public int deletes,creates; public boolean fail;
         public Bundle call(Uri uri,String method,String argument,Bundle request){
           if(method.equals("create_call_recording")){creates++;if(fail)return null;
@@ -71,6 +73,12 @@ STUBS = {
       public abstract void hook() throws Throwable;public abstract String getName();}
     ''',
     'com/waenhancer/xposed/bridge/HookProvider.java': 'package com.waenhancer.xposed.bridge; public class HookProvider {public static final String AUTHORITY="com.waenhancer.hook";}',
+    'com/waenhancer/utils/ContactNameResolver.java': '''package com.waenhancer.utils; import android.content.Context;
+    public final class ContactNameResolver {public static final ContactNameResolver INSTANCE=new ContactNameResolver();
+      public String resolveName(Context context,String jid,Object caller,Object group){
+        if(jid==null || jid.isEmpty())throw new AssertionError("Invalid fixture contact identity");
+        return "Fixture contact";
+      }}''',
     'com/waenhancer/xposed/core/devkit/DexSearchEngine.java': '''package com.waenhancer.xposed.core.devkit; import android.content.Context; import org.luckypray.dexkit.DexKitBridge;
     public final class DexSearchEngine {public interface Resolver {Class<?> find(DexKitBridge b,ClassLoader l) throws ReflectiveOperationException;}
       public static DexSearchEngine getInstance(){return new DexSearchEngine();}
@@ -178,8 +186,10 @@ def main():
     production=[media/'CallRecordingHook.java']
     contract=media/'CallRecordingEventContract.java'
     if contract.exists():production.append(contract)
+    recording_files=args.root/'app/src/main/java/com/waenhancer/calls/RecordingOutputFiles.java'
+    if recording_files.exists():production.append(recording_files)
     sources += [str(s) for s in production]
-    sources.append(str(ROOT/'qa/fixtures/CallRecordingLifecycleChecks.java'))
+    sources.append(str(args.root/'qa/fixtures/CallRecordingLifecycleChecks.java'))
     classpath=str(directory/'classes')
     compile_cmd=['javac','--release','17','-d',classpath]
     if args.dexkit_jar:compile_cmd += ['-cp',os.pathsep.join(map(str,[args.dexkit_jar,args.kotlin_stdlib]))]
