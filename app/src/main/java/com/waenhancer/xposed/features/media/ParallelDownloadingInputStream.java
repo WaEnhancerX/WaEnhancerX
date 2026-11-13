@@ -46,6 +46,7 @@ public final class ParallelDownloadingInputStream extends InputStream {
     private int currentChunkIndex = 0;
     private byte[] currentChunkBuffer = null;
     private int currentChunkOffset = 0;
+    private long originalBytesConsumed = 0L;
 
     private boolean fallbackToSequential = false;
     private boolean isClosed = false;
@@ -130,9 +131,23 @@ public final class ParallelDownloadingInputStream extends InputStream {
             if (contentRange == null) contentRange = "";
 
             if (code == 206) {
-                String expectedPrefix = "bytes " + rangeStart + "-";
+                // A matching *start* is insufficient: a server may return an overlapping,
+                // short or differently bounded range while still delivering enough bytes.
+                // In that case the caller must fall back to the original sequential stream.
+                String expectedPrefix = "bytes " + rangeStart + "-" + rangeEnd + "/";
                 if (!contentRange.startsWith(expectedPrefix)) {
                     throw new IOException("Unexpected Content-Range: " + contentRange + ", expected: " + expectedPrefix);
+                }
+                String completeLength = contentRange.substring(expectedPrefix.length());
+                if (!"*".equals(completeLength)) {
+                    try {
+                        long reportedTotal = Long.parseLong(completeLength);
+                        if (reportedTotal <= rangeEnd) {
+                            throw new NumberFormatException("total does not include the returned range");
+                        }
+                    } catch (NumberFormatException invalid) {
+                        throw new IOException("Invalid Content-Range total: " + contentRange, invalid);
+                    }
                 }
 
                 byte[] data = new byte[length];
@@ -158,11 +173,14 @@ public final class ParallelDownloadingInputStream extends InputStream {
     @Override
     public int read(byte[] buffer, int offset, int length) throws IOException {
         if (buffer == null) throw new NullPointerException("buffer is null");
+        if (offset < 0 || length < 0 || offset > buffer.length - length) {
+            throw new IndexOutOfBoundsException("Invalid buffer offset=" + offset + " length=" + length);
+        }
         if (isClosed) throw new IOException("Stream closed");
         if (length == 0) return 0;
 
         if (fallbackToSequential) {
-            return originalStream.read(buffer, offset, length);
+            return readSequentialOrThrow(buffer, offset, length);
         }
 
         // Chunk 0 is read directly from the initial WhatsApp stream
@@ -172,6 +190,12 @@ public final class ParallelDownloadingInputStream extends InputStream {
                 int bytesRead = originalStream.read(buffer, offset, Math.min(length, chunk0Remaining));
                 if (bytesRead > 0) {
                     currentChunkOffset += bytesRead;
+                    originalBytesConsumed += bytesRead;
+                } else if (bytesRead < 0) {
+                    // Returning EOF here reports success to callers even though the known
+                    // response length has not been consumed (including a single-chunk file).
+                    throw new IOException("Original download truncated at " + currentChunkOffset
+                            + " of " + getChunkLength(0) + " first-chunk bytes");
                 }
                 return bytesRead;
             }
@@ -194,7 +218,7 @@ public final class ParallelDownloadingInputStream extends InputStream {
                 // Graceful fallback to sequential if range request failed
                 fallbackToSequential = true;
                 cancelPendingTasks();
-                return originalStream.read(buffer, offset, length);
+                return readSequentialOrThrow(buffer, offset, length);
             }
 
             // Close the initial connection safely; subsequent chunks come from our range workers
@@ -249,6 +273,19 @@ public final class ParallelDownloadingInputStream extends InputStream {
         System.arraycopy(activeBuffer, currentChunkOffset, buffer, offset, bytesToCopy);
         currentChunkOffset += bytesToCopy;
         return bytesToCopy;
+    }
+
+    private int readSequentialOrThrow(byte[] buffer, int offset, int length) throws IOException {
+        long remaining = totalLength - originalBytesConsumed;
+        if (remaining == 0) return -1;
+
+        int bytesRead = originalStream.read(buffer, offset, (int) Math.min(remaining, (long) length));
+        if (bytesRead < 0) {
+            throw new IOException("Original sequential download truncated at " + originalBytesConsumed
+                    + " of " + totalLength + " bytes");
+        }
+        if (bytesRead > 0) originalBytesConsumed += bytesRead;
+        return bytesRead;
     }
 
     @Override
