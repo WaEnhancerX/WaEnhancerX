@@ -265,6 +265,16 @@ def main():
         'de/robv/android/xposed/XposedHelpers.java':XPOSED_HELPERS,
         # Compile-only field descriptor from the real MainHook; Xposed startup is outside this fixture.
         'com/waenhancer/xposed/MainHook.java':'package com.waenhancer.xposed;public class MainHook { public static volatile String sModulePath; }',
+        # Android Gradle Plugin supplies this class in the real module. The
+        # standalone javac fixture cannot run AGP; give the production cache
+        # code its generated field *types* without pretending to verify the
+        # installed APK's version identity or reproducing a real BuildConfig.
+        'com/waenhancer/app/BuildConfig.java':'''package com.waenhancer.app;
+public final class BuildConfig {
+ public static final int VERSION_CODE=-1;
+ public static final String VERSION_NAME="preserved-dispatch-compile-fixture";
+ private BuildConfig(){}
+}''',
         'com/waenhancer/utils/WhatsAppPackageDetector.java':'''package com.waenhancer.utils;
 public final class WhatsAppPackageDetector {
  public static java.util.Set<String> getSupportedPackages(android.content.Context c){
