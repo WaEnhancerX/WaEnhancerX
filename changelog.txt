@@ -12,6 +12,10 @@
 - Fixed Separate Groups and Parallel Downloading possibly not working on older Android versions.
 - Fixed Edit history
 - Fixed Transcription error: Groq not set for device mode
+- Fixed call recordings being overwritten when two recordings got the same file name.
+- Fixed Parallel Downloading sometimes producing cut-off or corrupt files; it now falls back safely.
+- Fixed Parallel Downloading settings not being saved in Backup and Restore.
+- Fixed Backup and Restore mixing up settings between different WhatsApp target apps.
 
 [Improvements]
 - Improved Message Device Source
