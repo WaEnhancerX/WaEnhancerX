@@ -16,6 +16,19 @@ public final class ParallelDownloadingStreamContractChecks {
     private static int passed;
 
     public static void main(String[] args) throws Exception {
+        // Selective execution permits independent negative controls against the
+        // unmodified upstream class, without altering any production source.
+        if (args.length == 1) {
+            switch (args[0]) {
+                case "truncated-single": singleChunkTruncatedMustFail(); break;
+                case "range-end": incorrectRangeEndMustFallBackToSequential(); break;
+                case "invalid-slice": boundsMustRejectInvalidSlices(); break;
+                default: throw new IllegalArgumentException("Unknown case: " + args[0]);
+            }
+            System.out.println("PASS " + args[0]);
+            return;
+        }
+        if (args.length != 0) throw new IllegalArgumentException("Expected zero or one case name");
         singleChunkComplete();
         singleChunkTruncatedMustFail();
         firstChunkTruncatedMustFail();
@@ -62,10 +75,14 @@ public final class ParallelDownloadingStreamContractChecks {
         FakeRangeHandler handler = new FakeRangeHandler(
                 "bytes 2097152-2097174/2097175", Arrays.copyOfRange(data,
                 ParallelDownloadingInputStream.CHUNK_SIZE, data.length), 206);
-        try (InputStream stream = stream(data, data.length, handler, 0)) {
+        // Intentionally expose only chunk 0 from the original stream: an accidental
+        // sequential fallback cannot falsely pass the valid-range acceptance case.
+        try (InputStream stream = stream(Arrays.copyOf(data,
+                ParallelDownloadingInputStream.CHUNK_SIZE), data.length, handler, 0)) {
             require(Arrays.equals(data, readFully(stream)), "valid range bytes");
             require(handler.requests == 1, "valid range request count");
             require("bytes=2097152-2097174".equals(handler.requestedRange), "correct requested range");
+            require(handler.bodyOpened == 1, "valid 206 response body must be used");
         }
         passed++;
     }
@@ -75,9 +92,11 @@ public final class ParallelDownloadingStreamContractChecks {
         FakeRangeHandler handler = new FakeRangeHandler(
                 "bytes 2097402-2097424/2097425", Arrays.copyOfRange(data,
                 ParallelDownloadingInputStream.CHUNK_SIZE, data.length), 206);
-        try (InputStream stream = stream(data, data.length, handler, 250)) {
+        try (InputStream stream = stream(Arrays.copyOf(data,
+                ParallelDownloadingInputStream.CHUNK_SIZE), data.length, handler, 250)) {
             require(Arrays.equals(data, readFully(stream)), "nonzero start offset bytes");
             require("bytes=2097402-2097424".equals(handler.requestedRange), "offset range request");
+            require(handler.bodyOpened == 1, "valid offset 206 response body must be used");
         }
         passed++;
     }
@@ -91,6 +110,7 @@ public final class ParallelDownloadingStreamContractChecks {
         try (InputStream stream = stream(data, data.length, handler, 0)) {
             require(Arrays.equals(data, readFully(stream)),
                     "mismatched Content-Range end must preserve original sequential bytes");
+            require(handler.bodyOpened == 0, "invalid range body must not be consumed");
         }
         passed++;
     }
@@ -103,6 +123,7 @@ public final class ParallelDownloadingStreamContractChecks {
                 "bytes 2097152-2097174/2097174", wrongChunk, 206);
         try (InputStream stream = stream(data, data.length, handler, 0)) {
             require(Arrays.equals(data, readFully(stream)), "impossible range total must fall back");
+            require(handler.bodyOpened == 0, "impossible total body must not be consumed");
         }
         passed++;
     }
@@ -115,6 +136,7 @@ public final class ParallelDownloadingStreamContractChecks {
                 "bytes 2097152-2097174/malformed", wrongChunk, 206);
         try (InputStream stream = stream(data, data.length, handler, 0)) {
             require(Arrays.equals(data, readFully(stream)), "nonnumeric range total must fall back");
+            require(handler.bodyOpened == 0, "malformed total body must not be consumed");
         }
         passed++;
     }
@@ -125,6 +147,7 @@ public final class ParallelDownloadingStreamContractChecks {
                 Arrays.copyOfRange(data, ParallelDownloadingInputStream.CHUNK_SIZE, data.length), 200);
         try (InputStream stream = stream(data, data.length, handler, 0)) {
             require(Arrays.equals(data, readFully(stream)), "non-partial response fallback bytes");
+            require(handler.bodyOpened == 0, "HTTP 200 body must not be consumed as a range");
         }
         passed++;
     }
@@ -190,6 +213,7 @@ public final class ParallelDownloadingStreamContractChecks {
         private final byte[] responseBody;
         private final int responseCode;
         volatile int requests;
+        volatile int bodyOpened;
         volatile String requestedRange;
 
         FakeRangeHandler(String responseRange, byte[] responseBody, int responseCode) {
@@ -204,11 +228,12 @@ public final class ParallelDownloadingStreamContractChecks {
                 @Override public void setRequestProperty(String name, String value) {
                     if ("Range".equals(name)) requestedRange = value;
                 }
-                @Override public int getResponseCode() { return responseCode; }
+                @Override public int getResponseCode() { return FakeRangeHandler.this.responseCode; }
                 @Override public String getHeaderField(String name) {
                     return "Content-Range".equals(name) ? responseRange : null;
                 }
                 @Override public InputStream getInputStream() {
+                    bodyOpened++;
                     return new ByteArrayInputStream(responseBody == null ? new byte[0] : responseBody);
                 }
                 @Override public void disconnect() { }
