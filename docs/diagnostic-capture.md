@@ -96,7 +96,7 @@ authenticated provider to accept the report. The manager may also be absent.
   **1.75 MiB maximum** of journal parts. Expired/clock-future parts are
   pruned on the next record or export; an unused app does not run a cleanup
   worker solely for the journal.
-- **Share diagnostic ZIP to Telegram** builds a ZIP under the app's private
+- **Share report** builds a ZIP under the app's private
   cache and opens Android's chooser with a read-only, temporary FileProvider
   grant. The user chooses Telegram, the developers' group, and confirms the
   send. WAEX itself does not know or impersonate a group/bot identity.

@@ -342,6 +342,7 @@ fun SystemHealthScreen() {
                                 }
                             )
                         }
+                        if (captureEnabled && Build.VERSION.SDK_INT >= 30) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
@@ -376,6 +377,8 @@ fun SystemHealthScreen() {
                             style = typography.bodyMd,
                             color = colors.onSurfaceVariant
                         )
+                        }
+                        if (captureEnabled) {
                         Text(
                             stringResource(R.string.diag_capture_consent),
                             style = typography.bodyMd,
@@ -419,6 +422,7 @@ fun SystemHealthScreen() {
                                 }
                             }
                         ) { Text(stringResource(R.string.diag_capture_share)) }
+                        }
                         OutlinedButton(
                             enabled = !captureExporting,
                             onClick = { confirmCaptureClear = true }
