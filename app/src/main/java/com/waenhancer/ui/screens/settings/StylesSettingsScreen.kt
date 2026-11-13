@@ -397,7 +397,7 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
                                         )
                                         val reqPro = stringResource(R.string.requires_pro_label)
                                         Text(
-                                            text = if (needsTypedEditor) "$locDesc • ${typedStyleSummary(item.key, preferenceManager, typedValueRevision)}"
+                                            text = if (needsTypedEditor) "$locDesc • ${typedStyleSummary(item.key, preferenceManager, typedValueRevision, LocalContext.current)}"
                                                 else if (isLocked) "$locDesc • $reqPro" else locDesc,
                                             style = typography.bodyMd,
                                             color = colors.onSurfaceVariant,
@@ -651,14 +651,25 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
         }
     }
 
+    var writeThemeCss by remember { mutableStateOf(false) }
     typedEditorKey?.let { key ->
+        if (key == "custom_theme" && !writeThemeCss) {
+            ThemeLibrarySheet(
+                onDismiss = { typedEditorKey = null },
+                onChanged = { typedValueRevision++ },
+                onWriteCss = { writeThemeCss = true }
+            )
+            return@let
+        }
+        if (key != "custom_theme") writeThemeCss = false
         TypedStyleEditorDialog(
             key = key,
             preferenceManager = preferenceManager,
-            onDismiss = { typedEditorKey = null },
+            onDismiss = { typedEditorKey = null; writeThemeCss = false },
             onSaved = {
                 typedValueRevision++
                 typedEditorKey = null
+                writeThemeCss = false
             }
         )
     }
@@ -748,15 +759,7 @@ private fun TypedStyleEditorDialog(
         }
     }
     when (key) {
-        "custom_theme" -> {
-            var editRawCss by remember { mutableStateOf(false) }
-            if (!editRawCss) {
-                ThemeLibrarySheet(
-                    onDismiss = onDismiss,
-                    onChanged = onSaved,
-                    onWriteCss = { editRawCss = true }
-                )
-            } else TextValueEditorDialog(
+        "custom_theme" -> TextValueEditorDialog(
             title = UiText.get(R.string.feat_custom_theme_title, "Custom Theme CSS"),
             description = UiText.get(R.string.waex_ui_style_whatsapp_views_using_ids_widget, "Style WhatsApp views using IDs, widget types, scoped activities, and common CSS properties. Restart WhatsApp after saving."),
             initialValue = preferenceManager.getString("css_theme", "") ?: "",
@@ -766,8 +769,7 @@ private fun TypedStyleEditorDialog(
             errorMessage = UiText.get(R.string.waex_ui_check_that_every_selector_has_a_matchi, "Check that every selector has a matching { } block"),
             onDismiss = onDismiss,
             onSave = { completeSave(preferenceManager.putPublicString("css_theme", it.trim())) }
-            )
-        }
+        )
         "custom_view_dpi" -> TextValueEditorDialog(
             title = UiText.get(R.string.waex_ui_default_dpi, "Default DPI"),
             description = UiText.get(R.string.waex_ui_enter_0_to_use_the_device_default_or_a, "Enter 0 to use the device default, or a DPI value from 120 to 1000."),
@@ -1374,9 +1376,14 @@ private fun isValidCustomCss(css: String): Boolean {
 private fun typedStyleSummary(
     key: String,
     preferenceManager: WaexPreferenceManager,
-    @Suppress("UNUSED_PARAMETER") revision: Int
+    @Suppress("UNUSED_PARAMETER") revision: Int,
+    context: android.content.Context
 ): String = when (key) {
-    "custom_theme" -> if (preferenceManager.getString("css_theme", "").isNullOrBlank()) UiText.get(R.string.waex_ui_not_configured, "Not configured") else UiText.get(R.string.waex_ui_configured, "Configured")
+    "custom_theme" -> when {
+        preferenceManager.getString("css_theme", "").isNullOrBlank() -> UiText.get(R.string.waex_ui_not_configured, "Not configured")
+        else -> com.waenhancer.theme.ThemeRepository(context.applicationContext).activeTheme()?.displayName
+            ?: UiText.get(R.string.waex_ui_configured, "Configured")
+    }
     "custom_view_dpi" -> preferenceManager.getString("change_dpi", "0")?.let { if (it == "0") UiText.get(R.string.waex_ui_device_default, "Device default") else "$it DPI" } ?: UiText.get(R.string.waex_ui_device_default, "Device default")
     "chat_filters" -> when (preferenceManager.getString("chatfilter", "2")) { "0" -> UiText.get(R.string.waex_ui_search_hidden, "Search hidden"); "1" -> UiText.get(R.string.waex_ui_search_icon, "Search icon"); else -> UiText.get(R.string.waex_ui_search_bar, "Search bar") }
     "hide_ui_tabs" -> preferenceManager.getStringSet("hidetabs", emptySet())?.let { if (it.isEmpty()) UiText.get(R.string.waex_ui_no_tabs_hidden, "No tabs hidden") else UiText.get(R.string.waex_ui_1_s_hidden, "%1\$s hidden", it.size) } ?: UiText.get(R.string.waex_ui_no_tabs_hidden, "No tabs hidden")

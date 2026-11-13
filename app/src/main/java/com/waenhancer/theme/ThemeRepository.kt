@@ -26,7 +26,11 @@ class ThemeRepository(private val context: Context) {
             }
             .sortedBy { it.displayName.lowercase() }
 
-    fun activeId(): String? = PreferenceStores.publicStore(context).getString(KEY_ACTIVE, null)?.takeIf(String::isNotBlank)
+    /** The active theme id, or null when none is set or its folder is gone (e.g. after restoring a backup). */
+    fun activeId(): String? = PreferenceStores.publicStore(context).getString(KEY_ACTIVE, null)
+        ?.takeIf { ThemeIds.isValidId(it) && File(File(root(context), it), ThemeArchive.STYLE_FILE).isFile }
+
+    fun activeTheme(): InstalledTheme? = activeId()?.let { id -> list().firstOrNull { it.id == id } }
 
     /** Imports [uri] as a new theme (replacing a same-named one) and returns it. */
     fun import(uri: Uri): Result<InstalledTheme> = runCatching {
