@@ -142,6 +142,18 @@ android {
         buildConfig = true
     }
 
+    // AndroidX/Compose/Material libraries bundle their own string translations for ~70+
+    // locales (e.g. accessibility labels). shrinkResources can't drop the ones we never
+    // show, because the resource IS referenced from code, just not in a locale we ship
+    // our own translation for. Restrict packaging to the locales app/src/main/res
+    // actually has a values-<locale> folder for; anything else silently falls back to
+    // the default (English) strings, which is what already happens for those languages.
+    androidResources {
+        localeFilters += setOf(
+            "ar", "b+es+419", "de", "es", "fr", "hi", "in", "pt", "ru", "sl", "tr", "ur", "zh-rCN"
+        )
+    }
+
     ndkVersion = "27.0.12077973"
     externalNativeBuild {
         cmake {
