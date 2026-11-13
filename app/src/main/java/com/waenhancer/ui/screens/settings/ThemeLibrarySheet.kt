@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import com.waenhancer.app.R
 import com.waenhancer.theme.InstalledTheme
 import com.waenhancer.theme.ThemeRepository
+import com.waenhancer.ui.components.WaexConfirmationBottomSheet
 import com.waenhancer.ui.components.WaexModalBottomSheet
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.utils.UiText
@@ -148,21 +149,18 @@ internal fun ThemeLibrarySheet(
     }
 
     pendingDelete?.let { theme ->
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { pendingDelete = null },
-            title = { Text(UiText.get(R.string.waex_ui_theme_delete_confirm, "Delete this theme?")) },
-            text = { Text(theme.displayName) },
-            confirmButton = {
-                TextButton(onClick = {
-                    val wasActive = activeId == theme.id
-                    repository.delete(theme.id)
-                    pendingDelete = null
-                    refresh()
-                    if (wasActive) onChanged()
-                }) { Text(UiText.get(R.string.action_delete, "Delete")) }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) { Text(UiText.get(R.string.action_cancel, "Cancel")) }
+        WaexConfirmationBottomSheet(
+            title = UiText.get(R.string.waex_ui_theme_delete_confirm, "Delete this theme?"),
+            message = theme.displayName,
+            confirmLabel = UiText.get(R.string.action_delete, "Delete"),
+            destructive = true,
+            onDismiss = { pendingDelete = null },
+            onConfirm = {
+                val wasActive = activeId == theme.id
+                repository.delete(theme.id)
+                pendingDelete = null
+                refresh()
+                if (wasActive) onChanged()
             }
         )
     }
