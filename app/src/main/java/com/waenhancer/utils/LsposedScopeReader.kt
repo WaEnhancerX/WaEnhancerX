@@ -2,7 +2,7 @@ package com.waenhancer.utils
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
-import com.waenhancer.config.PreferenceStores
+import android.os.Process
 import com.waenhancer.xposed.utils.AppRestartHelper
 import java.io.File
 
@@ -22,36 +22,25 @@ object LsposedScopeReader {
     private const val DB = "/data/adb/lspd/config/modules_config.db"
     private const val CACHE = "waex_lsposed_scope.db"
     private const val MODULE = "com.waenhancer"
-    private const val PREF_KEY_CACHED_SCOPE = "cached_lsposed_scope"
-    private val packageToken = Regex("\\b[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z0-9_]+)+\\b")
+    // Android assigns each user a separate block of 100,000 app UIDs. The
+    // LSPosed scope table uses the Android user ID, not the package UID.
+    private const val PER_USER_RANGE = 100_000
+    private const val SCOPE_QUERY = """
+        SELECT s.app_pkg_name FROM scope s
+        JOIN modules m ON m.mid = s.mid
+        WHERE m.module_pkg_name = ? AND m.enabled = 1 AND s.user_id = ?
+    """
 
     @Volatile
     private var lastSnapshot: LsposedScopeSnapshot? = null
 
-    fun cached(context: Context? = null): LsposedScopeSnapshot? {
-        if (lastSnapshot != null) return lastSnapshot
-        if (context != null) {
-            runCatching {
-                val prefs = PreferenceStores.publicStore(context)
-                val saved = prefs.getStringSet(PREF_KEY_CACHED_SCOPE, null)
-                if (!saved.isNullOrEmpty()) {
-                    val snapshot = LsposedScopeSnapshot(
-                        modulePackage = MODULE,
-                        packages = saved,
-                        frameworkReachable = true,
-                        source = LsposedScopeSnapshot.Source.DATABASE
-                    )
-                    lastSnapshot = snapshot
-                    return snapshot
-                }
-            }
-        }
-        return lastSnapshot
-    }
+    @Suppress("UNUSED_PARAMETER")
+    fun cached(context: Context? = null): LsposedScopeSnapshot? = lastSnapshot
 
     @Synchronized
     fun read(context: Context): LsposedScopeSnapshot {
         val declared = DeclaredWhatsAppTargets.packages()
+        val userId = Process.myUid() / PER_USER_RANGE
         val copy = File(context.cacheDir, CACHE)
         val wal = File(context.cacheDir, "$CACHE-wal")
         val shm = File(context.cacheDir, "$CACHE-shm")
@@ -62,76 +51,38 @@ object LsposedScopeReader {
             "echo WAEX_LSPOSED_DB_OK; else echo WAEX_LSPOSED_DB_MISSING; fi"
         val rootResult = runCatching { AppRestartHelper.runRootCommand(command).orEmpty() }.getOrDefault("")
         if (!rootResult.contains("WAEX_LSPOSED_DB_OK") || !copy.exists()) {
-            val fallback = cached(context) ?: LsposedScopeSnapshot(
+            return LsposedScopeSnapshot(
                 MODULE,
                 emptySet(),
                 false,
                 LsposedScopeSnapshot.Source.UNAVAILABLE,
                 "LSPosed scope database unavailable"
-            )
-            return fallback.also { if (lastSnapshot == null) lastSnapshot = it }
+            ).also { lastSnapshot = it }
         }
         return try {
             val packages = LinkedHashSet<String>()
             SQLiteDatabase.openDatabase(copy.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { db ->
-                // Current LSPosed schema: module identity and scope are normalized into
-                // separate tables and joined by modules.mid.
-                runCatching {
-                    db.rawQuery(
-                        "SELECT s.app_pkg_name FROM scope s JOIN modules m ON m.mid = s.mid " +
-                            "WHERE m.module_pkg_name = ? AND m.enabled = 1",
-                        arrayOf(MODULE)
-                    ).use { rows ->
-                        while (rows.moveToNext()) {
-                            val pkg = rows.getString(0)
-                            if (pkg in declared) packages.add(pkg)
-                        }
+                // Never infer another Android user's scope from a package-only row.
+                // Unknown vendor schemas must be reported as unavailable, not promoted
+                // into a positive scope result by scanning arbitrary table strings.
+                db.rawQuery(SCOPE_QUERY, arrayOf(MODULE, userId.toString())).use { rows ->
+                    while (rows.moveToNext()) {
+                        val pkg = rows.getString(0)
+                        if (pkg in declared) packages.add(pkg)
                     }
-                }
-                db.rawQuery("SELECT name FROM sqlite_master WHERE type='table'", null).use { tables ->
-                    while (tables.moveToNext()) {
-                        val table = tables.getString(0)
-                        if (!table.matches(Regex("[A-Za-z_][A-Za-z0-9_]*"))) continue
-                        val columns = db.rawQuery("PRAGMA table_info($table)", null).use { c ->
-                            buildList { while (c.moveToNext()) add(c.getString(1)) }
-                        }
-                        val scopeColumns = columns.filter { it.contains("scope", true) ||
-                            it.contains("app_pkg", true) || it.contains("target", true) || it.contains("package", true) }
-                        if (scopeColumns.isEmpty()) continue
-                        val projection = scopeColumns.joinToString(",") { "\"$it\"" }
-                        db.rawQuery("SELECT $projection FROM \"$table\"", null).use { rows ->
-                            while (rows.moveToNext()) for (i in scopeColumns.indices) {
-                                val values = scopeColumns.indices.map { rows.getString(it) ?: "" }
-                                // Fallback for vendor forks that denormalize module and scope.
-                                if (values.none { it == MODULE || it.contains(MODULE) }) continue
-                                packageToken.findAll(values[i]).map { it.value }
-                                    .filter { it in declared }.forEach { packages.add(it) }
-                            }
-                        }
-                    }
-                }
-            }
-            if (packages.isNotEmpty()) {
-                runCatching {
-                    PreferenceStores.publicStore(context).edit()
-                        .putStringSet(PREF_KEY_CACHED_SCOPE, packages)
-                        .apply()
                 }
             }
             LsposedScopeSnapshot(MODULE, packages, true, LsposedScopeSnapshot.Source.DATABASE).also {
                 lastSnapshot = it
             }
         } catch (e: Throwable) {
-            val fallback = cached(context) ?: LsposedScopeSnapshot(
+            LsposedScopeSnapshot(
                 MODULE,
                 emptySet(),
-                true,
+                false,
                 LsposedScopeSnapshot.Source.UNAVAILABLE,
                 "Could not parse LSPosed scope: ${e.javaClass.simpleName}"
-            )
-            fallback.also {
-                if (lastSnapshot == null) lastSnapshot = it
-            }
+            ).also { lastSnapshot = it }
         } finally {
             listOf(copy, wal, shm).forEach { runCatching { it.delete() } }
         }
