@@ -315,7 +315,8 @@ class MediaPreviewHook(
     }
 
     private fun createEyeDrawable(context: Context): Drawable {
-        val size = dipToPixels(context, 24f)
+        // Sized to match the glyph of WhatsApp's own forward button inside its 32dp circle.
+        val size = dipToPixels(context, 20f)
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
