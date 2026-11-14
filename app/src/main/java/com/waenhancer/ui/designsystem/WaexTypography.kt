@@ -37,28 +37,28 @@ data class WaexTypography(
     val headlineMd: TextStyle = TextStyle(
         fontFamily = OutfitFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = (18f * scale).sp,
-        lineHeight = (24f * scale).sp,
+        fontSize = (20f * scale).sp,
+        lineHeight = (26f * scale).sp,
         letterSpacing = (-0.02).sp
     ),
     val titleLg: TextStyle = TextStyle(
         fontFamily = OutfitFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = (17f * scale).sp,
-        lineHeight = (22f * scale).sp,
+        fontSize = (18f * scale).sp,
+        lineHeight = (24f * scale).sp,
         letterSpacing = (-0.01).sp
     ),
     val titleMd: TextStyle = TextStyle(
         fontFamily = OutfitFontFamily,
         fontWeight = FontWeight.SemiBold,
-        fontSize = (15f * scale).sp,
-        lineHeight = (20f * scale).sp,
+        fontSize = (16f * scale).sp,
+        lineHeight = (22f * scale).sp,
         letterSpacing = 0.sp
     ),
     val bodyLg: TextStyle = TextStyle(
         fontFamily = OutfitFontFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = (15f * scale).sp,
+        fontSize = (16f * scale).sp,
         lineHeight = (22f * scale).sp,
         letterSpacing = 0.sp
     ),
