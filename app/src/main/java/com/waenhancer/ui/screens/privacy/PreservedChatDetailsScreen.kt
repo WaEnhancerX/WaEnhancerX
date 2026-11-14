@@ -5,7 +5,6 @@ import com.waenhancer.utils.UiText
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,10 +30,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
+import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.sp
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
@@ -131,8 +139,8 @@ fun PreservedChatDetailsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(chat.messages, key = { it.id }) { message ->
                 PreservedMessageBubble(message = message, isGroup = chat.isGroup)
@@ -160,14 +168,24 @@ private fun PreservedMessageBubble(
         isSent -> if (isDark) Color(0xFF144D37) else Color(0xFFD9FDD3)
         else -> if (isDark) Color(0xFF20272B) else Color(0xFFFFFFFF)
     }
-    val textColor = if (isDark) Color(0xFFF7F8FA) else Color(0xFF0A1014)
-    val timestampColor = if (isDark) Color(0xFFA1B8AF) else Color(0xFF4E5F57)
+    val textColor = when {
+        isSent -> if (isDark) Color(0xFFF7F8FA) else Color(0xFF0A1014)
+        else -> if (isDark) Color(0xFFFFFFFF) else Color(0xFF0A1014)
+    }
+    val timestampColor = when {
+        isSent -> if (isDark) Color(0xFFA1B8AF) else Color(0xFF4E5F57)
+        else -> if (isDark) Color(0xFFA6A9AA) else Color(0xFF596064)
+    }
 
-    // 16dp bubble with a small pointed tail corner on the sender's side.
-    val bubbleShape = if (isSent) {
-        RoundedCornerShape(topStart = 16.dp, topEnd = 2.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
-    } else {
-        RoundedCornerShape(topStart = 2.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
+    // Measured: outgoing radius ~20dp / tail top-right (10dp tall),
+    // incoming radius ~16dp / tail top-left (13dp tall), tail protrudes ~6.5dp.
+    val bubbleShape = remember(isSent) {
+        BubbleTailShape(
+            tailOnRight = isSent,
+            cornerRadius = if (isSent) 20.dp else 16.dp,
+            tailWidth = 6.5.dp,
+            tailHeight = if (isSent) 10.dp else 13.dp
+        )
     }
 
     Column(
@@ -178,10 +196,15 @@ private fun PreservedMessageBubble(
             shape = bubbleShape,
             color = bubbleColor,
             shadowElevation = 0.dp,
-            modifier = Modifier.fillMaxWidth(0.82f)
+            modifier = Modifier.fillMaxWidth(0.88f)
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                modifier = Modifier.padding(
+                    start = if (isSent) 12.dp else 12.dp + 6.5.dp,
+                    end = if (isSent) 12.dp + 6.5.dp else 12.dp,
+                    top = 8.dp,
+                    bottom = 8.dp
+                ),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 // In group received messages, show sender name if available
@@ -220,5 +243,52 @@ private fun PreservedMessageBubble(
                 }
             }
         }
+    }
+}
+
+/**
+ * WhatsApp-style bubble: three rounded corners plus a square top corner that extends
+ * into a pointed tail. The tail lives inside the shape bounds, so callers pad the
+ * content by [tailWidth] on the tail side.
+ */
+private class BubbleTailShape(
+    private val tailOnRight: Boolean,
+    private val cornerRadius: Dp,
+    private val tailWidth: Dp,
+    private val tailHeight: Dp
+) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val r = with(density) { cornerRadius.toPx() }
+            .coerceAtMost(minOf(size.width, size.height) / 2f)
+        val t = with(density) { tailWidth.toPx() }
+        val th = with(density) { tailHeight.toPx() }.coerceAtMost(size.height - r)
+        val left = if (tailOnRight) 0f else t
+        val right = if (tailOnRight) size.width - t else size.width
+        val d = 2 * r
+        val path = Path().apply {
+            if (tailOnRight) {
+                moveTo(left + r, 0f)
+                lineTo(size.width, 0f)
+                quadraticTo(right - t * 0.1f, th * 0.45f, right, th)
+                lineTo(right, size.height - r)
+                arcTo(Rect(right - d, size.height - d, right, size.height), 0f, 90f, false)
+                lineTo(left + r, size.height)
+                arcTo(Rect(left, size.height - d, left + d, size.height), 90f, 90f, false)
+                lineTo(left, r)
+                arcTo(Rect(left, 0f, left + d, d), 180f, 90f, false)
+            } else {
+                moveTo(0f, 0f)
+                lineTo(right - r, 0f)
+                arcTo(Rect(right - d, 0f, right, d), 270f, 90f, false)
+                lineTo(right, size.height - r)
+                arcTo(Rect(right - d, size.height - d, right, size.height), 0f, 90f, false)
+                lineTo(left + r, size.height)
+                arcTo(Rect(left, size.height - d, left + d, size.height), 90f, 90f, false)
+                lineTo(left, th)
+                quadraticTo(left + t * 0.1f, th * 0.45f, 0f, 0f)
+            }
+            close()
+        }
+        return Outline.Generic(path)
     }
 }
