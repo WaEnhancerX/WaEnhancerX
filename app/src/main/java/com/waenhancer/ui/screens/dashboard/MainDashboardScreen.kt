@@ -1,5 +1,6 @@
 package com.waenhancer.ui.screens.dashboard
 
+import com.waenhancer.ui.components.WaexSheetHorizontalMargin
 import com.waenhancer.utils.UiText
 import com.waenhancer.utils.InternalLabels
 
@@ -958,23 +959,12 @@ private fun TargetCompatibilityBottomSheet(
 
     WaexModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.surface,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .width(36.dp)
-                    .height(4.dp)
-                    .clip(CircleShape)
-                    .background(colors.outlineVariant)
-            )
-        }
+        sheetState = sheetState
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = WaexSheetHorizontalMargin)
                 .padding(bottom = 24.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -1251,18 +1241,7 @@ private fun DiagnosticsDetailsSheet(
 
     WaexModalBottomSheet(
         onDismissRequest = { if (!isFixing) onDismiss() },
-        sheetState = sheetState,
-        containerColor = colors.surface,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .width(36.dp)
-                    .height(4.dp)
-                    .clip(CircleShape)
-                    .background(colors.outlineVariant)
-            )
-        }
+        sheetState = sheetState
     ) {
         Column(
             modifier = Modifier

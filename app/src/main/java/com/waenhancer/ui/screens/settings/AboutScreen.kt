@@ -758,10 +758,7 @@ fun AboutScreen() {
 
         WaexModalBottomSheet(
             onDismissRequest = { selectedUserForSheet = null },
-            sheetState = sheetState,
-            containerColor = colors.surface,
-            contentColor = colors.onSurface,
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            sheetState = sheetState
         ) {
             Column(
                 modifier = Modifier

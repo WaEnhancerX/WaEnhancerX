@@ -290,10 +290,7 @@ fun ModuleSettingsScreen() {
 
         WaexModalBottomSheet(
             onDismissRequest = { showThemeSheet = false },
-            sheetState = sheetState,
-            containerColor = colors.surface,
-            shape = WaexTheme.radius.bottomSheetShape,
-            dragHandle = { BottomSheetHandle() }
+            sheetState = sheetState
         ) {
             val sheetDensity = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides sheetDensity) {
@@ -334,10 +331,7 @@ fun ModuleSettingsScreen() {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         WaexModalBottomSheet(
             onDismissRequest = { showHookingModeSheet = false },
-            sheetState = sheetState,
-            containerColor = colors.surface,
-            shape = WaexTheme.radius.bottomSheetShape,
-            dragHandle = { BottomSheetHandle() }
+            sheetState = sheetState
         ) {
             Column(
                 modifier = Modifier
@@ -409,10 +403,7 @@ fun ModuleSettingsScreen() {
 
         WaexModalBottomSheet(
             onDismissRequest = { showConfigModeSheet = false },
-            sheetState = sheetState,
-            containerColor = colors.surface,
-            shape = WaexTheme.radius.bottomSheetShape,
-            dragHandle = { BottomSheetHandle() }
+            sheetState = sheetState
         ) {
             Column(
                 modifier = Modifier
@@ -452,10 +443,7 @@ fun ModuleSettingsScreen() {
 
         WaexModalBottomSheet(
             onDismissRequest = { showLanguageSheet = false },
-            sheetState = sheetState,
-            containerColor = colors.surface,
-            shape = WaexTheme.radius.bottomSheetShape,
-            dragHandle = { BottomSheetHandle() }
+            sheetState = sheetState
         ) {
             val sheetDensity = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides sheetDensity) {
