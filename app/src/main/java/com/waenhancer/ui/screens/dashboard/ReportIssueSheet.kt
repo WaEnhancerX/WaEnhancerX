@@ -31,7 +31,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.Switch
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
@@ -54,33 +53,25 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import com.waenhancer.app.R
 import com.waenhancer.ui.components.WaexModalBottomSheet
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
-import com.waenhancer.utils.DiagnosticsRecorder
 import com.waenhancer.core.preferences.SettingsBackupCodec
 import com.waenhancer.utils.HookedAppInfo
 import com.waenhancer.utils.SystemDiagnostics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.FileOutputStream
-import java.util.zip.ZipEntry
-import java.util.zip.ZipFile
-import java.util.zip.ZipOutputStream
 import java.net.URLEncoder
 
 private const val REPORT_TELEGRAM_USER = "mubashardev"
 private const val TITLE_MIN = 15
 private const val TITLE_MAX = 50
 private const val DESCRIPTION_MIN = 15
-private const val LAST_STEP = 4
+private const val LAST_STEP = 3
 private const val STEP_APPS = 1
 private const val STEP_TITLE = 2
-private const val STEP_DESCRIPTION = 3
 
 private val TELEGRAM_PACKAGES = listOf(
     "org.telegram.messenger",
@@ -111,7 +102,6 @@ fun ReportIssueSheet(
     var forward by remember { mutableStateOf(true) }
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    var attachCrashLog by remember { mutableStateOf(true) }
     var sending by remember { mutableStateOf(false) }
 
     val installedTargets = remember(targets) { targets.filter { it.isInstalled } }
@@ -145,8 +135,7 @@ fun ReportIssueSheet(
     val canContinue = when (step) {
         STEP_APPS -> selected.isNotEmpty()
         STEP_TITLE -> titleLength in TITLE_MIN..TITLE_MAX
-        STEP_DESCRIPTION -> descriptionLength >= DESCRIPTION_MIN
-        else -> true
+        else -> descriptionLength >= DESCRIPTION_MIN
     }
 
     val animatedProgress by animateFloatAsState(
@@ -317,7 +306,7 @@ fun ReportIssueSheet(
                         )
                     }
 
-                    STEP_DESCRIPTION -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    else -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(
                             text = stringResource(R.string.report_issue_description_prompt),
                             style = typography.bodyMd,
@@ -333,124 +322,58 @@ fun ReportIssueSheet(
                             label = { Text(stringResource(R.string.report_issue_description_hint)) }
                         )
                     }
-
-                    else -> Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(WaexTheme.radius.mdShape)
-                            .background(colors.surfaceContainer)
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = stringResource(R.string.report_issue_crash_title),
-                                style = typography.bodyMd,
-                                fontWeight = FontWeight.Medium,
-                                color = colors.onSurface
-                            )
-                            Text(
-                                text = stringResource(R.string.report_issue_crash_desc),
-                                style = typography.bodySm,
-                                color = colors.onSurfaceVariant
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Switch(checked = attachCrashLog, onCheckedChange = { attachCrashLog = it })
-                    }
                 }
             }
 
-            if (step < LAST_STEP) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = {
-                            if (step == 0) onDismiss() else { forward = false; step-- }
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(stringResource(if (step == 0) R.string.report_issue_cancel else R.string.report_issue_back))
-                    }
-                    Button(
-                        onClick = { forward = true; step++ },
-                        enabled = canContinue,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(stringResource(R.string.report_issue_next))
-                    }
-                }
-            } else {
-                Button(
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
                     onClick = {
-                        sending = true
-                        scope.launch {
-                            val packages = selected.toSet()
-                            val chosen = installedTargets.filter { it.packageName in packages }
-                            val (message, crashLog) = withContext(Dispatchers.IO) {
-                                val settings = runCatching {
-                                    SettingsBackupCodec.renderPlainText(context, packages)
-                                }.getOrDefault("")
-                                val log = if (attachCrashLog) {
-                                    runCatching { exportCrashLog(context, packages) }.getOrNull()
-                                } else null
-                                buildReportMessage(
-                                    title = title.trim(),
-                                    description = description.trim(),
-                                    details = details,
-                                    apps = chosen,
-                                    settings = settings
-                                ) to log
-                            }
-                            if (attachCrashLog && crashLog == null) {
-                                Toast.makeText(context, R.string.report_issue_no_crash_log, Toast.LENGTH_SHORT).show()
-                            }
-                            val launched = launchTelegram(context, message, crashLog)
-                            sending = false
-                            if (launched) onDismiss()
-                        }
+                        if (step == 0) onDismiss() else { forward = false; step-- }
                     },
                     enabled = !sending,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Text(stringResource(R.string.report_issue_submit))
+                    Text(stringResource(if (step == 0) R.string.report_issue_cancel else R.string.report_issue_back))
+                }
+                Button(
+                    onClick = {
+                        if (step < LAST_STEP) {
+                            forward = true
+                            step++
+                        } else {
+                            sending = true
+                            scope.launch {
+                                val packages = selected.toSet()
+                                val chosen = installedTargets.filter { it.packageName in packages }
+                                val message = withContext(Dispatchers.IO) {
+                                    val settings = runCatching {
+                                        SettingsBackupCodec.renderPlainText(context, packages)
+                                    }.getOrDefault("")
+                                    buildReportMessage(
+                                        title = title.trim(),
+                                        description = description.trim(),
+                                        details = details,
+                                        apps = chosen,
+                                        settings = settings
+                                    )
+                                }
+                                val launched = launchTelegram(context, message)
+                                sending = false
+                                if (launched) onDismiss()
+                            }
+                        }
+                    },
+                    enabled = canContinue && !sending,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(stringResource(if (step == LAST_STEP) R.string.report_issue_submit else R.string.report_issue_next))
                 }
             }
         }
     }
-}
-
-/**
- * Exports the diagnostics journal and drops events that name a target app the user did not
- * select. Returns null when nothing has been recorded.
- */
-private fun exportCrashLog(context: Context, packages: Set<String>): Uri? {
-    val full = DiagnosticsRecorder.export(context)
-    val filtered = File(full.parentFile, "waex-crash-log-${System.currentTimeMillis()}.zip")
-    ZipFile(full).use { zip ->
-        ZipOutputStream(FileOutputStream(filtered)).use { out ->
-            zip.entries().asSequence().forEach { entry ->
-                out.putNextEntry(ZipEntry(entry.name))
-                val bytes = zip.getInputStream(entry).use { it.readBytes() }
-                if (entry.name.startsWith("events-")) {
-                    val kept = String(bytes, Charsets.UTF_8).lineSequence().filter { line ->
-                        val marker = line.indexOf("package=")
-                        if (marker < 0) return@filter line.isNotEmpty()
-                        val end = line.indexOf(' ', marker).let { if (it < 0) line.length else it }
-                        line.substring(marker + "package=".length, end) in packages
-                    }.joinToString("\n", postfix = "\n")
-                    out.write(kept.toByteArray(Charsets.UTF_8))
-                } else {
-                    out.write(bytes)
-                }
-                out.closeEntry()
-            }
-        }
-    }
-    full.delete()
-    return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", filtered)
 }
 
 private fun buildReportMessage(
@@ -469,20 +392,14 @@ private fun buildReportMessage(
     }
 }
 
-private fun launchTelegram(context: Context, message: String, crashLog: Uri?): Boolean {
+private fun launchTelegram(context: Context, message: String): Boolean {
     val telegram = TELEGRAM_PACKAGES.firstOrNull { pkg ->
         runCatching { context.packageManager.getPackageInfo(pkg, 0) }.isSuccess
     }
 
     val share = Intent(Intent.ACTION_SEND).apply {
         putExtra(Intent.EXTRA_TEXT, message)
-        if (crashLog != null) {
-            type = "application/zip"
-            putExtra(Intent.EXTRA_STREAM, crashLog)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        } else {
-            type = "text/plain"
-        }
+        type = "text/plain"
         telegram?.let { setPackage(it) }
     }
     val intent = if (telegram != null) share else Intent.createChooser(share, null)

@@ -464,9 +464,6 @@
     <string name="report_issue_config_per_app">Per-App</string>
     <string name="report_issue_apps_prompt">Select the target apps where you are getting the error:</string>
     <string name="report_issue_apps_none">No target apps are installed.</string>
-    <string name="report_issue_crash_title">Attach crash log</string>
-    <string name="report_issue_crash_desc">Include the recorded crash and hook-health log of the selected apps.</string>
-    <string name="report_issue_no_crash_log">No crash log recorded yet, sending without it</string>
     <string name="report_issue_submit">Submit</string>
     <string name="report_issue_unknown">Unknown</string>
     <string name="report_issue_title_prompt">What is the title of the issue? (%1$d-%2$d characters)</string>
