@@ -29,7 +29,7 @@ fun WaexModalBottomSheet(
     modifier: Modifier = Modifier,
     sheetState: SheetState = rememberModalBottomSheetState(),
     shape: Shape = WaexTheme.radius.bottomSheetShape,
-    containerColor: Color = WaexTheme.colors.surfaceContainerLow,
+    containerColor: Color = if (WaexTheme.colors.isLight) WaexTheme.colors.surface else WaexTheme.colors.surfaceContainer,
     contentColor: Color = WaexTheme.colors.onSurface,
     tonalElevation: Dp = WaexTheme.elevation.modal,
     scrimColor: Color = BottomSheetDefaults.ScrimColor,
@@ -57,9 +57,9 @@ fun WaexModalBottomSheet(
 private fun WaexSheetHandle() {
     Box(
         modifier = Modifier
-            .padding(top = 12.dp, bottom = 10.dp)
-            .size(width = 48.dp, height = 5.dp)
-            .clip(RoundedCornerShape(3.dp))
-            .background(WaexTheme.colors.outline.copy(alpha = 0.45f))
+            .padding(top = 10.dp, bottom = 10.dp)
+            .size(width = 32.dp, height = 4.dp)
+            .clip(RoundedCornerShape(2.dp))
+            .background(Color(0xFF8D9599))
     )
 }
