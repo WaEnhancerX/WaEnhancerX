@@ -80,7 +80,11 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.waenhancer.utils.WhatsAppPackageDetector
 import com.waenhancer.utils.LsposedScopeReader
+import com.waenhancer.utils.SystemDiagnosticsReader
 import com.waenhancer.utils.TargetAppManager
+import com.waenhancer.ui.screens.dashboard.ReportIssueSheet
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.BugReport
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.rememberCoroutineScope
@@ -276,6 +280,7 @@ fun MainContainerScreen() {
     val preferenceManager = LocalWaexPreferenceManager.current
     var licenseState by remember { mutableStateOf(if ("ACTIVE".equals(LicenseManager.getProStatus(context), ignoreCase = true)) "pro" else "free") }
     val isPro = licenseState == "pro"
+    var showReportIssueSheet by remember { mutableStateOf(false) }
     var activeModal by remember { mutableStateOf<String?>(null) } // "license" | "file-spoofer" | "message-bomber" | "status-splitter" | null
     var activeNotice by remember { mutableStateOf<NoticeItem?>(null) }
 
@@ -615,6 +620,17 @@ fun MainContainerScreen() {
                             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                         )
 
+                        NavigationDrawerItem(
+                            label = { Text(text = stringResource(R.string.report_issue_title), style = typography.bodyMd) },
+                            icon = { Icon(Icons.Rounded.BugReport, contentDescription = null, tint = colors.primary, modifier = Modifier.size(20.dp)) },
+                            selected = false,
+                            onClick = {
+                                coroutineScope.launch { drawerState.close() }
+                                showReportIssueSheet = true
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp),
                             color = colors.outlineVariant.copy(alpha = 0.5f)
@@ -634,6 +650,21 @@ fun MainContainerScreen() {
                 }
             }
         ) {
+        if (showReportIssueSheet) {
+            val moduleActivation by TargetAppManager.moduleActivation.collectAsState()
+            val reportTargets by TargetAppManager.detectedApps.collectAsState()
+            ReportIssueSheet(
+                moduleVersion = remember(context) {
+                    @Suppress("DEPRECATION")
+                    context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
+                },
+                diagnostics = remember(moduleActivation.active) {
+                    SystemDiagnosticsReader.getOrFastSnapshot(context, moduleActivation.active)
+                },
+                targets = reportTargets,
+                onDismiss = { showReportIssueSheet = false }
+            )
+        }
         Scaffold(
             topBar = {
                 if (showParentTopBar) {

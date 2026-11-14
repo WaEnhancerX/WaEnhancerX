@@ -113,22 +113,44 @@ object SettingsBackupCodec {
         "call_recording_enable" to "call_recording_enabled"
     )
 
+    /**
+     * Enumerate persisted keys, not only the unqualified schema catalogue: target overrides
+     * are stored as package:key. Keep each complete key and use its canonical definition
+     * only for type/store/sensitivity.
+     */
+    private fun collectRecords(context: Context): List<Record> {
+        val publicValues = PreferenceStores.publicStore(context).all
+        val privateValues = PreferenceStores.privateStore(context).all
+        return (publicValues.keys + privateValues.keys).sorted().mapNotNull { key ->
+            val entry = backupEntry(key) ?: return@mapNotNull null
+            val value = if (entry.store == PreferenceSchema.Store.PRIVATE) {
+                privateValues[key] ?: publicValues[key]
+            } else {
+                publicValues[key] ?: privateValues[key]
+            } ?: return@mapNotNull null
+            normalizeForKey(entry.key, entry.type, value)?.let { Record(key, entry.type, it) }
+        }
+    }
+
+    /**
+     * Human-readable `key = value` lines for bug reports, using the same exportable-key rules
+     * as [encode]. Overrides scoped to a package outside [targetPackages] are left out.
+     */
+    fun renderPlainText(context: Context, targetPackages: Set<String>): String =
+        collectRecords(context).filter { record ->
+            val separator = record.key.indexOf(':')
+            separator <= 0 || record.key.substring(0, separator) in targetPackages
+        }.joinToString("\n") { record ->
+            val value = when (val raw = record.value) {
+                is Set<*> -> raw.filterIsInstance<String>().sorted().joinToString(",", "[", "]")
+                else -> raw.toString()
+            }.replace('\n', ' ').replace('\r', ' ').take(200)
+            "${record.key} = $value"
+        }
+
     fun encode(context: Context, output: OutputStream): Int =
         DataOutputStream(BufferedOutputStream(output)).use { out ->
-            // Enumerate persisted keys, not only the unqualified schema catalogue:
-            // target overrides are stored as package:key. Keep each complete key
-            // and use its canonical definition only for type/store/sensitivity.
-            val publicValues = PreferenceStores.publicStore(context).all
-            val privateValues = PreferenceStores.privateStore(context).all
-            val records = (publicValues.keys + privateValues.keys).sorted().mapNotNull { key ->
-                val entry = backupEntry(key) ?: return@mapNotNull null
-                val value = if (entry.store == PreferenceSchema.Store.PRIVATE) {
-                    privateValues[key] ?: publicValues[key]
-                } else {
-                    publicValues[key] ?: privateValues[key]
-                } ?: return@mapNotNull null
-                normalizeForKey(entry.key, entry.type, value)?.let { Record(key, entry.type, it) }
-            }
+            val records = collectRecords(context)
             // Validate the complete container before emitting a header. Otherwise
             // encode() could succeed with a file decode() necessarily rejects.
             validateEncodedSize(records)
