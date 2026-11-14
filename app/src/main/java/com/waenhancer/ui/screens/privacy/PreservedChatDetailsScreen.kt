@@ -62,7 +62,7 @@ fun PreservedChatDetailsScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = colors.surface,
-                tonalElevation = 2.dp
+                tonalElevation = 0.dp
             ) {
                 Column(modifier = Modifier.statusBarsPadding()) {
                     Row(
@@ -84,14 +84,14 @@ fun PreservedChatDetailsScreen(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(CircleShape)
-                                .background(if (chat.isGroup) Color(0xFF008069) else colors.primary),
+                                .background(colors.primary),
                             contentAlignment = Alignment.Center
                         ) {
                             if (chat.isGroup) {
                                 Icon(
                                     imageVector = WaexIcons.Folder,
                                     contentDescription = null,
-                                    tint = Color.White,
+                                    tint = colors.onPrimary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             } else {
@@ -99,7 +99,7 @@ fun PreservedChatDetailsScreen(
                                     text = chat.name.firstOrNull()?.uppercase() ?: "?",
                                     style = typography.bodyLg,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.White
+                                    color = colors.onPrimary
                                 )
                             }
                         }
@@ -125,7 +125,7 @@ fun PreservedChatDetailsScreen(
                 }
             }
         },
-        containerColor = colors.background
+        containerColor = if (colors.isLight) Color(0xFFF5F1EB) else Color(0xFF0A1014) // chat wallpaper base
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
@@ -151,37 +151,23 @@ private fun PreservedMessageBubble(
 ) {
     val colors = WaexTheme.colors
     val typography = WaexTheme.typography
-    val isDark = isSystemInDarkTheme()
+    val isDark = colors.isDark
 
     val isSent = message.isFromMe
 
-    // WhatsApp-like bubble colors
-    val bubbleColor = if (isSent) {
-        if (isDark) Color(0xFF005D4B) else Color(0xFFE7FFDB)
-    } else {
-        if (isDark) Color(0xFF1F2C34) else Color(0xFFFFFFFF)
+    // WhatsApp design spec: outgoing #D9FDD3 / #144D37, incoming white / #20272B.
+    val bubbleColor = when {
+        isSent -> if (isDark) Color(0xFF144D37) else Color(0xFFD9FDD3)
+        else -> if (isDark) Color(0xFF20272B) else Color(0xFFFFFFFF)
     }
+    val textColor = if (isDark) Color(0xFFF7F8FA) else Color(0xFF0A1014)
+    val timestampColor = if (isDark) Color(0xFFA1B8AF) else Color(0xFF4E5F57)
 
-    val textColor = if (isSent) {
-        if (isDark) Color(0xFFE9EDEF) else Color(0xFF111B21)
-    } else {
-        if (isDark) Color(0xFFE9EDEF) else Color(0xFF111B21)
-    }
-
+    // 16dp bubble with a small pointed tail corner on the sender's side.
     val bubbleShape = if (isSent) {
-        RoundedCornerShape(
-            topStart = 14.dp,
-            topEnd = 4.dp,
-            bottomStart = 14.dp,
-            bottomEnd = 14.dp
-        )
+        RoundedCornerShape(topStart = 16.dp, topEnd = 2.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
     } else {
-        RoundedCornerShape(
-            topStart = 4.dp,
-            topEnd = 14.dp,
-            bottomStart = 14.dp,
-            bottomEnd = 14.dp
-        )
+        RoundedCornerShape(topStart = 2.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
     }
 
     Column(
@@ -191,7 +177,7 @@ private fun PreservedMessageBubble(
         Surface(
             shape = bubbleShape,
             color = bubbleColor,
-            shadowElevation = 0.8.dp,
+            shadowElevation = 0.dp,
             modifier = Modifier.fillMaxWidth(0.82f)
         ) {
             Column(
@@ -205,7 +191,7 @@ private fun PreservedMessageBubble(
                         text = authorName,
                         style = typography.labelSm,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF25D366),
+                        color = colors.primary,
                         fontSize = 12.sp
                     )
                 }
@@ -228,7 +214,7 @@ private fun PreservedMessageBubble(
                     Text(
                         text = message.timestamp,
                         style = typography.labelSm,
-                        color = textColor.copy(alpha = 0.55f),
+                        color = timestampColor,
                         fontSize = 11.sp
                     )
                 }

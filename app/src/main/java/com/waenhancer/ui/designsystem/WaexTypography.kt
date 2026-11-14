@@ -179,7 +179,7 @@ fun materialTypography(scale: Float = 1f) = Typography(
     ),
     labelLarge = TextStyle(
         fontFamily = OutfitFontFamily,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.Bold,
         fontSize = (14f * scale).sp,
         lineHeight = (20f * scale).sp,
         letterSpacing = 0.1.sp

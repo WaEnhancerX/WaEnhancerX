@@ -46,7 +46,7 @@ data class WaexColors(
 
 val lightColors = WaexColors(
     // WhatsApp design spec: brand teal for actions, warm neutral surfaces.
-    primary = Color(0xFF008069),
+    primary = Color(0xFF1DAA61), // filled controls, FAB, switch track
     primaryContainer = Color(0xFFD9FDD3), // sent-bubble / selected-chip green
     onPrimary = Color(0xFFFFFFFF),
     background = Color(0xFFFFFFFF),
@@ -56,11 +56,11 @@ val lightColors = WaexColors(
     surfaceDim = Color(0xFFF7F5F3),
     surfaceContainerLow = Color(0xFFF7F5F3),
     surfaceContainer = Color(0xFFF7F5F3),
-    surfaceContainerHigh = Color(0xFFF5F1EB), // search bar fill
+    surfaceContainerHigh = Color(0xFFF6F5F4), // search bar fill
     surfaceContainerHighest = Color(0xFFE9E5DF),
     onSurfaceVariant = Color(0xFF5B6368),
     outline = Color(0xFF8D9599),
-    outlineVariant = Color(0xFFE3DFDA),
+    outlineVariant = Color(0xFFE7E8E8),
     error = Color(0xFFEA0038),
     errorContainer = Color(0xFFFFDAD9),
     onError = Color(0xFFFFFFFF),
@@ -83,7 +83,7 @@ val darkColors = WaexColors(
     surfaceDim = Color(0xFF0A1014),
     surfaceContainerLow = Color(0xFF12181C),
     surfaceContainer = Color(0xFF12181C),
-    surfaceContainerHigh = Color(0xFF20272B),
+    surfaceContainerHigh = Color(0xFF23282C),
     surfaceContainerHighest = Color(0xFF2B3338),
     onSurfaceVariant = Color(0xFF8D9599),
     outline = Color(0xFF6C757A),
