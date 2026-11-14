@@ -55,6 +55,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.waenhancer.app.R
 import com.waenhancer.ui.components.WaexModalBottomSheet
+import com.waenhancer.ui.components.WaexSheetHorizontalMargin
+import com.waenhancer.ui.components.WaexSheetPrimaryButton
+import com.waenhancer.ui.components.WaexSheetTextButton
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
 import com.waenhancer.core.preferences.SettingsBackupCodec
@@ -146,23 +149,12 @@ fun ReportIssueSheet(
 
     WaexModalBottomSheet(
         onDismissRequest = { if (!sending) onDismiss() },
-        sheetState = sheetState,
-        containerColor = colors.surface,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .width(36.dp)
-                    .height(4.dp)
-                    .clip(CircleShape)
-                    .background(colors.outlineVariant)
-            )
-        }
+        sheetState = sheetState
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = WaexSheetHorizontalMargin)
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -325,53 +317,42 @@ fun ReportIssueSheet(
                 }
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedButton(
-                    onClick = {
-                        if (step == 0) onDismiss() else { forward = false; step-- }
-                    },
-                    enabled = !sending,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(stringResource(if (step == 0) R.string.report_issue_cancel else R.string.report_issue_back))
-                }
-                Button(
-                    onClick = {
-                        if (step < LAST_STEP) {
-                            forward = true
-                            step++
-                        } else {
-                            sending = true
-                            scope.launch {
-                                val packages = selected.toSet()
-                                val chosen = installedTargets.filter { it.packageName in packages }
-                                val message = withContext(Dispatchers.IO) {
-                                    val settings = runCatching {
-                                        SettingsBackupCodec.renderPlainText(context, packages)
-                                    }.getOrDefault("")
-                                    buildReportMessage(
-                                        title = title.trim(),
-                                        description = description.trim(),
-                                        details = details,
-                                        apps = chosen,
-                                        settings = settings
-                                    )
-                                }
-                                val launched = launchTelegram(context, message)
-                                sending = false
-                                if (launched) onDismiss()
+            WaexSheetPrimaryButton(
+                text = stringResource(if (step == LAST_STEP) R.string.report_issue_submit else R.string.report_issue_next),
+                onClick = {
+                    if (step < LAST_STEP) {
+                        forward = true
+                        step++
+                    } else {
+                        sending = true
+                        scope.launch {
+                            val packages = selected.toSet()
+                            val chosen = installedTargets.filter { it.packageName in packages }
+                            val message = withContext(Dispatchers.IO) {
+                                val settings = runCatching {
+                                    SettingsBackupCodec.renderPlainText(context, packages)
+                                }.getOrDefault("")
+                                buildReportMessage(
+                                    title = title.trim(),
+                                    description = description.trim(),
+                                    details = details,
+                                    apps = chosen,
+                                    settings = settings
+                                )
                             }
+                            val launched = launchTelegram(context, message)
+                            sending = false
+                            if (launched) onDismiss()
                         }
-                    },
-                    enabled = canContinue && !sending,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(stringResource(if (step == LAST_STEP) R.string.report_issue_submit else R.string.report_issue_next))
-                }
-            }
+                    }
+                },
+                enabled = canContinue && !sending
+            )
+            WaexSheetTextButton(
+                text = stringResource(if (step == 0) R.string.report_issue_cancel else R.string.report_issue_back),
+                onClick = { if (step == 0) onDismiss() else { forward = false; step-- } },
+                enabled = !sending
+            )
         }
     }
 }
