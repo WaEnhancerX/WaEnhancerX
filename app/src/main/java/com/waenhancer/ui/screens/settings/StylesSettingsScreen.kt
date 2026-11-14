@@ -1,5 +1,6 @@
 package com.waenhancer.ui.screens.settings
 
+import com.waenhancer.ui.components.WaexSheetHorizontalMargin
 import com.waenhancer.utils.UiText
 
 import android.widget.Toast
@@ -881,9 +882,7 @@ private fun TextValueEditorDialog(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     WaexModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.surface,
-        shape = radius.bottomSheetShape
+        sheetState = sheetState
     ) {
         Column(
             modifier = Modifier
@@ -891,7 +890,7 @@ private fun TextValueEditorDialog(
                 .verticalScroll(rememberScrollState())
                 .imePadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = WaexSheetHorizontalMargin)
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -950,23 +949,12 @@ private fun ChoiceValueEditorDialog(
 
     WaexModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.surface,
-        shape = radius.bottomSheetShape,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(top = 10.dp, bottom = 6.dp)
-                    .size(width = 36.dp, height = 4.dp)
-                    .clip(CircleShape)
-                    .background(colors.outlineVariant.copy(alpha = 0.6f))
-            )
-        }
+        sheetState = sheetState
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = WaexSheetHorizontalMargin)
                 .padding(bottom = 28.dp)
         ) {
             // Title
@@ -1089,23 +1077,12 @@ private fun MultiChoiceValueEditorDialog(
 
     WaexModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.surface,
-        shape = radius.bottomSheetShape,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(top = 10.dp, bottom = 6.dp)
-                    .size(width = 36.dp, height = 4.dp)
-                    .clip(CircleShape)
-                    .background(colors.outlineVariant.copy(alpha = 0.6f))
-            )
-        }
+        sheetState = sheetState
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = WaexSheetHorizontalMargin)
                 .padding(bottom = 28.dp)
         ) {
             // Title
@@ -1255,18 +1232,7 @@ private fun ModifyTimestampTextSheet(
 
     WaexModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.surface,
-        shape = radius.bottomSheetShape,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(top = 10.dp, bottom = 6.dp)
-                    .size(width = 36.dp, height = 4.dp)
-                    .clip(CircleShape)
-                    .background(colors.outlineVariant.copy(alpha = 0.6f))
-            )
-        }
+        sheetState = sheetState
     ) {
         Column(
             modifier = Modifier
@@ -1274,7 +1240,7 @@ private fun ModifyTimestampTextSheet(
                 .verticalScroll(rememberScrollState())
                 .imePadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = WaexSheetHorizontalMargin)
                 .padding(bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {

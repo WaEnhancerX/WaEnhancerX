@@ -1,5 +1,6 @@
 package com.waenhancer.ui.screens.settings
 
+import com.waenhancer.ui.components.WaexSheetHorizontalMargin
 import com.waenhancer.app.R
 import com.waenhancer.utils.UiText
 
@@ -386,9 +387,7 @@ fun SupportedVersionsScreen() {
     if (showSelectAppDialog) {
         WaexModalBottomSheet(
             onDismissRequest = { showSelectAppDialog = false },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = colors.surface,
-            shape = radius.bottomSheetShape
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ) {
             Column(
                 modifier = Modifier
@@ -396,7 +395,7 @@ fun SupportedVersionsScreen() {
                     .verticalScroll(rememberScrollState())
                     .imePadding()
                     .navigationBarsPadding()
-                    .padding(horizontal = 20.dp)
+                    .padding(horizontal = WaexSheetHorizontalMargin)
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {

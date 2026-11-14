@@ -74,9 +74,7 @@ fun WaexEmojiPickerDialog(
 
     WaexModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.surface,
-        shape = radius.bottomSheetShape
+        sheetState = sheetState
     ) {
         Column(
             modifier = Modifier
@@ -84,7 +82,7 @@ fun WaexEmojiPickerDialog(
                 .verticalScroll(rememberScrollState())
                 .imePadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = WaexSheetHorizontalMargin)
                 .padding(bottom = 24.dp)
         ) {
                 // Header
@@ -168,26 +166,18 @@ fun WaexEmojiPickerDialog(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 // Actions
-                Button(
+                WaexSheetPrimaryButton(
+                    text = UiText.get(R.string.action_save, "Save"),
                     onClick = {
                         onEmojiSelected(emojiInput.trim())
                         onDismiss()
                     },
-                    enabled = hasValidSingleEmoji,
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.primary),
-                    shape = radius.buttonShape,
-                    modifier = Modifier.fillMaxWidth().height(50.dp)
-                ) {
-                    Text(UiText.get(R.string.action_save, "Save"), color = colors.onPrimary, fontWeight = FontWeight.Bold)
-                }
-                Spacer(modifier = Modifier.height(10.dp))
-                OutlinedButton(
-                    onClick = onDismiss,
-                    shape = radius.buttonShape,
-                    modifier = Modifier.fillMaxWidth().height(50.dp)
-                ) {
-                    Text(UiText.get(R.string.action_cancel, "Cancel"), color = colors.onSurface)
-                }
+                    enabled = hasValidSingleEmoji
+                )
+                WaexSheetTextButton(
+                    text = UiText.get(R.string.action_cancel, "Cancel"),
+                    onClick = onDismiss
+                )
         }
     }
 }

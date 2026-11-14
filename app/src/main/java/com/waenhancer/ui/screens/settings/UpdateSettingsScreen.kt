@@ -288,9 +288,7 @@ fun UpdateSettingsScreen() {
         val selectedValue = if (isFrequency) updateFrequency else ignoredBehavior
         WaexModalBottomSheet(
             onDismissRequest = { selector = null },
-            sheetState = sheetState,
-            containerColor = colors.surface,
-            shape = radius.bottomSheetShape
+            sheetState = sheetState
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth().navigationBarsPadding()
