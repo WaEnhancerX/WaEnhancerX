@@ -136,6 +136,7 @@ fun ReportIssueSheet(
     val titleLength = title.trim().length
     val descriptionLength = description.trim().length
     val canContinue = when (step) {
+        0 -> true
         STEP_APPS -> selected.isNotEmpty()
         STEP_TITLE -> titleLength in TITLE_MIN..TITLE_MAX
         else -> descriptionLength >= DESCRIPTION_MIN
