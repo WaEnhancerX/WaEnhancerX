@@ -65,6 +65,7 @@ import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 
 import java.lang.ref.WeakReference;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -100,6 +101,8 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
     private static final WeakHashMap<View, Boolean> mainScrollableCache = new WeakHashMap<>();
     private static final WeakHashMap<View, ContentPadding> contentPaddingCache = new WeakHashMap<>();
     private static final WeakHashMap<Activity, Float> scrollGestureY = new WeakHashMap<>();
+    /** Label groups hidden by icons-only mode, so they can be restored when it is turned off. */
+    private static final WeakHashMap<View, Boolean> labelsHiddenByWaex = new WeakHashMap<>();
     /** The located bar per Home activity, so touch moves do not re-search the whole view tree. */
     private static final WeakHashMap<Activity, WeakReference<View>> gestureBottomNav = new WeakHashMap<>();
     /** {@link #isScrollableClass} depends only on the class; it runs for every attached view. */
@@ -326,13 +329,33 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
      * cannot be resolved by name. Observing touch movement is a non-consuming fallback that keeps
      * hide/show behavior working for every current home tab without replacing its listeners.
      */
+    /** The nearest declaration of {@code name} from {@code leaf} up through its superclasses. */
+    private static Method findDeclaredInHierarchy(Class<?> leaf, String name, Class<?>... parameters) {
+        for (Class<?> current = leaf; current != null; current = current.getSuperclass()) {
+            try {
+                return current.getDeclaredMethod(name, parameters);
+            } catch (NoSuchMethodException ignored) {
+                // Not declared here; keep walking up.
+            }
+        }
+        return null;
+    }
+
     private void hookTouchScrollGestures(Class<?> homeClass) {
         if (homeClass == null) return;
         try {
-            XposedHelpers.findAndHookMethod(homeClass, "dispatchTouchEvent", MotionEvent.class,
+            // HomeActivity usually inherits dispatchTouchEvent, and findAndHookMethod only looks at
+            // the exact class, so hook the class in the hierarchy that actually declares it.
+            Method dispatchTouch = findDeclaredInHierarchy(homeClass, "dispatchTouchEvent", MotionEvent.class);
+            if (dispatchTouch == null) {
+                XposedBridge.log(TAG + " dispatchTouchEvent not found for Home; scroll-hide gesture disabled");
+                return;
+            }
+            XposedBridge.hookMethod(dispatchTouch,
                     new XC_MethodHook() {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam param) {
+                            if (!homeClass.isInstance(param.thisObject)) return;
                             if (!(param.thisObject instanceof Activity)) return;
                             Activity activity = (Activity) param.thisObject;
                             MotionEvent event = (MotionEvent) param.args[0];
@@ -626,6 +649,32 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
         }
     }
 
+    /** Material NavigationBarView label modes (public, stable API values). */
+    private static final int LABEL_VISIBILITY_LABELED = 1;
+    private static final int LABEL_VISIBILITY_UNLABELED = 2;
+
+    /**
+     * Recent WhatsApp builds (seen on 2.26.46) put the bottom navigation in Material's "unlabeled"
+     * mode, which hides both label views of every tab. The floating bar sizes its tabs for icon plus
+     * label, so unless the user chose icons-only, switch the bar back to "labeled".
+     */
+    private static void ensureLabelsShown(ViewGroup bar) {
+        if (userIconsOnly) return;
+        try {
+            Method getMode = bar.getClass().getMethod("getLabelVisibilityMode");
+            Object mode = getMode.invoke(bar);
+            HookErrors.note("FloatingBottomBarHook", "label-visibility-mode", () -> "mode=" + mode);
+            if (mode instanceof Integer && (Integer) mode == LABEL_VISIBILITY_UNLABELED) {
+                bar.getClass().getMethod("setLabelVisibilityMode", int.class)
+                        .invoke(bar, LABEL_VISIBILITY_LABELED);
+                HookErrors.note("FloatingBottomBarHook", "labels-restored",
+                        () -> "switched navigation from unlabeled to labeled");
+            }
+        } catch (ReflectiveOperationException | RuntimeException failure) {
+            HookErrors.swallowed("FloatingBottomBarHook", failure);
+        }
+    }
+
     private boolean setupFloatingBar(ViewGroup bar) {
         try {
             ViewParent parent = bar.getParent();
@@ -634,6 +683,8 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
 
             FrameLayout rootView = findRootView(bar);
             if (rootView == null) return false;
+
+            ensureLabelsShown(bar);
 
             if (container.getParent() == rootView) {
                 updateOverlayLayout(rootView, container, bar);
@@ -838,6 +889,57 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
         }
     }
 
+    /**
+     * Reports a tab whose labels are missing, hidden, transparent, off-screen or empty, plus a
+     * snapshot of the first tabs, so a "labels not visible" report comes with the actual view state.
+     * Rate-limited by {@link HookErrors#note}; the descriptions are only built while under the limit.
+     */
+    private static void diagnoseTabLabels(ViewGroup tabItem, View labelsGroup, int itemHeight) {
+        if (userIconsOnly) return;
+        if (labelsGroup == null) {
+            HookErrors.note("FloatingBottomBarHook", "no-label-group", () -> "tab=" + describeView(tabItem, 2));
+            return;
+        }
+        boolean hidden = labelsGroup.getVisibility() != View.VISIBLE || labelsGroup.getAlpha() < 0.05f;
+        boolean offscreen = itemHeight > 0 && Math.abs(labelsGroup.getTranslationY()) > itemHeight;
+        boolean empty = tabItem.getHeight() > 0
+                && (labelsGroup.getWidth() == 0 || labelsGroup.getHeight() == 0);
+        if (hidden || offscreen || empty) {
+            HookErrors.note("FloatingBottomBarHook", "label-group-not-visible", () -> "hidden=" + hidden
+                    + " offscreen=" + offscreen + " empty=" + empty + " tab=" + describeView(tabItem, 2));
+        }
+        HookErrors.note("FloatingBottomBarHook", "tab-snapshot", () -> "tab=" + describeView(tabItem, 2));
+    }
+
+    private static String describeView(View view, int depth) {
+        StringBuilder out = new StringBuilder();
+        String entry = "-";
+        try {
+            if (view.getId() != View.NO_ID) entry = HostResourceIds.entryName(view, view.getId());
+        } catch (Throwable ignored) { /* generated ids have no entry name */ }
+        out.append(view.getClass().getSimpleName()).append('#').append(entry)
+                .append("{vis=").append(view.getVisibility())
+                .append(" a=").append(view.getAlpha())
+                .append(" ty=").append(view.getTranslationY())
+                .append(' ').append(view.getWidth()).append('x').append(view.getHeight());
+        if (view instanceof TextView) {
+            TextView text = (TextView) view;
+            out.append(" text=\"").append(text.getText()).append("\" color=#")
+                    .append(Integer.toHexString(text.getCurrentTextColor()))
+                    .append(" size=").append(text.getTextSize());
+        }
+        if (view instanceof ViewGroup && depth > 0) {
+            ViewGroup group = (ViewGroup) view;
+            out.append(" children=[");
+            for (int i = 0; i < group.getChildCount(); i++) {
+                if (i > 0) out.append(", ");
+                out.append(describeView(group.getChildAt(i), depth - 1));
+            }
+            out.append(']');
+        }
+        return out.append('}').toString();
+    }
+
     private static void styleAndLayoutTabItem(ViewGroup tabItem, int padV) {
         if (tabItem == null) return;
         float density = tabItem.getContext().getResources().getDisplayMetrics().density;
@@ -875,9 +977,14 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
             labelsGroup = tabItem.getChildAt(1);
         }
 
-        if (userIconsOnly) {
-            if (labelsGroup != null) {
+        if (labelsGroup != null) {
+            if (userIconsOnly) {
                 labelsGroup.setVisibility(View.GONE);
+                labelsHiddenByWaex.put(labelsGroup, Boolean.TRUE);
+            } else if (labelsHiddenByWaex.remove(labelsGroup) != null) {
+                // Icons-only was turned off while this bar stayed alive: bring back only the
+                // labels this hook hid, never a group WhatsApp itself keeps GONE.
+                labelsGroup.setVisibility(View.VISIBLE);
             }
         }
 
@@ -919,6 +1026,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
         }
 
         alignNativeStatusBadge(tabItem, iconContainer);
+        diagnoseTabLabels(tabItem, labelsGroup, itemHeight);
 
         // Keep WhatsApp's native badge/indicator implementation intact.  In particular, the
         // status tab's unseen indicator is not an ordinary unread badge: recursively finding

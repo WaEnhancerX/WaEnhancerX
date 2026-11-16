@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import de.robv.android.xposed.XposedBridge;
 
@@ -20,6 +21,7 @@ public final class HookErrors {
     static final int MAX_LOGGED_PER_SITE = 3;
 
     private static final Map<Key, AtomicInteger> COUNTS = new ConcurrentHashMap<>();
+    private static final Map<String, AtomicInteger> NOTES = new ConcurrentHashMap<>();
     private static volatile Consumer<String> sink = XposedBridge::log;
 
     private HookErrors() {}
@@ -42,6 +44,23 @@ public final class HookErrors {
         }
     }
 
+    /**
+     * Rate-limited diagnostic line for state that is wrong but throws nothing (for example a view
+     * that ended up hidden). The message is only built while the site is under its log limit, so
+     * callers can pass an expensive description without paying for it on hot paths.
+     */
+    public static void note(@NonNull String site, @NonNull String key, @NonNull Supplier<String> message) {
+        try {
+            int seen = NOTES.computeIfAbsent(site + '|' + key, ignored -> new AtomicInteger())
+                    .incrementAndGet();
+            if (seen > MAX_LOGGED_PER_SITE) return;
+            String more = seen == MAX_LOGGED_PER_SITE ? " (further repeats are counted, not logged)" : "";
+            sink.accept("[WAEX][note] " + site + " " + key + ": " + message.get() + more);
+        } catch (Throwable loggingFailed) {
+            // A diagnostic must never affect the hook it describes.
+        }
+    }
+
     /** How many times {@code site} swallowed an exception of this type. */
     public static int count(@NonNull String site, @NonNull Class<? extends Throwable> type) {
         AtomicInteger value = COUNTS.get(new Key(site, type));
@@ -58,6 +77,7 @@ public final class HookErrors {
     @VisibleForTesting
     static void resetForTest(@NonNull Consumer<String> testSink) {
         COUNTS.clear();
+        NOTES.clear();
         sink = testSink;
     }
 

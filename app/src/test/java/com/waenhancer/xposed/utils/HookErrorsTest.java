@@ -61,4 +61,30 @@ public class HookErrorsTest {
         assertTrue(line.contains("IllegalArgumentException: bad file"));
         assertTrue(line.contains(" at "));
     }
+
+    @Test
+    public void noteIsRateLimitedAndOnlyBuildsItsMessageWhileUnderTheLimit() {
+        int[] built = {0};
+        for (int i = 0; i < 10; i++) {
+            HookErrors.note("FloatingBottomBarHook", "labels", () -> {
+                built[0]++;
+                return "label group hidden";
+            });
+        }
+        assertEquals(HookErrors.MAX_LOGGED_PER_SITE, logged.size());
+        assertEquals(HookErrors.MAX_LOGGED_PER_SITE, built[0]);
+        assertTrue(logged.get(0).startsWith("[WAEX][note] FloatingBottomBarHook labels: label group hidden"));
+    }
+
+    @Test
+    public void notesWithDifferentKeysAreIndependentAndLoggerFailureIsContained() {
+        HookErrors.note("S", "a", () -> "one");
+        HookErrors.note("S", "b", () -> "two");
+        assertEquals(2, logged.size());
+
+        HookErrors.resetForTest(line -> {
+            throw new IllegalStateException("logger is broken");
+        });
+        HookErrors.note("S", "c", () -> "three");
+    }
 }
