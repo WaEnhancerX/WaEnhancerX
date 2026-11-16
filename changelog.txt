@@ -2,6 +2,7 @@
 - Custom Emojis: Choose from cloud emoji styles (iOS, Facebook, Samsung, Twitter, Windows, etc.) with in-app download and management screen
 - Report Issue Feature: Report issues and suggest features within app
 - Added option to show/hide message notifications for locked chats
+- Added Native Floating Navigation: turn on WhatsApp's own floating bottom bar, with optional background and selection colors
 
 [Fixes]
 - Fixed Floating bottom menu scroll hide
