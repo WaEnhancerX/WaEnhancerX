@@ -3,6 +3,7 @@
 - Report Issue Feature: Report issues and suggest features within app
 - Added option to show/hide message notifications for locked chats
 - Added Native Floating Navigation: turn on WhatsApp's own floating bottom bar, with optional background and selection colors
+- Added a loading progress notification while features are prepared after a WhatsApp or module update
 
 [Fixes]
 - Fixed Floating bottom menu scroll hide
