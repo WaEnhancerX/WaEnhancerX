@@ -2,7 +2,6 @@ package com.waenhancer.ui.screens.settings
 
 import com.waenhancer.ui.components.WaexSheetHorizontalMargin
 import com.waenhancer.ui.components.WaexConfirmationBottomSheet
-import com.waenhancer.ui.components.WaexSheetPrimaryButton
 import com.waenhancer.ui.components.WaexSheetTextButton
 import com.waenhancer.ui.components.WaexSheetTitle
 import com.waenhancer.app.R
@@ -70,6 +69,7 @@ import com.waenhancer.ui.components.StitchSwitch
 import com.waenhancer.ui.components.WaexTopBar
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
+import com.waenhancer.ui.navigation.Screen
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
 import com.waenhancer.utils.TargetAppManager
 import com.waenhancer.utils.UniversalVersionValidator
@@ -79,15 +79,6 @@ import com.waenhancer.update.AptoideVersionRepository
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material.icons.rounded.Close
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import com.waenhancer.utils.WhatsAppApkInstaller
-import com.waenhancer.utils.WhatsAppApkVerifier
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.PaddingValues
@@ -164,49 +155,6 @@ fun SupportedVersionsScreen() {
             SupportedVersionSuggester.suggest(emptyList(), rules)?.let { suggestions[pkg] = it }
             val names = AptoideVersionRepository.fetchVersionNames(context, pkg)
             SupportedVersionSuggester.suggest(names, rules)?.let { suggestions[pkg] = it }
-        }
-    }
-
-    // Install-from-storage flow: pick an APK, verify it, then install it with root.
-    val scope = rememberCoroutineScope()
-    var installTargetPackage by remember { mutableStateOf<String?>(null) }
-    var apkCheck by remember { mutableStateOf<ApkCheckState?>(null) }
-
-    fun closeApkCheck() {
-        WhatsAppApkInstaller.cleanup(context)
-        apkCheck = null
-        installTargetPackage = null
-    }
-
-    val apkPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        val target = installTargetPackage
-        if (uri == null || target == null) {
-            installTargetPackage = null
-            return@rememberLauncherForActivityResult
-        }
-        apkCheck = ApkCheckState.Checking
-        scope.launch {
-            val rules = UniversalVersionValidator.getBuiltinSupportedVersions(context)
-            apkCheck = withContext(Dispatchers.IO) {
-                runCatching {
-                    val staged = WhatsAppApkInstaller.stage(context, uri)
-                    // The hash shown is of the file as picked; for a bundle that is the archive.
-                    val info = WhatsAppApkVerifier.inspect(
-                        context,
-                        staged.base,
-                        fileSha256 = WhatsAppApkVerifier.sha256Hex(staged.container)
-                    )
-                    if (info == null) {
-                        WhatsAppApkInstaller.cleanup(context)
-                        ApkCheckState.Unreadable
-                    } else {
-                        val splits = staged.splits.map {
-                            WhatsAppApkVerifier.inspect(context, it, minBytes = WhatsAppApkVerifier.MIN_SPLIT_BYTES)
-                        }
-                        ApkCheckState.Ready(WhatsAppApkVerifier.evaluate(target, info, rules, splits = splits), staged)
-                    }
-                }.getOrElse { ApkCheckState.Unreadable }
-            }
         }
     }
 
@@ -466,116 +414,6 @@ fun SupportedVersionsScreen() {
         }
     }
 
-    // Verification result for a user-picked APK, with the root install action.
-    apkCheck?.let { state ->
-        WaexModalBottomSheet(
-            onDismissRequest = { if (state !is ApkCheckState.Installing) closeApkCheck() },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .navigationBarsPadding()
-                    .padding(horizontal = WaexSheetHorizontalMargin)
-                    .padding(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                WaexSheetTitle(UiText.get(R.string.waex_ui_verify_apk_title, "Verify APK"))
-                when (state) {
-                    ApkCheckState.Checking -> Text(
-                        text = UiText.get(R.string.waex_ui_verifying_apk, "Verifying APK…"),
-                        style = typography.bodyMd,
-                        color = colors.onSurfaceVariant
-                    )
-                    ApkCheckState.Unreadable -> {
-                        Text(
-                            text = UiText.get(R.string.waex_ui_verify_read_failed, "Could not read this file. Pick a WhatsApp .apk, .apkm or .xapk file."),
-                            style = typography.bodyMd,
-                            color = colors.onSurfaceVariant
-                        )
-                        WaexSheetTextButton(
-                            text = UiText.get(R.string.waex_ui_verify_close, "Close"),
-                            onClick = { closeApkCheck() }
-                        )
-                    }
-                    is ApkCheckState.Ready, is ApkCheckState.Installing -> {
-                        val check = (state as? ApkCheckState.Ready)?.verification
-                            ?: (state as ApkCheckState.Installing).verification
-                        val staged = (state as? ApkCheckState.Ready)?.staged
-                            ?: (state as ApkCheckState.Installing).staged
-                        val info = check.info
-                        VerifyCheckRow(
-                            label = UiText.get(R.string.waex_ui_verify_check_package, "Package"),
-                            ok = check.packageMatches,
-                            detail = if (check.packageMatches) info.packageName.orEmpty()
-                            else UiText.get(R.string.waex_ui_verify_check_package_bad, "Expected %1\$s but the file is %2\$s", check.expectedPackage, info.packageName ?: "?")
-                        )
-                        VerifyCheckRow(
-                            label = UiText.get(R.string.waex_ui_verify_check_version, "Version"),
-                            ok = check.versionSupported,
-                            detail = if (check.versionSupported) UiText.get(R.string.waex_ui_verify_check_version_ok, "%1\$s is inside the supported range %2\$s", info.versionName.orEmpty(), check.matchedRule.orEmpty())
-                            else UiText.get(R.string.waex_ui_verify_check_version_bad, "%1\$s is outside every supported range", info.versionName ?: "?")
-                        )
-                        VerifyCheckRow(
-                            label = UiText.get(R.string.waex_ui_verify_check_signature, "Signing certificate (SHA-256)"),
-                            ok = check.signatureTrusted,
-                            detail = info.signerSha256.joinToString("\n").ifEmpty { "-" }
-                        )
-                        if (check.splitCount > 0) {
-                            VerifyCheckRow(
-                                label = UiText.get(R.string.waex_ui_verify_check_splits, "Split APKs"),
-                                ok = check.splitsTrusted,
-                                detail = if (check.splitsTrusted) UiText.get(R.string.waex_ui_verify_check_splits_ok, "%1\$s included, same package and signer", check.splitCount.toString())
-                                else UiText.get(R.string.waex_ui_verify_check_splits_bad, "A split APK has the wrong package or signer")
-                            )
-                        }
-                        Text(
-                            text = UiText.get(R.string.waex_ui_verify_file_sha256, "File SHA-256") + "\n" + info.fileSha256,
-                            style = typography.labelSm,
-                            color = colors.onSurfaceVariant
-                        )
-                        Text(
-                            text = if (check.passed) UiText.get(R.string.waex_ui_verify_passed_hint, "All checks passed. WAEX will install this APK with root.")
-                            else UiText.get(R.string.waex_ui_verify_failed_hint, "This APK failed verification and will not be installed."),
-                            style = typography.bodyMd,
-                            color = if (check.passed) colors.success else colors.error
-                        )
-                        if (check.passed) {
-                            val installing = state is ApkCheckState.Installing
-                            WaexSheetPrimaryButton(
-                                text = if (installing) UiText.get(R.string.waex_ui_verify_installing, "Installing…")
-                                else UiText.get(R.string.waex_ui_verify_install_root, "Install with root"),
-                                enabled = !installing,
-                                onClick = {
-                                    apkCheck = ApkCheckState.Installing(check, staged)
-                                    scope.launch {
-                                        val error = withContext(Dispatchers.IO) { WhatsAppApkInstaller.installWithRoot(staged.apks) }
-                                        WhatsAppApkInstaller.cleanup(context)
-                                        apkCheck = null
-                                        installTargetPackage = null
-                                        Toast.makeText(
-                                            context,
-                                            if (error == null) UiText.get(R.string.waex_ui_verify_install_ok, "Installed WhatsApp %1\$s", info.versionName.orEmpty())
-                                            else UiText.get(R.string.waex_ui_verify_install_failed, "Install failed: %1\$s", error),
-                                            Toast.LENGTH_LONG
-                                        ).show()
-                                    }
-                                }
-                            )
-                        }
-                        if (state !is ApkCheckState.Installing) {
-                            WaexSheetTextButton(
-                                text = UiText.get(R.string.waex_ui_verify_close, "Close"),
-                                onClick = { closeApkCheck() }
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     // Risk notice shown before the browser opens the suggested version's download search.
     val pendingPackage = pendingSuggestionPackage
     val pendingSuggestion = pendingPackage?.let { suggestions[it] }
@@ -585,16 +423,15 @@ fun SupportedVersionsScreen() {
             title = UiText.get(R.string.waex_ui_get_supported_version_title, "Get WhatsApp %1\$s", pendingSuggestion.version),
             message = UiText.get(
                 R.string.waex_ui_get_supported_version_notice,
-                "Download the APK from a source you trust, then install it from storage with root. Before installing, WAEX checks the package, the version and WhatsApp's signing certificate (SHA-256). The newest supported version is suggested, but you can install any version inside a supported range such as %1\$s. Installing outside Google Play can put your phone number at risk of suspension, so prefer official updates when you can. Back up your chats first, because moving to an older version replaces the installed app.",
+                "Download the APK from a source you trust, then install it from storage with root. WAEX strictly checks the signing certificate and installs only official WhatsApp files; any modified or repacked APK is rejected. The newest supported version is suggested, but you can install any version inside a supported range such as %1\$s. Installing outside Google Play can put your phone number at risk of suspension, so prefer official updates when you can. Back up your chats first, because moving to an older version replaces the installed app.",
                 pendingSuggestion.version.let { v -> if (pendingSuggestion.isExact) UniversalVersionValidator.toWildcard(v) else v }
             ),
             supportingContent = {
                 WaexSheetTextButton(
-                    text = UiText.get(R.string.waex_ui_install_downloaded_apk, "Install downloaded APK, APKM or XAPK"),
+                    text = UiText.get(R.string.waex_ui_install_downloaded_apk, "Install from storage"),
                     onClick = {
-                        installTargetPackage = pendingPackage
                         pendingSuggestionPackage = null
-                        apkPicker.launch(arrayOf("*/*"))
+                        navController.navigateTo(Screen.InstallFromStorage(pendingPackage))
                     }
                 )
             },
@@ -941,32 +778,6 @@ private fun VersionRuleItem(
                     )
                 }
             }
-        }
-    }
-}
-
-/** State of the install-from-storage verification flow. */
-private sealed interface ApkCheckState {
-    data object Checking : ApkCheckState
-    data object Unreadable : ApkCheckState
-    data class Ready(val verification: WhatsAppApkVerifier.Verification, val staged: WhatsAppApkInstaller.StagedPackage) : ApkCheckState
-    data class Installing(val verification: WhatsAppApkVerifier.Verification, val staged: WhatsAppApkInstaller.StagedPackage) : ApkCheckState
-}
-
-@Composable
-private fun VerifyCheckRow(label: String, ok: Boolean, detail: String) {
-    val colors = WaexTheme.colors
-    val typography = WaexTheme.typography
-    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Icon(
-            imageVector = if (ok) Icons.Rounded.CheckCircle else Icons.Rounded.Close,
-            contentDescription = null,
-            tint = if (ok) colors.success else colors.error,
-            modifier = Modifier.size(20.dp)
-        )
-        Column {
-            Text(text = label, style = typography.bodyMd, fontWeight = FontWeight.Bold, color = colors.onSurface)
-            Text(text = detail, style = typography.labelSm, color = colors.onSurfaceVariant)
         }
     }
 }
