@@ -28,6 +28,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import com.waenhancer.ui.components.TargetAppIcon
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Delete
@@ -513,22 +514,25 @@ private fun AppVersionStatusCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (packageName == "com.whatsapp") Color(0xFF25D366).copy(alpha = 0.15f)
-                                else Color(0xFF3B82F6).copy(alpha = 0.15f)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Security,
-                            contentDescription = appName,
-                            tint = if (packageName == "com.whatsapp") Color(0xFF25D366) else Color(0xFF3B82F6),
-                            modifier = Modifier.size(20.dp)
-                        )
+                    // The app's own launcher icon; the shield only shows when the app isn't installed.
+                    TargetAppIcon(packageName = packageName, size = 40.dp) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (packageName == "com.whatsapp") Color(0xFF25D366).copy(alpha = 0.15f)
+                                    else Color(0xFF3B82F6).copy(alpha = 0.15f)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Security,
+                                contentDescription = appName,
+                                tint = if (packageName == "com.whatsapp") Color(0xFF25D366) else Color(0xFF3B82F6),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.width(12.dp))

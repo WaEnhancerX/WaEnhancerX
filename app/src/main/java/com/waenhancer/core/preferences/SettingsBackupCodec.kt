@@ -133,20 +133,33 @@ object SettingsBackupCodec {
     }
 
     /**
-     * Human-readable `key = value` lines for bug reports, using the same exportable-key rules
-     * as [encode]. Overrides scoped to a package outside [targetPackages] are left out.
+     * Human-readable `key = value` sections for bug reports, using the same exportable-key rules
+     * as [encode]. In universal mode there is one section with the shared settings; in per-app
+     * mode there is one section per package holding that app's own overrides.
      */
-    fun renderPlainText(context: Context, targetPackages: Set<String>): String =
-        collectRecords(context).filter { record ->
-            val separator = record.key.indexOf(':')
-            separator <= 0 || record.key.substring(0, separator) in targetPackages
-        }.joinToString("\n") { record ->
+    fun renderSettingsSections(
+        context: Context,
+        perApp: Boolean,
+        packages: List<String>
+    ): List<Pair<String, String>> {
+        val records = collectRecords(context)
+        fun render(entries: List<Pair<String, Record>>): String = entries.joinToString("\n") { (key, record) ->
             val value = when (val raw = record.value) {
                 is Set<*> -> raw.filterIsInstance<String>().sorted().joinToString(",", "[", "]")
                 else -> raw.toString()
             }.replace('\n', ' ').replace('\r', ' ').take(200)
-            "${record.key} = $value"
+            "$key = $value"
         }
+        if (!perApp) {
+            val shared = records.filter { it.key.indexOf(':') <= 0 }.map { it.key to it }
+            return listOf("Universal" to render(shared))
+        }
+        return packages.map { pkg ->
+            val prefix = "$pkg:"
+            val own = records.filter { it.key.startsWith(prefix) }.map { it.key.removePrefix(prefix) to it }
+            pkg to render(own)
+        }
+    }
 
     fun encode(context: Context, output: OutputStream): Int =
         DataOutputStream(BufferedOutputStream(output)).use { out ->

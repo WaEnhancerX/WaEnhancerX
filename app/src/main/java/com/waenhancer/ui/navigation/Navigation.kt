@@ -82,7 +82,10 @@ import com.waenhancer.utils.WhatsAppPackageDetector
 import com.waenhancer.utils.LsposedScopeReader
 import com.waenhancer.utils.SystemDiagnosticsReader
 import com.waenhancer.utils.TargetAppManager
-import com.waenhancer.ui.screens.dashboard.ReportIssueSheet
+import com.waenhancer.ui.screens.dashboard.ReportIssueScreen
+import com.waenhancer.ui.screens.dashboard.ReportedIssuesScreen
+import com.waenhancer.licensing.report.ReportLogin
+import com.waenhancer.ui.screens.dashboard.TelegramLoginSheet
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BugReport
 import kotlinx.coroutines.Dispatchers
@@ -280,7 +283,7 @@ fun MainContainerScreen() {
     val preferenceManager = LocalWaexPreferenceManager.current
     var licenseState by remember { mutableStateOf(if ("ACTIVE".equals(LicenseManager.getProStatus(context), ignoreCase = true)) "pro" else "free") }
     val isPro = licenseState == "pro"
-    var showReportIssueSheet by remember { mutableStateOf(false) }
+    var showReportLoginSheet by remember { mutableStateOf(false) }
     var activeModal by remember { mutableStateOf<String?>(null) } // "license" | "file-spoofer" | "message-bomber" | "status-splitter" | null
     var activeNotice by remember { mutableStateOf<NoticeItem?>(null) }
 
@@ -626,7 +629,12 @@ fun MainContainerScreen() {
                             selected = false,
                             onClick = {
                                 coroutineScope.launch { drawerState.close() }
-                                showReportIssueSheet = true
+                                // Issues are tied to the Telegram account, so a real login comes first.
+                                if (ReportLogin.isLoggedIn(context)) {
+                                    navController.navigateTo(Screen.ReportedIssues)
+                                } else {
+                                    showReportLoginSheet = true
+                                }
                             },
                             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                         )
@@ -650,19 +658,13 @@ fun MainContainerScreen() {
                 }
             }
         ) {
-        if (showReportIssueSheet) {
-            val moduleActivation by TargetAppManager.moduleActivation.collectAsState()
-            val reportTargets by TargetAppManager.detectedApps.collectAsState()
-            ReportIssueSheet(
-                moduleVersion = remember(context) {
-                    @Suppress("DEPRECATION")
-                    context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
+        if (showReportLoginSheet) {
+            TelegramLoginSheet(
+                onLoggedIn = {
+                    showReportLoginSheet = false
+                    navController.navigateTo(Screen.ReportedIssues)
                 },
-                diagnostics = remember(moduleActivation.active) {
-                    SystemDiagnosticsReader.getOrFastSnapshot(context, moduleActivation.active)
-                },
-                targets = reportTargets,
-                onDismiss = { showReportIssueSheet = false }
+                onDismiss = { showReportLoginSheet = false }
             )
         }
         Scaffold(
@@ -1327,6 +1329,8 @@ fun WaexAppNavigation(
         is Screen.ReleaseDetails -> ReleaseDetailsScreen(currentScreen.tagName)
         Screen.About -> AboutScreen()
         Screen.Stargazers -> StargazersScreen()
+        Screen.ReportedIssues -> ReportedIssuesScreen()
+        Screen.ReportIssue -> ReportIssueScreen()
         Screen.ModuleSettings -> ModuleSettingsScreen()
         Screen.HookingModeHelp -> HookingModeHelpScreen()
         Screen.UpdateSettings -> UpdateSettingsScreen()
