@@ -9,7 +9,7 @@ import com.waenhancer.xposed.utils.HookErrors;
 import com.waenhancer.xposed.utils.HostFields;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
+import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.enums.StringMatchType;
@@ -19,6 +19,7 @@ import org.luckypray.dexkit.result.ClassData;
 import org.luckypray.dexkit.result.MethodData;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -26,6 +27,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Locked Chats Enhancer Hook:
@@ -38,13 +41,21 @@ public class LockedChatsEnhancerHook extends BaseFeature {
     private static final String TAG = "[WAEX][LockedChats]";
     private static final String PREF_KEY_1 = "locked_chats_enhancer";
     private static final String PREF_KEY_2 = "lockedchats_enhancer";
-    private static final String CONTACTS_LOADED_LOG_TAG = "ContactPickerFragment/onContactsLoaded";
     private static final String CONTACT_PICKER_PACKAGE = "com.whatsapp.contact.ui.picker";
-    private static final String CONTACT_PICKER_FRAGMENT =
-            "com.whatsapp.contact.ui.picker.ContactPickerFragment";
+    private static final String PICKER_SINKS_CACHE_KEY = "waex_contact_picker_data_sinks_v1";
+    /** Log tags the picker emits when contact data is delivered; the message text is unobfuscated. */
+    private static final String[] PICKER_RESULT_LOG_TAGS = {
+            "ContactPickerFragment/onContactsLoadResult",
+            "ContactPickerFragment/onContactsLoaded",
+            "ContactPickerFragment/onContactsFilterResult"};
+    /** A results holder distributes many lists; this keeps the structural fallback specific. */
+    private static final int MIN_HOLDER_LISTS = 3;
 
     private final ThreadLocal<Boolean> suppressNotificationQuery = ThreadLocal.withInitial(() -> false);
-    private Object chatCacheInstance = null;
+    private final AtomicBoolean loggedEmptyLockedSet = new AtomicBoolean();
+    private final AtomicInteger scrubLogBudget = new AtomicInteger(5);
+    private volatile Object chatCacheInstance = null;
+    private volatile Field lockedChatsField = null;
 
     public LockedChatsEnhancerHook(@NonNull Context context,
                                    @NonNull ClassLoader classLoader,
@@ -164,79 +175,114 @@ public class LockedChatsEnhancerHook extends BaseFeature {
                     return cd != null ? cd.getInstance(loader) : null;
                 }
         );
+        if (chatCacheClass == null) {
+            XposedBridge.log(TAG + " chat cache class not found; contact picker stays unfiltered");
+            return;
+        }
+        XposedBridge.hookAllConstructors(chatCacheClass, new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) {
+                chatCacheInstance = param.thisObject;
+            }
+        });
+        lockedChatsField = selectLockedChatsField(chatCacheClass);
 
-        if (chatCacheClass != null) {
-            XposedBridge.hookAllConstructors(chatCacheClass, new XC_MethodHook() {
-                @Override
-                protected void afterHookedMethod(MethodHookParam param) {
-                    chatCacheInstance = param.thisObject;
-                }
-            });
+        Method[] sinks = engine.findMethodsWithCache(
+                context, classLoader, PICKER_SINKS_CACHE_KEY,
+                LockedChatsEnhancerHook::resolvePickerDataSinks);
+        if (sinks == null || sinks.length == 0) {
+            XposedBridge.log(TAG + " contact picker data methods not found; picker stays unfiltered");
+            return;
+        }
+        XC_MethodHook scrubber = new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) {
+                scrubPickerData(param.args);
+            }
+        };
+        for (Method sink : sinks) XposedBridge.hookMethod(sink, scrubber);
+        XposedBridge.log(TAG + " hooked " + sinks.length + " contact picker data method(s)");
+    }
 
-            final Field lockedChatsField = selectLockedChatsField(chatCacheClass);
-            Method loadedContactsMethod = engine.findMethodWithCache(
-                    context,
-                    classLoader,
-                    "waex_loaded_contacts_method_v2",
-                    (bridge, loader) -> {
-                        // The bare 8726 constant is shared by several one-argument methods on
-                        // newer builds, so prefer the picker's own log tag and declaring class.
-                        MethodData md = bridge.findMethod(FindMethod.create()
-                                .matcher(MethodMatcher.create()
-                                        .addUsingNumber(8726)
-                                        .paramCount(1)
-                                        .addUsingString(CONTACTS_LOADED_LOG_TAG, StringMatchType.Contains)
-                                )
-                        ).singleOrNull();
-                        if (md == null) {
-                            md = bridge.findMethod(FindMethod.create()
-                                    .searchPackages(CONTACT_PICKER_PACKAGE)
-                                    .matcher(MethodMatcher.create()
-                                            .declaredClass(CONTACT_PICKER_FRAGMENT)
-                                            .addUsingNumber(8726)
-                                            .paramCount(1)
-                                    )
-                            ).singleOrNull();
-                        }
-                        if (md == null) {
-                            // Legacy builds: accept the bare constant only when it is unambiguous.
-                            md = bridge.findMethod(FindMethod.create()
-                                    .matcher(MethodMatcher.create()
-                                            .addUsingNumber(8726)
-                                            .paramCount(1)
-                                    )
-                            ).singleOrNull();
-                        }
-                        return md != null ? md.getMethodInstance(loader) : null;
-                    }
-            );
-
-            if (loadedContactsMethod != null) {
-                XposedBridge.hookMethod(loadedContactsMethod, new XC_MethodHook() {
-                    @Override
-                    protected void beforeHookedMethod(MethodHookParam param) {
-                        if (!isFeatureEnabled() || chatCacheInstance == null || lockedChatsField == null) return;
-                        try {
-                            if (param.args.length > 0 && param.args[0] != null) {
-                                Object argObj = param.args[0];
-                                Field listField = findListField(argObj.getClass());
-                                if (listField == null) return;
-                                Object listObj = listField.get(argObj);
-                                if (listObj instanceof List) {
-                                    Object setObj = lockedChatsField.get(chatCacheInstance);
-                                    if (!(setObj instanceof Collection) || ((Collection<?>) setObj).isEmpty()) return;
-                                    Set<String> lockedIds = LockedContactFilterPolicy.collectIds(
-                                            (Collection<?>) setObj, LockedChatsEnhancerHook::identityStrings);
-                                    List<?> filtered = LockedContactFilterPolicy.withoutLockedContacts(
-                                            (List<?>) listObj, lockedIds, LockedChatsEnhancerHook::identityStrings);
-                                    listField.set(argObj, filtered);
-                                }
-                            }
-                        } catch (Throwable ignored) { HookErrors.swallowed("LockedChatsEnhancerHook", ignored); }
-                    }
-                });
+    /**
+     * Finds the host methods that receive contact data for the picker, without relying on any
+     * obfuscated name, parameter list or A/B-flag constant. In order of preference:
+     * <ol>
+     *   <li>methods that log one of the picker's own result tags (log text survives
+     *       obfuscation, and the picker class itself is XML-referenced so it keeps its name);</li>
+     *   <li>one-argument methods declared in the picker package whose argument is a results
+     *       holder, i.e. a host class with several {@link java.util.List} fields.</li>
+     * </ol>
+     * Every returned method is hooked generically, so the argument shape does not matter.
+     */
+    private static Method[] resolvePickerDataSinks(DexKitBridge bridge, ClassLoader loader) {
+        LinkedHashSet<Method> found = new LinkedHashSet<>();
+        for (String tag : PICKER_RESULT_LOG_TAGS) {
+            for (MethodData method : bridge.findMethod(FindMethod.create()
+                    .matcher(MethodMatcher.create().addUsingString(tag, StringMatchType.Contains)))) {
+                addResolved(found, method, loader);
             }
         }
+        if (found.isEmpty()) {
+            for (MethodData method : bridge.findMethod(FindMethod.create()
+                    .searchPackages(CONTACT_PICKER_PACKAGE)
+                    .matcher(MethodMatcher.create().paramCount(1)))) {
+                Method resolved = resolveOrNull(method, loader);
+                if (resolved != null
+                        && ContactListSanitizer.isResultsHolder(resolved.getParameterTypes()[0], MIN_HOLDER_LISTS)) {
+                    found.add(resolved);
+                }
+            }
+        }
+        return found.isEmpty() ? null : found.toArray(new Method[0]);
+    }
+
+    private static void addResolved(Set<Method> into, MethodData data, ClassLoader loader) {
+        Method method = resolveOrNull(data, loader);
+        if (method != null) into.add(method);
+    }
+
+    private static Method resolveOrNull(MethodData data, ClassLoader loader) {
+        try {
+            Method method = data.getMethodInstance(loader);
+            return Modifier.isAbstract(method.getModifiers()) ? null : method;
+        } catch (Throwable unresolvable) {
+            HookErrors.swallowed("LockedChatsEnhancerHook", unresolvable);
+            return null;
+        }
+    }
+
+    private void scrubPickerData(Object[] args) {
+        if (args == null || args.length == 0 || !isFeatureEnabled()) return;
+        try {
+            Set<String> locked = lockedIds();
+            if (locked.isEmpty()) {
+                if (loggedEmptyLockedSet.compareAndSet(false, true)) {
+                    XposedBridge.log(TAG + " no locked chats known yet; picker data left untouched");
+                }
+                return;
+            }
+            ContactListSanitizer.Result result = ContactListSanitizer.scrub(
+                    args, locked, ContactIdentityExtractor::identities);
+            if (result.removedContacts > 0 && scrubLogBudget.getAndDecrement() > 0) {
+                XposedBridge.log(TAG + " removed " + result.removedContacts
+                        + " locked contact(s) from " + result.cleanedLists + " list(s)");
+            }
+        } catch (Throwable error) {
+            HookErrors.swallowed("LockedChatsEnhancerHook", error);
+        }
+    }
+
+    private Set<String> lockedIds() throws IllegalAccessException {
+        Object cache = chatCacheInstance;
+        Field field = lockedChatsField;
+        if (cache == null || field == null) return Collections.emptySet();
+        Object lockedChats = field.get(cache);
+        if (!(lockedChats instanceof Collection) || ((Collection<?>) lockedChats).isEmpty()) {
+            return Collections.emptySet();
+        }
+        return LockedContactFilterPolicy.collectIds(
+                (Collection<?>) lockedChats, ContactIdentityExtractor::identities);
     }
 
     private static Field selectLockedChatsField(Class<?> type) {
@@ -251,51 +297,5 @@ public class LockedChatsEnhancerHook extends BaseFeature {
         }
         if (candidates.isEmpty()) return null;
         return candidates.size() > 1 ? candidates.get(1) : candidates.get(0);
-    }
-
-    private static Field findListField(Class<?> type) {
-        Field fallback = null;
-        for (Class<?> current = type; current != null && current != Object.class; current = current.getSuperclass()) {
-            for (Field field : HostFields.declared(current)) {
-                if (!List.class.isAssignableFrom(field.getType())) continue;
-                field.setAccessible(true);
-                if ("A01".equals(field.getName())) return field;
-                if (fallback == null) fallback = field;
-            }
-        }
-        return fallback;
-    }
-
-    private static Collection<String> identityStrings(Object value) {
-        if (value == null) return Collections.emptyList();
-        LinkedHashSet<String> ids = new LinkedHashSet<>();
-        addIdentity(ids, value);
-        // Contact wrappers generally contain one typed JID. Inspect shallow fields only.
-        for (Class<?> type = value.getClass(); type != null && type != Object.class; type = type.getSuperclass()) {
-            for (Field field : HostFields.declared(type)) {
-                if (field.getType().isPrimitive() || field.getType() == String.class) continue;
-                try {
-                    field.setAccessible(true);
-                    addIdentity(ids, field.get(value));
-                } catch (Throwable ignored) { HookErrors.swallowed("LockedChatsEnhancerHook", ignored); }
-            }
-        }
-        return ids;
-    }
-
-    private static void addIdentity(Set<String> ids, Object value) {
-        if (value == null) return;
-        try {
-            Object raw = XposedHelpers.callMethod(value, "getRawString");
-            if (raw != null) ids.add(raw.toString());
-        } catch (Throwable ignored) { HookErrors.swallowed("LockedChatsEnhancerHook", ignored); }
-        String text = String.valueOf(value);
-        if (text.contains("@")) ids.add(text);
-        for (String method : new String[]{"getPhoneNumber", "getUser", "getUserRawString", "getPhoneRawString"}) {
-            try {
-                Object result = XposedHelpers.callMethod(value, method);
-                if (result != null) ids.add(result.toString());
-            } catch (Throwable ignored) { HookErrors.swallowed("LockedChatsEnhancerHook", ignored); }
-        }
     }
 }
