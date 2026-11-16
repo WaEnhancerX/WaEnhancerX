@@ -3,7 +3,6 @@ package com.waenhancer.ui.screens.dashboard
 import com.waenhancer.ui.components.WaexSheetHorizontalMargin
 import com.waenhancer.utils.UiText
 import com.waenhancer.utils.InternalLabels
-import com.waenhancer.utils.DeclaredWhatsAppTargets
 
 import android.content.Context
 import android.content.Intent
