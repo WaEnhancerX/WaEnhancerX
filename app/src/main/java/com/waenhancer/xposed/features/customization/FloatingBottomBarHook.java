@@ -48,6 +48,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.waenhancer.xposed.core.BaseFeature;
+import com.waenhancer.xposed.core.ViewHookDispatcher;
 import com.waenhancer.hooking.ScreenScopedFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.xposed.utils.ActivityTracker;
@@ -200,63 +201,48 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
 
         final Class<?> homeClass = resolveHomeActivityClass();
 
-        XposedHelpers.findAndHookMethod(
-                View.class,
-                "onAttachedToWindow",
-                new XC_MethodHook() {
-                    @Override
-                    protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                        View view = (View) param.thisObject;
-                        int id = view.getId();
-                        boolean isBottomBar = id > 0 && (id == bottomNavId || id == navigationBarId || id == tabLayoutId);
-                        boolean isFab = id > 0 && fabIds.contains(id);
-                        boolean isScrollable = isScrollableClass(view.getClass());
-                        if (!isBottomBar && !isFab && !isScrollable) return;
+        // Shared hooks: one View.onAttachedToWindow / onDetachedFromWindow hook for all features.
+        ViewHookDispatcher.onAttached(this, view -> {
+            int id = view.getId();
+            boolean isBottomBar = id > 0 && (id == bottomNavId || id == navigationBarId || id == tabLayoutId);
+            boolean isFab = id > 0 && fabIds.contains(id);
+            boolean isScrollable = isScrollableClass(view.getClass());
+            if (!isBottomBar && !isFab && !isScrollable) return;
 
-                        Activity activity = getActivityFromView(view);
-                        if (homeClass == null || activity == null || !homeClass.isInstance(activity)) return;
+            Activity activity = getActivityFromView(view);
+            if (homeClass == null || activity == null || !homeClass.isInstance(activity)) return;
 
-                        if (isScrollable) {
-                            // At attach time the pager/list may not have its final dimensions yet.
-                            // Run once after layout and once after the tab transition settles.
-                            view.post(() -> applyContentBottomSpacing(view));
-                            view.postDelayed(() -> applyContentBottomSpacing(view), 250L);
-                            return;
-                        }
+            if (isScrollable) {
+                // At attach time the pager/list may not have its final dimensions yet.
+                // Run once after layout and once after the tab transition settles.
+                view.post(() -> applyContentBottomSpacing(view));
+                view.postDelayed(() -> applyContentBottomSpacing(view), 250L);
+                return;
+            }
 
-                        if (isBottomBar) {
-                            if (view instanceof ViewGroup && isEnabled("floating_bottom_bar", false)) {
-                                scheduleSetup((ViewGroup) view);
-                            }
-                            return;
-                        }
-                        if (isEnabled("floating_bottom_bar", false)) {
-                            view.post(() -> positionFabAboveCurrentBar(view));
-                        }
-                    }
+            if (isBottomBar) {
+                if (view instanceof ViewGroup && isEnabled("floating_bottom_bar", false)) {
+                    scheduleSetup((ViewGroup) view);
                 }
-        );
+                return;
+            }
+            if (isEnabled("floating_bottom_bar", false)) {
+                view.post(() -> positionFabAboveCurrentBar(view));
+            }
+        });
 
-        XposedHelpers.findAndHookMethod(
-                View.class,
-                "onDetachedFromWindow",
-                new XC_MethodHook() {
-                    @Override
-                    protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                        View view = (View) param.thisObject;
-                        int id = view.getId();
-                        if (id <= 0 || (id != bottomNavId && id != navigationBarId && id != tabLayoutId)) return;
-                        if (view instanceof ViewGroup) {
-                            ViewGroup bar = (ViewGroup) view;
-                            setupAttempts.remove(bar);
-                            processedBars.remove(bar);
-                            styledBottomBars.remove(bar);
-                            scrollableBottomBarCache.clear();
-                            mainScrollableCache.clear();
-                        }
-                    }
-                }
-        );
+        ViewHookDispatcher.onDetached(this, view -> {
+            int id = view.getId();
+            if (id <= 0 || (id != bottomNavId && id != navigationBarId && id != tabLayoutId)) return;
+            if (view instanceof ViewGroup) {
+                ViewGroup bar = (ViewGroup) view;
+                setupAttempts.remove(bar);
+                processedBars.remove(bar);
+                styledBottomBars.remove(bar);
+                scrollableBottomBarCache.clear();
+                mainScrollableCache.clear();
+            }
+        });
 
         Class<?> tabFrameClass = resolveTabFrameClass();
         if (tabFrameClass != null) {

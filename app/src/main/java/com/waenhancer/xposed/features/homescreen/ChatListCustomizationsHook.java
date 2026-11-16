@@ -11,6 +11,7 @@ import android.view.ViewGroup;
 import android.view.ViewParent;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
+import com.waenhancer.xposed.core.ViewHookDispatcher;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.xposed.utils.ActivityTracker;
 import com.waenhancer.xposed.utils.HookErrors;
@@ -67,14 +68,10 @@ public class ChatListCustomizationsHook extends BaseFeature {
 
     private void hookAttachedViews() {
         try {
-            XposedHelpers.findAndHookMethod(View.class, "onAttachedToWindow", new XC_MethodHook() {
-                @Override
-                protected void afterHookedMethod(MethodHookParam param) {
-                    Activity activity = ActivityTracker.getCurrentActivity();
-                    if (activity == null || !HostClassNames.simpleNameContains(activity.getClass(), "Home")) return;
-                    View view = (View) param.thisObject;
-                    if (shouldRemoveView(view)) removeView(view);
-                }
+            ViewHookDispatcher.onAttached(this, view -> {
+                Activity activity = ActivityTracker.getCurrentActivity();
+                if (activity == null || !HostClassNames.simpleNameContains(activity.getClass(), "Home")) return;
+                if (shouldRemoveView(view)) removeView(view);
             });
         } catch (Throwable error) {
             XposedBridge.log(TAG + " Meta AI attachment hook failed: "

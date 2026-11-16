@@ -9,6 +9,7 @@ import android.widget.LinearLayout;
 import androidx.annotation.NonNull;
 
 import com.waenhancer.xposed.core.BaseFeature;
+import com.waenhancer.xposed.core.ViewHookDispatcher;
 
 import java.util.Collections;
 import java.util.Set;
@@ -69,15 +70,9 @@ public class HideChatsVaultHook extends BaseFeature {
                 context.getPackageName()
         );
 
-        XposedBridge.hookAllMethods(View.class, "onAttachedToWindow", new XC_MethodHook() {
-            @Override
-            protected void afterHookedMethod(MethodHookParam param) {
-                // Test the view first: this runs for every attached view, and only one matches.
-                if (param.thisObject instanceof View && isLockedHeader((View) param.thisObject)
-                        && isHideChatsEnabled()) {
-                    hideIfLockedHeader((View) param.thisObject);
-                }
-            }
+        // Test the view first: this runs for every attached view, and only one matches.
+        ViewHookDispatcher.onAttached(this, view -> {
+            if (isLockedHeader(view) && isHideChatsEnabled()) hideIfLockedHeader(view);
         });
 
         // RecyclerView binding may restore the header after it has been attached. Force only this
