@@ -2011,13 +2011,6 @@ public class AntiRevokeHook extends BaseFeature {
     }
 
     @Nullable
-    private String extractStatusKeyFromFragment(@NonNull Object fragment) {
-        // Kept for compatibility — delegates to the new strict variant, then general
-        String key = extractStatusKeyIdFromFragment(fragment);
-        return key != null ? key : extractStatusKeyFromFragmentGeneral(fragment);
-    }
-
-    @Nullable
     private View extractFragmentRootView(@NonNull Object fragment) {
         try {
             Method getViewMethod = fragment.getClass().getMethod("getView");
@@ -2040,15 +2033,6 @@ public class AntiRevokeHook extends BaseFeature {
     }
 
     // ─── Revoke timestamp lookup ─────────────────────────────────────────
-
-    private boolean isNativeDeletedPresentationEnabled() {
-        try {
-            return prefs.getBoolean("hide_anti_revoke", false)
-                    || HideAntiRevokeProFeature.isHiddenForActiveConversation(prefs);
-        } catch (Throwable ignored) {
-            return prefs.getBoolean("hide_anti_revoke", false);
-        }
-    }
 
     private long getRevokedTimestamp(@Nullable String keyId) {
         if (keyId == null || keyId.isEmpty()) return 0L;

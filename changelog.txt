@@ -7,6 +7,9 @@
 
 [Improvements]
 - Improved Module's UI
+- Improved UI of custom emojis screen
+- Improved WhatsApp UI performance
+- Improved Privacy features
 
 
 [Report Issues Feature]

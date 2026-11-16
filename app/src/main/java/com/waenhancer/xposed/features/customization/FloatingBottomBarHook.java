@@ -4,10 +4,8 @@ import com.waenhancer.app.R;
 import com.waenhancer.utils.UiText;
 
 import android.animation.Animator;
-import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
-import android.animation.StateListAnimator;
 import android.app.Activity;
 import android.content.Context;
 import android.content.ContextWrapper;
@@ -63,8 +61,6 @@ import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -441,38 +437,6 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
             ctx = ((ContextWrapper) ctx).getBaseContext();
         }
         return null;
-    }
-
-    private void hookRecyclerViewScrollListeners() {
-        try {
-            Class<?> recyclerViewClass = XposedHelpers.findClassIfExists("androidx.recyclerview.widget.RecyclerView", classLoader);
-            if (recyclerViewClass == null) return;
-
-            Method scrollDispatcher = null;
-            for (Method method : recyclerViewClass.getDeclaredMethods()) {
-                Class<?>[] params = method.getParameterTypes();
-                if (Modifier.isStatic(method.getModifiers()) || method.getReturnType() != void.class
-                        || params.length != 2 || params[0] != int.class || params[1] != int.class) {
-                    continue;
-                }
-                if ("dispatchOnScrolled".equals(method.getName())) {
-                    scrollDispatcher = method;
-                    break;
-                }
-            }
-
-            if (scrollDispatcher != null) {
-                XposedBridge.hookMethod(scrollDispatcher, new XC_MethodHook() {
-                    @Override
-                    protected void afterHookedMethod(MethodHookParam param) {
-                        if (param.args == null || param.args.length < 2) return;
-                        handleRecyclerViewScrolled((View) param.thisObject, (int) param.args[1]);
-                    }
-                });
-            }
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + " Failed to hook RecyclerView scroll listeners: " + t);
-        }
     }
 
     private static void handleRecyclerViewScrolled(View rv, int dy) {
@@ -1004,67 +968,6 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
             }
         }
         return null;
-    }
-
-    private static void formatBadgeViews(ViewGroup tabItem, View iconContainer, float density) {
-        if (tabItem == null) return;
-        final View badgeIconContainer = iconContainer;
-        List<View> badgeViews = new ArrayList<>();
-        findBadgeViewsRecursive(tabItem, badgeViews);
-
-        if (badgeViews.isEmpty()) return;
-
-        int dotBadgeSizePx = (int) (10 * density);
-
-        for (View badge : badgeViews) {
-            if (badge == null || badge.getVisibility() != View.VISIBLE) continue;
-
-            boolean hasTextNumber = false;
-            if (badge instanceof TextView) {
-                TextView tv = (TextView) badge;
-                CharSequence text = tv.getText();
-                if (text != null && text.length() > 0) {
-                    hasTextNumber = true;
-                }
-            }
-
-            if (hasTextNumber) {
-                if (badgeIconContainer != null) {
-                    alignBadgeToIconTopRight(badge, badgeIconContainer, density, false);
-                    // WhatsApp lays out this badge after the tab item. Re-apply on the next
-                    // frame so a freshly visible badge is positioned from its final bounds.
-                    badge.post(() -> alignBadgeToIconTopRight(badge, badgeIconContainer, density, false));
-                }
-                continue;
-            }
-
-            ViewGroup.LayoutParams lp = badge.getLayoutParams();
-            if (lp != null) {
-                if (lp.width != dotBadgeSizePx || lp.height != dotBadgeSizePx) {
-                    lp.width = dotBadgeSizePx;
-                    lp.height = dotBadgeSizePx;
-                    badge.setLayoutParams(lp);
-                }
-            }
-
-            GradientDrawable dotDrawable = new GradientDrawable();
-            dotDrawable.setShape(GradientDrawable.OVAL);
-            dotDrawable.setColor(0xFF00A884); // WhatsApp green accent
-            badge.setBackground(dotDrawable);
-
-            if (badge instanceof ImageView) {
-                ImageView iv = (ImageView) badge;
-                iv.setImageDrawable(null);
-                iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            }
-
-            if (badgeIconContainer != null) {
-                alignBadgeToIconTopRight(badge, badgeIconContainer, density, true);
-                // The unseen-status indicator is added lazily and its initial bounds are 0,0.
-                // In floating mode that left it at the top of the pill instead of on the icon.
-                badge.post(() -> alignBadgeToIconTopRight(badge, badgeIconContainer, density, true));
-            }
-        }
     }
 
     private static void alignBadgeToIconTopRight(View badge, View iconContainer, float density, boolean isDot) {
@@ -1688,15 +1591,6 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
             }, 32L);
             return false;
         });
-    }
-
-    private static StateListAnimator createSelectionAnimator(View tab) {
-        StateListAnimator animator = new StateListAnimator();
-        animator.addState(new int[]{android.R.attr.state_checked}, scaleAnimator(tab, 1f, 220L));
-        animator.addState(new int[]{android.R.attr.state_selected}, scaleAnimator(tab, 1f, 220L));
-        animator.addState(new int[]{android.R.attr.state_activated}, scaleAnimator(tab, 1f, 220L));
-        animator.addState(new int[0], scaleAnimator(tab, 0.92f, 170L));
-        return animator;
     }
 
     private static Animator scaleAnimator(View tab, float scale, long duration) {

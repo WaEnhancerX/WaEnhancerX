@@ -19,8 +19,6 @@ import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
-import android.os.Handler;
-import android.os.Looper;
 import android.provider.MediaStore;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -33,6 +31,7 @@ import androidx.annotation.NonNull;
 
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.xposed.utils.UiThread;
 
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.FindMethod;
@@ -44,10 +43,8 @@ import org.luckypray.dexkit.result.MethodData;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.ref.WeakReference;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -601,7 +598,7 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
 
     private void showToast(Activity activity, String msg) {
         if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
-        new Handler(Looper.getMainLooper()).post(() -> {
+        UiThread.post(() -> {
             try {
                 if (!activity.isFinishing() && !activity.isDestroyed()) {
                     Toast.makeText(activity, msg, Toast.LENGTH_SHORT).show();

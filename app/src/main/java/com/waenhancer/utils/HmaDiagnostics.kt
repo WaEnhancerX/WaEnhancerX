@@ -1,7 +1,6 @@
 package com.waenhancer.utils
 
 import android.content.Context
-import android.database.sqlite.SQLiteDatabase
 import com.waenhancer.xposed.utils.AppRestartHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -9,7 +8,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.atomic.AtomicReference
-import android.util.Base64
 
 /**
  * Diagnostics utility for detecting Hide My Applist (HMA) activity and checking
@@ -267,24 +265,6 @@ object HmaDiagnostics {
         }
 
         return packages.toList()
-    }
-
-    private fun isHmaEnabledInLspDb(dbFile: File): Boolean {
-        var db: SQLiteDatabase? = null
-        return try {
-            db = SQLiteDatabase.openDatabase(dbFile.absolutePath, null, SQLiteDatabase.OPEN_READONLY)
-            val cursor = db.rawQuery(
-                "SELECT 1 FROM modules WHERE (module_pkg_name LIKE '%hidemyapp%' OR module_pkg_name LIKE '%hma%') AND enabled = 1 LIMIT 1",
-                null
-            )
-            val exists = cursor.moveToFirst()
-            cursor.close()
-            exists
-        } catch (_: Exception) {
-            false
-        } finally {
-            db?.close()
-        }
     }
 
     private fun isModuleMatch(target: String, signatures: Set<String>): Boolean {

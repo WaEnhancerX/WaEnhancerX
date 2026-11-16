@@ -10,7 +10,6 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.SparseIntArray;
 import android.view.MenuItem;
 
 import androidx.annotation.NonNull;
@@ -49,7 +48,6 @@ import android.app.Activity;
 import com.waenhancer.xposed.utils.ActivityTracker;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 /** Adds a dedicated Groups home tab and filters the Chats/Groups fragment data sets. */
 public final class SeparateGroupsHook extends BaseFeature {
@@ -665,10 +663,6 @@ public final class SeparateGroupsHook extends BaseFeature {
         if (tabId == CHATS) return 0;
         if (tabId == GROUPS) return 1;
         return -1;
-    }
-
-    private boolean isSeparateGroupsEnabled() {
-        return isSeparateGroupsActive();
     }
 
     private static boolean isSeparateGroupsActive() {

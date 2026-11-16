@@ -4,8 +4,6 @@ import com.waenhancer.app.R;
 import com.waenhancer.utils.UiText;
 
 import android.app.Activity;
-import android.app.AlarmManager;
-import android.app.PendingIntent;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.Intent;
@@ -724,28 +722,6 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
         }
 
         return false;
-    }
-
-    /**
-     * Dispatches an action by raw menu item ID.
-     * Used by the Separate mode bottom sheet which doesn't have a real MenuItem object.
-     */
-    private void handleWaexItemById(int itemId, Activity activity) {
-        if (itemId == MENU_ID_GHOST_MODE) {
-            promptGhostModeSheet(activity);
-        } else if (itemId == MENU_ID_FREEZE_LS) {
-            promptFreezeLastSeenSheet(activity);
-        } else if (itemId == MENU_ID_DND) {
-            promptDndModeSheet(activity);
-        } else if (itemId == MENU_ID_RESTART) {
-            forceRestartWhatsApp(activity);
-        } else if (itemId == MENU_ID_SETTINGS) {
-            try {
-                Intent intent =
-                        activity.getPackageManager().getLaunchIntentForPackage("com.waenhancer");
-                if (intent != null) activity.startActivity(intent);
-            } catch (Throwable ignored) {}
-        }
     }
 
     /** Launch only the verified in-package WhatsApp archive Activity. */

@@ -17,7 +17,6 @@ import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.PointF
-import android.graphics.PorterDuff
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
@@ -32,8 +31,6 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.view.ViewStub
-import android.view.ViewTreeObserver
 import android.view.Window
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -52,9 +49,7 @@ import android.widget.VideoView
 import androidx.core.graphics.drawable.DrawableCompat
 import com.waenhancer.xposed.core.BaseFeature
 import com.waenhancer.xposed.utils.HostResourceIds
-import com.waenhancer.xposed.core.ViewHookDispatcher
 import com.waenhancer.xposed.core.db.MessageStore
-import com.waenhancer.xposed.core.devkit.DexSearchEngine
 import com.waenhancer.xposed.utils.ActivityTracker
 import com.waenhancer.xposed.utils.HKDFv3
 import de.robv.android.xposed.XC_MethodHook
@@ -62,10 +57,6 @@ import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import org.luckypray.dexkit.query.FindClass
-import org.luckypray.dexkit.query.enums.StringMatchType
-import org.luckypray.dexkit.query.matchers.ClassMatcher
-import org.luckypray.dexkit.query.matchers.MethodMatcher
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -1460,49 +1451,6 @@ class MediaPreviewHook(
             }
         }
         return null
-    }
-
-    private fun showBitmap(context: Context, sourceBitmap: Bitmap) {
-        val dialog = Dialog(context, AndroidR.style.Theme_Black_NoTitleBar_Fullscreen).apply {
-            requestWindowFeature(Window.FEATURE_NO_TITLE)
-            setCancelable(true)
-            setCanceledOnTouchOutside(false)
-        }
-        val container = FrameLayout(context).apply {
-            setBackgroundColor(Color.BLACK)
-            isClickable = true
-            isFocusable = true
-        }
-        val close = TextView(context).apply {
-            text = "✕"
-            textSize = 24f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            contentDescription = UiText.get(R.string.waex_ui_close_preview, "Close preview")
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(0x99000000.toInt())
-            }
-            setOnClickListener { dialog.dismiss() }
-        }
-        val imageView = ZoomableImageView(context).apply {
-            setImageBitmap(sourceBitmap)
-            setBackgroundColor(Color.BLACK)
-        }
-        container.addView(imageView, FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER
-        ))
-        container.addView(close, FrameLayout.LayoutParams(
-            dipToPixels(context, 44f),
-            dipToPixels(context, 44f),
-            Gravity.TOP or Gravity.END
-        ).apply {
-            topMargin = dipToPixels(context, 18f)
-            marginEnd = dipToPixels(context, 16f)
-        })
-        dialog.setContentView(container)
-        dialog.show()
-        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
     }
 
     private fun getWaexId(context: Context, name: String): Int {
