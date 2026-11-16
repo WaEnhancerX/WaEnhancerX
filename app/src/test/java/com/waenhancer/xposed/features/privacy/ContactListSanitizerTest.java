@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 import org.junit.Test;
 
 public class ContactListSanitizerTest {
@@ -160,6 +161,47 @@ public class ContactListSanitizerTest {
 
         assertEquals(1, ((List<?>) args[0]).size());
         assertSame(other, ((List<?>) args[0]).get(0));
+    }
+
+    @Test
+    public void listsAlreadyCleanedAreNotScannedAgain() {
+        Set<String> locked = new HashSet<>(Collections.singleton("locked@s.whatsapp.net"));
+        Results results = new Results(
+                rows("a@s.whatsapp.net", "locked@s.whatsapp.net"),
+                rows("b@s.whatsapp.net"), rows("c@s.whatsapp.net"), rows());
+        int[] calls = {0};
+        Function<Object, Collection<String>> counting = item -> {
+            calls[0]++;
+            return ContactIdentityExtractor.identities(item);
+        };
+
+        ContactListSanitizer.scrub(new Object[]{results}, locked, counting);
+        assertTrue(calls[0] > 0);
+        int afterFirst = calls[0];
+
+        // A second hooked method of the same picker load receives the same holder.
+        ContactListSanitizer.scrub(new Object[]{results}, locked, counting);
+        assertEquals("no identity work on the second visit", afterFirst, calls[0]);
+
+        // A different locked set (the user locked another chat) must re-check everything.
+        Set<String> changed = new HashSet<>(Arrays.asList("locked@s.whatsapp.net", "b@s.whatsapp.net"));
+        ContactListSanitizer.scrub(new Object[]{results}, changed, counting);
+        assertTrue(calls[0] > afterFirst);
+        assertEquals(0, results.b.size());
+    }
+
+    @Test
+    public void unidentifiableRowsAreReportedSoHostChangesAreNotSilent() {
+        List<Object> opaque = new ArrayList<>(Arrays.asList(new Object(), "text", 42));
+        ContactListSanitizer.Result outcome = ContactListSanitizer.scrub(
+                new Object[]{opaque}, Collections.singleton("x@lid"), ContactListSanitizerTest::ids);
+        assertEquals(3, outcome.rowsSeen);
+        assertEquals(0, outcome.rowsIdentified);
+
+        List<Object> identifiable = rows("a@s.whatsapp.net");
+        ContactListSanitizer.Result healthy = ContactListSanitizer.scrub(
+                new Object[]{identifiable}, Collections.singleton("x@lid"), ContactListSanitizerTest::ids);
+        assertEquals(1, healthy.rowsIdentified);
     }
 
     @Test

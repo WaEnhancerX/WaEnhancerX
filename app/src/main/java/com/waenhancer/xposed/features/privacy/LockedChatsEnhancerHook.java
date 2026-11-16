@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
+import com.waenhancer.xposed.core.db.MessageStore;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.xposed.utils.HookErrors;
 import com.waenhancer.xposed.utils.HostFields;
@@ -53,9 +54,13 @@ public class LockedChatsEnhancerHook extends BaseFeature {
 
     private final ThreadLocal<Boolean> suppressNotificationQuery = ThreadLocal.withInitial(() -> false);
     private final AtomicBoolean loggedEmptyLockedSet = new AtomicBoolean();
+    private final AtomicBoolean warnedUnidentifiableRows = new AtomicBoolean();
     private final AtomicInteger scrubLogBudget = new AtomicInteger(5);
     private volatile Object chatCacheInstance = null;
     private volatile Field lockedChatsField = null;
+    private final LockedChatIds lockedChatIds = new LockedChatIds(
+            () -> LockedChatIds.overDatabase(() -> MessageStore.getInstance(context).getDatabase()),
+            System::currentTimeMillis);
 
     public LockedChatsEnhancerHook(@NonNull Context context,
                                    @NonNull ClassLoader classLoader,
@@ -162,30 +167,13 @@ public class LockedChatsEnhancerHook extends BaseFeature {
     private void hookContactPickerSuppression() {
         DexSearchEngine engine = DexSearchEngine.getInstance();
 
-        Class<?> chatCacheClass = engine.findClassWithCache(
-                context,
-                classLoader,
-                "waex_chat_cache_class",
-                (bridge, loader) -> {
-                    ClassData cd = bridge.findClass(FindClass.create()
-                            .matcher(ClassMatcher.create()
-                                    .addUsingString("Chatscache/", StringMatchType.StartsWith)
-                            )
-                    ).firstOrNull();
-                    return cd != null ? cd.getInstance(loader) : null;
-                }
-        );
-        if (chatCacheClass == null) {
-            XposedBridge.log(TAG + " chat cache class not found; contact picker stays unfiltered");
-            return;
+        // Locked chats are read from the database. The chat cache is only a fallback for a
+        // database that cannot be read, so its absence must not stop the picker hooks.
+        try {
+            installChatCacheFallback(engine);
+        } catch (Throwable error) {
+            HookErrors.swallowed("LockedChatsEnhancerHook", error);
         }
-        XposedBridge.hookAllConstructors(chatCacheClass, new XC_MethodHook() {
-            @Override
-            protected void afterHookedMethod(MethodHookParam param) {
-                chatCacheInstance = param.thisObject;
-            }
-        });
-        lockedChatsField = selectLockedChatsField(chatCacheClass);
 
         Method[] sinks = engine.findMethodsWithCache(
                 context, classLoader, PICKER_SINKS_CACHE_KEY,
@@ -268,6 +256,13 @@ public class LockedChatsEnhancerHook extends BaseFeature {
             }
             ContactListSanitizer.Result result = ContactListSanitizer.scrub(
                     args, locked, ContactIdentityExtractor::identities);
+            if (result.rowsSeen > 0 && result.rowsIdentified == 0
+                    && warnedUnidentifiableRows.compareAndSet(false, true)) {
+                // Locked chats exist but no picker row yielded an identity: the host's JID
+                // access has probably changed. Say so once instead of failing silently.
+                XposedBridge.log(TAG + " WARNING: " + result.rowsSeen
+                        + " picker rows seen but none identifiable; JID access may have changed");
+            }
             if (result.removedContacts > 0 && scrubLogBudget.getAndDecrement() > 0) {
                 XposedBridge.log(TAG + " removed " + result.removedContacts
                         + " locked contact(s) from " + result.cleanedLists + " list(s)");
@@ -277,7 +272,39 @@ public class LockedChatsEnhancerHook extends BaseFeature {
         }
     }
 
+    private void installChatCacheFallback(DexSearchEngine engine) {
+        Class<?> chatCacheClass = engine.findClassWithCache(
+                context,
+                classLoader,
+                "waex_chat_cache_class",
+                (bridge, loader) -> {
+                    ClassData cd = bridge.findClass(FindClass.create()
+                            .matcher(ClassMatcher.create()
+                                    .addUsingString("Chatscache/", StringMatchType.StartsWith)
+                            )
+                    ).firstOrNull();
+                    return cd != null ? cd.getInstance(loader) : null;
+                }
+        );
+        if (chatCacheClass == null) return;
+        Field field = selectLockedChatsField(chatCacheClass);
+        if (field == null) {
+            XposedBridge.log(TAG + " chat cache has no single locked-set candidate; fallback disabled");
+            return;
+        }
+        lockedChatsField = field;
+        XposedBridge.hookAllConstructors(chatCacheClass, new XC_MethodHook() {
+            @Override
+            protected void afterHookedMethod(MethodHookParam param) {
+                chatCacheInstance = param.thisObject;
+            }
+        });
+    }
+
+    /** Locked identities from WhatsApp's database, else from the chat cache, else none. */
     private Set<String> lockedIds() throws IllegalAccessException {
+        Set<String> fromDatabase = lockedChatIds.current();
+        if (fromDatabase != null) return fromDatabase;
         Object cache = chatCacheInstance;
         Field field = lockedChatsField;
         if (cache == null || field == null) return Collections.emptySet();
@@ -289,17 +316,21 @@ public class LockedChatsEnhancerHook extends BaseFeature {
                 (Collection<?>) lockedChats, ContactIdentityExtractor::identities);
     }
 
+    /**
+     * The chat cache's locked-chat set, but only when it is unambiguous. With several candidate
+     * collections nothing marks which one is "locked", and guessing would hide the wrong
+     * contacts, so the fallback stays off instead.
+     */
     private static Field selectLockedChatsField(Class<?> type) {
         List<Field> candidates = new ArrayList<>();
         for (Class<?> current = type; current != null && current != Object.class; current = current.getSuperclass()) {
             for (Field field : HostFields.declared(current)) {
-                if (HashSet.class.isAssignableFrom(field.getType()) || Set.class.isAssignableFrom(field.getType())) {
+                if (!Modifier.isStatic(field.getModifiers()) && Set.class.isAssignableFrom(field.getType())) {
                     field.setAccessible(true);
                     candidates.add(field);
                 }
             }
         }
-        if (candidates.isEmpty()) return null;
-        return candidates.size() > 1 ? candidates.get(1) : candidates.get(0);
+        return candidates.size() == 1 ? candidates.get(0) : null;
     }
 }

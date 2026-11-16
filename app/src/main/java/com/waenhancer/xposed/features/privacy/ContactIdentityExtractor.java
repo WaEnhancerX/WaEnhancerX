@@ -9,8 +9,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.IdentityHashMap;
-import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -57,6 +55,16 @@ final class ContactIdentityExtractor {
     /** Hard cap on visited objects so a pathological graph can never stall the UI thread. */
     private static final int MAX_NODES = 96;
 
+    /** Per-thread work arrays: the search runs once per row, so it must not allocate. */
+    private static final class Scratch {
+        final Object[] seen = new Object[MAX_NODES];
+        Object[] level = new Object[MAX_NODES];
+        Object[] next = new Object[MAX_NODES];
+        int seenCount;
+    }
+
+    private static final ThreadLocal<Scratch> SCRATCH = ThreadLocal.withInitial(Scratch::new);
+
     /**
      * The identity strings of {@code value}: its own when it is a JID, otherwise those of the
      * nearest JIDs reachable through its object fields. "Nearest" keeps an item's own identity
@@ -64,34 +72,61 @@ final class ContactIdentityExtractor {
      */
     static Collection<String> identities(Object value) {
         if (value == null) return Collections.emptyList();
-        LinkedHashSet<String> ids = new LinkedHashSet<>(4);
-        Set<Object> visited = Collections.newSetFromMap(new IdentityHashMap<>());
-        ArrayList<Object> level = new ArrayList<>(1);
-        level.add(value);
-        visited.add(value);
-        for (int depth = 0; depth <= MAX_DEPTH && !level.isEmpty(); depth++) {
-            ArrayList<Object> next = new ArrayList<>();
-            for (Object node : level) {
-                Plan plan = planFor(node.getClass());
-                if (plan.identityMethods.length > 0) {
-                    collect(ids, node, plan);
-                    continue;
-                }
-                for (Field field : plan.wrapperFields) {
-                    if (visited.size() >= MAX_NODES) break;
-                    try {
-                        Object member = field.get(node);
-                        if (member != null && visited.add(member)) next.add(member);
-                    } catch (IllegalAccessException | RuntimeException failure) {
-                        HookErrors.swallowed("ContactIdentityExtractor", failure);
+        Scratch scratch = SCRATCH.get();
+        ArrayList<String> ids = null;
+        try {
+            scratch.seen[0] = value;
+            scratch.seenCount = 1;
+            scratch.level[0] = value;
+            int levelSize = 1;
+            for (int depth = 0; depth <= MAX_DEPTH && levelSize > 0; depth++) {
+                int nextSize = 0;
+                for (int n = 0; n < levelSize; n++) {
+                    Object node = scratch.level[n];
+                    Plan plan = planFor(node.getClass());
+                    if (plan.identityMethods.length > 0) {
+                        ids = collect(ids, node, plan);
+                        continue;
+                    }
+                    for (Field field : plan.wrapperFields) {
+                        if (scratch.seenCount >= MAX_NODES) break;
+                        Object member = read(field, node);
+                        if (member != null && !seen(scratch, member)) {
+                            scratch.seen[scratch.seenCount++] = member;
+                            scratch.next[nextSize++] = member;
+                        }
                     }
                 }
+                // The first level that holds any JID is the item's own; do not look deeper.
+                if (ids != null) break;
+                Object[] swap = scratch.level;
+                scratch.level = scratch.next;
+                scratch.next = swap;
+                levelSize = nextSize;
             }
-            // The first level that holds any JID is the item's own; do not look deeper.
-            if (!ids.isEmpty()) break;
-            level = next;
+        } finally {
+            // Never keep host objects alive from a thread-local.
+            Arrays.fill(scratch.seen, 0, scratch.seenCount, null);
+            Arrays.fill(scratch.level, null);
+            Arrays.fill(scratch.next, null);
         }
-        return conversationIdentity(ids);
+        return ids == null ? Collections.emptyList() : conversationIdentity(ids);
+    }
+
+    private static boolean seen(Scratch scratch, Object candidate) {
+        for (int i = 0; i < scratch.seenCount; i++) {
+            if (scratch.seen[i] == candidate) return true;
+        }
+        return false;
+    }
+
+    private static Object read(Field field, Object owner) {
+        try {
+            return field.get(owner);
+        } catch (IllegalAccessException | RuntimeException failure) {
+            HookErrors.swallowed("ContactIdentityExtractor", failure);
+            return null;
+        }
     }
 
     /**
@@ -100,11 +135,12 @@ final class ContactIdentityExtractor {
      * make the row match a locked person. These server names are part of WhatsApp's wire
      * protocol and do not change with obfuscation.
      */
-    private static Collection<String> conversationIdentity(LinkedHashSet<String> ids) {
-        LinkedHashSet<String> conversation = null;
-        for (String id : ids) {
+    private static Collection<String> conversationIdentity(ArrayList<String> ids) {
+        ArrayList<String> conversation = null;
+        for (int i = 0; i < ids.size(); i++) {
+            String id = ids.get(i);
             if (isConversationServer(id)) {
-                if (conversation == null) conversation = new LinkedHashSet<>(2);
+                if (conversation == null) conversation = new ArrayList<>(2);
                 conversation.add(id);
             }
         }
@@ -113,20 +149,22 @@ final class ContactIdentityExtractor {
 
     private static boolean isConversationServer(String id) {
         int at = id.indexOf('@');
-        if (at < 0) return false;
-        String server = id.substring(at + 1);
-        return CONVERSATION_SERVERS.contains(server);
+        return at >= 0 && CONVERSATION_SERVERS.contains(id.substring(at + 1));
     }
 
-    private static void collect(LinkedHashSet<String> ids, Object jid, Plan plan) {
+    private static ArrayList<String> collect(ArrayList<String> ids, Object jid, Plan plan) {
         for (Method method : plan.identityMethods) {
             try {
                 Object result = method.invoke(jid);
-                if (result instanceof String && !((String) result).isEmpty()) ids.add((String) result);
+                if (result instanceof String && !((String) result).isEmpty()) {
+                    if (ids == null) ids = new ArrayList<>(3);
+                    if (!ids.contains(result)) ids.add((String) result);
+                }
             } catch (ReflectiveOperationException | RuntimeException failure) {
                 HookErrors.swallowed("ContactIdentityExtractor", failure);
             }
         }
+        return ids;
     }
 
     private static Plan planFor(Class<?> type) {
