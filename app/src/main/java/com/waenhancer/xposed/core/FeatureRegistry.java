@@ -76,6 +76,7 @@ import com.waenhancer.xposed.features.privacy.DndModeHook;
 import com.waenhancer.xposed.features.privacy.FreezeLastSeenHook;
 import com.waenhancer.xposed.features.privacy.HideArchivedChatsHook;
 import com.waenhancer.xposed.features.privacy.HideChatsVaultHook;
+import com.waenhancer.xposed.features.privacy.LockedChatNotificationsHook;
 import com.waenhancer.xposed.features.privacy.HideForwardedTagHook;
 import com.waenhancer.xposed.features.privacy.HideReceiptsHook;
 import com.waenhancer.xposed.features.privacy.LockedChatsEnhancerHook;
@@ -294,6 +295,10 @@ public final class FeatureRegistry {
 
         registerFeature(DndModeHook.class, "Privacy",
                 () -> new DndModeHook(context, classLoader, prefs));
+
+        registerFeature(LockedChatNotificationsHook.class, "Privacy",
+                () -> LockedChatNotificationsHook.isSuppressing(prefs),
+                () -> new LockedChatNotificationsHook(context, classLoader, prefs));
 
         registerFeature(HideChatsVaultHook.class, "Privacy",
                 () -> prefs.getBoolean("hide_chats", false),

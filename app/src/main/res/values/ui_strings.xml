@@ -1114,4 +1114,5 @@
     <string name="waex_ui_theme_active" formatted="false">"Active"</string>
     <string name="waex_ui_theme_delete_confirm" formatted="false">"Delete this theme?"</string>
     <string name="waex_ui_custom_css" formatted="false">"Custom CSS"</string>
+    <string name="waex_ui_locked_chat_notifications" formatted="false">"Locked Chat Notifications"</string>
 </resources>

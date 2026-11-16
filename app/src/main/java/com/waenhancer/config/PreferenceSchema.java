@@ -419,6 +419,7 @@ public final class PreferenceSchema {
         add(entries, "archive_open_via_menu", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "archive_open_via_title_long_press", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "archive_open_via_title_triple_tap", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "locked_chats_message_notifications", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "locked_open_via_menu", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "locked_open_via_title_long_press", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "locked_open_via_title_triple_tap", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);

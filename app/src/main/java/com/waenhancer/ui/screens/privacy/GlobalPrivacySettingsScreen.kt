@@ -190,7 +190,7 @@ fun GlobalPrivacySettingsScreen(
             "anti_view_once", "downloadviewonce", "download_view_once",
             "bypass_screenshot_restriction",
             "anti_revoke", "show_as_deleted", "preserve_own_revoke", "antirevokestatus", "antidisappearing", "toastdeleted", "toast_viewed_message",
-            "locked_chats_enhancer", "typearchive", "dnd_mode", "hide_chats", "custom_privacy",
+            "locked_chats_enhancer", "typearchive", "dnd_mode", "hide_chats", "locked_chats_message_notifications", "custom_privacy",
             "message_bomber", "anti_edit_messages", "message_device_source", "revokeallmessages", "hide_forwarded_tag", "removeforwardlimit",
             "sticker_confirm_alert", "removeseemore", "stamp_copied_message", "doubletap2like",
             "disable_defemojis", "custom_emojis", "custom_emoji_enabled",
@@ -256,7 +256,7 @@ fun GlobalPrivacySettingsScreen(
             privacyKeys.forEach { key ->
                 var boolVal = if (key == "downloadviewonce" || key == "download_view_once") {
                     readViewOnceDownload()
-                } else preferenceManager.getBoolean(key, false)
+                } else preferenceManager.getBoolean(key, key in DEFAULT_ON_PRIVACY_KEYS)
                 if (!boolVal && key == "typearchive") {
                     val strVal = preferenceManager.getString("typearchive", "0")
                     boolVal = (strVal != null && strVal != "0" && !strVal.equals("false", ignoreCase = true))
@@ -1377,3 +1377,6 @@ fun GlobalPrivacySettingsScreenPreview() {
         GlobalPrivacySettingsScreen(onOpenModal = {})
     }
 }
+
+/** Switches whose stored default is on, so an unset preference must not render as off. */
+private val DEFAULT_ON_PRIVACY_KEYS = setOf("locked_chats_message_notifications")

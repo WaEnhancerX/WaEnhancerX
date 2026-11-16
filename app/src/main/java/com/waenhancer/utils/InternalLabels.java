@@ -134,6 +134,7 @@ public final class InternalLabels {
             case "Freeze Last Seen & Hide Online": return UiText.get(R.string.waex_ui_freeze_last_seen_hide_online, "Freeze Last Seen & Hide Online");
             case "Hide Archived Chats": return UiText.get(R.string.waex_ui_hide_archived_chats, "Hide Archived Chats");
             case "Hide Locked Chats": return UiText.get(R.string.waex_ui_hide_locked_chats, "Hide Locked Chats");
+            case "Locked Chat Notifications": return UiText.get(R.string.waex_ui_locked_chat_notifications, "Locked Chat Notifications");
             case "Locked Chats Enhancer": return UiText.get(R.string.waex_ui_locked_chats_enhancer, "Locked Chats Enhancer");
             case "Typing Privacy": return UiText.get(R.string.waex_ui_typing_privacy, "Typing Privacy");
             case "Hide Read Receipts": return UiText.get(R.string.waex_ui_hide_read_receipts, "Hide Read Receipts");

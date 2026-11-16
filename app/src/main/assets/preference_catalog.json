@@ -72,6 +72,7 @@
       "typearchive",
       "dnd_mode",
       "hide_chats",
+      "locked_chats_message_notifications",
       "custom_privacy"
     ]
   },

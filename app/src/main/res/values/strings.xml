@@ -149,6 +149,8 @@
     <string name="feat_dnd_mode_desc">When Do Not Disturb mode is on, you will be unable to send or receive messages</string>
     <string name="feat_hide_chats_title">Hide Locked Chats</string>
     <string name="feat_hide_chats_desc">Hide locked chats and choose how to open them</string>
+    <string name="feat_locked_chats_message_notifications_title">Message notifications</string>
+    <string name="feat_locked_chats_message_notifications_desc">Show notifications for messages from locked chats. Turn off to silence them.</string>
     <string name="feat_custom_privacy_title">Custom Privacy per contact</string>
     <string name="feat_custom_privacy_desc">Activate the custom privacy button on the contact information screen</string>
     <string name="feat_call_privacy_title">Block Calls</string>
