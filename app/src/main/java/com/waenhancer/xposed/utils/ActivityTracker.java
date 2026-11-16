@@ -37,11 +37,8 @@ public final class ActivityTracker implements Application.ActivityLifecycleCallb
     @Nullable
     public static Activity getCurrentConversation() {
         Activity act = sCurrentActivity.get();
-        if (act != null) {
-            String name = act.getClass().getSimpleName();
-            if (name.equals("Conversation") || name.contains("Conversation")) {
-                return act;
-            }
+        if (act != null && HostClassNames.simpleNameContains(act.getClass(), "Conversation")) {
+            return act;
         }
         return null;
     }

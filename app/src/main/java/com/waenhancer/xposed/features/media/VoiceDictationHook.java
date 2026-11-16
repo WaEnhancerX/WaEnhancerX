@@ -23,6 +23,7 @@ import androidx.annotation.Nullable;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.utils.ActivityTracker;
 import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.HostClassNames;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
@@ -98,7 +99,7 @@ public final class VoiceDictationHook extends BaseFeature {
     }
 
     private static boolean isConversation(Activity activity) {
-        return activity.getClass().getSimpleName().contains("Conversation");
+        return HostClassNames.simpleNameContains(activity.getClass(), "Conversation");
     }
 
     // ─── Attaching the button ───────────────────────────────────────────

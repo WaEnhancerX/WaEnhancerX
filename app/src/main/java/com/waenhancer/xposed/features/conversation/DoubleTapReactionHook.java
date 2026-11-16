@@ -16,6 +16,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.HostClassNames;
 import com.waenhancer.xposed.utils.HostResourceIds;
 import com.waenhancer.utils.EmojiInputPolicy;
 import com.waenhancer.xposed.utils.ActivityTracker;
@@ -214,9 +215,9 @@ public class DoubleTapReactionHook extends BaseFeature {
      */
     private static boolean isConversationList(ListView listView) {
         Activity tracked = ActivityTracker.getCurrentActivity();
-        if (tracked != null && tracked.getClass().getSimpleName().contains("Conversation")) return true;
+        if (tracked != null && HostClassNames.simpleNameContains(tracked.getClass(), "Conversation")) return true;
         Context host = listView.getContext();
-        return host instanceof Activity && host.getClass().getSimpleName().contains("Conversation");
+        return host instanceof Activity && HostClassNames.simpleNameContains(host.getClass(), "Conversation");
     }
 
     private void bindDoubleTapListener(final ViewGroup row) {

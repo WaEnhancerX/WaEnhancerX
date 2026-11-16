@@ -25,6 +25,17 @@ abstract class BaseFeature(
         // Existing and future features therefore participate in lifecycle tracking automatically.
         @JvmField val XposedBridge = HookRegistrar.BRIDGE
         @JvmField val XposedHelpers = HookRegistrar.HELPERS
+
+        // Preference lookups run inside hot hooks (every SQLite call, every view bind). Building
+        // "<package>:<key>" on each miss allocated a string per call. A process hosts one target
+        // package, so the scoped key for a given key never changes.
+        private val scopedKeys = ConcurrentHashMap<String, String>()
+    }
+
+    private fun scopedKey(key: String): String? {
+        val pkg = context.packageName
+        if (pkg.isNullOrEmpty()) return null
+        return scopedKeys.getOrPut(key) { "$pkg:$key" }
     }
 
     fun beginHookTracking() = HookRegistrar.begin(this)
@@ -63,9 +74,9 @@ abstract class BaseFeature(
             return prefs.getBoolean(key, def)
         }
         // 2. Target package scoped key (Per Target App mode: "<package>:key" for this process only)
-        val pkg = context.packageName
-        if (!pkg.isNullOrEmpty() && prefs.contains("$pkg:$key")) {
-            return prefs.getBoolean("$pkg:$key", def)
+        val scoped = scopedKey(key)
+        if (scoped != null && prefs.contains(scoped)) {
+            return prefs.getBoolean(scoped, def)
         }
         // Never consult another target's scoped key: it would apply WA Business settings to
         // WhatsApp (or the reverse), and stale per-target keys must not leak into Universal mode.
@@ -76,9 +87,9 @@ abstract class BaseFeature(
         if (prefs.contains(key)) {
             return prefs.getString(key, def)
         }
-        val pkg = context.packageName
-        if (!pkg.isNullOrEmpty() && prefs.contains("$pkg:$key")) {
-            return prefs.getString("$pkg:$key", def)
+        val scoped = scopedKey(key)
+        if (scoped != null && prefs.contains(scoped)) {
+            return prefs.getString(scoped, def)
         }
         return def
     }

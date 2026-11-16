@@ -535,12 +535,13 @@ public class MessageDeviceSourceHook extends BaseFeature {
         XC_MethodHook setTextHook = new XC_MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
-                if (!conversationActive || !isEnabled(PREF_KEY, false)) return;
+                if (!conversationActive) return;
                 if (!(param.thisObject instanceof TextView)) return;
                 TextView textView = (TextView) param.thisObject;
 
+                // Almost no TextView carries the tag: test it before the preference lookup.
                 Object tag = textView.getTag(R.id.wae_device_source_tag);
-                if (tag == null) return;
+                if (tag == null || !isEnabled(PREF_KEY, false)) return;
 
                 Object suffixObj = XposedHelpers.getAdditionalInstanceField(textView, FIELD_DEVICE_SUFFIX);
                 if (!(suffixObj instanceof String) || ((String) suffixObj).isEmpty()) return;

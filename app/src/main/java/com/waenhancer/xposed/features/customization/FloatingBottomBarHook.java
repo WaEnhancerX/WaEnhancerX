@@ -62,11 +62,14 @@ import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Floating Bottom Bar Hook:
@@ -95,6 +98,10 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
     private static final WeakHashMap<View, Boolean> mainScrollableCache = new WeakHashMap<>();
     private static final WeakHashMap<View, ContentPadding> contentPaddingCache = new WeakHashMap<>();
     private static final WeakHashMap<Activity, Float> scrollGestureY = new WeakHashMap<>();
+    /** The located bar per Home activity, so touch moves do not re-search the whole view tree. */
+    private static final WeakHashMap<Activity, WeakReference<View>> gestureBottomNav = new WeakHashMap<>();
+    /** {@link #isScrollableClass} depends only on the class; it runs for every attached view. */
+    private static final Map<Class<?>, Boolean> scrollableClassCache = new ConcurrentHashMap<>();
     private static final WeakHashMap<ViewGroup, ViewTreeObserver.OnPreDrawListener> indicatorGuards = new WeakHashMap<>();
     private static final WeakHashMap<ViewGroup, ViewTreeObserver.OnPreDrawListener> ovalGeometryGuards = new WeakHashMap<>();
     private static final WeakHashMap<ViewGroup, ViewTreeObserver.OnPreDrawListener> selectorColorGuards = new WeakHashMap<>();
@@ -299,6 +306,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
     @Override
     public void onScreenDisposed(@NonNull Activity activity) {
         scrollGestureY.remove(activity);
+        gestureBottomNav.remove(activity);
         View decor = activity.getWindow().getDecorView();
         if (!(decor instanceof ViewGroup)) return;
         clearViewState((ViewGroup) decor);
@@ -365,9 +373,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                             float threshold = 8f * activity.getResources().getDisplayMetrics().density;
                             if (Math.abs(delta) < threshold) return;
 
-                            View decor = activity.getWindow().getDecorView();
-                            View bottomNav = decor instanceof ViewGroup
-                                    ? findBottomNavInRoot((ViewGroup) decor) : null;
+                            View bottomNav = findGestureBottomNav(activity);
                             if (bottomNav != null) onViewScrolled(bottomNav, delta > 0 ? 10 : -10);
                             scrollGestureY.put(activity, currentY);
                         }
@@ -375,6 +381,19 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Failed to hook touch scroll fallback: " + t);
         }
+    }
+
+    /** Returns the activity's bottom bar, searching the view tree only when the cached one is gone. */
+    private static View findGestureBottomNav(Activity activity) {
+        WeakReference<View> cachedRef = gestureBottomNav.get(activity);
+        View cached = cachedRef != null ? cachedRef.get() : null;
+        if (cached != null && cached.isAttachedToWindow()) return cached;
+
+        View decor = activity.getWindow().getDecorView();
+        View found = decor instanceof ViewGroup ? findBottomNavInRoot((ViewGroup) decor) : null;
+        if (found != null) gestureBottomNav.put(activity, new WeakReference<>(found));
+        else gestureBottomNav.remove(activity);
+        return found;
     }
 
     private Class<?> resolveHomeActivityClass() {
@@ -2063,6 +2082,15 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
     }
 
     private static boolean isScrollableClass(Class<?> clazz) {
+        if (clazz == null) return false;
+        Boolean cached = scrollableClassCache.get(clazz);
+        if (cached != null) return cached;
+        boolean scrollable = computeScrollableClass(clazz);
+        scrollableClassCache.put(clazz, scrollable);
+        return scrollable;
+    }
+
+    private static boolean computeScrollableClass(Class<?> clazz) {
         while (clazz != null && clazz != Object.class) {
             String name = clazz.getName();
             if (name.equals("androidx.recyclerview.widget.RecyclerView") ||

@@ -72,7 +72,9 @@ public class HideChatsVaultHook extends BaseFeature {
         XposedBridge.hookAllMethods(View.class, "onAttachedToWindow", new XC_MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
-                if (isHideChatsEnabled() && param.thisObject instanceof View) {
+                // Test the view first: this runs for every attached view, and only one matches.
+                if (param.thisObject instanceof View && isLockedHeader((View) param.thisObject)
+                        && isHideChatsEnabled()) {
                     hideIfLockedHeader((View) param.thisObject);
                 }
             }
@@ -83,9 +85,10 @@ public class HideChatsVaultHook extends BaseFeature {
         XposedBridge.hookAllMethods(View.class, "setVisibility", new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
-                if (isHideChatsEnabled()
-                        && param.thisObject instanceof View
-                        && isLockedHeader((View) param.thisObject)) {
+                // setVisibility is among the hottest View methods: cheap id test before the pref.
+                if (param.thisObject instanceof View
+                        && isLockedHeader((View) param.thisObject)
+                        && isHideChatsEnabled()) {
                     param.args[0] = View.GONE;
                 }
             }
@@ -94,10 +97,11 @@ public class HideChatsVaultHook extends BaseFeature {
         XposedBridge.hookAllMethods(LinearLayout.class, "onMeasure", new XC_MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
-                if (!isHideChatsEnabled() || !(param.thisObject instanceof LinearLayout)) return;
+                if (!(param.thisObject instanceof LinearLayout)) return;
 
                 LinearLayout layout = (LinearLayout) param.thisObject;
-                if (!hasResourceName(layout, HEADER_COMBO_ID)) return;
+                // onMeasure runs on every layout pass: id test first, preference only on a match.
+                if (!hasResourceName(layout, HEADER_COMBO_ID) || !isHideChatsEnabled()) return;
 
                 int remainingHeight = 0;
                 for (int i = 0; i < layout.getChildCount(); i++) {

@@ -32,6 +32,7 @@ import androidx.annotation.Nullable;
 
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.HostClassNames;
 import com.waenhancer.xposed.utils.HostResourceIds;
 import com.waenhancer.xposed.core.db.DelMessageStore;
 import com.waenhancer.xposed.features.conversation.PreserveDeleteForMeHook;
@@ -559,9 +560,9 @@ public class AntiRevokeHook extends BaseFeature {
                 @Override
                 protected void beforeHookedMethod(MethodHookParam param) {
                     sanitizePreservedOwnRowId(param);
-                    if (!isAntiRevokeEnabled() && !isPreserveOwnRevokeEnabled()) return;
                     String table = (String) param.args[0];
                     if (!"message".equals(table) && !"messages".equals(table)) return;
+                    if (!isAntiRevokeEnabled() && !isPreserveOwnRevokeEnabled()) return;
 
                     ContentValues cv = (ContentValues) param.args[2];
                     if (cv == null) return;
@@ -615,10 +616,25 @@ public class AntiRevokeHook extends BaseFeature {
         }
     }
 
+    private static final Pattern ROW_ID_WHERE = Pattern.compile("\\s*_id\\s*=\\s*\\?\\s*");
+    private static final Pattern JID_PATTERN = Pattern.compile(
+            "[+0-9A-Za-z._:-]+@(?:s\\.whatsapp\\.net|lid|g\\.us|broadcast)");
+    private static final Pattern TIME_TEXT = Pattern.compile(".*\\d{1,2}:\\d{2}.*");
+    private static final Pattern STATUS_KEY_ID = Pattern.compile("[A-Za-z0-9+/=_-]+");
+
+    /** Case-insensitive substring test that, unlike {@code toLowerCase().contains()}, allocates nothing. */
+    private static boolean containsIgnoreCase(@NonNull String text, @NonNull String needle) {
+        int last = text.length() - needle.length();
+        for (int i = 0; i <= last; i++) {
+            if (text.regionMatches(true, i, needle, 0, needle.length())) return true;
+        }
+        return false;
+    }
+
     /** A bound argument is a row ID only for this exact, single-argument predicate. */
     private boolean isSingleRowIdDelete(@Nullable String where, @Nullable String[] args) {
         return where != null && args != null && args.length == 1 && args[0] != null
-                && where.matches("\\s*_id\\s*=\\s*\\?\\s*");
+                && ROW_ID_WHERE.matcher(where).matches();
     }
 
     /**
@@ -738,9 +754,7 @@ public class AntiRevokeHook extends BaseFeature {
                              @NonNull Set<String> output) {
         if (value == null || depth < 0 || !seen.add(value)) return;
         try {
-            Matcher matcher = Pattern.compile(
-                    "[+0-9A-Za-z._:-]+@(?:s\\.whatsapp\\.net|lid|g\\.us|broadcast)")
-                    .matcher(value.toString());
+            Matcher matcher = JID_PATTERN.matcher(value.toString());
             while (matcher.find()) output.add(matcher.group());
         } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
 
@@ -760,13 +774,16 @@ public class AntiRevokeHook extends BaseFeature {
     }
 
     private void sanitizePreservedOwnRowId(@NonNull XC_MethodHook.MethodHookParam param) {
-        if (!isPreserveOwnRevokeEnabled() || param.args == null || param.args.length < 3) return;
+        // Every SQLite insert in WhatsApp passes through here: reject on the table name first,
+        // before any preference lookup.
+        if (param.args == null || param.args.length < 3) return;
         Object tableArg = param.args[0];
         Object valuesArg = param.args[2];
         if (!(tableArg instanceof String) || !(valuesArg instanceof ContentValues)) return;
 
         String table = (String) tableArg;
         if (!"message".equals(table) && !"messages".equals(table)) return;
+        if (!isPreserveOwnRevokeEnabled()) return;
 
         ContentValues values = (ContentValues) valuesArg;
         // Non-revoke INSERTs may reuse an explicit row ID. Never consume their
@@ -845,7 +862,7 @@ public class AntiRevokeHook extends BaseFeature {
             XposedBridge.hookAllMethods(recyclerView, "setAdapter", new XC_MethodHook() {
                         @Override protected void beforeHookedMethod(MethodHookParam param) {
                             Activity activity = ActivityTracker.getCurrentActivity();
-                            if (activity == null || !activity.getClass().getSimpleName().contains("Conversation")) return;
+                            if (activity == null || !HostClassNames.simpleNameContains(activity.getClass(), "Conversation")) return;
                             Object adapter = param.args[0];
                             if (adapter == null) return;
                             hookRecyclerBind(adapter);
@@ -869,7 +886,7 @@ public class AntiRevokeHook extends BaseFeature {
                 XposedBridge.hookAllMethods(adapterClass, "onBindViewHolder", new XC_MethodHook() {
                     @Override protected void beforeHookedMethod(MethodHookParam param) {
                         Activity activity = ActivityTracker.getCurrentActivity();
-                        if (activity == null || !activity.getClass().getSimpleName().contains("Conversation")) return;
+                        if (activity == null || !HostClassNames.simpleNameContains(activity.getClass(), "Conversation")) return;
                         if (param.thisObject != null) hookRecyclerBind(param.thisObject);
                     }
                 });
@@ -884,7 +901,7 @@ public class AntiRevokeHook extends BaseFeature {
                 protected void beforeHookedMethod(MethodHookParam param) {
                     Activity currentActivity = ActivityTracker.getCurrentActivity();
                     if (currentActivity == null
-                            || !currentActivity.getClass().getSimpleName().contains("Conversation")) return;
+                            || !HostClassNames.simpleNameContains(currentActivity.getClass(), "Conversation")) return;
 
                     ListView listView = (ListView) param.thisObject;
                     if (listView == null) return;
@@ -1081,7 +1098,7 @@ public class AntiRevokeHook extends BaseFeature {
                         @Override protected void afterHookedMethod(MethodHookParam hook) {
                             if (!isAntiRevokeEnabled() && !isPreserveOwnRevokeEnabled()) return;
                             Activity activity = ActivityTracker.getCurrentActivity();
-                            if (activity == null || !activity.getClass().getSimpleName().contains("Conversation")) return;
+                            if (activity == null || !HostClassNames.simpleNameContains(activity.getClass(), "Conversation")) return;
                             if (hook.args == null || hook.args.length < 1) return;
                             Object holder = hook.args[0];
                             View itemView = null;
@@ -1414,8 +1431,7 @@ public class AntiRevokeHook extends BaseFeature {
                     try {
                         String sql = (String) param.args[0];
                         if (sql == null) return;
-                        String sqlLower = sql.toLowerCase();
-                        if (!sqlLower.contains("status")) return;
+                        if (!containsIgnoreCase(sql, "status")) return;
 
                         Cursor cursor = (Cursor) param.getResult();
                         if (cursor == null || cursor.getCount() == 0) return;
@@ -1447,7 +1463,6 @@ public class AntiRevokeHook extends BaseFeature {
         }
     }
 
-    /** Hook callback for DexKit-found method and named lifecycle hooks. */
     /** Hook callback for DexKit-found method and named lifecycle hooks. */
     private XC_MethodHook buildStatusPageHook(String tag) {
         return buildStatusPageHook(tag, null, null);
@@ -1864,7 +1879,7 @@ public class AntiRevokeHook extends BaseFeature {
 
     private boolean looksLikeTimeString(String text) {
         if (text == null || text.length() < 4 || text.length() > 20) return false;
-        return text.matches(".*\\d{1,2}:\\d{2}.*") // e.g. "10:30 AM", "22:15"
+        return TIME_TEXT.matcher(text).matches() // e.g. "10:30 AM", "22:15"
                 || text.equalsIgnoreCase("just now")
                 || text.equalsIgnoreCase("now");
     }
@@ -2008,7 +2023,7 @@ public class AntiRevokeHook extends BaseFeature {
                 || str.contains(" ") || str.contains(":") || str.contains("\\")) return false;
         if (str.startsWith("com.") || str.startsWith("android") || str.startsWith("java.")) return false;
         // Must be base64/hex/numeric-like: letters, digits, +, /, =, -, _
-        return str.matches("[A-Za-z0-9+/=_-]+");
+        return STATUS_KEY_ID.matcher(str).matches();
     }
 
     @Nullable

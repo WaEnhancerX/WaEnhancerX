@@ -29,6 +29,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.HostClassNames;
 import com.waenhancer.xposed.utils.HostResourceIds;
 import com.waenhancer.xposed.core.components.WaexBottomSheet;
 import com.waenhancer.xposed.utils.ActivityTracker;
@@ -126,7 +127,7 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
 
     private void onSetAdapter(ListView listView, @Nullable ListAdapter adapter) {
         Activity activity = ActivityTracker.getCurrentActivity();
-        if (activity == null || !activity.getClass().getSimpleName().contains("Conversation")) return;
+        if (activity == null || !HostClassNames.simpleNameContains(activity.getClass(), "Conversation")) return;
         if (adapter instanceof HeaderViewListAdapter) {
             adapter = ((HeaderViewListAdapter) adapter).getWrappedAdapter();
         }

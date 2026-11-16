@@ -14,6 +14,7 @@ import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.xposed.utils.ActivityTracker;
 import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.HostClassNames;
 import de.robv.android.xposed.XC_MethodHook;
 import java.util.ArrayDeque;
 import java.util.Locale;
@@ -70,7 +71,7 @@ public class ChatListCustomizationsHook extends BaseFeature {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
                     Activity activity = ActivityTracker.getCurrentActivity();
-                    if (activity == null || !activity.getClass().getSimpleName().contains("Home")) return;
+                    if (activity == null || !HostClassNames.simpleNameContains(activity.getClass(), "Home")) return;
                     View view = (View) param.thisObject;
                     if (shouldRemoveView(view)) removeView(view);
                 }
