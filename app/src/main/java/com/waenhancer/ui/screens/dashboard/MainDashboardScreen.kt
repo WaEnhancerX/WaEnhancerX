@@ -1,5 +1,7 @@
 package com.waenhancer.ui.screens.dashboard
 
+import com.waenhancer.ui.components.WaexSheetTitle
+
 import com.waenhancer.ui.components.WaexSheetHorizontalMargin
 import com.waenhancer.utils.UiText
 import com.waenhancer.utils.InternalLabels
@@ -971,12 +973,7 @@ private fun TargetCompatibilityBottomSheet(
         ) {
             // Header
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = stringResource(R.string.diag_target_sheet_title),
-                    style = typography.titleMd,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurface
-                )
+                WaexSheetTitle(stringResource(R.string.diag_target_sheet_title))
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = stringResource(R.string.diag_target_sheet_desc),
@@ -1256,12 +1253,7 @@ private fun DiagnosticsDetailsSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = title,
-                        style = typography.titleLg,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.onSurface
-                    )
+                    WaexSheetTitle(title)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = description,
@@ -1456,7 +1448,7 @@ private fun DiagnosticsTargetCard(
                     enabled = !isFixing,
                     shape = radius.smShape,
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.error, contentColor = Color.White),
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.error, contentColor = colors.onError),
                     modifier = Modifier.height(34.dp)
                 ) {
                     Text(
@@ -1563,7 +1555,7 @@ private fun DenylistDetailsBottomSheet(
                     onClick = { confirmFixAll = true },
                     enabled = !isFixing,
                     shape = radius.smShape,
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.error, contentColor = Color.White),
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.error, contentColor = colors.onError),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                     modifier = Modifier.height(34.dp)
                 ) {

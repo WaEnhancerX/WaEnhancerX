@@ -1,5 +1,7 @@
 package com.waenhancer.ui.screens.settings
 
+import com.waenhancer.ui.components.WaexSheetTitle
+
 import com.waenhancer.ui.components.WaexSheetHorizontalMargin
 import com.waenhancer.app.R
 import com.waenhancer.utils.UiText
@@ -1076,12 +1078,7 @@ private fun SliderItem(
                     .padding(bottom = 28.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    text = label,
-                    style = typography.bodyLg,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurface
-                )
+                WaexSheetTitle(label)
                 OutlinedTextField(
                     value = inputValue,
                     onValueChange = {

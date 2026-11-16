@@ -1,5 +1,7 @@
 package com.waenhancer.ui.screens.settings
 
+import com.waenhancer.ui.components.WaexSheetTitle
+
 import com.waenhancer.ui.components.WaexSheetHorizontalMargin
 import com.waenhancer.utils.UiText
 
@@ -913,7 +915,7 @@ private fun TextValueEditorDialog(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            WaexSheetTitle(title)
             Text(description, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
             OutlinedTextField(
                 value = value,
