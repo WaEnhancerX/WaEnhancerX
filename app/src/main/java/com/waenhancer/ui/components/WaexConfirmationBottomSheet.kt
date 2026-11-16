@@ -64,7 +64,7 @@ fun WaexConfirmationBottomSheet(
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(title, style = typography.headlineMd, fontWeight = FontWeight.Bold, color = colors.onSurface)
+                WaexSheetTitle(title)
                 Text(message, style = typography.bodyMd, color = colors.onSurfaceVariant)
                 supportingContent?.invoke()
                 Spacer(Modifier.height(4.dp))
@@ -73,7 +73,8 @@ fun WaexConfirmationBottomSheet(
                     onClick = onConfirm,
                     enabled = confirmEnabled,
                     containerColor = actionColor,
-                    contentColor = if (destructive) Color.White else if (colors.isLight) Color.White else Color(0xFF0A1014),
+                    // Red buttons use the theme's onError: white in light mode, near-black in dark mode.
+                    contentColor = if (destructive) colors.onError else if (colors.isLight) Color.White else Color(0xFF0A1014),
                     content = confirmContent
                 )
                 WaexSheetTextButton(

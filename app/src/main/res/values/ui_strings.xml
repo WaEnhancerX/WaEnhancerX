@@ -771,6 +771,46 @@
     <string name="waex_ui_unlinking_device" formatted="false">"Unlinking Device…"</string>
     <string name="waex_ui_unlock_all_premium_pro_capabilities" formatted="false">"Unlock all premium Pro capabilities"</string>
     <string name="waex_ui_unsupported" formatted="false">"Unsupported"</string>
+    <string name="waex_ui_last_supported_version" formatted="false">"Last supported version"</string>
+    <string name="waex_ui_get_this_version" formatted="false">"Get this version"</string>
+    <string name="waex_ui_get_supported_version_title" formatted="false">"Get WhatsApp %1$s"</string>
+    <string name="waex_ui_get_supported_version_notice" formatted="false">"Download the APK from a source you trust, then install it from storage with root. WAEX strictly checks the signing certificate and installs only official WhatsApp files; any modified or repacked APK is rejected. The newest supported version is suggested, but you can install any version inside a supported range such as %1$s. Installing outside Google Play can put your phone number at risk of suspension, so prefer official updates when you can. Back up your chats first, because moving to an older version replaces the installed app."</string>
+    <string name="waex_ui_continue_to_browser" formatted="false">"Continue in browser"</string>
+    <string name="waex_ui_install_storage_title" formatted="false">"Install from storage"</string>
+    <string name="waex_ui_install_storage_official_title" formatted="false">"Official WhatsApp files only"</string>
+    <string name="waex_ui_install_storage_official_body" formatted="false">"WAEX strictly checks the signature of every file before installing. Only an official, unmodified WhatsApp file signed by WhatsApp is installed. Any modified, patched, cloned or repacked APK is rejected."</string>
+    <string name="waex_ui_install_storage_target" formatted="false">"TARGET APP"</string>
+    <string name="waex_ui_install_storage_ranges" formatted="false">"ACCEPTED VERSION RANGES"</string>
+    <string name="waex_ui_install_storage_steps_title" formatted="false">"HOW IT WORKS"</string>
+    <string name="waex_ui_install_storage_step1" formatted="false">"Download the APK, APKM or XAPK in your browser from a source you trust."</string>
+    <string name="waex_ui_install_storage_step2" formatted="false">"Choose the file here."</string>
+    <string name="waex_ui_install_storage_step3" formatted="false">"WAEX verifies the package, the version range and WhatsApp's signature."</string>
+    <string name="waex_ui_install_storage_step4" formatted="false">"If everything matches, it installs with root. Upgrading and downgrading both work."</string>
+    <string name="waex_ui_install_storage_choose" formatted="false">"Choose APK, APKM or XAPK"</string>
+    <string name="waex_ui_install_storage_choose_another" formatted="false">"Choose another file"</string>
+    <string name="waex_ui_install_downloaded_apk" formatted="false">"Install from storage"</string>
+    <string name="waex_ui_verify_apk_title" formatted="false">"Verify APK"</string>
+    <string name="waex_ui_verifying_apk" formatted="false">"Verifying APK…"</string>
+    <string name="waex_ui_verify_check_package" formatted="false">"Package"</string>
+    <string name="waex_ui_verify_check_package_ok" formatted="false">"%1$s"</string>
+    <string name="waex_ui_verify_check_package_bad" formatted="false">"This file is for a different app (%2$s)"</string>
+    <string name="waex_ui_verify_check_version" formatted="false">"Version"</string>
+    <string name="waex_ui_verify_check_version_ok" formatted="false">"%1$s is inside the supported range %2$s"</string>
+    <string name="waex_ui_verify_check_version_bad" formatted="false">"%1$s is outside every supported range"</string>
+    <string name="waex_ui_verify_check_splits" formatted="false">"Split APKs"</string>
+    <string name="waex_ui_verify_check_splits_ok" formatted="false">"%1$s included, same package and signer"</string>
+    <string name="waex_ui_verify_check_splits_bad" formatted="false">"A split APK has the wrong package or signer"</string>
+    <string name="waex_ui_verify_check_signature" formatted="false">"Signature"</string>
+    <string name="waex_ui_verify_check_signature_ok" formatted="false">"Signed by WhatsApp"</string>
+    <string name="waex_ui_verify_check_signature_bad" formatted="false">"This file is not signed by WhatsApp. It may have been modified or repacked."</string>
+    <string name="waex_ui_verify_passed_hint" formatted="false">"All checks passed. WAEX will install this file with root."</string>
+    <string name="waex_ui_verify_failed_hint" formatted="false">"Rejected: this file failed verification and will not be installed. WAEX only installs official WhatsApp files."</string>
+    <string name="waex_ui_verify_read_failed" formatted="false">"Could not read this file. Pick a WhatsApp .apk, .apkm or .xapk file."</string>
+    <string name="waex_ui_verify_install_root" formatted="false">"Install with root"</string>
+    <string name="waex_ui_verify_installing" formatted="false">"Installing…"</string>
+    <string name="waex_ui_verify_close" formatted="false">"Close"</string>
+    <string name="waex_ui_verify_install_ok" formatted="false">"Installed WhatsApp %1$s"</string>
+    <string name="waex_ui_verify_install_failed" formatted="false">"Install failed: %1$s"</string>
     <string name="waex_ui_chip_add_support" formatted="false">"Add support"</string>
     <string name="waex_ui_hooks_paused_short" formatted="false">"Hooks paused"</string>
     <string name="waex_ui_hooks_not_reported_short" formatted="false">"Hooks not reported yet"</string>

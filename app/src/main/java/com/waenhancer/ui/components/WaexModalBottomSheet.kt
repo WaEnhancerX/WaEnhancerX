@@ -66,6 +66,25 @@ fun WaexModalBottomSheet(
     )
 }
 
+/**
+ * The one title style for every bottom sheet: `headlineMd`, bold. Use this instead of styling a
+ * sheet heading by hand so sheet titles cannot drift in size.
+ */
+@Composable
+fun WaexSheetTitle(
+    text: String,
+    modifier: Modifier = Modifier,
+    color: Color = WaexTheme.colors.onSurface
+) {
+    Text(
+        text = text,
+        modifier = modifier,
+        style = WaexTheme.typography.headlineMd,
+        fontWeight = FontWeight.Bold,
+        color = color
+    )
+}
+
 /** Full-width pill action: 40 dp tall, bold label, no outline. */
 @Composable
 fun WaexSheetPrimaryButton(

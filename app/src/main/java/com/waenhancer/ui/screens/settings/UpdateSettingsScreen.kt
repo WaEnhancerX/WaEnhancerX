@@ -1,5 +1,7 @@
 package com.waenhancer.ui.screens.settings
 
+import com.waenhancer.ui.components.WaexSheetTitle
+
 import com.waenhancer.app.R
 import com.waenhancer.utils.UiText
 
@@ -295,12 +297,9 @@ fun UpdateSettingsScreen() {
                     .padding(horizontal = 24.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(
+                WaexSheetTitle(
                     text = if (isFrequency) UiText.get(R.string.waex_ui_check_frequency, "Check frequency")
-                    else UiText.get(R.string.waex_ui_after_ignoring_an_update, "After ignoring an update"),
-                    style = typography.titleLg,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurface
+                    else UiText.get(R.string.waex_ui_after_ignoring_an_update, "After ignoring an update")
                 )
                 options.forEach { option ->
                     val selected = selectedValue == option.first

@@ -1,6 +1,9 @@
 package com.waenhancer.ui.screens.settings
 
 import com.waenhancer.ui.components.WaexSheetHorizontalMargin
+import com.waenhancer.ui.components.WaexConfirmationBottomSheet
+import com.waenhancer.ui.components.WaexSheetTextButton
+import com.waenhancer.ui.components.WaexSheetTitle
 import com.waenhancer.app.R
 import com.waenhancer.utils.UiText
 
@@ -29,6 +32,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import com.waenhancer.ui.components.TargetAppIcon
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Delete
@@ -65,9 +69,17 @@ import com.waenhancer.ui.components.StitchSwitch
 import com.waenhancer.ui.components.WaexTopBar
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
+import com.waenhancer.ui.navigation.Screen
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
 import com.waenhancer.utils.TargetAppManager
 import com.waenhancer.utils.UniversalVersionValidator
+import com.waenhancer.utils.SupportedVersionSuggester
+import com.waenhancer.utils.VersionSuggestion
+import com.waenhancer.update.AptoideVersionRepository
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.text.style.TextAlign
@@ -130,6 +142,22 @@ fun SupportedVersionsScreen() {
 
     var showSelectAppDialog by remember { mutableStateOf(false) }
 
+    // Suggested supported version per unsupported WhatsApp target. The newest built-in rule is
+    // shown right away, then replaced by a concrete build once the version list has loaded.
+    val suggestions = remember { mutableStateMapOf<String, VersionSuggestion>() }
+    var pendingSuggestionPackage by remember { mutableStateOf<String?>(null) }
+    val suggestionTargets = unsupportedApps
+        .map { it.packageName }
+        .filter(SupportedVersionSuggester::isSuggestionTarget)
+    LaunchedEffect(suggestionTargets) {
+        val rules = UniversalVersionValidator.getBuiltinSupportedVersions(context)
+        suggestionTargets.forEach { pkg ->
+            SupportedVersionSuggester.suggest(emptyList(), rules)?.let { suggestions[pkg] = it }
+            val names = AptoideVersionRepository.fetchVersionNames(context, pkg)
+            SupportedVersionSuggester.suggest(names, rules)?.let { suggestions[pkg] = it }
+        }
+    }
+
     Scaffold(
         topBar = {
             WaexTopBar(
@@ -169,6 +197,8 @@ fun SupportedVersionsScreen() {
                             packageName = app.packageName,
                             versionName = if (app.isInstalled) cleanVer else null,
                             decision = decision,
+                            suggestion = suggestions[app.packageName],
+                            onGetSuggestedVersionClick = { pendingSuggestionPackage = app.packageName },
                             onAddCurrentClick = {
                                 if (app.isInstalled) {
                                     val wildcardRule = UniversalVersionValidator.toWildcard(cleanVer)
@@ -384,6 +414,51 @@ fun SupportedVersionsScreen() {
         }
     }
 
+    // Risk notice shown before the browser opens the suggested version's download search.
+    val pendingPackage = pendingSuggestionPackage
+    val pendingSuggestion = pendingPackage?.let { suggestions[it] }
+    if (pendingPackage != null && pendingSuggestion != null) {
+        // The shared confirmation sheet keeps title and button sizes identical to every other sheet.
+        WaexConfirmationBottomSheet(
+            title = UiText.get(R.string.waex_ui_get_supported_version_title, "Get WhatsApp %1\$s", pendingSuggestion.version),
+            message = UiText.get(
+                R.string.waex_ui_get_supported_version_notice,
+                "Download the APK from a source you trust, then install it from storage with root. WAEX strictly checks the signing certificate and installs only official WhatsApp files; any modified or repacked APK is rejected. The newest supported version is suggested, but you can install any version inside a supported range such as %1\$s. Installing outside Google Play can put your phone number at risk of suspension, so prefer official updates when you can. Back up your chats first, because moving to an older version replaces the installed app.",
+                pendingSuggestion.version.let { v -> if (pendingSuggestion.isExact) UniversalVersionValidator.toWildcard(v) else v }
+            ),
+            supportingContent = {
+                WaexSheetTextButton(
+                    text = UiText.get(R.string.waex_ui_install_downloaded_apk, "Install from storage"),
+                    onClick = {
+                        pendingSuggestionPackage = null
+                        navController.navigateTo(Screen.InstallFromStorage(pendingPackage))
+                    }
+                )
+            },
+            confirmLabel = UiText.get(R.string.waex_ui_continue_to_browser, "Continue in browser"),
+            onConfirm = {
+                val url = SupportedVersionSuggester.downloadSearchUrl(pendingPackage, pendingSuggestion.version)
+                pendingSuggestionPackage = null
+                runCatching {
+                    context.startActivity(
+                        Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                }
+            },
+            confirmContent = {
+                Text(UiText.get(R.string.waex_ui_continue_to_browser, "Continue in browser"), fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.width(8.dp))
+                // Signals that the link leaves the app. Tint follows the button's content colour.
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.OpenInNew,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+            },
+            onDismiss = { pendingSuggestionPackage = null }
+        )
+    }
+
     // App Selection Sheet for Adding Version Rule
     if (showSelectAppDialog) {
         WaexModalBottomSheet(
@@ -400,12 +475,7 @@ fun SupportedVersionsScreen() {
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = UiText.get(R.string.waex_ui_select_unsupported_app, "Select Unsupported App"),
-                    style = typography.headlineMd,
-                    color = colors.onSurface,
-                    fontWeight = FontWeight.Bold
-                )
+                WaexSheetTitle(UiText.get(R.string.waex_ui_select_unsupported_app, "Select Unsupported App"))
                 Text(
                     text = UiText.get(R.string.waex_ui_select_an_installed_app_to_automatical, "Select an installed app to automatically generate and register its universal version rule:"),
                     style = typography.labelSm,
@@ -468,13 +538,10 @@ fun SupportedVersionsScreen() {
                         }
                 }
 
-                OutlinedButton(
-                    onClick = { showSelectAppDialog = false },
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = radius.buttonShape
-                ) {
-                    Text(UiText.get(R.string.action_cancel, "Cancel"))
-                }
+                WaexSheetTextButton(
+                    text = UiText.get(R.string.action_cancel, "Cancel"),
+                    onClick = { showSelectAppDialog = false }
+                )
             }
         }
     }
@@ -486,6 +553,8 @@ private fun AppVersionStatusCard(
     packageName: String,
     versionName: String?,
     decision: UniversalVersionValidator.Decision,
+    suggestion: VersionSuggestion?,
+    onGetSuggestedVersionClick: () -> Unit,
     onAddCurrentClick: () -> Unit
 ) {
     val colors = WaexTheme.colors
@@ -602,6 +671,48 @@ private fun AppVersionStatusCard(
                         style = typography.labelSm,
                         fontWeight = FontWeight.Bold
                     )
+                }
+
+                // Suggestion: the newest supported version, only for official WhatsApp packages.
+                if (suggestion != null && SupportedVersionSuggester.isSuggestionTarget(packageName)) {
+                    Surface(
+                        shape = radius.smShape,
+                        color = colors.surface,
+                        border = BorderStroke(1.dp, colors.outlineVariant),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                Text(
+                                    text = UiText.get(R.string.waex_ui_last_supported_version, "Last supported version"),
+                                    style = typography.labelSm,
+                                    color = colors.onSurfaceVariant
+                                )
+                                Text(
+                                    text = suggestion.version,
+                                    style = typography.bodyMd,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.onSurface
+                                )
+                            }
+                            OutlinedButton(
+                                onClick = onGetSuggestedVersionClick,
+                                shape = radius.smShape,
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.height(36.dp)
+                            ) {
+                                Text(
+                                    text = UiText.get(R.string.waex_ui_get_this_version, "Get this version"),
+                                    style = typography.labelSm,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

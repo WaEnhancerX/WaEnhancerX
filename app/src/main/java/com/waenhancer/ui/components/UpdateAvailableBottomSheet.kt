@@ -114,12 +114,7 @@ fun UpdateAvailableBottomSheet(
                 }
                 Spacer(modifier = Modifier.size(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = UiText.get(R.string.waex_ui_update_available, "Update Available"),
-                        style = typography.titleLg,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.onSurface
-                    )
+                    WaexSheetTitle(UiText.get(R.string.waex_ui_update_available, "Update Available"))
                     Text(
                         text = UiText.get(R.string.waex_ui_version_1_s, "Version %1\$s", release.version),
                         style = typography.bodyMd,

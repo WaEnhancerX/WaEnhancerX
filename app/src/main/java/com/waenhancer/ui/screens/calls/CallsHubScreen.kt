@@ -1,5 +1,7 @@
 package com.waenhancer.ui.screens.calls
 
+import com.waenhancer.ui.components.WaexSheetTitle
+
 import com.waenhancer.ui.components.WaexSheetHorizontalMargin
 import com.waenhancer.utils.UiText
 
@@ -1387,11 +1389,8 @@ fun CallsHubScreen() {
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(
+                WaexSheetTitle(
                     text = UiText.get(R.string.waex_ui_who_can_call_me, "Who Can Call Me"),
-                    style = typography.titleMd,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurface,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
 
@@ -1481,11 +1480,8 @@ fun CallsHubScreen() {
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(
+                WaexSheetTitle(
                     text = "Call Rejection Type",
-                    style = typography.titleMd,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurface,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
 

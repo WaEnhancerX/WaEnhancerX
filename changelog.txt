@@ -3,7 +3,8 @@
 - Report Issue Feature: Report issues and suggest features within app
 - Added option to show/hide message notifications for locked chats
 - Added Native Floating Navigation: turn on WhatsApp's own floating bottom bar, with optional background and selection colors
-- Added a loading progress notification while features are prepared after a WhatsApp or module update
+- Supported Versions now suggests the last supported WhatsApp version when your installed one is unsupported, with a link to find it
+- Install a downloaded WhatsApp APK, APKM or XAPK from storage with root (upgrade or downgrade): WAEX checks the package, the supported version range and WhatsApp's signature before installing, and rejects modified or repacked files
 
 [Fixes]
 - Fixed Floating bottom menu scroll hide

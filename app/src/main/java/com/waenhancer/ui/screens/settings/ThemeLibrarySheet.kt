@@ -1,5 +1,7 @@
 package com.waenhancer.ui.screens.settings
 
+import com.waenhancer.ui.components.WaexSheetTitle
+
 import com.waenhancer.ui.components.WaexSheetHorizontalMargin
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -97,11 +99,7 @@ internal fun ThemeLibrarySheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                UiText.get(R.string.waex_ui_theme_library, "Theme library"),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
+            WaexSheetTitle(UiText.get(R.string.waex_ui_theme_library, "Theme library"))
             Text(
                 UiText.get(
                     R.string.waex_ui_theme_library_desc,

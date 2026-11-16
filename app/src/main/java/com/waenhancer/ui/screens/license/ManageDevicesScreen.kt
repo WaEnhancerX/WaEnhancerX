@@ -1,5 +1,7 @@
 package com.waenhancer.ui.screens.license
 
+import com.waenhancer.ui.components.WaexSheetTitle
+
 import com.waenhancer.app.R
 import com.waenhancer.utils.UiText
 
@@ -573,11 +575,8 @@ fun ManageDevicesScreen() {
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Text(
-                            text = if (isCurrent) UiText.get(R.string.waex_ui_unlink_this_device, "Unlink This Device?") else UiText.get(R.string.waex_ui_unlink_connected_device, "Unlink Connected Device?"),
-                            style = typography.titleMd,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.onSurface
+                        WaexSheetTitle(
+                            text = if (isCurrent) UiText.get(R.string.waex_ui_unlink_this_device, "Unlink This Device?") else UiText.get(R.string.waex_ui_unlink_connected_device, "Unlink Connected Device?")
                         )
                         Text(
                             text = if (isCurrent)

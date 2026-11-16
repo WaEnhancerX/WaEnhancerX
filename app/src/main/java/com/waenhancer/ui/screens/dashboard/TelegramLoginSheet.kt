@@ -1,5 +1,7 @@
 package com.waenhancer.ui.screens.dashboard
 
+import com.waenhancer.ui.components.WaexSheetTitle
+
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
@@ -85,12 +87,7 @@ fun TelegramLoginSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = stringResource(R.string.report_login_title),
-                style = typography.titleMd,
-                fontWeight = FontWeight.Bold,
-                color = colors.onSurface
-            )
+            WaexSheetTitle(stringResource(R.string.report_login_title))
             Text(
                 text = stringResource(R.string.report_login_desc),
                 style = typography.bodyMd,

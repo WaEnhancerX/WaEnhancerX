@@ -1,5 +1,7 @@
 package com.waenhancer.ui.screens.settings
 
+import com.waenhancer.ui.components.WaexSheetTitle
+
 import android.app.Activity
 import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
@@ -291,11 +293,8 @@ fun ModuleSettingsScreen() {
                         .padding(bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
+                    WaexSheetTitle(
                         text = stringResource(R.string.choose_app_theme),
-                        style = typography.titleLg,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.onSurface,
                         modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
                     )
                     modes.forEach { mode ->
@@ -330,11 +329,8 @@ fun ModuleSettingsScreen() {
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(
+                WaexSheetTitle(
                     text = "Hooking mode",
-                    style = typography.titleLg,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurface,
                     modifier = Modifier.padding(top = 4.dp)
                 )
                 Text(
@@ -402,11 +398,8 @@ fun ModuleSettingsScreen() {
                     .padding(bottom = 28.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(
+                WaexSheetTitle(
                     text = stringResource(R.string.config_mode_title),
-                    style = typography.titleLg,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurface,
                     modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
                 )
                 configModes.forEach { mode ->
@@ -445,11 +438,8 @@ fun ModuleSettingsScreen() {
                     contentPadding = PaddingValues(bottom = 24.dp)
                 ) {
                     item {
-                        Text(
+                        WaexSheetTitle(
                             text = stringResource(R.string.choose_app_language),
-                            style = typography.titleLg,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.onSurface,
                             modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
                         )
                     }
@@ -536,12 +526,7 @@ private fun HeroEngineCard(
                 Spacer(Modifier.width(14.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "WA Enhancer X",
-                        style = typography.titleMd,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.onSurface
-                    )
+                    WaexSheetTitle("WA Enhancer X")
                     Text(
                         text = "Styles, Hooking & Config Mode",
                         style = typography.bodySm,

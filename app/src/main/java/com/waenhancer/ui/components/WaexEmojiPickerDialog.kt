@@ -86,12 +86,7 @@ fun WaexEmojiPickerDialog(
                 .padding(bottom = 24.dp)
         ) {
                 // Header
-                Text(
-                    text = UiText.get(R.string.feat_doubletap2like_emoji_title, "Custom Reaction Emoji"),
-                    style = typography.titleMd,
-                    color = colors.onSurface,
-                    fontWeight = FontWeight.Bold
-                )
+                WaexSheetTitle(UiText.get(R.string.feat_doubletap2like_emoji_title, "Custom Reaction Emoji"))
 
                 Text(
                     text = UiText.get(R.string.waex_ui_select_or_type_the_default_emoji_sent, "Select or type the default emoji sent when double-tapping a message."),
