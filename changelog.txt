@@ -3,6 +3,7 @@
 - Report Issue Feature: Report issues and suggest features within app
 
 [Fixes]
+- Fixed Floating bottom menu scroll hide
 
 
 [Improvements]
