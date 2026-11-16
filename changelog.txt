@@ -4,6 +4,8 @@
 
 [Fixes]
 - Fixed Floating bottom menu scroll hide
+- Fixed Locked Chats Enhancer still showing locked contacts in New chat, Forward and their search
+- Fixed Hide My Applist detection in diagnostics
 
 
 [Improvements]
