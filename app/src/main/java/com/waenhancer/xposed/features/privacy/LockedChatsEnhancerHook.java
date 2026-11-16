@@ -38,6 +38,10 @@ public class LockedChatsEnhancerHook extends BaseFeature {
     private static final String TAG = "[WAEX][LockedChats]";
     private static final String PREF_KEY_1 = "locked_chats_enhancer";
     private static final String PREF_KEY_2 = "lockedchats_enhancer";
+    private static final String CONTACTS_LOADED_LOG_TAG = "ContactPickerFragment/onContactsLoaded";
+    private static final String CONTACT_PICKER_PACKAGE = "com.whatsapp.contact.ui.picker";
+    private static final String CONTACT_PICKER_FRAGMENT =
+            "com.whatsapp.contact.ui.picker.ContactPickerFragment";
 
     private final ThreadLocal<Boolean> suppressNotificationQuery = ThreadLocal.withInitial(() -> false);
     private Object chatCacheInstance = null;
@@ -173,14 +177,36 @@ public class LockedChatsEnhancerHook extends BaseFeature {
             Method loadedContactsMethod = engine.findMethodWithCache(
                     context,
                     classLoader,
-                    "waex_loaded_contacts_method",
+                    "waex_loaded_contacts_method_v2",
                     (bridge, loader) -> {
+                        // The bare 8726 constant is shared by several one-argument methods on
+                        // newer builds, so prefer the picker's own log tag and declaring class.
                         MethodData md = bridge.findMethod(FindMethod.create()
                                 .matcher(MethodMatcher.create()
                                         .addUsingNumber(8726)
                                         .paramCount(1)
+                                        .addUsingString(CONTACTS_LOADED_LOG_TAG, StringMatchType.Contains)
                                 )
-                        ).firstOrNull();
+                        ).singleOrNull();
+                        if (md == null) {
+                            md = bridge.findMethod(FindMethod.create()
+                                    .searchPackages(CONTACT_PICKER_PACKAGE)
+                                    .matcher(MethodMatcher.create()
+                                            .declaredClass(CONTACT_PICKER_FRAGMENT)
+                                            .addUsingNumber(8726)
+                                            .paramCount(1)
+                                    )
+                            ).singleOrNull();
+                        }
+                        if (md == null) {
+                            // Legacy builds: accept the bare constant only when it is unambiguous.
+                            md = bridge.findMethod(FindMethod.create()
+                                    .matcher(MethodMatcher.create()
+                                            .addUsingNumber(8726)
+                                            .paramCount(1)
+                                    )
+                            ).singleOrNull();
+                        }
                         return md != null ? md.getMethodInstance(loader) : null;
                     }
             );
