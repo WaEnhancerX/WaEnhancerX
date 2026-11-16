@@ -9,5 +9,8 @@
 - Improved Module's UI
 
 
-[Community contribution]
-
+[Report Issues Feature]
+- Report issues directly from app
+- Select issue type (issue or feature)
+- Directly track issues status
+- Get notified about issue status updates via Telegram Bot
