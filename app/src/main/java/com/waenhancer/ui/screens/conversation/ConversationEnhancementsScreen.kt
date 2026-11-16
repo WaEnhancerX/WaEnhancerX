@@ -88,7 +88,7 @@ fun ConversationEnhancementsScreen(targetEpoch: Int = 0) {
     val convKeys = remember {
         listOf(
             "message_bomber", "anti_edit_messages", "message_device_source", "preserve_own_revoke", "revokeallmessages", "hide_forwarded_tag",
-            "removeforwardlimit", "sticker_confirm_alert", "removeseemore", "stamp_copied_message", "doubletap2like",
+            "removeforwardlimit", "sticker_confirm_alert", "remove_sticker_white_outline", "removeseemore", "stamp_copied_message", "doubletap2like",
             "jump_to_first_message", "unlimited_pinned_chats", "broadcast_tag", "direct_chat_dialer",
             "inline_translation", "copy_status_text", "animation_emojis", "disable_defemojis", "custom_emojis", "custom_emoji_enabled"
         )
@@ -247,6 +247,14 @@ fun ConversationEnhancementsScreen(targetEpoch: Int = 0) {
                         description = UiText.get(R.string.feat_sticker_confirm_alert_desc, "Show a dialog before sending the sticker"),
                         checked = stateMap["sticker_confirm_alert"] ?: false,
                         onCheckedChange = { onToggle("sticker_confirm_alert", it) },
+                        icon = WaexIcons.Settings,
+                        showDivider = true
+                    )
+                    WaexSwitchPreference(
+                        title = UiText.get(R.string.feat_remove_sticker_white_outline_title, "Remove Sticker White Outline"),
+                        description = UiText.get(R.string.feat_remove_sticker_white_outline_desc, "Remove the white border WhatsApp adds when you create a sticker"),
+                        checked = stateMap["remove_sticker_white_outline"] ?: false,
+                        onCheckedChange = { onToggle("remove_sticker_white_outline", it) },
                         icon = WaexIcons.Settings,
                         showDivider = true
                     )

@@ -192,7 +192,7 @@ fun GlobalPrivacySettingsScreen(
             "anti_revoke", "show_as_deleted", "preserve_own_revoke", "antirevokestatus", "antidisappearing", "toastdeleted", "toast_viewed_message",
             "locked_chats_enhancer", "typearchive", "dnd_mode", "hide_chats", "locked_chats_message_notifications", "custom_privacy",
             "message_bomber", "anti_edit_messages", "message_device_source", "revokeallmessages", "hide_forwarded_tag", "removeforwardlimit",
-            "sticker_confirm_alert", "removeseemore", "stamp_copied_message", "doubletap2like",
+            "sticker_confirm_alert", "remove_sticker_white_outline", "removeseemore", "stamp_copied_message", "doubletap2like",
             "disable_defemojis", "custom_emojis", "custom_emoji_enabled",
             "jump_to_first_message", "unlimited_pinned_chats", "broadcast_tag", "direct_chat_dialer", "inline_translation", "copy_status_text",
             "call_type_controller", "custom_filter_groups", "group_admin_tools", "status_text_composer",

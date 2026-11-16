@@ -114,6 +114,7 @@ public final class InternalLabels {
             case "CSS Theme": return UiText.get(R.string.waex_ui_css_theme, "CSS Theme");
             case "Chat Filters": return UiText.get(R.string.waex_ui_chat_filters, "Chat Filters");
             case "Stickers": return UiText.get(R.string.waex_ui_stickers, "Stickers");
+            case "Remove Sticker Outline": return UiText.get(R.string.feat_remove_sticker_white_outline_title, "Remove Sticker White Outline");
             case "Prevent Revoke": return UiText.get(R.string.waex_ui_prevent_revoke, "Prevent Revoke");
             case "Anti View Once": return UiText.get(R.string.waex_ui_anti_view_once_label, "Anti View Once");
             case "Custom Theme CSS": return UiText.get(R.string.feat_custom_theme_title, "Custom Theme CSS");
