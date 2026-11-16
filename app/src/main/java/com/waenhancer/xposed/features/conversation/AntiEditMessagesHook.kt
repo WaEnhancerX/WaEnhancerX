@@ -33,6 +33,7 @@ import android.widget.LinearLayout
 import android.widget.Switch
 import android.widget.TextView
 import com.waenhancer.xposed.core.BaseFeature
+import com.waenhancer.xposed.utils.HookErrors
 import com.waenhancer.xposed.utils.HostResourceIds
 import com.waenhancer.xposed.core.components.WaexBottomSheet
 import com.waenhancer.xposed.core.db.EditMessageStore
@@ -195,8 +196,7 @@ class AntiEditMessagesHook(
                     try {
                         field.isAccessible = true
                         field.get(candidate)?.let { return it }
-                    } catch (_: Throwable) {
-                    }
+                    } catch (ignored: Throwable) { HookErrors.swallowed("AntiEditMessagesHook", ignored) }
                 }
                 curr = curr.superclass
             }
@@ -741,8 +741,7 @@ class AntiEditMessagesHook(
                 if (originalKey != null) {
                     extractMessageIdFromKey(originalKey)?.let { return it }
                 }
-            } catch (_: Throwable) {
-            }
+            } catch (ignored: Throwable) { HookErrors.swallowed("AntiEditMessagesHook", ignored) }
         }
         return extractKeyId(messageObj)
     }
@@ -758,8 +757,7 @@ class AntiEditMessagesHook(
                         val id = extractMessageIdFromKey(keyObj)
                         if (!id.isNullOrEmpty()) return id
                     }
-                } catch (_: Throwable) {
-                }
+                } catch (ignored: Throwable) { HookErrors.swallowed("AntiEditMessagesHook", ignored) }
             }
             // Classes that repeatedly yield no key (separators, system rows) skip discovery.
             if ((sKeylessMisses[type] ?: 0) >= KEYLESS_MISS_LIMIT) return null
@@ -806,7 +804,7 @@ class AntiEditMessagesHook(
                 if (!id.isNullOrEmpty()) return id
             }
             sKeylessMisses.merge(type, 1, Int::plus)
-        } catch (ignored: Throwable) {}
+        } catch (ignored: Throwable) { HookErrors.swallowed("AntiEditMessagesHook", ignored) }
         return null
     }
 
@@ -852,7 +850,7 @@ class AntiEditMessagesHook(
                 if (str.length >= 6 && bestCandidate == null) bestCandidate = str
             }
             return bestCandidate
-        } catch (ignored: Throwable) {}
+        } catch (ignored: Throwable) { HookErrors.swallowed("AntiEditMessagesHook", ignored) }
         return null
     }
 
@@ -877,7 +875,7 @@ class AntiEditMessagesHook(
                 if (v is Long && v > 0) return v
                 if (v is Int && v > 0) return v.toLong()
             }
-        } catch (ignored: Throwable) {}
+        } catch (ignored: Throwable) { HookErrors.swallowed("AntiEditMessagesHook", ignored) }
         return 0L
     }
 
@@ -921,7 +919,7 @@ class AntiEditMessagesHook(
                 val str = m.invoke(messageObj) as? String
                 if (!str.isNullOrEmpty() && !str.contains("@") && str.length < 5000) return str
             }
-        } catch (ignored: Throwable) {}
+        } catch (ignored: Throwable) { HookErrors.swallowed("AntiEditMessagesHook", ignored) }
         return null
     }
 

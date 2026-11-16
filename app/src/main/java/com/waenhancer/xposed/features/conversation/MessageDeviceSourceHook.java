@@ -24,6 +24,7 @@ import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.db.MessageDeviceSourceStore;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.xposed.utils.ActivityTracker;
+import com.waenhancer.xposed.utils.HookErrors;
 
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.enums.StringMatchType;
@@ -309,8 +310,7 @@ public class MessageDeviceSourceHook extends BaseFeature {
                         cached = field;
                         WRAPPER_FIELD_CACHE.put(type, field);
                         break;
-                    } catch (Throwable ignored) {
-                    }
+                    } catch (Throwable ignored) { HookErrors.swallowed("MessageDeviceSourceHook", ignored); }
                 }
             }
             if (cached == null) WRAPPER_MISSES.add(type);
@@ -580,7 +580,7 @@ public class MessageDeviceSourceHook extends BaseFeature {
                 XposedBridge.hookMethod(internalSetText, setTextHook);
                 return;
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("MessageDeviceSourceHook", ignored); }
 
         XposedBridge.hookAllMethods(TextView.class, "setText", setTextHook);
     }
@@ -615,7 +615,7 @@ public class MessageDeviceSourceHook extends BaseFeature {
                 if (matcher.find()) return matcher.group(1);
                 KEYLESS_CLASSES.add(type);
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("MessageDeviceSourceHook", ignored); }
         return null;
     }
 
@@ -640,7 +640,7 @@ public class MessageDeviceSourceHook extends BaseFeature {
                     }
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("MessageDeviceSourceHook", ignored); }
         return null;
     }
 
@@ -655,13 +655,13 @@ public class MessageDeviceSourceHook extends BaseFeature {
             if (deviceJid != null) {
                 try {
                     return (Integer) XposedHelpers.callMethod(deviceJid, "getDevice");
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("MessageDeviceSourceHook", ignored); }
 
                 try {
                     String raw = (String) XposedHelpers.callMethod(deviceJid, "getRawString");
                     int dev = parseDeviceIdFromRawString(raw, true);
                     if (dev >= 0) return dev;
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("MessageDeviceSourceHook", ignored); }
             }
 
             // Fallback: check raw string representation on message object fields
@@ -680,12 +680,12 @@ public class MessageDeviceSourceHook extends BaseFeature {
                             String raw = (String) XposedHelpers.callMethod(val, "getRawString");
                             int dev = parseDeviceIdFromRawString(raw, false);
                             if (dev >= 0) return dev;
-                        } catch (Throwable ignored) {}
+                        } catch (Throwable ignored) { HookErrors.swallowed("MessageDeviceSourceHook", ignored); }
                     }
                 }
                 curr = curr.getSuperclass();
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("MessageDeviceSourceHook", ignored); }
         return -1;
     }
 
@@ -708,7 +708,7 @@ public class MessageDeviceSourceHook extends BaseFeature {
                     curr = curr.getSuperclass();
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("MessageDeviceSourceHook", ignored); }
         return null;
     }
 
@@ -739,13 +739,13 @@ public class MessageDeviceSourceHook extends BaseFeature {
     private int deviceNumberOf(Object deviceJid) {
         try {
             return (Integer) XposedHelpers.callMethod(deviceJid, "getDevice");
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("MessageDeviceSourceHook", ignored); }
         try {
             return parseDeviceIdFromRawString((String) XposedHelpers.callMethod(deviceJid, "getRawString"), true);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("MessageDeviceSourceHook", ignored); }
         try {
             return parseDeviceIdFromRawString(String.valueOf(deviceJid), true);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("MessageDeviceSourceHook", ignored); }
         return -1;
     }
 }

@@ -17,6 +17,7 @@ import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.xposed.core.db.HideSeenStore;
 import com.waenhancer.xposed.features.homescreen.MenuIconLoader;
 import com.waenhancer.xposed.utils.ActivityTracker;
+import com.waenhancer.xposed.utils.HookErrors;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
@@ -292,7 +293,7 @@ public class BlueOnReplyHook extends BaseFeature {
                     for (String id : (String[]) value) {
                         if (id != null && !id.isEmpty()) ids.add(id);
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("BlueOnReplyHook", ignored); }
             }
         }
         return ids;
@@ -449,7 +450,7 @@ public class BlueOnReplyHook extends BaseFeature {
         Class<?> type=value.getClass(); if (type.getName().startsWith("java.")) return null;
         for (Class<?> c=type;c!=null&&c!=Object.class;c=c.getSuperclass()) for (Field f:c.getDeclaredFields()) {
             if (Modifier.isStatic(f.getModifiers()) || f.getType().isPrimitive()) continue;
-            try { f.setAccessible(true); String found=findStatusId(f.get(value),seen,depth+1); if(found!=null)return found; } catch(Throwable ignored) {}
+            try { f.setAccessible(true); String found=findStatusId(f.get(value),seen,depth+1); if(found!=null)return found; } catch (Throwable ignored) { HookErrors.swallowed("BlueOnReplyHook", ignored); }
         } return null;
     }
 
@@ -489,7 +490,7 @@ public class BlueOnReplyHook extends BaseFeature {
                         }
                     }
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("BlueOnReplyHook", ignored); }
         }
         return null;
     }
@@ -723,7 +724,7 @@ public class BlueOnReplyHook extends BaseFeature {
                 String c = canonicalJid(raw.toString());
                 if (c != null) return c;
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("BlueOnReplyHook", ignored); }
         return canonicalJid(obj.toString());
     }
 

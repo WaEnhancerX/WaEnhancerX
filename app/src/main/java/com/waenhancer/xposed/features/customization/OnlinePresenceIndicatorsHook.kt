@@ -19,6 +19,7 @@ import android.widget.TextView
 import com.waenhancer.xposed.core.BaseFeature
 import com.waenhancer.xposed.core.devkit.DexSearchEngine
 import com.waenhancer.xposed.features.automation.PresenceStateStore
+import com.waenhancer.xposed.utils.HookErrors
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
@@ -241,7 +242,7 @@ class OnlinePresenceIndicatorsHook(
                 try {
                     field.isAccessible = true
                     findObjectOfType(field.get(value), wanted, depth - 1, seen)?.let { return it }
-                } catch (_: Throwable) {}
+                } catch (ignored: Throwable) { HookErrors.swallowed("OnlinePresenceIndicatorsHook", ignored) }
             }
             type = type.superclass
         }
@@ -376,7 +377,7 @@ class OnlinePresenceIndicatorsHook(
                 try {
                     field.isAccessible = true
                     collectViews(field.get(value), depth - 1, seen, output)
-                } catch (_: Throwable) {}
+                } catch (ignored: Throwable) { HookErrors.swallowed("OnlinePresenceIndicatorsHook", ignored) }
             }
             type = type.superclass
         }
@@ -401,7 +402,7 @@ class OnlinePresenceIndicatorsHook(
                 try {
                     field.isAccessible = true
                     findJid(field.get(value), depth - 1, seen)?.let { return it }
-                } catch (_: Throwable) {}
+                } catch (ignored: Throwable) { HookErrors.swallowed("OnlinePresenceIndicatorsHook", ignored) }
             }
             type = type.superclass
         }

@@ -9,6 +9,7 @@ import android.view.View;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.xposed.utils.HookErrors;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
@@ -71,7 +72,7 @@ public final class ChatFilterDisplayHook extends BaseFeature {
                     });
                 }
                 if (!results.isEmpty()) return;
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("ChatFilterDisplayHook", ignored); }
         }
         XposedBridge.log(TAG + " Search-bar insertion method not found");
     }
@@ -199,7 +200,7 @@ public final class ChatFilterDisplayHook extends BaseFeature {
                 Field field = data.getFieldInstance(classLoader);
                 if (field.getDeclaringClass() == declaringClass) return field;
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("ChatFilterDisplayHook", ignored); }
         return null;
     }
 

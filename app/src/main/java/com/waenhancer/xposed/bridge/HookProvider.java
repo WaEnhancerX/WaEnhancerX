@@ -34,6 +34,7 @@ import com.waenhancer.update.UpdateCheckCoordinator;
 import com.waenhancer.utils.WhatsAppPackageDetector;
 import com.waenhancer.utils.DiagnosticsRecorder;
 import com.waenhancer.xposed.utils.AppRestartHelper;
+import com.waenhancer.xposed.utils.HookErrors;
 
 /**
  * HookProvider provides preference IPC bridge between WaEnhancerX UI and target processes (WhatsApp / WA Business).
@@ -64,7 +65,7 @@ public class HookProvider extends ContentProvider {
             for (String pkg : packages) {
                 if ("com.whatsapp".equals(pkg) || "com.whatsapp.w4b".equals(pkg)) return pkg;
             }
-        } catch (Throwable ignored) { }
+        } catch (Throwable ignored) { HookErrors.swallowed("HookProvider", ignored); }
         return null;
     }
 

@@ -18,6 +18,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import com.waenhancer.xposed.utils.HookErrors;
 
 /**
  * ParallelDownloadingInputStream:
@@ -224,7 +225,7 @@ public final class ParallelDownloadingInputStream extends InputStream {
             // Close the initial connection safely; subsequent chunks come from our range workers
             try {
                 originalStream.close();
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("ParallelDownloadingInputStream", ignored); }
 
             currentChunkIndex = 1;
             currentChunkBuffer = nextBytes;
@@ -311,7 +312,7 @@ public final class ParallelDownloadingInputStream extends InputStream {
         cancelPendingTasks();
         try {
             originalStream.close();
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("ParallelDownloadingInputStream", ignored); }
     }
 }
 

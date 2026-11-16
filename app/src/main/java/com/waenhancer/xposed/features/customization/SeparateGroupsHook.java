@@ -46,6 +46,7 @@ import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import android.app.Activity;
 import com.waenhancer.xposed.utils.ActivityTracker;
+import com.waenhancer.xposed.utils.HookErrors;
 import java.util.Locale;
 import java.util.Map;
 
@@ -258,7 +259,7 @@ public final class SeparateGroupsHook extends BaseFeature {
         if (cached != null) {
             try {
                 return cached.get(chat);
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("SeparateGroupsHook", ignored); }
         }
         Class<?> type = chatClass;
         while (type != null && type != Object.class) {
@@ -273,7 +274,7 @@ public final class SeparateGroupsHook extends BaseFeature {
                         JID_FIELD_CACHE.put(chatClass, field);
                         return value;
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("SeparateGroupsHook", ignored); }
             }
             type = type.getSuperclass();
         }
@@ -558,7 +559,7 @@ public final class SeparateGroupsHook extends BaseFeature {
                     f.setAccessible(true);
                     Object val = f.get(null);
                     if (val != null) return val;
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("SeparateGroupsHook", ignored); }
             }
         }
         for (Constructor<?> ctor : emptyBadgeClass.getDeclaredConstructors()) {
@@ -566,7 +567,7 @@ public final class SeparateGroupsHook extends BaseFeature {
                 try {
                     ctor.setAccessible(true);
                     return ctor.newInstance();
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("SeparateGroupsHook", ignored); }
             }
         }
         return null;

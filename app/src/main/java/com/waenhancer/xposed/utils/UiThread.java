@@ -24,7 +24,7 @@ public final class UiThread {
         MAIN.post(() -> {
             try {
                 Toast.makeText(context, message, duration).show();
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("UiThread", ignored); }
         });
     }
 }

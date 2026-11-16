@@ -22,6 +22,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.utils.ActivityTracker;
+import com.waenhancer.xposed.utils.HookErrors;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
@@ -177,16 +178,16 @@ public final class VoiceDictationHook extends BaseFeature {
             Method onTouchEvent = null;
             try {
                 onTouchEvent = fieldClass.getMethod("onTouchEvent", MotionEvent.class);
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("VoiceDictationHook", ignored); }
             if (onTouchEvent == null) {
                 try {
                     onTouchEvent = XposedHelpers.findMethodExactIfExists(fieldClass, "onTouchEvent", MotionEvent.class);
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("VoiceDictationHook", ignored); }
             }
             if (onTouchEvent == null) {
                 try {
                     onTouchEvent = XposedHelpers.findMethodBestMatch(fieldClass, "onTouchEvent", MotionEvent.class);
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("VoiceDictationHook", ignored); }
             }
             if (onTouchEvent != null) {
                 XposedBridge.hookMethod(onTouchEvent, new XC_MethodHook() {

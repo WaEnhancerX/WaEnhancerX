@@ -31,6 +31,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import com.waenhancer.xposed.features.customization.PropsOverrideHook;
+import com.waenhancer.xposed.utils.HookErrors;
 import java.lang.reflect.Modifier;
 
 /**
@@ -263,7 +264,7 @@ public class HideReceiptsHook extends BaseFeature {
                     sendJobClass = XposedHelpers.findClassIfExists(
                             "com.whatsapp.jobqueue.job.SendReadReceiptJob", classLoader);
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
 
             if (sendJobClass == null) {
                 sendJobClass = DexSearchEngine.getInstance().findClassWithCache(
@@ -307,7 +308,7 @@ public class HideReceiptsHook extends BaseFeature {
                                             captureJid, (Constructor<?>) param.method, param.args, job);
                                 }
                             }
-                        } catch (Throwable ignored) {}
+                        } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
                     }
                 });
 
@@ -690,7 +691,7 @@ public class HideReceiptsHook extends BaseFeature {
                     if (className.contains("Key")
                             || candidate.toString().startsWith("Key(")) return candidate;
                     if (isMessageKey(candidate)) return candidate;
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
             }
         }
         return null;
@@ -717,7 +718,7 @@ public class HideReceiptsHook extends BaseFeature {
                             && extractTypedJid(field.get(candidate)) != null) {
                         jid = true;
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
             }
         }
         return jid && id && direction;
@@ -784,7 +785,7 @@ public class HideReceiptsHook extends BaseFeature {
                     field.setAccessible(true);
                     Object found = findFMessage(field.get(candidate), seen, depth + 1);
                     if (found != null) return found;
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
             }
         }
         return null;
@@ -876,7 +877,7 @@ public class HideReceiptsHook extends BaseFeature {
         if (fieldKey != null) {
             try {
                 return (String) fieldKey.get(kv);
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
         }
         return null;
     }
@@ -886,7 +887,7 @@ public class HideReceiptsHook extends BaseFeature {
             try {
                 String str = (String) fieldValue.get(kv);
                 if (str != null) return str;
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
         }
         if (fieldJid != null) {
             try {
@@ -895,10 +896,10 @@ public class HideReceiptsHook extends BaseFeature {
                     try {
                         Object raw = XposedHelpers.callMethod(jidObj, "getRawString");
                         if (raw != null) return raw.toString();
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
                     return jidObj.toString();
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
         }
         return null;
     }
@@ -915,7 +916,7 @@ public class HideReceiptsHook extends BaseFeature {
                     return getValue(kv);
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
         return null;
     }
 
@@ -930,7 +931,7 @@ public class HideReceiptsHook extends BaseFeature {
             try {
                 Object raw = XposedHelpers.callMethod(fieldVal, "getRawString");
                 if (raw != null) return raw.toString();
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
             return fieldVal.toString();
         } catch (Throwable ignored) {
             return null;
@@ -954,7 +955,7 @@ public class HideReceiptsHook extends BaseFeature {
                 }
                 curr = curr.getSuperclass();
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
         return null;
     }
 
@@ -1139,7 +1140,7 @@ public class HideReceiptsHook extends BaseFeature {
                 }
                 cls = cls.getSuperclass();
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
 
         // Fallback: If either toggle is enabled and played method is triggered for this message
         return hideVoiceNote || hideViewOnce;
@@ -1182,7 +1183,7 @@ public class HideReceiptsHook extends BaseFeature {
                 if (val instanceof String) return !"0".equals(val) && !"false".equalsIgnoreCase((String) val);
                 if (val instanceof Number) return ((Number) val).intValue() != 0;
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
         return isEnabled("stealth_status_view", false) || isEnabled("hidestatusview", false);
     }
 

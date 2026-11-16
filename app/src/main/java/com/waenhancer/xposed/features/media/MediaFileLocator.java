@@ -5,6 +5,8 @@ import android.net.Uri;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.waenhancer.xposed.utils.HookErrors;
+
 import java.io.File;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -49,7 +51,7 @@ final class MediaFileLocator {
             if (best != null && candidate.length() <= best.length()) continue;
             try {
                 if (accept == null || accept.test(candidate)) best = candidate;
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("MediaFileLocator", ignored); }
         }
         return best;
     }
@@ -90,7 +92,7 @@ final class MediaFileLocator {
             for (Method getter : fileGetters(clazz)) {
                 try {
                     addFile(getter.invoke(obj), out);
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("MediaFileLocator", ignored); }
             }
         }
         for (Field field : fields(clazz, mode)) {
@@ -104,7 +106,7 @@ final class MediaFileLocator {
                 } else if (!field.getType().getName().startsWith("java.lang.")) {
                     collect(value, mode, visited, out, depth + 1, maxDepth);
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("MediaFileLocator", ignored); }
         }
     }
 
@@ -150,7 +152,7 @@ final class MediaFileLocator {
                 try {
                     f.setAccessible(true);
                     list.add(f);
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("MediaFileLocator", ignored); }
             }
         }
         Field[] result = list.toArray(new Field[0]);
@@ -168,9 +170,9 @@ final class MediaFileLocator {
                 try {
                     m.setAccessible(true);
                     list.add(m);
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("MediaFileLocator", ignored); }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("MediaFileLocator", ignored); }
         Method[] result = list.toArray(new Method[0]);
         FILE_GETTERS.put(clazz, result);
         return result;

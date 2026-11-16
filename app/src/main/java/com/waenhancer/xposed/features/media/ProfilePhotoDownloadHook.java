@@ -31,6 +31,7 @@ import androidx.annotation.NonNull;
 
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.xposed.utils.HookErrors;
 import com.waenhancer.xposed.utils.UiThread;
 
 import org.luckypray.dexkit.query.FindClass;
@@ -385,7 +386,7 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
                             }
                         }
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("ProfilePhotoDownloadHook", ignored); }
             }
         }
         return null;
@@ -403,7 +404,7 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
                     if (b != null && !b.isRecycled()) {
                         return b.copy(Bitmap.Config.ARGB_8888, false);
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("ProfilePhotoDownloadHook", ignored); }
 
                 // Check getImageViewBitmapDrawable()
                 try {
@@ -412,7 +413,7 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
                     if (bd != null && bd.getBitmap() != null && !bd.getBitmap().isRecycled()) {
                         return bd.getBitmap().copy(Bitmap.Config.ARGB_8888, false);
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("ProfilePhotoDownloadHook", ignored); }
 
                 // Check declared fields for BitmapDrawable or Bitmap (such as A0D)
                 for (Class<?> c = photoView.getClass(); c != null && c != View.class; c = c.getSuperclass()) {
@@ -542,7 +543,7 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
         } catch (Throwable failure) {
             logFailure("saveStreamToGallery", failure);
             if (!success && output != null) {
-                try { ctx.getContentResolver().delete(output, null, null); } catch (Throwable ignored) {}
+                try { ctx.getContentResolver().delete(output, null, null); } catch (Throwable ignored) { HookErrors.swallowed("ProfilePhotoDownloadHook", ignored); }
             }
             return false;
         }
@@ -585,7 +586,7 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
         } catch (Throwable failure) {
             logFailure("saveBitmapToGallery", failure);
             if (!success && output != null) {
-                try { ctx.getContentResolver().delete(output, null, null); } catch (Throwable ignored) {}
+                try { ctx.getContentResolver().delete(output, null, null); } catch (Throwable ignored) { HookErrors.swallowed("ProfilePhotoDownloadHook", ignored); }
             }
             return false;
         }
@@ -603,7 +604,7 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
                 if (!activity.isFinishing() && !activity.isDestroyed()) {
                     Toast.makeText(activity, msg, Toast.LENGTH_SHORT).show();
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("ProfilePhotoDownloadHook", ignored); }
         });
     }
 

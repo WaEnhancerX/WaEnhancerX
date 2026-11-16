@@ -7,6 +7,7 @@ import androidx.annotation.NonNull;
 
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.xposed.utils.HookErrors;
 
 import java.io.InputStream;
 import java.lang.reflect.InvocationHandler;
@@ -121,7 +122,7 @@ public class ParallelDownloadingHook extends BaseFeature {
             try {
                 String strVal = prefs.getString(PREF_CONNECTIONS_KEY, "4");
                 count = Integer.parseInt(strVal);
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("ParallelDownloadingHook", ignored); }
         }
         if (count < 2 || count > 16) {
             count = DEFAULT_CONNECTIONS;
@@ -143,7 +144,7 @@ public class ParallelDownloadingHook extends BaseFeature {
                     }
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("ParallelDownloadingHook", ignored); }
         return -1L;
     }
 

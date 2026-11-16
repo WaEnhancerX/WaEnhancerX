@@ -51,6 +51,7 @@ import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.hooking.ScreenScopedFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.xposed.utils.ActivityTracker;
+import com.waenhancer.xposed.utils.HookErrors;
 
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.enums.StringMatchType;
@@ -395,7 +396,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                     }
             );
             if (cls != null) return cls;
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
         Class<?> currentHome = XposedHelpers.findClassIfExists(
                 "com.whatsapp.home.ui.HomeActivity", classLoader);
         if (currentHome != null) return currentHome;
@@ -415,7 +416,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                     }
             );
             if (cls != null) return cls;
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
         return null;
     }
 
@@ -462,7 +463,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
             }
             if (bottomNav == null) return;
             onViewScrolled(bottomNav, dy);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
     }
 
     private static void onViewScrolled(View bottomNav, int dy) {
@@ -851,7 +852,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                             labelsGroup = child;
                         }
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
             }
             if (iconContainer == null && child instanceof FrameLayout) {
                 iconContainer = child;
@@ -958,7 +959,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                 if (resourceName.equals(view.getResources().getResourceEntryName(view.getId()))) {
                     return view;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
         }
         if (view instanceof ViewGroup) {
             ViewGroup group = (ViewGroup) view;
@@ -1030,7 +1031,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                             if (entryName != null && (entryName.contains("icon") || entryName.contains("image"))) {
                                 return child;
                             }
-                        } catch (Throwable ignored) {}
+                        } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
                     }
                 }
             }
@@ -1062,7 +1063,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                         return;
                     }
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
         }
         String className = view.getClass().getName();
         if ((className.contains("Badge") || className.endsWith("BadgeView")) && !className.contains("ActiveIndicator")) {
@@ -1112,7 +1113,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
             if (insets != null) {
                 return insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom;
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
         return 0;
     }
 
@@ -1473,7 +1474,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                     }
                     return;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
         }
         if (view instanceof ViewGroup) {
             ViewGroup group = (ViewGroup) view;
@@ -1496,7 +1497,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                     view.invalidate();
                     return;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
         }
         if (view instanceof ViewGroup) {
             ViewGroup group = (ViewGroup) view;
@@ -1743,7 +1744,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                     view.setVisibility(View.INVISIBLE);
                     return;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
         }
         if (view instanceof ViewGroup) {
             ViewGroup group = (ViewGroup) view;
@@ -1786,7 +1787,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                     try {
                         String name = child.getResources().getResourceEntryName(child.getId());
                         activeIndicator = name != null && name.contains("active_indicator");
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
                 }
                 if (!activeIndicator) {
                     child.setBackground(null);
@@ -2055,7 +2056,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                     return true;
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
 
         String className = view.getClass().getName();
         return (className.contains("WDSList") || className.contains("ObservableRecyclerView") || className.contains("CallsHistory")) && isLarge;
@@ -2088,7 +2089,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                         if ("conversation_view_host".equals(entryName)) {
                             return true;
                         }
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
                 }
             }
             if (parent instanceof View) {

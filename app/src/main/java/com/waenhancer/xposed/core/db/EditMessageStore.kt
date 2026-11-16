@@ -8,6 +8,7 @@ import android.database.sqlite.SQLiteOpenHelper
 import de.robv.android.xposed.XposedBridge
 import java.util.LinkedHashMap
 import java.util.concurrent.Executors
+import com.waenhancer.xposed.utils.HookErrors
 
 /**
  * Message history store for recording and querying all versions of edited messages.
@@ -385,7 +386,7 @@ class EditMessageStore private constructor(private val context: Context) : SQLit
                                 if (!text.isNullOrBlank()) return text
                             }
                         }
-                    } catch (ignored: Throwable) {}
+                    } catch (ignored: Throwable) { HookErrors.swallowed("EditMessageStore", ignored) }
                 }
 
                 // FTS fallback for builds where message.text_data is unavailable.
@@ -404,10 +405,10 @@ class EditMessageStore private constructor(private val context: Context) : SQLit
                                 if (!content.isNullOrBlank()) return content
                             }
                         }
-                    } catch (ignored: Throwable) {}
+                    } catch (ignored: Throwable) { HookErrors.swallowed("EditMessageStore", ignored) }
                 }
             }
-        } catch (ignored: Throwable) {}
+        } catch (ignored: Throwable) { HookErrors.swallowed("EditMessageStore", ignored) }
         return ""
     }
 }

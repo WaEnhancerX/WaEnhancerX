@@ -31,6 +31,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.waenhancer.xposed.core.BaseFeature;
+import com.waenhancer.xposed.utils.HookErrors;
 import com.waenhancer.xposed.utils.HostResourceIds;
 import com.waenhancer.xposed.core.db.DelMessageStore;
 import com.waenhancer.xposed.features.conversation.PreserveDeleteForMeHook;
@@ -278,7 +279,7 @@ public class AntiRevokeHook extends BaseFeature {
                                     Method m = data.getMethodInstance(loader);
                                     if (m.getParameterTypes().length >= 1) return m;
                                 }
-                            } catch (Throwable ignored) {}
+                            } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
                         }
                         return null;
                     });
@@ -741,7 +742,7 @@ public class AntiRevokeHook extends BaseFeature {
                     "[+0-9A-Za-z._:-]+@(?:s\\.whatsapp\\.net|lid|g\\.us|broadcast)")
                     .matcher(value.toString());
             while (matcher.find()) output.add(matcher.group());
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
 
         Class<?> type = value.getClass();
         while (type != null && type != Object.class
@@ -752,7 +753,7 @@ public class AntiRevokeHook extends BaseFeature {
                 try {
                     field.setAccessible(true);
                     collectJids(field.get(value), depth - 1, seen, output);
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
             }
             type = type.getSuperclass();
         }
@@ -902,7 +903,7 @@ public class AntiRevokeHook extends BaseFeature {
                     if (previousGetViewHook != null) {
                         try {
                             previousGetViewHook.unhook();
-                        } catch (Throwable ignored) {}
+                        } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
                         previousGetViewHook = null;
                     }
                     currentAdapter = adapter;
@@ -1061,7 +1062,7 @@ public class AntiRevokeHook extends BaseFeature {
             CharSequence cs = ((TextView) view).getText();
             if (cs == null || cs.length() == 0) return null;
             return revokedTextKeyCache.get(cs.toString());
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
         return null;
     }
 
@@ -1085,14 +1086,14 @@ public class AntiRevokeHook extends BaseFeature {
                             Object holder = hook.args[0];
                             View itemView = null;
                             try { itemView = (View) XposedHelpers.getObjectField(holder, "itemView"); }
-                            catch (Throwable ignored) {}
+                            catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
                             if (!(itemView instanceof ViewGroup)) return;
                             Object message = null;
                             if (hook.args.length > 1 && hook.args[1] instanceof Integer) {
                                 try {
                                     Object candidate = XposedHelpers.callMethod(adapter, "getItem", (Integer) hook.args[1]);
                                     if (candidate != null && getOriginalOrCurrentKeyId(candidate) != null) message = candidate;
-                                } catch (Throwable ignored) {}
+                                } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
                             }
                             if (message == null) return;
                             String key = getOriginalOrCurrentKeyId(message);
@@ -1123,7 +1124,7 @@ public class AntiRevokeHook extends BaseFeature {
                     Object child = f.get(value);
                     Object found = findBoundRevokedMessage(child, seen, depth + 1);
                     if (found != null) return found;
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
             }
         }
         return null;
@@ -1155,7 +1156,7 @@ public class AntiRevokeHook extends BaseFeature {
                                             field.setAccessible(true);
                                             Object value = field.get(source);
                                             if (value != null && types[0].isInstance(value)) return candidate;
-                                        } catch (Throwable ignored) {}
+                                        } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
                                     }
                                     current = current.getSuperclass();
                                 }
@@ -1228,7 +1229,7 @@ public class AntiRevokeHook extends BaseFeature {
                                 if (cd != null) {
                                     return cd.getInstance(loader);
                                 }
-                            } catch (Throwable ignored) {}
+                            } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
                         }
                         return null;
                     });
@@ -1264,12 +1265,12 @@ public class AntiRevokeHook extends BaseFeature {
                                                     }
                                                 }
                                             }
-                                        } catch (Throwable ignored) {}
+                                        } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
                                     }
                                 }
                                 return refreshCurrentPage.getMethodInstance(loader);
                             }
-                        } catch (Throwable ignored) {}
+                        } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
 
                         String[] anchors = {
                                 "playbackFragment/refreshCurrentPageSubTitle message is empty",
@@ -1285,7 +1286,7 @@ public class AntiRevokeHook extends BaseFeature {
                                 if (md != null) {
                                     return md.getMethodInstance(loader);
                                 }
-                            } catch (Throwable ignored) {}
+                            } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
                         }
                         return null;
                     });
@@ -1306,7 +1307,7 @@ public class AntiRevokeHook extends BaseFeature {
                                     return cd.getInstance(loader);
                                 }
                             }
-                        } catch (Throwable ignored) {}
+                        } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
                         return null;
                     });
 
@@ -1359,7 +1360,7 @@ public class AntiRevokeHook extends BaseFeature {
                         curr = curr.getSuperclass();
                     }
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
         }
 
         // Hook at most 2 single-int-arg methods (page-position setters) on the fragment
@@ -1373,7 +1374,7 @@ public class AntiRevokeHook extends BaseFeature {
                 try {
                     XposedBridge.hookMethod(m, buildStatusPageHookWithArg());
                     intArgCount++;
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
             }
         }
     }
@@ -1438,7 +1439,7 @@ public class AntiRevokeHook extends BaseFeature {
                                 StatusKeyHandoff.record(keyId);
                             }
                         }
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
                 }
             });
         } catch (Throwable t) {
@@ -1511,7 +1512,7 @@ public class AntiRevokeHook extends BaseFeature {
                     if (fragmentObj != null) {
                         tryDecorateStatusFragment(fragmentObj);
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
             }
         };
     }
@@ -1560,7 +1561,7 @@ public class AntiRevokeHook extends BaseFeature {
                     }
                     current = current.getSuperclass();
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
         }
         return null;
     }
@@ -1634,7 +1635,7 @@ public class AntiRevokeHook extends BaseFeature {
                     if (param.thisObject != null) {
                         tryDecorateStatusFragment(param.thisObject);
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
             }
         };
     }
@@ -1751,7 +1752,7 @@ public class AntiRevokeHook extends BaseFeature {
                 curr = curr.getSuperclass();
                 depth++;
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
         return null;
     }
 
@@ -1760,7 +1761,7 @@ public class AntiRevokeHook extends BaseFeature {
             try {
                 String entry = tv.getResources().getResourceEntryName(tv.getId()).toLowerCase();
                 if (entry.contains("date") || entry.contains("time") || entry.contains("subtitle")) return true;
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
         }
         CharSequence text = tv.getText();
         return text != null && looksLikeTimeString(text.toString());
@@ -1790,7 +1791,7 @@ public class AntiRevokeHook extends BaseFeature {
                     try {
                         View r = extractFragmentRootView(fragment);
                         if (r != null) doApplyStatusDecoration(r, keyId, ts);
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
                 }, 350);
                 return;
             }
@@ -1825,7 +1826,7 @@ public class AntiRevokeHook extends BaseFeature {
                     View v = root.findViewById(id);
                     if (v instanceof TextView) return (TextView) v;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
         }
         // Strategy 2: recursive scan for time-like text
         return findTimeTextViewRecursive(root);
@@ -1847,7 +1848,7 @@ public class AntiRevokeHook extends BaseFeature {
                             if (entry.contains("date") || entry.contains("time") || entry.contains("subtitle")) {
                                 return tv;
                             }
-                        } catch (Throwable ignored) {}
+                        } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
                     }
                     // Check text content looks like a time
                     CharSequence text = tv.getText();
@@ -1857,7 +1858,7 @@ public class AntiRevokeHook extends BaseFeature {
                     if (found != null) return found;
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
         return null;
     }
 
@@ -1886,7 +1887,7 @@ public class AntiRevokeHook extends BaseFeature {
                     String keyId = extractKeyIdFromBundle(bundle);
                     if (keyId != null) return keyId;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
 
             // 2. Scan fragment String fields directly
             Class<?> curr = fragment.getClass();
@@ -1908,7 +1909,7 @@ public class AntiRevokeHook extends BaseFeature {
                             String keyId = extractStatusKeyIdStrict(nested);
                             if (keyId != null) return keyId;
                         }
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
                 }
                 curr = curr.getSuperclass();
                 depth++;
@@ -1930,9 +1931,9 @@ public class AntiRevokeHook extends BaseFeature {
                 try {
                     String val = (String) getString.invoke(bundle, key);
                     if (isLikelyStatusKeyId(val)) return val;
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
         return null;
     }
 
@@ -1958,11 +1959,11 @@ public class AntiRevokeHook extends BaseFeature {
                         f.setAccessible(true);
                         String val = (String) f.get(obj);
                         if (isLikelyStatusKeyId(val)) return val;
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
                 }
                 curr = curr.getSuperclass();
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
         return null;
     }
 
@@ -1986,12 +1987,12 @@ public class AntiRevokeHook extends BaseFeature {
                             String key = extractKeyIdFromFMessage(val);
                             if (key != null) return key;
                         }
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
                 }
                 curr = curr.getSuperclass();
                 depth++;
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
         return null;
     }
 
@@ -2015,7 +2016,7 @@ public class AntiRevokeHook extends BaseFeature {
         try {
             Method getViewMethod = fragment.getClass().getMethod("getView");
             return (View) getViewMethod.invoke(fragment);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
         try {
             Class<?> curr = fragment.getClass();
             while (curr != null && curr != Object.class) {
@@ -2028,7 +2029,7 @@ public class AntiRevokeHook extends BaseFeature {
                 }
                 curr = curr.getSuperclass();
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
         return null;
     }
 
@@ -2092,8 +2093,7 @@ public class AntiRevokeHook extends BaseFeature {
                 if (date != null && !isIndicatorApplied(date)) {
                     decorateRevokedTextView(date, msg, ctx, deletedTimestamp);
                 }
-            } catch (Throwable ignored) {
-            }
+            } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
             scheduleDecorationVerification(rowView, keyTag, deletedTimestamp, attempt + 1);
         }, VERIFY_DELAYS_MS[attempt]);
     }
@@ -2294,7 +2294,7 @@ public class AntiRevokeHook extends BaseFeature {
             dateTextView.setOnClickListener(null);
             dateTextView.setOnTouchListener(null);
             XposedHelpers.removeAdditionalInstanceField(dateTextView, "waex_deleted_ts");
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
     }
 
     @Nullable
@@ -2311,14 +2311,14 @@ public class AntiRevokeHook extends BaseFeature {
                             if (entryName != null && entryName.toLowerCase().contains("date")) {
                                 return (TextView) child;
                             }
-                        } catch (Throwable ignored) {}
+                        } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
                     }
                 } else if (child instanceof ViewGroup) {
                     TextView found = findDateTextViewFallback((ViewGroup) child);
                     if (found != null) return found;
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
         return null;
     }
 
@@ -2344,7 +2344,7 @@ public class AntiRevokeHook extends BaseFeature {
                     && cachedFMessageKeyField.getDeclaringClass().isInstance(message)) {
                 try {
                     key = cachedFMessageKeyField.get(message);
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
             }
 
             if (key == null) {
@@ -2432,7 +2432,7 @@ public class AntiRevokeHook extends BaseFeature {
                             if (id != null && !id.isEmpty()) return id;
                         }
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
             }
 
             // 2. Discover Key object inside FMessage
@@ -2539,10 +2539,10 @@ public class AntiRevokeHook extends BaseFeature {
                     return Integer.parseInt(colorStr);
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
         try {
             return prefs.getInt("deleted_message_color", Color.parseColor("#EF4444"));
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
         return Color.parseColor("#EF4444");
     }
 
@@ -2550,10 +2550,10 @@ public class AntiRevokeHook extends BaseFeature {
         try {
             String strVal = prefs.getString("anti_revoke_indicator", null);
             if (strVal != null) return Integer.parseInt(strVal);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
         try {
             return prefs.getInt("anti_revoke_indicator", 2);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
         return 2;
     }
 
@@ -2578,7 +2578,7 @@ public class AntiRevokeHook extends BaseFeature {
                 if (original instanceof String && !((String) original).isEmpty()) {
                     return (String) original;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
         }
         return extractKeyIdFromFMessage(message);
     }
@@ -2602,7 +2602,7 @@ public class AntiRevokeHook extends BaseFeature {
                     Object child = field.get(value);
                     String found = findRecordedKeyDeep(child, seen, depth + 1);
                     if (found != null) return found;
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
             }
         }
         return null;

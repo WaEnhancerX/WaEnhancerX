@@ -6,6 +6,7 @@ import android.database.sqlite.SQLiteDatabase;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.waenhancer.xposed.core.db.MessageStore;
+import com.waenhancer.xposed.utils.HookErrors;
 import de.robv.android.xposed.XposedBridge;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -124,8 +125,7 @@ final class OwnReactionLookup {
                     if (id.length() < 6 || id.indexOf('@') >= 0 || id.indexOf('/') >= 0) continue;
                     if (id.length() >= 12) return id;
                     if (best == null) best = id;
-                } catch (Throwable ignored) {
-                }
+                } catch (Throwable ignored) { HookErrors.swallowed("OwnReactionLookup", ignored); }
             }
         }
         return best;

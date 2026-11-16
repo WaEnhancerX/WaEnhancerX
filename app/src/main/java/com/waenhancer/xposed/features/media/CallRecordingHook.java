@@ -15,6 +15,7 @@ import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.utils.ContactNameResolver;
 import com.waenhancer.calls.RecordingOutputFiles;
+import com.waenhancer.xposed.utils.HookErrors;
 
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.enums.StringMatchType;
@@ -313,7 +314,7 @@ public final class CallRecordingHook extends BaseFeature {
             candidate.start();
             return candidate;
         } catch (Throwable error) {
-            try { candidate.release(); } catch (Throwable ignored) {}
+            try { candidate.release(); } catch (Throwable ignored) { HookErrors.swallowed("CallRecordingHook", ignored); }
             throw error;
         }
     }
@@ -345,22 +346,22 @@ public final class CallRecordingHook extends BaseFeature {
         MediaRecorder active = recorder;
         recorder = null;
         if (active == null) return;
-        if (stopFirst) try { active.stop(); } catch (Throwable ignored) {}
-        try { active.reset(); } catch (Throwable ignored) {}
-        try { active.release(); } catch (Throwable ignored) {}
+        if (stopFirst) try { active.stop(); } catch (Throwable ignored) { HookErrors.swallowed("CallRecordingHook", ignored); }
+        try { active.reset(); } catch (Throwable ignored) { HookErrors.swallowed("CallRecordingHook", ignored); }
+        try { active.release(); } catch (Throwable ignored) { HookErrors.swallowed("CallRecordingHook", ignored); }
     }
 
     private void closeDestination(boolean deleteInvalid) {
         ParcelFileDescriptor active = destination;
         destination = null;
-        try { if (active != null) active.close(); } catch (Throwable ignored) {}
+        try { if (active != null) active.close(); } catch (Throwable ignored) { HookErrors.swallowed("CallRecordingHook", ignored); }
         if (deleteInvalid && outputPath != null) {
             try {
                 Bundle request = new Bundle();
                 request.putString("name", outputName);
                 context.getContentResolver().call(
                         BRIDGE_URI, "delete_call_recording", null, request);
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("CallRecordingHook", ignored); }
         }
         if (outputCallId != null) {
             try {
@@ -370,7 +371,7 @@ public final class CallRecordingHook extends BaseFeature {
                 request.putBoolean("successful", !deleteInvalid);
                 context.getContentResolver().call(
                         BRIDGE_URI, "finish_call_recording", null, request);
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("CallRecordingHook", ignored); }
         }
         outputPath = null;
         outputName = null;

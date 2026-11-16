@@ -18,6 +18,7 @@ import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.db.MessageStore;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.xposed.features.homescreen.MenuIconLoader;
+import com.waenhancer.xposed.utils.HookErrors;
 import com.waenhancer.xposed.utils.UiThread;
 
 import java.io.File;
@@ -335,7 +336,7 @@ public class DownloadViewOnceHook extends BaseFeature {
                     File f = MediaFileLocator.find(fragment, 5, MediaFileLocator.Mode.SHALLOW, null);
                     if (f != null && f.isFile() && f.length() > 0) return f;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("DownloadViewOnceHook", ignored); }
         }
 
         // Tier 4: Deep field search on Activity instance
@@ -357,7 +358,7 @@ public class DownloadViewOnceHook extends BaseFeature {
                     // Check if object has id (String) and chatJid fields
                     Field idField = findKeyIdField(val.getClass());
                     if (idField != null) return val;
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("DownloadViewOnceHook", ignored); }
             }
         }
         return null;
@@ -393,7 +394,7 @@ public class DownloadViewOnceHook extends BaseFeature {
                     return str.substring(start, end).trim();
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("DownloadViewOnceHook", ignored); }
         return null;
     }
 

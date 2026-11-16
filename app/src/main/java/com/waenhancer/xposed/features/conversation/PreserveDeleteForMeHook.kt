@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.os.SystemClock
 import com.waenhancer.xposed.core.BaseFeature
 import com.waenhancer.xposed.core.devkit.DexSearchEngine
+import com.waenhancer.xposed.utils.HookErrors
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import org.luckypray.dexkit.query.FindMethod
@@ -168,7 +169,7 @@ class PreserveDeleteForMeHook(
                     if (!raw.isNullOrEmpty()) return raw
                 }
             }
-        } catch (ignored: Throwable) {}
+        } catch (ignored: Throwable) { HookErrors.swallowed("PreserveDeleteForMeHook", ignored) }
         return "chat_$chatRowId"
     }
 
@@ -192,7 +193,7 @@ class PreserveDeleteForMeHook(
                 val resolved = resolveUserDisplayName(ctx, msgstoreDb, rawJid, userPart)
                 if (resolved.isNotBlank()) return resolved
             }
-        } catch (ignored: Throwable) {}
+        } catch (ignored: Throwable) { HookErrors.swallowed("PreserveDeleteForMeHook", ignored) }
         return fallback
     }
 
@@ -210,7 +211,7 @@ class PreserveDeleteForMeHook(
                     if (!subject.isNullOrBlank()) return subject
                 }
             }
-        } catch (ignored: Throwable) {}
+        } catch (ignored: Throwable) { HookErrors.swallowed("PreserveDeleteForMeHook", ignored) }
 
         val userPart = rawJid.substringBefore("@")
         return resolveUserDisplayName(ctx, msgstoreDb, rawJid, userPart)
@@ -241,7 +242,7 @@ class PreserveDeleteForMeHook(
                     resolvedPhoneUser = cursor.getString(1)
                 }
             }
-        } catch (ignored: Throwable) {}
+        } catch (ignored: Throwable) { HookErrors.swallowed("PreserveDeleteForMeHook", ignored) }
 
         // 2. Query wa.db (wa_contacts table)
         try {
@@ -272,7 +273,7 @@ class PreserveDeleteForMeHook(
                     }
                 }
             }
-        } catch (ignored: Throwable) {}
+        } catch (ignored: Throwable) { HookErrors.swallowed("PreserveDeleteForMeHook", ignored) }
 
         // 3. Check verified business names in wa.db
         try {
@@ -287,7 +288,7 @@ class PreserveDeleteForMeHook(
                     }
                 }
             }
-        } catch (ignored: Throwable) {}
+        } catch (ignored: Throwable) { HookErrors.swallowed("PreserveDeleteForMeHook", ignored) }
 
         if (!resolvedPhoneUser.isNullOrBlank()) {
             return "+$resolvedPhoneUser"

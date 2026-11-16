@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import com.waenhancer.xposed.utils.HookErrors;
 
 /**
  * Persistent SQLite Database for anti-revoked message storage and deletion timestamps.
@@ -76,7 +77,7 @@ public final class DelMessageStore extends SQLiteOpenHelper {
                 loadFailed = true; // fall back to per-id queries below
             }
             if (onLoaded != null) {
-                try { onLoaded.run(); } catch (Throwable ignored) {}
+                try { onLoaded.run(); } catch (Throwable ignored) { HookErrors.swallowed("DelMessageStore", ignored); }
             }
         }, "WAEX-DelStore-Preload");
         t.setPriority(Thread.MIN_PRIORITY);
@@ -138,7 +139,7 @@ public final class DelMessageStore extends SQLiteOpenHelper {
             cv.put(COL_MSGID, msgId);
             cv.put(COL_TIMESTAMP, timestamp);
             db.insertWithOnConflict(TABLE_DEL_MESSAGES, null, cv, SQLiteDatabase.CONFLICT_REPLACE);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("DelMessageStore", ignored); }
     }
 
     public long getTimestampByMessageId(@Nullable String msgId) {
@@ -197,7 +198,7 @@ public final class DelMessageStore extends SQLiteOpenHelper {
                     } while (cursor.moveToNext());
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("DelMessageStore", ignored); }
         return list;
     }
 

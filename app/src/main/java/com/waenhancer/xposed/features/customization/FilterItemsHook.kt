@@ -14,6 +14,7 @@ import com.waenhancer.model.FilterItem
 import com.waenhancer.xposed.core.BaseFeature
 import com.waenhancer.xposed.core.ViewHookDispatcher
 import com.waenhancer.xposed.utils.ActivityTracker
+import com.waenhancer.xposed.utils.HookErrors
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
@@ -283,7 +284,7 @@ class FilterItemsHook(
             if (parent is ViewGroup) {
                 try {
                     parent.removeView(target)
-                } catch (_: Throwable) {}
+                } catch (ignored: Throwable) { HookErrors.swallowed("FilterItemsHook", ignored) }
             }
         }
     }

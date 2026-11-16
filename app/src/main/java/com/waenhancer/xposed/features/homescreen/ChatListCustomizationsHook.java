@@ -13,6 +13,7 @@ import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.xposed.utils.ActivityTracker;
+import com.waenhancer.xposed.utils.HookErrors;
 import de.robv.android.xposed.XC_MethodHook;
 import java.util.ArrayDeque;
 import java.util.Locale;
@@ -207,8 +208,7 @@ public class ChatListCustomizationsHook extends BaseFeature {
             if (parent instanceof ViewGroup) {
                 try {
                     ((ViewGroup) parent).removeView(view);
-                } catch (Throwable ignored) {
-                }
+                } catch (Throwable ignored) { HookErrors.swallowed("ChatListCustomizationsHook", ignored); }
             }
         });
     }

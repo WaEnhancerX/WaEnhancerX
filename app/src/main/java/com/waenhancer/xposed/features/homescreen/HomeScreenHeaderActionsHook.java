@@ -37,6 +37,7 @@ import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.enums.StringMatchType;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
 import org.luckypray.dexkit.result.ClassData;
+import com.waenhancer.xposed.utils.HookErrors;
 import com.waenhancer.xposed.utils.WhatsAppProcessRestarter;
 import java.util.Locale;
 import java.lang.reflect.Method;
@@ -364,7 +365,7 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
         try {
             appLabel = activity.getApplicationInfo().loadLabel(activity.getPackageManager())
                     .toString().trim();
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("HomeScreenHeaderActionsHook", ignored); }
         boolean expectedText = actual.equals(activityTitle) || actual.equals(appLabel)
                 || actual.equalsIgnoreCase("WhatsApp")
                 || actual.equalsIgnoreCase("WhatsApp Business");
@@ -405,7 +406,7 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
                     }
             );
             if (cls != null) return cls;
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("HomeScreenHeaderActionsHook", ignored); }
         Class<?> currentHome = XposedHelpers.findClassIfExists(
                 "com.whatsapp.home.ui.HomeActivity", classLoader);
         if (currentHome != null) return currentHome;
@@ -673,7 +674,7 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
                             Intent intent =
                                     activity.getPackageManager().getLaunchIntentForPackage("com.waenhancer");
                             if (intent != null) activity.startActivity(intent);
-                        } catch (Throwable ignored) {}
+                        } catch (Throwable ignored) { HookErrors.swallowed("HomeScreenHeaderActionsHook", ignored); }
                     },
                     /* onInvalidate */ activity::invalidateOptionsMenu
             );
@@ -716,7 +717,7 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
                     Intent intent =
                             activity.getPackageManager().getLaunchIntentForPackage("com.waenhancer");
                     if (intent != null) activity.startActivity(intent);
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("HomeScreenHeaderActionsHook", ignored); }
             }
             return true;
         }

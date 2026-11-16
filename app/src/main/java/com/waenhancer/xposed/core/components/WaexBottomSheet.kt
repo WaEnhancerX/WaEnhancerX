@@ -29,6 +29,7 @@ import androidx.core.widget.NestedScrollView
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import android.R
+import com.waenhancer.xposed.utils.HookErrors
 
 /**
  * Modern Native WhatsApp WDS (WhatsApp Design System) bottom sheet component for WAEX.
@@ -561,7 +562,7 @@ class WaexBottomSheet(private val context: Context) {
                         XposedHelpers.callMethod(button, "setVariant", enumVal)
                     }
                 }
-            } catch (ignored: Throwable) {}
+            } catch (ignored: Throwable) { HookErrors.swallowed("WaexBottomSheet", ignored) }
             button
         } catch (t: Throwable) {
             null

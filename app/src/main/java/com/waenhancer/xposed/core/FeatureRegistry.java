@@ -81,6 +81,7 @@ import com.waenhancer.xposed.features.privacy.HideReceiptsHook;
 import com.waenhancer.xposed.features.privacy.LockedChatsEnhancerHook;
 import com.waenhancer.xposed.features.privacy.ScreenshotRestrictionBypassHook;
 import com.waenhancer.xposed.features.privacy.TypingPrivacyHook;
+import com.waenhancer.xposed.utils.HookErrors;
 import de.robv.android.xposed.XposedBridge;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -188,7 +189,7 @@ public final class FeatureRegistry {
                     String key = keys.next();
                     customizedInstallations.put(key, custom.optString(key, ""));
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("FeatureRegistry", ignored); }
         }
         try {
             BootloaderSpooferFeature.install(context, classLoader, prefs);

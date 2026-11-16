@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import de.robv.android.xposed.XC_MethodHook
 import java.util.concurrent.ConcurrentHashMap
+import com.waenhancer.xposed.utils.HookErrors
 
 /**
  * Base abstract class for all modular WAEX enhancements.
@@ -38,8 +39,7 @@ abstract class BaseFeature(
         installedHooks.forEach { hook ->
             try {
                 hook.unhook()
-            } catch (_: Throwable) {
-            }
+            } catch (ignored: Throwable) { HookErrors.swallowed("BaseFeature", ignored) }
         }
         installedHooks.clear()
         ViewHookDispatcher.unregister(this)

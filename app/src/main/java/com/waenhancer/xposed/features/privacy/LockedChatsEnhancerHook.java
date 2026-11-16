@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.xposed.utils.HookErrors;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
@@ -204,7 +205,7 @@ public class LockedChatsEnhancerHook extends BaseFeature {
                                     listField.set(argObj, filtered);
                                 }
                             }
-                        } catch (Throwable ignored) {}
+                        } catch (Throwable ignored) { HookErrors.swallowed("LockedChatsEnhancerHook", ignored); }
                     }
                 });
             }
@@ -249,7 +250,7 @@ public class LockedChatsEnhancerHook extends BaseFeature {
                 try {
                     field.setAccessible(true);
                     addIdentity(ids, field.get(value));
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("LockedChatsEnhancerHook", ignored); }
             }
         }
         return ids;
@@ -260,14 +261,14 @@ public class LockedChatsEnhancerHook extends BaseFeature {
         try {
             Object raw = XposedHelpers.callMethod(value, "getRawString");
             if (raw != null) ids.add(raw.toString());
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("LockedChatsEnhancerHook", ignored); }
         String text = String.valueOf(value);
         if (text.contains("@")) ids.add(text);
         for (String method : new String[]{"getPhoneNumber", "getUser", "getUserRawString", "getPhoneRawString"}) {
             try {
                 Object result = XposedHelpers.callMethod(value, method);
                 if (result != null) ids.add(result.toString());
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("LockedChatsEnhancerHook", ignored); }
         }
     }
 }

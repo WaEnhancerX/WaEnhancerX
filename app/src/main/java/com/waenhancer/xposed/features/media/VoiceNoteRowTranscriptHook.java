@@ -28,6 +28,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.waenhancer.xposed.core.BaseFeature;
+import com.waenhancer.xposed.utils.HookErrors;
 import com.waenhancer.xposed.utils.HostResourceIds;
 import com.waenhancer.xposed.core.components.WaexBottomSheet;
 import com.waenhancer.xposed.utils.ActivityTracker;
@@ -153,15 +154,15 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
     private Method findGetViewMethod(Class<?> adapterClass) {
         try {
             return adapterClass.getMethod("getView", int.class, View.class, ViewGroup.class);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("VoiceNoteRowTranscriptHook", ignored); }
         try {
             return XposedHelpers.findMethodExactIfExists(adapterClass, "getView",
                     int.class, View.class, ViewGroup.class);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("VoiceNoteRowTranscriptHook", ignored); }
         try {
             return XposedHelpers.findMethodBestMatch(adapterClass, "getView",
                     int.class, View.class, ViewGroup.class);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("VoiceNoteRowTranscriptHook", ignored); }
         return null;
     }
 
@@ -759,7 +760,7 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
         android.app.Dialog sheet = currentSheet;
         currentSheet = null;
         if (sheet != null && sheet.isShowing()) {
-            try { sheet.dismiss(); } catch (Throwable ignored) { }
+            try { sheet.dismiss(); } catch (Throwable ignored) { HookErrors.swallowed("VoiceNoteRowTranscriptHook", ignored); }
         }
     }
 

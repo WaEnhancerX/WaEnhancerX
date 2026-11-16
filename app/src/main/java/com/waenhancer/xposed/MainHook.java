@@ -36,6 +36,7 @@ import com.waenhancer.xposed.core.components.WaexBottomSheet;
 import com.waenhancer.xposed.features.customization.PropsOverrideHook;
 import com.waenhancer.xposed.features.updates.WhatsAppUpdateSheet;
 import com.waenhancer.xposed.utils.ActivityTracker;
+import com.waenhancer.xposed.utils.HookErrors;
 import com.waenhancer.xposed.utils.TargetExitReporter;
 import com.waenhancer.xposed.utils.ModuleStatus;
 
@@ -270,7 +271,7 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                             }
                         }
                 );
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("MainHook", ignored); }
             return;
         }
 
@@ -306,7 +307,7 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                             context.getApplicationInfo().flags |= ApplicationInfo.FLAG_DEBUGGABLE;
                                             try {
                                                 android.webkit.WebView.setWebContentsDebuggingEnabled(true);
-                                            } catch (Throwable ignored) {}
+                                            } catch (Throwable ignored) { HookErrors.swallowed("MainHook", ignored); }
                                         }
                                     } catch (Throwable t) {
                                         XposedBridge.log("[WAEX] Error setting debuggable flag: " + t.getMessage());
@@ -386,7 +387,7 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                         appContext.getContentResolver().call(
                                 Uri.parse("content://com.waenhancer.hookprovider"),
                                 "request_update_check", packageName, null);
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable ignored) { HookErrors.swallowed("MainHook", ignored); }
                 });
 
                 try {
@@ -406,7 +407,7 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                     } else {
                         appContext.registerReceiver(receiver, filter, RESTART_PERMISSION, null);
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("MainHook", ignored); }
 
                 boolean showHookToast = true;
                 try {
@@ -432,7 +433,7 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                         TargetExitReporter.scheduleOnce(appContext, packageName, advancedConsent,
                                 bridgeClient.getLong(
                                         PreferenceSchema.KEY_DIAGNOSTIC_TARGET_EXIT_SINCE, 0L));
-                    } catch (RuntimeException ignored) {}
+                    } catch (RuntimeException ignored) { HookErrors.swallowed("MainHook", ignored); }
                     reportTargetRuntime(
                             appContext,
                             packageName,
@@ -544,7 +545,7 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                         Field appContextField = param.thisObject.getClass().getField("appContext");
                                         Object ctx = appContextField.get(param.thisObject);
                                         if (ctx instanceof Context) app = ctx;
-                                    } catch (Throwable ignored) {}
+                                    } catch (Throwable ignored) { HookErrors.swallowed("MainHook", ignored); }
                                 }
                                 if (app instanceof Context) {
                                     initializeTargetFromContext.accept((Context) app);
@@ -621,7 +622,7 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                     Thread worker = new Thread(() -> {
                         try {
                             registry.reportInjectedHooks(appContext, packageName);
-                        } catch (Throwable ignored) {}
+                        } catch (Throwable ignored) { HookErrors.swallowed("MainHook", ignored); }
                     }, "WAEX-HookReport");
                     worker.setDaemon(true);
                     worker.start();
@@ -710,7 +711,7 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                 @Override public void onActivityStopped(@NonNull Activity activity) {}
                 @Override public void onActivityDestroyed(@NonNull Activity activity) {}
             });
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("MainHook", ignored); }
         // Already on screen (late injection): nothing to wait for.
         if (ActivityTracker.getCurrentActivity() != null) releaseDeferredReporting();
         new Handler(Looper.getMainLooper()).postDelayed(

@@ -27,6 +27,7 @@ import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.xposed.features.homescreen.MenuIconLoader;
 import com.waenhancer.xposed.features.privacy.BlueOnReplyHook;
 import com.waenhancer.xposed.utils.ActivityTracker;
+import com.waenhancer.xposed.utils.HookErrors;
 import com.waenhancer.xposed.utils.UiThread;
 
 import java.io.File;
@@ -226,7 +227,7 @@ public class StatusDownloadHook extends BaseFeature {
                                     targetFragment = val;
                                 }
                             }
-                        } catch (Throwable ignored) {}
+                        } catch (Throwable ignored) { HookErrors.swallowed("StatusDownloadHook", ignored); }
                     }
                     cls = cls.getSuperclass();
                 }
@@ -673,7 +674,7 @@ public class StatusDownloadHook extends BaseFeature {
             Constructor<?> constructor = source.getClass().getConstructor(ViewGroup.LayoutParams.class);
             Object copy = constructor.newInstance(source);
             if (copy instanceof ViewGroup.LayoutParams) return (ViewGroup.LayoutParams) copy;
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("StatusDownloadHook", ignored); }
         if (source instanceof ViewGroup.MarginLayoutParams) {
             return new ViewGroup.MarginLayoutParams((ViewGroup.MarginLayoutParams) source);
         }
@@ -775,7 +776,7 @@ public class StatusDownloadHook extends BaseFeature {
                 Object view = getView.invoke(sourceObject);
                 if (view instanceof View) return (View) view;
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("StatusDownloadHook", ignored); }
         return null;
     }
 
@@ -789,7 +790,7 @@ public class StatusDownloadHook extends BaseFeature {
                     String text = ((TextView) view).getText().toString().trim();
                     if (!text.isEmpty()) return text;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("StatusDownloadHook", ignored); }
         }
 
         if (view instanceof ViewGroup) {
@@ -830,7 +831,7 @@ public class StatusDownloadHook extends BaseFeature {
                 Object value = cached.get(fragmentInstance);
                 if (value instanceof List && !((List<?>) value).isEmpty()) lists.add((List<?>) value);
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("StatusDownloadHook", ignored); }
         for (Class<?> type = fragmentInstance.getClass(); type != null && type != Object.class; type = type.getSuperclass()) {
             for (Field field : type.getDeclaredFields()) {
                 if (!List.class.isAssignableFrom(field.getType())) continue;
@@ -840,7 +841,7 @@ public class StatusDownloadHook extends BaseFeature {
                     if (value instanceof List && !((List<?>) value).isEmpty() && !lists.contains(value)) {
                         lists.add((List<?>) value);
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("StatusDownloadHook", ignored); }
             }
         }
         return lists;
@@ -852,7 +853,7 @@ public class StatusDownloadHook extends BaseFeature {
             try {
                 int index = field.getInt(fragmentInstance);
                 if (index >= 0 && index < itemCount) return index;
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("StatusDownloadHook", ignored); }
         }
 
         for (String fieldName : new String[]{"A02", "A00"}) {
@@ -862,7 +863,7 @@ public class StatusDownloadHook extends BaseFeature {
                     int index = fallback.getInt(fragmentInstance);
                     if (index >= 0 && index < itemCount) return index;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("StatusDownloadHook", ignored); }
         }
         return itemCount == 1 ? 0 : -1;
     }
@@ -976,7 +977,7 @@ public class StatusDownloadHook extends BaseFeature {
                     clipboard.setPrimaryClip(clip);
                     Toast.makeText(ctx, UiText.get(R.string.waex_ui_copied_status_text_to_clipboard, "Copied status text to clipboard"), Toast.LENGTH_SHORT).show();
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("StatusDownloadHook", ignored); }
         });
     }
 
@@ -992,7 +993,7 @@ public class StatusDownloadHook extends BaseFeature {
                         return cd != null ? cd.getInstance(loader) : null;
                     }
             );
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("StatusDownloadHook", ignored); }
         return XposedHelpers.findClassIfExists("com.whatsapp.status.playback.fragment.StatusPlaybackContactFragment", classLoader);
     }
 
@@ -1008,7 +1009,7 @@ public class StatusDownloadHook extends BaseFeature {
                         return cd != null ? cd.getInstance(loader) : null;
                     }
             );
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("StatusDownloadHook", ignored); }
         return XposedHelpers.findClassIfExists("com.whatsapp.status.playback.fragment.StatusPlaybackBaseFragment", classLoader);
     }
 }

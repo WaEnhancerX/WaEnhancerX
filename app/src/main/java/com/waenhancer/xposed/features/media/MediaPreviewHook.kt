@@ -48,6 +48,7 @@ import android.widget.Toast
 import android.widget.VideoView
 import androidx.core.graphics.drawable.DrawableCompat
 import com.waenhancer.xposed.core.BaseFeature
+import com.waenhancer.xposed.utils.HookErrors
 import com.waenhancer.xposed.utils.HostResourceIds
 import com.waenhancer.xposed.core.db.MessageStore
 import com.waenhancer.xposed.utils.ActivityTracker
@@ -1027,7 +1028,7 @@ class MediaPreviewHook(
                     } else {
                         updatePlayPauseButton(controls, true)
                     }
-                } catch (_: Exception) {}
+                } catch (ignored: Exception) { HookErrors.swallowed("MediaPreviewHook", ignored) }
             }
         }
         buttonsContainer.addView(speedBtn)
@@ -1054,7 +1055,7 @@ class MediaPreviewHook(
             currentMediaPlayer?.let { mp ->
                 try {
                     mp.setVolume(if (newMuted) 0f else 1f, if (newMuted) 0f else 1f)
-                } catch (_: Exception) {}
+                } catch (ignored: Exception) { HookErrors.swallowed("MediaPreviewHook", ignored) }
             }
         }
         buttonsContainer.addView(muteBtn)
@@ -1143,7 +1144,7 @@ class MediaPreviewHook(
         currentMediaPlayer?.let {
             try {
                 it.release()
-            } catch (_: Exception) {}
+            } catch (ignored: Exception) { HookErrors.swallowed("MediaPreviewHook", ignored) }
             currentMediaPlayer = null
         }
         currentVideoView = null
@@ -1243,7 +1244,7 @@ class MediaPreviewHook(
                     val value = field.get(message)
                     if (value is Long && value > 0L) return value
                     if (value is Int && value > 0) return value.toLong()
-                } catch (_: Throwable) {}
+                } catch (ignored: Throwable) { HookErrors.swallowed("MediaPreviewHook", ignored) }
             }
             type = type.superclass
         }
@@ -1268,7 +1269,7 @@ class MediaPreviewHook(
                         extractMessageIdFromKey(candidate)?.let { return it }
                         KEY_ID_REGEX.find(representation)?.groupValues?.getOrNull(1)?.let { return it }
                     }
-                } catch (_: Throwable) {}
+                } catch (ignored: Throwable) { HookErrors.swallowed("MediaPreviewHook", ignored) }
             }
             type = type.superclass
         }

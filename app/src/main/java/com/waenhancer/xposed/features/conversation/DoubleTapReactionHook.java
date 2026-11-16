@@ -15,6 +15,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.waenhancer.xposed.core.BaseFeature;
+import com.waenhancer.xposed.utils.HookErrors;
 import com.waenhancer.xposed.utils.HostResourceIds;
 import com.waenhancer.utils.EmojiInputPolicy;
 import com.waenhancer.xposed.utils.ActivityTracker;
@@ -182,7 +183,7 @@ public class DoubleTapReactionHook extends BaseFeature {
                                                 // The Method hook is shared by every adapter instance.
                                                 // Read the instance rendering this row, not its installer.
                                                 item = ((ListAdapter) p.thisObject).getItem((Integer) p.args[0]);
-                                            } catch (Throwable ignored) {}
+                                            } catch (Throwable ignored) { HookErrors.swallowed("DoubleTapReactionHook", ignored); }
 
                                             if (item == null || fMessageClass == null || !fMessageClass.isInstance(item)) {
                                                 return;
@@ -571,7 +572,7 @@ public class DoubleTapReactionHook extends BaseFeature {
                     }
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("DoubleTapReactionHook", ignored); }
 
         try {
             for (java.lang.reflect.Constructor<?> c : actionUserClass.getDeclaredConstructors()) {

@@ -6,6 +6,7 @@ import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.xposed.core.devkit.HookReturnTypeGuard;
+import com.waenhancer.xposed.utils.HookErrors;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import org.luckypray.dexkit.query.FindMethod;
@@ -195,7 +196,7 @@ public class ChatLimitsBypassHook extends BaseFeature {
                                     try {
                                         Method m = invoked.getMethodInstance(loader);
                                         if (isCapGetterShape(m)) calledByPinFlows.merge(m, 1, Integer::sum);
-                                    } catch (Throwable ignored) { }
+                                    } catch (Throwable ignored) { HookErrors.swallowed("ChatLimitsBypassHook", ignored); }
                                 }
                             }
                         }
@@ -252,7 +253,7 @@ public class ChatLimitsBypassHook extends BaseFeature {
                 int score = calledByPinFlows.getOrDefault(m, 0);
                 if (requirePinFlowCaller && score == 0) continue;
                 if (score > bestScore) { best = m; bestScore = score; }
-            } catch (Throwable ignored) { }
+            } catch (Throwable ignored) { HookErrors.swallowed("ChatLimitsBypassHook", ignored); }
         }
         // Without pin-flow evidence, accept only an unambiguous match.
         if (!requirePinFlowCaller && shapedMatches != 1) return null;
@@ -385,7 +386,7 @@ public class ChatLimitsBypassHook extends BaseFeature {
         Class<?> userJid = null;
         try {
             userJid = classLoader.loadClass("com.whatsapp.infra.core.jid.UserJid");
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("ChatLimitsBypassHook", ignored); }
         for (Class<?> current = owner.getClass(); current != null && current != Object.class;
              current = current.getSuperclass()) {
             for (Field field : current.getDeclaredFields()) {
@@ -404,7 +405,7 @@ public class ChatLimitsBypassHook extends BaseFeature {
                         }
                     }
                     if (allJids) return field;
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("ChatLimitsBypassHook", ignored); }
             }
         }
         return null;
@@ -423,7 +424,7 @@ public class ChatLimitsBypassHook extends BaseFeature {
                 try {
                     field.setAccessible(true);
                     if (field.getInt(runnable) == branch) return true;
-                } catch (Throwable ignored) { }
+                } catch (Throwable ignored) { HookErrors.swallowed("ChatLimitsBypassHook", ignored); }
             }
         }
         return false;
