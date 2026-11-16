@@ -1,6 +1,6 @@
 [Added]
 - Custom Emojis: Choose from cloud emoji styles (iOS, Facebook, Samsung, Twitter, Windows, etc.) with in-app download and management screen
-
+- Report Issue Feature: Report issues and suggest features within app
 
 [Fixes]
 
