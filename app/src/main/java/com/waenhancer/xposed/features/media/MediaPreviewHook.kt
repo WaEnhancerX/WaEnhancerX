@@ -49,6 +49,7 @@ import android.widget.VideoView
 import androidx.core.graphics.drawable.DrawableCompat
 import com.waenhancer.xposed.core.BaseFeature
 import com.waenhancer.xposed.utils.HookErrors
+import com.waenhancer.xposed.utils.HostClassNames
 import com.waenhancer.xposed.utils.HostResourceIds
 import com.waenhancer.xposed.core.db.MessageStore
 import com.waenhancer.xposed.utils.ActivityTracker
@@ -118,8 +119,8 @@ class MediaPreviewHook(
         if (list.id != AndroidR.id.list) return
         val tracked = ActivityTracker.getCurrentActivity()
         val host = list.context
-        val inConversation = tracked?.javaClass?.simpleName?.contains("Conversation") == true ||
-            (host is android.app.Activity && host.javaClass.simpleName.contains("Conversation"))
+        val inConversation = (tracked != null && HostClassNames.simpleNameContains(tracked.javaClass, "Conversation")) ||
+            (host is android.app.Activity && HostClassNames.simpleNameContains(host.javaClass, "Conversation"))
         if (!inConversation) return
 
         var adapter: ListAdapter? = adapterIn
@@ -159,7 +160,7 @@ class MediaPreviewHook(
         val id = row.id
         if (id == View.NO_ID) return KIND_NONE
         return rowKindCache.getOrPut(id) {
-            val entry = runCatching { row.resources.getResourceEntryName(id) }.getOrNull().orEmpty()
+            val entry = runCatching { HostResourceIds.entryName(row, id) }.getOrNull().orEmpty()
             when {
                 entry == "conversation_row_image" -> KIND_IMAGE
                 entry == "conversation_row_video" || (entry.startsWith("conversation_row_") && entry.contains("video")) -> KIND_VIDEO

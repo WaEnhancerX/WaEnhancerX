@@ -16,6 +16,7 @@ import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.xposed.utils.ActivityTracker;
 import com.waenhancer.xposed.utils.HookErrors;
 import com.waenhancer.xposed.utils.HostClassNames;
+import com.waenhancer.xposed.utils.HostResourceIds;
 import de.robv.android.xposed.XC_MethodHook;
 import java.util.ArrayDeque;
 import java.util.Locale;
@@ -151,7 +152,7 @@ public class ChatListCustomizationsHook extends BaseFeature {
     private static boolean isAssistantFab(View view) {
         if (view == null || view.getId() == View.NO_ID) return false;
         try {
-            String entry = view.getResources().getResourceEntryName(view.getId());
+            String entry = HostResourceIds.entryName(view, view.getId());
             return "fab_second".equals(entry) || "meta_ai_fab".equals(entry)
                     || "meta_ai_button".equals(entry);
         } catch (Resources.NotFoundException ignored) {
@@ -164,7 +165,7 @@ public class ChatListCustomizationsHook extends BaseFeature {
         int id = view.getId();
         if (id != View.NO_ID) {
             try {
-                String entry = view.getResources().getResourceEntryName(id);
+                String entry = HostResourceIds.entryName(view, id);
                 if (isAssistantViewId(entry)) return true;
             } catch (Resources.NotFoundException ignored) {
             }

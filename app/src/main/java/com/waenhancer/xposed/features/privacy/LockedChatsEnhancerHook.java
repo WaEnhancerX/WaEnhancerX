@@ -6,6 +6,7 @@ import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.HostFields;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
@@ -215,7 +216,7 @@ public class LockedChatsEnhancerHook extends BaseFeature {
     private static Field selectLockedChatsField(Class<?> type) {
         List<Field> candidates = new ArrayList<>();
         for (Class<?> current = type; current != null && current != Object.class; current = current.getSuperclass()) {
-            for (Field field : current.getDeclaredFields()) {
+            for (Field field : HostFields.declared(current)) {
                 if (HashSet.class.isAssignableFrom(field.getType()) || Set.class.isAssignableFrom(field.getType())) {
                     field.setAccessible(true);
                     candidates.add(field);
@@ -229,7 +230,7 @@ public class LockedChatsEnhancerHook extends BaseFeature {
     private static Field findListField(Class<?> type) {
         Field fallback = null;
         for (Class<?> current = type; current != null && current != Object.class; current = current.getSuperclass()) {
-            for (Field field : current.getDeclaredFields()) {
+            for (Field field : HostFields.declared(current)) {
                 if (!List.class.isAssignableFrom(field.getType())) continue;
                 field.setAccessible(true);
                 if ("A01".equals(field.getName())) return field;
@@ -245,7 +246,7 @@ public class LockedChatsEnhancerHook extends BaseFeature {
         addIdentity(ids, value);
         // Contact wrappers generally contain one typed JID. Inspect shallow fields only.
         for (Class<?> type = value.getClass(); type != null && type != Object.class; type = type.getSuperclass()) {
-            for (Field field : type.getDeclaredFields()) {
+            for (Field field : HostFields.declared(type)) {
                 if (field.getType().isPrimitive() || field.getType() == String.class) continue;
                 try {
                     field.setAccessible(true);

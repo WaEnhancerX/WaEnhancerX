@@ -122,6 +122,14 @@ STUBS = {'android/content/Context.java': 'package android.content; public class 
                                               'value){result=value;throwable=null;early=true;}\n'
                                               ' }\n'
                                               '}',
+ 'com/waenhancer/xposed/utils/HookErrors.java': 'package com.waenhancer.xposed.utils;\n'
+                                                 'public final class HookErrors {\n'
+                                                 ' public static void swallowed(String site, Throwable failure){}\n'
+                                                 '}',
+ 'com/waenhancer/xposed/utils/HostFields.java': 'package com.waenhancer.xposed.utils;\n'
+                                                'public final class HostFields {\n'
+                                                ' public static java.lang.reflect.Field[] declared(Class<?> type){return type.getDeclaredFields();}\n'
+                                                '}',
  'de/robv/android/xposed/XposedBridge.java': 'package de.robv.android.xposed;\n'
                                              'import java.lang.reflect.*; import java.util.*;\n'
                                              'public final class XposedBridge {\n'

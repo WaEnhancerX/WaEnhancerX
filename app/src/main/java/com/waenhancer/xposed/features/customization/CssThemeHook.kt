@@ -23,6 +23,7 @@ import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import java.util.Collections
 import java.util.WeakHashMap
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.roundToInt
 import android.graphics.drawable.ColorDrawable
 import android.util.TypedValue
@@ -37,6 +38,7 @@ import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.util.LruCache
 import com.waenhancer.theme.ThemeIds
+import com.waenhancer.xposed.utils.HostResourceIds
 
 /** Applies CSS-like rules to WhatsApp views without requiring a theme package. */
 class CssThemeHook(
@@ -398,7 +400,7 @@ class CssThemeHook(
         val value = raw.trim().trimEnd(';')
         runCatching { Color.parseColor(value) }.getOrNull()?.let { return it }
         val resourceName = value.removePrefix("color_")
-        val id = view.resources.getIdentifier(resourceName, "color", "android")
+        val id = systemColorIds.getOrPut(resourceName) { view.resources.getIdentifier(resourceName, "color", "android") }
         return if (id != 0) runCatching { view.context.getColor(id) }.getOrNull() else null
     }
 
@@ -526,14 +528,16 @@ class CssThemeHook(
         }
 
         private fun resourceName(view: View): String? = if (view.id == View.NO_ID) null else
-            runCatching { view.resources.getResourceEntryName(view.id) }.getOrNull()
+            runCatching { HostResourceIds.entryName(view, view.id) }.getOrNull()
 
         private fun androidResourceName(view: View): String? = if (view.id == View.NO_ID) null else
-            runCatching { "android_${view.resources.getResourceEntryName(view.id)}" }
+            runCatching { "android_${HostResourceIds.entryName(view, view.id)}" }
                 .getOrNull()?.takeIf { runCatching { view.resources.getResourcePackageName(view.id) }.getOrNull() == "android" }
     }
 
     private companion object {
+        // Android system color names never change; parseColor runs for every themed view.
+        val systemColorIds = ConcurrentHashMap<String, Int>()
         const val CSS_KEY = "css_theme"
         const val LEGACY_CSS_KEY = "custom_css"
         const val THEME_KEY = "active_theme"

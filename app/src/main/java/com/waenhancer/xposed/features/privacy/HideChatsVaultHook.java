@@ -10,6 +10,7 @@ import androidx.annotation.NonNull;
 
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.ViewHookDispatcher;
+import com.waenhancer.xposed.utils.HostResourceIds;
 
 import java.util.Collections;
 import java.util.Set;
@@ -136,7 +137,7 @@ public class HideChatsVaultHook extends BaseFeature {
 
         // Resource IDs vary between WhatsApp and WhatsApp Business builds.
         try {
-            return LOCKED_HEADER_ID.equals(view.getResources().getResourceEntryName(viewId));
+            return LOCKED_HEADER_ID.equals(HostResourceIds.entryName(view, viewId));
         } catch (Throwable ignored) {
             return false;
         }
@@ -149,7 +150,7 @@ public class HideChatsVaultHook extends BaseFeature {
             return viewId == headerComboViewId;
         }
         try {
-            return expectedName.equals(view.getResources().getResourceEntryName(viewId));
+            return expectedName.equals(HostResourceIds.entryName(view, viewId));
         } catch (Throwable ignored) {
             return false;
         }

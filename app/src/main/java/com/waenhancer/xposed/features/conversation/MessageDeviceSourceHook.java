@@ -25,6 +25,7 @@ import com.waenhancer.xposed.core.db.MessageDeviceSourceStore;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.xposed.utils.ActivityTracker;
 import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.HostResourceIds;
 
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.enums.StringMatchType;
@@ -441,7 +442,7 @@ public class MessageDeviceSourceHook extends BaseFeature {
         int id = view.getId();
         if (id == View.NO_ID) return null;
         try {
-            return view.getResources().getResourceEntryName(id);
+            return HostResourceIds.entryName(view, id);
         } catch (Throwable ignored) {
             return null;
         }

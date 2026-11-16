@@ -30,8 +30,10 @@ import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import com.waenhancer.xposed.features.customization.PropsOverrideHook;
 import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.HostFields;
 import java.lang.reflect.Modifier;
 
 /**
@@ -107,7 +109,7 @@ public class HideReceiptsHook extends BaseFeature {
 
             if (protocolTreeNodeClass != null && keyValueClass != null) {
                 Class<?> keyValueArrayType = Array.newInstance(keyValueClass, 0).getClass();
-                for (Field f : protocolTreeNodeClass.getDeclaredFields()) {
+                for (Field f : HostFields.declared(protocolTreeNodeClass)) {
                     if (f.getType() == keyValueArrayType) {
                         fieldAttributes = f;
                         fieldAttributes.setAccessible(true);
@@ -116,7 +118,7 @@ public class HideReceiptsHook extends BaseFeature {
                 }
 
                 List<Field> strFields = new ArrayList<>();
-                for (Field f : keyValueClass.getDeclaredFields()) {
+                for (Field f : HostFields.declared(keyValueClass)) {
                     if (f.getType() == String.class) {
                         f.setAccessible(true);
                         strFields.add(f);
@@ -636,7 +638,7 @@ public class HideReceiptsHook extends BaseFeature {
             Boolean fromMe = null;
             for (Class<?> type = keyObj.getClass(); type != null && type != Object.class;
                  type = type.getSuperclass()) {
-                for (Field field : type.getDeclaredFields()) {
+                for (Field field : HostFields.declared(type)) {
                     if (Modifier.isStatic(field.getModifiers())) continue;
                     field.setAccessible(true);
                     if (field.getType() == String.class) {
@@ -675,12 +677,28 @@ public class HideReceiptsHook extends BaseFeature {
         }
     }
 
+    /** The field that held the message key, per message class: it is the same for every message. */
+    private static final ClassValue<AtomicReference<Field>> MESSAGE_KEY_FIELDS =
+            new ClassValue<AtomicReference<Field>>() {
+                @Override protected AtomicReference<Field> computeValue(Class<?> type) {
+                    return new AtomicReference<>();
+                }
+            };
+
     private Object findMessageKey(Object message) {
         if (message == null) return null;
-        // Prefer semantic key wrappers, then fall back to a validated field contract.
+        Field known = MESSAGE_KEY_FIELDS.get(message.getClass()).get();
+        if (known != null) {
+            try {
+                Object candidate = known.get(message);
+                if (candidate != null) return candidate;
+            } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
+        }
+        // First sight of this class (or an unset key): discover the field. Prefer semantic key
+        // wrappers, then fall back to a validated field contract.
         for (Class<?> type = message.getClass(); type != null && type != Object.class;
              type = type.getSuperclass()) {
-            for (Field field : type.getDeclaredFields()) {
+            for (Field field : HostFields.declared(type)) {
                 if (Modifier.isStatic(field.getModifiers())
                         || field.getType().isPrimitive()) continue;
                 try {
@@ -689,8 +707,11 @@ public class HideReceiptsHook extends BaseFeature {
                     if (candidate == null) continue;
                     String className = candidate.getClass().getName();
                     if (className.contains("Key")
-                            || candidate.toString().startsWith("Key(")) return candidate;
-                    if (isMessageKey(candidate)) return candidate;
+                            || candidate.toString().startsWith("Key(")
+                            || isMessageKey(candidate)) {
+                        MESSAGE_KEY_FIELDS.get(message.getClass()).set(field);
+                        return candidate;
+                    }
                 } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
             }
         }
@@ -704,7 +725,7 @@ public class HideReceiptsHook extends BaseFeature {
         boolean direction = false;
         for (Class<?> type = candidate.getClass(); type != null && type != Object.class;
              type = type.getSuperclass()) {
-            for (Field field : type.getDeclaredFields()) {
+            for (Field field : HostFields.declared(type)) {
                 if (Modifier.isStatic(field.getModifiers())) continue;
                 try {
                     field.setAccessible(true);
@@ -778,7 +799,7 @@ public class HideReceiptsHook extends BaseFeature {
         if (className.startsWith("java.") || className.startsWith("android.")) return null;
         for (Class<?> type = candidateClass; type != null && type != Object.class;
              type = type.getSuperclass()) {
-            for (Field field : type.getDeclaredFields()) {
+            for (Field field : HostFields.declared(type)) {
                 if (Modifier.isStatic(field.getModifiers())
                         || field.getType().isPrimitive()) continue;
                 try {
@@ -943,7 +964,7 @@ public class HideReceiptsHook extends BaseFeature {
         try {
             Class<?> curr = fMessageObj.getClass();
             while (curr != null && curr != Object.class) {
-                for (Field f : curr.getDeclaredFields()) {
+                for (Field f : HostFields.declared(curr)) {
                     f.setAccessible(true);
                     Object val = f.get(fMessageObj);
                     if (val != null) {
@@ -1122,7 +1143,7 @@ public class HideReceiptsHook extends BaseFeature {
             // Check media type / view once properties dynamically
             Class<?> cls = msgObj.getClass();
             while (cls != null && cls != Object.class) {
-                for (Field f : cls.getDeclaredFields()) {
+                for (Field f : HostFields.declared(cls)) {
                     f.setAccessible(true);
                     String name = f.getName().toLowerCase();
                     if (f.getType() == int.class || f.getType() == byte.class) {

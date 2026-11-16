@@ -18,6 +18,7 @@ import com.waenhancer.xposed.core.db.HideSeenStore;
 import com.waenhancer.xposed.features.homescreen.MenuIconLoader;
 import com.waenhancer.xposed.utils.ActivityTracker;
 import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.HostFields;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
@@ -284,7 +285,7 @@ public class BlueOnReplyHook extends BaseFeature {
         Set<String> ids = new LinkedHashSet<>();
         if (job == null) return ids;
         for (Class<?> type = job.getClass(); type != null && type != Object.class; type = type.getSuperclass()) {
-            for (Field field : type.getDeclaredFields()) {
+            for (Field field : HostFields.declared(type)) {
                 if (Modifier.isStatic(field.getModifiers()) || field.getType() != String[].class) continue;
                 try {
                     field.setAccessible(true);
@@ -448,7 +449,7 @@ public class BlueOnReplyHook extends BaseFeature {
             return null;
         }
         Class<?> type=value.getClass(); if (type.getName().startsWith("java.")) return null;
-        for (Class<?> c=type;c!=null&&c!=Object.class;c=c.getSuperclass()) for (Field f:c.getDeclaredFields()) {
+        for (Class<?> c=type;c!=null&&c!=Object.class;c=c.getSuperclass()) for (Field f:HostFields.declared(c)) {
             if (Modifier.isStatic(f.getModifiers()) || f.getType().isPrimitive()) continue;
             try { f.setAccessible(true); String found=findStatusId(f.get(value),seen,depth+1); if(found!=null)return found; } catch (Throwable ignored) { HookErrors.swallowed("BlueOnReplyHook", ignored); }
         } return null;
@@ -480,7 +481,7 @@ public class BlueOnReplyHook extends BaseFeature {
         if (jobManager != null) return jobManager;
         if (managerClass != null) {
             try {
-                for (Field field : managerClass.getDeclaredFields()) {
+                for (Field field : HostFields.declared(managerClass)) {
                     if (Modifier.isStatic(field.getModifiers()) && managerClass.isAssignableFrom(field.getType())) {
                         field.setAccessible(true);
                         Object instance = field.get(null);

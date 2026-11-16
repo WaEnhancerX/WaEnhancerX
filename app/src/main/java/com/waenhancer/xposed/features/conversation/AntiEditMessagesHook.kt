@@ -34,6 +34,7 @@ import android.widget.Switch
 import android.widget.TextView
 import com.waenhancer.xposed.core.BaseFeature
 import com.waenhancer.xposed.utils.HookErrors
+import com.waenhancer.xposed.utils.HostFields
 import com.waenhancer.xposed.utils.HostResourceIds
 import com.waenhancer.xposed.core.components.WaexBottomSheet
 import com.waenhancer.xposed.core.db.EditMessageStore
@@ -191,7 +192,7 @@ class AntiEditMessagesHook(
             if (type.isInstance(candidate)) return candidate
             var curr: Class<*>? = candidate.javaClass
             while (curr != null && curr != Any::class.java) {
-                for (field in curr.declaredFields) {
+                for (field in HostFields.declared(curr)) {
                     if (Modifier.isStatic(field.modifiers) || !type.isAssignableFrom(field.type)) continue
                     try {
                         field.isAccessible = true
@@ -764,7 +765,7 @@ class AntiEditMessagesHook(
 
             var curr: Class<*>? = type
             while (curr != null && curr != Any::class.java) {
-                for (field in curr.declaredFields) {
+                for (field in HostFields.declared(curr)) {
                     if (Modifier.isStatic(field.modifiers) || field.type.isPrimitive) continue
                     field.isAccessible = true
                     val valObj = field.get(messageObj) ?: continue
@@ -814,7 +815,7 @@ class AntiEditMessagesHook(
             var hasBoolean = false
             var current: Class<*>? = type
             while (current != null && current != Any::class.java) {
-                for (field in current.declaredFields) {
+                for (field in HostFields.declared(current)) {
                     if (Modifier.isStatic(field.modifiers)) continue
                     if (field.type == String::class.java) hasString = true
                     if (field.type == Boolean::class.javaPrimitiveType || field.type == Boolean::class.java) {
@@ -833,7 +834,7 @@ class AntiEditMessagesHook(
                 val found = ArrayList<Field>()
                 var curr: Class<*>? = keyObj.javaClass
                 while (curr != null && curr != Any::class.java) {
-                    for (field in curr.declaredFields) {
+                    for (field in HostFields.declared(curr)) {
                         if (field.type != String::class.java) continue
                         field.isAccessible = true
                         found.add(field)
@@ -860,7 +861,7 @@ class AntiEditMessagesHook(
                 val found = ArrayList<Field>()
                 var curr: Class<*>? = messageObj.javaClass
                 while (curr != null && curr != Any::class.java) {
-                    for (field in curr.declaredFields) {
+                    for (field in HostFields.declared(curr)) {
                         if (field.name == "A0j" || field.name == "A0k" || field.name == "rowId" || field.name == "A00" || field.name == "A01" || field.name == "_id") {
                             field.isAccessible = true
                             found.add(field)
@@ -894,7 +895,7 @@ class AntiEditMessagesHook(
                 val found = ArrayList<Field>()
                 var curr: Class<*>? = type
                 while (curr != null && curr != Any::class.java) {
-                    for (field in curr.declaredFields) {
+                    for (field in HostFields.declared(curr)) {
                         if (field.name == "A0Q" || field.name == "textData" || field.name == "A02" || field.name == "message") {
                             field.isAccessible = true
                             found.add(field)
@@ -964,7 +965,7 @@ class AntiEditMessagesHook(
         val id = view.id
         if (id == View.NO_ID) return null
         return try {
-            view.resources.getResourceEntryName(id)
+            HostResourceIds.entryName(view, id)
         } catch (t: Throwable) {
             null
         }

@@ -38,6 +38,7 @@ import org.luckypray.dexkit.query.enums.StringMatchType;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
 import org.luckypray.dexkit.result.ClassData;
 import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.HostResourceIds;
 import com.waenhancer.xposed.utils.WhatsAppProcessRestarter;
 import java.util.Locale;
 import java.lang.reflect.Method;
@@ -380,7 +381,7 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
         int id = view.getId();
         if (id == View.NO_ID) return "no-id";
         try {
-            return view.getResources().getResourceEntryName(id)
+            return HostResourceIds.entryName(view, id)
                     .toLowerCase(Locale.ROOT);
         } catch (Throwable ignored) {
             return "unknown";

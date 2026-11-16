@@ -28,6 +28,7 @@ import com.waenhancer.xposed.features.homescreen.MenuIconLoader;
 import com.waenhancer.xposed.features.privacy.BlueOnReplyHook;
 import com.waenhancer.xposed.utils.ActivityTracker;
 import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.HostResourceIds;
 import com.waenhancer.xposed.utils.UiThread;
 
 import java.io.File;
@@ -457,7 +458,7 @@ public class StatusDownloadHook extends BaseFeature {
                 "status_emoji_reaction_button"
         };
         for (String name : likeNames) {
-            int id = root.getResources().getIdentifier(name, "id", pkg);
+            int id = HostResourceIds.id(root.getContext(), name);
             if (id != 0) {
                 View v = root.findViewById(id);
                 if (v != null) return v;
@@ -471,7 +472,7 @@ public class StatusDownloadHook extends BaseFeature {
                 "status_footer_bar"
         };
         for (String barName : barNames) {
-            int id = root.getResources().getIdentifier(barName, "id", pkg);
+            int id = HostResourceIds.id(root.getContext(), barName);
             if (id == 0) continue;
             View bar = root.findViewById(id);
             if (!(bar instanceof ViewGroup)) continue;
@@ -525,7 +526,7 @@ public class StatusDownloadHook extends BaseFeature {
      */
     private void watchStatusPager(View root, Object sourceObject) {
         String packageName = root.getContext().getPackageName();
-        int pagerId = root.getResources().getIdentifier("playback_pager", "id", packageName);
+        int pagerId = HostResourceIds.id(root.getContext(), "playback_pager");
         View pager = pagerId == 0 ? null : root.findViewById(pagerId);
         if (pager == null) return;
         synchronized (watchedStatusPagers) {
@@ -785,7 +786,7 @@ public class StatusDownloadHook extends BaseFeature {
 
         if (view instanceof TextView && view.getId() != View.NO_ID) {
             try {
-                String resourceName = view.getResources().getResourceEntryName(view.getId());
+                String resourceName = HostResourceIds.entryName(view, view.getId());
                 if ("message_text".equals(resourceName) || "status_text".equals(resourceName)) {
                     String text = ((TextView) view).getText().toString().trim();
                     if (!text.isEmpty()) return text;

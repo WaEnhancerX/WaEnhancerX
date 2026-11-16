@@ -7,6 +7,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.waenhancer.xposed.core.db.MessageStore;
 import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.HostFields;
 import de.robv.android.xposed.XposedBridge;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -84,7 +85,7 @@ final class OwnReactionLookup {
     private static Field findKeyField(Class<?> messageClass) {
         Field fallback = null;
         for (Class<?> type = messageClass; type != null && type != Object.class; type = type.getSuperclass()) {
-            for (Field field : type.getDeclaredFields()) {
+            for (Field field : HostFields.declared(type)) {
                 if (Modifier.isStatic(field.getModifiers()) || field.getType().isPrimitive()
                         || field.getType() == String.class || !looksLikeMessageKey(field.getType())) {
                     continue;
@@ -102,7 +103,7 @@ final class OwnReactionLookup {
         boolean hasString = false;
         boolean hasBoolean = false;
         for (Class<?> c = type; c != null && c != Object.class; c = c.getSuperclass()) {
-            for (Field field : c.getDeclaredFields()) {
+            for (Field field : HostFields.declared(c)) {
                 if (Modifier.isStatic(field.getModifiers())) continue;
                 if (field.getType() == String.class) hasString = true;
                 if (field.getType() == boolean.class) hasBoolean = true;
@@ -115,7 +116,7 @@ final class OwnReactionLookup {
     private static String idOf(Object key) {
         String best = null;
         for (Class<?> c = key.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
-            for (Field field : c.getDeclaredFields()) {
+            for (Field field : HostFields.declared(c)) {
                 if (Modifier.isStatic(field.getModifiers()) || field.getType() != String.class) continue;
                 try {
                     field.setAccessible(true);

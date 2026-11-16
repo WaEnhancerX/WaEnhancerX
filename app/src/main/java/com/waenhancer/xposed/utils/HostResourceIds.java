@@ -1,6 +1,8 @@
 package com.waenhancer.xposed.utils;
 
 import android.content.Context;
+import android.content.res.Resources;
+import android.view.View;
 
 import androidx.annotation.NonNull;
 
@@ -16,7 +18,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class HostResourceIds {
 
-    private static final Map<String, Integer> CACHE = new ConcurrentHashMap<>();
+    /** Resource type to (name to id). Two levels avoid building a "type/name" key on every lookup. */
+    private static final Map<String, Map<String, Integer>> CACHE = new ConcurrentHashMap<>();
 
     private HostResourceIds() {}
 
@@ -26,11 +29,41 @@ public final class HostResourceIds {
     }
 
     public static int resolve(@NonNull Context context, @NonNull String name, @NonNull String type) {
-        String key = type + '/' + name;
-        Integer cached = CACHE.get(key);
+        Map<String, Integer> byName = CACHE.get(type);
+        if (byName == null) byName = CACHE.computeIfAbsent(type, ignored -> new ConcurrentHashMap<>());
+        Integer cached = byName.get(name);
         if (cached != null) return cached;
         int resolved = context.getResources().getIdentifier(name, type, context.getPackageName());
-        CACHE.put(key, resolved);
+        byName.put(name, resolved);
         return resolved;
+    }
+
+    /** Entry names by package, then id. Keyed by package because module views reuse 0x7f ids. */
+    private static final Map<String, Map<Integer, String>> ENTRY_NAMES = new ConcurrentHashMap<>();
+    /** Stored for ids that have no entry name (generated view ids, NO_ID); never a real name. */
+    private static final String NO_ENTRY = new String();
+
+    /**
+     * Drop-in for {@code view.getResources().getResourceEntryName(id)} that resolves each id once
+     * per package instead of making a native call and allocating a String on every view or row.
+     * Like the platform method, it throws {@link Resources.NotFoundException} when the id has no
+     * name, so existing callers keep their behavior.
+     */
+    @NonNull
+    public static String entryName(@NonNull View view, int id) throws Resources.NotFoundException {
+        String pkg = view.getContext().getPackageName();
+        Map<Integer, String> byId = ENTRY_NAMES.get(pkg);
+        if (byId == null) byId = ENTRY_NAMES.computeIfAbsent(pkg, ignored -> new ConcurrentHashMap<>());
+        String name = byId.get(id);
+        if (name == null) {
+            try {
+                name = view.getResources().getResourceEntryName(id);
+            } catch (Resources.NotFoundException missing) {
+                name = NO_ENTRY;
+            }
+            byId.put(id, name);
+        }
+        if (name == NO_ENTRY) throw new Resources.NotFoundException("No entry name for id " + id);
+        return name;
     }
 }

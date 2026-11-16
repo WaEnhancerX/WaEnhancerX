@@ -15,6 +15,7 @@ import com.waenhancer.xposed.core.BaseFeature
 import com.waenhancer.xposed.core.ViewHookDispatcher
 import com.waenhancer.xposed.utils.ActivityTracker
 import com.waenhancer.xposed.utils.HookErrors
+import com.waenhancer.xposed.utils.HostResourceIds
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
@@ -201,7 +202,7 @@ class FilterItemsHook(
     private fun getResourceId(name: String): Int {
         if (name.isEmpty()) return -1
         return try {
-            val id = context.resources.getIdentifier(name, "id", context.packageName)
+            val id = HostResourceIds.id(context, name)
             if (id == 0) -1 else id
         } catch (_: Throwable) {
             -1

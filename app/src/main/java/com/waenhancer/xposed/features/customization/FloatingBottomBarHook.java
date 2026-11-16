@@ -53,6 +53,7 @@ import com.waenhancer.hooking.ScreenScopedFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.xposed.utils.ActivityTracker;
 import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.HostResourceIds;
 
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.enums.StringMatchType;
@@ -427,7 +428,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
 
     private int getResourceId(String name, String type) {
         try {
-            return context.getResources().getIdentifier(name, type, context.getPackageName());
+            return HostResourceIds.resolve(context, name, type);
         } catch (Throwable ignored) {
             return -1;
         }
@@ -560,7 +561,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
         float targetOffset = hide ? 0f : baseOffset;
 
         for (String name : FAB_RESOURCE_NAMES) {
-            int id = rootView.getContext().getResources().getIdentifier(name, "id", rootView.getContext().getPackageName());
+            int id = HostResourceIds.id(rootView.getContext(), name);
             if (id <= 0) continue;
             View fab = rootView.findViewById(id);
             if (fab != null) {
@@ -849,7 +850,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
             if (child == null) continue;
             if (child.getId() != View.NO_ID) {
                 try {
-                    String entryName = child.getResources().getResourceEntryName(child.getId());
+                    String entryName = HostResourceIds.entryName(child, child.getId());
                     if (entryName != null) {
                         if (entryName.contains("icon_container") || entryName.contains("icon")) {
                             iconContainer = child;
@@ -961,7 +962,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
         if (view == null) return null;
         if (view.getId() != View.NO_ID) {
             try {
-                if (resourceName.equals(view.getResources().getResourceEntryName(view.getId()))) {
+                if (resourceName.equals(HostResourceIds.entryName(view, view.getId()))) {
                     return view;
                 }
             } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
@@ -1032,7 +1033,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                 if (child instanceof ImageView) {
                     if (child.getId() != View.NO_ID) {
                         try {
-                            String entryName = child.getResources().getResourceEntryName(child.getId());
+                            String entryName = HostResourceIds.entryName(child, child.getId());
                             if (entryName != null && (entryName.contains("icon") || entryName.contains("image"))) {
                                 return child;
                             }
@@ -1058,7 +1059,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
         if (view == null) return;
         if (view.getId() != View.NO_ID) {
             try {
-                String entryName = view.getResources().getResourceEntryName(view.getId());
+                String entryName = HostResourceIds.entryName(view, view.getId());
                 if (entryName != null) {
                     if (entryName.contains("active_indicator")) {
                         return;
@@ -1231,7 +1232,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
         bar.setClipChildren(false);
         bar.setClipToPadding(false);
 
-        int dividerId = bar.getContext().getResources().getIdentifier("bottom_nav_divider", "id", bar.getContext().getPackageName());
+        int dividerId = HostResourceIds.id(bar.getContext(), "bottom_nav_divider");
         if (dividerId > 0) {
             View divider = container.findViewById(dividerId);
             if (divider != null) {
@@ -1451,7 +1452,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
     private static void customizeNativeOvalIndicator(View view, float density) {
         if (view.getId() != View.NO_ID) {
             try {
-                String name = view.getResources().getResourceEntryName(view.getId());
+                String name = HostResourceIds.entryName(view, view.getId());
                 if (name != null && name.contains("active_indicator")) {
                     ViewGroup.LayoutParams lp = view.getLayoutParams();
                     if (lp != null) {
@@ -1492,7 +1493,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
     private static void applyNativeSelectorColor(View view, int color) {
         if (view.getId() != View.NO_ID) {
             try {
-                String name = view.getResources().getResourceEntryName(view.getId());
+                String name = HostResourceIds.entryName(view, view.getId());
                 if (name != null && name.contains("active_indicator")) {
                     Drawable background = view.getBackground();
                     if (background != null) background.mutate().setTint(color);
@@ -1741,7 +1742,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
     private static void hideNativeActiveIndicator(View view) {
         if (view.getId() != View.NO_ID) {
             try {
-                String name = view.getResources().getResourceEntryName(view.getId());
+                String name = HostResourceIds.entryName(view, view.getId());
                 if (name != null && name.contains("active_indicator")) {
                     view.setBackground(null);
                     view.setBackgroundColor(Color.TRANSPARENT);
@@ -1790,7 +1791,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                 boolean activeIndicator = false;
                 if (child.getId() != View.NO_ID) {
                     try {
-                        String name = child.getResources().getResourceEntryName(child.getId());
+                        String name = HostResourceIds.entryName(child, child.getId());
                         activeIndicator = name != null && name.contains("active_indicator");
                     } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
                 }
@@ -1938,9 +1939,9 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
     private static void positionFabsAboveBar(ViewGroup rootView, ViewGroup barContainer) {
         ViewGroup container = barContainer;
         if (container == null) {
-            int navId = rootView.getContext().getResources().getIdentifier("bottom_nav", "id", rootView.getContext().getPackageName());
+            int navId = HostResourceIds.id(rootView.getContext(), "bottom_nav");
             if (navId <= 0) {
-                navId = rootView.getContext().getResources().getIdentifier("navigation_bar", "id", rootView.getContext().getPackageName());
+                navId = HostResourceIds.id(rootView.getContext(), "navigation_bar");
             }
             if (navId > 0) {
                 View navView = rootView.findViewById(navId);
@@ -1969,7 +1970,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
         float totalOffset = -(barHeight + bottomMargin + (FAB_GAP_DP * density));
 
         for (String name : FAB_RESOURCE_NAMES) {
-            int id = container.getContext().getResources().getIdentifier(name, "id", container.getContext().getPackageName());
+            int id = HostResourceIds.id(container.getContext(), name);
             if (id <= 0) continue;
             View fab = rootView.findViewById(id);
             if (fab != null) {
@@ -2056,7 +2057,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
 
         try {
             if (view.getId() != View.NO_ID) {
-                String entryName = view.getResources().getResourceEntryName(view.getId());
+                String entryName = HostResourceIds.entryName(view, view.getId());
                 if ("list".equalsIgnoreCase(entryName) && isLarge) {
                     return true;
                 }
@@ -2099,7 +2100,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                 View v = (View) parent;
                 if (v.getId() != View.NO_ID) {
                     try {
-                        String entryName = v.getResources().getResourceEntryName(v.getId());
+                        String entryName = HostResourceIds.entryName(v, v.getId());
                         if ("conversation_view_host".equals(entryName)) {
                             return true;
                         }

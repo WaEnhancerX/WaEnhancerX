@@ -33,6 +33,7 @@ import androidx.annotation.Nullable;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.utils.HookErrors;
 import com.waenhancer.xposed.utils.HostClassNames;
+import com.waenhancer.xposed.utils.HostFields;
 import com.waenhancer.xposed.utils.HostResourceIds;
 import com.waenhancer.xposed.core.db.DelMessageStore;
 import com.waenhancer.xposed.features.conversation.PreserveDeleteForMeHook;
@@ -762,7 +763,7 @@ public class AntiRevokeHook extends BaseFeature {
         while (type != null && type != Object.class
                 && !type.getName().startsWith("java.")
                 && !type.getName().startsWith("android.")) {
-            for (Field field : type.getDeclaredFields()) {
+            for (Field field : HostFields.declared(type)) {
                 if (Modifier.isStatic(field.getModifiers())) continue;
                 try {
                     field.setAccessible(true);
@@ -1134,7 +1135,7 @@ public class AntiRevokeHook extends BaseFeature {
         if (value instanceof View || value instanceof Context || value instanceof String
                 || value instanceof Number || value instanceof Class) return null;
         for (Class<?> c = value.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
-            for (Field f : c.getDeclaredFields()) {
+            for (Field f : HostFields.declared(c)) {
                 try {
                     if (Modifier.isStatic(f.getModifiers()) || f.getType().isPrimitive()) continue;
                     f.setAccessible(true);
@@ -1167,7 +1168,7 @@ public class AntiRevokeHook extends BaseFeature {
                                 if (types[0].isAssignableFrom(keyType)) return candidate;
                                 Class<?> current = source.getClass();
                                 while (current != null && current != Object.class) {
-                                    for (Field field : current.getDeclaredFields()) {
+                                    for (Field field : HostFields.declared(current)) {
                                         if (Modifier.isStatic(field.getModifiers())) continue;
                                         try {
                                             field.setAccessible(true);
@@ -1543,7 +1544,7 @@ public class AntiRevokeHook extends BaseFeature {
             try {
                 Class<?> current = arg.getClass();
                 while (current != null && current != Object.class) {
-                    for (Field field : current.getDeclaredFields()) {
+                    for (Field field : HostFields.declared(current)) {
                         if (Modifier.isStatic(field.getModifiers()) || field.getType().isPrimitive()) continue;
                         field.setAccessible(true);
                         Object nested = field.get(arg);
@@ -1589,7 +1590,7 @@ public class AntiRevokeHook extends BaseFeature {
             Object playbackView = null;
             Class<?> curr = fragment.getClass();
             while (curr != null && curr != Object.class && playbackView == null) {
-                for (Field field : curr.getDeclaredFields()) {
+                for (Field field : HostFields.declared(curr)) {
                     if (Modifier.isStatic(field.getModifiers())
                             || !playbackViewClass.isAssignableFrom(field.getType())) continue;
                     field.setAccessible(true);
@@ -1603,7 +1604,7 @@ public class AntiRevokeHook extends BaseFeature {
             int dateId = HostResourceIds.id(context, "date");
             curr = playbackViewClass;
             while (curr != null && curr != Object.class) {
-                for (Field field : curr.getDeclaredFields()) {
+                for (Field field : HostFields.declared(curr)) {
                     if (Modifier.isStatic(field.getModifiers())
                             || !TextView.class.isAssignableFrom(field.getType())) continue;
                     field.setAccessible(true);
@@ -1736,7 +1737,7 @@ public class AntiRevokeHook extends BaseFeature {
             Class<?> curr = obj.getClass();
             int depth = 0;
             while (curr != null && curr != Object.class && depth < 4) {
-                for (Field f : curr.getDeclaredFields()) {
+                for (Field f : HostFields.declared(curr)) {
                     if (Modifier.isStatic(f.getModifiers())) continue;
                     f.setAccessible(true);
                     Object val = f.get(obj);
@@ -1750,7 +1751,7 @@ public class AntiRevokeHook extends BaseFeature {
                         if (tv != null) return tv;
                     } else if (!val.getClass().isPrimitive() && !val.getClass().isArray() && val.getClass().getName().startsWith("com.whatsapp")) {
                         // Check one level deeper (e.g. statusPlaybackView container object)
-                        for (Field subField : val.getClass().getDeclaredFields()) {
+                        for (Field subField : HostFields.declared(val.getClass())) {
                             if (Modifier.isStatic(subField.getModifiers())) continue;
                             subField.setAccessible(true);
                             Object subVal = subField.get(val);
@@ -1774,7 +1775,7 @@ public class AntiRevokeHook extends BaseFeature {
     private boolean isLikelyDateTextView(TextView tv) {
         if (tv.getId() != View.NO_ID) {
             try {
-                String entry = tv.getResources().getResourceEntryName(tv.getId()).toLowerCase();
+                String entry = HostResourceIds.entryName(tv, tv.getId()).toLowerCase();
                 if (entry.contains("date") || entry.contains("time") || entry.contains("subtitle")) return true;
             } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
         }
@@ -1859,7 +1860,7 @@ public class AntiRevokeHook extends BaseFeature {
                     // Check resource name
                     if (child.getId() != View.NO_ID) {
                         try {
-                            String entry = child.getResources().getResourceEntryName(child.getId()).toLowerCase();
+                            String entry = HostResourceIds.entryName(child, child.getId()).toLowerCase();
                             if (entry.contains("date") || entry.contains("time") || entry.contains("subtitle")) {
                                 return tv;
                             }
@@ -1908,7 +1909,7 @@ public class AntiRevokeHook extends BaseFeature {
             Class<?> curr = fragment.getClass();
             int depth = 0;
             while (curr != null && curr != Object.class && depth < 6) {
-                for (Field f : curr.getDeclaredFields()) {
+                for (Field f : HostFields.declared(curr)) {
                     if (Modifier.isStatic(f.getModifiers())) continue;
                     try {
                         if (f.getType() == String.class) {
@@ -1967,7 +1968,7 @@ public class AntiRevokeHook extends BaseFeature {
             if (clazz.isPrimitive() || clazz.isArray()) return null;
             Class<?> curr = clazz;
             while (curr != null && curr != Object.class) {
-                for (Field f : curr.getDeclaredFields()) {
+                for (Field f : HostFields.declared(curr)) {
                     if (Modifier.isStatic(f.getModifiers())) continue;
                     if (f.getType() != String.class) continue;
                     try {
@@ -1993,7 +1994,7 @@ public class AntiRevokeHook extends BaseFeature {
             Class<?> curr = fragment.getClass();
             int depth = 0;
             while (curr != null && curr != Object.class && depth < 5) {
-                for (Field f : curr.getDeclaredFields()) {
+                for (Field f : HostFields.declared(curr)) {
                     if (Modifier.isStatic(f.getModifiers())) continue;
                     try {
                         f.setAccessible(true);
@@ -2035,7 +2036,7 @@ public class AntiRevokeHook extends BaseFeature {
         try {
             Class<?> curr = fragment.getClass();
             while (curr != null && curr != Object.class) {
-                for (Field f : curr.getDeclaredFields()) {
+                for (Field f : HostFields.declared(curr)) {
                     if (View.class.isAssignableFrom(f.getType())) {
                         f.setAccessible(true);
                         View v = (View) f.get(fragment);
@@ -2322,7 +2323,7 @@ public class AntiRevokeHook extends BaseFeature {
                     int id = child.getId();
                     if (id != View.NO_ID) {
                         try {
-                            String entryName = child.getResources().getResourceEntryName(id);
+                            String entryName = HostResourceIds.entryName(child, id);
                             if (entryName != null && entryName.toLowerCase().contains("date")) {
                                 return (TextView) child;
                             }
@@ -2365,7 +2366,7 @@ public class AntiRevokeHook extends BaseFeature {
             if (key == null) {
                 Class<?> curr = message.getClass();
                 while (curr != null && curr != Object.class && key == null) {
-                    for (Field field : curr.getDeclaredFields()) {
+                    for (Field field : HostFields.declared(curr)) {
                         if (Modifier.isStatic(field.getModifiers())) continue;
                         field.setAccessible(true);
                         Object value = field.get(message);
@@ -2390,7 +2391,7 @@ public class AntiRevokeHook extends BaseFeature {
 
             Class<?> curr = key.getClass();
             while (curr != null && curr != Object.class) {
-                for (Field field : curr.getDeclaredFields()) {
+                for (Field field : HostFields.declared(curr)) {
                     if (Modifier.isStatic(field.getModifiers())) continue;
                     Class<?> type = field.getType();
                     if (type == boolean.class || type == Boolean.class) {
@@ -2412,7 +2413,7 @@ public class AntiRevokeHook extends BaseFeature {
         boolean hasString = false;
         Class<?> curr = candidate;
         while (curr != null && curr != Object.class) {
-            for (Field field : curr.getDeclaredFields()) {
+            for (Field field : HostFields.declared(curr)) {
                 if (Modifier.isStatic(field.getModifiers())) continue;
                 Class<?> type = field.getType();
                 if (type == boolean.class || type == Boolean.class) hasBoolean = true;
@@ -2453,7 +2454,7 @@ public class AntiRevokeHook extends BaseFeature {
             // 2. Discover Key object inside FMessage
             Class<?> curr = objClass;
             while (curr != null && curr != Object.class) {
-                for (Field field : curr.getDeclaredFields()) {
+                for (Field field : HostFields.declared(curr)) {
                     if (Modifier.isStatic(field.getModifiers())) continue;
                     field.setAccessible(true);
                     Object val = field.get(fMessageObj);
@@ -2468,7 +2469,7 @@ public class AntiRevokeHook extends BaseFeature {
                     boolean hasBoolean = false;
                     boolean hasJidOrObject = false;
 
-                    for (Field kField : valClass.getDeclaredFields()) {
+                    for (Field kField : HostFields.declared(valClass)) {
                         if (Modifier.isStatic(kField.getModifiers())) continue;
                         kField.setAccessible(true);
                         Class<?> kType = kField.getType();
@@ -2502,7 +2503,7 @@ public class AntiRevokeHook extends BaseFeature {
             // 3. Direct String field scan fallback
             curr = objClass;
             while (curr != null && curr != Object.class) {
-                for (Field field : curr.getDeclaredFields()) {
+                for (Field field : HostFields.declared(curr)) {
                     if (field.getType() == String.class) {
                         field.setAccessible(true);
                         String strVal = (String) field.get(fMessageObj);
@@ -2610,7 +2611,7 @@ public class AntiRevokeHook extends BaseFeature {
         if (value instanceof View || value instanceof Context || value instanceof Number
                 || value instanceof Boolean || value instanceof Class) return null;
         for (Class<?> type = value.getClass(); type != null && type != Object.class; type = type.getSuperclass()) {
-            for (Field field : type.getDeclaredFields()) {
+            for (Field field : HostFields.declared(type)) {
                 try {
                     if (Modifier.isStatic(field.getModifiers())) continue;
                     field.setAccessible(true);

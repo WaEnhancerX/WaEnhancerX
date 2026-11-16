@@ -20,6 +20,8 @@ import com.waenhancer.xposed.core.BaseFeature
 import com.waenhancer.xposed.core.devkit.DexSearchEngine
 import com.waenhancer.xposed.features.automation.PresenceStateStore
 import com.waenhancer.xposed.utils.HookErrors
+import com.waenhancer.xposed.utils.HostFields
+import com.waenhancer.xposed.utils.HostResourceIds
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
@@ -237,7 +239,7 @@ class OnlinePresenceIndicatorsHook(
         if (wanted.isInstance(value)) return value
         var type: Class<*>? = value.javaClass
         while (type != null && !type.name.startsWith("java.") && !type.name.startsWith("android.")) {
-            for (field in type.declaredFields) {
+            for (field in HostFields.declared(type)) {
                 if (Modifier.isStatic(field.modifiers)) continue
                 try {
                     field.isAccessible = true
@@ -257,7 +259,7 @@ class OnlinePresenceIndicatorsHook(
         if (!showDot) return null
         val resources = row.resources
         val packageName = row.context.packageName
-        val contactSelectorId = resources.getIdentifier("contact_selector", "id", packageName)
+        val contactSelectorId = HostResourceIds.id(row.context, "contact_selector")
         val container = if (contactSelectorId != 0) row.findViewById<ViewGroup>(contactSelectorId) else null
         val targetGroup = container ?: (row as? ViewGroup) ?: return null
 
@@ -345,9 +347,9 @@ class OnlinePresenceIndicatorsHook(
         val sample = candidates.firstOrNull() ?: return null
         val resources = sample.resources
         val packageName = sample.context.packageName
-        val contactSelectorId = resources.getIdentifier("contact_selector", "id", packageName)
-        val conversationContentId = resources.getIdentifier("conversations_row_content", "id", packageName)
-        val rowContentId = resources.getIdentifier("row_content", "id", packageName)
+        val contactSelectorId = HostResourceIds.id(sample.context, "contact_selector")
+        val conversationContentId = HostResourceIds.id(sample.context, "conversations_row_content")
+        val rowContentId = HostResourceIds.id(sample.context, "row_content")
         if (contactSelectorId == 0 || (conversationContentId == 0 && rowContentId == 0)) return null
         return candidates.asSequence()
             .filterIsInstance<ViewGroup>()
@@ -372,7 +374,7 @@ class OnlinePresenceIndicatorsHook(
         }
         var type: Class<*>? = value.javaClass
         while (type != null && !type.name.startsWith("java.") && !type.name.startsWith("android.")) {
-            for (field in type.declaredFields) {
+            for (field in HostFields.declared(type)) {
                 if (Modifier.isStatic(field.modifiers)) continue
                 try {
                     field.isAccessible = true
@@ -397,7 +399,7 @@ class OnlinePresenceIndicatorsHook(
             .find(rendered)?.value?.let { return it }
         var type: Class<*>? = value.javaClass
         while (type != null && !type.name.startsWith("java.") && !type.name.startsWith("android.")) {
-            for (field in type.declaredFields) {
+            for (field in HostFields.declared(type)) {
                 if (Modifier.isStatic(field.modifiers)) continue
                 try {
                     field.isAccessible = true

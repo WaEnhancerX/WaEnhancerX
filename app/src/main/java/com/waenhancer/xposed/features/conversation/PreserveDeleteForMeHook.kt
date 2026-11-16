@@ -10,6 +10,7 @@ import android.os.SystemClock
 import com.waenhancer.xposed.core.BaseFeature
 import com.waenhancer.xposed.core.devkit.DexSearchEngine
 import com.waenhancer.xposed.utils.HookErrors
+import com.waenhancer.xposed.utils.HostFields
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import org.luckypray.dexkit.query.FindMethod
@@ -460,7 +461,7 @@ class PreserveDeleteForMeHook(
     private fun captureRunnableMessages(instance: Any?): Boolean {
         if (instance == null) return false
         try {
-            val messageSets = instance.javaClass.declaredFields.asSequence()
+            val messageSets = HostFields.declared(instance.javaClass).asSequence()
                 .filterNot { it.type.isPrimitive }
                 .mapNotNull { field ->
                     field.isAccessible = true
@@ -546,7 +547,7 @@ class PreserveDeleteForMeHook(
                 }
                 .firstOrNull(::looksLikeMessageKey)
                 ?: return null
-            val fields = key.javaClass.declaredFields.onEach { it.isAccessible = true }
+            val fields = HostFields.declared(key.javaClass).onEach { it.isAccessible = true }
             val id = fields.singleOrNull { it.type == String::class.java }
                 ?.get(key) as? String ?: return null
             val jid = fields.firstOrNull {
@@ -561,13 +562,13 @@ class PreserveDeleteForMeHook(
     private fun allInstanceFields(type: Class<*>): Sequence<Field> = sequence {
         var current: Class<*>? = type
         while (current != null && current != Any::class.java) {
-            yieldAll(current.declaredFields.asSequence())
+            yieldAll(HostFields.declared(current).asSequence())
             current = current.superclass
         }
     }
 
     private fun looksLikeMessageKey(candidate: Any): Boolean {
-        val fields = candidate.javaClass.declaredFields
+        val fields = HostFields.declared(candidate.javaClass)
         return fields.count { it.type == String::class.java } == 1 &&
             fields.count { it.type == Boolean::class.javaPrimitiveType } == 1 &&
             fields.any { !it.type.isPrimitive && it.type != String::class.java }

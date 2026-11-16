@@ -47,6 +47,7 @@ import de.robv.android.xposed.XposedHelpers;
 import android.app.Activity;
 import com.waenhancer.xposed.utils.ActivityTracker;
 import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.HostFields;
 import java.util.Locale;
 import java.util.Map;
 
@@ -263,7 +264,7 @@ public final class SeparateGroupsHook extends BaseFeature {
         }
         Class<?> type = chatClass;
         while (type != null && type != Object.class) {
-            for (Field field : type.getDeclaredFields()) {
+            for (Field field : HostFields.declared(type)) {
                 if (Modifier.isStatic(field.getModifiers()) || field.getType().isPrimitive()) continue;
                 try {
                     field.setAccessible(true);
@@ -553,7 +554,7 @@ public final class SeparateGroupsHook extends BaseFeature {
 
     private static Object getEmptyBadge(Class<?> emptyBadgeClass) {
         if (emptyBadgeClass == null) return null;
-        for (Field f : emptyBadgeClass.getDeclaredFields()) {
+        for (Field f : HostFields.declared(emptyBadgeClass)) {
             if (Modifier.isStatic(f.getModifiers()) && emptyBadgeClass.isAssignableFrom(f.getType())) {
                 try {
                     f.setAccessible(true);

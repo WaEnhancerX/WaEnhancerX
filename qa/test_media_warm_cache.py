@@ -266,6 +266,7 @@ public abstract class Context {public static final int MODE_PRIVATE=0;
  public abstract SharedPreferences getSharedPreferences(String name,int mode);}
 ''',
     "com/waenhancer/xposed/MainHook.java": '''package com.waenhancer.xposed; public final class MainHook {public static String sModulePath=null;}''',
+    "com/waenhancer/xposed/utils/HookErrors.java": '''package com.waenhancer.xposed.utils; public final class HookErrors {public static void swallowed(String site, Throwable failure){}}''',
     "com/waenhancer/xposed/core/BaseFeature.java": '''package com.waenhancer.xposed.core;
 import android.content.*;
 public abstract class BaseFeature {
