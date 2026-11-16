@@ -23,6 +23,7 @@ import com.waenhancer.licensing.features.NewChatFeature;
 import com.waenhancer.licensing.features.PlayIntegrityBypassHook;
 import com.waenhancer.licensing.features.StatusSplitterFeature;
 import com.waenhancer.licensing.features.UnlockWaPlusFeature;
+import com.waenhancer.xposed.core.devkit.DexCacheManager;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.xposed.utils.ActivityTracker;
 import com.waenhancer.xposed.features.automation.PresenceToastsHook;
@@ -617,14 +618,23 @@ public final class FeatureRegistry {
 
     public void initializeAll() {
         applyUiPreHooks();
-        for (FeatureEntry entry : features) {
-            if (entry.factory == null) continue;
-            if (entry.installation == Installation.STARTUP) install(entry);
-            else if (isEntryEnabled(entry)) {
-                entry.status = "WAITING";
-            } else {
-                markDisabled(entry);
+        boolean showProgress = DexCacheManager.getInstance(reportingContext).isColdStart()
+                && FeatureLoadingNotifier.start(reportingContext, countEnabledStartupFeatures());
+        try {
+            for (FeatureEntry entry : features) {
+                if (entry.factory == null) continue;
+                if (entry.installation == Installation.STARTUP) {
+                    boolean counted = showProgress && isEntryEnabled(entry);
+                    install(entry);
+                    if (counted) FeatureLoadingNotifier.onFeatureLoaded(entry.name);
+                } else if (isEntryEnabled(entry)) {
+                    entry.status = "WAITING";
+                } else {
+                    markDisabled(entry);
+                }
             }
+        } finally {
+            if (showProgress) FeatureLoadingNotifier.finish(reportingContext);
         }
         // DexKit's native index is only required while a feature is resolving its targets.
         // Lazy features reopen it on their first matching screen and close it again afterwards.
@@ -762,6 +772,15 @@ public final class FeatureRegistry {
             }
         }
         reportInjectedHooks(reportingContext, reportingPackage);
+    }
+
+    private int countEnabledStartupFeatures() {
+        int count = 0;
+        for (FeatureEntry entry : features) {
+            if (entry.factory != null && entry.installation == Installation.STARTUP
+                    && isEntryEnabled(entry)) count++;
+        }
+        return count;
     }
 
     private static boolean isEntryEnabled(FeatureEntry entry) {

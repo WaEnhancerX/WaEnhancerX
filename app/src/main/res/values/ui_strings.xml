@@ -1121,4 +1121,7 @@
     <string name="waex_ui_native_floating_navigation_colors_hint" formatted="false">"Leave on default to keep WhatsApp's theme colors"</string>
     <string name="waex_ui_native_floating_navigation_bg_color" formatted="false">"Background color"</string>
     <string name="waex_ui_native_floating_navigation_selection_color" formatted="false">"Selection color"</string>
+    <string name="waex_ui_feature_loading_channel" formatted="false">"WAEX feature loading"</string>
+    <string name="waex_ui_feature_loading_title" translatable="false">"WaEnhancer X"</string>
+    <string name="waex_ui_feature_loading_progress">"Preparing features after an update… %1$d/%2$d"</string>
 </resources>
