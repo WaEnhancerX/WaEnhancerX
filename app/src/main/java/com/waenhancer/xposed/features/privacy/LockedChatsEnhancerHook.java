@@ -29,7 +29,6 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Locked Chats Enhancer Hook:
@@ -53,9 +52,7 @@ public class LockedChatsEnhancerHook extends BaseFeature {
     private static final int MIN_HOLDER_LISTS = 3;
 
     private final ThreadLocal<Boolean> suppressNotificationQuery = ThreadLocal.withInitial(() -> false);
-    private final AtomicBoolean loggedEmptyLockedSet = new AtomicBoolean();
     private final AtomicBoolean warnedUnidentifiableRows = new AtomicBoolean();
-    private final AtomicInteger scrubLogBudget = new AtomicInteger(5);
     private volatile Object chatCacheInstance = null;
     private volatile Field lockedChatsField = null;
     private final LockedChatIds lockedChatIds = new LockedChatIds(
@@ -188,12 +185,7 @@ public class LockedChatsEnhancerHook extends BaseFeature {
                 scrubPickerData(param.args);
             }
         };
-        for (Method sink : sinks) {
-            XposedBridge.hookMethod(sink, scrubber);
-            // Obfuscated host names only; this is what to report when the picker is not filtered.
-            XposedBridge.log(TAG + " hooked " + sink.getDeclaringClass().getName() + "#" + sink.getName()
-                    + "/" + sink.getParameterTypes().length);
-        }
+        for (Method sink : sinks) XposedBridge.hookMethod(sink, scrubber);
     }
 
     /**
@@ -248,12 +240,7 @@ public class LockedChatsEnhancerHook extends BaseFeature {
         if (args == null || args.length == 0 || !isFeatureEnabled()) return;
         try {
             Set<String> locked = lockedIds();
-            if (locked.isEmpty()) {
-                if (loggedEmptyLockedSet.compareAndSet(false, true)) {
-                    XposedBridge.log(TAG + " no locked chats known yet; picker data left untouched");
-                }
-                return;
-            }
+            if (locked.isEmpty()) return;
             ContactListSanitizer.Result result = ContactListSanitizer.scrub(
                     args, locked, ContactIdentityExtractor::identities);
             if (result.rowsSeen > 0 && result.rowsIdentified == 0
@@ -262,10 +249,6 @@ public class LockedChatsEnhancerHook extends BaseFeature {
                 // access has probably changed. Say so once instead of failing silently.
                 XposedBridge.log(TAG + " WARNING: " + result.rowsSeen
                         + " picker rows seen but none identifiable; JID access may have changed");
-            }
-            if (result.removedContacts > 0 && scrubLogBudget.getAndDecrement() > 0) {
-                XposedBridge.log(TAG + " removed " + result.removedContacts
-                        + " locked contact(s) from " + result.cleanedLists + " list(s)");
             }
         } catch (Throwable error) {
             HookErrors.swallowed("LockedChatsEnhancerHook", error);
