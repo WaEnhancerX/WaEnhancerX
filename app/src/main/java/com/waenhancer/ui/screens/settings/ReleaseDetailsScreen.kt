@@ -110,7 +110,7 @@ fun ReleaseDetailsScreen(tagName: String) {
                         val hasBothModes = debugAsset != null && releaseAsset != null
                         val canSwitchMode = isInstalled && hasBothModes
                         val otherModeAsset = if (isInstalled) {
-                            if (BuildConfig.DEBUG) releaseAsset else debugAsset
+                            if (BuildConfig.IS_DEBUG_VARIANT) releaseAsset else debugAsset
                         } else null
 
                         val isDowngrade = ReleaseRepository.versionCode(item.version) < ReleaseRepository.versionCode(installedVersion)
@@ -140,7 +140,7 @@ fun ReleaseDetailsScreen(tagName: String) {
                                 modifier = Modifier.weight(1f)
                             ) {
                                 val buttonText = when {
-                                    canSwitchMode -> if (BuildConfig.DEBUG) UiText.get(R.string.waex_l10n_switch_release, "Switch to Release") else UiText.get(R.string.waex_l10n_switch_debug, "Switch to Debug")
+                                    canSwitchMode -> if (BuildConfig.IS_DEBUG_VARIANT) UiText.get(R.string.waex_l10n_switch_release, "Switch to Release") else UiText.get(R.string.waex_l10n_switch_debug, "Switch to Debug")
                                     isInstalled -> UiText.get(R.string.waex_l10n_reinstall_apk, "Reinstall APK")
                                     isDowngrade -> UiText.get(R.string.waex_ui_downgrade, "Downgrade")
                                     else -> UiText.get(R.string.waex_ui_install_apk, "Install APK")

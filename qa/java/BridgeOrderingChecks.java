@@ -57,7 +57,7 @@ public final class BridgeOrderingChecks {
    return null;
   }
  }
- static class Ctx extends Context{final Resolver r=new Resolver();public ContentResolver getContentResolver(){return r;}}
+ static class Ctx extends Context{final Resolver r=new Resolver();public ContentResolver getContentResolver(){return r;}public String getPackageName(){return "com.whatsapp";}}
  static ExecutorService executor(PreferenceBridgeClient p)throws Exception{
   var f=p.getClass().getDeclaredField("ioExecutor");f.setAccessible(true);return (ExecutorService)f.get(p);
  }

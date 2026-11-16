@@ -8,6 +8,7 @@ import java.io.OutputStream;
 import com.waenhancer.config.PreferenceSchema;
 import com.waenhancer.config.PreferenceStores;
 import com.waenhancer.config.PreferenceRestartTracker;
+import com.waenhancer.utils.DiagnosticsRecorder;
 import com.waenhancer.licensing.customprops.CustomAbPropsStore;
 import dagger.hilt.android.qualifiers.ApplicationContext;
 import javax.inject.Inject;
@@ -56,6 +57,9 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
         }
     }
 
+    /** The target whose settings the UI is currently editing, or null. */
+    public String getTargetPackage() { return targetPackage; }
+
     /** Selects the target whose settings are edited by the UI. */
     public void setTargetPackage(String packageName) {
         if (java.util.Objects.equals(targetPackage, packageName)) return;
@@ -79,17 +83,24 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
 
     /** Package names are part of the key so old universal settings remain intact. */
     public String resolvedKey(String key) {
-        if (key == null || MODE_KEY.equals(key) || targetPackage == null
+        if (key == null || PreferenceSchema.isGlobalOnly(key) || targetPackage == null
                 || !PER_TARGET_MODE.equals(rawString(MODE_KEY, "Universal"))) return key;
         return targetPackage + ":" + key;
     }
 
+    /** Marks a target whose settings were seeded from the universal values exactly once. */
+    public static final String TARGET_SEEDED_KEY = "target_seeded";
+
     private void initializeTarget(String packageName) {
         SharedPreferences universal = PreferenceStores.publicStore(context);
+        // Seed only once. Re-seeding on every visit resurrected keys the user had reset to default.
+        if (universal.getBoolean(packageName + ":" + TARGET_SEEDED_KEY, false)) return;
         SharedPreferences.Editor editor = universal.edit();
-        boolean changed = false;
+        boolean changed = true;
+        editor.putBoolean(packageName + ":" + TARGET_SEEDED_KEY, true);
         for (PreferenceSchema.Entry entry : PreferenceSchema.all().values()) {
-            if (entry.store != PreferenceSchema.Store.PUBLIC || entry.sensitivity == PreferenceSchema.Sensitivity.RUNTIME) continue;
+            if (entry.store != PreferenceSchema.Store.PUBLIC || entry.sensitivity == PreferenceSchema.Sensitivity.RUNTIME
+                    || PreferenceSchema.isGlobalOnly(entry.key)) continue;
             String scoped = packageName + ":" + entry.key;
             if (!universal.contains(scoped) && universal.contains(entry.key)) {
                 Object value = universal.getAll().get(entry.key);
@@ -155,7 +166,8 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
 
     @Override
     public void putBoolean(String key, boolean value) {
-        getStore(key).edit().putBoolean(key(key), value).commit();
+        if (!getStore(key).edit().putBoolean(key(key), value).commit()) return;
+        recordChanged(key, "PUT");
         if (isPublicStore(key)) {
             PreferenceRestartTracker.onPreferenceChanged(PreferenceStores.publicStore(context), key(key));
             notifyChange();
@@ -185,6 +197,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
                 editor.putBoolean(resolvedKey(change.getKey()), change.getValue());
             }
             if (!editor.commit()) return false;
+            for (String key : batch.keySet()) recordChanged(key, "PUT");
             for (Map.Entry<String, Boolean> change : batch.entrySet()) {
                 PreferenceRestartTracker.onPreferenceChanged(
                         PreferenceStores.publicStore(context), resolvedKey(change.getKey()));
@@ -198,11 +211,22 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
 
     @Override
     public String getString(String key, String defaultValue) {
+        final String resolved;
+        final SharedPreferences store;
         try {
-        return getStore(key).getString(key(key), defaultValue);
+            resolved = resolvedKey(key);
+            store = PreferenceStores.storeFor(context, resolved);
+        } catch (ClassCastException ignored) {
+            // A legacy mode value of the wrong type must retain the default contract.
+            return defaultValue;
+        }
+        try {
+            return store.getString(resolved, defaultValue);
         } catch (ClassCastException e) {
             try {
-                Object allVal = getStore(key).getAll().get(key);
+                // Convert the same key/store that failed the strict read, even if
+                // the selected target changes while that read is in progress.
+                Object allVal = store.getAll().get(resolved);
                 return allVal != null ? String.valueOf(allVal) : defaultValue;
             } catch (Throwable ignored) {
                 return defaultValue;
@@ -212,7 +236,8 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
 
     @Override
     public void putString(String key, String value) {
-        getStore(key).edit().putString(key(key), value).commit();
+        if (!getStore(key).edit().putString(key(key), value).commit()) return;
+        recordChanged(key, "PUT");
         if (isPublicStore(key)) {
             PreferenceRestartTracker.onPreferenceChanged(PreferenceStores.publicStore(context), key(key));
             notifyChange();
@@ -230,6 +255,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
             if (!PreferenceStores.publicStore(context).edit().putString(resolvedKey(key), value).commit()) {
                 return false;
             }
+            recordChanged(key, "PUT");
             PreferenceRestartTracker.onPreferenceChanged(
                     PreferenceStores.publicStore(context), resolvedKey(key));
             notifyChange();
@@ -251,6 +277,7 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
             if (!PreferenceStores.publicStore(context).edit().putStringSet(resolvedKey(key), snapshot).commit()) {
                 return false;
             }
+            recordChanged(key, "PUT");
             PreferenceRestartTracker.onPreferenceChanged(
                     PreferenceStores.publicStore(context), resolvedKey(key));
             notifyChange();
@@ -276,7 +303,8 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
     }
 
     public void putStringSet(String key, Set<String> value) {
-        getStore(key).edit().putStringSet(key(key), new LinkedHashSet<>(value)).commit();
+        if (!getStore(key).edit().putStringSet(key(key), new LinkedHashSet<>(value)).commit()) return;
+        recordChanged(key, "PUT");
         if (isPublicStore(key)) {
             PreferenceRestartTracker.onPreferenceChanged(PreferenceStores.publicStore(context), key(key));
             notifyChange();
@@ -288,7 +316,8 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
     }
 
     public void putInt(String key, int value) {
-        getStore(key).edit().putInt(key(key), value).commit();
+        if (!getStore(key).edit().putInt(key(key), value).commit()) return;
+        recordChanged(key, "PUT");
         if (isPublicStore(key)) {
             PreferenceRestartTracker.onPreferenceChanged(PreferenceStores.publicStore(context), key(key));
             notifyChange();
@@ -300,7 +329,8 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
     }
 
     public void putFloat(String key, float value) {
-        getStore(key).edit().putFloat(key(key), value).commit();
+        if (!getStore(key).edit().putFloat(key(key), value).commit()) return;
+        recordChanged(key, "PUT");
         if (isPublicStore(key)) {
             PreferenceRestartTracker.onPreferenceChanged(PreferenceStores.publicStore(context), key(key));
             notifyChange();
@@ -308,28 +338,53 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
     }
 
     public void remove(String key) {
-        getStore(key).edit().remove(key(key)).commit();
+        if (!getStore(key).edit().remove(key(key)).commit()) return;
+        recordChanged(key, "REMOVE");
         if (isPublicStore(key)) {
+            PreferenceRestartTracker.onPreferenceChanged(PreferenceStores.publicStore(context), key(key));
             notifyChange();
         }
     }
 
+    /** Effective values for the selected target: its overrides win over universal values. */
     public Map<String, ?> getAll() {
-        return PreferenceStores.publicStore(context).getAll();
+        Map<String, Object> all = new LinkedHashMap<>(PreferenceStores.publicStore(context).getAll());
+        String target = targetPackage;
+        if (target == null || !PER_TARGET_MODE.equals(rawString(MODE_KEY, "Universal"))) return all;
+        String prefix = target + ":";
+        for (Map.Entry<String, ?> entry : PreferenceStores.publicStore(context).getAll().entrySet()) {
+            String key = entry.getKey();
+            if (key != null && key.startsWith(prefix) && key.length() > prefix.length()
+                    && !PreferenceSchema.isGlobalOnly(key.substring(prefix.length()))) {
+                all.put(key.substring(prefix.length()), entry.getValue());
+            }
+        }
+        return all;
     }
 
     public int exportSettings(Uri destination) throws Exception {
         OutputStream output = context.getContentResolver().openOutputStream(destination, "wt");
         if (output == null) throw new IOException("Could not open backup destination");
-        return SettingsBackupCodec.INSTANCE.encode(context, output);
+        int count = SettingsBackupCodec.INSTANCE.encode(context, output);
+        DiagnosticsRecorder.recordSettingsTransfer(context, "EXPORT", count);
+        return count;
     }
 
     public int importSettings(Uri source) throws Exception {
         InputStream input = context.getContentResolver().openInputStream(source);
         if (input == null) throw new IOException("Could not open backup file");
         int count = SettingsBackupCodec.INSTANCE.decode(context, input);
+        DiagnosticsRecorder.recordSettingsTransfer(context, "IMPORT", count);
         notifyChange();
         return count;
+    }
+
+    private void recordChanged(String key, String operation) {
+        try {
+            // Never serialize the value, target package, or an unknown/dynamic preference key.
+            DiagnosticsRecorder.recordPreferenceChange(context, key,
+                    !java.util.Objects.equals(resolvedKey(key), key), operation);
+        } catch (RuntimeException ignored) {}
     }
 
     private void notifyChange() {

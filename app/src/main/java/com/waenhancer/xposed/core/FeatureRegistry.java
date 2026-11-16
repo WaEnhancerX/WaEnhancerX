@@ -92,6 +92,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Orchestrates and registers all modular hooks in WAEX and reports injected status.
@@ -241,6 +243,7 @@ public final class FeatureRegistry {
 
         registerFeature(HideReceiptsHook.class, "Privacy",
                 () -> prefs.getBoolean("hide_read_receipts", false) || prefs.getBoolean("hideread", false)
+                        || prefs.getBoolean("hideread_group", false)
                         || prefs.getBoolean("hide_delivery_receipts", false) || prefs.getBoolean("hidereceipt", false)
                         || prefs.getBoolean("hide_seen_receipts", false) || prefs.getBoolean("hideaudioseen", false)
                         || prefs.getBoolean("hideonceseen", false) || prefs.getBoolean("ghostmode_active", false)
@@ -297,7 +300,9 @@ public final class FeatureRegistry {
 
         // Conversation & Message Controls
         registerFeature(AntiEditMessagesHook.class, "Conversation",
-                () -> prefs.getBoolean("anti_edit", false) || prefs.getBoolean("antieditmessages", false),
+                () -> prefs.getBoolean("anti_edit_messages", false)
+                        || prefs.getBoolean("anti_edit", false)
+                        || prefs.getBoolean("antieditmessages", false),
                 () -> new AntiEditMessagesHook(context, classLoader, prefs));
 
         registerFeature(StickerConfirmHook.class, "Conversation",
@@ -669,7 +674,11 @@ public final class FeatureRegistry {
 
     private void installLocked(FeatureEntry entry) {
         if (entry.factory == null || !isEntryEnabled(entry)) {
+            boolean changed = !"DISABLED".equals(entry.status);
             markDisabled(entry);
+            if (changed && entry.installation != Installation.STARTUP) {
+                    reportInjectedHooks(reportingContext, reportingPackage);
+            }
             return;
         }
         if (!entry.installationStarted.compareAndSet(false, true)) return;
@@ -679,11 +688,19 @@ public final class FeatureRegistry {
             entry.feature = entry.factory.create();
             entry.name = entry.feature.getName();
             entry.feature.beginHookTracking();
+            final long hookStart = System.nanoTime();
             try {
                 entry.feature.hook();
             } finally {
                 entry.feature.endHookTracking();
+                long hookMs = (System.nanoTime() - hookStart) / 1_000_000L;
+                // Only report features that are noticeably slow, to keep the log readable.
+                if (hookMs >= SLOW_HOOK_LOG_MS) {
+                    XposedBridge.log("[WAEX][Startup] " + entry.name + " hook " + hookMs + "ms ("
+                            + entry.installation + ")");
+                }
             }
+            entry.error = null; // A successful retry must not retain an earlier failure.
             entry.status = "ACTIVE";
         } catch (Throwable t) {
             if (entry.feature != null) entry.feature.unhookAll();
@@ -697,13 +714,18 @@ public final class FeatureRegistry {
             dexSearchEngine.releaseLease();
             if (entry.installation != Installation.STARTUP) {
                 dexSearchEngine.close();
+                // Lazy installs may run during startup or on a later Activity event.
+                // Report their state changes immediately, including failures.
+                reportInjectedHooks(reportingContext, reportingPackage);
             }
-            reportInjectedHooks(reportingContext, reportingPackage);
+            // MainHook publishes the complete catalogue after initializeAll().
+            // Reporting it for every STARTUP entry duplicates JSON serialization and
+            // synchronous provider IPC on the target's initialization thread.
         }
     }
 
     private void disposeLazyEntry(FeatureEntry entry, @NonNull Activity activity) {
-        if (entry.installation == Installation.STARTUP) return;
+        if (entry.installation == Installation.STARTUP || HookingModePolicy.COMPATIBILITY.equals(hookingMode)) return;
         synchronized (entry) {
             BaseFeature feature = entry.feature;
             if (feature == null) return;
@@ -756,6 +778,16 @@ public final class FeatureRegistry {
         return false;
     }
 
+    private static final long SLOW_HOOK_LOG_MS = 15L;
+
+    private static final ExecutorService HOOK_REPORT_EXECUTOR =
+            Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "WAEX-HookReportIpc");
+                t.setDaemon(true);
+                t.setPriority(Thread.MIN_PRIORITY);
+                return t;
+            });
+
     public void reportInjectedHooks(@NonNull Context context, @NonNull String packageName) {
         try {
             JSONArray array = new JSONArray();
@@ -778,7 +810,15 @@ public final class FeatureRegistry {
             extras.putString("hooking_mode", hookingMode);
             extras.putLong("timestamp", System.currentTimeMillis());
 
-            context.getContentResolver().call(uri, "register_injected_hooks", packageName, extras);
+            // The JSON snapshot above is built on the caller; the cross-process call is not, because
+            // lazy installs report from the UI thread while a screen is opening.
+            HOOK_REPORT_EXECUTOR.execute(() -> {
+                try {
+                    context.getContentResolver().call(uri, "register_injected_hooks", packageName, extras);
+                } catch (Throwable t) {
+                    XposedBridge.log("[WAEX] Failed to report injected hooks: " + t.getMessage());
+                }
+            });
         } catch (Throwable t) {
             XposedBridge.log("[WAEX] Failed to report injected hooks: " + t.getMessage());
         }

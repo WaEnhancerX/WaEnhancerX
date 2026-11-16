@@ -1,6 +1,7 @@
 package com.waenhancer.xposed.bridge.client;
 
 import android.content.Context;
+import com.waenhancer.config.PreferenceSchema;
 import android.content.SharedPreferences;
 import android.database.ContentObserver;
 import android.net.Uri;
@@ -274,7 +275,8 @@ public final class PreferenceBridgeClient implements SharedPreferences {
         String prefix = packageName + ":";
         for (Map.Entry<String, Object> entry : source.entrySet()) {
             String key = entry.getKey();
-            if (key != null && key.startsWith(prefix) && key.length() > prefix.length()) {
+            if (key != null && key.startsWith(prefix) && key.length() > prefix.length()
+                    && !PreferenceSchema.isGlobalOnly(key.substring(prefix.length()))) {
                 resolved.put(key.substring(prefix.length()), entry.getValue());
             }
         }

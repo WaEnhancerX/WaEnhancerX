@@ -50,9 +50,7 @@ fun WaexConfirmationBottomSheet(
 
     WaexModalBottomSheet(
         onDismissRequest = { if (confirmEnabled) onDismiss() },
-        sheetState = sheetState,
-        containerColor = colors.surface,
-        shape = radius.bottomSheetShape
+        sheetState = sheetState
     ) {
         val sheetDensity = LocalDensity.current
         CompositionLocalProvider(LocalDensity provides sheetDensity) {
@@ -62,7 +60,7 @@ fun WaexConfirmationBottomSheet(
                     .verticalScroll(rememberScrollState())
                     .imePadding()
                     .navigationBarsPadding()
-                    .padding(horizontal = 20.dp)
+                    .padding(horizontal = WaexSheetHorizontalMargin)
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -70,27 +68,19 @@ fun WaexConfirmationBottomSheet(
                 Text(message, style = typography.bodyMd, color = colors.onSurfaceVariant)
                 supportingContent?.invoke()
                 Spacer(Modifier.height(4.dp))
-                Button(
+                WaexSheetPrimaryButton(
+                    text = confirmLabel,
                     onClick = onConfirm,
                     enabled = confirmEnabled,
-                    modifier = Modifier.fillMaxWidth().height(42.dp),
-                    shape = radius.buttonShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = actionColor,
-                        contentColor = if (destructive) Color.White else colors.onPrimary
-                    )
-                ) {
-                    if (confirmContent != null) confirmContent() else Text(confirmLabel, fontWeight = FontWeight.Bold)
-                }
-                OutlinedButton(
+                    containerColor = actionColor,
+                    contentColor = if (destructive) Color.White else if (colors.isLight) Color.White else Color(0xFF0A1014),
+                    content = confirmContent
+                )
+                WaexSheetTextButton(
+                    text = UiText.get(R.string.action_cancel, "Cancel"),
                     onClick = onDismiss,
-                    enabled = confirmEnabled,
-                    modifier = Modifier.fillMaxWidth().height(42.dp),
-                    shape = radius.buttonShape,
-                    border = BorderStroke(1.dp, colors.outlineVariant)
-                ) {
-                    Text(UiText.get(R.string.action_cancel, "Cancel"), color = colors.onSurface)
-                }
+                    enabled = confirmEnabled
+                )
             }
         }
     }

@@ -14,6 +14,7 @@ import com.waenhancer.xposed.bridge.HookProvider;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.utils.ContactNameResolver;
+import com.waenhancer.calls.RecordingOutputFiles;
 
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.enums.StringMatchType;
@@ -22,11 +23,8 @@ import org.luckypray.dexkit.result.ClassData;
 
 import java.io.FileDescriptor;
 import java.lang.ref.WeakReference;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -250,9 +248,8 @@ public final class CallRecordingHook extends BaseFeature {
         if (!recording.compareAndSet(false, true)) return;
         try {
             RecordingFormat format = RecordingFormat.from(prefs.getString("call_recording_format", "m4a"));
-            String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
             Bundle request = new Bundle();
-            outputName = "WhatsApp_Call_" + timestamp + format.extension;
+            outputName = RecordingOutputFiles.newName(format.extension);
             request.putString("name", outputName);
             outputCallId = expected.callId;
             request.putString("call_id", expected.callId);

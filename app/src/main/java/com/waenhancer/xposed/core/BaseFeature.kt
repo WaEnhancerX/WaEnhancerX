@@ -62,19 +62,13 @@ abstract class BaseFeature(
         if (prefs.contains(key)) {
             return prefs.getBoolean(key, def)
         }
-        // 2. Target package scoped key (Per Target App mode: e.g. "com.whatsapp:key", "com.whatsapp.w4b:key")
+        // 2. Target package scoped key (Per Target App mode: "<package>:key" for this process only)
         val pkg = context.packageName
         if (!pkg.isNullOrEmpty() && prefs.contains("$pkg:$key")) {
             return prefs.getBoolean("$pkg:$key", def)
         }
-        // 3. Fallback for Universal mode when previously configured per-target
-        val mode = prefs.getString("module_config_mode", "Universal")
-        if ("Universal".equals(mode, ignoreCase = true)) {
-            if (prefs.getBoolean("com.whatsapp:$key", false) ||
-                prefs.getBoolean("com.whatsapp.w4b:$key", false)) {
-                return true
-            }
-        }
+        // Never consult another target's scoped key: it would apply WA Business settings to
+        // WhatsApp (or the reverse), and stale per-target keys must not leak into Universal mode.
         return def
     }
 
@@ -85,11 +79,6 @@ abstract class BaseFeature(
         val pkg = context.packageName
         if (!pkg.isNullOrEmpty() && prefs.contains("$pkg:$key")) {
             return prefs.getString("$pkg:$key", def)
-        }
-        val mode = prefs.getString("module_config_mode", "Universal")
-        if ("Universal".equals(mode, ignoreCase = true)) {
-            prefs.getString("com.whatsapp:$key", null)?.let { return it }
-            prefs.getString("com.whatsapp.w4b:$key", null)?.let { return it }
         }
         return def
     }

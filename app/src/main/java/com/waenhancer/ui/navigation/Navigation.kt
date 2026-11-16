@@ -80,7 +80,14 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.waenhancer.utils.WhatsAppPackageDetector
 import com.waenhancer.utils.LsposedScopeReader
+import com.waenhancer.utils.SystemDiagnosticsReader
 import com.waenhancer.utils.TargetAppManager
+import com.waenhancer.ui.screens.dashboard.ReportIssueScreen
+import com.waenhancer.ui.screens.dashboard.ReportedIssuesScreen
+import com.waenhancer.licensing.report.ReportLogin
+import com.waenhancer.ui.screens.dashboard.TelegramLoginSheet
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.BugReport
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.rememberCoroutineScope
@@ -213,6 +220,13 @@ class WaexNavController(initialScreen: Screen = Screen.MainDashboard) {
         navigateTo(rootScreen, clearStack = true)
     }
 
+    /** Home → Automation tab → Audio & AI sub-tab. */
+    fun navigateToAudioAi() {
+        targetPageIndex = 3
+        targetSubTabId = "ai"
+        navigateTo(Screen.AutomationTasker, clearStack = true)
+    }
+
     fun navigateTo(screen: Screen, clearStack: Boolean = false) {
         isLastTransitionForward = !(screen.isRootScreen || clearStack)
         if (clearStack) {
@@ -274,6 +288,7 @@ fun MainContainerScreen() {
     val preferenceManager = LocalWaexPreferenceManager.current
     var licenseState by remember { mutableStateOf(if ("ACTIVE".equals(LicenseManager.getProStatus(context), ignoreCase = true)) "pro" else "free") }
     val isPro = licenseState == "pro"
+    var showReportLoginSheet by remember { mutableStateOf(false) }
     var activeModal by remember { mutableStateOf<String?>(null) } // "license" | "file-spoofer" | "message-bomber" | "status-splitter" | null
     var activeNotice by remember { mutableStateOf<NoticeItem?>(null) }
 
@@ -407,32 +422,26 @@ fun MainContainerScreen() {
     val configMode = preferenceManager.getString("module_config_mode", "Universal")
     val isPerTargetApp = configMode == "Per Target App"
 
-    val targetPackages = listOf("com.whatsapp", "com.whatsapp.w4b")
-    val fallbackNames = mapOf(
-        "com.whatsapp" to stringResource(R.string.target_whatsapp),
-        "com.whatsapp.w4b" to "WA Business"
-    )
-
     data class TargetAppInfo(
         val packageName: String,
         val label: String,
         val icon: androidx.compose.ui.graphics.ImageBitmap?
     )
 
-    LaunchedEffect(Unit) {
-        TargetAppManager.init(context)
-    }
-
+    // Targets are read on demand with root while the home screen is visible; nothing runs when it is not.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                TargetAppManager.refresh(context)
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> TargetAppManager.attach(context)
+                Lifecycle.Event.ON_PAUSE -> TargetAppManager.detach(context)
+                else -> Unit
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+            TargetAppManager.detach(context)
         }
     }
 
@@ -457,7 +466,7 @@ fun MainContainerScreen() {
             }.getOrNull()
 
             // Priority 3: Built-in localized fallback name
-            val label = launcherLabel ?: appLabel ?: fallbackNames[pkg].orEmpty()
+            val label = launcherLabel ?: appLabel ?: pkg
 
             val icon = runCatching {
                 pm.getApplicationIcon(pkg).toBitmap(64, 64).asImageBitmap()
@@ -467,14 +476,12 @@ fun MainContainerScreen() {
         }
     }
 
-    var selectedPackage by remember { mutableStateOf(targetPackages.first()) }
+    var chosenPackage by remember { mutableStateOf<String?>(null) }
+    // Always a package that is currently an active target, or null when there is none.
+    val selectedPackage = chosenPackage?.takeIf { pkg -> visibleTargetApps.any { it.packageName == pkg } }
+        ?: visibleTargetApps.firstOrNull()?.packageName
     // Update synchronously before any preference-backed screen is composed.
     preferenceManager.setTargetPackage(selectedPackage)
-    LaunchedEffect(visibleTargetApps) {
-        if (visibleTargetApps.isNotEmpty() && visibleTargetApps.none { it.packageName == selectedPackage }) {
-            selectedPackage = visibleTargetApps.first().packageName
-        }
-    }
     var showTargetMenu by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -621,6 +628,22 @@ fun MainContainerScreen() {
                             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                         )
 
+                        NavigationDrawerItem(
+                            label = { Text(text = stringResource(R.string.report_issue_title), style = typography.bodyMd) },
+                            icon = { Icon(Icons.Rounded.BugReport, contentDescription = null, tint = colors.primary, modifier = Modifier.size(20.dp)) },
+                            selected = false,
+                            onClick = {
+                                coroutineScope.launch { drawerState.close() }
+                                // Issues are tied to the Telegram account, so a real login comes first.
+                                if (ReportLogin.isLoggedIn(context)) {
+                                    navController.navigateTo(Screen.ReportedIssues)
+                                } else {
+                                    showReportLoginSheet = true
+                                }
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp),
                             color = colors.outlineVariant.copy(alpha = 0.5f)
@@ -640,6 +663,15 @@ fun MainContainerScreen() {
                 }
             }
         ) {
+        if (showReportLoginSheet) {
+            TelegramLoginSheet(
+                onLoggedIn = {
+                    showReportLoginSheet = false
+                    navController.navigateTo(Screen.ReportedIssues)
+                },
+                onDismiss = { showReportLoginSheet = false }
+            )
+        }
         Scaffold(
             topBar = {
                 if (showParentTopBar) {
@@ -735,7 +767,7 @@ fun MainContainerScreen() {
                                             modifier = Modifier.align(Alignment.CenterVertically)
                                         ) {
                                             Text(
-                                                text = "No Scoped App",
+                                                text = "No Active Target",
                                                 style = typography.labelSm,
                                                 color = colors.onSurfaceVariant,
                                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
@@ -833,7 +865,7 @@ fun MainContainerScreen() {
                                                             }
                                                         },
                                                         onClick = {
-                                                            selectedPackage = target.packageName
+                                                            chosenPackage = target.packageName
                                                             showTargetMenu = false
                                                         }
                                                     )
@@ -869,18 +901,15 @@ fun MainContainerScreen() {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.Transparent)
+                        .background(colors.surface)
                         .navigationBarsPadding()
-                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 6.dp)
                 ) {
                     Surface(
-                        shape = CircleShape,
+                        shape = RoundedCornerShape(0.dp),
                         color = colors.surface,
-                        border = BorderStroke(1.dp, colors.outlineVariant),
-                        shadowElevation = 6.dp,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(66.dp)
+                            .height(72.dp)
                     ) {
                         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                             val totalWidth = maxWidth
@@ -888,7 +917,7 @@ fun MainContainerScreen() {
                             // Match the indicator to the 40.dp icon slot rather than the
                             // icon glyph. This keeps the selected icon visually centered
                             // inside the thumb across icons with different intrinsic bounds.
-                            val pillWidth = 48.dp
+                            val pillWidth = 64.dp
 
                             val activeIndex = pagerState.currentPage.coerceIn(0, BottomTab.entries.lastIndex)
 
@@ -904,9 +933,9 @@ fun MainContainerScreen() {
 
                             Box(
                                 modifier = Modifier
-                                    .padding(top = 10.dp)
+                                    .padding(top = 12.dp)
                                     .offset(x = animatedOffset)
-                                    .size(width = pillWidth, height = 28.dp)
+                                    .size(width = pillWidth, height = 32.dp)
                                     .clip(CircleShape)
                                     .background(colors.primaryContainer)
                             )
@@ -920,7 +949,7 @@ fun MainContainerScreen() {
                                     val active = tabIndex == activeIndex
 
                                     val contentColor by animateColorAsState(
-                                        targetValue = if (active) colors.primary else colors.onSurfaceVariant,
+                                        targetValue = if (active) colors.onSurface else colors.onSurfaceVariant,
                                         animationSpec = tween(durationMillis = 200),
                                         label = "tab_content_color"
                                     )
@@ -945,7 +974,7 @@ fun MainContainerScreen() {
                                             }
                                     ) {
                                         Box(
-                                            modifier = Modifier.size(width = 40.dp, height = 24.dp),
+                                            modifier = Modifier.size(width = 64.dp, height = 32.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
@@ -1305,6 +1334,8 @@ fun WaexAppNavigation(
         is Screen.ReleaseDetails -> ReleaseDetailsScreen(currentScreen.tagName)
         Screen.About -> AboutScreen()
         Screen.Stargazers -> StargazersScreen()
+        Screen.ReportedIssues -> ReportedIssuesScreen()
+        Screen.ReportIssue -> ReportIssueScreen()
         Screen.ModuleSettings -> ModuleSettingsScreen()
         Screen.HookingModeHelp -> HookingModeHelpScreen()
         Screen.UpdateSettings -> UpdateSettingsScreen()

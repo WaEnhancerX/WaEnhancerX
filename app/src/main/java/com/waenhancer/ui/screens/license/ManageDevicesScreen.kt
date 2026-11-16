@@ -539,10 +539,7 @@ fun ManageDevicesScreen() {
                 onDismissRequest = {
                     if (!isUnlinking) deviceToUnlink = null
                 },
-                sheetState = sheetState,
-                containerColor = colors.surface,
-                tonalElevation = 8.dp,
-                shape = radius.bottomSheetShape
+                sheetState = sheetState
             ) {
                 Column(
                 modifier = Modifier

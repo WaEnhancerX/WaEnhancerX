@@ -118,8 +118,7 @@ fun UpdateDownloadSheet(
 
     WaexModalBottomSheet(
         onDismissRequest = {},
-        sheetState = sheetState,
-        containerColor = colors.surfaceContainer
+        sheetState = sheetState
     ) {
         Column(
             Modifier
@@ -142,7 +141,7 @@ fun UpdateDownloadSheet(
                 style = typography.bodyMd,
                 color = colors.onSurfaceVariant
             )
-            OutlinedButton(onClick = { session.cancel(); dismiss() }, modifier = Modifier.fillMaxWidth()) { Text(UiText.get(R.string.action_cancel, "Cancel")) }
+            WaexSheetTextButton(text = UiText.get(R.string.action_cancel, "Cancel"), onClick = { session.cancel(); dismiss() })
         }
     }
 }

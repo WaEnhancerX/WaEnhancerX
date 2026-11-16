@@ -99,6 +99,8 @@ def android_doubles(root: Path) -> dict[str, str]:
     if len(assignments) != 1:
         raise ValueError('Expected exactly one Android fixture definition')
     source = ast.literal_eval(assignments[0].value)
+    # Keep android.content.pm symbols used by the real PreferenceStores; all
+    # unexpected filesystem access still throws in the Context double.
     doubles = {p: s for p, s in source.items() if p.startswith('android/content/')}
     doubles['android/compat/annotation/UnsupportedAppUsage.java'] = (
         'package android.compat.annotation; public @interface UnsupportedAppUsage {}')
@@ -120,9 +122,13 @@ def main() -> int:
     parser.add_argument('--json-source-dir', type=Path,
                         default=os.environ.get('WAEX_AOSP_JSON_SOURCE_DIR'))
     args = parser.parse_args()
-    for tool in ('javac', 'kotlinc', 'kotlin'):
-        if not shutil.which(tool):
+    resolved = {tool: shutil.which(tool) for tool in ('javac', 'kotlinc', 'java')}
+    for tool, executable in resolved.items():
+        if not executable:
             raise FileNotFoundError(f'Required JVM tool unavailable: {tool}')
+    kotlin_stdlib = Path(resolved['kotlinc']).parent.parent / 'lib/kotlin-stdlib.jar'
+    if not kotlin_stdlib.is_file():
+        raise FileNotFoundError(f'Compiler-matched Kotlin runtime unavailable: {kotlin_stdlib}')
     root = args.root.resolve()
     source = root / 'app/src/main/java/com/waenhancer'
     codec = (args.codec or source / 'core/preferences/SettingsBackupCodec.kt').resolve()
@@ -140,13 +146,13 @@ def main() -> int:
             java_files.append(path)
         out_java, out_kotlin = work / 'java', work / 'kotlin'
         commands = [
-            ['javac', '--release', '17', '-d', str(out_java),
+            [resolved['javac'], '--release', '17', '-d', str(out_java),
              *map(str, java_files + aosp), str(source / 'config/PreferenceSchema.java'),
              str(source / 'config/PreferenceStores.java')],
-            ['kotlinc', '-jvm-target', '17', '-cp', str(out_java), '-d', str(out_kotlin),
+            [resolved['kotlinc'], '-jvm-target', '17', '-cp', str(out_java), '-d', str(out_kotlin),
              str(codec), str(ROOT / 'qa/kotlin/TestSettingsBackupJson.kt')],
-            ['kotlin', '-J-Xmx128m', '-J-Xss1m', '-cp',
-             os.pathsep.join(map(str, (out_java, out_kotlin))),
+            [resolved['java'], '-Xmx128m', '-Xss1m', '-cp',
+             os.pathsep.join(map(str, (out_java, out_kotlin, kotlin_stdlib))),
              'com.waenhancer.core.preferences.TestSettingsBackupJsonKt'],
         ]
         for index, command in enumerate(commands):

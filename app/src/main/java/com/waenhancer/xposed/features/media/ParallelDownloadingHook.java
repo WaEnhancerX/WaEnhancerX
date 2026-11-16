@@ -106,7 +106,6 @@ public class ParallelDownloadingHook extends BaseFeature {
                 }
             });
 
-            XposedBridge.log(TAG + " Installed parallel downloading hook on: " + downloadMethod.getName());
         } catch (Throwable error) {
             XposedBridge.log(TAG + " Error installing hook: " + error.getMessage());
         }
@@ -134,7 +133,7 @@ public class ParallelDownloadingHook extends BaseFeature {
         if (response == null) return -1L;
         try {
             for (Method m : response.getClass().getMethods()) {
-                if (m.getParameterCount() == 0) {
+                if (m.getParameterTypes().length == 0) {
                     String name = m.getName().toLowerCase();
                     if (name.contains("contentlength") || name.equals("length") || name.equals("getlength")) {
                         Object res = m.invoke(response);

@@ -49,6 +49,9 @@ object HmaDiagnostics {
         val message: String? = null
     )
 
+    private const val REASON_NOT_CONFIGURED = "Not configured in HMA scope"
+    private const val REASON_HMA_NOT_ACTIVE = "HMA not active"
+
     fun cached(): HmaReport? = cachedResult.get()
 
     /**
@@ -71,54 +74,35 @@ object HmaDiagnostics {
     }
 
     private fun runCheck(context: Context, targetPackages: Collection<String>, scopeSnapshot: LsposedScopeSnapshot?): HmaReport {
+        // Empty means no live scoped targets. Never fall back to every installed/declared app:
+        // scope is the security boundary for this diagnostic.
+        val liveScope = (scopeSnapshot ?: LsposedScopeReader.read(context)).packages
+        val packagesToCheck = targetPackages.filterTo(linkedSetOf()) { it in liveScope }
+
+        fun inactiveReport(state: HmaState, reason: String) = HmaReport(
+            state,
+            targetDetails = packagesToCheck.map {
+                TargetIsolationDetail(it, resolveAppLabel(context, it), isBlocking = false, reason = reason)
+            }
+        )
+
         val allConfigPaths = findAllHmaConfigPaths(context)
         if (allConfigPaths.isEmpty()) {
             return if (!isHmaInstalledAndActive(context)) {
-                HmaReport(HmaState.NOT_ACTIVE)
+                inactiveReport(HmaState.NOT_ACTIVE, REASON_HMA_NOT_ACTIVE)
             } else {
-                HmaReport(HmaState.NOT_CONFIGURED)
+                inactiveReport(HmaState.NOT_CONFIGURED, REASON_NOT_CONFIGURED)
             }
         }
 
         val allConfigs = readAllHmaConfigs(context, allConfigPaths)
         if (allConfigs.isEmpty()) {
-            return HmaReport(HmaState.NOT_CONFIGURED)
+            return inactiveReport(HmaState.NOT_CONFIGURED, REASON_NOT_CONFIGURED)
         }
 
         // Known module package identifiers to check for concealment
         val currentPackage = context.packageName
         val moduleSignatures = setOf(currentPackage, "com.waenhancer", "com.waenhancer.debug")
-
-        val declared = DeclaredWhatsAppTargets.packages()
-        val packagesToCheck = linkedSetOf<String>()
-
-        // 1. Caller-provided target packages that are declared targets
-        for (pkg in targetPackages) {
-            if (pkg in declared) {
-                packagesToCheck.add(pkg)
-            }
-        }
-
-        // 2. Any declared targets that have rules defined in any discovered HMA config
-        for ((_, config) in allConfigs) {
-            val scope = config.optJSONObject("scope") ?: continue
-            for (pkg in declared) {
-                if (scope.has(pkg)) {
-                    packagesToCheck.add(pkg)
-                }
-            }
-        }
-
-        // 3. Fallback: inspect any installed declared targets on device
-        if (packagesToCheck.isEmpty()) {
-            val pm = context.packageManager
-            for (pkg in declared) {
-                try {
-                    pm.getPackageInfo(pkg, 0)
-                    packagesToCheck.add(pkg)
-                } catch (_: Exception) {}
-            }
-        }
 
         val details = mutableListOf<TargetIsolationDetail>()
         val blockedList = mutableListOf<String>()
@@ -147,7 +131,7 @@ object HmaDiagnostics {
                         packageName = pkg,
                         appName = appLabel,
                         isBlocking = false,
-                        reason = "Not configured in HMA scope"
+                        reason = REASON_NOT_CONFIGURED
                     )
                 )
             } else if (primaryBlockReason != null) {
@@ -185,11 +169,7 @@ object HmaDiagnostics {
             val info = pm.getApplicationInfo(packageName, 0)
             pm.getApplicationLabel(info).toString()
         } catch (_: Exception) {
-            when {
-                packageName == "com.whatsapp" -> "WhatsApp"
-                packageName == "com.whatsapp.w4b" -> "WhatsApp Business"
-                else -> packageName
-            }
+            packageName
         }
     }
 
@@ -400,7 +380,7 @@ object HmaDiagnostics {
      * when whitelist mode is enabled).
      */
     suspend fun fixTargetIsolation(context: Context, targetPackage: String): Boolean = withContext(Dispatchers.IO) {
-        if (!DeclaredWhatsAppTargets.contains(targetPackage)) return@withContext false
+        if (!LsposedScopeReader.read(context).contains(targetPackage)) return@withContext false
         // Force-stop HMA and any related processes BEFORE reading/modifying configuration
         forceStopHmaApps(context)
 

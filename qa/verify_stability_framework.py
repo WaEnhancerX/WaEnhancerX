@@ -4,7 +4,7 @@ Modes allow standalone updater/filter/clock branches without borrowing productio
 code from another PR. Xposed, private Pro behavior and design theme are fixtures.
 """
 from pathlib import Path
-import argparse, hashlib, json, shutil, subprocess, tomllib
+import argparse, hashlib, json, re, shutil, subprocess, tomllib
 import xml.etree.ElementTree as ET
 from framework_localization import stage_localization
 
@@ -17,6 +17,12 @@ def main():
     a=ap.parse_args();root=a.root.resolve();out=a.out.resolve()
     out.mkdir(parents=True,exist_ok=False);e=out/'evidence';e.mkdir()
     p=out/'fixture';p.mkdir();v=tomllib.loads((root/'gradle/libs.versions.toml').read_text())['versions']
+    # Compose's BOM does not select the experimental Material3 APIs used by
+    # the actual wavy progress indicators. Resolve the *app's* explicit pin.
+    app_gradle=(root/'app/build.gradle.kts').read_text()
+    expressive_pins=re.findall(r'implementation\("androidx\.compose\.material3:material3:([^"\s]+)"\)',app_gradle)
+    if len(expressive_pins)!=1:
+        raise ValueError('Expected exactly one explicit app Material3 dependency')
     (p/'settings.gradle.kts').write_text('pluginManagement{repositories{google();mavenCentral();gradlePluginPortal()}}\ndependencyResolutionManagement{repositories{google();mavenCentral()}}\nrootProject.name="stability-fixture"\ninclude(":probe")\n')
     (p/'gradle.properties').write_text('android.useAndroidX=true\nandroid.builtInKotlin=false\nandroid.newDsl=false\norg.gradle.jvmargs=-Xmx2g\n')
     probe=p/'probe';probe.mkdir()
@@ -38,7 +44,8 @@ android {
 }
 dependencies {
  implementation(platform("androidx.compose:compose-bom:BOM"))
- implementation("androidx.compose.material3:material3")
+ implementation("androidx.compose.material3:material3:MATERIAL3")
+ implementation("androidx.compose.material:material-icons-extended")
  implementation("androidx.compose.runtime:runtime")
  implementation("androidx.lifecycle:lifecycle-runtime-compose:LIFE")
  implementation("androidx.lifecycle:lifecycle-runtime-ktx:LIFE")
@@ -50,32 +57,50 @@ dependencies {
  testImplementation("junit:junit:4.13.2")
 }
 '''
-    for key,val in {'AGP':v['androidGradlePlugin'],'KOTLIN':v['kotlin'],'BOM':v['androidxComposeBom'],'LIFE':v['androidxLifecycle'],'CORO':v['coroutines'],'CORE':v['androidxCore'],'OKHTTP':v['okhttp']}.items():build=build.replace(key,val)
+    for key,val in {'AGP':v['androidGradlePlugin'],'KOTLIN':v['kotlin'],'BOM':v['androidxComposeBom'],'MATERIAL3':expressive_pins[0],'LIFE':v['androidxLifecycle'],'CORO':v['coroutines'],'CORE':v['androidxCore'],'OKHTTP':v['okhttp']}.items():build=build.replace(key,val)
     write('build.gradle.kts',build)
     write('src/main/AndroidManifest.xml','<manifest xmlns:android="http://schemas.android.com/apk/res/android"/>')
-    identity={};modes=['update','filter','clock'] if a.mode=='all' else [a.mode]
-    sources={'update':['update/UpdateDownloader.kt','update/UpdateTransferPolicy.kt','update/UpdateDownloadSession.kt','update/ReleaseRepository.kt','ui/components/UpdateDownloadSheet.kt','xposed/utils/RootCommandRunner.java'],
-             'filter':['xposed/features/customization/FilterItemsHook.kt','model/FilterItem.kt'],
+    identity={p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in ('app/build.gradle.kts','gradle/libs.versions.toml')}
+    modes=['update','filter','clock'] if a.mode=='all' else [a.mode]
+    sources={'update':['update/UpdateDownloader.kt','update/UpdateTransferPolicy.kt','update/UpdateDownloadSession.kt','update/ReleaseRepository.kt','ui/components/UpdateDownloadSheet.kt','xposed/utils/RootCommandRunner.java',
+                       'config/PreferenceStores.java','config/PreferenceSchema.java','ui/components/NetworkErrorSheet.kt','ui/components/WaexModalBottomSheet.kt','ui/components/WaexProgressIndicator.kt',
+                       'ui/designsystem/WaexIcons.kt','ui/designsystem/WaexRadius.kt','ui/designsystem/WaexElevation.kt'],
+             'filter':['xposed/features/customization/FilterItemsHook.kt','model/FilterItem.kt','xposed/core/ViewHookDispatcher.java'],
              'clock':['ui/components/RuntimeObservationClock.kt','utils/InjectionEvidence.kt']}
     expected={'update':5,'filter':3,'clock':1}
     for mode in modes:
         for rel in sources[mode]:
             source=root/'app/src/main/java/com/waenhancer'/rel
-            write('src/main/java/com/waenhancer/'+rel,source.read_text())
+            target=probe/'src/main/java/com/waenhancer'/rel
+            target.parent.mkdir(parents=True,exist_ok=True)
+            shutil.copyfile(source,target)
             identity[str(source.relative_to(root))]=hashlib.sha256(source.read_bytes()).hexdigest()
+            if hashlib.sha256(target.read_bytes()).hexdigest()!=identity[str(source.relative_to(root))]:
+                raise ValueError('Changed bytes while staging production source: '+rel)
         source=root/('qa/fixtures/Stability'+mode.title()+'Test.kt')
-        write('src/test/java/com/waenhancer/fixture/'+source.name,source.read_text())
+        target=probe/'src/test/java/com/waenhancer/fixture'/source.name
+        target.parent.mkdir(parents=True,exist_ok=True)
+        shutil.copyfile(source,target)
         shutil.copy2(source,e/source.name)
+        digest=hashlib.sha256(source.read_bytes()).hexdigest()
+        identity[str(source.relative_to(root))]=digest
+        if any(hashlib.sha256(path.read_bytes()).hexdigest()!=digest for path in (target,e/source.name)):
+            raise ValueError('Changed bytes while staging JUnit source or evidence: '+source.name)
     # Only a theme adapter for compilation; no fonts or licensing implementation copied.
-    write('src/main/java/com/waenhancer/ui/designsystem/WaexTheme.kt','''package com.waenhancer.ui.designsystem
+    # The updater compiles real radius/elevation tokens; other standalone modes
+    # must not require a dependency they do not stage.
+    update_theme=(' val radius @Composable get()=WaexRadius()\n val elevation @Composable get()=WaexElevation()' if 'update' in modes else '')
+    theme='''package com.waenhancer.ui.designsystem
 import androidx.compose.runtime.Composable
 import androidx.compose.material3.MaterialTheme
 object WaexTheme {
  val colors @Composable get()=MaterialTheme.colorScheme
  val typography @Composable get()=FixtureTypography(MaterialTheme.typography)
+EXTRA_UPDATE_TOKENS
 }
 class FixtureTypography(val t:androidx.compose.material3.Typography){val headlineMd get()=t.headlineMedium;val bodyMd get()=t.bodyMedium}
-''')
+'''
+    write('src/main/java/com/waenhancer/ui/designsystem/WaexTheme.kt',theme.replace('EXTRA_UPDATE_TOKENS',update_theme))
     if 'filter' in modes:
         write('src/main/res/values/ids.xml','<resources><item name="fixture_target" type="id"/><item name="fixture_other" type="id"/></resources>')
         write('src/main/java/com/waenhancer/xposed/core/BaseFeature.kt','''package com.waenhancer.xposed.core
@@ -91,13 +116,25 @@ object ActivityTracker {interface ActivityListener {fun onActivityResumed(a:andr
         write('src/main/java/de/robv/android/xposed/XC_MethodHook.java','''package de.robv.android.xposed;
 public class XC_MethodHook {public static class MethodHookParam {public Object thisObject,result;public Object[] args;}protected void beforeHookedMethod(MethodHookParam p){}protected void afterHookedMethod(MethodHookParam p){}}
 ''')
-        write('src/main/java/de/robv/android/xposed/XposedBridge.java','package de.robv.android.xposed;public class XposedBridge{public static void log(String s){}}')
+        write('src/main/java/de/robv/android/xposed/XposedBridge.java','''package de.robv.android.xposed;
+import java.util.Set;
+public class XposedBridge {
+ public static void log(String s) {}
+ public static Set<Object> hookAllMethods(Class<?> cls,String method,XC_MethodHook hook) {
+  throw new AssertionError("Unexpected actual Xposed method installation in test fixture");
+ }
+}''')
         write('src/main/java/de/robv/android/xposed/XposedHelpers.java','''package de.robv.android.xposed;
 public class XposedHelpers {public static void findAndHookMethod(Object... args){throw new AssertionError("No actual hooks in this fixture");} public static Object callMethod(Object o,String n,Object... a){throw new AssertionError("Unexpected reflective hook");}public static Object getAdditionalInstanceField(Object o,String n){return null;}public static void setAdditionalInstanceField(Object o,String n,Object v){}}
 ''')
-    localized = stage_localization(root, probe, identity)
+    if not stage_localization(root, probe, identity):
+        raise RuntimeError('Real localization helpers are required by this framework fixture')
     (e/'source-sha256.json').write_text(json.dumps(identity,indent=2));(e/'build.gradle.kts').write_text(build)
-    cmd=['bash',str(root/'gradlew'),'-p',str(p),'--no-daemon',':probe:testDebugUnitTest']
+    # On Windows, resolve the intended Git Bash rather than System32/WSL bash.
+    # Slash paths also preserve Gradle wrapper APP_HOME handling on Git Bash.
+    bash=shutil.which('bash')
+    if not bash:raise RuntimeError('Compatible bash required for Gradle wrapper')
+    cmd=[bash,(root/'gradlew').as_posix(),'-p',str(p),'--no-daemon',':probe:testDebugUnitTest']
     with (e/'framework-build.log').open('w') as log:
         result=subprocess.run(cmd,stdout=log,stderr=subprocess.STDOUT,timeout=900)
     for f in (probe/'build/test-results/testDebugUnitTest').glob('*.xml'):shutil.copy2(f,e/f.name)

@@ -1,5 +1,6 @@
 package com.waenhancer.ui.screens.settings
 
+import com.waenhancer.ui.components.WaexSheetHorizontalMargin
 import com.waenhancer.utils.UiText
 
 import android.widget.Toast
@@ -160,6 +161,9 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
     }
     var showTimestampFormatSheet by remember { mutableStateOf(false) }
     var showModifyTextSheet by remember { mutableStateOf(false) }
+    var timestampRelative by remember(targetEpoch, typedValueRevision) {
+        mutableStateOf(preferenceManager.getBoolean("timestamp_relative", false))
+    }
     var timestampFormat by remember(targetEpoch, typedValueRevision) {
         mutableStateOf(preferenceManager.getString("timestamp_format", "HH:mm a") ?: "HH:mm a")
     }
@@ -397,7 +401,7 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
                                         )
                                         val reqPro = stringResource(R.string.requires_pro_label)
                                         Text(
-                                            text = if (needsTypedEditor) "$locDesc • ${typedStyleSummary(item.key, preferenceManager, typedValueRevision)}"
+                                            text = if (needsTypedEditor) "$locDesc • ${typedStyleSummary(item.key, preferenceManager, typedValueRevision, LocalContext.current)}"
                                                 else if (isLocked) "$locDesc • $reqPro" else locDesc,
                                             style = typography.bodyMd,
                                             color = colors.onSurfaceVariant,
@@ -509,11 +513,28 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
                                     color = colors.outlineVariant.copy(alpha = 0.4f),
                                     modifier = Modifier.padding(start = 32.dp)
                                 )
+                                // Sub-pref 0: Relative time (disables format + modify text)
+                                MetaAiRemovalSwitch(
+                                    title = UiText.get(R.string.timestamp_relative_title, "Relative time"),
+                                    summary = UiText.get(R.string.timestamp_relative_summary, "Example: 5 minutes ago, Yesterday, Nov 13"),
+                                    checked = timestampRelative,
+                                    onCheckedChange = { enabled ->
+                                        if (preferenceManager.putBooleans(mapOf("timestamp_relative" to enabled))) {
+                                            timestampRelative = enabled
+                                        }
+                                    }
+                                )
+                                HorizontalDivider(
+                                    thickness = 1.dp,
+                                    color = colors.outlineVariant.copy(alpha = 0.4f),
+                                    modifier = Modifier.padding(start = 32.dp)
+                                )
                                 // Sub-pref 1: Timestamp format
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable { showTimestampFormatSheet = true }
+                                        .alpha(if (timestampRelative) 0.4f else 1f)
+                                        .clickable(enabled = !timestampRelative) { showTimestampFormatSheet = true }
                                         .padding(start = 32.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -548,7 +569,7 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
                                 }
 
                                 // Custom pattern input field appears right after the format pref when Custom Pattern is selected
-                                if (timestampFormat == "Custom Pattern") {
+                                if (timestampFormat == "Custom Pattern" && !timestampRelative) {
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -610,7 +631,8 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable { showModifyTextSheet = true }
+                                        .alpha(if (timestampRelative) 0.4f else 1f)
+                                        .clickable(enabled = !timestampRelative) { showModifyTextSheet = true }
                                         .padding(start = 32.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -651,14 +673,26 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
         }
     }
 
+    var writeThemeCss by remember { mutableStateOf(false) }
     typedEditorKey?.let { key ->
+        if (key == "custom_theme" && !writeThemeCss) {
+            ThemeLibrarySheet(
+                preferenceManager = preferenceManager,
+                onDismiss = { typedEditorKey = null },
+                onChanged = { typedValueRevision++ },
+                onWriteCss = { writeThemeCss = true }
+            )
+            return@let
+        }
+        if (key != "custom_theme") writeThemeCss = false
         TypedStyleEditorDialog(
             key = key,
             preferenceManager = preferenceManager,
-            onDismiss = { typedEditorKey = null },
+            onDismiss = { typedEditorKey = null; writeThemeCss = false },
             onSaved = {
                 typedValueRevision++
                 typedEditorKey = null
+                writeThemeCss = false
             }
         )
     }
@@ -710,7 +744,8 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
 private fun MetaAiRemovalSwitch(
     title: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    summary: String? = null
 ) {
     val colors = WaexTheme.colors
     val typography = WaexTheme.typography
@@ -721,12 +756,21 @@ private fun MetaAiRemovalSwitch(
             .padding(start = 32.dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = title,
-            modifier = Modifier.weight(1f),
-            style = typography.bodyMd,
-            color = colors.onSurface
-        )
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = title,
+                style = typography.bodyMd,
+                color = colors.onSurface
+            )
+            if (summary != null) {
+                Text(
+                    text = summary,
+                    style = typography.bodyMd,
+                    color = colors.onSurfaceVariant,
+                    fontSize = 12.sp
+                )
+            }
+        }
         StitchSwitch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
@@ -838,9 +882,7 @@ private fun TextValueEditorDialog(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     WaexModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.surface,
-        shape = radius.bottomSheetShape
+        sheetState = sheetState
     ) {
         Column(
             modifier = Modifier
@@ -848,7 +890,7 @@ private fun TextValueEditorDialog(
                 .verticalScroll(rememberScrollState())
                 .imePadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = WaexSheetHorizontalMargin)
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -907,23 +949,12 @@ private fun ChoiceValueEditorDialog(
 
     WaexModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.surface,
-        shape = radius.bottomSheetShape,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(top = 10.dp, bottom = 6.dp)
-                    .size(width = 36.dp, height = 4.dp)
-                    .clip(CircleShape)
-                    .background(colors.outlineVariant.copy(alpha = 0.6f))
-            )
-        }
+        sheetState = sheetState
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = WaexSheetHorizontalMargin)
                 .padding(bottom = 28.dp)
         ) {
             // Title
@@ -1046,23 +1077,12 @@ private fun MultiChoiceValueEditorDialog(
 
     WaexModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.surface,
-        shape = radius.bottomSheetShape,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(top = 10.dp, bottom = 6.dp)
-                    .size(width = 36.dp, height = 4.dp)
-                    .clip(CircleShape)
-                    .background(colors.outlineVariant.copy(alpha = 0.6f))
-            )
-        }
+        sheetState = sheetState
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = WaexSheetHorizontalMargin)
                 .padding(bottom = 28.dp)
         ) {
             // Title
@@ -1212,18 +1232,7 @@ private fun ModifyTimestampTextSheet(
 
     WaexModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.surface,
-        shape = radius.bottomSheetShape,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(top = 10.dp, bottom = 6.dp)
-                    .size(width = 36.dp, height = 4.dp)
-                    .clip(CircleShape)
-                    .background(colors.outlineVariant.copy(alpha = 0.6f))
-            )
-        }
+        sheetState = sheetState
     ) {
         Column(
             modifier = Modifier
@@ -1231,7 +1240,7 @@ private fun ModifyTimestampTextSheet(
                 .verticalScroll(rememberScrollState())
                 .imePadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = WaexSheetHorizontalMargin)
                 .padding(bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -1365,9 +1374,14 @@ private fun isValidCustomCss(css: String): Boolean {
 private fun typedStyleSummary(
     key: String,
     preferenceManager: WaexPreferenceManager,
-    @Suppress("UNUSED_PARAMETER") revision: Int
+    @Suppress("UNUSED_PARAMETER") revision: Int,
+    context: android.content.Context
 ): String = when (key) {
-    "custom_theme" -> if (preferenceManager.getString("css_theme", "").isNullOrBlank()) UiText.get(R.string.waex_ui_not_configured, "Not configured") else UiText.get(R.string.waex_ui_configured, "Configured")
+    "custom_theme" -> when {
+        preferenceManager.getString("css_theme", "").isNullOrBlank() -> UiText.get(R.string.waex_ui_not_configured, "Not configured")
+        else -> com.waenhancer.theme.ThemeRepository(context.applicationContext, preferenceManager).activeTheme()?.displayName
+            ?: UiText.get(R.string.waex_ui_custom_css, "Custom CSS")
+    }
     "custom_view_dpi" -> preferenceManager.getString("change_dpi", "0")?.let { if (it == "0") UiText.get(R.string.waex_ui_device_default, "Device default") else "$it DPI" } ?: UiText.get(R.string.waex_ui_device_default, "Device default")
     "chat_filters" -> when (preferenceManager.getString("chatfilter", "2")) { "0" -> UiText.get(R.string.waex_ui_search_hidden, "Search hidden"); "1" -> UiText.get(R.string.waex_ui_search_icon, "Search icon"); else -> UiText.get(R.string.waex_ui_search_bar, "Search bar") }
     "hide_ui_tabs" -> preferenceManager.getStringSet("hidetabs", emptySet())?.let { if (it.isEmpty()) UiText.get(R.string.waex_ui_no_tabs_hidden, "No tabs hidden") else UiText.get(R.string.waex_ui_1_s_hidden, "%1\$s hidden", it.size) } ?: UiText.get(R.string.waex_ui_no_tabs_hidden, "No tabs hidden")

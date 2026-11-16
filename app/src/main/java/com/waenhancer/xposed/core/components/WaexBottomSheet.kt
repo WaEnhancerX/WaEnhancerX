@@ -1,7 +1,6 @@
 package com.waenhancer.xposed.core.components
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.app.Dialog
 import android.content.Context
 import android.content.DialogInterface
@@ -52,7 +51,6 @@ class WaexBottomSheet(private val context: Context) {
     private var multiChoiceItems: Array<CharSequence>? = null
     private var checkedItems: BooleanArray? = null
     private var multiChoiceListener: DialogInterface.OnMultiChoiceClickListener? = null
-    private var isBottomSheet: Boolean = true
 
     private var createdDialog: Dialog? = null
 
@@ -108,23 +106,11 @@ class WaexBottomSheet(private val context: Context) {
         return this
     }
 
-    fun asBottomSheet(): WaexBottomSheet {
-        this.isBottomSheet = true
-        return this
-    }
+    /** Kept for existing call sites: WAEX only ever renders sheets, never system dialogs. */
+    fun asBottomSheet(): WaexBottomSheet = this
 
     fun create(): Dialog {
         if (createdDialog != null) return createdDialog!!
-
-        if (!isBottomSheet) {
-            return AlertDialog.Builder(context).apply {
-                titleText?.let { setTitle(it) }
-                messageText?.let { setMessage(it) }
-                positiveButtonText?.let { setPositiveButton(it, positiveListener) }
-                negativeButtonText?.let { setNegativeButton(it, negativeListener) }
-                customView?.let { setView(it) }
-            }.create().also { createdDialog = it }
-        }
 
         val dialog = Dialog(context, R.style.Theme_Translucent_NoTitleBar)
         val density = context.resources.displayMetrics.density

@@ -10,7 +10,9 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.net.Uri;
+import com.waenhancer.config.PreferenceRestartTracker;
 import com.waenhancer.ui.screens.media.MediaQuickSettingPolicy;
+import java.io.File;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -57,6 +59,7 @@ public final class TestMediaPreferenceBatch {
             Object v = values.get(key);
             return v == null ? fallback : (Float) v;
         }
+        @Override public boolean contains(String key) { return values.containsKey(key); }
         @Override public Map<String, ?> getAll() { return Collections.unmodifiableMap(new HashMap<>(values)); }
         @Override public SharedPreferences.Editor edit() {
             if (throwEdit) throw new IllegalStateException("Editor unavailable");
@@ -72,8 +75,10 @@ public final class TestMediaPreferenceBatch {
                 adds.put(key, value); return this;
             }
             @Override public Editor putInt(String key, int value) { adds.put(key, value); return this; }
+            @Override public Editor putLong(String key, long value) { adds.put(key, value); return this; }
             @Override public Editor putFloat(String key, float value) { adds.put(key, value); return this; }
             @Override public Editor remove(String key) { adds.put(key, null); return this; }
+            @Override public void apply() { commit(); }
             @Override public boolean commit() {
                 commits++;
                 if (throwCommit) throw new IllegalStateException("Storage unavailable");
@@ -89,7 +94,12 @@ public final class TestMediaPreferenceBatch {
 
     private static final class FakeResolver extends ContentResolver {
         int notifications;
-        @Override public void notifyChange(Uri uri, Object observer) { notifications++; }
+        @Override public void notifyChange(Uri uri, Object observer) {
+            check(uri != null && "content://com.waenhancer.hookprovider/preferences".equals(uri.toString()),
+                    "wrong preference observer URI");
+            check(observer == null, "unexpected preference observer");
+            notifications++;
+        }
     }
     private static final class FakeContext extends Context {
         final FakeStore publicStore = new FakeStore();
@@ -102,12 +112,14 @@ public final class TestMediaPreferenceBatch {
         }
         @Override public ContentResolver getContentResolver() { return resolver; }
         @Override public ApplicationInfo getApplicationInfo() { return info; }
+        @Override public File getFilesDir() { return new File("/path/which/does/not/exist/files"); }
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     private static void testTypedWrites() {
         FakeContext c = new FakeContext();
         WaexPreferenceManager m = new WaexPreferenceManager(c);
+        int restartBefore = PreferenceRestartTracker.changes.size();
         String[][] inputs = {{"css_theme", "#title {color: #112233;}"},
                 {"change_dpi", "320"}, {"chatfilter", "1"}, {"waex_menu_style", "icons"}};
         for (String[] input : inputs) {
@@ -128,6 +140,8 @@ public final class TestMediaPreferenceBatch {
         check(m.getStringSet("hidetabs", tabs).isEmpty(), "empty set did not reset tabs");
         check(m.putPublicString("css_theme", ""), "empty CSS reset rejected");
         int commits = c.publicStore.commits, notifications = c.resolver.notifications;
+        check(PreferenceRestartTracker.changes.size() == restartBefore + 7,
+                "typed successful writes did not report every changed key");
         for (String key : new String[]{null, "", "unknown_typed_setting", "imagequality", "hidetabs", "app_theme_mode"}) {
             check(!m.putPublicString(key, "invalid"), "unknown, private or wrong-type string accepted: " + key);
         }
@@ -158,19 +172,80 @@ public final class TestMediaPreferenceBatch {
         check(!m.putPublicString("css_theme", "error"), "editor exception escaped string writer");
         check(!m.putPublicStringSet("hidetabs", tabs), "editor exception escaped set writer");
         check(c.resolver.notifications == notifications, "exception triggered notification");
+        check(PreferenceRestartTracker.changes.size() == restartBefore + 7,
+                "rejected, failed or exceptional typed writes were reported as changes");
         c.publicStore.throwEdit = false;
         check(m.putPublicString("css_theme", "retry"), "string retry failed");
         check(m.putPublicStringSet("hidetabs", tabs), "set retry failed");
         check(c.resolver.notifications == notifications + 2, "successful retries not notified");
+        check(PreferenceRestartTracker.changes.size() == restartBefore + 9,
+                "successful retries were not reported as changes");
+    }
+
+    private static void writeViaLegacyVoidSetters(WaexPreferenceManager manager) {
+        manager.putBoolean("imagequality", true);
+        manager.putString("css_theme", ".x {color:red;}");
+        manager.putStringSet("hidetabs", new HashSet<>(Arrays.asList("300")));
+        manager.putInt("legacy_media_counter", 8);
+        manager.putFloat("legacy_media_ratio", 1.5f);
+        manager.remove("imagequality");
+    }
+
+    /** False commits must not be mistaken for applied settings or restart requests. */
+    private static void testLegacyVoidWriteFailures() {
+        for (boolean memoryUpdatedBeforeDiskFailure : new boolean[]{false, true}) {
+            FakeContext c = new FakeContext();
+            WaexPreferenceManager manager = new WaexPreferenceManager(c);
+            int restartBefore = PreferenceRestartTracker.changes.size();
+            c.publicStore.failCommit = true;
+            c.publicStore.applyBeforeFailure = memoryUpdatedBeforeDiskFailure;
+            writeViaLegacyVoidSetters(manager);
+            check(c.publicStore.commits == 6, "legacy setters must attempt six individual commits");
+            check(memoryUpdatedBeforeDiskFailure || c.publicStore.values.isEmpty(),
+                    "failed legacy commits unexpectedly mutated the fake store");
+            if (memoryUpdatedBeforeDiskFailure) {
+                check(".x {color:red;}".equals(manager.getString("css_theme", "")),
+                        "negative control must preserve the Android memory-before-disk failure case");
+            }
+            check(c.resolver.notifications == 0, "failed legacy commits must not notify the hook provider");
+            check(PreferenceRestartTracker.changes.size() == restartBefore,
+                    "failed legacy commits must not queue restart changes");
+
+            c.publicStore.failCommit = false;
+            c.publicStore.applyBeforeFailure = false;
+            writeViaLegacyVoidSetters(manager);
+            check(c.publicStore.commits == 12, "legacy success retries must each commit once");
+            check(c.resolver.notifications == 6, "successful legacy public writes must notify exactly once each");
+            check(PreferenceRestartTracker.changes.subList(restartBefore,
+                    PreferenceRestartTracker.changes.size()).equals(Arrays.asList(
+                    "imagequality", "css_theme", "hidetabs", "legacy_media_counter",
+                    "legacy_media_ratio", "imagequality")),
+                    "successful legacy writes and removal did not report exact restart keys");
+            check(!c.publicStore.values.containsKey("imagequality"), "successful removal did not clear the key");
+            check(".x {color:red;}".equals(manager.getString("css_theme", "")),
+                    "successful legacy string write not persisted");
+
+            int beforePrivate = c.resolver.notifications;
+            int restartsBeforePrivate = PreferenceRestartTracker.changes.size();
+            manager.putBoolean("update_auto_check", true);
+            check(c.privateStore.getBoolean("update_auto_check", false), "private key did not stay private");
+            check(c.resolver.notifications == beforePrivate, "private key notified public process");
+            check(PreferenceRestartTracker.changes.size() == restartsBeforePrivate,
+                    "private key queued a public restart");
+        }
     }
 
     public static void main(String[] args) {
         FakeContext context = new FakeContext();
+        PreferenceRestartTracker.changes.clear();
         WaexPreferenceManager manager = new WaexPreferenceManager(context);
         check(manager.putBooleans(MediaQuickSettingPolicy.changesFor("media_upload_quality", true)),
                 "bulk HD update failed");
         check(context.publicStore.commits == 1, "must use ONE commit for all three keys");
         check(context.resolver.notifications == 1, "must notify once after a successful commit");
+        check(PreferenceRestartTracker.changes.equals(Arrays.asList(
+                "imagequality", "video_maxfps", "media_upload_quality")),
+                "HD batch did not report all three exact keys in order");
         check(manager.getBoolean("imagequality", false), "image hook flag");
         check(manager.getBoolean("video_maxfps", false), "fps hook flag");
         check(manager.getBoolean("media_upload_quality", false), "legacy UI alias retained");
@@ -179,6 +254,10 @@ public final class TestMediaPreferenceBatch {
                 "recorder update failed");
         check(context.publicStore.commits == 2, "recorder should be a single commit");
         check(context.resolver.notifications == 2, "recorder should notify once");
+        check(PreferenceRestartTracker.changes.equals(Arrays.asList(
+                "imagequality", "video_maxfps", "media_upload_quality",
+                "call_recording_enabled", "call_recording")),
+                "recorder batch restart reporting missing or duplicated");
         check(manager.getBoolean("call_recording_enabled", false), "canonical recorder not set");
         check(manager.getBoolean("call_recording", false), "legacy recorder flag absent");
 
@@ -213,6 +292,8 @@ public final class TestMediaPreferenceBatch {
                 "storage exception escaped or reported success");
         check(manager.getBoolean("call_recording_enabled", false), "exception changed data");
         check(context.resolver.notifications == 2, "storage exception notified observers");
+        check(PreferenceRestartTracker.changes.size() == 5,
+                "rejected or failed batch reported restart changes");
         context.publicStore.throwCommit = false;
 
         check(manager.putBooleans(MediaQuickSettingPolicy.changesFor("media_upload_quality", false)),
@@ -220,7 +301,10 @@ public final class TestMediaPreferenceBatch {
         check(!manager.getBoolean("imagequality", true), "image hook was not disabled");
         check(!manager.getBoolean("video_maxfps", true), "fps hook was not disabled");
         check(context.resolver.notifications == 3, "valid update not notified");
+        check(PreferenceRestartTracker.changes.size() == 8,
+                "successful HD disable did not report all three restart keys");
         testTypedWrites();
+        testLegacyVoidWriteFailures();
         System.out.println("PASS: " + checks + " production manager/schema/failure checks (Android doubles)");
     }
 }

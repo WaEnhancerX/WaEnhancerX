@@ -1,0 +1,49 @@
+name: Dex descriptor cache generation and bounded negative reuse
+
+on:
+  push:
+    branches: [main, 'integration/preview-current-main-*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exercise module changes, host versions, reuse and unknown identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/waex-dex-cache-generation"
+          python3 qa/test_dex_negative_cache.py | tee "$RUNNER_TEMP/waex-dex-cache-generation/candidate.log"
+          python3 qa/mutate_dex_cache_generation.py --evidence "$RUNNER_TEMP/waex-dex-cache-generation/mutations"
+      - name: Preserve source identities and execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: waex-dex-cache-generation-evidence
+          path: |
+            ${{ runner.temp }}/waex-dex-cache-generation/**/*.json
+            ${{ runner.temp }}/waex-dex-cache-generation/**/*.log
+          if-no-files-found: error
+          retention-days: 14

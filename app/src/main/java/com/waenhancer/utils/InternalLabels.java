@@ -14,6 +14,7 @@ public final class InternalLabels {
         }
         switch (value) {
             case "Not configured in HMA scope": return UiText.get(R.string.waex_ui_hma_reason_not_configured, "Not configured in HMA scope");
+            case "HMA not active": return UiText.get(R.string.waex_ui_hma_reason_not_active, "HMA not active");
             case "Active in HMA, module visible": return UiText.get(R.string.waex_ui_hma_reason_visible, "Active in HMA, module visible");
             case "Hidden via Whitelist mode (in invisible apps list)": return UiText.get(R.string.waex_ui_hma_reason_allowlist_invisible, "Hidden via Whitelist mode (in invisible apps list)");
             case "Hidden via Whitelist mode (module not included in visible apps)": return UiText.get(R.string.waex_ui_hma_reason_allowlist_missing, "Hidden via Whitelist mode (module not included in visible apps)");
@@ -197,6 +198,7 @@ public final class InternalLabels {
             case "Version bypass active; compatibility unverified": return UiText.get(R.string.waex_runtime_status_bypass_unverified, "Version bypass active; compatibility unverified");
             case "Custom version allowance; compatibility unverified": return UiText.get(R.string.waex_runtime_status_custom_version_unverified, "Custom version allowance; compatibility unverified");
             case "Version rules accepted; runtime unconfirmed": return UiText.get(R.string.waex_runtime_status_rules_accepted_runtime_unconfirmed, "Version rules accepted; runtime unconfirmed");
+            case "Rules accepted; open a target app to confirm injection": return UiText.get(R.string.waex_runtime_status_rules_accepted_open_target, "Rules accepted; open a target app to confirm injection");
             case "Rules accepted; initialization reported": return UiText.get(R.string.waex_runtime_status_rules_accepted_initialization_reported, "Rules accepted; initialization reported");
             default: return value;
         }

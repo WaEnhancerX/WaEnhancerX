@@ -361,7 +361,7 @@ fun ChangelogScreen() {
                             val hasBothModes = debugAsset != null && releaseAsset != null
                             val canSwitchMode = installed && hasBothModes
                             val otherModeAsset = if (installed) {
-                                if (BuildConfig.DEBUG) releaseAsset else debugAsset
+                                if (BuildConfig.IS_DEBUG_VARIANT) releaseAsset else debugAsset
                             } else null
 
                             val showActionButton = (canSwitchMode && otherModeAsset != null) ||
@@ -394,7 +394,7 @@ fun ChangelogScreen() {
                                     shape = radius.buttonShape
                                 ) {
                                     val buttonText = when {
-                                        canSwitchMode -> if (BuildConfig.DEBUG) UiText.get(R.string.waex_l10n_switch_release, "Switch to Release") else UiText.get(R.string.waex_l10n_switch_debug, "Switch to Debug")
+                                        canSwitchMode -> if (BuildConfig.IS_DEBUG_VARIANT) UiText.get(R.string.waex_l10n_switch_release, "Switch to Release") else UiText.get(R.string.waex_l10n_switch_debug, "Switch to Debug")
                                         comparison > 0 -> UiText.get(R.string.waex_ui_upgrade, "Upgrade")
                                         else -> UiText.get(R.string.waex_ui_downgrade, "Downgrade")
                                     }

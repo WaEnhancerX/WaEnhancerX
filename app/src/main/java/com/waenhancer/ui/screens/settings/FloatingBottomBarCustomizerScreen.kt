@@ -1,5 +1,6 @@
 package com.waenhancer.ui.screens.settings
 
+import com.waenhancer.ui.components.WaexSheetHorizontalMargin
 import com.waenhancer.app.R
 import com.waenhancer.utils.UiText
 
@@ -1060,13 +1061,12 @@ private fun SliderItem(
 
     if (showValueEditor) {
         WaexModalBottomSheet(
-            onDismissRequest = { showValueEditor = false },
-            containerColor = colors.surface
+            onDismissRequest = { showValueEditor = false }
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
+                    .padding(horizontal = WaexSheetHorizontalMargin)
                     .padding(bottom = 28.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {

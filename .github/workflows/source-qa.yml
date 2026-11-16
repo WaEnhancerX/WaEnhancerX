@@ -37,6 +37,24 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Verify screenshot and default image-quality MobileConfig contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_media_quality_screenshot_props.py \
+            --source-root . --out "$RUNNER_TEMP/waex-media-screenshot-props"
+
+      - name: Preserve image-quality property contract evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: media-screenshot-props-evidence
+          path: |
+            ${{ runner.temp }}/waex-media-screenshot-props/*.json
+            ${{ runner.temp }}/waex-media-screenshot-props/*.log
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Require complete source parsing tools
         shell: bash
         run: |
@@ -48,6 +66,45 @@ jobs:
             exit 1
           fi
           kotlinc -version
+
+      - name: Verify target-scoped legacy string preference reads
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_preference_manager_string_scope.py
+          python3 qa/mutate_preference_manager_string_scope.py --out "$RUNNER_TEMP/preference-string-scope-mutants"
+
+      - name: Preserve scoped string preference mutation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preference-string-scope-mutants
+          path: |
+            ${{ runner.temp }}/preference-string-scope-mutants/results.json
+            ${{ runner.temp }}/preference-string-scope-mutants/*/run.log
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Verify call-blocking opt-out and target-switch contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_call_privacy_optout.py --out "$RUNNER_TEMP/call-privacy-optout"
+          python3 qa/mutate_call_privacy_optout.py --out "$RUNNER_TEMP/call-privacy-optout-mutants"
+
+      - name: Preserve call-blocking opt-out evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: call-privacy-optout-evidence
+          path: |
+            ${{ runner.temp }}/call-privacy-optout/*.json
+            ${{ runner.temp }}/call-privacy-optout/*.log
+            ${{ runner.temp }}/call-privacy-optout/*.kt
+            ${{ runner.temp }}/call-privacy-optout-mutants/**/*.json
+            ${{ runner.temp }}/call-privacy-optout-mutants/**/*.log
+          retention-days: 14
+          if-no-files-found: error
 
       - name: Verify bounded Maven dependency recovery
         shell: bash
@@ -81,6 +138,27 @@ jobs:
           set -euo pipefail
           python3 qa/test_syntax_checker.py
 
+      - name: Verify media constructor hook with cold and persisted DexKit caches
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_media_warm_cache.py \
+            --source-root . \
+            --out "$RUNNER_TEMP/media-warm-cache-contract"
+
+      - name: Preserve media cache and callback contract evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: media-warm-cache-contract-evidence
+          path: |
+            ${{ runner.temp }}/media-warm-cache-contract/RESULTS.json
+            ${{ runner.temp }}/media-warm-cache-contract/*.stdout.txt
+            ${{ runner.temp }}/media-warm-cache-contract/*.stderr.txt
+            ${{ runner.temp }}/media-warm-cache-contract/*/cache-input.properties
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Validate complete status style and property hook contracts
         shell: bash
         run: |
@@ -109,6 +187,8 @@ jobs:
             qa/test_bridge_contract.py
             qa/test_bridge_ordering.py
             qa/test_media_preference_sync.py
+            qa/mutate_media_preference_sync.py
+            qa/test_parallel_download_stream_contract.py
             qa/test_dnd_preference_policy.py
             qa/test_dex_negative_cache.py
             qa/test_android24_compatibility.py
@@ -196,6 +276,10 @@ jobs:
           if grep -q 'release failed:' app/src/main/java/com/waenhancer/xposed/features/media/CallRecordingHook.java; then
             test -f qa/test_recorder_cleanup.py
           fi
+          if [[ -f app/src/main/java/com/waenhancer/calls/RecordingOutputFiles.java ]]; then
+            test -f qa/test_call_recording_output_safety.py
+            test -f qa/fixtures/RecordingOutputFilesProbe.java
+          fi
           if [[ -f app/src/main/java/com/waenhancer/xposed/features/media/CallRecordingEventContract.java ]]; then
             test -f qa/test_call_recording_lifecycle.py
             test -f qa/fixtures/CallRecordingLifecycleChecks.java
@@ -273,6 +357,7 @@ jobs:
             qa/test_runtime_observation_clock.py \
             qa/test_filter_work.py \
             qa/test_recorder_cleanup.py \
+            qa/test_call_recording_output_safety.py \
             qa/test_call_recording_lifecycle.py \
             qa/test_gallery_export.py \
             qa/test_contact_identity.py \
@@ -317,10 +402,12 @@ jobs:
             test -f qa/android_presence_row_test.py
             test -f qa/fixtures/PresenceRowRenderingTest.kt
             test -f qa/test_presence_state_replay.py
+            test -f qa/test_presence_runner_controls.py
+            test -f qa/mutate_presence_rows.py
             echo 'present=true' >> "$GITHUB_OUTPUT"
           else
             echo 'present=false' >> "$GITHUB_OUTPUT"
-            echo '::notice::V17 renderer not in this tree; Android presence rendering was NOT tested by this job.'
+            echo '::notice::Presence renderer not in this tree; Android presence rendering was NOT tested by this job.'
           fi
       - uses: actions/setup-java@v4
         if: steps.presence.outputs.present == 'true'
@@ -332,7 +419,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 qa/android_presence_row_test.py --out "$RUNNER_TEMP/waex-android-rows"
+          python3 qa/test_presence_runner_controls.py
+          python3 qa/android_presence_row_test.py --out "$RUNNER_TEMP/waex-android-rows" --mutations
+          python3 qa/mutate_presence_rows.py \
+            "$RUNNER_TEMP/waex-android-row-mutations" "$RUNNER_TEMP/waex-android-rows/deps"
           echo 'Extracted production renderer passed Android framework/Skia tests. NOT an APK build, WhatsApp binder or LSPosed test.'
       - name: Preserve source identities and text-only rendering evidence
         if: always() && steps.presence.outputs.present == 'true'
@@ -344,6 +434,12 @@ jobs:
             ${{ runner.temp }}/waex-android-rows/*.log
             ${{ runner.temp }}/waex-android-rows/*/*.log
             ${{ runner.temp }}/waex-android-rows/*/*.kt
+            ${{ runner.temp }}/waex-android-rows/*/*.json
+            ${{ runner.temp }}/waex-android-rows/*/*.args
+            ${{ runner.temp }}/waex-android-row-mutations/*.json
+            ${{ runner.temp }}/waex-android-row-mutations/*/*.log
+            ${{ runner.temp }}/waex-android-row-mutations/*/*.json
+            ${{ runner.temp }}/waex-android-row-mutations/*/*.kt
           retention-days: 14
           if-no-files-found: warn
 

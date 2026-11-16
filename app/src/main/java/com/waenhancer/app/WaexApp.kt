@@ -13,6 +13,7 @@ import com.waenhancer.licensing.features.BootloaderSpooferFeature
 import com.waenhancer.utils.LocaleHelper
 import com.waenhancer.utils.WhatsAppPackageDetector
 import com.waenhancer.utils.UiText
+import com.waenhancer.utils.DiagnosticsRecorder
 import com.waenhancer.calls.CallRecordingStore
 import java.io.File
 
@@ -42,6 +43,8 @@ class WaexApp : Application() {
             val installedVersion = packageManager.getPackageInfo(packageName, 0).versionName ?: "0"
             edit().putString("wae_version_name", installedVersion).apply()
         }
+        DiagnosticsRecorder.installManagerCrashCapture(this)
+        DiagnosticsRecorder.recordManagerStarted(this)
         BootloaderSpooferFeature.syncDefaultKeyboxAsync(this)
         Thread({
             getExternalFilesDir(null)?.let { base ->

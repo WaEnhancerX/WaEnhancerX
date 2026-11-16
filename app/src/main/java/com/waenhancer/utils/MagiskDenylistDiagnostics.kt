@@ -127,7 +127,7 @@ object MagiskDenylistDiagnostics {
 
     private fun packagesToCheck(targetPackages: Collection<String>, liveScope: Set<String>): Set<String> =
         targetPackages.filterTo(linkedSetOf()) {
-            DeclaredWhatsAppTargets.contains(it) && it in liveScope && PACKAGE_NAME_PATTERN.matcher(it).matches()
+            it in liveScope && PACKAGE_NAME_PATTERN.matcher(it).matches()
         }
 
     private fun runCheck(context: Context, packagesToCheck: Set<String>): DenylistReport {
@@ -209,8 +209,7 @@ object MagiskDenylistDiagnostics {
      * zygote unmount is reverted on subsequent launch.
      */
     suspend fun fixPackage(context: Context, packageName: String): Boolean = withContext(Dispatchers.IO) {
-        if (!DeclaredWhatsAppTargets.contains(packageName) ||
-            !LsposedScopeReader.read(context).contains(packageName) ||
+        if (!LsposedScopeReader.read(context).contains(packageName) ||
             !PACKAGE_NAME_PATTERN.matcher(packageName).matches()) {
             return@withContext false
         }
@@ -246,11 +245,7 @@ object MagiskDenylistDiagnostics {
             val ai = pm.getApplicationInfo(packageName, 0)
             pm.getApplicationLabel(ai).toString()
         } catch (_: Exception) {
-            when (packageName) {
-                "com.whatsapp" -> "WhatsApp"
-                "com.whatsapp.w4b" -> "WhatsApp Business"
-                else -> packageName.substringAfterLast('.').replaceFirstChar { it.uppercase() }
-            }
+            packageName
         }
     }
 

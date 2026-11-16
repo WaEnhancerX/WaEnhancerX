@@ -322,11 +322,10 @@ public class HideReceiptsHook extends BaseFeature {
                 XposedBridge.hookMethod(executionMethod, new XC_MethodHook() {
                     @Override
                     protected void beforeHookedMethod(MethodHookParam param) {
-                        if (!resolvedJobClass.isInstance(param.thisObject)) return;
+                        if (!ReceiptJobExecutionPolicy.isExecutionCall(resolvedJobClass, executionMethod,
+                                param.method, param.thisObject, param.args)) return;
                         Object job = param.thisObject;
                         if (BlueOnReplyHook.isManualStatusReceipt(job)) return;
-                        // This is a newly created explicit chat read receipt. It must bypass
-                        if (BlueOnReplyHook.isManualChatReceipt(job)) return;
                         if (Boolean.TRUE.equals(XposedHelpers.getAdditionalInstanceField(
                                 job, "waex_hide_status_view"))) {
                             param.setResult(null);
@@ -343,6 +342,13 @@ public class HideReceiptsHook extends BaseFeature {
                         // Never rewrite dispatcher type 89: SendReadReceiptJob waits for its
                         // acknowledgement. Cancel its verified execution body instead.
                         String target = resolveConversationTarget(jid, participant);
+                        boolean hideDelivery = shouldHideDeliveryReceipt(target);
+                        if (BlueOnReplyHook.isManualChatReceipt(job)
+                                && ExplicitReadReceiptPolicy.refreshJobGrant(
+                                XposedHelpers.getAdditionalInstanceField(job, ExplicitReadReceiptPolicy.JOB_GRANT_KEY),
+                                jid, target, hideDelivery, EXPLICIT_RECEIPT_IDS, SystemClock.elapsedRealtime())) {
+                            return;
+                        }
                         if (shouldHideReadReceipt(target)) {
                             // Step 1: try the staged two-step path (works when constructor args
                             // contained a String[] of message IDs — most common case).
@@ -360,7 +366,14 @@ public class HideReceiptsHook extends BaseFeature {
                             param.setResult(null);
                             return;
                         }
-                        if (shouldHideDeliveryReceipt(target)) param.setResult(null);
+                        if (hideDelivery) {
+                            // Read hiding may have been disabled while this explicit job waited.
+                            // A delivery/Ghost veto must still preserve its original retry scope.
+                            if (BlueOnReplyHook.isManualChatReceipt(job)) {
+                                BlueOnReplyHook.recordSuppressedReadJob(job);
+                            }
+                            param.setResult(null);
+                        }
                     }
                 });
             }
@@ -371,22 +384,24 @@ public class HideReceiptsHook extends BaseFeature {
 
     private Method resolveReadReceiptExecution(final Class<?> jobClass) {
         Method method = DexSearchEngine.getInstance().findMethodWithCache(
-                context, classLoader, "waex_send_read_receipt_execution_v1",
+                context, classLoader, "waex_send_read_receipt_execution_v2",
                 (bridge, loader) -> {
                     ClassData jobData = bridge.getClassData(jobClass);
                     if (jobData == null) return null;
                     MethodDataList matches = jobData.findMethod(FindMethod.create()
-                            .matcher(MethodMatcher.create()
+                            .matcher(MethodMatcher.create().paramCount(0).returnType("void")
                                     .addUsingString("receipt", StringMatchType.Equals)));
                     if (matches.isEmpty() && jobData.getSuperClass() != null) {
                         matches = jobData.getSuperClass().findMethod(FindMethod.create()
-                                .matcher(MethodMatcher.create()
+                                .matcher(MethodMatcher.create().paramCount(0).returnType("void")
                                         .addUsingString("receipt", StringMatchType.Equals)));
                     }
                     if (matches.size() != 1) return null;
-                    return matches.get(0).getMethodInstance(loader);
+                    Method selected = matches.get(0).getMethodInstance(loader);
+                    return ReceiptJobExecutionPolicy.isExecutionMethod(jobClass, selected) ? selected : null;
                 });
-        return method;
+        // Cache hits must satisfy the same contract as fresh native search results.
+        return ReceiptJobExecutionPolicy.isExecutionMethod(jobClass, method) ? method : null;
     }
 
     private boolean isManualSeenTickEnabled() {
@@ -467,12 +482,19 @@ public class HideReceiptsHook extends BaseFeature {
                         if (param.getResult() == null) return;
                         Object node = param.getResult();
 
+                        String type = getAttributeValue(node, "type");
+                        boolean isReadReceipt = "read".equals(type);
+                        // A receipt node can also carry retry/recovery, own-device sync,
+                        // played or future protocol messages. Only an ordinary delivery
+                        // receipt (no type) or an explicit read receipt belongs to these
+                        // two privacy controls. Preserve all other nodes and their sts.
+                        if (type != null && !isReadReceipt) return;
+
                         String to = getAttributeValue(node, "to");
                         String participant = getAttributeValue(node, "participant");
-                        String type = getAttributeValue(node, "type");
                         String messageId = getAttributeValue(node, "id");
 
-                        boolean isStatusStanza = isStatusTarget(to, participant) || "readstatus".equals(type);
+                        boolean isStatusStanza = isStatusTarget(to, participant);
 
                         if (isStatusStanza) {
                             // Status view receipts are suppressed via incoming interceptor and SendReadReceiptJob.
@@ -483,16 +505,14 @@ public class HideReceiptsHook extends BaseFeature {
                         // Only explicit READ receipts may bypass hiding for the exact
                         // recipient + message ID. Preserve delivery hiding and Ghost Mode.
                         String target = resolveConversationTarget(to, participant);
-                        boolean alreadyViewed = HideSeenStore.getInstance(context).isAlreadyViewed(target, messageId, HideSeenStore.TYPE_READ);
-                        if (alreadyViewed) {
-                            return; // Already marked as read by Send Blue Tick / Blue on Reply!
-                        }
-
                         boolean hideDelivery = shouldHideDeliveryReceipt(target);
+                        // Viewed/handled history can also be set by bounded-queue eviction.
+                        // It is not explicit consent. Only the exact ID allowance below may
+                        // exempt a read receipt, and never delivery privacy or Ghost Mode.
                         if (ExplicitReadReceiptPolicy.maySend(type, target, messageId,
                                 hideDelivery, EXPLICIT_RECEIPT_IDS,
                                 SystemClock.elapsedRealtime())) return;
-                        boolean hideRead = shouldHideReadReceipt(target);
+                        boolean hideRead = isReadReceipt && shouldHideReadReceipt(target);
 
                         if (hideDelivery) {
                             applyHideDelivery(node);
@@ -939,13 +959,9 @@ public class HideReceiptsHook extends BaseFeature {
     }
 
     private boolean isStatusTarget(String jid, String participant) {
-        if (jid != null && (jid.equals("status@broadcast") || jid.contains("status") || jid.contains("broadcast"))) {
-            return true;
-        }
-        if (participant != null && (participant.contains("status") || participant.contains("broadcast"))) {
-            return true;
-        }
-        return false;
+        // Numeric broadcast-list recipients are ordinary conversations. Matching
+        // the namespace or a substring would apply status privacy to their jobs.
+        return "status@broadcast".equals(jid) || "status@broadcast".equals(participant);
     }
 
     private boolean shouldHideStatusView(String target) {

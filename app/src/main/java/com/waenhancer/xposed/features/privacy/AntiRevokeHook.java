@@ -15,6 +15,8 @@ import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
+import android.view.MotionEvent;
+import android.text.Layout;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.HeaderViewListAdapter;
@@ -29,6 +31,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.waenhancer.xposed.core.BaseFeature;
+import com.waenhancer.xposed.utils.HostResourceIds;
 import com.waenhancer.xposed.core.db.DelMessageStore;
 import com.waenhancer.xposed.features.conversation.PreserveDeleteForMeHook;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
@@ -62,6 +65,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import com.waenhancer.xposed.features.automation.PresenceToastsHook;
 import java.lang.reflect.Constructor;
@@ -89,6 +93,9 @@ public class AntiRevokeHook extends BaseFeature {
     private static volatile int sMsgTextResId = 0;
     private static final ConcurrentHashMap<Class<?>, Field> S_CLASS_TO_KEY_FIELD = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<Class<?>, Field> S_KEY_CLASS_TO_ID_FIELD = new ConcurrentHashMap<>();
+    /** Item classes (date headers, system rows...) that repeatedly yielded no message key. */
+    private static final ConcurrentHashMap<Class<?>, Integer> S_KEYLESS_CLASS_MISSES = new ConcurrentHashMap<>();
+    private static final int KEYLESS_MISS_LIMIT = 8;
     private final Set<Class<?>> recyclerBindHooks = Collections.synchronizedSet(new LinkedHashSet<>());
     private final Map<String, String> revokedTextKeyCache = Collections.synchronizedMap(new LinkedHashMap<String, String>(64, 0.75f, true) {
         @Override protected boolean removeEldestEntry(Map.Entry<String, String> eldest) { return size() > 128; }
@@ -145,6 +152,7 @@ public class AntiRevokeHook extends BaseFeature {
 
     @Override
     public void hook() throws Throwable {
+        DelMessageStore.getInstance(context).preloadAsync(() -> dispatchRealtimeRevokeUI("", 0L));
         initMessageClasses();
         hookBytecodeRevocation();
         hookStatusBytecodeRevocation();
@@ -864,7 +872,6 @@ public class AntiRevokeHook extends BaseFeature {
                         if (param.thisObject != null) hookRecyclerBind(param.thisObject);
                     }
                 });
-                XposedBridge.log(TAG + " RecyclerView Adapter bind fallback installed");
             } catch (Throwable fallback) {
                 XposedBridge.log(TAG + " RecyclerView bind fallback failed: "
                         + fallback.getClass().getSimpleName());
@@ -900,11 +907,6 @@ public class AntiRevokeHook extends BaseFeature {
                     }
                     currentAdapter = adapter;
 
-                    // Diagnostic log: report the full adapter class chain
-                    XposedBridge.log(TAG + " ListView.setAdapter:"
-                            + " outer=" + ((ListAdapter) param.args[0]).getClass().getName()
-                            + " wrapped=" + adapter.getClass().getName()
-                            + " underlying=" + getUnderlyingAdapter(adapter).getClass().getName());
 
                     final ListAdapter boundAdapter = adapter;
                     final ListAdapter underlyingAdapter = getUnderlyingAdapter(adapter);
@@ -932,14 +934,10 @@ public class AntiRevokeHook extends BaseFeature {
                             return;
                         }
 
-                        XposedBridge.log(TAG + " Hooking getView on "
-                                + getViewMethod.getDeclaringClass().getName()
-                                + "#" + getViewMethod.getName());
 
                         previousGetViewHook = XposedBridge.hookMethod(getViewMethod, new XC_MethodHook() {
                             @Override
                             protected void beforeHookedMethod(MethodHookParam p) {
-                                if (REVOKED_MESSAGES.isEmpty()) return;
                                 if (p.args != null && p.args.length > 1 && p.args[1] instanceof ViewGroup) {
                                     ViewGroup recycledRow = (ViewGroup) p.args[1];
                                     if (recycledRow.getTag(TAG_DECORATED) != null) {
@@ -957,10 +955,12 @@ public class AntiRevokeHook extends BaseFeature {
                                 if (!(renderedRow instanceof ViewGroup)) return;
                                 ViewGroup row = (ViewGroup) renderedRow;
 
-                                if (REVOKED_MESSAGES.isEmpty()) {
-                                    if (row.getTag(TAG_DECORATED) != null) {
-                                        resetRowDecoration(row);
-                                    }
+                                // Nothing has ever been revoked: skip item lookup and key
+                                // reflection for every row. Rows that were decorated earlier
+                                // (e.g. after a clear) are still restored.
+                                if (REVOKED_MESSAGES.isEmpty()
+                                        && !DelMessageStore.getInstance(context).mayHaveRevoked()) {
+                                    if (row.getTag(TAG_DECORATED) != null) resetRowDecoration(row);
                                     return;
                                 }
 
@@ -1053,7 +1053,7 @@ public class AntiRevokeHook extends BaseFeature {
         try {
             int textId = sMessageTextResId;
             if (textId == 0) {
-                textId = row.getResources().getIdentifier("message_text", "id", row.getContext().getPackageName());
+                textId = HostResourceIds.id(row.getContext(), "message_text");
                 if (textId != 0) sMessageTextResId = textId;
             }
             View view = textId == 0 ? null : row.findViewById(textId);
@@ -1081,7 +1081,6 @@ public class AntiRevokeHook extends BaseFeature {
                             if (!isAntiRevokeEnabled() && !isPreserveOwnRevokeEnabled()) return;
                             Activity activity = ActivityTracker.getCurrentActivity();
                             if (activity == null || !activity.getClass().getSimpleName().contains("Conversation")) return;
-                            if (REVOKED_MESSAGES.isEmpty()) return;
                             if (hook.args == null || hook.args.length < 1) return;
                             Object holder = hook.args[0];
                             View itemView = null;
@@ -1100,7 +1099,6 @@ public class AntiRevokeHook extends BaseFeature {
                             long ts = getRevokedTimestamp(key);
                             if (key == null || ts <= 0) return;
                             HideAntiRevokeProFeature.renderRecyclerBoundDeletedRow((ViewGroup) itemView, message, key, ts);
-                            XposedBridge.log(TAG + " Recycler native revoked bind: " + key);
                         }
                     });
                 }
@@ -1297,8 +1295,8 @@ public class AntiRevokeHook extends BaseFeature {
                     context, classLoader, "waex_status_playback_view_class",
                     (bridge, loader) -> {
                         try {
-                            int statusHeaderId = context.getResources().getIdentifier("status_header", "id", context.getPackageName());
-                            int menuId = context.getResources().getIdentifier("menu", "id", context.getPackageName());
+                            int statusHeaderId = HostResourceIds.id(context, "status_header");
+                            int menuId = HostResourceIds.id(context, "menu");
                             if (statusHeaderId != 0 && menuId != 0) {
                                 ClassData cd = bridge.findClass(FindClass.create()
                                         .matcher(ClassMatcher.create()
@@ -1586,7 +1584,7 @@ public class AntiRevokeHook extends BaseFeature {
             }
             if (playbackView == null) return null;
 
-            int dateId = context.getResources().getIdentifier("date", "id", context.getPackageName());
+            int dateId = HostResourceIds.id(context, "date");
             curr = playbackViewClass;
             while (curr != null && curr != Object.class) {
                 for (Field field : curr.getDeclaredFields()) {
@@ -1822,7 +1820,7 @@ public class AntiRevokeHook extends BaseFeature {
         String[] idNames = {"date", "time", "timestamp", "subtitle", "status_time", "story_time", "caption_time"};
         for (String name : idNames) {
             try {
-                int id = ctx.getResources().getIdentifier(name, "id", ctx.getPackageName());
+                int id = HostResourceIds.id(ctx, name);
                 if (id != 0) {
                     View v = root.findViewById(id);
                     if (v instanceof TextView) return (TextView) v;
@@ -2066,8 +2064,8 @@ public class AntiRevokeHook extends BaseFeature {
             rowView.setTag(TAG_DECORATED, Boolean.TRUE);
             Context rowContext = rowView.getContext();
             if (sDateResId == 0) {
-                sDateResId = rowContext.getResources().getIdentifier("date", "id", rowContext.getPackageName());
-                sMsgTextResId = rowContext.getResources().getIdentifier("message_text", "id", rowContext.getPackageName());
+                sDateResId = HostResourceIds.id(rowContext, "date");
+                sMsgTextResId = HostResourceIds.id(rowContext, "message_text");
             }
 
             TextView dateTextView = sDateResId != 0 ? rowView.findViewById(sDateResId) : null;
@@ -2078,14 +2076,52 @@ public class AntiRevokeHook extends BaseFeature {
                 dateTextView = findDateTextViewFallback(rowView);
             }
 
-            if (dateTextView == null) {
-                return;
+            if (dateTextView != null) {
+                decorateRevokedTextView(dateTextView, messageTextView, rowContext, deletedTimestamp);
             }
-
-            decorateRevokedTextView(dateTextView, messageTextView, rowContext, deletedTimestamp);
+            // WhatsApp binds (and re-binds) the date text of freshly created / media rows after
+            // getView returns, which either left no date view yet or overwrote our indicator.
+            // Verify a few times and re-apply, instead of leaving the row undecorated until the
+            // next full refresh.
+            scheduleDecorationVerification(rowView, rowView.getTag(TAG_KEY_ID), deletedTimestamp, 0);
         } catch (Throwable t) {
             XposedBridge.log(TAG + " decorateRevokedRow error: " + t.getClass().getSimpleName());
         }
+    }
+
+    private static final long[] VERIFY_DELAYS_MS = {80L, 250L, 700L, 1500L};
+
+    private void scheduleDecorationVerification(@NonNull ViewGroup rowView, @Nullable Object keyTag,
+                                                long deletedTimestamp, int attempt) {
+        if (attempt >= VERIFY_DELAYS_MS.length) return;
+        rowView.postDelayed(() -> {
+            try {
+                // Row was recycled/reset or now shows another message: nothing to heal.
+                if (rowView.getTag(TAG_DECORATED) == null) return;
+                if (!Objects.equals(keyTag, rowView.getTag(TAG_KEY_ID))) return;
+                if (!rowView.isAttachedToWindow()) return;
+
+                Context ctx = rowView.getContext();
+                TextView date = sDateResId != 0 ? rowView.findViewById(sDateResId) : null;
+                TextView msg = sMsgTextResId != 0 ? rowView.findViewById(sMsgTextResId) : null;
+                if (date == null) date = findDateTextViewFallback(rowView);
+                if (date != null && !isIndicatorApplied(date)) {
+                    decorateRevokedTextView(date, msg, ctx, deletedTimestamp);
+                }
+            } catch (Throwable ignored) {
+            }
+            scheduleDecorationVerification(rowView, keyTag, deletedTimestamp, attempt + 1);
+        }, VERIFY_DELAYS_MS[attempt]);
+    }
+
+    private boolean isIndicatorApplied(@NonNull TextView date) {
+        CharSequence text = date.getText();
+        if (text == null || text.length() == 0) return false;
+        if (getIndicatorType() == 1) {
+            return text.toString().startsWith(UiText.get(R.string.waex_ui_deleted, "Deleted • "));
+        }
+        Drawable[] drawables = date.getCompoundDrawables();
+        return drawables[2] != null || text.toString().startsWith("🚫");
     }
 
     public void decorateRevokedTextView(@NonNull TextView dateTextView, @Nullable TextView messageTextView, @NonNull Context rowContext, long deletedTimestamp) {
@@ -2118,9 +2154,18 @@ public class AntiRevokeHook extends BaseFeature {
 
             // Save original date text
             String originalDate = (String) XposedHelpers.getAdditionalInstanceField(dateTextView, "waex_original_date");
-            if (originalDate == null) {
-                originalDate = dateTextView.getText().toString();
+            String liveText = String.valueOf(dateTextView.getText());
+            // Keep the stored original in sync when WhatsApp (re)bound the date after our last
+            // decoration; never capture an empty or already-decorated string as the original.
+            boolean liveIsDecorated = liveText.startsWith(UiText.get(R.string.waex_ui_deleted, "Deleted • "))
+                    || liveText.startsWith("🚫");
+            if (!liveText.isEmpty() && !liveIsDecorated && !liveText.equals(originalDate)) {
+                originalDate = liveText;
                 XposedHelpers.setAdditionalInstanceField(dateTextView, "waex_original_date", originalDate);
+            }
+            if (originalDate == null || originalDate.isEmpty()) {
+                // Date not bound yet: leave the view alone; the verification pass retries.
+                return;
             }
 
             if (indicatorType == 1) { // Show "Deleted" text
@@ -2144,16 +2189,63 @@ public class AntiRevokeHook extends BaseFeature {
                 }
             }
 
-            // Clickable deletion timestamp toast
+            // Tap handling: the trailing source emoji (added by MessageDeviceSourceHook) toasts the
+            // sending source; any other tap on the indicator toasts the deletion time. Both share
+            // one TextView, so the tapped x-position decides.
             if (deletedTimestamp > 0) {
-                String formattedTime = TIME_FORMAT.get().format(new Date(deletedTimestamp));
+                XposedHelpers.setAdditionalInstanceField(dateTextView, "waex_deleted_ts", deletedTimestamp);
                 dateTextView.getPaint().setUnderlineText(true);
-                dateTextView.setOnClickListener(v ->
-                        Toast.makeText(rowContext, UiText.get(R.string.waex_ui_deleted_at, "Deleted at: ") + formattedTime, Toast.LENGTH_LONG).show()
-                );
+                dateTextView.setOnTouchListener((v, ev) -> {
+                    if (ev.getAction() == MotionEvent.ACTION_DOWN
+                            || ev.getAction() == MotionEvent.ACTION_UP) {
+                        XposedHelpers.setAdditionalInstanceField(v, "waex_last_touch_x", ev.getX());
+                    }
+                    return false;
+                });
+                dateTextView.setOnClickListener(v -> {
+                    TextView tv = (TextView) v;
+                    if (isTapOnSourceSuffix(tv)) {
+                        Object idObj = XposedHelpers.getAdditionalInstanceField(tv, "waex_device_id");
+                        int deviceId = idObj instanceof Integer ? (Integer) idObj : -1;
+                        if (deviceId == 0) {
+                            Toast.makeText(rowContext, UiText.get(R.string.message_sent_via_phone,
+                                    "This message was sent via Phone"), Toast.LENGTH_SHORT).show();
+                            return;
+                        } else if (deviceId > 0) {
+                            Toast.makeText(rowContext, UiText.get(R.string.waex_ui_this_message_was_sent_via_a_linked_dev,
+                                    "This message was sent via a Linked Device (Desktop/Phone)"), Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                    }
+                    Object tsObj = XposedHelpers.getAdditionalInstanceField(tv, "waex_deleted_ts");
+                    long ts = tsObj instanceof Long ? (Long) tsObj : deletedTimestamp;
+                    Toast.makeText(rowContext, UiText.get(R.string.waex_ui_deleted_at, "Deleted at: ")
+                            + TIME_FORMAT.get().format(new Date(ts)), Toast.LENGTH_LONG).show();
+                });
             }
         } catch (Throwable t) {
             XposedBridge.log(TAG + " decorateRevokedTextView error: " + t.getClass().getSimpleName());
+        }
+    }
+
+    /** True when the last touch landed on the trailing source emoji of the date TextView. */
+    private static boolean isTapOnSourceSuffix(@NonNull TextView tv) {
+        try {
+            Object suffixObj = XposedHelpers.getAdditionalInstanceField(tv, "wae_device_source_suffix");
+            Object xObj = XposedHelpers.getAdditionalInstanceField(tv, "waex_last_touch_x");
+            Layout layout = tv.getLayout();
+            CharSequence text = tv.getText();
+            if (!(suffixObj instanceof String) || ((String) suffixObj).isEmpty()
+                    || !(xObj instanceof Float) || layout == null || text == null) return false;
+            int suffixLen = ((String) suffixObj).length();
+            if (text.length() < suffixLen || !text.toString().endsWith((String) suffixObj)) return false;
+            int line = layout.getLineCount() - 1;
+            float a = layout.getPrimaryHorizontal(text.length() - suffixLen) + tv.getTotalPaddingLeft();
+            float b = layout.getLineRight(line) + tv.getTotalPaddingLeft();
+            float x = (Float) xObj;
+            return x >= Math.min(a, b) && x <= Math.max(a, b);
+        } catch (Throwable ignored) {
+            return false;
         }
     }
 
@@ -2183,8 +2275,8 @@ public class AntiRevokeHook extends BaseFeature {
             rowView.setVisibility(View.VISIBLE);
             Context rowContext = rowView.getContext();
             if (sDateResId == 0) {
-                sDateResId = rowContext.getResources().getIdentifier("date", "id", rowContext.getPackageName());
-                sMsgTextResId = rowContext.getResources().getIdentifier("message_text", "id", rowContext.getPackageName());
+                sDateResId = HostResourceIds.id(rowContext, "date");
+                sMsgTextResId = HostResourceIds.id(rowContext, "message_text");
             }
 
             TextView dateTextView = sDateResId != 0 ? rowView.findViewById(sDateResId) : null;
@@ -2216,6 +2308,8 @@ public class AntiRevokeHook extends BaseFeature {
             dateTextView.setCompoundDrawables(null, null, null, null);
             dateTextView.getPaint().setUnderlineText(false);
             dateTextView.setOnClickListener(null);
+            dateTextView.setOnTouchListener(null);
+            XposedHelpers.removeAdditionalInstanceField(dateTextView, "waex_deleted_ts");
         } catch (Throwable ignored) {}
     }
 
@@ -2339,6 +2433,8 @@ public class AntiRevokeHook extends BaseFeature {
         if (fMessageObj == null) return null;
         try {
             Class<?> objClass = fMessageObj.getClass();
+            Integer misses = S_KEYLESS_CLASS_MISSES.get(objClass);
+            if (misses != null && misses >= KEYLESS_MISS_LIMIT) return null;
 
             // 1. Fast Path: Use cached fields if already discovered
             Field cachedKField = S_CLASS_TO_KEY_FIELD.get(objClass);
@@ -2418,6 +2514,7 @@ public class AntiRevokeHook extends BaseFeature {
                 }
                 curr = curr.getSuperclass();
             }
+            S_KEYLESS_CLASS_MISSES.merge(objClass, 1, Integer::sum);
         } catch (Throwable t) {
             XposedBridge.log(TAG + " extractKeyIdFromFMessage error: " + t.getClass().getSimpleName());
         }
