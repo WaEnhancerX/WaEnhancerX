@@ -5,10 +5,14 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -27,6 +31,8 @@ final class ContactIdentityExtractor {
     private static final String[] PLATFORM_PREFIXES = {
             "java.", "javax.", "android.", "androidx.", "kotlin.", "kotlinx.", "dalvik.", "sun."};
 
+    private static final Set<String> CONVERSATION_SERVERS = new HashSet<>(
+            Arrays.asList("g.us", "broadcast", "newsletter"));
     private static final Method[] NO_METHODS = new Method[0];
     private static final Field[] NO_FIELDS = new Field[0];
     private static final Plan NOT_A_CONTACT = new Plan(NO_METHODS, NO_FIELDS);
@@ -46,24 +52,70 @@ final class ContactIdentityExtractor {
         }
     }
 
-    /** All identity strings of {@code value}: its own, or those of its JID-typed fields. */
+    /** Wrapper levels searched below an item; real picker rows nest their JID three levels down. */
+    private static final int MAX_DEPTH = 4;
+    /** Hard cap on visited objects so a pathological graph can never stall the UI thread. */
+    private static final int MAX_NODES = 96;
+
+    /**
+     * The identity strings of {@code value}: its own when it is a JID, otherwise those of the
+     * nearest JIDs reachable through its object fields. "Nearest" keeps an item's own identity
+     * apart from anything referenced further away, such as a member of a group row.
+     */
     static Collection<String> identities(Object value) {
         if (value == null) return Collections.emptyList();
         LinkedHashSet<String> ids = new LinkedHashSet<>(4);
-        Plan plan = planFor(value.getClass());
-        if (plan.identityMethods.length > 0) {
-            collect(ids, value, plan);
-        } else {
-            for (Field field : plan.wrapperFields) {
-                try {
-                    Object member = field.get(value);
-                    if (member != null) collect(ids, member, planFor(member.getClass()));
-                } catch (IllegalAccessException | RuntimeException failure) {
-                    HookErrors.swallowed("ContactIdentityExtractor", failure);
+        Set<Object> visited = Collections.newSetFromMap(new IdentityHashMap<>());
+        ArrayList<Object> level = new ArrayList<>(1);
+        level.add(value);
+        visited.add(value);
+        for (int depth = 0; depth <= MAX_DEPTH && !level.isEmpty(); depth++) {
+            ArrayList<Object> next = new ArrayList<>();
+            for (Object node : level) {
+                Plan plan = planFor(node.getClass());
+                if (plan.identityMethods.length > 0) {
+                    collect(ids, node, plan);
+                    continue;
+                }
+                for (Field field : plan.wrapperFields) {
+                    if (visited.size() >= MAX_NODES) break;
+                    try {
+                        Object member = field.get(node);
+                        if (member != null && visited.add(member)) next.add(member);
+                    } catch (IllegalAccessException | RuntimeException failure) {
+                        HookErrors.swallowed("ContactIdentityExtractor", failure);
+                    }
                 }
             }
+            // The first level that holds any JID is the item's own; do not look deeper.
+            if (!ids.isEmpty()) break;
+            level = next;
         }
-        return ids;
+        return conversationIdentity(ids);
+    }
+
+    /**
+     * A row that carries a group, broadcast or newsletter id <em>is</em> that conversation. Any
+     * user id beside it (last sender, creator, member) describes someone else, so it must not
+     * make the row match a locked person. These server names are part of WhatsApp's wire
+     * protocol and do not change with obfuscation.
+     */
+    private static Collection<String> conversationIdentity(LinkedHashSet<String> ids) {
+        LinkedHashSet<String> conversation = null;
+        for (String id : ids) {
+            if (isConversationServer(id)) {
+                if (conversation == null) conversation = new LinkedHashSet<>(2);
+                conversation.add(id);
+            }
+        }
+        return conversation != null ? conversation : ids;
+    }
+
+    private static boolean isConversationServer(String id) {
+        int at = id.indexOf('@');
+        if (at < 0) return false;
+        String server = id.substring(at + 1);
+        return CONVERSATION_SERVERS.contains(server);
     }
 
     private static void collect(LinkedHashSet<String> ids, Object jid, Plan plan) {

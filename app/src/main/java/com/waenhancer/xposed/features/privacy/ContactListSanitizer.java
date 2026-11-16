@@ -5,6 +5,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -40,13 +41,16 @@ final class ContactListSanitizer {
                         Function<Object, Collection<String>> identities) {
         Result result = new Result();
         if (args == null || lockedIds == null || lockedIds.isEmpty()) return result;
+        // The same row objects recur across the holder's lists and across the hooked methods.
+        Map<Object, Collection<String>> memo = new IdentityHashMap<>();
+        Function<Object, Collection<String>> memoized = item -> memo.computeIfAbsent(item, identities::apply);
         for (int i = 0; i < args.length; i++) {
             Object arg = args[i];
             if (arg instanceof List) {
-                List<?> filtered = filtered((List<?>) arg, lockedIds, identities, result);
+                List<?> filtered = filtered((List<?>) arg, lockedIds, memoized, result);
                 if (filtered != null) args[i] = filtered;
             } else if (arg != null) {
-                scrubFields(arg, lockedIds, identities, result);
+                scrubFields(arg, lockedIds, memoized, result);
             }
         }
         return result;

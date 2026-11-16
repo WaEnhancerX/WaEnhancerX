@@ -111,6 +111,57 @@ public class ContactListSanitizerTest {
         assertEquals(1, ((List<?>) args[0]).size());
     }
 
+    /** A group row that also references the locked person (e.g. last sender) stays visible. */
+    static final class GroupRow {
+        final Object group = new Jid("123-456@g.us");
+        final Object lastSender;
+        GroupRow(String sender) { this.lastSender = new Jid(sender); }
+    }
+
+    /** Real rows are wrappers several levels deep around a record that holds the JIDs. */
+    static final class Record {
+        final Object lid;
+        final Object phone;
+        Record(String lid, String phone) { this.lid = new Jid(lid); this.phone = new Jid(phone); }
+    }
+    static final class Outer { final Object inner; Outer(Object inner) { this.inner = inner; } }
+
+    @Test
+    public void groupsReferencingTheLockedPersonAreNotHidden() {
+        List<Object> list = new ArrayList<>(Arrays.asList(
+                new GroupRow("locked@s.whatsapp.net"), new Row("locked@s.whatsapp.net", "person")));
+        Object[] args = {list};
+
+        ContactListSanitizer.Result outcome = ContactListSanitizer.scrub(
+                args, LOCKED, ContactListSanitizerTest::ids);
+
+        assertEquals(1, outcome.removedContacts);
+        assertTrue(((List<?>) args[0]).get(0) instanceof GroupRow);
+    }
+
+    @Test
+    public void lockedGroupIsHiddenByItsOwnId() {
+        Set<String> locked = Collections.singleton("123-456@g.us");
+        List<Object> list = new ArrayList<>(Arrays.asList(new GroupRow("x@s.whatsapp.net")));
+        Object[] args = {list};
+
+        ContactListSanitizer.scrub(args, locked, ContactListSanitizerTest::ids);
+
+        assertEquals(0, ((List<?>) args[0]).size());
+    }
+
+    @Test
+    public void jidsNestedSeveralLevelsDownAreFound() {
+        Object deep = new Outer(new Outer(new Record("locked@s.whatsapp.net", "other@s.whatsapp.net")));
+        Object other = new Outer(new Outer(new Record("ok@lid", "ok@s.whatsapp.net")));
+        Object[] args = {new ArrayList<Object>(Arrays.asList(deep, other))};
+
+        ContactListSanitizer.scrub(args, LOCKED, ContactListSanitizerTest::ids);
+
+        assertEquals(1, ((List<?>) args[0]).size());
+        assertSame(other, ((List<?>) args[0]).get(0));
+    }
+
     @Test
     public void noLockedChatsMeansNoWork() {
         Results results = new Results(rows("locked@s.whatsapp.net"), rows(), rows(), rows());

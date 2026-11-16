@@ -200,8 +200,12 @@ public class LockedChatsEnhancerHook extends BaseFeature {
                 scrubPickerData(param.args);
             }
         };
-        for (Method sink : sinks) XposedBridge.hookMethod(sink, scrubber);
-        XposedBridge.log(TAG + " hooked " + sinks.length + " contact picker data method(s)");
+        for (Method sink : sinks) {
+            XposedBridge.hookMethod(sink, scrubber);
+            // Obfuscated host names only; this is what to report when the picker is not filtered.
+            XposedBridge.log(TAG + " hooked " + sink.getDeclaringClass().getName() + "#" + sink.getName()
+                    + "/" + sink.getParameterTypes().length);
+        }
     }
 
     /**
