@@ -2,6 +2,7 @@
 - Custom Emojis: Choose from cloud emoji styles (iOS, Facebook, Samsung, Twitter, Windows, etc.) with in-app download and management screen
 - Report Issue Feature: Report issues and suggest features within app
 - Message notifications switch: turn off notifications from locked chats, with or without hiding them
+- 
 
 [Fixes]
 - Fixed Floating bottom menu scroll hide
