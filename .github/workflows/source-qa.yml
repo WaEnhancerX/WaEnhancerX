@@ -177,6 +177,9 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Preserve resolved provider restart state in the preference bridge
+        run: python qa/test_bridge_resolved_snapshot.py --negative-controls
+
       - name: Run required public-source JVM regression suites
         shell: bash
         run: |
