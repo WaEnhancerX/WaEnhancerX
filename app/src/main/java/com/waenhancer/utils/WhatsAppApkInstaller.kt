@@ -144,8 +144,8 @@ object WhatsAppApkInstaller {
     }.getOrNull()
 
     /**
-     * Installs [apks] with root: `pm install -r -d --user 0` for one APK, `pm install-multiple`
-     * for a bundle. `-d` allows moving to an older version. Returns null on success, otherwise a
+     * Installs [apks] with root: `pm install -r -d --user 0` for one APK, one `pm install-create` session
+     * (write each file, then commit) for a bundle. `-d` allows moving to an older version. Returns null on success, otherwise a
      * short failure message.
      */
     @JvmStatic
@@ -172,10 +172,30 @@ object WhatsAppApkInstaller {
                 copied += shellQuote(target)
             }
             RootCommandRunner.run("chmod 755 ${shellQuote(temporary)}", TimeUnit.SECONDS.toMillis(8))
-            val command = if (copied.size == 1) "pm install -r -d --user 0 ${copied[0]}"
-            else "pm install-multiple -r -d --user 0 ${copied.joinToString(" ")}"
-            val result = RootCommandRunner.run(command, TimeUnit.SECONDS.toMillis(180))?.trim().orEmpty()
-            if (result.startsWith("Success", ignoreCase = true)) null else result.ifEmpty { "Install failed" }
+            // pm exits non-zero on failure and the runner drops all output then, which would hide
+            // pm's reason (for example a blocked downgrade). Redirect stderr and always exit 0 so
+            // the real message comes back.
+            val install = if (copied.size == 1) {
+                "pm install -r -d --user 0 ${copied[0]}"
+            } else {
+                // `pm` has no install-multiple: bundles go through one install session.
+                val total = apks.sumOf { it.length() }
+                val writes = copied.indices.joinToString(" && ") { index ->
+                    "pm install-write -S ${apks[index].length()} \"\$S\" $index.apk ${copied[index]}"
+                }
+                "S=\$(pm install-create -r -d --user 0 -S $total | sed -n 's/.*\\[\\([0-9]*\\)\\].*/\\1/p'); " +
+                    "if [ -z \"\$S\" ]; then echo 'Failure: could not create an install session'; " +
+                    "elif $writes && pm install-commit \"\$S\"; then :; " +
+                    "else pm install-abandon \"\$S\" >/dev/null 2>&1; fi"
+            }
+            val result = RootCommandRunner.run("($install) 2>&1; true", TimeUnit.SECONDS.toMillis(180))
+                ?.trim()
+                .orEmpty()
+            when {
+                result.contains("Success", ignoreCase = true) && !result.contains("Failure", ignoreCase = true) -> null
+                result.isEmpty() -> "Install failed: no output from the package manager"
+                else -> result
+            }
         } finally {
             RootCommandRunner.run("rm -rf -- ${shellQuote(temporary)}", TimeUnit.SECONDS.toMillis(8))
         }

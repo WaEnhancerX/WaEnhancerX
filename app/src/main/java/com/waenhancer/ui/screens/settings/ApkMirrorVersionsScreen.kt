@@ -2,6 +2,16 @@ package com.waenhancer.ui.screens.settings
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.Context
+import android.text.format.Formatter
+import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
+import com.waenhancer.ui.components.WaexLinearProgressIndicator
+import com.waenhancer.ui.components.waexSheetAccent
+import com.waenhancer.ui.components.waexSheetOnAccent
+import com.waenhancer.utils.ApkDownload
+import com.waenhancer.utils.ApkDownloads
+import com.waenhancer.utils.DownloadStatus
 import android.net.Uri
 import android.os.SystemClock
 import android.util.Log
@@ -25,14 +35,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,6 +65,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.viewinterop.AndroidView
 import com.waenhancer.app.R
@@ -60,13 +73,10 @@ import com.waenhancer.ui.components.TargetAppIcon
 import com.waenhancer.ui.components.WaexCircularProgressIndicator
 import com.waenhancer.ui.components.WaexSheetPrimaryButton
 import com.waenhancer.ui.components.WaexSheetTextButton
-import com.waenhancer.ui.components.WaexTopBar
 import com.waenhancer.ui.designsystem.WaexTheme
-import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.utils.ApkMirrorFeed
 import com.waenhancer.utils.ApkMirrorRelease
 import com.waenhancer.utils.SupportedVersionSuggester
-import com.waenhancer.utils.TargetAppManager
 import com.waenhancer.utils.UiText
 import com.waenhancer.utils.UniversalVersionValidator
 import kotlinx.coroutines.delay
@@ -131,24 +141,21 @@ private sealed interface FeedPhase {
 }
 
 /**
- * Lists every supported WhatsApp build found on APKMirror so the user can pick one.
+ * Reads the supported WhatsApp builds from APKMirror's feed and hands them to [onLoaded].
  *
  * The feed is read through a WebView. It loads silently first; if Cloudflare asks for a human
- * check the same WebView grows into view so the user can pass it, and the list appears by itself
+ * check the same WebView grows into view so the user can pass it, and the result is delivered
  * as soon as the feed is readable. Cookies and DOM storage persist, so the check is not repeated
- * every time. Picking a build opens that release page in the browser.
+ * every time.
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun ApkMirrorVersionsScreen(packageName: String) {
+private fun FeedLoader(packageName: String, onLoaded: (List<ApkMirrorRelease>) -> Unit) {
     val context = LocalContext.current
-    val navController = LocalWaexNavController.current
     val colors = WaexTheme.colors
     val typography = WaexTheme.typography
     val spacing = WaexTheme.spacing
 
-    val detectedApps by TargetAppManager.detectedApps.collectAsState()
-    val appName = detectedApps.firstOrNull { it.packageName == packageName }?.appName ?: "WhatsApp"
     val rules = remember(context) { UniversalVersionValidator.getBuiltinSupportedVersions(context) }
     val feedUrl = remember(packageName) { ApkMirrorFeed.feedUrl(packageName) }
 
@@ -267,16 +274,8 @@ fun ApkMirrorVersionsScreen(packageName: String) {
         }
     }
 
-    Scaffold(
-        topBar = {
-            WaexTopBar(
-                title = UiText.get(R.string.waex_ui_pick_version_title, "Choose a version"),
-                onBackClick = { navController.popBack() }
-            )
-        },
-        containerColor = colors.background
-    ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+    run {
+        Box(modifier = Modifier.fillMaxSize()) {
             when (val current = phase) {
                 FeedPhase.Loading -> {
                     // The one WebView is mounted for the whole load, inside the verification card
@@ -380,13 +379,7 @@ fun ApkMirrorVersionsScreen(packageName: String) {
                     }
                 }
 
-                is FeedPhase.Done -> VersionList(
-                    packageName = packageName,
-                    appName = appName,
-                    releases = current.releases,
-                    onPick = { open(it.link) },
-                    onOpenSite = { open(SupportedVersionSuggester.downloadPageUrl(packageName)) }
-                )
+                is FeedPhase.Done -> LaunchedEffect(current) { onLoaded(current.releases) }
 
                 is FeedPhase.Failed -> Column(
                     modifier = Modifier.fillMaxSize().padding(horizontal = spacing.pageMargin),
@@ -432,12 +425,117 @@ fun ApkMirrorVersionsScreen(packageName: String) {
     }
 }
 
+/**
+ * Step 2: the supported builds. Loads the feed once (kept in [cached] by the host so coming back
+ * from a release page does not reload it), then lists one card per build. A card shows the
+ * download that was started from it: live progress, or an Install button once it is finished.
+ */
+@Composable
+fun VersionsStep(
+    packageName: String,
+    appName: String,
+    cached: List<ApkMirrorRelease>?,
+    downloads: List<ApkDownload>,
+    installedVersion: String?,
+    onLoaded: (List<ApkMirrorRelease>) -> Unit,
+    onPick: (ApkMirrorRelease) -> Unit,
+    onInstall: (ApkDownload) -> Unit,
+    onRemove: (ApkDownload) -> Unit,
+    onOpenSite: () -> Unit
+) {
+    // Files already downloaded are shown at once, whatever the online list is doing.
+    val mine = remember(downloads, packageName) {
+        downloads.filter { it.packageName == packageName }.sortedByDescending { it.startedAt }
+    }
+    if (cached == null) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            if (mine.isNotEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 320.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = WaexTheme.spacing.pageMargin, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    DownloadedHeader()
+                    mine.forEach { download ->
+                        DownloadedCard(
+                            packageName = packageName,
+                            appName = appName,
+                            download = download,
+                            installedVersion = installedVersion,
+                            onInstall = onInstall,
+                            onRemove = onRemove
+                        )
+                    }
+                }
+            }
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                FeedLoader(packageName = packageName, onLoaded = onLoaded)
+            }
+        }
+    } else {
+        VersionList(
+            packageName = packageName,
+            appName = appName,
+            releases = cached,
+            downloads = downloads,
+            orphans = mine.filter { d -> cached.none { it.version == d.version } },
+            installedVersion = installedVersion,
+            onPick = onPick,
+            onInstall = onInstall,
+            onRemove = onRemove,
+            onOpenSite = onOpenSite
+        )
+    }
+}
+
+@Composable
+private fun DownloadedHeader() {
+    Text(
+        text = UiText.get(R.string.waex_ui_downloaded_section, "DOWNLOADED"),
+        style = WaexTheme.typography.labelSm,
+        fontWeight = FontWeight.Bold,
+        color = WaexTheme.colors.primary,
+        letterSpacing = 1.sp
+    )
+}
+
+/** A downloaded file shown on its own, e.g. before the online list is available. */
+@Composable
+private fun DownloadedCard(
+    packageName: String,
+    appName: String,
+    download: ApkDownload,
+    installedVersion: String?,
+    onInstall: (ApkDownload) -> Unit,
+    onRemove: (ApkDownload) -> Unit
+) {
+    ReleaseCard(
+        packageName = packageName,
+        appName = appName,
+        release = ApkMirrorRelease(download.version, "", download.startedAt),
+        download = download,
+        installedVersion = installedVersion,
+        openable = false,
+        onPick = {},
+        onInstall = onInstall,
+        onRemove = onRemove
+    )
+}
+
 @Composable
 private fun VersionList(
     packageName: String,
     appName: String,
     releases: List<ApkMirrorRelease>,
+    downloads: List<ApkDownload>,
+    orphans: List<ApkDownload>,
+    installedVersion: String?,
     onPick: (ApkMirrorRelease) -> Unit,
+    onInstall: (ApkDownload) -> Unit,
+    onRemove: (ApkDownload) -> Unit,
     onOpenSite: () -> Unit
 ) {
     val colors = WaexTheme.colors
@@ -449,6 +547,19 @@ private fun VersionList(
         contentPadding = PaddingValues(horizontal = spacing.pageMargin, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        if (orphans.isNotEmpty()) {
+            item { DownloadedHeader() }
+            items(orphans, key = { "downloaded-${it.id}" }) { download ->
+                DownloadedCard(
+                    packageName = packageName,
+                    appName = appName,
+                    download = download,
+                    installedVersion = installedVersion,
+                    onInstall = onInstall,
+                    onRemove = onRemove
+                )
+            }
+        }
         item {
             Text(
                 text = if (releases.isEmpty()) {
@@ -456,7 +567,7 @@ private fun VersionList(
                 } else {
                     UiText.get(
                         R.string.waex_ui_pick_version_message,
-                        "Every %1\$s build below is supported. Tap one to open its download page.",
+                        "Every %1\$s build below is supported. Tap one to download it inside WAEX.",
                         appName
                     )
                 },
@@ -473,42 +584,188 @@ private fun VersionList(
             }
         }
         items(releases, key = { it.version }) { release ->
-            Surface(
-                shape = WaexTheme.radius.smShape,
-                color = colors.surfaceDim,
-                border = BorderStroke(1.dp, colors.outlineVariant),
-                modifier = Modifier.fillMaxWidth().clickable { onPick(release) }
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // The user's own installed app icon, so the list reads as "this app".
-                    TargetAppIcon(packageName = packageName, size = 36.dp)
-                    Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
+            ReleaseCard(
+                packageName = packageName,
+                appName = appName,
+                release = release,
+                download = ApkDownloads.latestFor(downloads, packageName, release.version),
+                installedVersion = installedVersion,
+                onPick = { onPick(release) },
+                onInstall = onInstall,
+                onRemove = onRemove
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReleaseCard(
+    packageName: String,
+    appName: String,
+    release: ApkMirrorRelease,
+    download: ApkDownload?,
+    installedVersion: String?,
+    openable: Boolean = true,
+    onPick: () -> Unit,
+    onInstall: (ApkDownload) -> Unit,
+    onRemove: (ApkDownload) -> Unit
+) {
+    val context = LocalContext.current
+    val colors = WaexTheme.colors
+    val typography = WaexTheme.typography
+    val busy = download?.status == DownloadStatus.DOWNLOADING
+
+    Surface(
+        shape = WaexTheme.radius.smShape,
+        color = colors.surfaceDim,
+        border = BorderStroke(1.dp, colors.outlineVariant),
+        modifier = Modifier.fillMaxWidth().clickable(enabled = !busy && openable, onClick = onPick)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // The user's own installed app icon, so the list reads as "this app".
+                TargetAppIcon(packageName = packageName, size = 36.dp)
+                Column(modifier = Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                    Text(
+                        text = appName,
+                        style = typography.bodyMd,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.onSurface
+                    )
+                    Text(
+                        text = release.version,
+                        style = typography.labelSm,
+                        color = colors.onSurfaceVariant
+                    )
+                }
+                release.publishedAt?.let { published ->
+                    Text(
+                        text = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(published)),
+                        style = typography.labelSm,
+                        color = colors.onSurfaceVariant
+                    )
+                }
+            }
+
+            when (download?.status) {
+                DownloadStatus.DOWNLOADING -> {
+                    val progress = download.progress
+                    WaexLinearProgressIndicator(
+                        progress = { progress ?: 0f },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = appName,
-                            style = typography.bodyMd,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.onSurface
-                        )
-                        Text(
-                            text = release.version,
+                            text = UiText.get(
+                                R.string.waex_ui_downloading_progress,
+                                "Downloading… %1\$s",
+                                downloadLabel(context, download)
+                            ),
                             style = typography.labelSm,
-                            color = colors.onSurfaceVariant
+                            color = colors.onSurfaceVariant,
+                            modifier = Modifier.weight(1f)
                         )
-                    }
-                    release.publishedAt?.let { published ->
-                        Text(
-                            text = DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(published)),
-                            style = typography.labelSm,
-                            color = colors.onSurfaceVariant
-                        )
+                        TextButton(onClick = { onRemove(download) }) {
+                            Text(UiText.get(R.string.action_cancel, "Cancel"), fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
+
+                DownloadStatus.COMPLETED -> {
+                    val change = VersionChange.of(installedVersion, release.version)
+                    // Compact actions: the card is a list row, not a call to action on its own.
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = { onRemove(download) },
+                            shape = RoundedCornerShape(16.dp),
+                            border = BorderStroke(1.dp, colors.outlineVariant),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            Text(
+                                UiText.get(R.string.waex_ui_remove_download, "Remove"),
+                                style = typography.labelSm,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.onSurfaceVariant
+                            )
+                        }
+                        Button(
+                            onClick = { onInstall(download) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = waexSheetAccent(),
+                                contentColor = waexSheetOnAccent()
+                            ),
+                            shape = RoundedCornerShape(16.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            Text(change.label(), style = typography.labelSm, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                DownloadStatus.FAILED -> Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = UiText.get(R.string.waex_ui_download_failed, "Download failed") +
+                            (download.error?.let { " ($it)" } ?: ""),
+                        style = typography.labelSm,
+                        color = colors.error,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (openable) {
+                        TextButton(onClick = onPick) {
+                            Text(UiText.get(R.string.waex_ui_download_again, "Download again"), fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        TextButton(onClick = { onRemove(download) }) {
+                            Text(UiText.get(R.string.waex_ui_remove_download, "Remove"), fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                null -> Unit
             }
         }
     }
+}
+
+/** How a downloaded build compares to what is installed. */
+internal enum class VersionChange {
+    INSTALL, UPGRADE, DOWNGRADE, REINSTALL;
+
+    @Composable
+    fun label(): String = when (this) {
+        INSTALL -> UiText.get(R.string.waex_ui_install_action, "Install")
+        UPGRADE -> UiText.get(R.string.waex_ui_install_upgrade, "Upgrade")
+        DOWNGRADE -> UiText.get(R.string.waex_ui_install_downgrade, "Downgrade")
+        REINSTALL -> UiText.get(R.string.waex_ui_install_reinstall, "Reinstall")
+    }
+
+    companion object {
+        fun of(installed: String?, target: String): VersionChange {
+            if (installed.isNullOrBlank()) return INSTALL
+            val order = SupportedVersionSuggester.compareVersions(target, installed.removePrefix("v"))
+            return when {
+                order > 0 -> UPGRADE
+                order < 0 -> DOWNGRADE
+                else -> REINSTALL
+            }
+        }
+    }
+}
+
+private fun downloadLabel(context: Context, download: ApkDownload): String {
+    val done = Formatter.formatShortFileSize(context, download.downloadedBytes)
+    val progress = download.progress ?: return done
+    val total = Formatter.formatShortFileSize(context, download.totalBytes)
+    return "${(progress * 100).toInt()}%  ($done / $total)"
 }
 
 private sealed interface FeedRead {

@@ -27,6 +27,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.waenhancer.ui.designsystem.WaexTheme
 
+/** The green every sheet uses for its main action and for positive states. */
+@Composable
+fun waexSheetAccent(): Color = if (WaexTheme.colors.isLight) Color(0xFF1DAA61) else Color(0xFF21C063)
+
+/** Text and icons on the accent, matching the primary sheet button. */
+@Composable
+fun waexSheetOnAccent(): Color = if (WaexTheme.colors.isLight) Color.White else Color(0xFF0A1014)
+
 /** Horizontal content margin shared by every bottom sheet. */
 val WaexSheetHorizontalMargin = 22.dp
 

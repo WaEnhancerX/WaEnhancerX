@@ -141,7 +141,6 @@ fun SupportedVersionsScreen() {
     // Suggested supported version per unsupported WhatsApp target: the newest built-in rule
     // pattern (for example 2.26.45.xx), which the download search matches without the suffix.
     val suggestions = remember { mutableStateMapOf<String, VersionSuggestion>() }
-    var pendingSuggestionPackage by remember { mutableStateOf<String?>(null) }
     val suggestionTargets = unsupportedApps
         .map { it.packageName }
         .filter(SupportedVersionSuggester::isSuggestionTarget)
@@ -192,7 +191,7 @@ fun SupportedVersionsScreen() {
                             versionName = if (app.isInstalled) cleanVer else null,
                             decision = decision,
                             suggestion = suggestions[app.packageName],
-                            onGetSuggestedVersionClick = { pendingSuggestionPackage = app.packageName },
+                            onGetSuggestedVersionClick = { navController.navigateTo(Screen.GetVersion(app.packageName)) },
                             onAddCurrentClick = {
                                 if (app.isInstalled) {
                                     val wildcardRule = UniversalVersionValidator.toWildcard(cleanVer)
@@ -406,36 +405,6 @@ fun SupportedVersionsScreen() {
                 )
             }
         }
-    }
-
-    // Risk notice shown before the browser opens the suggested version's download search.
-    val pendingPackage = pendingSuggestionPackage
-    val pendingSuggestion = pendingPackage?.let { suggestions[it] }
-    if (pendingPackage != null && pendingSuggestion != null) {
-        // The shared confirmation sheet keeps title and button sizes identical to every other sheet.
-        WaexConfirmationBottomSheet(
-            title = UiText.get(R.string.waex_ui_get_supported_version_title, "Get WhatsApp %1\$s", pendingSuggestion.version),
-            message = UiText.get(
-                R.string.waex_ui_get_supported_version_notice,
-                "Download the APK from a source you trust, then install it from storage with root. WAEX strictly checks the signing certificate and installs only official WhatsApp files; any modified or repacked APK is rejected. The newest supported version is suggested, but you can install any version inside a supported range such as %1\$s. Installing outside Google Play can put your phone number at risk of suspension, so prefer official updates when you can.",
-                pendingSuggestion.version.let { v -> if (pendingSuggestion.isExact) UniversalVersionValidator.toWildcard(v) else v }
-            ),
-            supportingContent = {
-                WaexSheetTextButton(
-                    text = UiText.get(R.string.waex_ui_install_downloaded_apk, "Install from storage"),
-                    onClick = {
-                        pendingSuggestionPackage = null
-                        navController.navigateTo(Screen.InstallFromStorage(pendingPackage))
-                    }
-                )
-            },
-            confirmLabel = UiText.get(R.string.waex_ui_choose_version, "Choose a version"),
-            onConfirm = {
-                pendingSuggestionPackage = null
-                navController.navigateTo(Screen.ApkMirrorVersions(pendingPackage))
-            },
-            onDismiss = { pendingSuggestionPackage = null }
-        )
     }
 
     // App Selection Sheet for Adding Version Rule

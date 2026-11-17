@@ -124,7 +124,7 @@ import com.waenhancer.ui.screens.settings.StargazersScreen
 import com.waenhancer.ui.screens.settings.ModuleSettingsScreen
 import com.waenhancer.ui.screens.settings.HookingModeHelpScreen
 import com.waenhancer.ui.screens.settings.UpdateSettingsScreen
-import com.waenhancer.ui.screens.settings.ApkMirrorVersionsScreen
+import com.waenhancer.ui.screens.settings.GetVersionScreen
 import com.waenhancer.ui.screens.settings.InstallFromStorageScreen
 import com.waenhancer.ui.screens.settings.SupportedVersionsScreen
 import com.waenhancer.ui.screens.settings.BootloaderSpooferScreen
@@ -1343,8 +1343,8 @@ fun WaexAppNavigation(
         Screen.HookingModeHelp -> HookingModeHelpScreen()
         Screen.UpdateSettings -> UpdateSettingsScreen()
         Screen.SupportedVersions -> SupportedVersionsScreen()
-        is Screen.InstallFromStorage -> InstallFromStorageScreen(packageName = currentScreen.packageName)
-        is Screen.ApkMirrorVersions -> ApkMirrorVersionsScreen(packageName = currentScreen.packageName)
+        is Screen.InstallFromStorage -> InstallFromStorageScreen(packageName = currentScreen.packageName, filePath = currentScreen.filePath)
+        is Screen.GetVersion -> GetVersionScreen(packageName = currentScreen.packageName)
         Screen.DeletedMessages -> DeletedMessagesVaultScreen()
         Screen.CallRecordingSettings -> CallRecordingSettingsScreen()
         Screen.TaskerGuide -> TaskerGuideScreen()

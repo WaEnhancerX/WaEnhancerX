@@ -1,6 +1,8 @@
 package com.waenhancer.ui.screens.settings
 
 import android.widget.Toast
+import androidx.compose.runtime.LaunchedEffect
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -46,6 +48,7 @@ import androidx.compose.ui.unit.sp
 import com.waenhancer.app.R
 import com.waenhancer.ui.components.WaexCircularProgressIndicator
 import com.waenhancer.ui.components.WaexTopBar
+import com.waenhancer.ui.components.waexSheetAccent
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.utils.TargetAppManager
@@ -53,6 +56,7 @@ import com.waenhancer.utils.UiText
 import com.waenhancer.utils.UniversalVersionValidator
 import com.waenhancer.utils.WhatsAppApkInstaller
 import com.waenhancer.utils.WhatsAppApkVerifier
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -63,7 +67,7 @@ import kotlinx.coroutines.withContext
  * root, and anything modified or repacked is rejected.
  */
 @Composable
-fun InstallFromStorageScreen(packageName: String) {
+fun InstallFromStorageScreen(packageName: String, filePath: String? = null) {
     val context = LocalContext.current
     val navController = LocalWaexNavController.current
     val colors = WaexTheme.colors
@@ -84,8 +88,7 @@ fun InstallFromStorageScreen(packageName: String) {
     // The install keeps running under root, so do not let the user leave mid-way.
     BackHandler(enabled = busy) {}
 
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
+    fun check(uri: Uri) {
         state = ApkCheckState.Checking
         scope.launch {
             state = withContext(Dispatchers.IO) {
@@ -110,6 +113,15 @@ fun InstallFromStorageScreen(packageName: String) {
                 }
             }
         }
+    }
+
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) check(uri)
+    }
+
+    // A file downloaded inside WAEX is verified straight away, exactly like a picked one.
+    LaunchedEffect(filePath) {
+        if (filePath != null) check(Uri.fromFile(File(filePath)))
     }
 
     fun install(check: WhatsAppApkVerifier.Verification, staged: WhatsAppApkInstaller.StagedPackage) {
@@ -350,7 +362,7 @@ private fun ChooseButton(text: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun BusyRow(text: String) {
+internal fun BusyRow(text: String) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
@@ -393,14 +405,14 @@ private fun SectionLabel(text: String) {
 }
 
 @Composable
-private fun VerifyCheckRow(label: String, ok: Boolean, detail: String) {
+internal fun VerifyCheckRow(label: String, ok: Boolean, detail: String) {
     val colors = WaexTheme.colors
     val typography = WaexTheme.typography
     Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Icon(
             imageVector = if (ok) Icons.Rounded.CheckCircle else Icons.Rounded.Close,
             contentDescription = null,
-            tint = if (ok) colors.success else colors.error,
+            tint = if (ok) waexSheetAccent() else colors.error,
             modifier = Modifier.size(20.dp)
         )
         Column {
