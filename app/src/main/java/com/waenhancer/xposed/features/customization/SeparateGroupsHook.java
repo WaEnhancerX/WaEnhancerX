@@ -213,19 +213,62 @@ public final class SeparateGroupsHook extends BaseFeature {
             }
         });
 
-        for (Method method : conversations.getDeclaredMethods()) {
-            if (method.getParameterTypes().length != 0 || !List.class.isAssignableFrom(method.getReturnType())) continue;
-            method.setAccessible(true);
-            XposedBridge.hookMethod(method, new XC_MethodHook() {
-                @Override protected void afterHookedMethod(MethodHookParam param) {
-                    if (!(param.getResult() instanceof List)) return;
-                    Integer tab;
-                    synchronized (fragmentTabs) { tab = fragmentTabs.get(param.thisObject); }
-                    if (tab == null) return;
-                    param.setResult(filter((List<?>) param.getResult(), tab == GROUPS));
+        hookRowProviders(conversations);
+    }
+
+    /**
+     * Hooks every list-producing method in the fragment hierarchy regardless of name, parameters,
+     * visibility or declaring class (obfuscated names and the declaring class change between
+     * releases). A result is only rewritten when it is a list of chat rows, i.e. its elements
+     * expose a Jid, and the owning fragment is one of the tracked Chats/Groups fragments.
+     */
+    private void hookRowProviders(Class<?> conversations) {
+        Class<?> type = conversations;
+        while (type != null && type != Object.class && !isFrameworkClass(type)) {
+            for (Method method : type.getDeclaredMethods()) {
+                int mods = method.getModifiers();
+                if (Modifier.isAbstract(mods) || Modifier.isNative(mods) || method.isBridge()
+                        || !List.class.isAssignableFrom(method.getReturnType())) continue;
+                try {
+                    method.setAccessible(true);
+                    XposedBridge.hookMethod(method, new XC_MethodHook() {
+                        @Override protected void afterHookedMethod(MethodHookParam param) {
+                            Object result = param.getResult();
+                            if (!(result instanceof List) || ((List<?>) result).isEmpty()) return;
+                            Integer tab = trackedTab(param.thisObject);
+                            if (tab == null && param.args != null) {
+                                for (Object arg : param.args) {
+                                    tab = trackedTab(arg);
+                                    if (tab != null) break;
+                                }
+                            }
+                            if (tab == null || !looksLikeChatRows((List<?>) result)) return;
+                            param.setResult(filter((List<?>) result, tab == GROUPS));
+                        }
+                    });
+                } catch (Throwable t) {
+                    HookErrors.swallowed("SeparateGroupsHook", t);
                 }
-            });
+            }
+            type = type.getSuperclass();
         }
+    }
+
+    private static boolean isFrameworkClass(Class<?> type) {
+        String name = type.getName();
+        return name.startsWith("android.") || name.startsWith("androidx.") || name.startsWith("java.");
+    }
+
+    private static Integer trackedTab(Object candidate) {
+        if (candidate == null) return null;
+        synchronized (fragmentTabs) { return fragmentTabs.get(candidate); }
+    }
+
+    private boolean looksLikeChatRows(List<?> list) {
+        for (Object item : list) {
+            if (item != null) return findJid(item) != null;
+        }
+        return false;
     }
 
     private int tabAt(int index) {
@@ -253,9 +296,12 @@ public final class SeparateGroupsHook extends BaseFeature {
 
     private static final Map<Class<?>, Field> JID_FIELD_CACHE = new ConcurrentHashMap<>();
 
+    private static final Map<Class<?>, Boolean> NO_JID_CLASSES = new ConcurrentHashMap<>();
+
     private Object findJid(Object chat) {
         if (chat == null) return null;
         Class<?> chatClass = chat.getClass();
+        if (NO_JID_CLASSES.containsKey(chatClass) || isFrameworkClass(chatClass)) return null;
         Field cached = JID_FIELD_CACHE.get(chatClass);
         if (cached != null) {
             try {
@@ -279,6 +325,7 @@ public final class SeparateGroupsHook extends BaseFeature {
             }
             type = type.getSuperclass();
         }
+        NO_JID_CLASSES.put(chatClass, Boolean.TRUE);
         return null;
     }
 

@@ -19,6 +19,7 @@
 - Improved UI of custom emojis screen
 - Improved WhatsApp UI performance
 - Improved Privacy features
+- Improved Separate Groups resolution according to new WA versions
 
 
 [Feature: Report Issues]
