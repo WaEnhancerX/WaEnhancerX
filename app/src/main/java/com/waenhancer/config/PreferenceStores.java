@@ -23,7 +23,6 @@ public final class PreferenceStores {
     // Dedicated cache and isolated preference stores
     public static final String GITHUB_API_CACHE = "github_api_cache";
     public static final String GITHUB_USER_CACHE = "github_user_cache";
-    public static final String APTOIDE_API_CACHE = "aptoide_api_cache";
     public static final String PLANS_CACHE = "waex_plans_cache";
     public static final String APK_MIRROR_CACHE = "ApkMirrorCache";
     public static final String UPDATE_IGNORED = "wae_update_ignored";

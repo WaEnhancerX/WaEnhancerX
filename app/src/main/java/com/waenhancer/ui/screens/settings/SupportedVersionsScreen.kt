@@ -32,7 +32,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import com.waenhancer.ui.components.TargetAppIcon
-import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Delete
@@ -75,9 +74,6 @@ import com.waenhancer.utils.TargetAppManager
 import com.waenhancer.utils.UniversalVersionValidator
 import com.waenhancer.utils.SupportedVersionSuggester
 import com.waenhancer.utils.VersionSuggestion
-import com.waenhancer.update.AptoideVersionRepository
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.foundation.BorderStroke
@@ -142,8 +138,8 @@ fun SupportedVersionsScreen() {
 
     var showSelectAppDialog by remember { mutableStateOf(false) }
 
-    // Suggested supported version per unsupported WhatsApp target. The newest built-in rule is
-    // shown right away, then replaced by a concrete build once the version list has loaded.
+    // Suggested supported version per unsupported WhatsApp target: the newest built-in rule
+    // pattern (for example 2.26.45.xx), which the download search matches without the suffix.
     val suggestions = remember { mutableStateMapOf<String, VersionSuggestion>() }
     var pendingSuggestionPackage by remember { mutableStateOf<String?>(null) }
     val suggestionTargets = unsupportedApps
@@ -153,8 +149,6 @@ fun SupportedVersionsScreen() {
         val rules = UniversalVersionValidator.getBuiltinSupportedVersions(context)
         suggestionTargets.forEach { pkg ->
             SupportedVersionSuggester.suggest(emptyList(), rules)?.let { suggestions[pkg] = it }
-            val names = AptoideVersionRepository.fetchVersionNames(context, pkg)
-            SupportedVersionSuggester.suggest(names, rules)?.let { suggestions[pkg] = it }
         }
     }
 
@@ -423,7 +417,7 @@ fun SupportedVersionsScreen() {
             title = UiText.get(R.string.waex_ui_get_supported_version_title, "Get WhatsApp %1\$s", pendingSuggestion.version),
             message = UiText.get(
                 R.string.waex_ui_get_supported_version_notice,
-                "Download the APK from a source you trust, then install it from storage with root. WAEX strictly checks the signing certificate and installs only official WhatsApp files; any modified or repacked APK is rejected. The newest supported version is suggested, but you can install any version inside a supported range such as %1\$s. Installing outside Google Play can put your phone number at risk of suspension, so prefer official updates when you can. Back up your chats first, because moving to an older version replaces the installed app.",
+                "Download the APK from a source you trust, then install it from storage with root. WAEX strictly checks the signing certificate and installs only official WhatsApp files; any modified or repacked APK is rejected. The newest supported version is suggested, but you can install any version inside a supported range such as %1\$s. Installing outside Google Play can put your phone number at risk of suspension, so prefer official updates when you can.",
                 pendingSuggestion.version.let { v -> if (pendingSuggestion.isExact) UniversalVersionValidator.toWildcard(v) else v }
             ),
             supportingContent = {
@@ -435,25 +429,10 @@ fun SupportedVersionsScreen() {
                     }
                 )
             },
-            confirmLabel = UiText.get(R.string.waex_ui_continue_to_browser, "Continue in browser"),
+            confirmLabel = UiText.get(R.string.waex_ui_choose_version, "Choose a version"),
             onConfirm = {
-                val url = SupportedVersionSuggester.downloadSearchUrl(pendingPackage, pendingSuggestion.version)
                 pendingSuggestionPackage = null
-                runCatching {
-                    context.startActivity(
-                        Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    )
-                }
-            },
-            confirmContent = {
-                Text(UiText.get(R.string.waex_ui_continue_to_browser, "Continue in browser"), fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.width(8.dp))
-                // Signals that the link leaves the app. Tint follows the button's content colour.
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.OpenInNew,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
+                navController.navigateTo(Screen.ApkMirrorVersions(pendingPackage))
             },
             onDismiss = { pendingSuggestionPackage = null }
         )

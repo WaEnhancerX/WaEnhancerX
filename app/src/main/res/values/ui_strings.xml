@@ -774,7 +774,7 @@
     <string name="waex_ui_last_supported_version" formatted="false">"Last supported version"</string>
     <string name="waex_ui_get_this_version" formatted="false">"Get this version"</string>
     <string name="waex_ui_get_supported_version_title" formatted="false">"Get WhatsApp %1$s"</string>
-    <string name="waex_ui_get_supported_version_notice" formatted="false">"Download the APK from a source you trust, then install it from storage with root. WAEX strictly checks the signing certificate and installs only official WhatsApp files; any modified or repacked APK is rejected. The newest supported version is suggested, but you can install any version inside a supported range such as %1$s. Installing outside Google Play can put your phone number at risk of suspension, so prefer official updates when you can. Back up your chats first, because moving to an older version replaces the installed app."</string>
+    <string name="waex_ui_get_supported_version_notice" formatted="false">"Download the APK from a source you trust, then install it from storage with root. WAEX strictly checks the signing certificate and installs only official WhatsApp files; any modified or repacked APK is rejected. The newest supported version is suggested, but you can install any version inside a supported range such as %1$s. Installing outside Google Play can put your phone number at risk of suspension, so prefer official updates when you can."</string>
     <string name="waex_ui_continue_to_browser" formatted="false">"Continue in browser"</string>
     <string name="waex_ui_install_storage_title" formatted="false">"Install from storage"</string>
     <string name="waex_ui_install_storage_official_title" formatted="false">"Official WhatsApp files only"</string>
@@ -1164,4 +1164,16 @@
     <string name="waex_ui_feature_loading_channel" formatted="false">"WAEX feature loading"</string>
     <string name="waex_ui_feature_loading_title" translatable="false">"WaEnhancer X"</string>
     <string name="waex_ui_feature_loading_progress">"Preparing features after an update… %1$d/%2$d"</string>
+    <string name="waex_ui_choose_version" formatted="false">"Choose a version"</string>
+    <string name="waex_ui_pick_version_title" formatted="false">"Choose a version"</string>
+    <string name="waex_ui_pick_version_message">"Every %1$s build below is supported. Tap one to open its download page."</string>
+    <string name="waex_ui_fetching_versions" formatted="false">"Fetching available versions…"</string>
+    <string name="waex_ui_verify_human_title" formatted="false">"Verify you are human"</string>
+    <string name="waex_ui_verify_human_message" formatted="false">"APKMirror asks for a quick check. Complete it and the versions will load automatically."</string>
+    <string name="waex_ui_no_matching_versions" formatted="false">"No supported versions were found in the feed."</string>
+    <string name="waex_ui_open_apkmirror" formatted="false">"Open APKMirror"</string>
+    <string name="waex_ui_versions_unavailable_title" formatted="false">"Couldn't load versions"</string>
+    <string name="waex_ui_versions_unavailable_message" formatted="false">"The version list could not be loaded. Check your connection and try again, or browse APKMirror directly."</string>
+    <string name="waex_ui_verify_now" formatted="false">"Verify now"</string>
+    <string name="waex_ui_browser_unavailable_message" formatted="false">"The in-app browser could not start on this device. Open APKMirror in your browser instead."</string>
 </resources>

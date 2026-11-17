@@ -24,6 +24,7 @@ sealed class Screen(val route: String) {
     object UpdateSettings : Screen("update_settings")
     object SupportedVersions : Screen("supported_versions")
     data class InstallFromStorage(val packageName: String) : Screen("install_from_storage/$packageName")
+    data class ApkMirrorVersions(val packageName: String) : Screen("apkmirror_versions/$packageName")
     object BootloaderSpoofer : Screen("bootloader_spoofer")
     object DeletedMessages : Screen("deleted_messages")
     object CallRecordingSettings : Screen("call_recording_settings")
