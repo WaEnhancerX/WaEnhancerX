@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
@@ -228,8 +229,8 @@ fun Modifier.waexGlass(
             }
             drawContent()
             // Specular rim: bright on the top-left, fading, with a faint bounce on the bottom-right.
-            drawOutline(
-                outline = outline,
+            drawPath(
+                path = clip,
                 brush = Brush.linearGradient(
                     colorStops = arrayOf(
                         0f to Color.White.copy(alpha = rimAlpha),
