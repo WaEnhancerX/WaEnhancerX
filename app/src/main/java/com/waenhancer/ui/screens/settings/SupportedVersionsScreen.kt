@@ -623,6 +623,15 @@ private fun AppVersionStatusCard(
 
                 // Suggestion: the newest supported version, only for official WhatsApp packages.
                 if (suggestion != null && SupportedVersionSuggester.isSuggestionTarget(packageName)) {
+                    // The two actions are alternatives, so say so between them.
+                    Text(
+                        text = UiText.get(R.string.waex_ui_or_divider, "OR"),
+                        style = typography.labelSm,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                     Surface(
                         shape = radius.smShape,
                         color = colors.surface,
@@ -654,7 +663,7 @@ private fun AppVersionStatusCard(
                                 modifier = Modifier.height(36.dp)
                             ) {
                                 Text(
-                                    text = UiText.get(R.string.waex_ui_get_this_version, "Get this version"),
+                                    text = UiText.get(R.string.waex_ui_get_this_version, "Install Supported"),
                                     style = typography.labelSm,
                                     fontWeight = FontWeight.Bold
                                 )
