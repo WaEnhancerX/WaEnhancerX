@@ -111,8 +111,16 @@ class OnlinePresenceIndicatorsHook(
                             )
                         }
                     }
+                    val canonical = PresenceStateStore.normalize(jid)
+                    val identities = collectJidIdentities(sources)
+                    identities.forEach { identity ->
+                        if (identity != canonical && !identity.contains("@g.us")) {
+                            recordIdentityAlias(identity, canonical)
+                        }
+                    }
+                    if (bindDiagnostics.get() < 40) XposedBridge.log("[WAEX][OnlinePresence] TEMPDEBUG row h=" + Math.abs(canonical.hashCode() % 1000) + " ids=" + identities.map { Math.abs(it.hashCode() % 1000) }) // TEMPDEBUG
                     requestPresence(sources, jid)
-                    queueBindRow(row, PresenceStateStore.normalize(jid))
+                    queueBindRow(row, canonical)
                 }
             }
             bindMethods.forEach { XposedBridge.hookMethod(it, rowHook) }
@@ -120,8 +128,8 @@ class OnlinePresenceIndicatorsHook(
                 "${m.declaringClass.simpleName}.${m.name}/${m.parameterCount}"
             } + " subscription=" + (subscriptionMethod?.let { "${it.declaringClass.simpleName}.${it.name}/${it.parameterCount}" } ?: "none"))
             PresenceStateStore.addListener { eventJid, state ->
-                if (presenceDiagnostics.getAndIncrement() < 12) {
-                    XposedBridge.log("[WAEX][OnlinePresence] presence event kind=${jidKind(eventJid)} known=${state?.known} online=${state?.online}")
+                if (presenceDiagnostics.getAndIncrement() < 60) {
+                    XposedBridge.log("[WAEX][OnlinePresence] presence event h=" + Math.abs((eventJid ?: "").hashCode() % 1000) + " known=" + state?.known + " online=" + state?.online + " rowH=" + synchronized(visibleRows) { visibleRows.values.map { Math.abs(it.hashCode() % 1000) } }) // TEMPDEBUG
                 }
                 queuePresenceRefresh()
             }
@@ -165,6 +173,8 @@ class OnlinePresenceIndicatorsHook(
 
     /** Identity kind only (never the identifier) so diagnostics stay privacy-safe. */
     private fun jidKind(jid: String?): String = jid?.substringAfter('@', "")?.ifEmpty { "none" } ?: "null"
+
+    private fun jidShape(jid: String?): String = jid?.replace(Regex("[0-9]+"), "#") ?: "null" // TEMPDEBUG
 
     private fun logBindDiagnostic(message: String) {
         if (bindDiagnostics.getAndIncrement() < 12) XposedBridge.log("[WAEX][OnlinePresence] $message")
@@ -217,6 +227,11 @@ class OnlinePresenceIndicatorsHook(
     }
 
     private fun bindRow(row: View, jid: String) {
+        try { // TEMPDEBUG
+            val nameId = HostResourceIds.id(row.context, "conversations_row_contact_name")
+            val name = (if (nameId != 0) row.findViewById<TextView>(nameId)?.text else null)
+            XposedBridge.log("[WAEX][RowDump] name=" + name + " jid=" + jid)
+        } catch (_: Throwable) { }
         ensureDotView(row)
         ensureTextView(row)
         visibleRows[row] = jid
@@ -501,6 +516,57 @@ class OnlinePresenceIndicatorsHook(
         val seen = Collections.newSetFromMap(WeakHashMap<Any, Boolean>())
         values.forEach { findJid(it, depth, seen)?.let { jid -> return jid } }
         return null
+    }
+
+    /**
+     * Every identity (PN and LID forms) the host hands this row, found by type: any value that is an
+     * instance of the host Jid type, reached directly, through no-arg Jid-returning accessors, or
+     * through fields of the bound objects. Presence events may use a different identity form than the
+     * row's primary key, so all of them are registered as aliases of the row.
+     */
+    private fun collectJidIdentities(sources: List<Any?>): Set<String> {
+        val out = LinkedHashSet<String>()
+        val seen = Collections.newSetFromMap(WeakHashMap<Any, Boolean>())
+        sources.forEach { gatherJidIdentities(it, 3, seen, out) }
+        return out
+    }
+
+    private fun gatherJidIdentities(value: Any?, depth: Int, seen: MutableSet<Any>, out: MutableSet<String>) {
+        val jidType = hostJidType ?: return
+        if (value == null || depth < 0) return
+        if (value is View || value is Context || value is CharSequence || value is Number) return
+        if (jidType.isInstance(value)) {
+            try {
+                JID_REGEX.find(value.toString())?.value?.let { out.add(PresenceStateStore.normalize(it)) }
+            } catch (ignored: Throwable) { HookErrors.swallowed("OnlinePresenceIndicatorsHook", ignored) }
+            return
+        }
+        if (!seen.add(value)) return
+        val type = value.javaClass
+        if (type.name.startsWith("java.") || type.name.startsWith("android.")) return
+        val accessors = accessorCache.getOrPut(type) {
+            try {
+                type.methods.filter {
+                    it.parameterCount == 0 && !Modifier.isStatic(it.modifiers) &&
+                        jidType.isAssignableFrom(it.returnType)
+                }
+            } catch (_: Throwable) { emptyList() }
+        }
+        for (accessor in accessors) {
+            try { gatherJidIdentities(accessor.invoke(value), depth - 1, seen, out) }
+            catch (ignored: Throwable) { HookErrors.swallowed("OnlinePresenceIndicatorsHook", ignored) }
+        }
+        var cursor: Class<*>? = type
+        while (cursor != null && !cursor.name.startsWith("java.") && !cursor.name.startsWith("android.")) {
+            for (field in HostFields.declared(cursor)) {
+                if (Modifier.isStatic(field.modifiers) || field.type.isPrimitive) continue
+                try {
+                    field.isAccessible = true
+                    gatherJidIdentities(field.get(value), depth - 1, seen, out)
+                } catch (ignored: Throwable) { HookErrors.swallowed("OnlinePresenceIndicatorsHook", ignored) }
+            }
+            cursor = cursor.superclass
+        }
     }
 
     /** Name-independent: any public no-arg method whose declared return type is the host Jid type. */

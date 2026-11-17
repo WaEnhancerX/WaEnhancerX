@@ -113,6 +113,7 @@ public class PresenceToastsHook extends BaseFeature {
                     // Observe only successfully handled host events. Never cancel/mutate them.
                     if (param.hasThrowable() || param.args == null || param.args.length != 1
                             || !(param.args[0] instanceof Message)) return;
+                    dumpRawPresence((Message) param.args[0]); // TEMPDEBUG
                     if (PresenceEventPolicy.isTransportInvalidation(((Message) param.args[0]).what)) {
                         PresenceStateStore.invalidateAll();
                         return;
@@ -139,6 +140,29 @@ public class PresenceToastsHook extends BaseFeature {
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Error hooking presence toasts: " + t.getClass().getSimpleName());
         }
+    }
+
+    // TEMPDEBUG: raw dump of presence-family messages
+    private static void dumpRawPresence(Message message) {
+        try {
+            if (message.what != 5) return;
+            StringBuilder out = new StringBuilder("[WAEX][RawPresence] what=").append(message.what)
+                    .append(" arg1=").append(message.arg1).append(" arg2=").append(message.arg2)
+                    .append(" objClass=").append(message.obj == null ? "null" : message.obj.getClass().getName());
+            if (message.obj instanceof BaseBundle) {
+                BaseBundle bundle = (BaseBundle) message.obj;
+                for (String key : bundle.keySet()) {
+                    Object value = bundle.get(key);
+                    out.append(" | ").append(key).append('=').append(value)
+                            .append('(').append(value == null ? "null" : value.getClass().getSimpleName()).append(')');
+                }
+            } else if (message.obj != null) {
+                out.append(" obj=").append(message.obj);
+            }
+            android.os.Bundle data = message.peekData();
+            if (data != null) out.append(" data=").append(data);
+            XposedBridge.log(out.toString());
+        } catch (Throwable ignored) { }
     }
 
     private static boolean isPresenceHandler(Method method) {
