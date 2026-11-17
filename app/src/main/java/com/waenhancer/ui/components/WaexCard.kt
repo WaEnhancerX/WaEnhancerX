@@ -6,7 +6,10 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import com.waenhancer.ui.designsystem.WaexTheme
+import com.waenhancer.ui.glass.LocalWaexLiquidGlass
+import com.waenhancer.ui.glass.waexGlass
 
    @Composable
    fun WaexCard(
@@ -17,6 +20,12 @@ import com.waenhancer.ui.designsystem.WaexTheme
        val colors = WaexTheme.colors
        val radius = WaexTheme.radius
        val elevation = WaexTheme.elevation
+       val glass = LocalWaexLiquidGlass.current
+       // Liquid glass: translucent tint + specular rim, no drop shadow.
+       val glassModifier = if (glass) {
+           modifier.waexGlass(shape = radius.cardShape, tint = colors.surfaceContainer, rimAlpha = 0.45f)
+       } else modifier
+       val containerColor = if (glass) Color.Transparent else colors.surfaceContainer
 
        val cardContent: @Composable () -> Unit = {
            Box(modifier = Modifier.padding(WaexTheme.spacing.stackLg)) { content() }
@@ -24,23 +33,23 @@ import com.waenhancer.ui.designsystem.WaexTheme
        if (onClick != null) {
            Card(
                onClick = onClick,
-               modifier = modifier,
+               modifier = glassModifier,
                shape = radius.cardShape,
-               colors = CardDefaults.cardColors(containerColor = colors.surfaceContainer),
+               colors = CardDefaults.cardColors(containerColor = containerColor),
                elevation = CardDefaults.cardElevation(
-                   defaultElevation = elevation.card,
+                   defaultElevation = if (glass) elevation.none else elevation.card,
                    pressedElevation = elevation.none,
-                   hoveredElevation = elevation.button,
-                   focusedElevation = elevation.button
+                   hoveredElevation = if (glass) elevation.none else elevation.button,
+                   focusedElevation = if (glass) elevation.none else elevation.button
                ),
                content = { cardContent() }
            )
        } else {
            Card(
-               modifier = modifier,
+               modifier = glassModifier,
                shape = radius.cardShape,
-               colors = CardDefaults.cardColors(containerColor = colors.surfaceContainer),
-               elevation = CardDefaults.cardElevation(defaultElevation = elevation.card),
+               colors = CardDefaults.cardColors(containerColor = containerColor),
+               elevation = CardDefaults.cardElevation(defaultElevation = if (glass) elevation.none else elevation.card),
                content = { cardContent() }
            )
        }

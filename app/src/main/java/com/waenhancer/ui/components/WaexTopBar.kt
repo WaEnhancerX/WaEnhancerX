@@ -20,6 +20,10 @@ import androidx.compose.ui.unit.dp
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import com.waenhancer.ui.glass.LocalWaexLiquidGlass
+import com.waenhancer.ui.glass.waexGlass
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,6 +38,7 @@ fun WaexTopBar(
 ) {
     val colors = WaexTheme.colors
     val typography = WaexTheme.typography
+    val glass = LocalWaexLiquidGlass.current
     TopAppBar(
         title = {
             if (titleLeadingIcon != null) {
@@ -56,7 +61,9 @@ fun WaexTopBar(
                 )
             }
         },
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().then(
+            if (glass) Modifier.waexGlass(RectangleShape, colors.surface.copy(alpha = 0.35f), rimAlpha = 0.25f) else Modifier
+        ),
         navigationIcon = {
             if (onBackClick != null) {
                 IconButton(onClick = onBackClick) {
@@ -69,8 +76,8 @@ fun WaexTopBar(
         },
         actions = { actions?.invoke(this) },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = colors.background,
-            scrolledContainerColor = colors.surfaceContainer,
+            containerColor = if (glass) Color.Transparent else colors.background,
+            scrolledContainerColor = if (glass) Color.Transparent else colors.surfaceContainer,
             navigationIconContentColor = colors.onSurface,
             actionIconContentColor = colors.onSurfaceVariant,
             titleContentColor = colors.onSurface

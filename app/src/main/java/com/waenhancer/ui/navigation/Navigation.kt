@@ -43,6 +43,10 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.ui.graphics.RectangleShape
+import com.waenhancer.ui.glass.LocalWaexLiquidGlass
+import com.waenhancer.ui.glass.rememberContentBackdrop
+import com.waenhancer.ui.glass.waexGlass
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.DropdownMenu
@@ -634,11 +638,15 @@ fun MainContainerScreen() {
                 }
             }
         ) {
+        val contentBackdrop = rememberContentBackdrop()
+        val glassUi = LocalWaexLiquidGlass.current
         Scaffold(
             topBar = {
                 if (showParentTopBar) {
                     Surface(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().waexGlass(
+                            RectangleShape, colors.surface.copy(alpha = 0.35f), rimAlpha = 0.25f
+                        ),
                         color = colors.background,
                         tonalElevation = 2.dp
                     ) {
@@ -869,12 +877,23 @@ fun MainContainerScreen() {
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = colors.surface,
-                        border = BorderStroke(1.dp, colors.outlineVariant),
-                        shadowElevation = 6.dp,
+                        color = if (glassUi) Color.Transparent else colors.surface,
+                        border = if (glassUi) null else BorderStroke(1.dp, colors.outlineVariant),
+                        shadowElevation = if (glassUi) 0.dp else 6.dp,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(66.dp)
+                            // KernelSU-style liquid glass: blur + lens refraction over the page content.
+                            .waexGlass(
+                                shape = CircleShape,
+                                tint = colors.surface.copy(alpha = 0.30f),
+                                refract = true,
+                                blur = 4.dp,
+                                lensHeight = 24.dp,
+                                lensAmount = 24.dp,
+                                rimAlpha = 0.7f,
+                                backdrop = contentBackdrop?.backdrop
+                            )
                     ) {
                         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                             val totalWidth = maxWidth
@@ -977,6 +996,7 @@ fun MainContainerScreen() {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .then(contentBackdrop?.contentModifier ?: Modifier)
                     .padding(
                         top = if (isRoot) paddingValues.calculateTopPadding() else 0.dp,
                         bottom = 0.dp

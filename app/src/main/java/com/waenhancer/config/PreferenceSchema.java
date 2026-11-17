@@ -464,6 +464,7 @@ public final class PreferenceSchema {
         // preserves the same public-store routing as older installations.
         add(entries, "anti_revoke_color_enabled", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "app_interface_size", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "app_liquid_glass", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "bubble_colors", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "bubble_incoming_color", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "bubble_outgoing_color", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);

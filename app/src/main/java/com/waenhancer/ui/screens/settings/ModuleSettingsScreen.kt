@@ -79,6 +79,8 @@ import com.waenhancer.ui.components.WaexTopBar
 import com.waenhancer.ui.designsystem.InterfaceSize
 import com.waenhancer.ui.designsystem.LocalInterfaceSize
 import com.waenhancer.ui.designsystem.LocalInterfaceSizeUpdater
+import com.waenhancer.ui.glass.LocalLiquidGlassPref
+import com.waenhancer.ui.glass.LocalLiquidGlassPrefUpdater
 import com.waenhancer.ui.designsystem.LocalThemeMode
 import com.waenhancer.ui.designsystem.LocalThemeModeUpdater
 import com.waenhancer.ui.designsystem.WaexIcons
@@ -202,6 +204,16 @@ fun ModuleSettingsScreen() {
                     InlineInterfaceSizeRow(
                         selectedSize = interfaceSize,
                         onSizeSelected = updateInterfaceSize
+                    )
+
+                    SettingsSwitchRow(
+                        icon = WaexIcons.Palette,
+                        iconTint = colors.primary,
+                        iconBackground = colors.primaryContainer,
+                        title = "Liquid glass",
+                        subtitle = "Frosted, refracting glass surfaces across the whole app",
+                        checked = LocalLiquidGlassPref.current,
+                        onCheckedChange = LocalLiquidGlassPrefUpdater.current
                     )
                 }
             }
