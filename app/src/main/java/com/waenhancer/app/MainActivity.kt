@@ -26,6 +26,8 @@ import com.waenhancer.ui.designsystem.InterfaceSize
 import com.waenhancer.ui.designsystem.LocalInterfaceSize
 import com.waenhancer.ui.designsystem.LocalInterfaceSizeUpdater
 import com.waenhancer.ui.designsystem.WaexTheme
+import com.waenhancer.ui.glass.LocalLiquidGlassPref
+import com.waenhancer.ui.glass.LocalLiquidGlassPrefUpdater
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
 import com.waenhancer.ui.navigation.MainContainerScreen
@@ -109,6 +111,7 @@ class MainActivity : ComponentActivity() {
                 InterfaceSize.fromStorage(preferenceManager.getString("app_interface_size", "Compact"))
             }
             var interfaceSize by remember { mutableStateOf(initialInterfaceSize) }
+            var liquidGlass by remember { mutableStateOf(preferenceManager.getBoolean("app_liquid_glass", true)) }
             val isDark = when (themeMode) {
                 "Dark" -> true
                 "Light" -> false
@@ -124,16 +127,23 @@ class MainActivity : ComponentActivity() {
                 LocalInterfaceSizeUpdater provides {
                     interfaceSize = it
                     preferenceManager.putString("app_interface_size", it.storageValue)
+                },
+                LocalLiquidGlassPref provides liquidGlass,
+                LocalLiquidGlassPrefUpdater provides {
+                    liquidGlass = it
+                    preferenceManager.putBoolean("app_liquid_glass", it)
                 }
             ) {
                 WaexTheme(
                     darkTheme = isDark,
                     useMonet = themeMode == "Monet",
-                    interfaceSize = interfaceSize
+                    interfaceSize = interfaceSize,
+                    liquidGlass = liquidGlass
                 ) {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.background
+                        color = if (liquidGlass) androidx.compose.ui.graphics.Color.Transparent
+                        else MaterialTheme.colorScheme.background
                     ) {
                         val navController = remember {
                             val controller = WaexNavController()

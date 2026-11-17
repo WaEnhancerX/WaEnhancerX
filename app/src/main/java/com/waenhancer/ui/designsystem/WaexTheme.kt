@@ -24,6 +24,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.compose.material3.Shapes
+import com.waenhancer.ui.glass.WaexLiquidGlassHost
 
 val LocalThemeMode = staticCompositionLocalOf { "System" }
 val LocalThemeModeUpdater = staticCompositionLocalOf<(String) -> Unit> { {} }
@@ -107,6 +108,7 @@ fun WaexTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     useMonet: Boolean = false,
     interfaceSize: InterfaceSize = InterfaceSize.COMPACT,
+    liquidGlass: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
@@ -202,7 +204,7 @@ fun WaexTheme(
     }
 
     CompositionLocalProvider(
-        LocalWaexColors provides colors,
+        LocalWaexColors provides if (liquidGlass) colors.asLiquidGlass() else colors,
         LocalWaexTypography provides typography,
         LocalWaexSpacing provides spacing,
         LocalWaexRadius provides radius,
@@ -223,10 +225,27 @@ fun WaexTheme(
                 extraLarge = radius.bottomSheetShape
             )
         ) {
-            content()
+            WaexLiquidGlassHost(
+                enabled = liquidGlass,
+                baseColor = colors.background,
+                accentA = colors.primary,
+                accentB = colors.secondary,
+                isDark = darkTheme,
+                content = content
+            )
         }
     }
 }
+
+/** Translucent surfaces so the liquid glass wallpaper shows through. M3 keeps the opaque scheme. */
+private fun WaexColors.asLiquidGlass(): WaexColors = copy(
+    background = Color.Transparent,
+    surface = surface.copy(alpha = 0.72f),
+    surfaceContainerLow = surfaceContainerLow.copy(alpha = 0.38f),
+    surfaceContainer = surfaceContainer.copy(alpha = 0.46f),
+    surfaceContainerHigh = surfaceContainerHigh.copy(alpha = 0.55f),
+    surfaceContainerHighest = surfaceContainerHighest.copy(alpha = 0.65f)
+)
 
 object WaexTheme {
     val colors: WaexColors

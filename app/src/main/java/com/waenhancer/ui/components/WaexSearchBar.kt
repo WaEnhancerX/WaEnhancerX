@@ -18,6 +18,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
+import com.waenhancer.ui.glass.waexGlass
 
 @Composable
 fun WaexSearchBar(
@@ -30,10 +31,13 @@ fun WaexSearchBar(
     val colors = WaexTheme.colors
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
+    val glass = com.waenhancer.ui.glass.LocalWaexLiquidGlass.current
     TextField(
         value = query,
         onValueChange = onQueryChange,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().then(
+            if (glass) Modifier.waexGlass(radius.fullShape, colors.surfaceContainerHigh, rimAlpha = 0.5f) else Modifier
+        ),
         textStyle = typography.bodyLg,
         placeholder = {
             androidx.compose.material3.Text(
@@ -66,8 +70,8 @@ fun WaexSearchBar(
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         keyboardActions = KeyboardActions(onSearch = { onSearch?.invoke() }),
         colors = TextFieldDefaults.colors(
-            focusedContainerColor = colors.surfaceContainerHigh,
-            unfocusedContainerColor = colors.surfaceContainerHigh,
+            focusedContainerColor = if (glass) androidx.compose.ui.graphics.Color.Transparent else colors.surfaceContainerHigh,
+            unfocusedContainerColor = if (glass) androidx.compose.ui.graphics.Color.Transparent else colors.surfaceContainerHigh,
             disabledContainerColor = colors.surfaceContainerLow,
             focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
             unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,

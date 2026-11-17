@@ -17,6 +17,9 @@ import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
+import android.graphics.RuntimeShader;
 import android.graphics.LinearGradient;
 import android.graphics.Outline;
 import android.graphics.Paint;
@@ -120,6 +123,8 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
     private static int glassFillColor = 0;
     private static boolean pillDesignPro = false;
     private static boolean pillDesignIos = false;
+    /** Free KernelSU-style liquid glass (blur + lens refraction). Deliberately not Pro gated. */
+    private static boolean pillDesignLiquid = false;
 
     private static int userBottomMarginDp = 22;
     private static int userSideMarginDp = 16;
@@ -163,6 +168,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
         boolean isProActive = prefs.getBoolean("waex_pro_active", false);
         pillDesignPro = "pro".equals(designPref) && isProActive;
         pillDesignIos = "ios_glass".equals(designPref) && isProActive;
+        pillDesignLiquid = "liquid_glass".equals(designPref);
 
         userBottomMarginDp = prefs.getInt("floating_bottom_bar_margin_bottom", (int) BOTTOM_MARGIN_DP);
         userSideMarginDp = prefs.getInt("floating_bottom_bar_margin_horizontal", (int) SIDE_MARGIN_DP);
@@ -1335,7 +1341,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
         int userRadius = prefs.getInt("floating_bottom_bar_radius", userRadiusDp);
         // Frosted glass is a true capsule. A fixed dp radius looked only partially rounded
         // when vertical padding increased the navigation height.
-        final float radius = pillDesignIos
+        final float radius = (pillDesignIos || pillDesignLiquid)
                 ? Math.max(bar.getHeight(), (56 + (userVerticalPaddingDp * 2)) * density) / 2f
                 : userRadius * density;
 
@@ -1361,7 +1367,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                     outline.setRoundRect(capsuleInset, 0, right, view.getHeight(), radius);
                 }
             });
-            if (pillDesignIos) {
+            if (pillDesignIos || pillDesignLiquid) {
                 // Backdrop effects are composed before the child View's outline clip. Clipping the
                 // outer container masks the rectangular blur surface to the exact pill bounds.
                 container.setClipToOutline(true);
@@ -1376,11 +1382,11 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
             bgColor = glassFillColor;
         }
 
-        boolean useGlass = glassEnabled || pillDesignIos;
+        boolean useGlass = glassEnabled || pillDesignIos || pillDesignLiquid;
         if (useGlass) {
             int alpha = Math.max(0, Math.min(255, Math.round((glassOpacity / 100f) * 255f)));
             if (glassOpacity == 35f) {
-                alpha = pillDesignIos ? (isNight ? 0x66 : 0x88) : (isNight ? 0x55 : 0x77);
+                alpha = pillDesignLiquid ? (isNight ? 0x38 : 0x58) : pillDesignIos ? (isNight ? 0x66 : 0x88) : (isNight ? 0x55 : 0x77);
             }
             int rgb = bgColor & 0x00FFFFFF;
             bgColor = (alpha << 24) | rgb;
@@ -1390,16 +1396,18 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
         background.setShape(GradientDrawable.RECTANGLE);
         background.setCornerRadius(radius);
         background.setColor(bgColor);
-        int strokeWidth = Math.max(1, (int) ((pillDesignPro || pillDesignIos ? 1f : 0.6f) * density));
-        int strokeColor = pillDesignIos
+        int strokeWidth = Math.max(1, (int) ((pillDesignPro || pillDesignIos || pillDesignLiquid ? 1f : 0.6f) * density));
+        int strokeColor = pillDesignLiquid
+                ? (isNight ? 0x66FFFFFF : 0x99FFFFFF)
+                : pillDesignIos
                 ? (isNight ? 0x55FFFFFF : 0x44000000)
                 : (pillDesignPro ? (isNight ? 0x30FFFFFF : 0x33008069)
                 : (isNight ? 0x18FFFFFF : 0x22000000));
         background.setStroke(strokeWidth, strokeColor);
 
         bar.setBackground(background);
-        float shadowElevationDp = pillDesignPro ? 16f : (pillDesignIos ? 10f : PILL_ELEVATION_DP);
-        float shadowTranslationDp = pillDesignPro ? 10f : (pillDesignIos ? 6f : PILL_TRANSLATION_Z_DP);
+        float shadowElevationDp = pillDesignPro ? 16f : (pillDesignIos ? 10f : (pillDesignLiquid ? 8f : PILL_ELEVATION_DP));
+        float shadowTranslationDp = pillDesignPro ? 10f : (pillDesignIos ? 6f : (pillDesignLiquid ? 4f : PILL_TRANSLATION_Z_DP));
         applyPillShadow(container, density, shadowEnabled, shadowElevationDp, shadowTranslationDp);
         // The wrapper owns the shadow so WhatsApp cannot clip it at the child boundary.
         applyPillShadow(bar, density, false, 0f, 0f);
@@ -1411,12 +1419,16 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                     outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), radius);
                 }
             });
-            bar.setClipToOutline(pillDesignIos);
+            bar.setClipToOutline(pillDesignIos || pillDesignLiquid);
         }
 
         // Install backdrop blur only after the final rounded outline exists; the RenderNode uses
         // that outline as its blur mask at effect creation time.
-        applyBackdropBlur(bar, useGlass, density);
+        if (pillDesignLiquid) {
+            applyLiquidBackdrop(bar, density, 24f, 24f, 4f);
+        } else {
+            applyBackdropBlur(bar, useGlass, density);
+        }
 
         makeChildrenTransparent(bar);
         if (selectorColorEnabled) {
@@ -1651,7 +1663,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
     private static void applyPresetTabIndicators(ViewGroup bar, float density) {
         // Oval is geometry-only and deliberately retains WhatsApp's native selector drawable/tint.
         if (selectorOval) return;
-        if (!pillDesignPro && !pillDesignIos) return;
+        if (!pillDesignPro && !pillDesignIos && !pillDesignLiquid) return;
         for (int i = 0; i < bar.getChildCount(); i++) {
             View child = bar.getChildAt(i);
             if (!(child instanceof ViewGroup)) continue;
@@ -1831,7 +1843,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
     }
 
     private static Drawable createPresetIndicator(View tab, float density) {
-        Drawable indicator = pillDesignIos
+        Drawable indicator = (pillDesignIos || pillDesignLiquid)
                 ? new IosLiquidGlassDrawable(tab.getContext(), density)
                 : new LiquidOvalDrawable(tab.getContext(), density);
         if (selectorColorEnabled) indicator.setTint(selectorColor);
@@ -1879,6 +1891,116 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Backdrop blur unavailable; using translucent fallback: "
                     + t.getClass().getSimpleName());
+        }
+    }
+
+    private static final WeakHashMap<View, View.OnLayoutChangeListener> liquidLayoutListeners = new WeakHashMap<>();
+    private static final WeakHashMap<View, Boolean> liquidStyledFabs = new WeakHashMap<>();
+
+    /**
+     * KernelSU-style liquid glass lens (Kyant0/AndroidLiquidGlass, Apache 2.0), single corner radius.
+     * Samples the backdrop inward near the edge so the content behind appears refracted.
+     */
+    private static final String LIQUID_LENS_AGSL =
+            "uniform shader content;\n"
+            + "uniform float2 size;\n"
+            + "uniform float cornerRadius;\n"
+            + "uniform float refractionHeight;\n"
+            + "uniform float refractionAmount;\n"
+            + "float sdRoundedRect(float2 coord, float2 halfSize, float radius) {\n"
+            + "    float2 cornerCoord = abs(coord) - (halfSize - float2(radius));\n"
+            + "    float outside = length(max(cornerCoord, 0.0)) - radius;\n"
+            + "    float inside = min(max(cornerCoord.x, cornerCoord.y), 0.0);\n"
+            + "    return outside + inside;\n"
+            + "}\n"
+            + "float2 gradSdRoundedRect(float2 coord, float2 halfSize, float radius) {\n"
+            + "    float2 cornerCoord = abs(coord) - (halfSize - float2(radius));\n"
+            + "    if (cornerCoord.x >= 0.0 || cornerCoord.y >= 0.0) {\n"
+            + "        return sign(coord) * normalize(max(cornerCoord, 0.0));\n"
+            + "    } else {\n"
+            + "        float gradX = step(cornerCoord.y, cornerCoord.x);\n"
+            + "        return sign(coord) * float2(gradX, 1.0 - gradX);\n"
+            + "    }\n"
+            + "}\n"
+            + "float circleMap(float x) { return 1.0 - sqrt(1.0 - x * x); }\n"
+            + "half4 main(float2 coord) {\n"
+            + "    float2 halfSize = size * 0.5;\n"
+            + "    float2 centered = coord - halfSize;\n"
+            + "    float sd = sdRoundedRect(centered, halfSize, cornerRadius);\n"
+            + "    if (-sd >= refractionHeight) { return content.eval(coord); }\n"
+            + "    sd = min(sd, 0.0);\n"
+            + "    float d = circleMap(1.0 - -sd / refractionHeight) * refractionAmount;\n"
+            + "    float gradRadius = min(cornerRadius * 1.5, min(halfSize.x, halfSize.y));\n"
+            + "    float2 grad = normalize(gradSdRoundedRect(centered, halfSize, gradRadius));\n"
+            + "    return content.eval(coord + d * grad);\n"
+            + "}\n";
+
+    /**
+     * Installs blur + saturation + lens refraction as the view's backdrop effect (so only what is
+     * BEHIND the view is distorted, icons and labels stay sharp). Rebuilt whenever the size changes
+     * because the shader needs the exact bounds. Falls back to the translucent background on devices
+     * where the hidden backdrop API or AGSL (Android 13+) is unavailable.
+     */
+    private static void applyLiquidBackdrop(final View view, final float density,
+                                            final float lensDp, final float amountDp, final float blurDp) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return;
+        rebuildLiquidBackdrop(view, density, lensDp, amountDp, blurDp);
+        if (!liquidLayoutListeners.containsKey(view)) {
+            View.OnLayoutChangeListener listener = (v, l, t, r, b, ol, ot, orr, ob) -> {
+                if ((r - l) != (orr - ol) || (b - t) != (ob - ot)) {
+                    rebuildLiquidBackdrop(v, density, lensDp, amountDp, blurDp);
+                }
+            };
+            view.addOnLayoutChangeListener(listener);
+            liquidLayoutListeners.put(view, listener);
+        }
+    }
+
+    private static void rebuildLiquidBackdrop(View view, float density,
+                                              float lensDp, float amountDp, float blurDp) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return;
+        int w = view.getWidth();
+        int h = view.getHeight();
+        if (w <= 0 || h <= 0) return;
+        try {
+            Object renderNode = XposedHelpers.getObjectField(view, "mRenderNode");
+            if (renderNode == null) return;
+            float blurPx = blurDp * density;
+            RenderEffect effect = RenderEffect.createBlurEffect(blurPx, blurPx, Shader.TileMode.MIRROR);
+            ColorMatrix saturation = new ColorMatrix();
+            saturation.setSaturation(1.5f);
+            effect = RenderEffect.createColorFilterEffect(new ColorMatrixColorFilter(saturation), effect);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                float radius = Math.min(w, h) / 2f;
+                RuntimeShader shader = new RuntimeShader(LIQUID_LENS_AGSL);
+                shader.setFloatUniform("size", (float) w, (float) h);
+                shader.setFloatUniform("cornerRadius", radius);
+                shader.setFloatUniform("refractionHeight", Math.min(lensDp * density, radius));
+                shader.setFloatUniform("refractionAmount", -amountDp * density);
+                effect = RenderEffect.createChainEffect(
+                        RenderEffect.createRuntimeShaderEffect(shader, "content"), effect);
+            }
+            XposedHelpers.callMethod(renderNode, "setBackdropRenderEffect", effect);
+            XposedHelpers.callMethod(renderNode, "setClipToOutline", true);
+            view.invalidate();
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " Liquid backdrop unavailable; using translucent fallback: "
+                    + t.getClass().getSimpleName());
+        }
+    }
+
+    /** Gives WhatsApp's floating action buttons the same liquid glass treatment as the bar. */
+    private static void applyLiquidFab(View fab, float density) {
+        if (liquidStyledFabs.containsKey(fab)) return;
+        liquidStyledFabs.put(fab, Boolean.TRUE);
+        try {
+            boolean night = isNightMode(fab.getContext());
+            // FloatingActionButton/MaterialButton ignore setBackground(); tinting keeps their shape.
+            fab.setBackgroundTintList(ColorStateList.valueOf(night ? 0x44FFFFFF : 0x66FFFFFF));
+            fab.setClipToOutline(true);
+            applyLiquidBackdrop(fab, density, 12f, 12f, 4f);
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + " Liquid FAB styling skipped: " + t.getClass().getSimpleName());
         }
     }
 
@@ -2073,6 +2195,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
             if (id <= 0) continue;
             View fab = rootView.findViewById(id);
             if (fab != null) {
+                if (pillDesignLiquid) applyLiquidFab(fab, density);
                 if (fab.getTranslationY() != totalOffset) fab.setTranslationY(totalOffset);
                 ViewParent parent = fab.getParent();
                 if (parent instanceof ViewGroup) {
