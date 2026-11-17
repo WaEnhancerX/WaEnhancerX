@@ -1,7 +1,5 @@
 package com.waenhancer.utils
 
-import java.net.URLEncoder
-
 /**
  * A version the user can move to when their installed build is unsupported.
  *
@@ -63,13 +61,16 @@ object SupportedVersionSuggester {
         return newestBuiltinRule(builtinRules)?.let { VersionSuggestion(it, false) }
     }
 
-    /** APKMirror search page for [version], opened in the user's browser. */
+    /**
+     * APKMirror's own page for [packageName]'s app, opened in the user's browser. A keyword search
+     * cannot tell WhatsApp from WhatsApp Business ("whatsapp" matches both), so each official app
+     * links to its dedicated release list instead. Unknown packages return null.
+     */
     @JvmStatic
-    fun downloadSearchUrl(packageName: String, version: String): String {
-        val name = if (packageName == PACKAGE_BUSINESS) "whatsapp business" else "whatsapp"
-        val base = ruleBase(version.trim().removePrefix("v"))
-        val query = URLEncoder.encode("$name $base", "UTF-8")
-        return "https://www.apkmirror.com/?post_type=app_release&searchtype=apk&s=$query"
+    fun downloadPageUrl(packageName: String): String? = when (packageName) {
+        PACKAGE_WHATSAPP -> "https://www.apkmirror.com/apk/whatsapp-inc/whatsapp-messenger/"
+        PACKAGE_BUSINESS -> "https://www.apkmirror.com/apk/whatsapp-inc/whatsapp-messenger-business/"
+        else -> null
     }
 
     private val CONCRETE_VERSION = Regex("[0-9]+(?:\\.[0-9]+)+")

@@ -20,9 +20,17 @@
 - Improved Privacy features
 
 
-[Report Issues Feature]
+[Feature: Report Issues]
 - Report issues directly from app
 - Select issue type (issue or feature)
 - Issues will automatically be created on GitHub Issues
 - Directly track issues status via app
 - Get notified about issue status updates via Telegram Bot
+
+[Feature: Download Supported Versions]
+- Shows "Install Supported" when unsupported
+- Clicking opens a new screen to either install from storage or Download
+- It fetches all the supported versions from apkmirror and shows them in a list
+- Download directly within WAEX and upgrade/downgrade effortlessly without relying on any 3rd party downgrade module or downloading in browser
+- Before installation, WAEX will validate the APK and reject if unofficial or not supported
+- This will keep the process clean and organized

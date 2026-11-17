@@ -61,14 +61,15 @@ class SupportedVersionSuggesterTest {
     }
 
     @Test
-    fun `download url searches the right app and version branch`() {
+    fun `each official app links to its own release page`() {
         assertEquals(
-            "https://www.apkmirror.com/?post_type=app_release&searchtype=apk&s=whatsapp+2.26.45.71",
-            SupportedVersionSuggester.downloadSearchUrl("com.whatsapp", "2.26.45.71")
+            "https://www.apkmirror.com/apk/whatsapp-inc/whatsapp-messenger/",
+            SupportedVersionSuggester.downloadPageUrl("com.whatsapp")
         )
         assertEquals(
-            "https://www.apkmirror.com/?post_type=app_release&searchtype=apk&s=whatsapp+business+2.26.45",
-            SupportedVersionSuggester.downloadSearchUrl("com.whatsapp.w4b", "2.26.45.xx")
+            "https://www.apkmirror.com/apk/whatsapp-inc/whatsapp-messenger-business/",
+            SupportedVersionSuggester.downloadPageUrl("com.whatsapp.w4b")
         )
+        assertNull(SupportedVersionSuggester.downloadPageUrl("com.ob5whatsapp"))
     }
 }
