@@ -341,6 +341,7 @@ jobs:
             qa/test_deleted_indicator_bridge.py \
             qa/test_deleted_indicator_preference_types.py \
             qa/test_proximity_event_isolation.py \
+            qa/test_proximity_wake_lock_policy.py \
             qa/test_proximity_ui_wiring.py \
             qa/test_notification_memory.py \
             qa/test_preserved_own_revoke.py \
