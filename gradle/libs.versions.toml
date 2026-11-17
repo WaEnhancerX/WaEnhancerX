@@ -64,7 +64,7 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 libxposed-legacy = { group = "de.robv.android.xposed", name = "api", version = "82" }
-dexkit = { module = "org.luckypray:dexkit", version = "2.2.0" }
+dexkit = { module = "org.luckypray:dexkit", version = "2.3.0" }
 markwon-core = { module = "io.noties.markwon:core", version.ref = "markwon" }
 markwon-html = { module = "io.noties.markwon:html", version.ref = "markwon" }
 
