@@ -1,5 +1,10 @@
 # Live observation time between invalidation pulses
 
+> Historical acceptance for the removed `RuntimeObservationClock.kt`.
+> Current versions refresh through `TargetAppManager` events and PID/boot evidence;
+> see [CURRENT_RUNTIME_EVIDENCE_ACCEPTANCE.md](CURRENT_RUNTIME_EVIDENCE_ACCEPTANCE.md).
+> Do not rerun these deleted-file test commands against the current revision.
+
 The lifecycle-STARTED pulse still invalidates the display every five seconds, but
 each composition obtains current wall/elapsed time rather than reusing a timestamp
 from the previous pulse. SystemHealth reads the target reports before that clock.

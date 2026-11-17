@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Isolated real Android/Compose compilation and regressions, not a full WAEX APK.
-Modes allow standalone updater/filter/clock branches without borrowing production
+Modes allow standalone updater/filter/runtime-evidence branches without borrowing production
 code from another PR. Xposed, private Pro behavior and design theme are fixtures.
 """
 from pathlib import Path
@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def main():
     ap=argparse.ArgumentParser();ap.add_argument('--root',type=Path,default=ROOT)
     ap.add_argument('--out',type=Path,required=True)
-    ap.add_argument('--mode',choices=['all','update','filter','clock'],default='all')
+    ap.add_argument('--mode',choices=['all','update','filter','evidence'],default='all')
     a=ap.parse_args();root=a.root.resolve();out=a.out.resolve()
     out.mkdir(parents=True,exist_ok=False);e=out/'evidence';e.mkdir()
     p=out/'fixture';p.mkdir();v=tomllib.loads((root/'gradle/libs.versions.toml').read_text())['versions']
@@ -61,13 +61,13 @@ dependencies {
     write('build.gradle.kts',build)
     write('src/main/AndroidManifest.xml','<manifest xmlns:android="http://schemas.android.com/apk/res/android"/>')
     identity={p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in ('app/build.gradle.kts','gradle/libs.versions.toml')}
-    modes=['update','filter','clock'] if a.mode=='all' else [a.mode]
-    sources={'update':['update/UpdateDownloader.kt','update/UpdateTransferPolicy.kt','update/UpdateDownloadSession.kt','update/ReleaseRepository.kt','ui/components/UpdateDownloadSheet.kt','xposed/utils/RootCommandRunner.java',
+    modes=['update','filter','evidence'] if a.mode=='all' else [a.mode]
+    sources={'update':['update/UpdateDownloader.kt','update/UpdateTransferPolicy.kt','update/UpdateDownloadSession.kt','update/ReleaseRepository.kt','ui/components/UpdateDownloadSheet.kt','xposed/utils/RootCommandRunner.java','xposed/utils/HookErrors.java',
                        'config/PreferenceStores.java','config/PreferenceSchema.java','ui/components/NetworkErrorSheet.kt','ui/components/WaexModalBottomSheet.kt','ui/components/WaexProgressIndicator.kt',
                        'ui/designsystem/WaexIcons.kt','ui/designsystem/WaexRadius.kt','ui/designsystem/WaexElevation.kt'],
              'filter':['xposed/features/customization/FilterItemsHook.kt','model/FilterItem.kt','xposed/core/ViewHookDispatcher.java'],
-             'clock':['ui/components/RuntimeObservationClock.kt','utils/InjectionEvidence.kt']}
-    expected={'update':5,'filter':3,'clock':1}
+             'evidence':['utils/InjectionEvidence.kt']}
+    expected={'update':5,'filter':3,'evidence':10}
     for mode in modes:
         for rel in sources[mode]:
             source=root/'app/src/main/java/com/waenhancer'/rel
@@ -86,7 +86,8 @@ dependencies {
         identity[str(source.relative_to(root))]=digest
         if any(hashlib.sha256(path.read_bytes()).hexdigest()!=digest for path in (target,e/source.name)):
             raise ValueError('Changed bytes while staging JUnit source or evidence: '+source.name)
-    # Only a theme adapter for compilation; no fonts or licensing implementation copied.
+    # The fixture uses the actual public color palette instead of a Material3
+    # ColorScheme lookalike: WAEX's isLight property is a production contract.
     # The updater compiles real radius/elevation tokens; other standalone modes
     # must not require a dependency they do not stage.
     update_theme=(' val radius @Composable get()=WaexRadius()\n val elevation @Composable get()=WaexElevation()' if 'update' in modes else '')
@@ -94,13 +95,19 @@ dependencies {
 import androidx.compose.runtime.Composable
 import androidx.compose.material3.MaterialTheme
 object WaexTheme {
- val colors @Composable get()=MaterialTheme.colorScheme
+ val colors @Composable get()=lightColors
  val typography @Composable get()=FixtureTypography(MaterialTheme.typography)
 EXTRA_UPDATE_TOKENS
 }
 class FixtureTypography(val t:androidx.compose.material3.Typography){val headlineMd get()=t.headlineMedium;val bodyMd get()=t.bodyMedium}
 '''
     write('src/main/java/com/waenhancer/ui/designsystem/WaexTheme.kt',theme.replace('EXTRA_UPDATE_TOKENS',update_theme))
+    palette=root/'app/src/main/java/com/waenhancer/ui/designsystem/WaexColors.kt'
+    palette_target=probe/'src/main/java/com/waenhancer/ui/designsystem/WaexColors.kt'
+    shutil.copyfile(palette,palette_target)
+    identity[str(palette.relative_to(root))]=hashlib.sha256(palette.read_bytes()).hexdigest()
+    if hashlib.sha256(palette_target.read_bytes()).hexdigest()!=identity[str(palette.relative_to(root))]:
+        raise ValueError('Changed bytes while staging production colors')
     if 'filter' in modes:
         write('src/main/res/values/ids.xml','<resources><item name="fixture_target" type="id"/><item name="fixture_other" type="id"/></resources>')
         write('src/main/java/com/waenhancer/xposed/core/BaseFeature.kt','''package com.waenhancer.xposed.core
@@ -126,6 +133,12 @@ public class XposedBridge {
 }''')
         write('src/main/java/de/robv/android/xposed/XposedHelpers.java','''package de.robv.android.xposed;
 public class XposedHelpers {public static void findAndHookMethod(Object... args){throw new AssertionError("No actual hooks in this fixture");} public static Object callMethod(Object o,String n,Object... a){throw new AssertionError("Unexpected reflective hook");}public static Object getAdditionalInstanceField(Object o,String n){return null;}public static void setAdditionalInstanceField(Object o,String n,Object v){}}
+''')
+    if 'update' in modes and 'filter' not in modes:
+        # RootCommandRunner uses the real HookErrors diagnostics on cleanup failure.
+        # Its only Xposed dependency is a log sink; do not replace the recorder.
+        write('src/main/java/de/robv/android/xposed/XposedBridge.java','''package de.robv.android.xposed;
+public class XposedBridge {public static void log(String line) {}}
 ''')
     if not stage_localization(root, probe, identity):
         raise RuntimeError('Real localization helpers are required by this framework fixture')

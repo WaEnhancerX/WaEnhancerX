@@ -34,7 +34,7 @@ fun main(args:Array<String>){
     fun module(rules:Array<String>, name:String?=null, namesArg:Map<String,Int> = names)=Context("com.waenhancer",Resources("com.waenhancer",namesArg,mapOf(R.array.universal_supported_versions to rules),name))
     val mod=module(rules);val prefs=Prefs()
     val host=Context("com.whatsapp",Resources("com.whatsapp",emptyMap(),emptyMap()),mod)
-    for(v in listOf("2.26.42.9","2.26.40.76","2.26.39.74","2.26.39.72"," v2.26.40.76 ")){
+    for(v in listOf("2.26.46.1","2.26.43.76","2.26.42.9","2.26.40.76"," v2.26.40.76 ")){
         ck("module admits $v",UniversalVersionValidator.evaluate(mod,v,prefs),D.BUILTIN_RULE)
         ck("host uses own module resources $v",UniversalVersionValidator.evaluate(host,v,prefs),D.BUILTIN_RULE)
         ck("Boolean API compatible $v",UniversalVersionValidator.isSupported(host,v,prefs),true)
@@ -76,7 +76,7 @@ fun main(args:Array<String>){
     }
     // A future 2.26.x branch can become supported as arrays.xml changes. Keep the
     // synthetic major-zero version outside that range and test 2.26.42 above.
-    for(v in listOf("2.26.35.90","0.0.0.0","9.99.1"))ck("true rejected version $v",UniversalVersionValidator.evaluate(mod,v,prefs),D.UNSUPPORTED)
+    for(v in listOf("2.26.39.74","2.26.39.72","2.26.35.90","0.0.0.0","9.99.1"))ck("true rejected version $v",UniversalVersionValidator.evaluate(mod,v,prefs),D.UNSUPPORTED)
     for(v in listOf(null,""," ","v"))ck("version unavailable",UniversalVersionValidator.evaluate(mod,v,prefs),D.VERSION_UNAVAILABLE)
     val custom=Prefs().apply{values["customize_supported_versions"]=true;values["custom_supported_versions"]=setOf("9.99.1")}
     ck("intentional custom permission preserved",UniversalVersionValidator.evaluate(hidden,"9.99.1",custom),D.CUSTOM_RULE)
@@ -115,7 +115,7 @@ fun main(args:Array<String>){
     WaexBottomSheet.fail=true;VersionGuard.onTargetActivityResumed(Activity())
     WaexBottomSheet.fail=false;VersionGuard.onTargetActivityResumed(Activity())
     ck("warning can recover after failed show",WaexBottomSheet.shows,2)
-    fun evidence(pids:Set<Int>?=setOf(123),t:Long=10000,now:Long=20000,boot:Int=7,recorded:Int=7,pid:Int=123,active:Boolean=true)=classifyInjection(active,recorded,boot,pid,pids,t,now)
+    fun evidence(pids:Set<Int>?=setOf(123),t:Long=10000,boot:Int=7,recorded:Int=7,pid:Int=123,active:Boolean=true)=classifyInjection(active,recorded,boot,pid,pids,t)
     ck("current",evidence(),InjectionEvidence.CURRENT)
     ck("missing root observation",evidence(null),InjectionEvidence.PROCESS_OBSERVATION_UNAVAILABLE)
     ck("completed empty result",evidence(emptySet()),InjectionEvidence.PROCESS_STOPPED)
@@ -124,49 +124,37 @@ fun main(args:Array<String>){
     ck("other boot",evidence(recorded=6),InjectionEvidence.PREVIOUS_BOOT)
     ck("missing report",evidence(pid=0),InjectionEvidence.NO_REPORT)
     ck("inactive",evidence(active=false),InjectionEvidence.MODULE_INACTIVE)
-    for(delta in listOf(-1L,0L,24999L,25000L,25001L,Long.MAX_VALUE-10000L)){
-        ck("heartbeat boundary $delta",evidence(now=10000+delta),if(delta in 0L..25000L)InjectionEvidence.CURRENT else InjectionEvidence.REPORT_EXPIRED)
-    }
-    ck("zero timestamp",evidence(t=0,now=1),InjectionEvidence.NO_REPORT)
-    ck("negative timestamp cannot overflow",isRecentTimestamp(-1,Long.MAX_VALUE),false)
-    ck("clock rollback",isRecentTimestamp(3,2),false)
-    ck("compat helper preserves strict proof",hasCurrentInjection(true,7,7,123,setOf(123),10000,35000),true)
-    ck("compat helper expires",hasCurrentInjection(true,7,7,123,setOf(123),10000,35001),false)
-    SystemClock.time=1000
-    Root.output="PID|com.whatsapp|123 456\n\nEND|WAEX_PROCESS_SNAPSHOT"
-    val snap=XposedRuntimeInspector.inspect(listOf("com.whatsapp"))!!
-    File(args.single()).writeText(Root.lastCommand)
-    ck("PID values",snap.pidsFor("com.whatsapp",1000),setOf(123,456))
-    ck("missing package isn't stopped",snap.pidsFor("com.whatsapp.w4b",1000),null)
-    ck("snapshot age inclusive",snap.pidsFor("com.whatsapp",26000),setOf(123,456))
-    ck("snapshot age expired",snap.pidsFor("com.whatsapp",26001),null)
-    ck("snapshot time rollback",snap.pidsFor("com.whatsapp",999),null)
-    ck("fresh cache",XposedRuntimeInspector.cached()!=null,true)
-    SystemClock.time=26001;ck("cache expires",XposedRuntimeInspector.cached(),null)
-    SystemClock.time=1000
-    for(text in listOf("", "bad", "PID|com.whatsapp|123\nPID|com.whatsapp|456", "PID|com.whatsapp|0", "PID|com.whatsapp|-1", "PID|com.whatsapp|abc", "PID|com.whatsapp|2147483648", "PID|com.whatsapp|123 other", "PID|com.whatsapp;bad|123", "PID|com.whatsapp.w4b|456")){
-        Root.output=text+"\nEND|WAEX_PROCESS_SNAPSHOT\n"
-        ck("incomplete or malformed probe rejected",XposedRuntimeInspector.inspect(listOf("com.whatsapp")),null)
-        ck("failed probe clears old proof",XposedRuntimeInspector.cached(),null)
-    }
-    Root.output="PID|com.whatsapp|123\nEND|WAEX_PROCESS_SNAPSHOT";XposedRuntimeInspector.inspect(listOf("com.whatsapp"))
-    Root.output=null;ck("root denied",XposedRuntimeInspector.inspect(listOf("com.whatsapp")),null)
-    ck("denied invalidates cached",XposedRuntimeInspector.cached(),null)
-    Root.output="PID|com.whatsapp|123\nEND|WAEX_PROCESS_SNAPSHOT";XposedRuntimeInspector.inspect(listOf("com.whatsapp"));Root.fail=true
-    ck("root exception unavailable",XposedRuntimeInspector.inspect(listOf("com.whatsapp")),null);Root.fail=false
-    ck("exception clears cache",XposedRuntimeInspector.cached(),null)
-    Root.output="PID|com.whatsapp|\nEND|WAEX_PROCESS_SNAPSHOT"
-    ck("true absence is distinct",XposedRuntimeInspector.inspect(listOf("com.whatsapp"))!!.pidsFor("com.whatsapp",1000),emptySet<Int>())
-    Root.output="PID|com.whatsapp|123\nEND|WAEX_PROCESS_SNAPSHOT";val calls=Root.calls
-    ck("invalid package refused",XposedRuntimeInspector.inspect(listOf("com.whatsapp;id")),null)
-    ck("invalid input never reaches shell",Root.calls,calls)
-    ck("partial report refuses multiple packages",XposedRuntimeInspector.inspect(listOf("com.whatsapp","com.whatsapp.w4b")),null)
-    Root.output="PID|com.whatsapp|123\nPID|com.whatsapp.w4b|456\nEND|WAEX_PROCESS_SNAPSHOT"
-    ck("both identities present",XposedRuntimeInspector.inspect(listOf("com.whatsapp","com.whatsapp.w4b"))!!.runningPids.size,2)
+    ck("zero timestamp",evidence(t=0),InjectionEvidence.NO_REPORT)
+    ck("old report requires original living PID",evidence(t=1),InjectionEvidence.CURRENT)
+    ck("negative recorded boot differs",evidence(recorded=-2),InjectionEvidence.PREVIOUS_BOOT)
+    ck("compat helper validates PID and boot",hasCurrentInjection(true,7,7,123,setOf(123),10000),true)
+    ck("compat helper rejects changed PID",hasCurrentInjection(true,7,7,123,setOf(456),10000),false)
+    val live=LsposedScopeSnapshot(setOf("com.whatsapp"),true)
+    val absent=LsposedScopeSnapshot(emptySet(),true)
+    val cached=LsposedScopeSnapshot(setOf("com.whatsapp"),false)
+    ck("live listed package remains in scope",classifyScope("com.whatsapp",live,false),TargetScopeState.IN_SCOPE)
+    ck("current injection overrides absent live scope",classifyScope("com.whatsapp",absent,true),TargetScopeState.INJECTED)
+    ck("live authoritative absence removes target",classifyScope("com.whatsapp",absent,false),TargetScopeState.NOT_IN_SCOPE)
+    ck("cached scope retains listed target",classifyScope("com.whatsapp",cached,false),TargetScopeState.IN_SCOPE)
+    ck("unknown scope remains unverified",classifyScope("com.whatsapp",LsposedScopeSnapshot(emptySet(),false),false),TargetScopeState.UNVERIFIED)
+    val snap=parseProcessList("PID NAME\n123 com.whatsapp\n456 com.whatsapp\n7 com.whatsapp.w4b",1000L)
+    ck("PID values",snap.pidsFor("com.whatsapp"),setOf(123,456))
+    ck("second target separate",snap.pidsFor("com.whatsapp.w4b"),setOf(7))
+    ck("missing process means stopped in exhaustive listing",snap.pidsFor("com.unknown"),emptySet<Int>())
+    ck("observation timestamp",snap.observedAtElapsed,1000L)
+    ck("full listing exhaustive",snap.exhaustive,true)
+    ck("full listing complete",snap.complete,true)
+    val nonExhaustive=XposedRuntimeSnapshot(mapOf("com.whatsapp" to setOf(42)),1001L,complete=true,exhaustive=false)
+    ck("partial list cannot prove absence",nonExhaustive.pidsFor("com.whatsapp.w4b"),null)
+    ck("explicit incomplete cannot prove presence",nonExhaustive.copy(complete=false).pidsFor("com.whatsapp"),null)
+    ck("legacy process list",parseProcessList("u0_a120 987 1 0 0 S com.whatsapp.w4b").pidsFor("com.whatsapp.w4b"),setOf(987))
+    val rejected=parseProcessList("PID NAME\n0 com.whatsapp\n-1 com.whatsapp\nabc com.whatsapp\n2147483648 com.whatsapp\n123 com.whatsapp;bad\n888 com.whatsapp:push\n22 23\n")
+    ck("bad PID and process names rejected",rejected.runningPids.isEmpty(),true)
+    ck("duplicate PID deduplicated",parseProcessList("123 com.whatsapp\n123 com.whatsapp\n124 com.whatsapp").pidsFor("com.whatsapp"),setOf(123,124))
     var immutable=false
     try{(snap.runningPids as MutableMap).clear()}catch(_:UnsupportedOperationException){immutable=true}
     ck("observations immutable",immutable,true)
-    ck("empty request neutral",XposedRuntimeInspector.inspect(emptyList())!!.runningPids.size,0)
+    ck("empty process listing yields no PIDs",parseProcessList("").runningPids.size,0)
     val app=HookedAppInfo("com.whatsapp","WhatsApp","2.26.40.76",true,true,lastActiveTime=10000,runtimeStatus="READY",bridgeStatus="PROVIDER",processObservedAtElapsed=1000)
     fun card(a:HookedAppInfo,d:D=D.BUILTIN_RULE)=TargetRuntimePresentation.card(a,true,d)
     ck("current complete",card(app).severity,S.OK)
@@ -178,45 +166,28 @@ fun main(args:Array<String>){
     ck("failed bridge",card(app.copy(bridgeStatus="FAILED")).severity,S.REVIEW)
     ck("fallback bridge",card(app.copy(bridgeStatus="DISK_FALLBACK")).severity,S.REVIEW)
     ck("bypass not certification",card(app,D.EXPLICIT_BYPASS).severity,S.REVIEW)
-    val expired=TargetRuntimePresentation.asOf(app,35001,1001)
-    ck("display expires heartbeat",expired.isHooked,false)
-    ck("expired list hidden",expired.injectedHooks.size,0)
-    ck("bridge historical",TargetRuntimePresentation.bridge(expired),"Last report (not current): Connected directly")
-    ck("init historical",TargetRuntimePresentation.initialization(expired),"Last report (not current): Completed")
+    val stopped=app.copy(isHooked=false,injectionEvidence=InjectionEvidence.PROCESS_STOPPED)
+    ck("stopped process not current",stopped.isHooked,false)
+    ck("bridge historical",TargetRuntimePresentation.bridge(stopped),"Last report (not current): Connected directly")
+    ck("init historical",TargetRuntimePresentation.initialization(stopped),"Last report (not current): Completed")
     ck("current bridge no historical label",TargetRuntimePresentation.bridge(app),"Connected directly")
-    ck("display invalidates process probe",TargetRuntimePresentation.asOf(app,10001,26001).injectionEvidence,InjectionEvidence.PROCESS_OBSERVATION_UNAVAILABLE)
-    ck("display never promotes stale evidence",TargetRuntimePresentation.asOf(expired,10000,1000).isHooked,false)
-    ck("still fresh inclusive",TargetRuntimePresentation.asOf(app,35000,26000).isHooked,true)
+    ck("root denied is unknown",card(stopped.copy(injectionEvidence=InjectionEvidence.PROCESS_OBSERVATION_UNAVAILABLE)).severity,S.UNKNOWN)
     fun sum(apps:List<HookedAppInfo>,d:D=D.BUILTIN_RULE)=TargetRuntimePresentation.summarize(apps,apps.associate{it.packageName to d})
     ck("empty targets not supported",sum(emptyList()).healthy,null)
     ck("uninstalled not supported",sum(listOf(app.copy(isInstalled=false))).healthy,null)
-    ck("no injection no false supported",sum(listOf(expired)).healthy,null)
-    ck("unsupported target matters without injection",sum(listOf(expired),D.UNSUPPORTED).healthy,false)
+    ck("no injection no false supported",sum(listOf(stopped)).healthy,null)
+    ck("unsupported target matters without injection",sum(listOf(stopped),D.UNSUPPORTED).healthy,false)
     ck("target pause aggregate",sum(listOf(app.copy(runtimeStatus="UNSUPPORTED_VERSION"))).healthy,false)
     ck("bypass aggregate warning",sum(listOf(app),D.EXPLICIT_BYPASS).healthy,false)
     ck("complete reported",sum(listOf(app)).healthy,true)
-    ck("one unknown not all confirmed",sum(listOf(app,expired.copy(packageName="com.whatsapp.w4b"))).healthy,null)
+    ck("stopped target does not downgrade ready running target",sum(listOf(app,stopped.copy(packageName="com.whatsapp.w4b"))).healthy,true)
     ck("summary says not all feature acceptance",sum(listOf(app)).text,"Rules accepted; initialization reported")
 
-    // Complete-looking final PID tokens are not completion evidence without the sentinel.
-    Root.fail=false;Root.advance=0;SystemClock.time=1000
-    Root.output="PID|com.whatsapp|42\nEND|WAEX_PROCESS_SNAPSHOT\n"
-    ck("finished probe accepted",XposedRuntimeInspector.inspect(listOf("com.whatsapp"))!=null,true)
-    Root.output="PID|com.whatsapp|42"
-    ck("missing terminal record is unknown",XposedRuntimeInspector.inspect(listOf("com.whatsapp")),null)
-    ck("truncated new probe removes cached proof",XposedRuntimeInspector.cached(),null)
-    Root.output="PID|com.whatsapp|42\nEND|WAEX_PROCESS_SNAPSHOT\n"
-    Root.advance=4000
-    val slow=XposedRuntimeInspector.inspect(listOf("com.whatsapp"))!!
-    ck("probe age starts before command",slow.observedAtElapsed,1000L)
-    SystemClock.time=26001
-    ck("slow probe cannot extend validity",XposedRuntimeInspector.cached(),null)
-    SystemClock.time=1000;Root.advance=25001
-    ck("probe expiring during collection rejected",XposedRuntimeInspector.inspect(listOf("com.whatsapp")),null)
-    SystemClock.time=1000;Root.advance=0
-    ck("custom allowance card is not verified",TargetRuntimePresentation.card(app,true,D.CUSTOM_RULE).severity,S.REVIEW)
-    ck("custom allowance summary not verified",sum(listOf(app),D.CUSTOM_RULE).healthy,null)
-    ck("other negative boot value is unknown",classifyInjection(true,-2,-2,42,setOf(42),1000,1001),InjectionEvidence.BOOT_UNKNOWN)
+    // Upstream d7fd3110 intentionally promotes a user-added custom version rule
+    // to an accepted runtime state. It remains a user decision, not hook proof.
+    ck("custom allowance card accepted",TargetRuntimePresentation.card(app,true,D.CUSTOM_RULE).severity,S.OK)
+    ck("custom allowance summary accepted",sum(listOf(app),D.CUSTOM_RULE).healthy,true)
+    ck("other negative boot value is unknown",classifyInjection(true,-2,-2,42,setOf(42),1000),InjectionEvidence.BOOT_UNKNOWN)
     val delayed=Activity();delayed.defer=true
     prefs.values.clear();prefs.fail=false;host.packageManager.fail=false;host.packageManager.version="99.99.99.99"
     ck("queue scenario paused",VersionGuard.verifyAndGuard(host,host.javaClass.classLoader,prefs),false)

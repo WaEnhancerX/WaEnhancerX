@@ -267,8 +267,8 @@ jobs:
             test -f qa/test_update_download_contract.py
             test -f qa/test_update_session.py
           fi
-          if [[ -f app/src/main/java/com/waenhancer/ui/components/RuntimeObservationClock.kt ]]; then
-            test -f qa/test_runtime_observation_clock.py
+          if [[ -f app/src/main/java/com/waenhancer/utils/InjectionEvidence.kt ]]; then
+            test -f qa/test_injection_evidence_contract.py
           fi
           if grep -q 'Collections.unmodifiableMap(next)' app/src/main/java/com/waenhancer/xposed/features/customization/FilterItemsHook.kt; then
             test -f qa/test_filter_work.py
@@ -354,7 +354,7 @@ jobs:
             qa/test_dynamic_menu_resources.py \
             qa/test_update_download_contract.py \
             qa/test_update_session.py \
-            qa/test_runtime_observation_clock.py \
+            qa/test_injection_evidence_contract.py \
             qa/test_filter_work.py \
             qa/test_recorder_cleanup.py \
             qa/test_call_recording_output_safety.py \
@@ -467,7 +467,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - name: Compile public utilities and observation clock; test compiled version resources
+      - name: Compile public runtime utilities and evidence; test compiled version resources
         if: steps.runtime.outputs.present == 'true'
         run: python3 qa/verify_runtime_framework.py --out "$RUNNER_TEMP/waex-runtime-framework"
       - uses: actions/upload-artifact@v4
@@ -527,8 +527,8 @@ jobs:
           if [[ -f app/src/main/java/com/waenhancer/update/UpdateTransferPolicy.kt ]]; then
             modes="$modes update"; test -f qa/fixtures/StabilityUpdateTest.kt
           fi
-          if [[ -f app/src/main/java/com/waenhancer/ui/components/RuntimeObservationClock.kt ]]; then
-            modes="$modes clock"; test -f qa/fixtures/StabilityClockTest.kt
+          if [[ -f app/src/main/java/com/waenhancer/utils/InjectionEvidence.kt ]]; then
+            modes="$modes evidence"; test -f qa/fixtures/StabilityEvidenceTest.kt
           fi
           if grep -q 'Collections.unmodifiableMap(next)' app/src/main/java/com/waenhancer/xposed/features/customization/FilterItemsHook.kt; then
             modes="$modes filter"; test -f qa/fixtures/StabilityFilterTest.kt
@@ -548,7 +548,7 @@ jobs:
           MODES: ${{ steps.modes.outputs.modes }}
         run: |
           set -euo pipefail
-          if [[ "$MODES" == ' update clock filter' ]]; then
+          if [[ "$MODES" == ' update evidence filter' ]]; then
             python3 qa/verify_stability_framework.py --out "$RUNNER_TEMP/waex-stability/all"
           else
             for mode in $MODES; do
