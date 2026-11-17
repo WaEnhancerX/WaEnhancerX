@@ -222,6 +222,23 @@ jobs:
           python3 qa/test_es419_localization.py
           python3 qa/test_es419_runtime.py
 
+      - name: Verify locale XML and runtime format contracts independently
+        id: locale_contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/locale_resources/check_resources.py \
+            --root . --out "$RUNNER_TEMP/waex-locale-resource-contracts"
+
+      - name: Preserve independent locale contract evidence
+        if: always() && steps.locale_contracts.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: locale-resource-contract-evidence
+          path: ${{ runner.temp }}/waex-locale-resource-contracts/result.json
+          retention-days: 14
+          if-no-files-found: error
+
       - name: Require tests for merged runtime and resource contracts
         shell: bash
         run: |
