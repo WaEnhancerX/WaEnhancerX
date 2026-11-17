@@ -7,8 +7,17 @@ import json
 import os
 import re
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
+
+try:
+    import yaml
+except ImportError as error:
+    raise SystemExit("BLOCKED: PyYAML 6.0.3 is mandatory for Nightly workflow verification") from error
+
+if yaml.__version__ != "6.0.3":
+    raise SystemExit(f"BLOCKED: expected PyYAML 6.0.3; found {yaml.__version__}")
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,6 +26,7 @@ SOURCE_QA = ROOT / ".github/workflows/source-qa.yml"
 PRIVATE_EXAMPLE = ROOT / "docs/examples/nightly-private-builder.yml"
 DOC = ROOT / "docs/NIGHTLY_RELEASE_PIPELINE.md"
 BUILD_CONFIG = ROOT / "app/build.gradle.kts"
+REQUIREMENTS = ROOT / "qa/requirements-nightly.txt"
 
 
 def check_dispatch(source: str) -> None:
@@ -49,6 +59,7 @@ def check_source_qa(source: str) -> None:
     assert re.search(r"(?m)^  pull_request:\n    branches: \[main, nightly\]", source), "Review QA includes nightly PRs"
     assert "qa/test_nightly_release_contract.py" in source, "Nightly invariants run on CI"
     assert re.search(r"(?m)^permissions:\n  contents: read$", source), "Reusable QA stays read-only"
+    assert "--require-hashes --only-binary=:all: -r qa/requirements-nightly.txt" in source, "Hash-pinned parser provision"
 
 
 def check_private_template(source: str) -> None:
@@ -77,11 +88,6 @@ def check_signing_identity_consistency(private: str, gradle: str) -> None:
 
 
 def parse_yaml_and_shell(where: str, content: str, expected_events: set[str]) -> tuple[int, str]:
-    try:
-        import yaml
-    except ImportError:
-        return 0, "PyYAML unavailable: structural/shell parsing NOT_VERIFIED"
-
     parsed = yaml.load(content, Loader=yaml.BaseLoader)
     assert isinstance(parsed, dict), f"{where}: YAML must be a mapping"
     assert set(parsed["on"]) == expected_events, f"{where}: unexpected events"
@@ -99,11 +105,6 @@ def parse_yaml_and_shell(where: str, content: str, expected_events: set[str]) ->
 
 def mocked_boundary_checks(dispatch: str, private: str) -> dict:
     """Execute shell contracts with stand-in commands; never call GitHub or sign an APK."""
-    try:
-        import yaml
-    except ImportError:
-        return {"status": "SKIPPED", "reason": "PyYAML unavailable", "network_calls": 0}
-
     public_steps = yaml.load(dispatch, Loader=yaml.BaseLoader)["jobs"]["request-protected-build"]["steps"]
     private_jobs = yaml.load(private, Loader=yaml.BaseLoader)["jobs"]
     verified_steps = private_jobs["verify-reviewed-source"]["steps"]
@@ -250,7 +251,16 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
-    for path in (DISPATCH, SOURCE_QA, PRIVATE_EXAMPLE, DOC, BUILD_CONFIG):
+    # Negative dependency control: an isolated Python cannot import PyYAML.
+    # Missing parser support must never produce a successful source-QA report.
+    negative_dependency = subprocess.run(
+        [sys.executable, "-I", "-S", str(Path(__file__).resolve())],
+        text=True, capture_output=True, timeout=15,
+    )
+    assert negative_dependency.returncode != 0 and "PyYAML" in negative_dependency.stderr, (
+        "Missing YAML parser must fail closed, not silently skip workflow checks"
+    )
+    for path in (DISPATCH, SOURCE_QA, PRIVATE_EXAMPLE, DOC, BUILD_CONFIG, REQUIREMENTS):
         if not path.is_file():
             raise SystemExit(f"FAIL: required Nightly file missing: {path}")
 
@@ -262,6 +272,9 @@ def main() -> None:
     check_source_qa(qa)
     check_private_template(private)
     check_signing_identity_consistency(private, BUILD_CONFIG.read_text(encoding="utf-8"))
+    requirements = REQUIREMENTS.read_text(encoding="utf-8")
+    assert "PyYAML==6.0.3" in requirements, "Pinned parser version"
+    assert "b8bb0864c5a28024fac8a632c443c87c5aa6f215c0b126c449ae1a150412f31d" in requirements, "Pinned PyPI CPython 3.11 Linux wheel digest"
     assert "HTTP 204" in documentation and "private" in documentation.lower(), "Explicit integration limits"
 
     mutations = {
@@ -291,6 +304,7 @@ def main() -> None:
         "status": "PASS",
         "contracts": ["public branch/QA/permission boundary", "private signing and publication boundary"],
         "negative_mutations_rejected": rejected,
+        "missing_parser_negative_control": "PASS",
         "bash_steps_parsed": count_source + count_public + count_private,
         "yaml_shell_status": {"source_qa": status_source, "public": status_public, "private": status_private},
         "mocked_orchestration": mock_result,

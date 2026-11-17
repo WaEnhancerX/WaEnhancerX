@@ -14,6 +14,9 @@ credentials. The public repository must not host the protected build runner.
    `.github/workflows/nightly-reviewed-build-dispatch.yml`.
 3. The dispatcher reuses the **complete** `source-qa.yml` workflow. Any failure
    blocks the next job. Only an upstream `nightly` push can request a build.
+   The Nightly contract tests require a PyYAML 6.0.3 wheel with a pinned SHA-256;
+   if dependency installation or YAML validation fails, source QA fails rather
+   than silently skipping security checks.
 4. After that gate, a GitHub-hosted job checks authenticated repository metadata
    to confirm the separately configured destination **is private and has exactly
    the expected repository identity**. It then sends the exact SHA and source run ID

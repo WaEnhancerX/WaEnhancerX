@@ -38,6 +38,14 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install the pinned Nightly workflow parser
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check --no-deps \
+            --require-hashes --only-binary=:all: -r qa/requirements-nightly.txt
+          python3 -c 'import yaml; assert yaml.__version__ == "6.0.3"'
+
       - name: Verify screenshot and default image-quality MobileConfig contracts
         shell: bash
         run: |
