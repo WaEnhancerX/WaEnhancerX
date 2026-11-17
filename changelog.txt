@@ -1,4 +1,5 @@
 [Added]
+- Added version support upto 2.26.46.xx
 - Custom Emojis: Choose from cloud emoji styles (iOS, Facebook, Samsung, Twitter, Windows, etc.) with in-app download and management screen
 - Report Issue Feature: Report issues and suggest features within app
 - Added option to show/hide message notifications for locked chats
