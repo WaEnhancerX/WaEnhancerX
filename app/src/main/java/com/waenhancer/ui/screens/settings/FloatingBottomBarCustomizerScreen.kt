@@ -206,7 +206,7 @@ fun FloatingBottomBarCustomizerScreen() {
                     }
 
                     // Floating Pill Mock
-                    val isIosGlass = pillDesign == "ios_glass"
+                    val isIosGlass = pillDesign == "ios_glass" || pillDesign == "liquid_glass"
                     val isRefined = pillDesign == "pro"
                     val previewPillShape = if (isIosGlass) {
                         RoundedCornerShape(50)
@@ -417,10 +417,11 @@ fun FloatingBottomBarCustomizerScreen() {
                             listOf(
                                 Triple("regular", UiText.get(R.string.waex_ui_classic_regular, "Classic (Regular)"), UiText.get(R.string.waex_ui_solid_themed_floating_pill_with_sleek, "Solid themed floating pill with sleek outline")),
                                 Triple("pro", UiText.get(R.string.waex_ui_refined_pro, "Refined (Pro)"), UiText.get(R.string.waex_ui_enhanced_adaptive_shadows_and_refined, "Enhanced adaptive shadows and refined padding")),
-                                Triple("ios_glass", UiText.get(R.string.waex_ui_ios_frosted_glass, "iOS Frosted Glass"), UiText.get(R.string.waex_ui_translucent_glassmorphism_with_refract, "Translucent glassmorphism with refraction border"))
+                                Triple("ios_glass", UiText.get(R.string.waex_ui_ios_frosted_glass, "iOS Frosted Glass"), UiText.get(R.string.waex_ui_translucent_glassmorphism_with_refract, "Translucent glassmorphism with refraction border")),
+                                Triple("liquid_glass", "Liquid Glass", "KernelSU-style blur and lens refraction on the bar and floating buttons (free)")
                             ).forEach { (styleKey, title, desc) ->
                                 val isSelected = pillDesign == styleKey
-                                val isLocked = styleKey != "regular" && !isPro
+                                val isLocked = styleKey != "regular" && styleKey != "liquid_glass" && !isPro
 
                                 Surface(
                                     shape = radius.mdShape,
@@ -435,7 +436,7 @@ fun FloatingBottomBarCustomizerScreen() {
                                             } else {
                                                 pillDesign = styleKey
                                                 preferenceManager.putString("floating_bottom_bar_pill_design", styleKey)
-                                                if (styleKey == "ios_glass") {
+                                                if (styleKey == "ios_glass" || styleKey == "liquid_glass") {
                                                     glassEnabled = true
                                                     preferenceManager.putBoolean("floating_bottom_bar_glass", true)
                                                 }
@@ -462,7 +463,7 @@ fun FloatingBottomBarCustomizerScreen() {
                                                     fontWeight = FontWeight.Bold,
                                                     color = colors.onSurface
                                                 )
-                                                if (styleKey != "regular") {
+                                                if (styleKey != "regular" && styleKey != "liquid_glass") {
                                                     Spacer(modifier = Modifier.width(6.dp))
                                                     WaexProChip(isUnlocked = isPro)
                                                 }
