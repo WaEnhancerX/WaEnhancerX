@@ -93,7 +93,16 @@ fun GetVersionScreen(packageName: String) {
     val detectedApps by TargetAppManager.detectedApps.collectAsState()
     val app = detectedApps.firstOrNull { it.packageName == packageName }
     val appName = app?.appName ?: "WhatsApp"
-    val installedVersion = app?.takeIf { it.isInstalled }?.versionName
+    // Right after an install the detected list lags behind; the version just installed wins until
+    // the detected one catches up, so the cards switch to Reinstall at once.
+    var justInstalled by remember { mutableStateOf<String?>(null) }
+    val detectedVersion = app?.takeIf { it.isInstalled }?.versionName
+    LaunchedEffect(detectedVersion) {
+        if (justInstalled != null && detectedVersion?.removePrefix("v") == justInstalled?.removePrefix("v")) {
+            justInstalled = null
+        }
+    }
+    val installedVersion = justInstalled ?: detectedVersion
     val rules = remember(context) { UniversalVersionValidator.getBuiltinSupportedVersions(context) }
     val pattern = remember(rules) { SupportedVersionSuggester.newestBuiltinRule(rules).orEmpty() }
 
@@ -128,6 +137,7 @@ fun GetVersionScreen(packageName: String) {
             version = download.version,
             source = Uri.fromFile(ApkDownloads.fileOf(context, download)),
             installedVersion = installedVersion,
+            onInstalled = { justInstalled = it },
             onDismiss = { installTarget = null }
         )
     }
@@ -172,6 +182,7 @@ fun GetVersionScreen(packageName: String) {
             version = null,
             source = uri,
             installedVersion = installedVersion,
+            onInstalled = { justInstalled = it },
             onDismiss = { pickedFile = null }
         )
     }

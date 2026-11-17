@@ -32,4 +32,5 @@
 - Clicking opens a new screen to either install from storage or Download
 - It fetches all the supported versions from apkmirror and shows them in a list
 - Download directly within WAEX and upgrade/downgrade effortlessly without relying on any 3rd party downgrade module or downloading in browser
+- Before installation, WAEX will validate the APK and reject if unofficial or not supported
 - This will keep the process clean and organized

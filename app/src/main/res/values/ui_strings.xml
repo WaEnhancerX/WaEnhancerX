@@ -772,7 +772,7 @@
     <string name="waex_ui_unlock_all_premium_pro_capabilities" formatted="false">"Unlock all premium Pro capabilities"</string>
     <string name="waex_ui_unsupported" formatted="false">"Unsupported"</string>
     <string name="waex_ui_last_supported_version" formatted="false">"Last supported version"</string>
-    <string name="waex_ui_get_this_version" formatted="false">"Get this version"</string>
+    <string name="waex_ui_get_this_version" formatted="false">"Install Supported"</string>
     <string name="waex_ui_get_supported_version_title" formatted="false">"Get WhatsApp %1$s"</string>
     <string name="waex_ui_get_supported_version_notice" formatted="false">"WAEX downloads official WhatsApp builds for you or installs a file you already have, and installs it with root. It strictly checks the signing certificate and installs only official WhatsApp files; any modified or repacked APK is rejected. Any version inside a supported range such as %1$s works. Installing outside Google Play can put your phone number at risk of suspension, so prefer official updates when you can."</string>
     <string name="waex_ui_continue_to_browser" formatted="false">"Continue in browser"</string>
@@ -1203,4 +1203,5 @@
     <string name="waex_ui_cancel_download_title" formatted="false">"Cancel this download?"</string>
     <string name="waex_ui_cancel_download_message">"The download of %1$s %2$s will stop and its partial file will be deleted."</string>
     <string name="waex_ui_cancel_download_confirm" formatted="false">"Stop download"</string>
+    <string name="waex_ui_or_divider" formatted="false">"OR"</string>
 </resources>

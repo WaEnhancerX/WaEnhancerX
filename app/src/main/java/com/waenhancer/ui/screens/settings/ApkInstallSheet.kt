@@ -42,6 +42,7 @@ import com.waenhancer.ui.components.WaexSheetTextButton
 import com.waenhancer.ui.components.WaexSheetTitle
 import com.waenhancer.ui.components.waexSheetAccent
 import com.waenhancer.ui.designsystem.WaexTheme
+import com.waenhancer.utils.TargetAppManager
 import com.waenhancer.utils.UiText
 import com.waenhancer.utils.UniversalVersionValidator
 import com.waenhancer.utils.WhatsAppApkInstaller
@@ -88,6 +89,7 @@ fun ApkInstallSheet(
     version: String?,
     source: Uri,
     installedVersion: String?,
+    onInstalled: (String) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -148,6 +150,9 @@ fun ApkInstallSheet(
         scope.launch {
             val error = withContext(Dispatchers.IO) { WhatsAppApkInstaller.installWithRoot(staged.apks) }
             if (error == null) {
+                // Tell the screen at once, and re-read the installed apps so every screen follows.
+                verification.info.versionName?.let(onInstalled)
+                TargetAppManager.refresh(context)
                 Toast.makeText(
                     context,
                     UiText.get(R.string.waex_ui_verify_install_ok, "Installed WhatsApp %1\$s", verification.info.versionName.orEmpty()),
