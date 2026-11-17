@@ -67,10 +67,7 @@ class OnlinePresenceIndicatorsHook(
         if (!showDot && !showText) return
         try {
             val bindMethods = resolveRowFillers()
-            if (bindMethods.isEmpty()) {
-                XposedBridge.log("[WAEX][OnlinePresence] Conversation row binder not found")
-                return
-            }
+            if (bindMethods.isEmpty()) return
 
             subscriptionMethod = DexSearchEngine.getInstance().findMethodWithCache(
                 context, classLoader, "waex_presence_subscription_sender_v4"
@@ -94,16 +91,12 @@ class OnlinePresenceIndicatorsHook(
                 override fun afterHookedMethod(param: MethodHookParam) {
                     val sources = ArrayList<Any?>(param.args?.asList().orEmpty())
                     param.thisObject?.let { sources.add(it) }
-                    val row = findConversationRow(sources) ?: run {
-                        logBindDiagnostic("row not found in ${param.method.name}")
-                        return
-                    }
+                    val row = findConversationRow(sources) ?: return
                     val jid = findJid(param.args, 3)
                     if (param.hasThrowable() || jid == null || jid.contains("@g.us")) {
                         queueBindRow(row, null)
                         return
                     }
-                    logBindDiagnostic("bound row via ${param.method.declaringClass.simpleName}.${param.method.name} kind=${jidKind(jid)}")
                     subscriptionMethod?.let { method ->
                         findObjectOfType(sources, method.parameterTypes.firstOrNull() ?: Any::class.java)?.let {
                             recordIdentityAlias(
@@ -124,15 +117,7 @@ class OnlinePresenceIndicatorsHook(
                 }
             }
             bindMethods.forEach { XposedBridge.hookMethod(it, rowHook) }
-            XposedBridge.log("[WAEX][OnlinePresence] row binders=" + bindMethods.joinToString { m ->
-                "${m.declaringClass.simpleName}.${m.name}/${m.parameterCount}"
-            } + " subscription=" + (subscriptionMethod?.let { "${it.declaringClass.simpleName}.${it.name}/${it.parameterCount}" } ?: "none"))
-            PresenceStateStore.addListener { eventJid, state ->
-                if (presenceDiagnostics.getAndIncrement() < 12) {
-                    XposedBridge.log("[WAEX][OnlinePresence] presence event kind=${jidKind(eventJid)} known=${state?.known} online=${state?.online}")
-                }
-                queuePresenceRefresh()
-            }
+            PresenceStateStore.addListener { _, _ -> queuePresenceRefresh() }
         } catch (t: Throwable) {
             XposedBridge.log("[WAEX][OnlinePresence] Setup failed: ${t.javaClass.simpleName}")
         }
@@ -169,13 +154,6 @@ class OnlinePresenceIndicatorsHook(
             chosen.toTypedArray()
         }
         return resolved?.toList().orEmpty()
-    }
-
-    /** Identity kind only (never the identifier) so diagnostics stay privacy-safe. */
-    private fun jidKind(jid: String?): String = jid?.substringAfter('@', "")?.ifEmpty { "none" } ?: "null"
-
-    private fun logBindDiagnostic(message: String) {
-        if (bindDiagnostics.getAndIncrement() < 12) XposedBridge.log("[WAEX][OnlinePresence] $message")
     }
 
     private fun queuePresenceRefresh() {
@@ -245,13 +223,7 @@ class OnlinePresenceIndicatorsHook(
             val params = method.parameterTypes
             val jidArg = if (params.isNotEmpty()) findObjectOfType(sources, params[0]) else null
 
-            if (jidArg == null && subscriptionDiagnostics.getAndIncrement() < 5) {
-                XposedBridge.log("[WAEX][OnlinePresence] no subscription argument found in row bind")
-            }
             if (jidArg != null) {
-                if (receiver == null && subscriptionDiagnostics.getAndIncrement() < 5) {
-                    XposedBridge.log("[WAEX][OnlinePresence] subscription receiver not captured yet")
-                }
                 method.isAccessible = true
                 if (params.size == 1) {
                     method.invoke(receiver, jidArg)
@@ -662,9 +634,7 @@ class OnlinePresenceIndicatorsHook(
         private const val ID_DOT = 0x7f0f7a11
         private const val ID_TEXT = 0x7f0f7a12
         private const val TAG_BOUND_JID = 0x7f0f7a13
-        private val bindDiagnostics = AtomicInteger()
         private val subscriptionDiagnostics = AtomicInteger()
-        private val presenceDiagnostics = AtomicInteger()
         private val subscriptions = ConcurrentHashMap<String, Long>()
         private val identityAliases = ConcurrentHashMap<String, String>()
     }

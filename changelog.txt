@@ -8,6 +8,7 @@
 - Install a downloaded WhatsApp APK, APKM or XAPK from storage with root (upgrade or downgrade): WAEX checks the package, the supported version range and WhatsApp's signature before installing, and rejects modified or repacked files
 
 [Fixes]
+- Fixed Online dot indicator in conversations list
 - Fixed Floating bottom menu scroll hide
 - Fixed Locked Chats Enhancer still showing locked contacts in New chat, Forward and their search
 - Fixed Hide My Applist detection in diagnostics
