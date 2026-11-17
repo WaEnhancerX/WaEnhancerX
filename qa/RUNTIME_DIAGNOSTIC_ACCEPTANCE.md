@@ -1,5 +1,10 @@
 # Target identity and runtime evidence acceptance
 
+> Historical specification for the pre-refactor heartbeat/observation-clock design.
+> The current PID/boot and event-driven contract is in
+> [CURRENT_RUNTIME_EVIDENCE_ACCEPTANCE.md](CURRENT_RUNTIME_EVIDENCE_ACCEPTANCE.md).
+> Historical timings and test counts below are not claims about current source.
+
 The manager's active-module indicator, the host's version-policy decision, its
 stored initialization report, and evidence of a recently running injected process
 are different observations. None certifies every feature.

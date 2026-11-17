@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compile runtime utilities and the observation clock with pinned real Android/Compose APIs.
+"""Compile runtime utilities and evidence models with pinned real Android APIs.
 Execute version decisions using public, hash-pinned module APK resource tables on API 34.
 Isolated test library only: no private licensing, signing, host APK or LSPosed execution.
 """
@@ -180,7 +180,7 @@ dependencies {
  # The real detector's signature and fail-closed scope path reference both
  # LsposedScopeReader and LsposedScopeSnapshot. Compile their production source
  # instead of substituting a scope-always-true test double.
- files=['utils/UniversalVersionValidator.kt','utils/WhatsAppPackageDetector.kt','utils/LsposedScopeReader.kt','utils/XposedRuntimeInspector.kt','utils/InjectionEvidence.kt','utils/TargetRuntimePresentation.kt','ui/components/RuntimeObservationClock.kt','xposed/core/VersionGuard.kt']
+ files=['utils/UniversalVersionValidator.kt','utils/WhatsAppPackageDetector.kt','utils/LsposedScopeReader.kt','utils/XposedRuntimeInspector.kt','utils/InjectionEvidence.kt','utils/TargetRuntimePresentation.kt','xposed/core/VersionGuard.kt']
  if (root/'app/src/main/java/com/waenhancer/utils/DeclaredWhatsAppTargets.java').exists():files+=['utils/DeclaredWhatsAppTargets.java']
  for name in files:
   p=root/'app/src/main/java/com/waenhancer'/name
@@ -247,7 +247,7 @@ class WaexBottomSheet(a:Activity){fun setTitle(s:String)=this;fun setMessage(s:S
   t=ET.parse(p).getroot();tests+=int(t.get('tests',0));failures+=int(t.get('failures',0));errors+=int(t.get('errors',0));skipped+=int(t.get('skipped',0))
  if (tests,failures,errors,skipped)!=((12 if localized else 5),0,0,0):
   raise RuntimeError(f'Android resource JUnit acceptance failed: {(tests,failures,errors,skipped)}')
- (e/'result.json').write_text(json.dumps({'tests':tests,'contexts':22,'locale_resource_tests':7 if localized else 0,'failures':failures,'errors':errors,'skipped':skipped,'limits':'Compiled public utilities and clock with test service doubles. No full WAEX APK, Compose screen rendering, HMA or LSPosed.'},indent=2))
+ (e/'result.json').write_text(json.dumps({'tests':tests,'contexts':22,'locale_resource_tests':7 if localized else 0,'failures':failures,'errors':errors,'skipped':skipped,'limits':'Compiled public runtime utilities and PID/boot evidence with test service doubles. No full WAEX APK, Compose screen rendering, HMA or LSPosed.'},indent=2))
  print(f'PASS: real Android/Compose API compilation; {tests} Android 14 JUnit methods, 22 compiled-resource contexts; localized tests={localized}; no full app/LSPosed')
 
 if __name__=='__main__':main()

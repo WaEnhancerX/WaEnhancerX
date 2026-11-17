@@ -32,6 +32,14 @@ def main():
         det = (JAVA / 'utils/WhatsAppPackageDetector.kt').read_text()
         model = det[det.index('data class InjectedHookItem('):det.index('object WhatsAppPackageDetector')]
         put('Model.kt', 'package com.waenhancer.utils\n' + model)
+        # A scope adapter is required by the detector's unchanged classifyScope
+        # function. Its public isLive/contains answers are explicit inputs, not
+        # a simulated LSPosed database or assumed permissions.
+        put('Scope.kt', '''package com.waenhancer.utils
+data class LsposedScopeSnapshot(val packages:Set<String>, val isLive:Boolean) {
+ fun contains(packageName:String):Boolean = packageName in packages
+}
+''')
         # Full production guard is compiled too; the visual builder is an explicit double.
         guard_source = (JAVA/'xposed/core/VersionGuard.kt').read_text()
         put('VersionGuard.kt', guard_source)
@@ -115,42 +123,77 @@ object AppRestartHelper {var output:String?=null;var lastCommand="";var fail=fal
         args = [shutil.which('kotlinc'), '-nowarn', '-language-version', '2.0', *map(str, sorted(src.glob('*.kt'))), '-include-runtime', '-d', str(out/'checks.jar')]
         subprocess.run(args, check=True, timeout=90)
         print('COMPILE_OK: production runtime source',flush=True)
-        subprocess.run(['java','-jar',str(out/'checks.jar'),str(out/'command.sh')], check=True, timeout=30)
-        # Validate the exact emitted shell: unavailable/malformed command results
-        # must never produce a valid empty observation. Never invoke real su here.
-        command=(out/'command.sh').read_text()
-        pidof=out/'pidof';pidof.write_text('#!/bin/sh\nprintf "%s" "$FAKE_OUTPUT"\nexit "$FAKE_CODE"\n');pidof.chmod(0o700)
-        for code,output,success in ((0,'123 456',True),(1,'',True),(0,'',False),(1,'123',False),(2,'',False),(127,'',False)):
-            env=os.environ|{'PATH':str(out),'FAKE_CODE':str(code),'FAKE_OUTPUT':output}
-            result=subprocess.run(['/bin/sh','-c',command],text=True,capture_output=True,env=env,timeout=5)
-            assert (result.returncode==0)==success,(code,output,result)
-            if success: assert result.stdout==f'PID|com.whatsapp|{output}\nEND|WAEX_PROCESS_SNAPSHOT\n'
-        empty=out/'empty';empty.mkdir()
-        result=subprocess.run(['/bin/sh','-c',command],text=True,capture_output=True,env=os.environ|{'PATH':str(empty)},timeout=5)
-        assert result.returncode==127
+        subprocess.run(['java','-jar',str(out/'checks.jar')], check=True, timeout=30)
+        # The old pidof/sentinel command was removed in favor of a single ps
+        # listing staged with LSPosed scope. A controlled shell probe exercises
+        # the production command's selection shape; RootProbe.parseRuntime and
+        # root permissions still require an Android integration test.
+        manager=(JAVA/'utils/TargetAppManager.kt').read_text()
+        assert '(ps -A -o PID,NAME 2>/dev/null || ps 2>/dev/null)' in manager
+        assert 'grep -E \' ($names)[[:space:]]*$\'' in manager
+        assert 'return snapshot.takeIf { it.runningPids.isNotEmpty() }' in manager
+        declared=(JAVA/'utils/DeclaredWhatsAppTargets.java').read_text()
+        import re
+        packages=re.findall(r'"(com\.[\w.]+)"', declared)
+        assert 'com.whatsapp' in packages and 'com.whatsapp.w4b' in packages
+        accepted=packages+['com.waenhancer']
+        names='|'.join(re.escape(package) for package in accepted)
+        command=f"(ps -A -o PID,NAME 2>/dev/null || ps 2>/dev/null) | grep -E ' ({names})[[:space:]]*$'"
+        fake=out/'ps'
+        fake.write_text('#!/bin/sh\nprintf "%s\\n" "$FAKE_PS"\n');fake.chmod(0o700)
+        env=os.environ|{'PATH':str(out)+os.pathsep+os.environ['PATH'],
+                        'FAKE_PS':'PID NAME\n10 com.whatsapp\n20 com.whatsapp.w4b\n30 com.waenhancer\n40 com.fakeapp'}
+        shell=shutil.which('sh')
+        assert shell, 'Expected a POSIX shell on the test host'
+        result=subprocess.run([shell,'-c',command],text=True,capture_output=True,env=env,timeout=5)
+        assert result.returncode==0 and result.stdout.splitlines()==[
+            '10 com.whatsapp','20 com.whatsapp.w4b','30 com.waenhancer'],result
+        env['FAKE_PS']='PID NAME\n99 com.fakeapp'
+        result=subprocess.run([shell,'-c',command],text=True,capture_output=True,env=env,timeout=5)
+        assert result.returncode==1 and result.stdout=='',result
     # Guard actual call sites: production decisions, not a replacement demo UI.
     dash=(JAVA/'ui/screens/dashboard/MainDashboardScreen.kt').read_text()
     health=(JAVA/'ui/screens/settings/SystemHealthScreen.kt').read_text()
     versions=(JAVA/'ui/screens/settings/SupportedVersionsScreen.kt').read_text()
-    for ui in (dash,health):
-        assert 'runtimeSnapshot = refreshed' in ui
-        assert 'refreshed ?: XposedRuntimeSnapshot' not in ui
-        assert 'rememberRuntimeObservationClock()' in ui and 'TargetRuntimePresentation.asOf(' in ui
+    # The periodic Compose observation clock was removed when runtime evidence
+    # became PID/boot-bound and target refreshes became event-driven. Guard the
+    # real producer -> lifecycle -> StateFlow -> UI path instead of a deleted API.
+    navigation=(JAVA/'ui/navigation/Navigation.kt').read_text()
+    manager=(JAVA/'utils/TargetAppManager.kt').read_text()
+    assert 'Lifecycle.Event.ON_RESUME -> TargetAppManager.attach(context)' in navigation
+    assert 'Lifecycle.Event.ON_PAUSE -> TargetAppManager.detach(context)' in navigation
+    assert 'TargetAppManager.detach(context)' in navigation
+    assert 'appContext.registerReceiver(targetReceiver, filter' in manager
+    assert 'unregisterReceiver(targetReceiver)' in manager
+    assert 'if (context != null) refresh(context.applicationContext)' in manager
+    assert 'refresh(appContext)' in manager and 'syncHooks(appContext)' in manager
+    assert '_refreshEpoch.value = System.currentTimeMillis()' in manager
+    assert 'rerunRequested.getAndSet(false)' in manager
+    assert 'val reportedApps by TargetAppManager.detectedApps.collectAsState()' in dash
+    assert 'val refreshEpoch by TargetAppManager.refreshEpoch.collectAsState()' in dash
+    assert 'val activeTargets by TargetAppManager.detectedApps.collectAsState()' in health
+    assert 'if (event == Lifecycle.Event.ON_RESUME) refreshTrigger++' in health
+    assert 'LaunchedEffect(refreshTrigger)' in health and 'TargetAppManager.refresh(context)' in health
     assert 'TargetRuntimePresentation.card(' in dash and 'TargetRuntimePresentation.summarize(' in dash
     assert 'TargetRuntimePresentation.bridge(app)' in health and 'TargetRuntimePresentation.initialization(app)' in health
     assert 'app.injectionEvidence.label' in health
     assert 'UniversalVersionValidator.evaluate(' in versions and 'Version check unavailable' in versions
     assert 'if (isAllSupported)' not in versions
-    assert 'Custom allowance (unverified)' in versions
-    assert 'val isSupported = decision == UniversalVersionValidator.Decision.BUILTIN_RULE\n' in versions
-    clock=(JAVA/'ui/components/RuntimeObservationClock.kt').read_text()
-    assert 'repeatOnLifecycle(Lifecycle.State.STARTED)' in clock and 'delay(5_000L)' in clock
-    assert all(s not in clock for s in ('inspect(', 'detectWhatsAppApps(', 'runRootCommand('))
+    assert 'decision == UniversalVersionValidator.Decision.CUSTOM_RULE' in versions
+    assert 'UiText.get(R.string.waex_l10n_custom_unverified, "Custom")' in versions
+    assert 'val isSupported = decision == UniversalVersionValidator.Decision.BUILTIN_RULE ||' in versions
+    assert 'sendBroadcast(intent)' in det
+    assert 'com.waenhancer.ACTION_TARGET_APP_ACTIVE' in det
+    evidence=(JAVA/'utils/InjectionEvidence.kt').read_text()
+    assert 'recordedBoot != currentBoot' in evidence
+    assert 'reportedPid !in runningPids' in evidence
+    assert 'lastActiveTime <= 0L' in evidence
+    assert 'isRecentTimestamp(' not in evidence
     assert 'runtimeSnapshot?.pidsFor(' in det and 'classifyInjection(' in det
     assert 'runtimeSnapshot?.runningPids?.get(pkg).orEmpty()' not in det
     mainhook=(JAVA/'xposed/MainHook.java').read_text();provider=(JAVA/'xposed/bridge/HookProvider.java').read_text()
     assert 'VersionGuard.runtimeStatus()' in mainhook and '"COMPATIBILITY_UNAVAILABLE"' in provider
-    print('PASS: 7 shell process controls and UI/transport/refresh source guards; no Android/LSPosed test.')
+    print('PASS: controlled ps selection and event-driven lifecycle/StateFlow/transport source guards; no Android/LSPosed test.')
     print('PRODUCTION_SHA256='+json.dumps(hashes,sort_keys=True))
 
 if __name__ == '__main__': main()
