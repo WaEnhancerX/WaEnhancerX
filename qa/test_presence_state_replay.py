@@ -99,9 +99,9 @@ def main():
         'failed bind clears previous contact': 'queueBindRow(row, null)',
         'invalidated rows clear tag': 'row.setTag(TAG_BOUND_JID, null)',
         'refresh burst coalescing': 'refreshPending.compareAndSet(false, true)',
-        'dot participates in real parent layout': 'targetGroup.addView(dot, params)',
-        'dot uses relative avatar-end gravity': 'Gravity.BOTTOM or Gravity.END',
-        'text participates in real parent layout': 'group.addView(text, params)',
+        'dot participates in real parent layout': 'placeDotOnAvatarRim(targetGroup, dot)',
+        'dot is placed from the measured avatar rim': 'bounds.exactCenterX() + rim',
+        'text participates in real parent layout': 'content.addView(',
         'ambiguous alias tombstone': 'if (previous == null || previous == jid) jid else ""',
     }
     for name,required in guards.items():
