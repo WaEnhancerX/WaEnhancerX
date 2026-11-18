@@ -322,11 +322,12 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
             if (rawJid != null && !rawJid.isEmpty()) {
                 File cacheDir = activity.getCacheDir();
                 if (cacheDir != null) {
+                    // Only JID-qualified cache files can identify the viewed contact.
+                    // files/me.jpg belongs to this account and cannot identify another viewer.
                     File[] candidates = {
                             new File(cacheDir, "Profile Pictures/" + rawJid + ".j"),
                             new File(cacheDir, "Profile Pictures/" + rawJid + ".jpg"),
-                            new File(cacheDir, "Profile Pictures/" + rawJid),
-                            new File(activity.getFilesDir(), "me.jpg")
+                            new File(cacheDir, "Profile Pictures/" + rawJid)
                     };
                     for (File c : candidates) {
                         if (c.isFile() && c.length() > 0) return c;
