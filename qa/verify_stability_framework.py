@@ -89,6 +89,17 @@ dependencies {
         identity[str(source.relative_to(root))]=digest
         if any(hashlib.sha256(path.read_bytes()).hexdigest()!=digest for path in (target,e/source.name)):
             raise ValueError('Changed bytes while staging JUnit source or evidence: '+source.name)
+    # Both updater and filter depend on the same real failure counter/logger.
+    # Keep one byte-identical copy even in the combined suite.
+    if 'update' in modes or 'filter' in modes:
+        rel='xposed/utils/HookErrors.java'
+        source=root/'app/src/main/java/com/waenhancer'/rel
+        target=probe/'src/main/java/com/waenhancer'/rel
+        target.parent.mkdir(parents=True,exist_ok=True)
+        shutil.copyfile(source,target)
+        identity[str(source.relative_to(root))]=hashlib.sha256(source.read_bytes()).hexdigest()
+        if hashlib.sha256(target.read_bytes()).hexdigest()!=identity[str(source.relative_to(root))]:
+            raise ValueError('Changed bytes while staging production source: '+rel)
     # Only a theme adapter for compilation; no fonts or licensing implementation copied.
     # The updater compiles real color/radius/elevation tokens, including isLight;
     # other standalone modes must not require a dependency they do not stage.
@@ -116,20 +127,23 @@ object FilterItemsProFeature {fun applyProFilter(view:android.view.View,behavior
         write('src/main/java/com/waenhancer/xposed/utils/ActivityTracker.kt','''package com.waenhancer.xposed.utils
 object ActivityTracker {interface ActivityListener {fun onActivityResumed(a:android.app.Activity)};fun getCurrentActivity():android.app.Activity?=null;fun addListener(l:ActivityListener){error("No hook installation in fixture")}}
 ''')
+        write('src/main/java/de/robv/android/xposed/XposedHelpers.java','''package de.robv.android.xposed;
+public class XposedHelpers {public static void findAndHookMethod(Object... args){throw new AssertionError("No actual hooks in this fixture");} public static Object callMethod(Object o,String n,Object... a){throw new AssertionError("Unexpected reflective hook");}public static Object getAdditionalInstanceField(Object o,String n){return null;}public static void setAdditionalInstanceField(Object o,String n,Object v){}}
+''')
+    # The diagnostic class references XposedBridge.log even in updater-only
+    # runs. This bridge preserves logging and refuses real hook installation.
+    if 'update' in modes or 'filter' in modes:
         write('src/main/java/de/robv/android/xposed/XC_MethodHook.java','''package de.robv.android.xposed;
 public class XC_MethodHook {public static class MethodHookParam {public Object thisObject,result;public Object[] args;}protected void beforeHookedMethod(MethodHookParam p){}protected void afterHookedMethod(MethodHookParam p){}}
 ''')
         write('src/main/java/de/robv/android/xposed/XposedBridge.java','''package de.robv.android.xposed;
 import java.util.Set;
 public class XposedBridge {
- public static void log(String s) {}
+ public static void log(String s) { System.err.println(s); }
  public static Set<Object> hookAllMethods(Class<?> cls,String method,XC_MethodHook hook) {
   throw new AssertionError("Unexpected actual Xposed method installation in test fixture");
  }
 }''')
-        write('src/main/java/de/robv/android/xposed/XposedHelpers.java','''package de.robv.android.xposed;
-public class XposedHelpers {public static void findAndHookMethod(Object... args){throw new AssertionError("No actual hooks in this fixture");} public static Object callMethod(Object o,String n,Object... a){throw new AssertionError("Unexpected reflective hook");}public static Object getAdditionalInstanceField(Object o,String n){return null;}public static void setAdditionalInstanceField(Object o,String n,Object v){}}
-''')
     if not stage_localization(root, probe, identity):
         raise RuntimeError('Real localization helpers are required by this framework fixture')
     (e/'source-sha256.json').write_text(json.dumps(identity,indent=2));(e/'build.gradle.kts').write_text(build)

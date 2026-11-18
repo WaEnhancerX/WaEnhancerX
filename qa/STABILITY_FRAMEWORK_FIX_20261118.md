@@ -25,3 +25,9 @@ Toolchain: Windows 11 elevated private lab, Python 3.15, JDK 17.0.20.1, Kotlin 2
 ## Integration and recovery
 
 The acceptance gate is `python3 qa/verify_stability_framework.py --out <fresh-path>` on the candidate, requiring its 13 real JUnit tests and zero skips/failures. Include the original failures as regression controls and verify that the real theme's `isLight` getter is type-correct without permissive stubs. If compile reveals additional dependencies, diagnose each without suppressing tests. These source-only QA changes can be reverted by a normal commit; the real WhatsApp installation and laboratory account were untouched.
+
+## CI follow-up after opening upstream PR #182
+
+The **exact** PR #182 head `4b21422fdf452669d3ad138474547a97c724e29a` ran [stability job `134603029996`](https://github.com/WaEnhancerX/WaEnhancerX/actions/runs/44245407734/job/134603029996). Its real Kotlin/Compose source compilation progressed beyond **all seven prior `isLight` errors**. Java compilation then failed because `RootCommandRunner.java` refers to the real `HookErrors.swallowed(...)`, but the isolated runner had never copied `HookErrors.java`. The standalone filter mode has the same dependency through its dispatcher and filter hook.
+
+The follow-up **stages the unchanged production `xposed/utils/HookErrors.java` exactly once** whenever update or filter is selected, checks its byte hash and supplies a single XposedBridge logging-only fixture in both modes; unexpected hook installation still throws `AssertionError`. This fixes source dependency closure without replacing the diagnostics implementation with a permissive stub. It is **not** a completed Android build result; rerun the workflow on the new SHA and retain any further failures as evidence.
