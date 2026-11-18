@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run actual manager/store/schema classes against strict in-memory Android doubles.
+"""Run actual manager/store/schema/exclusivity classes against strict Android doubles.
 
 No Android runtime, disk persistence, proprietary licensing behavior or UI is
 claimed. Unused platform/backup/restart operations throw instead of returning
@@ -43,6 +43,8 @@ public abstract class ContentResolver {
     'dagger/hilt/android/qualifiers/ApplicationContext.java': 'package dagger.hilt.android.qualifiers; public @interface ApplicationContext {}',
     'javax/inject/Inject.java': 'package javax.inject; public @interface Inject {}',
     'javax/inject/Singleton.java': 'package javax.inject; public @interface Singleton {}',
+    'androidx/annotation/NonNull.java': 'package androidx.annotation; public @interface NonNull {}',
+    'androidx/annotation/Nullable.java': 'package androidx.annotation; public @interface Nullable {}',
     'com/waenhancer/licensing/customprops/CustomAbPropsStore.java': '''package com.waenhancer.licensing.customprops;
 public interface CustomAbPropsStore {
     boolean getBoolean(String key, boolean fallback);
@@ -56,6 +58,16 @@ public final class PreferenceRestartTracker {
         throw new AssertionError("Getter tests must not mutate restart state");
     }
 }''',
+    'com/waenhancer/utils/DiagnosticsRecorder.java': '''package com.waenhancer.utils;
+public final class DiagnosticsRecorder {
+    public static void recordPreferenceChange(android.content.Context context, String key,
+                                              boolean targetScoped, String operation) {
+        throw new AssertionError("String getter tests must not record preference writes");
+    }
+    public static void recordSettingsTransfer(android.content.Context context, String kind, int count) {
+        throw new AssertionError("String getter tests must not record settings transfers");
+    }
+}''',
     'com/waenhancer/core/preferences/SettingsBackupCodec.java': '''package com.waenhancer.core.preferences;
 public final class SettingsBackupCodec {
     public static final SettingsBackupCodec INSTANCE = new SettingsBackupCodec();
@@ -64,7 +76,8 @@ public final class SettingsBackupCodec {
 }''',
 })
 src = root / 'app/src/main/java/com/waenhancer'
-sources = [src / p for p in ('config/PreferenceSchema.java', 'config/PreferenceStores.java',
+sources = [src / p for p in ('config/ExclusivePreferences.java',
+                             'config/PreferenceSchema.java', 'config/PreferenceStores.java',
                              'core/preferences/WaexPreferenceManager.java')]
 with tempfile.TemporaryDirectory(prefix='waex_string_scope_') as temp:
     work = Path(temp)
