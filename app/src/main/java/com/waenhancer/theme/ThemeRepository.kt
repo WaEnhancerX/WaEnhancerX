@@ -5,6 +5,18 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import com.waenhancer.core.preferences.WaexPreferenceManager
 import java.io.File
+import java.io.IOException
+
+/** File moves are injectable in the isolated contract tests to exercise I/O failure paths. */
+internal interface ThemeInstallFiles {
+    fun move(source: File, destination: File): Boolean
+    fun remove(directory: File): Boolean
+}
+
+private object RealThemeInstallFiles : ThemeInstallFiles {
+    override fun move(source: File, destination: File): Boolean = source.renameTo(destination)
+    override fun remove(directory: File): Boolean = directory.deleteRecursively()
+}
 
 /** One installed WAEX theme package. */
 data class InstalledTheme(val id: String, val header: ThemeHeader, val assetCount: Int) {
@@ -20,6 +32,9 @@ class ThemeRepository(
     /** Scoped to the target app being edited, so a theme chosen for WA Business never reaches WhatsApp. */
     private val preferences: WaexPreferenceManager
 ) {
+
+    /** Only the test harness substitutes these operations; production always uses File.renameTo. */
+    internal var installFiles: ThemeInstallFiles = RealThemeInstallFiles
 
     fun list(): List<InstalledTheme> =
         root(context).listFiles(File::isDirectory).orEmpty()
@@ -47,21 +62,89 @@ class ThemeRepository(
     }
 
     /** Imports [uri] as a new theme (replacing a same-named one) and returns it. */
+    @Synchronized
     fun import(uri: Uri): Result<InstalledTheme> = runCatching {
         val displayName = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
             val column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
             if (column >= 0 && cursor.moveToFirst()) cursor.getString(column) else null
         } ?: uri.lastPathSegment.orEmpty()
         val id = ThemeIds.fromDisplayName(displayName)
-        val staging = File(root(context), ".import-${System.nanoTime()}")
+        val library = root(context)
+        val staging = File(library, ".import-${System.nanoTime()}")
         try {
             val css = context.contentResolver.openInputStream(uri)?.use { ThemeArchive.extract(it, staging) }
                 ?: throw ThemeArchive.InvalidThemeException("Unable to read the selected file.")
-            val destination = File(root(context), id)
-            destination.deleteRecursively()
-            if (!staging.renameTo(destination)) throw java.io.IOException("Unable to install theme.")
-            if (activeId() == id) activate(id)
-            InstalledTheme(id, ThemeHeader.parse(css), destination.listFiles().orEmpty().size - 1)
+            val destination = File(library, id)
+
+            // Read the selection BEFORE replacing style.css. After replacement activeId()
+            // no longer matches the old CSS and silently drops the selected theme.
+            val wasActive = activeId() == id
+            val oldCss = if (wasActive) preferences.getString(KEY_CSS, "").orEmpty() else null
+
+            // Never delete the previously installed theme before the candidate is ready.
+            // Keep a hidden, recoverable directory for failures between the two moves.
+            val backup = File(library, ".backup-$id-${System.nanoTime()}")
+            var hasBackup = false
+            var promoted = false
+            var activePreferenceWriteAttempted = false
+            try {
+                if (destination.exists()) {
+                    if (backup.exists() || !installFiles.move(destination, backup)) {
+                        throw IOException("Unable to preserve the previous theme.")
+                    }
+                    hasBackup = true
+                }
+                if (!installFiles.move(staging, destination)) {
+                    throw IOException("Unable to install theme; previous version will be restored.")
+                }
+                promoted = true
+                val installed = InstalledTheme(
+                    id, ThemeHeader.parse(css), destination.listFiles().orEmpty().size - 1
+                )
+
+                // The active id already equals id. Changing only its CSS preserves the
+                // package-scoped selection without an unnecessary second preferences write.
+                if (wasActive) {
+                    activePreferenceWriteAttempted = true
+                    if (!preferences.putPublicString(KEY_CSS, css)) {
+                        throw IOException("Unable to update the active theme preferences.")
+                    }
+                }
+
+                // A failed cleanup must retain the old files, not turn a valid install
+                // into an ambiguous error or delete a backup prematurely.
+                if (hasBackup) runCatching { installFiles.remove(backup) }
+                installed
+            } catch (failure: Throwable) {
+                var destinationVacant = !promoted
+                var rejectedCandidate: File? = null
+                if (promoted) {
+                    val rejected = File(library, ".rejected-$id-${System.nanoTime()}")
+                    if (!rejected.exists() && installFiles.move(destination, rejected)) {
+                        destinationVacant = true
+                        rejectedCandidate = rejected
+                    } else {
+                        failure.addSuppressed(IOException("Failed theme candidate retained; original backup preserved."))
+                    }
+                }
+                var recovered = !hasBackup
+                if (hasBackup && destinationVacant) {
+                    recovered = installFiles.move(backup, destination)
+                    if (!recovered) failure.addSuppressed(IOException("Original theme retained in backup; restore required."))
+                }
+                val safeToRemove = rejectedCandidate
+                if (recovered && safeToRemove != null) {
+                    // This is the candidate extracted from the input, NEVER the old theme.
+                    runCatching { installFiles.remove(safeToRemove) }
+                }
+                if (activePreferenceWriteAttempted && oldCss != null &&
+                    !runCatching { preferences.putPublicString(KEY_CSS, oldCss) }.getOrDefault(false)) {
+                    // A failed commit can still change the SharedPreferences memory cache.
+                    // The original files have been restored or kept in backup for recovery.
+                    failure.addSuppressed(IOException("Active theme preferences could not be restored."))
+                }
+                throw failure
+            }
         } finally {
             staging.deleteRecursively()
         }
