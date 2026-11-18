@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Isolated real Android/Compose compilation and regressions, not a full WAEX APK.
-Modes allow standalone updater/filter/clock branches without borrowing production
-code from another PR. Xposed, private Pro behavior and design theme are fixtures.
+Modes allow standalone updater/filter/runtime-evidence branches without borrowing
+production code from another PR. The legacy 'clock' CLI name is retained for CI;
+there is no longer a runtime observation clock in WAEX. Xposed, private Pro behavior
+and the theme provider are fixtures; the custom color model is real source.
 """
 from pathlib import Path
 import argparse, hashlib, json, re, shutil, subprocess, tomllib
@@ -64,10 +66,11 @@ dependencies {
     modes=['update','filter','clock'] if a.mode=='all' else [a.mode]
     sources={'update':['update/UpdateDownloader.kt','update/UpdateTransferPolicy.kt','update/UpdateDownloadSession.kt','update/ReleaseRepository.kt','ui/components/UpdateDownloadSheet.kt','xposed/utils/RootCommandRunner.java',
                        'config/PreferenceStores.java','config/PreferenceSchema.java','ui/components/NetworkErrorSheet.kt','ui/components/WaexModalBottomSheet.kt','ui/components/WaexProgressIndicator.kt',
-                       'ui/designsystem/WaexIcons.kt','ui/designsystem/WaexRadius.kt','ui/designsystem/WaexElevation.kt'],
+                       'ui/designsystem/WaexIcons.kt','ui/designsystem/WaexRadius.kt','ui/designsystem/WaexElevation.kt',
+                       'ui/designsystem/WaexColors.kt'],
              'filter':['xposed/features/customization/FilterItemsHook.kt','model/FilterItem.kt','xposed/core/ViewHookDispatcher.java'],
-             'clock':['ui/components/RuntimeObservationClock.kt','utils/InjectionEvidence.kt']}
-    expected={'update':5,'filter':3,'clock':1}
+             'clock':['utils/InjectionEvidence.kt']}
+    expected={'update':5,'filter':3,'clock':5}
     for mode in modes:
         for rel in sources[mode]:
             source=root/'app/src/main/java/com/waenhancer'/rel
@@ -87,14 +90,14 @@ dependencies {
         if any(hashlib.sha256(path.read_bytes()).hexdigest()!=digest for path in (target,e/source.name)):
             raise ValueError('Changed bytes while staging JUnit source or evidence: '+source.name)
     # Only a theme adapter for compilation; no fonts or licensing implementation copied.
-    # The updater compiles real radius/elevation tokens; other standalone modes
-    # must not require a dependency they do not stage.
+    # The updater compiles real color/radius/elevation tokens, including isLight;
+    # other standalone modes must not require a dependency they do not stage.
     update_theme=(' val radius @Composable get()=WaexRadius()\n val elevation @Composable get()=WaexElevation()' if 'update' in modes else '')
     theme='''package com.waenhancer.ui.designsystem
 import androidx.compose.runtime.Composable
 import androidx.compose.material3.MaterialTheme
 object WaexTheme {
- val colors @Composable get()=MaterialTheme.colorScheme
+ val colors @Composable get()=LocalWaexColors.current
  val typography @Composable get()=FixtureTypography(MaterialTheme.typography)
 EXTRA_UPDATE_TOKENS
 }
@@ -142,7 +145,7 @@ public class XposedHelpers {public static void findAndHookMethod(Object... args)
     for f in reports:
         t=ET.parse(f).getroot()
         for i,k in enumerate(['tests','failures','errors','skipped']):counts[i]+=int(t.get(k,0))
-    summary={'modes':modes,'tests':counts[0],'failures':counts[1],'errors':counts[2],'skipped':counts[3],'build_returncode':result.returncode,'limits':'Real Android Resources/Views/Handler and real Compose Composition/Recomposer; design theme, BaseFeature, Xposed and private Pro service are controlled fixtures, not full WAEX or LSPosed.'}
+    summary={'modes':modes,'tests':counts[0],'failures':counts[1],'errors':counts[2],'skipped':counts[3],'build_returncode':result.returncode,'limits':'Update/filter exercise real Android/Compose sources; the legacy clock mode is plain JVM/JUnit on actual PID/boot injection classification. Theme provider, BaseFeature, Xposed and private Pro service are controlled fixtures, not full WAEX or LSPosed.'}
     (e/'result.json').write_text(json.dumps(summary,indent=2))
     if result.returncode or counts != [sum(expected[m] for m in modes),0,0,0]:
         print((e/'framework-build.log').read_text()[-22000:]);raise RuntimeError('Stability framework failed: '+str(summary))
