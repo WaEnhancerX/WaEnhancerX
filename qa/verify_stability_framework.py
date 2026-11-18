@@ -68,7 +68,8 @@ dependencies {
                        'config/PreferenceStores.java','config/PreferenceSchema.java','ui/components/NetworkErrorSheet.kt','ui/components/WaexModalBottomSheet.kt','ui/components/WaexProgressIndicator.kt',
                        'ui/designsystem/WaexIcons.kt','ui/designsystem/WaexRadius.kt','ui/designsystem/WaexElevation.kt',
                        'ui/designsystem/WaexColors.kt'],
-             'filter':['xposed/features/customization/FilterItemsHook.kt','model/FilterItem.kt','xposed/core/ViewHookDispatcher.java'],
+             'filter':['xposed/features/customization/FilterItemsHook.kt','xposed/features/customization/LayoutPassThrottle.kt',
+                       'model/FilterItem.kt','xposed/core/ViewHookDispatcher.java','xposed/utils/HostResourceIds.java'],
              'clock':['utils/InjectionEvidence.kt']}
     expected={'update':5,'filter':3,'clock':5}
     for mode in modes:
@@ -104,17 +105,21 @@ dependencies {
     # The updater compiles real color/radius/elevation tokens, including isLight;
     # other standalone modes must not require a dependency they do not stage.
     update_theme=(' val radius @Composable get()=WaexRadius()\n val elevation @Composable get()=WaexElevation()' if 'update' in modes else '')
+    # Only the updater compiles WaexColors. The filter-only fixture has no
+    # production theme consumer and must stay independent of updater sources.
+    color_expr='LocalWaexColors.current' if 'update' in modes else 'MaterialTheme.colorScheme'
     theme='''package com.waenhancer.ui.designsystem
 import androidx.compose.runtime.Composable
 import androidx.compose.material3.MaterialTheme
 object WaexTheme {
- val colors @Composable get()=LocalWaexColors.current
+ val colors @Composable get()=FIXTURE_COLORS
  val typography @Composable get()=FixtureTypography(MaterialTheme.typography)
 EXTRA_UPDATE_TOKENS
 }
 class FixtureTypography(val t:androidx.compose.material3.Typography){val headlineMd get()=t.headlineMedium;val bodyMd get()=t.bodyMedium}
 '''
-    write('src/main/java/com/waenhancer/ui/designsystem/WaexTheme.kt',theme.replace('EXTRA_UPDATE_TOKENS',update_theme))
+    write('src/main/java/com/waenhancer/ui/designsystem/WaexTheme.kt',
+          theme.replace('EXTRA_UPDATE_TOKENS',update_theme).replace('FIXTURE_COLORS',color_expr))
     if 'filter' in modes:
         write('src/main/res/values/ids.xml','<resources><item name="fixture_target" type="id"/><item name="fixture_other" type="id"/></resources>')
         write('src/main/java/com/waenhancer/xposed/core/BaseFeature.kt','''package com.waenhancer.xposed.core
