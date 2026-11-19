@@ -1,0 +1,151 @@
+name: VirusTotal scan
+
+# Runs for every stable release (pre-releases are skipped by the `released`
+# trigger). Scans every .apk asset (debug + release) on VirusTotal and, only if
+# all of them come back clean, adds a VirusTotal badge to the release notes.
+#
+# Requires the repository/organization secret VT_API_KEY.
+
+on:
+  release:
+    types: [released]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Stable release tag to scan
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: virustotal-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.event.release.tag_name || inputs.tag }}
+  # Fail the scan when any engine flags the file as malicious / suspicious.
+  MAX_MALICIOUS: "0"
+  MAX_SUSPICIOUS: "0"
+
+jobs:
+  scan:
+    name: Scan release APKs
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write # needed to edit the release notes
+    steps:
+      - name: Checkout (for main ancestry check)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify stable release cut from main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          prerelease=$(gh release view "$TAG" --json isPrerelease -q .isPrerelease)
+          draft=$(gh release view "$TAG" --json isDraft -q .isDraft)
+          if [ "$prerelease" = "true" ] || [ "$draft" = "true" ]; then
+            echo "::notice::$TAG is a pre-release/draft; skipping."
+            echo "SKIP=true" >> "$GITHUB_ENV"; exit 0
+          fi
+          git fetch --tags --force origin
+          if ! git merge-base --is-ancestor "refs/tags/$TAG" origin/main; then
+            echo "::notice::$TAG is not reachable from main; skipping."
+            echo "SKIP=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Download APK assets
+        if: env.SKIP != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p apks
+          gh release download "$TAG" --pattern '*.apk' --dir apks
+          ls -l apks
+          [ -n "$(ls apks/*.apk 2>/dev/null)" ] || { echo "::error::No .apk assets on $TAG"; exit 1; }
+
+      - name: Upload to VirusTotal and verify
+        if: env.SKIP != 'true'
+        env:
+          VT_API_KEY: ${{ secrets.VT_API_KEY }}
+        run: |
+          set -euo pipefail
+          [ -n "$VT_API_KEY" ] || { echo "::error::VT_API_KEY secret is not set"; exit 1; }
+          API=https://www.virustotal.com/api/v3
+          : > vt-results.md
+          failed=0
+
+          for apk in apks/*.apk; do
+            name=$(basename "$apk")
+            size=$(stat -c %s "$apk")
+            echo "::group::$name ($size bytes)"
+
+            # Files over 32 MB need a dedicated upload URL.
+            if [ "$size" -gt 33554432 ]; then
+              url=$(curl -fsS -H "x-apikey: $VT_API_KEY" "$API/files/upload_url" | jq -r .data)
+            else
+              url="$API/files"
+            fi
+            id=$(curl -fsS -H "x-apikey: $VT_API_KEY" --form-string "password=" \
+                  -F "file=@$apk" "$url" | jq -r .data.id)
+            echo "analysis id: $id"
+
+            status=""; resp=""
+            for _ in $(seq 1 60); do
+              sleep 30
+              resp=$(curl -fsS -H "x-apikey: $VT_API_KEY" "$API/analyses/$id")
+              status=$(jq -r .data.attributes.status <<<"$resp")
+              echo "status: $status"
+              [ "$status" = "completed" ] && break
+            done
+            if [ "$status" != "completed" ]; then
+              echo "::error::$name: VirusTotal analysis did not complete in time"
+              failed=1; echo "::endgroup::"; continue
+            fi
+
+            sha=$(jq -r .meta.file_info.sha256 <<<"$resp")
+            mal=$(jq -r .data.attributes.stats.malicious <<<"$resp")
+            sus=$(jq -r .data.attributes.stats.suspicious <<<"$resp")
+            harmless=$(jq -r '.data.attributes.stats.harmless + .data.attributes.stats.undetected' <<<"$resp")
+            link="https://www.virustotal.com/gui/file/$sha"
+            echo "$name: malicious=$mal suspicious=$sus clean=$harmless"
+            echo "$name sha256=$sha $link" >> "$GITHUB_STEP_SUMMARY"
+
+            if [ "$mal" -gt "$MAX_MALICIOUS" ] || [ "$sus" -gt "$MAX_SUSPICIOUS" ]; then
+              echo "::error::$name flagged (malicious=$mal, suspicious=$sus) $link"
+              failed=1
+            fi
+            printf -- '- [%s](%s): %s malicious, %s suspicious, %s clean engines\n' \
+              "$name" "$link" "$mal" "$sus" "$harmless" >> vt-results.md
+            echo "::endgroup::"
+          done
+
+          [ "$failed" -eq 0 ] || exit 1
+
+      - name: Attach VirusTotal badge to release
+        if: env.SKIP != 'true' && success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          start='<!-- virustotal:start -->'
+          end='<!-- virustotal:end -->'
+          {
+            echo "$start"
+            echo "![VirusTotal](https://img.shields.io/badge/VirusTotal-clean-brightgreen?logo=virustotal&logoColor=white)"
+            echo
+            echo "**VirusTotal scan (debug + release APKs):**"
+            cat vt-results.md
+            echo "$end"
+          } > vt-block.md
+
+          gh release view "$TAG" --json body -q .body > body.md
+          # Drop any previous block so reruns stay idempotent.
+          awk -v s="$start" -v e="$end" '$0==s{skip=1} !skip{print} $0==e{skip=0}' body.md > body.clean.md
+          { cat body.clean.md; echo; cat vt-block.md; } > body.new.md
+          gh release edit "$TAG" --notes-file body.new.md
