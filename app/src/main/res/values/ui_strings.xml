@@ -1219,4 +1219,6 @@
     <string name="waex_ui_install_risk_prerelease" formatted="false">"Beta and nightly builds are not release-tested and may contain bugs."</string>
     <string name="waex_ui_install_risk_confirm" formatted="false">"Install anyway"</string>
     <string name="waex_ui_switch_to_stable" formatted="false">"Switch to stable"</string>
+    <string name="waex_ui_build_debug" formatted="false">"Debug"</string>
+    <string name="waex_ui_build_release" formatted="false">"Release"</string>
 </resources>

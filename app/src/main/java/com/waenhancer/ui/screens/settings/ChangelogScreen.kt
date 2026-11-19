@@ -42,6 +42,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -205,6 +207,28 @@ fun ChangelogScreen() {
         },
         containerColor = colors.background
     ) { insets ->
+        Column(Modifier.fillMaxSize().padding(insets)) {
+        val channelTabs = listOf(UpdateChannel.STABLE, UpdateChannel.BETA, UpdateChannel.NIGHTLY)
+        PrimaryTabRow(
+            selectedTabIndex = channelTabs.indexOf(tab),
+            containerColor = colors.background,
+            contentColor = colors.primary
+        ) {
+            channelTabs.forEach { channel ->
+                Tab(
+                    selected = channel == tab,
+                    onClick = { tab = channel },
+                    text = {
+                        Text(
+                            channelLabel(channel),
+                            fontWeight = if (channel == tab) FontWeight.Bold else FontWeight.Medium
+                        )
+                    },
+                    selectedContentColor = colors.primary,
+                    unselectedContentColor = colors.onSurfaceVariant
+                )
+            }
+        }
         PullToRefreshBox(
             isRefreshing = isRefreshing,
             onRefresh = { reloadKey++ },
@@ -243,8 +267,8 @@ fun ChangelogScreen() {
                 }
             },
             modifier = Modifier
-                .fillMaxSize()
-                .padding(insets)
+                .weight(1f)
+                .fillMaxWidth()
         ) {
             when {
                 loading -> ChangelogSkeleton(
@@ -281,26 +305,6 @@ fun ChangelogScreen() {
                     contentPadding = PaddingValues(horizontal = spacing.pageMargin, vertical = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                item {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        listOf(UpdateChannel.STABLE, UpdateChannel.BETA, UpdateChannel.NIGHTLY).forEach { channel ->
-                            val selected = channel == tab
-                            Surface(
-                                shape = CircleShape,
-                                color = if (selected) colors.primaryContainer else colors.surfaceContainerLow,
-                                modifier = Modifier.clickable { tab = channel }
-                            ) {
-                                Text(
-                                    channelLabel(channel),
-                                    style = typography.bodyMd,
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (selected) colors.primary else colors.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                                )
-                            }
-                        }
-                    }
-                }
                 if (installed.channel != UpdateChannel.STABLE && stableRelease != null &&
                     !stableRelease.version.equals(normalizeVersion(installedVersion), true) &&
                     (stableRelease.versionCode > installed.versionCode || allowDowngradeSetting)) {
@@ -317,57 +321,43 @@ fun ChangelogScreen() {
                     item {
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(28.dp),
+                            shape = RoundedCornerShape(18.dp),
                             color = if (availableUpdate != null) colors.primaryContainer else colors.surfaceContainerHigh
                         ) {
                             Row(
-                                modifier = Modifier.padding(22.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Surface(
-                                    modifier = Modifier.size(54.dp),
-                                    shape = RoundedCornerShape(18.dp),
-                                    color = if (availableUpdate != null) colors.primary else colors.surfaceContainerHighest,
-                                    contentColor = if (availableUpdate != null) colors.onPrimary else colors.onSurface
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = if (availableUpdate != null) WaexIcons.SystemUpdate else WaexIcons.Success,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(27.dp)
-                                        )
-                                    }
-                                }
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(3.dp)
-                                ) {
+                                Icon(
+                                    imageVector = if (availableUpdate != null) WaexIcons.SystemUpdate else WaexIcons.Success,
+                                    contentDescription = null,
+                                    tint = if (availableUpdate != null) colors.primary else colors.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = if (availableUpdate != null) {
-                                            UiText.get(R.string.waex_ui_update, "Update")
+                                            "${UiText.get(R.string.waex_ui_update, "Update")}: ${availableUpdate.version}"
                                         } else {
                                             UiText.get(R.string.waex_ui_installed, "Installed")
                                         },
-                                        style = typography.titleMd,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = colors.onSurface
-                                    )
-                                    Text(
-                                        text = if (availableUpdate != null) availableUpdate.version else installedVersion,
-                                        style = typography.displayLg,
-                                        fontWeight = FontWeight.Bold,
-                                        color = colors.onSurface
-                                    )
-                                    Text(
-                                        text = UiText.get(
-                                            R.string.waex_ui_changelog_releases,
-                                            "Changelog & Releases"
-                                        ),
                                         style = typography.bodySm,
                                         color = colors.onSurfaceVariant
                                     )
+                                    Text(
+                                        text = installedVersion,
+                                        style = typography.titleMd,
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.onSurface
+                                    )
                                 }
+                                Badge(channelLabel(installed.channel), colors.primary)
+                                Badge(
+                                    if (BuildConfig.IS_DEBUG_VARIANT) UiText.get(R.string.waex_ui_build_debug, "Debug")
+                                    else UiText.get(R.string.waex_ui_build_release, "Release"),
+                                    colors.onSurfaceVariant
+                                )
                             }
                         }
                     }
@@ -459,6 +449,7 @@ fun ChangelogScreen() {
                     }
                 }
             }
+        }
         }
     }
 }
