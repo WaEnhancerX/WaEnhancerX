@@ -62,6 +62,15 @@ jobs:
           # A token that may push to the protected branch; falls back to the workflow token.
           token: ${{ secrets.RELEASE_PUSH_TOKEN || github.token }}
 
+      # :licensing is a private module that is not tracked in this repository.
+      - name: Check out private licensing module
+        uses: actions/checkout@v4
+        with:
+          repository: mubashardev/waex-licensing
+          token: ${{ secrets.LICENSING_REPO_TOKEN }}
+          path: licensing
+          persist-credentials: false
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
