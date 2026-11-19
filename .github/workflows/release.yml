@@ -1,0 +1,167 @@
+name: Release
+
+# Pushing to main (stable), beta (beta) or nightly (nightly) releases that channel when the
+# final commit message contains the word --release. The channel is taken from the branch,
+# the version is bumped from gradle.properties and the repository tags, and gradle.properties
+# is committed back so it always matches the last release.
+on:
+  push:
+    branches: [main, beta, nightly]
+
+permissions: {}
+
+# One release at a time so version bumps and tags never race.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Detect release request
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      should_release: ${{ steps.flags.outputs.should_release }}
+      channel: ${{ steps.flags.outputs.channel }}
+    steps:
+      - name: Match --release flag and branch
+        id: flags
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          case "$BRANCH" in
+            main) channel=stable ;;
+            beta) channel=beta ;;
+            nightly) channel=nightly ;;
+            *) channel="" ;;
+          esac
+          should=false
+          if [ -n "$channel" ] && [[ "$COMMIT_MSG" =~ (^|[[:space:]])--release([[:space:]]|$) ]]; then
+            should=true
+          fi
+          echo "should_release=$should" >> "$GITHUB_OUTPUT"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+
+  release:
+    name: Build and publish ${{ needs.gate.outputs.channel }}
+    needs: gate
+    if: needs.gate.outputs.should_release == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      actions: write
+    env:
+      CHANNEL: ${{ needs.gate.outputs.channel }}
+      XPOSED_REPO_TOKEN: ${{ secrets.XPOSED_REPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # A token that may push to the protected branch; falls back to the workflow token.
+          token: ${{ secrets.RELEASE_PUSH_TOKEN || github.token }}
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: temurin
+          cache: gradle
+
+      - name: Calculate next version and update gradle.properties
+        id: version
+        run: |
+          python3 scripts/release/next_version.py --channel "$CHANNEL" --sha "$GITHUB_SHA" --write >> "$GITHUB_OUTPUT"
+          name="$(grep '^VERSION_NAME=' gradle.properties | cut -d= -f2- | tr -d '\r\n')"
+          code="$(grep '^VERSION_CODE=' gradle.properties | cut -d= -f2- | tr -d '\r\n')"
+          clean="${name%%+*}"
+          echo "clean_name=$clean" >> "$GITHUB_OUTPUT"
+          echo "tag=${code}-${clean}" >> "$GITHUB_OUTPUT"
+          echo "Releasing $name ($code) on $CHANNEL"
+
+      - name: Assemble release notes
+        run: |
+          python3 scripts/release/assemble-notes.py --dir changelog.d --out notes.txt
+          if [ ! -s notes.txt ]; then echo "No user-visible changes were recorded." > notes.txt; fi
+          if [ "$CHANNEL" = nightly ]; then
+            printf '\nBuilt from commit %s\n' "$GITHUB_SHA" >> notes.txt
+          fi
+
+      - name: Build APKs
+        env:
+          KEY_STORE: ${{ secrets.KEY_STORE }}
+          KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          ALIAS: ${{ secrets.ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          if [ -n "$KEY_STORE" ]; then
+            echo "$KEY_STORE" | base64 --decode > release.jks
+          fi
+          ./gradlew assembleRelease assembleDebug \
+            -PandroidStoreFile=release.jks \
+            -PandroidStorePassword="$KEY_STORE_PASSWORD" \
+            -PandroidKeyAlias="$ALIAS" \
+            -PandroidKeyPassword="$KEY_PASSWORD"
+          rm -f release.jks
+
+      - name: Collect APKs
+        env:
+          NAME: ${{ steps.version.outputs.clean_name }}
+        run: |
+          mkdir -p release_artifacts
+          cp "app/build/outputs/apk/release/WaEnhancerX-v${NAME}_release.apk" release_artifacts/
+          cp "app/build/outputs/apk/debug/WaEnhancerX-v${NAME}_debug.apk" release_artifacts/
+          ls -l release_artifacts
+
+      - name: Commit version bump
+        id: bump
+        env:
+          NAME: ${{ steps.version.outputs.version_name }}
+          CODE: ${{ steps.version.outputs.version_code }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Stable releases consume the pending changelog fragments.
+          if [ "$CHANNEL" = stable ]; then
+            git rm -q --ignore-unmatch $(git ls-files 'changelog.d/*.txt' | grep -v '/_') || true
+          fi
+          git add gradle.properties
+          git commit -m "chore(release): ${CHANNEL} ${NAME} (${CODE}) [skip ci]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ github.token }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ steps.bump.outputs.sha }}
+          name: WaEnhancerX v${{ steps.version.outputs.clean_name }}
+          body_path: notes.txt
+          prerelease: ${{ env.CHANNEL != 'stable' }}
+          files: |
+            release_artifacts/WaEnhancerX-v${{ steps.version.outputs.clean_name }}_release.apk
+            release_artifacts/WaEnhancerX-v${{ steps.version.outputs.clean_name }}_debug.apk
+
+      # Stable and beta are also published to the module repository; nightly never is.
+      - name: Publish to Xposed module repository
+        if: env.CHANNEL != 'nightly' && env.XPOSED_REPO_TOKEN != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: Xposed-Modules-Repo/com.waenhancer
+          token: ${{ secrets.XPOSED_REPO_TOKEN }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: WaEnhancerX v${{ steps.version.outputs.clean_name }}
+          body_path: notes.txt
+          prerelease: ${{ env.CHANNEL != 'stable' }}
+          files: |
+            release_artifacts/WaEnhancerX-v${{ steps.version.outputs.clean_name }}_release.apk
+            release_artifacts/WaEnhancerX-v${{ steps.version.outputs.clean_name }}_debug.apk
+
+      - name: Refresh release index
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run release-index.yml --repo "$GITHUB_REPOSITORY"
