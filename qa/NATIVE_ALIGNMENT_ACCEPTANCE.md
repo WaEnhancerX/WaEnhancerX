@@ -44,6 +44,46 @@ offsets were 16 KiB aligned. This explains a concrete 16 KiB packaging gap, not
 the cause of message sending, status, or release-only feature reports. It does
 not establish that a later build contains the same library.
 
+### Public 2.0.9 release baseline (2026-11-19)
+
+The official `WaEnhancerX-v2.0.9_release.apk` (SHA-256
+`585da692e90640bc76b4fadc9da0eacb74ee88c377468365f9c86c7a4d995c53`)
+passes `zipalign -c -P 16 -v 4`, but this auditor exits **1** on five
+64-bit ELF entries: `libopuscodec.so` and `libwaexdiag.so` in both
+`arm64-v8a` and `x86_64`, plus `arm64-v8a/libwaexlic.so`. Their
+`PT_LOAD` segments use 4096-byte alignment. The other 64-bit packaged
+entries pass the alignment checks. The release has 21 packaged native
+libraries, including 11 with 64-bit ABIs. The auditor's 18 synthetic
+unit tests pass, including 4 KiB negative controls.
+
+The new `waexdiag` target is configured for 16 KiB ELF alignment, but
+that change does **not** rebuild or certify the prebuilt `opuscodec` and
+private licensing libraries. A fully aligned final APK and feature-level
+checks on 16 KiB devices remain necessary before claiming compatibility.
+
+### Hosted transcription libraries (2026-11-19)
+
+The source's on-demand endpoint supplied 13 ARM64 native libraries (9,576,176
+bytes in total). All downloaded files matched the sizes, MD5 and SHA-256 values
+in the fetched `manifest.csv`, whose SHA-256 was
+`8c783072c866cdcba1c95b200e7806ffe2b1468abedfb3dbad2c084f45b5b690`.
+This checks transfer integrity against the **same** manifest, not independent
+publisher authenticity.
+
+```sh
+python3 qa/audit_on_demand_native.py /path/to/downloaded-libs --json
+python3 qa/test_audit_on_demand_native.py
+```
+
+The standalone auditor returns **1** on 12 of the 13 files because their
+ARM64 `PT_LOAD` segments align at 4096 bytes. Only `libc++_shared.so`
+reports 16384-byte alignment. Eight synthetic tests pass, including an
+expected 4 KiB failure, manifest hash/size mismatch, path traversal,
+duplicate filenames and an invalid ELF. Neither the new `waexdiag` flags
+nor an APK ZIP realignment repair these external files; the source owner
+must rebuild and republish the signed-off transcription asset set, then
+verify downloads and actual loading on 16 KiB Android devices.
+
 Primary specification and Android guidance:
 
 - [Android: support 16 KB page sizes](https://developer.android.com/guide/practices/page-sizes)
@@ -56,3 +96,24 @@ page rounding; a raw RELRO end modulus alone is not a sufficient failure test.
 Section tables, relocations, symbols and Android linker execution are outside
 this checker. A passing result does not authenticate an APK, prove correct
 resources, or certify WhatsApp/LSPosed feature compatibility.
+
+## Nightly forward-port — 2026-11-19
+
+Current proposal base: `nightly@69cef264b8f57217964d4c58f75fa15fa2e6b3f2`.
+This forward-ports the exact four-file patch from former main-targeted PR #202
+and adds `changelog.d/diagnostic-native-page-alignment.txt` under rule R14.
+The shared `changelog.txt` is not edited. Native CMake is a protected path
+under rule R5, so this proposal requires maintainer review.
+
+The three code/test blobs are unchanged from
+`14755cf3dba2eb6579054f3f76274067276d1690`; the previous acceptance document
+is preserved with this additional provenance section. On Linux/Python 3.12.14,
+the exact current
+forward-port reran `qa/test_native_alignment.py` (18 methods),
+`qa/test_audit_on_demand_native.py` (8 methods), and
+`qa/test_changelog_assembly.py`: all PASS. `git diff --check` also passes.
+The earlier NDK28.2 standalone build and API35 installation observations above
+remain historical evidence, not fresh compilation or device tests of this
+Nightly revision. Exact pinned NDK27, full Gradle build and affected native
+library loading remain NOT_VERIFIED. This patch does not repair the separate
+prebuilt or privately maintained native libraries.
