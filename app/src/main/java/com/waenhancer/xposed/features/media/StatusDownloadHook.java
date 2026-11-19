@@ -58,7 +58,6 @@ import org.luckypray.dexkit.result.ClassData;
 import org.luckypray.dexkit.result.MethodDataList;
 import org.luckypray.dexkit.result.UsingFieldData;
 import android.os.Build;
-import android.util.Log;
 import java.lang.reflect.Proxy;
 import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.result.FieldData;
@@ -142,32 +141,32 @@ public class StatusDownloadHook extends BaseFeature {
             try {
                 statusListField = findStatusListField(statusContactFragClass);
             } catch (Throwable t) {
-                XposedBridge.log(TAG + " findStatusListField failed: " + t);
+                XposedBridge.log(TAG + " findStatusListField failed: " + t.getClass().getSimpleName());
             }
             try {
                 currentStatusIndexField = findCurrentStatusIndexField(bridge, statusBaseFragClass);
             } catch (Throwable t) {
-                XposedBridge.log(TAG + " findCurrentStatusIndexField failed: " + t);
+                XposedBridge.log(TAG + " findCurrentStatusIndexField failed: " + t.getClass().getSimpleName());
             }
 
             try {
                 hookMenuRefreshMethods(statusContactFragClass);
                 hookMenuRefreshMethods(statusBaseFragClass);
             } catch (Throwable t) {
-                XposedBridge.log(TAG + " hookMenuRefreshMethods failed: " + t);
+                XposedBridge.log(TAG + " hookMenuRefreshMethods failed: " + t.getClass().getSimpleName());
             }
 
             try {
                 hookStatusSeenIcon(statusContactFragClass);
                 hookStatusSeenIcon(statusBaseFragClass);
             } catch (Throwable t) {
-                XposedBridge.log(TAG + " hookStatusSeenIcon failed: " + t);
+                XposedBridge.log(TAG + " hookStatusSeenIcon failed: " + t.getClass().getSimpleName());
             }
 
             try {
                 hookStatusSeenIconActivity();
             } catch (Throwable t) {
-                XposedBridge.log(TAG + " hookStatusSeenIconActivity failed: " + t);
+                XposedBridge.log(TAG + " hookStatusSeenIconActivity failed: " + t.getClass().getSimpleName());
             }
 
             if (menuStatusMethod != null) {
@@ -183,16 +182,16 @@ public class StatusDownloadHook extends BaseFeature {
                             try {
                                 handleStatusMenuHook(param, contactClass, baseClass);
                             } catch (Throwable t) {
-                                XposedBridge.log(TAG + " Error handling status menu hook: " + t);
+                                XposedBridge.log(TAG + " Error handling status menu hook: " + t.getClass().getSimpleName());
                             }
                         }
                     });
                 } catch (Throwable t) {
-                    XposedBridge.log(TAG + " hookMethod(menuStatusMethod) failed: " + t);
+                    XposedBridge.log(TAG + " hookMethod(menuStatusMethod) failed: " + t.getClass().getSimpleName());
                 }
             }
         } catch (Throwable t) {
-            XposedBridge.log(TAG + " Error setting up status playback hook: " + Log.getStackTraceString(t));
+            XposedBridge.log(TAG + " Error setting up status playback hook: " + t.getClass().getSimpleName());
         }
     }
 
