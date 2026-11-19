@@ -1204,4 +1204,21 @@
     <string name="waex_ui_cancel_download_message">"The download of %1$s %2$s will stop and its partial file will be deleted."</string>
     <string name="waex_ui_cancel_download_confirm" formatted="false">"Stop download"</string>
     <string name="waex_ui_or_divider" formatted="false">"OR"</string>
+    <string name="waex_ui_update_channel" formatted="false">"Update channel"</string>
+    <string name="waex_ui_channel_stable" formatted="false">"Stable"</string>
+    <string name="waex_ui_channel_beta" formatted="false">"Beta"</string>
+    <string name="waex_ui_channel_nightly" formatted="false">"Nightly"</string>
+    <string name="waex_ui_channel_stable_desc" formatted="false">"Fully tested releases only"</string>
+    <string name="waex_ui_channel_beta_desc" formatted="false">"Early builds before they reach stable"</string>
+    <string name="waex_ui_channel_nightly_desc" formatted="false">"Every automated build, untested and may break"</string>
+    <string name="waex_ui_channel_risk_title" formatted="false">"Switch to a less stable channel?"</string>
+    <string name="waex_ui_channel_risk_message" formatted="false">"Builds on this channel are less tested and may contain bugs. Switching only changes which updates are offered; nothing is installed until you choose to."</string>
+    <string name="waex_ui_channel_risk_confirm" formatted="false">"Switch channel"</string>
+    <string name="waex_ui_install_risk_title" formatted="false">"Install this build?"</string>
+    <string name="waex_ui_install_risk_downgrade" formatted="false">"This replaces your installed version with an older one. Data written by the newer version may not be readable by the older one."</string>
+    <string name="waex_ui_install_risk_prerelease" formatted="false">"Beta and nightly builds are not release-tested and may contain bugs."</string>
+    <string name="waex_ui_install_risk_confirm" formatted="false">"Install anyway"</string>
+    <string name="waex_ui_switch_to_stable" formatted="false">"Switch to stable"</string>
+    <string name="waex_ui_build_debug" formatted="false">"Debug"</string>
+    <string name="waex_ui_build_release" formatted="false">"Release"</string>
 </resources>

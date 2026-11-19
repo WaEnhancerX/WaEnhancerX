@@ -157,6 +157,10 @@ module changes, storage migrations or new host method selectors.
 5. Report remaining prerequisites and device acceptance honestly. A passing job
    whose feature step was skipped is not evidence that the feature ran.
 
+Pull requests that target `nightly` are also checked by an automated gate and review.
+Read [docs/NIGHTLY_CONTRIBUTOR_RULES.md](docs/NIGHTLY_CONTRIBUTOR_RULES.md) first; it
+lists the rules (R1-R14) and explains how to resubmit a rejected PR.
+
 Do not commit signing keys, account credentials, private licensing sources or
 proprietary host APKs. Public reports can describe a verified host method contract
 and sample identity without redistributing the host binary.

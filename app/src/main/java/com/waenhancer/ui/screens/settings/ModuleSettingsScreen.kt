@@ -1,5 +1,6 @@
 package com.waenhancer.ui.screens.settings
 
+import com.waenhancer.ui.components.ReleaseKindChip
 import com.waenhancer.ui.components.WaexSheetTitle
 
 import android.app.Activity
@@ -547,6 +548,7 @@ private fun HeroEngineCard(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                     )
                 }
+                ReleaseKindChip(versionName = version, modifier = Modifier.padding(start = 6.dp))
             }
 
         }

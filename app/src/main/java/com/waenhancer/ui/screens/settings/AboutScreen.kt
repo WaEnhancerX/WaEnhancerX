@@ -39,6 +39,7 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import com.waenhancer.ui.components.ReleaseKindChip
 import com.waenhancer.ui.components.WaexCircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -486,6 +487,7 @@ fun AboutScreen() {
                                 fontWeight = FontWeight.Medium,
                                 color = colors.onSurfaceVariant
                             )
+                            ReleaseKindChip(versionName = BuildConfig.VERSION_NAME)
                             Text(
                                 text = if (BuildConfig.IS_DEBUG_VARIANT) stringResource(R.string.build_variant_debug) else stringResource(R.string.build_variant_release),
                                 style = typography.labelSm,
