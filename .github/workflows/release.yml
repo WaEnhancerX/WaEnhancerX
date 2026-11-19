@@ -4,6 +4,14 @@ name: Release
 # final commit message contains the word --release. The channel is taken from the branch,
 # the version is bumped from gradle.properties and the repository tags, and gradle.properties
 # is committed back so it always matches the last release.
+#
+# nightly also releases without the flag when the push is a PR that the nightly PR gate
+# approved (label ai-approved) and the merge app squash-merged; see docs/NIGHTLY_CONTRIBUTOR_RULES.md.
+#
+# Branch rules: protect-main and protect-beta block every push except from bypass actors, and
+# protect-nightly additionally requires pull requests. The version-bump commit is therefore pushed
+# with RELEASE_PUSH_TOKEN (a bypass user) when set, otherwise with a WAEX app installation token
+# (bypass actor on nightly; add the app to protect-main and protect-beta bypass lists too).
 on:
   push:
     branches: [main, beta, nightly]
@@ -20,6 +28,9 @@ jobs:
     name: Detect release request
     runs-on: ubuntu-24.04
     timeout-minutes: 2
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       should_release: ${{ steps.flags.outputs.should_release }}
       channel: ${{ steps.flags.outputs.channel }}
@@ -29,6 +40,7 @@ jobs:
         env:
           COMMIT_MSG: ${{ github.event.head_commit.message }}
           BRANCH: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           case "$BRANCH" in
             main) channel=stable ;;
@@ -39,6 +51,20 @@ jobs:
           should=false
           if [ -n "$channel" ] && [[ "$COMMIT_MSG" =~ (^|[[:space:]])--release([[:space:]]|$) ]]; then
             should=true
+          fi
+          # A PR that passed the nightly gate and review is merged by the merge app and released
+          # without needing the flag. Humans still use --release.
+          if [ "$should" = false ] && [ "$channel" = nightly ]; then
+            number="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
+              --jq "first(.[] | select(.merged_at != null and .base.ref == \"nightly\" and .merge_commit_sha == \"$GITHUB_SHA\") | .number) // empty" || true)"
+            if [[ "$number" =~ ^[0-9]+$ ]]; then
+              pr="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$number" \
+                --jq '[.merged_by.type, ([.labels[].name] | index("ai-approved") != null), ([.labels[].name] | index("needs-maintainer") == null)] | @tsv' || true)"
+              if [ "$pr" = "$(printf 'Bot\ttrue\ttrue')" ]; then
+                echo "PR #$number was approved by the nightly gate and merged by the merge app"
+                should=true
+              fi
+            fi
           fi
           echo "should_release=$should" >> "$GITHUB_OUTPUT"
           echo "channel=$channel" >> "$GITHUB_OUTPUT"
@@ -55,12 +81,22 @@ jobs:
     env:
       CHANNEL: ${{ needs.gate.outputs.channel }}
       XPOSED_REPO_TOKEN: ${{ secrets.XPOSED_REPO_TOKEN }}
+      PUSH_TOKEN: ${{ secrets.RELEASE_PUSH_TOKEN }}
     steps:
+      # The branch rules only let bypass actors push, so the bump commit needs a real identity.
+      - name: Create push token for the merge app
+        id: app-token
+        if: env.PUSH_TOKEN == ''
+        continue-on-error: true
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.WAEX_APP_ID }}
+          private-key: ${{ secrets.WAEX_APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          # A token that may push to the protected branch; falls back to the workflow token.
-          token: ${{ secrets.RELEASE_PUSH_TOKEN || github.token }}
+          token: ${{ secrets.RELEASE_PUSH_TOKEN || steps.app-token.outputs.token || github.token }}
 
       # :licensing is a private module that is not tracked in this repository.
       - name: Check out private licensing module
@@ -133,8 +169,19 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add gradle.properties
-          git commit -m "chore(release): ${CHANNEL} ${NAME} (${CODE}) [skip ci]"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          # The first release of a base version already matches gradle.properties.
+          if git diff --cached --quiet; then
+            echo "gradle.properties already matches ${NAME} (${CODE}); nothing to commit."
+          else
+            git commit -m "chore(release): ${CHANNEL} ${NAME} (${CODE}) [skip ci]"
+            # Other PRs may have landed while this build ran; only gradle.properties changes here,
+            # so rebasing the bump commit is safe.
+            for attempt in 1 2 3; do
+              git push origin "HEAD:${GITHUB_REF_NAME}" && break
+              [ "$attempt" = 3 ] && { echo "::error::Could not push the version bump to ${GITHUB_REF_NAME}. Check the branch rules allow the push token."; exit 1; }
+              git pull --rebase origin "${GITHUB_REF_NAME}"
+            done
+          fi
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Publish GitHub release
