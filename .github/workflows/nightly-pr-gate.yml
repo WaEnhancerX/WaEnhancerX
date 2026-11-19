@@ -110,6 +110,7 @@ jobs:
           sparse-checkout: |
             scripts/release/pr_gate.py
             scripts/release/ai_review.py
+            scripts/release/publish_review.sh
             docs/NIGHTLY_CONTRIBUTOR_RULES.md
           sparse-checkout-cone-mode: false
 
@@ -144,36 +145,7 @@ jobs:
           COMMENT_FILE: ${{ runner.temp }}/review-comment.md
           PAYLOAD_FILE: ${{ runner.temp }}/review-payload.json
           CHECK_FILE: ${{ runner.temp }}/review-check.json
-        run: |
-          set -euo pipefail
-          repo="$GITHUB_REPOSITORY"
-
-          # Labels are only a filter for people; the check run below is what ties a verdict to a commit.
-          case "$VERDICT" in
-            approve) add=(ai-approved) ;;
-            reject)  add=(ai-rejected needs-maintainer) ;;
-            *)       add=(needs-maintainer) ;;
-          esac
-          for label in "${add[@]}"; do
-            gh pr edit "$PR_NUMBER" --repo "$repo" --add-label "$label"
-          done
-
-          # A real pull-request review, with inline comments where the finding maps to a diff line.
-          # If GitHub refuses an inline position, post the same review without inline comments
-          # (the body already lists every finding), and as a last resort a plain comment.
-          if [ -s "$PAYLOAD_FILE" ]; then
-            gh api "repos/$repo/pulls/$PR_NUMBER/reviews" --method POST --input "$PAYLOAD_FILE" >/dev/null \
-              || jq 'del(.comments)' "$PAYLOAD_FILE" | gh api "repos/$repo/pulls/$PR_NUMBER/reviews" --method POST --input - >/dev/null \
-              || gh pr comment "$PR_NUMBER" --repo "$repo" --body-file "$COMMENT_FILE"
-          else
-            gh pr comment "$PR_NUMBER" --repo "$repo" --body-file "$COMMENT_FILE"
-          fi
-
-          # The check run is bound to the reviewed commit and goes stale when a new commit is pushed.
-          if [ -s "$CHECK_FILE" ]; then
-            gh api "repos/$repo/check-runs" --method POST --input "$CHECK_FILE" >/dev/null \
-              || echo "::warning::Could not create the nightly-ai-review check run."
-          fi
+        run: bash scripts/release/publish_review.sh
 
   merge:
     name: Merge the exact reviewed commit
