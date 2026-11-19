@@ -122,7 +122,7 @@ jobs:
           code="$(grep '^VERSION_CODE=' gradle.properties | cut -d= -f2- | tr -d '\r\n')"
           clean="${name%%+*}"
           echo "clean_name=$clean" >> "$GITHUB_OUTPUT"
-          echo "tag=${code}-${clean}" >> "$GITHUB_OUTPUT"
+          echo "tag=${clean}" >> "$GITHUB_OUTPUT"
           echo "Releasing $name ($code) on $CHANNEL"
 
       - name: Prepare release notes
