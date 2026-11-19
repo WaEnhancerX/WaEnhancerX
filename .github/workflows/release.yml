@@ -217,3 +217,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run release-index.yml --repo "$GITHUB_REPOSITORY"
+
+      # Releases created with the workflow token never emit a `released` event, so the
+      # VirusTotal workflow would not run on its own. Dispatch it for every channel
+      # (stable, beta and nightly).
+      - name: Start VirusTotal scan
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: gh workflow run virustotal-scan.yml --repo "$GITHUB_REPOSITORY" -f tag="$TAG"

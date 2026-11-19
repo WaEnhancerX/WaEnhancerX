@@ -1,18 +1,20 @@
 name: VirusTotal scan
 
-# Runs for every stable release (pre-releases are skipped by the `released`
-# trigger). Scans every .apk asset (debug + release) on VirusTotal and, only if
+# Runs for every release and pre-release (main, beta and nightly). The release
+# workflow dispatches it explicitly because releases created with GITHUB_TOKEN do
+# not emit release events; manually published releases trigger it via `published`.
+# Scans every .apk asset (debug + release) on VirusTotal and, only if
 # all of them come back clean, adds a VirusTotal badge to the release notes.
 #
 # Requires the repository/organization secret VT_API_KEY.
 
 on:
   release:
-    types: [released]
+    types: [published]
   workflow_dispatch:
     inputs:
       tag:
-        description: Stable release tag to scan
+        description: Release or pre-release tag to scan
         required: true
 
 permissions:
@@ -41,20 +43,26 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify stable release cut from main
+      - name: Verify release cut from main, beta or nightly
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          prerelease=$(gh release view "$TAG" --json isPrerelease -q .isPrerelease)
           draft=$(gh release view "$TAG" --json isDraft -q .isDraft)
-          if [ "$prerelease" = "true" ] || [ "$draft" = "true" ]; then
-            echo "::notice::$TAG is a pre-release/draft; skipping."
+          if [ "$draft" = "true" ]; then
+            echo "::notice::$TAG is a draft; skipping."
             echo "SKIP=true" >> "$GITHUB_ENV"; exit 0
           fi
           git fetch --tags --force origin
-          if ! git merge-base --is-ancestor "refs/tags/$TAG" origin/main; then
-            echo "::notice::$TAG is not reachable from main; skipping."
+          reachable=false
+          for branch in main beta nightly; do
+            if git rev-parse --verify -q "origin/$branch" >/dev/null \
+               && git merge-base --is-ancestor "refs/tags/$TAG" "origin/$branch"; then
+              reachable=true
+            fi
+          done
+          if [ "$reachable" != "true" ]; then
+            echo "::notice::$TAG is not reachable from main, beta or nightly; skipping."
             echo "SKIP=true" >> "$GITHUB_ENV"
           fi
 
