@@ -96,8 +96,10 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
+      checks: write
     outputs:
       verdict: ${{ steps.review.outputs.verdict }}
+      confidence: ${{ steps.review.outputs.confidence }}
       reviewed_sha: ${{ steps.review.outputs.reviewed_sha }}
     steps:
       - name: Check out the trusted review files from the base branch only
@@ -108,6 +110,7 @@ jobs:
           sparse-checkout: |
             scripts/release/pr_gate.py
             scripts/release/ai_review.py
+            scripts/release/publish_review.sh
             docs/NIGHTLY_CONTRIBUTOR_RULES.md
           sparse-checkout-cone-mode: false
 
@@ -125,30 +128,26 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           REVIEW_MODEL: ${{ vars.WAEX_REVIEW_MODEL }}
+          REVIEW_MIN_CONFIDENCE: ${{ vars.WAEX_REVIEW_MIN_CONFIDENCE }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           REVIEW_COMMENT_FILE: ${{ runner.temp }}/review-comment.md
+          REVIEW_PAYLOAD_FILE: ${{ runner.temp }}/review-payload.json
+          REVIEW_CHECK_FILE: ${{ runner.temp }}/review-check.json
         run: python3 scripts/release/ai_review.py
 
-      - name: Publish the verdict on the PR
+      - name: Publish the review, the check and the labels
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           VERDICT: ${{ steps.review.outputs.verdict }}
           COMMENT_FILE: ${{ runner.temp }}/review-comment.md
-        run: |
-          set -euo pipefail
-          case "$VERDICT" in
-            approve) label=ai-approved ;;
-            reject)  label=ai-rejected ;;
-            *)       label=needs-maintainer ;;
-          esac
-          gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label "$label"
-          if [[ "$VERDICT" != approve && "$label" != needs-maintainer ]]; then
-            gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label needs-maintainer
-          fi
-          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file "$COMMENT_FILE"
+          PAYLOAD_FILE: ${{ runner.temp }}/review-payload.json
+          CHECK_FILE: ${{ runner.temp }}/review-check.json
+          # Optional: reviews and review comments are posted as this account (for example waex-bot).
+          REVIEW_TOKEN: ${{ secrets.WAEX_BOT_TOKEN }}
+        run: bash scripts/release/publish_review.sh
 
   merge:
     name: Merge the exact reviewed commit
