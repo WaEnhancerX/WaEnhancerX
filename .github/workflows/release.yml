@@ -62,6 +62,15 @@ jobs:
           # A token that may push to the protected branch; falls back to the workflow token.
           token: ${{ secrets.RELEASE_PUSH_TOKEN || github.token }}
 
+      # :licensing is a private module that is not tracked in this repository.
+      - name: Check out private licensing module
+        uses: actions/checkout@v4
+        with:
+          repository: mubashardev/waex-licensing
+          token: ${{ secrets.LICENSING_REPO_TOKEN }}
+          path: licensing
+          persist-credentials: false
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -80,9 +89,9 @@ jobs:
           echo "tag=${code}-${clean}" >> "$GITHUB_OUTPUT"
           echo "Releasing $name ($code) on $CHANNEL"
 
-      - name: Assemble release notes
+      - name: Prepare release notes
         run: |
-          python3 scripts/release/assemble-notes.py --dir changelog.d --out notes.txt
+          cp changelog.txt notes.txt
           if [ ! -s notes.txt ]; then echo "No user-visible changes were recorded." > notes.txt; fi
           if [ "$CHANNEL" = nightly ]; then
             printf '\nBuilt from commit %s\n' "$GITHUB_SHA" >> notes.txt
@@ -123,10 +132,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Stable releases consume the pending changelog fragments.
-          if [ "$CHANNEL" = stable ]; then
-            git rm -q --ignore-unmatch $(git ls-files 'changelog.d/*.txt' | grep -v '/_') || true
-          fi
           git add gradle.properties
           git commit -m "chore(release): ${CHANNEL} ${NAME} (${CODE}) [skip ci]"
           git push origin "HEAD:${GITHUB_REF_NAME}"
