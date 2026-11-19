@@ -5,7 +5,8 @@ name: Nightly manual merge
 # manual_merge.py re-checks that the PR is open on nightly with the exact commit the maintainer
 # saw, that GitHub Actions recorded an AI approval for that exact commit, and then merge_pr.py
 # requires the QA check and a clean merge before it merges pinned to that commit. The merge is made
-# by the merge app, so the release workflow treats it like an automatic merge.
+# by the merge app, so the release workflow treats it like an automatic merge. The maintainer can
+# explicitly skip only the QA check (skip_qa), if the repository variable WAEX_ALLOW_QA_OVERRIDE is true.
 on:
   workflow_dispatch:
     inputs:
@@ -21,6 +22,11 @@ on:
         description: Who asked for this (shown in the PR comment)
         required: false
         default: ''
+        type: string
+      skip_qa:
+        description: 'The word true merges without waiting for the QA check. Needs the repository variable WAEX_ALLOW_QA_OVERRIDE=true.'
+        required: false
+        default: 'false'
         type: string
 
 permissions: {}
@@ -72,6 +78,8 @@ jobs:
           PR_NUMBER: ${{ inputs.pr_number }}
           EXPECTED_SHA: ${{ inputs.expected_sha }}
           REQUESTED_BY: ${{ inputs.requested_by }}
+          SKIP_QA: ${{ inputs.skip_qa }}
+          ALLOW_QA_OVERRIDE: ${{ vars.WAEX_ALLOW_QA_OVERRIDE }}
           REQUIRED_CHECK: ${{ vars.WAEX_QA_CHECK_NAME }}
           MERGE_COMMENT_FILE: ${{ runner.temp }}/merge-comment.md
         run: python3 scripts/release/manual_merge.py
