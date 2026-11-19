@@ -63,12 +63,12 @@ object ReleaseRepository {
     internal val ALLOWED_REPOSITORIES = listOf("WaEnhancerX/WaEnhancerX", "Xposed-Modules-Repo/com.waenhancer")
 
     /**
-     * Repository serving each channel through the GitHub Releases API fallback. Open decision:
-     * stable currently stays in the legacy repository until the maintainer confirms where it lives.
+     * Repository serving each channel through the GitHub Releases API fallback: stable and beta
+     * live in the Xposed module repository, nightly only in WaEnhancerX/WaEnhancerX.
      */
     internal val CHANNEL_REPOSITORIES = mapOf(
         UpdateChannel.STABLE to "Xposed-Modules-Repo/com.waenhancer",
-        UpdateChannel.BETA to "WaEnhancerX/WaEnhancerX",
+        UpdateChannel.BETA to "Xposed-Modules-Repo/com.waenhancer",
         UpdateChannel.NIGHTLY to "WaEnhancerX/WaEnhancerX",
     )
     internal const val INDEX_BASE_URL = "https://raw.githubusercontent.com/WaEnhancerX/WaEnhancerX/release-index/"
