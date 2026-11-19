@@ -58,8 +58,10 @@ with tempfile.TemporaryDirectory() as tmp:
         (d / name).unlink()
     check(run(d).returncode == 2, "no fragments fails closed")
 
+# The real directory changes with every PR that adds a fragment (rule R14), so only require that
+# it is handled cleanly: notes (exit 0) or "no fragments" (exit 2), never a crash.
 real = run(ROOT / "changelog.d")
-check(real.returncode == 2, "repo changelog.d has only README/template, so no notes yet")
+check(real.returncode in (0, 2) and "Traceback" not in real.stderr, "repo changelog.d is processed without a crash")
 
 if failures:
     raise SystemExit("Changelog assembly violations:\n- " + "\n- ".join(failures))

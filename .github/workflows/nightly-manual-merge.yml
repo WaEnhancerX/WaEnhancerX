@@ -1,0 +1,99 @@
+name: Nightly manual merge
+
+# Merges one AI-approved nightly PR on a maintainer's request (the admin bot or the Actions tab).
+# Only people with write access can start a workflow_dispatch run. The request carries no trust:
+# manual_merge.py re-checks that the PR is open on nightly with the exact commit the maintainer
+# saw, that GitHub Actions recorded an AI approval for that exact commit, and then merge_pr.py
+# requires the QA check and a clean merge before it merges pinned to that commit. The merge is made
+# by the merge app, so the release workflow treats it like an automatic merge.
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number
+        required: true
+        type: string
+      expected_sha:
+        description: Full head commit SHA the maintainer saw
+        required: true
+        type: string
+      requested_by:
+        description: Who asked for this (shown in the PR comment)
+        required: false
+        default: ''
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: nightly-manual-merge-${{ inputs.pr_number }}
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    name: Merge the approved commit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Check out the trusted merge scripts from the default branch only
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/release/merge_pr.py
+            scripts/release/manual_merge.py
+          sparse-checkout-cone-mode: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Create a short-lived token for the merge app
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.WAEX_APP_ID }}
+          private-key: ${{ secrets.WAEX_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-issues: write
+          permission-checks: read
+
+      - name: Verify the approval and merge the exact approved commit
+        id: merge
+        shell: bash
+        env:
+          MERGE_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          REQUESTED_BY: ${{ inputs.requested_by }}
+          REQUIRED_CHECK: ${{ vars.WAEX_QA_CHECK_NAME }}
+          MERGE_COMMENT_FILE: ${{ runner.temp }}/merge-comment.md
+        run: python3 scripts/release/manual_merge.py
+
+      - name: Record the merge on the PR
+        if: steps.merge.outputs.result == 'merged'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          COMMENT_FILE: ${{ runner.temp }}/merge-comment.md
+        run: gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file "$COMMENT_FILE"
+
+      - name: Summary
+        if: always()
+        shell: bash
+        env:
+          RESULT: ${{ steps.merge.outputs.result }}
+          MESSAGE: ${{ steps.merge.outputs.message }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+        run: |
+          {
+            echo "### Nightly manual merge of #${PR_NUMBER}"
+            echo "Result: \`${RESULT:-not run}\`. ${MESSAGE:-}"
+          } >> "$GITHUB_STEP_SUMMARY"
