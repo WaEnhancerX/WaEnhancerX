@@ -120,8 +120,10 @@ jobs:
               echo "::error::$name flagged (malicious=$mal, suspicious=$sus) $link"
               failed=1
             fi
-            printf -- '- [%s](%s): %s malicious, %s suspicious, %s clean engines\n' \
-              "$name" "$link" "$mal" "$sus" "$harmless" >> vt-results.md
+            # Clickable badge per APK, linking to its VirusTotal file report.
+            badge="https://img.shields.io/badge/VirusTotal-clean-brightgreen?logo=virustotal&logoColor=white"
+            printf -- '- [![VirusTotal](%s)](%s) [%s](%s): %s malicious, %s suspicious, %s clean engines\n' \
+              "$badge" "$link" "$name" "$link" "$mal" "$sus" "$harmless" >> vt-results.md
             echo "::endgroup::"
           done
 
@@ -137,8 +139,6 @@ jobs:
           end='<!-- virustotal:end -->'
           {
             echo "$start"
-            echo "![VirusTotal](https://img.shields.io/badge/VirusTotal-clean-brightgreen?logo=virustotal&logoColor=white)"
-            echo
             echo "**VirusTotal scan (debug + release APKs):**"
             cat vt-results.md
             echo "$end"
