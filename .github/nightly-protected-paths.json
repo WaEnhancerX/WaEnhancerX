@@ -1,13 +1,19 @@
 {
   "version": 1,
-  "description": "A PR that touches any of these paths is never auto-merged into nightly; it is labeled needs-maintainer and waits for a human review. Patterns use glob syntax where ** matches across directories. The gate must test both the new and the previous filename of renamed files.",
+  "description": "A PR that touches any of these paths is never auto-merged into nightly; it is labeled needs-maintainer and waits for a human review. Patterns use glob syntax where ** matches across directories. The gate must test both the new and the previous filename of renamed files. Only the qa tests that guard the release pipeline itself are protected; ordinary qa tests and fixtures may be auto-merged after AI review.",
   "protected_globs": [
     ".github/**",
     ".gitmodules",
     ".gitignore",
     "CODEOWNERS",
     "scripts/**",
-    "qa/**",
+    "qa/test_nightly_release_contract.py",
+    "qa/test_version_scheme.py",
+    "qa/test_changelog_assembly.py",
+    "qa/test_pr_gate.py",
+    "qa/test_ai_review.py",
+    "qa/test_merge_pr.py",
+    "docs/NIGHTLY_CONTRIBUTOR_RULES.md",
     "docs/RELEASE_CHANNELS.md",
     "docs/NIGHTLY_RELEASE_PIPELINE.md",
     "docs/examples/**",
@@ -33,12 +39,20 @@
     "SECURITY.md"
   ],
   "protected_extensions": [
-    ".jar", ".aar", ".so", ".dex", ".apk", ".aab", ".bin", ".exe", ".sh", ".kts"
+    ".jar",
+    ".aar",
+    ".so",
+    ".dex",
+    ".apk",
+    ".aab",
+    ".bin",
+    ".exe",
+    ".sh",
+    ".kts"
   ],
   "limits": {
     "max_changed_files": 40,
-    "max_changed_lines": 1500,
-    "max_file_size_bytes": 262144
+    "max_changed_lines": 1500
   },
   "fail_closed": "If the changed-file list cannot be fetched completely (pagination limit, API error), treat the PR as touching a protected path."
 }

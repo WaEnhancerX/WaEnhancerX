@@ -1,9 +1,9 @@
 # Changelog fragments
 
-Every pull request adds one small file here instead of editing `changelog.txt`,
-so concurrent PRs never conflict.
+Every pull request with a user-visible change adds one small file here instead of
+editing `changelog.txt`, so concurrent PRs never conflict.
 
-- Name it `<pull-request-number>.txt` (for example `163.txt`).
+- Name it `<short-topic>.txt` (for example `anti-revoke-redaction.txt`). The PR number does not exist yet when you open the PR, so do not use it.
 - Use the same sections as `changelog.txt`: `[Added]`, `[Fixes]`, `[Improvements]`.
 - One bullet per user-visible change, starting with `- `.
 - Wrap long bullets by indenting the continuation line with two spaces.
