@@ -81,6 +81,13 @@ import com.waenhancer.update.ChangelogParser
 import com.waenhancer.update.ChangelogSection
 import com.waenhancer.update.WaexAsset
 import com.waenhancer.update.WaexRelease
+import com.waenhancer.update.InstalledBuild
+import com.waenhancer.update.UpdateChannel
+import com.waenhancer.ui.components.RiskConfirmDialog
+import com.waenhancer.ui.components.ReleaseKindChip
+import com.waenhancer.ui.components.WaexSegmentedTabs
+import com.waenhancer.ui.components.channelLabel
+import com.waenhancer.ui.components.installRiskMessage
 import io.noties.markwon.Markwon
 import io.noties.markwon.html.HtmlPlugin
 import java.text.SimpleDateFormat
@@ -110,20 +117,24 @@ fun ChangelogScreen() {
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
     val pullToRefreshState = rememberPullToRefreshState()
-    val initialCachedReleases = remember { ReleaseRepository.getCachedReleases(context) }
-    var releases by remember { mutableStateOf<List<WaexRelease>>(initialCachedReleases) }
-    var loading by remember { mutableStateOf(initialCachedReleases.isEmpty()) }
+    val installed = remember { InstalledBuild.read(context) }
+    val selectedChannel = remember { UpdateChannel.selected(context, installed) }
+    var tab by remember { mutableStateOf(selectedChannel) }
+    // The selected channel (for update checks), the viewed tab, and stable (for "Switch to stable").
+    val wantedChannels = remember(tab) { setOf(selectedChannel, tab, UpdateChannel.STABLE) }
+    var allReleases by remember { mutableStateOf(ReleaseRepository.getCachedReleases(context, wantedChannels)) }
+    val releases = allReleases.filter { it.channel == tab }
+    var loading by remember { mutableStateOf(releases.isEmpty()) }
+    var pendingRisk by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
     var isRefreshing by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var reloadKey by remember { mutableStateOf(0) }
     var buildSelectionRelease by remember { mutableStateOf<WaexRelease?>(null) }
     var activeDownload by remember { mutableStateOf<Pair<WaexRelease, WaexAsset>?>(null) }
-    val installedVersion = remember {
-        @Suppress("DEPRECATION")
-        context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
-    }
+    val installedVersion = installed.versionName
 
-    LaunchedEffect(reloadKey) {
+    LaunchedEffect(reloadKey, tab) {
+        allReleases = ReleaseRepository.getCachedReleases(context, wantedChannels)
         if (releases.isEmpty()) {
             loading = true
         } else {
@@ -131,13 +142,13 @@ fun ChangelogScreen() {
         }
         error = null
         runCatching {
-            ReleaseRepository.fetchReleases(context, forceRefresh = reloadKey > 0)
+            ReleaseRepository.fetchReleases(context, forceRefresh = reloadKey > 0, channels = wantedChannels)
         }.onSuccess { fetched ->
-            releases = fetched
+            allReleases = fetched
         }.onFailure { err ->
-            val cached = ReleaseRepository.getCachedReleases(context)
+            val cached = ReleaseRepository.getCachedReleases(context, wantedChannels)
             if (cached.isNotEmpty()) {
-                releases = cached
+                allReleases = cached
             } else if (NetworkErrorCenter.isNetworkError(err)) {
                 NetworkErrorCenter.show(err) { reloadKey++ }
             } else {
@@ -149,9 +160,39 @@ fun ChangelogScreen() {
     }
 
     val availableUpdate = ReleaseRepository.findUpdate(
-        releases,
-        installedVersion
+        allReleases,
+        installed.versionName,
+        installed.versionCode,
+        selectedChannel
     )
+    val stableRelease = allReleases.filter { it.channel == UpdateChannel.STABLE }.maxByOrNull { it.versionCode }
+    val allowDowngradeSetting = preferences.getBoolean("downgrades_enabled", false)
+
+    fun launchInstall(release: WaexRelease, preferred: WaexAsset?) {
+        if (preferred != null) {
+            activeDownload = release to preferred
+        } else if (release.assets.size > 1) {
+            buildSelectionRelease = release
+        } else {
+            val asset = release.assets.firstOrNull() ?: release.defaultAsset
+            if (asset != null) {
+                activeDownload = release to asset
+            } else if (release.downloadUrl != null) {
+                activeDownload = release to WaexAsset(
+                    name = "WaEnhancerX-${release.tagName}.apk",
+                    downloadUrl = release.downloadUrl!!,
+                    size = release.downloadSize
+                )
+            }
+        }
+    }
+
+    // Warn before a downgrade or a move to a less stable build; a debug/release mode switch is exempt.
+    fun requestInstall(release: WaexRelease, preferred: WaexAsset? = null) {
+        val risk = if (preferred != null) null else
+            installRiskMessage(release.versionCode < installed.versionCode, release.channel, installed.channel)
+        if (risk != null) pendingRisk = risk to { launchInstall(release, null) } else launchInstall(release, preferred)
+    }
     Scaffold(
         topBar = {
             WaexTopBar(
@@ -166,6 +207,14 @@ fun ChangelogScreen() {
         },
         containerColor = colors.background
     ) { insets ->
+        Column(Modifier.fillMaxSize().padding(insets)) {
+        val channelTabs = listOf(UpdateChannel.STABLE, UpdateChannel.BETA, UpdateChannel.NIGHTLY)
+        WaexSegmentedTabs(
+            labels = channelTabs.map { channelLabel(it) },
+            selectedIndex = channelTabs.indexOf(tab),
+            onSelect = { tab = channelTabs[it] },
+            modifier = Modifier.padding(horizontal = spacing.pageMargin, vertical = 8.dp)
+        )
         PullToRefreshBox(
             isRefreshing = isRefreshing,
             onRefresh = { reloadKey++ },
@@ -204,8 +253,8 @@ fun ChangelogScreen() {
                 }
             },
             modifier = Modifier
-                .fillMaxSize()
-                .padding(insets)
+                .weight(1f)
+                .fillMaxWidth()
         ) {
             when {
                 loading -> ChangelogSkeleton(
@@ -242,75 +291,72 @@ fun ChangelogScreen() {
                     contentPadding = PaddingValues(horizontal = spacing.pageMargin, vertical = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                if (installed.channel != UpdateChannel.STABLE && stableRelease != null &&
+                    !stableRelease.version.equals(normalizeVersion(installedVersion), true) &&
+                    (stableRelease.versionCode > installed.versionCode || allowDowngradeSetting)) {
+                    item {
+                        Button(
+                            onClick = { requestInstall(stableRelease) },
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = radius.buttonShape
+                        ) { Text("${UiText.get(R.string.waex_ui_switch_to_stable, "Switch to stable")} (${stableRelease.version})") }
+                    }
+                }
                 if (releases.isEmpty()) item { Text(UiText.get(R.string.waex_ui_no_releases_found, "No releases found."), color = colors.onSurfaceVariant) }
-                if (releases.isNotEmpty()) {
+                if (allReleases.isNotEmpty()) {
                     item {
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(28.dp),
+                            shape = RoundedCornerShape(18.dp),
                             color = if (availableUpdate != null) colors.primaryContainer else colors.surfaceContainerHigh
                         ) {
                             Row(
-                                modifier = Modifier.padding(22.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Surface(
-                                    modifier = Modifier.size(54.dp),
-                                    shape = RoundedCornerShape(18.dp),
-                                    color = if (availableUpdate != null) colors.primary else colors.surfaceContainerHighest,
-                                    contentColor = if (availableUpdate != null) colors.onPrimary else colors.onSurface
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = if (availableUpdate != null) WaexIcons.SystemUpdate else WaexIcons.Success,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(27.dp)
-                                        )
-                                    }
-                                }
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(3.dp)
-                                ) {
+                                Icon(
+                                    imageVector = if (availableUpdate != null) WaexIcons.SystemUpdate else WaexIcons.Success,
+                                    contentDescription = null,
+                                    tint = if (availableUpdate != null) colors.primary else colors.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = if (availableUpdate != null) {
-                                            UiText.get(R.string.waex_ui_update, "Update")
+                                            "${UiText.get(R.string.waex_ui_update, "Update")}: ${availableUpdate.version}"
                                         } else {
                                             UiText.get(R.string.waex_ui_installed, "Installed")
                                         },
-                                        style = typography.titleMd,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = colors.onSurface
-                                    )
-                                    Text(
-                                        text = if (availableUpdate != null) availableUpdate.version else installedVersion,
-                                        style = typography.displayLg,
-                                        fontWeight = FontWeight.Bold,
-                                        color = colors.onSurface
-                                    )
-                                    Text(
-                                        text = UiText.get(
-                                            R.string.waex_ui_changelog_releases,
-                                            "Changelog & Releases"
-                                        ),
                                         style = typography.bodySm,
                                         color = colors.onSurfaceVariant
                                     )
+                                    Text(
+                                        text = installedVersion,
+                                        style = typography.titleMd,
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.onSurface
+                                    )
                                 }
+                                ReleaseKindChip(installedVersion)
+                                Badge(
+                                    if (BuildConfig.IS_DEBUG_VARIANT) UiText.get(R.string.waex_ui_build_debug, "Debug")
+                                    else UiText.get(R.string.waex_ui_build_release, "Release"),
+                                    colors.onSurfaceVariant
+                                )
                             }
                         }
                     }
                 }
                 items(releases, key = { it.tagName }) { release ->
-                    val installed = release.version.equals(normalizeVersion(installedVersion), true)
-                    val comparison = ReleaseRepository.versionCode(release.version).compareTo(ReleaseRepository.versionCode(installedVersion))
-                    val allowDowngrade = preferences.getBoolean("downgrades_enabled", false)
+                    val isInstalled = release.version.equals(normalizeVersion(installedVersion), true)
+                    val comparison = release.versionCode.compareTo(installed.versionCode)
+                    val allowDowngrade = allowDowngradeSetting
                     Surface(
-                        shape = RoundedCornerShape(if (installed || release.tagName == availableUpdate?.tagName) 28.dp else 20.dp),
+                        shape = RoundedCornerShape(if (isInstalled || release.tagName == availableUpdate?.tagName) 28.dp else 20.dp),
                         color = when {
                             release.tagName == availableUpdate?.tagName -> colors.primaryContainer
-                            installed -> colors.surfaceContainerHigh
+                            isInstalled -> colors.surfaceContainerHigh
                             else -> colors.surfaceContainerLow
                         },
                         modifier = Modifier.fillMaxWidth().clickable { navController.navigateTo(Screen.ReleaseDetails(release.tagName)) }
@@ -339,9 +385,10 @@ fun ChangelogScreen() {
                                     )
                                 }
                             }
-                            if (installed || release.tagName == availableUpdate?.tagName) {
+                            run {
                                 Row(Modifier.padding(top = 8.dp)) {
-                                    if (installed) Badge(UiText.get(R.string.waex_ui_installed, "Installed"), colors.success)
+                                    ReleaseKindChip(release.version)
+                                    if (isInstalled) Badge(UiText.get(R.string.waex_ui_installed, "Installed"), colors.success)
                                     if (release.tagName == availableUpdate?.tagName) Badge(UiText.get(R.string.waex_ui_update, "Update"), colors.primary)
                                 }
                             }
@@ -359,8 +406,8 @@ fun ChangelogScreen() {
                             val debugAsset = release.assets.firstOrNull { it.isDebug }
                             val releaseAsset = release.assets.firstOrNull { !it.isDebug }
                             val hasBothModes = debugAsset != null && releaseAsset != null
-                            val canSwitchMode = installed && hasBothModes
-                            val otherModeAsset = if (installed) {
+                            val canSwitchMode = isInstalled && hasBothModes
+                            val otherModeAsset = if (isInstalled) {
                                 if (BuildConfig.IS_DEBUG_VARIANT) releaseAsset else debugAsset
                             } else null
 
@@ -370,24 +417,7 @@ fun ChangelogScreen() {
                             if (showActionButton) {
                                 Spacer(Modifier.height(14.dp))
                                 Button(
-                                    onClick = {
-                                        if (canSwitchMode && otherModeAsset != null) {
-                                            activeDownload = release to otherModeAsset
-                                        } else if (release.assets.size > 1) {
-                                            buildSelectionRelease = release
-                                        } else {
-                                            val asset = release.assets.firstOrNull() ?: release.defaultAsset
-                                            if (asset != null) {
-                                                activeDownload = release to asset
-                                            } else if (release.downloadUrl != null) {
-                                                activeDownload = release to WaexAsset(
-                                                    name = "WaEnhancerX-${release.tagName}.apk",
-                                                    downloadUrl = release.downloadUrl!!,
-                                                    size = release.downloadSize
-                                                )
-                                            }
-                                        }
-                                    },
+                                    onClick = { requestInstall(release, if (canSwitchMode) otherModeAsset else null) },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(48.dp),
@@ -406,6 +436,7 @@ fun ChangelogScreen() {
                 }
             }
         }
+        }
     }
 }
 
@@ -417,6 +448,16 @@ fun ChangelogScreen() {
                 activeDownload = rel to asset
             },
             onDismiss = { buildSelectionRelease = null }
+        )
+    }
+
+    pendingRisk?.let { (message, proceed) ->
+        RiskConfirmDialog(
+            title = UiText.get(R.string.waex_ui_install_risk_title, "Install this build?"),
+            message = message,
+            confirmLabel = UiText.get(R.string.waex_ui_install_risk_confirm, "Install anyway"),
+            onConfirm = { pendingRisk = null; proceed() },
+            onDismiss = { pendingRisk = null }
         )
     }
 

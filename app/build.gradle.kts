@@ -179,7 +179,7 @@ android {
             val output = it as? ApkVariantOutput
             if (output != null) {
                 val suffix = if (variant.buildType.name == "debug") "_debug" else "_release"
-                output.outputFileName = "WaEnhancerX-v${variant.versionName}${suffix}.apk"
+                output.outputFileName = "WaEnhancerX-v${variant.versionName.substringBefore('+')}${suffix}.apk"
             }
         }
     }

@@ -101,6 +101,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.waenhancer.ui.components.ReleaseKindChip
 import com.waenhancer.ui.components.LicenseActivationModal
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
@@ -540,6 +541,7 @@ fun MainContainerScreen() {
                                                 style = typography.bodySm,
                                                 color = colors.onSurfaceVariant
                                             )
+                                            ReleaseKindChip(versionName = BuildConfig.VERSION_NAME)
 
                                             // License Plan Chip inside Drawer Header
                                             val chipBg = when (licenseState) {
