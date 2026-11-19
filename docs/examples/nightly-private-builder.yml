@@ -1,0 +1,205 @@
+# INERT EXAMPLE: copy to .github/workflows/ in the maintainer's PRIVATE build repository.
+# Do NOT move it into the public WaEnhancerX repository: protected runners and
+# private build inputs must never execute unreviewed public pull requests.
+name: WAEX protected Nightly build and pre-release
+
+on:
+  repository_dispatch:
+    types: [waex-nightly-build]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: waex-private-nightly-${{ github.event.client_payload.source_sha }}
+  cancel-in-progress: false
+
+jobs:
+  verify-reviewed-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      sha: ${{ steps.guard.outputs.sha }}
+      tag: ${{ steps.guard.outputs.tag }}
+    steps:
+      - name: Require the current, reviewed upstream Nightly commit
+        id: guard
+        shell: bash
+        env:
+          SOURCE_REPOSITORY: ${{ github.event.client_payload.source_repository }}
+          SOURCE_REF: ${{ github.event.client_payload.source_ref }}
+          SOURCE_SHA: ${{ github.event.client_payload.source_sha }}
+          SOURCE_RUN_ID: ${{ github.event.client_payload.source_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ github.event.client_payload.source_run_attempt }}
+        run: |
+          set -euo pipefail
+          if [[ "$SOURCE_REPOSITORY" != 'WaEnhancerX/WaEnhancerX' ]] || \
+             [[ "$SOURCE_REF" != 'refs/heads/nightly' ]] || \
+             [[ ! "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]] || \
+             [[ ! "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]] || \
+             [[ ! "$SOURCE_RUN_ATTEMPT" =~ ^[0-9]+$ ]]; then
+            echo '::error::Invalid protected-build event identity.'
+            exit 1
+          fi
+          current="$(git ls-remote https://github.com/WaEnhancerX/WaEnhancerX.git refs/heads/nightly | cut -f1)"
+          if [[ "$SOURCE_SHA" != "$current" ]]; then
+            echo '::error::Requested SHA is not the current upstream nightly HEAD.'
+            exit 1
+          fi
+          echo "sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
+          echo "tag=nightly-${SOURCE_SHA:0:12}-${SOURCE_RUN_ID}-${SOURCE_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+
+  protected-build:
+    needs: verify-reviewed-source
+    # This runner belongs to the PRIVATE builder repository, never the public one.
+    runs-on: [self-hosted, linux, waex-protected-nightly]
+    timeout-minutes: 90
+    environment:
+      name: waex-nightly-build
+    permissions:
+      contents: read
+    steps:
+      - name: Check out only the reviewed public source revision
+        uses: actions/checkout@v4
+        with:
+          repository: WaEnhancerX/WaEnhancerX
+          ref: ${{ needs.verify-reviewed-source.outputs.sha }}
+          persist-credentials: false
+          submodules: false
+
+      - name: Invoke the maintainer-managed protected build script
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.verify-reviewed-source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          umask 077
+          if [[ "$(git rev-parse HEAD)" != "$SOURCE_SHA" ]]; then
+            echo '::error::Checkout does not match the reviewed source commit.'
+            exit 1
+          fi
+          # The path and all licensing/signing inputs are installed ONLY on the
+          # maintainer's isolated runner. This workflow has no access to their values.
+          if [[ -z "${WAEX_NIGHTLY_BUILD_SCRIPT:-}" ]] || \
+             [[ "$WAEX_NIGHTLY_BUILD_SCRIPT" != /* ]] || \
+             [[ ! -x "$WAEX_NIGHTLY_BUILD_SCRIPT" ]] || \
+             [[ "$WAEX_NIGHTLY_BUILD_SCRIPT" == "$GITHUB_WORKSPACE"/* ]]; then
+            echo '::error::Protected build script is missing or located in untrusted checkout.'
+            exit 1
+          fi
+          apk="$RUNNER_TEMP/waex-nightly.apk"
+          if [[ -e "$apk" || -L "$apk" ]]; then
+            echo '::error::Refusing to reuse an existing output file.'
+            exit 1
+          fi
+          "$WAEX_NIGHTLY_BUILD_SCRIPT" "$SOURCE_SHA" "$GITHUB_WORKSPACE" "$apk"
+          if [[ ! -f "$apk" || -L "$apk" || ! -s "$apk" ]]; then
+            echo '::error::Protected build did not produce the expected regular APK.'
+            exit 1
+          fi
+          sha256sum "$apk" | cut -d' ' -f1 > "$RUNNER_TEMP/waex-nightly.sha256"
+
+      - name: Transfer only the signed APK and its digest to the release job
+        uses: actions/upload-artifact@v4
+        with:
+          name: waex-nightly-signed-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/waex-nightly.apk
+            ${{ runner.temp }}/waex-nightly.sha256
+          retention-days: 7
+          if-no-files-found: error
+
+  publish-prerelease:
+    needs: [verify-reviewed-source, protected-build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment:
+      name: waex-nightly-publish
+    permissions:
+      contents: read
+    steps:
+      - name: Require Android SDK and install the pinned APK inspection tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${ANDROID_HOME:-}" ]] || \
+             [[ ! -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]]; then
+            echo '::error::Official Android SDK command line tools are required on this hosted publisher.'
+            exit 1
+          fi
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install 'build-tools;36.0.0'
+
+      - name: Download only the protected builder's signed output
+        uses: actions/download-artifact@v4
+        with:
+          name: waex-nightly-signed-${{ github.run_id }}
+          path: ${{ runner.temp }}/waex-nightly-publish
+
+      - name: Verify artifact integrity, official signing certificate and package
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ needs.verify-reviewed-source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          apk="$RUNNER_TEMP/waex-nightly-publish/waex-nightly.apk"
+          sha_file="$RUNNER_TEMP/waex-nightly-publish/waex-nightly.sha256"
+          [[ -f "$apk" && ! -L "$apk" && -s "$apk" && -f "$sha_file" ]]
+          expected_sha="$(tr -d '[:space:]' < "$sha_file")"
+          [[ "$expected_sha" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$(sha256sum "$apk" | cut -d' ' -f1)" == "$expected_sha" ]]
+
+          # Install/configure Android SDK Build Tools 36.0.0 on this hosted job
+          # before enabling automatic releases. Missing validators fail closed.
+          apksigner="${ANDROID_HOME:-}/build-tools/36.0.0/apksigner"
+          aapt="${ANDROID_HOME:-}/build-tools/36.0.0/aapt"
+          if [[ ! -x "$apksigner" || ! -x "$aapt" ]]; then
+            echo '::error::Android SDK Build Tools 36.0.0 are required for independent APK verification.'
+            exit 1
+          fi
+          signature="$($apksigner verify --verbose --print-certs "$apk")"
+          certificate="$(printf '%s\n' "$signature" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
+          certificate="${certificate,,}"
+          expected_certificate='284325b6f0ca18da5e4c237a6c0618c2a22b08ff8d4a5d11fd12478dad690a84'
+          if [[ "$certificate" != "$expected_certificate" ]]; then
+            echo '::error::APK certificate does not match WAEX official signing identity.'
+            exit 1
+          fi
+          badging="$($aapt dump badging "$apk")"
+          if [[ ! "$badging" =~ package:\ name=\'com\.waenhancer\' ]] || \
+             [[ ! "$badging" =~ versionName=\'[^\']*-nightly[^\']*\' ]]; then
+            echo '::error::APK must have the WAEX package and an explicit Nightly version name.'
+            exit 1
+          fi
+          current="$(git ls-remote https://github.com/WaEnhancerX/WaEnhancerX.git refs/heads/nightly | cut -f1)"
+          if [[ "$SOURCE_SHA" != "$current" ]]; then
+            echo '::error::Nightly advanced while building; do not publish an outdated commit.'
+            exit 1
+          fi
+
+      - name: Publish a unique GitHub Nightly pre-release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.WAEX_PUBLIC_NIGHTLY_PUBLISH_TOKEN }}
+          SOURCE_SHA: ${{ needs.verify-reviewed-source.outputs.sha }}
+          RELEASE_TAG: ${{ needs.verify-reviewed-source.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo '::error::Scoped public release publishing token is missing.'
+            exit 1
+          fi
+          apk="$RUNNER_TEMP/waex-nightly-publish/waex-nightly.apk"
+          checksum="$RUNNER_TEMP/waex-nightly-publish/waex-nightly.sha256"
+          {
+            echo "Source: WaEnhancerX/WaEnhancerX@${SOURCE_SHA}"
+            echo 'Channel: Nightly (pre-release, not a stable version)'
+            echo "SHA-256: $(tr -d '[:space:]' < "$checksum")"
+            echo 'Built in the maintainer-protected environment after public source QA passed.'
+          } > "$RUNNER_TEMP/waex-nightly-notes.txt"
+          # No force update, no release overwrite, no APK or credential logging.
+          gh release create "$RELEASE_TAG" "$apk" "$checksum" \
+            --repo WaEnhancerX/WaEnhancerX \
+            --target "$SOURCE_SHA" \
+            --prerelease \
+            --title "WAEX Nightly ${SOURCE_SHA:0:12}" \
+            --notes-file "$RUNNER_TEMP/waex-nightly-notes.txt"
