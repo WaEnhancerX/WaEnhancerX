@@ -1,0 +1,57 @@
+name: Update release index
+
+# Keeps the per-channel index files on the release-index branch in sync with published releases.
+# Release events cover this repository; the schedule also picks up releases published in the
+# module repository (Xposed-Modules-Repo/com.waenhancer), which cannot trigger workflows here.
+on:
+  release:
+    types: [published, edited, deleted, released, prereleased]
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: release-index
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Rebuild release-index
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the generator from the default branch
+        uses: actions/checkout@v4
+        with:
+          path: src
+          persist-credentials: false
+          sparse-checkout: scripts/release/build_release_index.py
+          sparse-checkout-cone-mode: false
+
+      - name: Check out the release-index branch
+        uses: actions/checkout@v4
+        with:
+          ref: release-index
+          path: index
+
+      - name: Rebuild index files
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 src/scripts/release/build_release_index.py index
+
+      - name: Commit and push when changed
+        working-directory: index
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "Index unchanged"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: update release index"
+          git push origin HEAD:release-index
