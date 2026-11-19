@@ -2,6 +2,7 @@ package com.waenhancer.core.transcription.local;
 
 import android.os.Build;
 import androidx.annotation.Nullable;
+import com.waenhancer.app.WaexApp;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.util.Locale;
@@ -57,6 +58,12 @@ public final class WhisperNative {
             if ("arm64-v8a".equals(abi)) arm64 = true;
         }
         if (!arm64) return unsupported("needs a 64-bit ARM phone");
+        // Not cached as sSupported: downloading is a separate, explicit user action (see
+        // NativeLibsDownloadGate), and this must re-check every call until it succeeds.
+        if (!NativeLibsProvisioner.isProvisioned(WaexApp.Companion.getInstance())) {
+            sUnsupportedReason = "transcription libraries not downloaded yet";
+            return false;
+        }
         try {
             System.loadLibrary("waexwhisper");
         } catch (Throwable t) {
