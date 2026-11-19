@@ -4,6 +4,21 @@ name: Release
 # final commit message contains the word --release. The channel is taken from the branch,
 # the version is bumped from gradle.properties and the repository tags, and gradle.properties
 # is committed back so it always matches the last release.
+#
+# nightly also releases without the flag when the push is a PR that the nightly PR gate
+# approved (label ai-approved) and the merge app squash-merged; see docs/NIGHTLY_CONTRIBUTOR_RULES.md.
+#
+# Branch rules: protect-main and protect-beta block every push except from bypass actors, and
+# protect-nightly additionally requires pull requests. The version-bump commit is therefore pushed
+# with RELEASE_PUSH_TOKEN (a bypass user) when set, otherwise with a WAEX app installation token
+# (bypass actor on nightly; add the app to protect-main and protect-beta bypass lists too).
+#
+# Two jobs keep the powerful tokens away from the build. `build` compiles and signs the code with
+# only the signing secrets and a read-only token, and it never receives a token that can push or
+# publish. `publish` holds the push and publish tokens but never runs Gradle or any repository
+# code; it only validates the values that `build` reports, commits gradle.properties and uploads
+# the APKs. The private :licensing module is checked out during `build` only, with a read-only
+# token that is not persisted in the checkout.
 on:
   push:
     branches: [main, beta, nightly]
@@ -20,6 +35,9 @@ jobs:
     name: Detect release request
     runs-on: ubuntu-24.04
     timeout-minutes: 2
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       should_release: ${{ steps.flags.outputs.should_release }}
       channel: ${{ steps.flags.outputs.channel }}
@@ -29,6 +47,7 @@ jobs:
         env:
           COMMIT_MSG: ${{ github.event.head_commit.message }}
           BRANCH: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           case "$BRANCH" in
             main) channel=stable ;;
@@ -40,29 +59,46 @@ jobs:
           if [ -n "$channel" ] && [[ "$COMMIT_MSG" =~ (^|[[:space:]])--release([[:space:]]|$) ]]; then
             should=true
           fi
+          # A PR that passed the nightly gate and review is merged by the merge app and released
+          # without needing the flag. Humans still use --release.
+          if [ "$should" = false ] && [ "$channel" = nightly ]; then
+            number="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
+              --jq "first(.[] | select(.merged_at != null and .base.ref == \"nightly\" and .merge_commit_sha == \"$GITHUB_SHA\") | .number) // empty" || true)"
+            if [[ "$number" =~ ^[0-9]+$ ]]; then
+              pr="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$number" \
+                --jq '[.merged_by.type, ([.labels[].name] | index("ai-approved") != null), ([.labels[].name] | index("needs-maintainer") == null)] | @tsv' || true)"
+              if [ "$pr" = "$(printf 'Bot\ttrue\ttrue')" ]; then
+                echo "PR #$number was approved by the nightly gate and merged by the merge app"
+                should=true
+              fi
+            fi
+          fi
           echo "should_release=$should" >> "$GITHUB_OUTPUT"
           echo "channel=$channel" >> "$GITHUB_OUTPUT"
 
-  release:
-    name: Build and publish ${{ needs.gate.outputs.channel }}
+  build:
+    name: Build ${{ needs.gate.outputs.channel }}
     needs: gate
     if: needs.gate.outputs.should_release == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
-      contents: write
-      actions: write
+      contents: read
     env:
       CHANNEL: ${{ needs.gate.outputs.channel }}
-      XPOSED_REPO_TOKEN: ${{ secrets.XPOSED_REPO_TOKEN }}
+    outputs:
+      version_code: ${{ steps.version.outputs.version_code }}
+      version_name: ${{ steps.version.outputs.version_name }}
     steps:
+      # Credentials are not persisted: Gradle and every build script run in this job.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          # A token that may push to the protected branch; falls back to the workflow token.
-          token: ${{ secrets.RELEASE_PUSH_TOKEN || github.token }}
+          persist-credentials: false
 
-      # :licensing is a private module that is not tracked in this repository.
+      # :licensing is a private module that is not tracked in this repository. It is required to
+      # build a working APK, so it is cloned here with a read-only token for that one repository.
+      # The token is only an input of this checkout step and is not left in the workspace.
       - name: Check out private licensing module
         uses: actions/checkout@v4
         with:
@@ -84,18 +120,7 @@ jobs:
           python3 scripts/release/next_version.py --channel "$CHANNEL" --sha "$GITHUB_SHA" --write >> "$GITHUB_OUTPUT"
           name="$(grep '^VERSION_NAME=' gradle.properties | cut -d= -f2- | tr -d '\r\n')"
           code="$(grep '^VERSION_CODE=' gradle.properties | cut -d= -f2- | tr -d '\r\n')"
-          clean="${name%%+*}"
-          echo "clean_name=$clean" >> "$GITHUB_OUTPUT"
-          echo "tag=${code}-${clean}" >> "$GITHUB_OUTPUT"
           echo "Releasing $name ($code) on $CHANNEL"
-
-      - name: Prepare release notes
-        run: |
-          cp changelog.txt notes.txt
-          if [ ! -s notes.txt ]; then echo "No user-visible changes were recorded." > notes.txt; fi
-          if [ "$CHANNEL" = nightly ]; then
-            printf '\nBuilt from commit %s\n' "$GITHUB_SHA" >> notes.txt
-          fi
 
       - name: Build APKs
         env:
@@ -117,24 +142,119 @@ jobs:
 
       - name: Collect APKs
         env:
+          NAME: ${{ steps.version.outputs.version_name }}
+        run: |
+          clean="${NAME%%+*}"
+          mkdir -p release_artifacts
+          cp "app/build/outputs/apk/release/WaEnhancerX-v${clean}_release.apk" release_artifacts/
+          cp "app/build/outputs/apk/debug/WaEnhancerX-v${clean}_debug.apk" release_artifacts/
+          ls -l release_artifacts
+
+      - name: Upload APKs for the publish job
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apks
+          path: release_artifacts/*.apk
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish ${{ needs.gate.outputs.channel }}
+    needs: [gate, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      actions: write
+    env:
+      CHANNEL: ${{ needs.gate.outputs.channel }}
+      XPOSED_REPO_TOKEN: ${{ secrets.XPOSED_REPO_TOKEN }}
+      PUSH_TOKEN: ${{ secrets.RELEASE_PUSH_TOKEN }}
+      BUILD_VERSION_CODE: ${{ needs.build.outputs.version_code }}
+      BUILD_VERSION_NAME: ${{ needs.build.outputs.version_name }}
+    steps:
+      # The build job ran repository code, so what it reports is checked before it is used.
+      - name: Validate the version reported by the build
+        id: version
+        run: |
+          [[ "$BUILD_VERSION_CODE" =~ ^[0-9]{5,10}$ ]] || { echo "::error::Unexpected version code."; exit 1; }
+          [[ "$BUILD_VERSION_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-beta-[0-9]+|-nightly\.[0-9]+\+[0-9a-f]{7,40})?$ ]] \
+            || { echo "::error::Unexpected version name."; exit 1; }
+          case "$CHANNEL" in
+            stable) [[ "$BUILD_VERSION_NAME" =~ ^[0-9.]+$ ]] ;;
+            beta) [[ "$BUILD_VERSION_NAME" == *-beta-* ]] ;;
+            nightly) [[ "$BUILD_VERSION_NAME" == *-nightly.* ]] ;;
+            *) false ;;
+          esac || { echo "::error::Version does not match the $CHANNEL channel."; exit 1; }
+          clean="${BUILD_VERSION_NAME%%+*}"
+          {
+            echo "clean_name=$clean"
+            echo "tag=$clean"
+          } >> "$GITHUB_OUTPUT"
+
+      # The branch rules only let bypass actors push, so the bump commit needs a real identity.
+      - name: Create push token for the merge app
+        id: app-token
+        if: env.PUSH_TOKEN == ''
+        continue-on-error: true
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.WAEX_APP_ID }}
+          private-key: ${{ secrets.WAEX_APP_PRIVATE_KEY }}
+
+      # This job never runs Gradle or repository scripts, so a push-capable token may stay here.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PUSH_TOKEN || steps.app-token.outputs.token || github.token }}
+
+      - name: Download the built APKs
+        uses: actions/download-artifact@v4
+        with:
+          name: release-apks
+          path: release_artifacts
+
+      - name: Check the APK set
+        env:
           NAME: ${{ steps.version.outputs.clean_name }}
         run: |
-          mkdir -p release_artifacts
-          cp "app/build/outputs/apk/release/WaEnhancerX-v${NAME}_release.apk" release_artifacts/
-          cp "app/build/outputs/apk/debug/WaEnhancerX-v${NAME}_debug.apk" release_artifacts/
-          ls -l release_artifacts
+          cd release_artifacts
+          expected="WaEnhancerX-v${NAME}_debug.apk
+          WaEnhancerX-v${NAME}_release.apk"
+          [ "$(ls -1 | sort)" = "$expected" ] || { echo "::error::Unexpected release artifacts:"; ls -l; exit 1; }
+          for f in *.apk; do [ "$(wc -c < "$f")" -gt 1048576 ] || { echo "::error::$f is too small."; exit 1; }; done
+          ls -l
+
+      - name: Prepare release notes
+        run: |
+          cp changelog.txt notes.txt
+          if [ ! -s notes.txt ]; then echo "No user-visible changes were recorded." > notes.txt; fi
+          if [ "$CHANNEL" = nightly ]; then
+            printf '\nBuilt from commit %s\n' "$GITHUB_SHA" >> notes.txt
+          fi
 
       - name: Commit version bump
         id: bump
-        env:
-          NAME: ${{ steps.version.outputs.version_name }}
-          CODE: ${{ steps.version.outputs.version_code }}
         run: |
+          sed -i -E "s/^VERSION_CODE=.*/VERSION_CODE=${BUILD_VERSION_CODE}/; s/^VERSION_NAME=.*/VERSION_NAME=${BUILD_VERSION_NAME}/" gradle.properties
+          [ "$(grep -c '^VERSION_CODE=' gradle.properties)" = 1 ] && [ "$(grep -c '^VERSION_NAME=' gradle.properties)" = 1 ] \
+            || { echo "::error::gradle.properties must contain exactly one VERSION_CODE and VERSION_NAME."; exit 1; }
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add gradle.properties
-          git commit -m "chore(release): ${CHANNEL} ${NAME} (${CODE}) [skip ci]"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          # The first release of a base version already matches gradle.properties.
+          if git diff --cached --quiet; then
+            echo "gradle.properties already matches ${BUILD_VERSION_NAME} (${BUILD_VERSION_CODE}); nothing to commit."
+          else
+            git commit -m "chore(release): ${CHANNEL} ${BUILD_VERSION_NAME} (${BUILD_VERSION_CODE}) [skip ci]"
+            # Other PRs may have landed while this build ran; only gradle.properties changes here,
+            # so rebasing the bump commit is safe.
+            for attempt in 1 2 3; do
+              git push origin "HEAD:${GITHUB_REF_NAME}" && break
+              [ "$attempt" = 3 ] && { echo "::error::Could not push the version bump to ${GITHUB_REF_NAME}. Check the branch rules allow the push token."; exit 1; }
+              git pull --rebase origin "${GITHUB_REF_NAME}"
+            done
+          fi
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Publish GitHub release
@@ -170,3 +290,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run release-index.yml --repo "$GITHUB_REPOSITORY"
+
+      # Releases created with the workflow token never emit a `released` event, so the
+      # VirusTotal workflow would not run on its own. Dispatch it for every channel
+      # (stable, beta and nightly).
+      - name: Start VirusTotal scan
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: gh workflow run virustotal-scan.yml --repo "$GITHUB_REPOSITORY" -f tag="$TAG"
