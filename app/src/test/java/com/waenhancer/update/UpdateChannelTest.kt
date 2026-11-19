@@ -58,21 +58,21 @@ class UpdateChannelTest {
         assertNull(ReleaseRepository.findUpdate(listOf(release("20003999-2.0.3")), legacy.versionName, legacy.versionCode, UpdateChannel.STABLE))
     }
 
-    @Test fun updateSelectionPerChannel() {
+    @Test fun updatesComeOnlyFromTheSelectedChannel() {
         val releases = listOf(release("2.0.9"), release("2.0.9-beta-3"), release("2.0.10-nightly.2"), release("2.0.8-nightly.5"))
-        val stableUser = InstalledBuild.of("2.0.8", 0)
-        assertEquals("2.0.9", ReleaseRepository.findUpdate(releases, stableUser.versionName, stableUser.versionCode, UpdateChannel.STABLE)?.tagName)
-        assertEquals("2.0.9", ReleaseRepository.findUpdate(releases, stableUser.versionName, stableUser.versionCode, UpdateChannel.BETA)?.tagName)
-        assertEquals("2.0.10-nightly.2", ReleaseRepository.findUpdate(releases, stableUser.versionName, stableUser.versionCode, UpdateChannel.NIGHTLY)?.tagName)
-        val onlyPre = listOf(release("2.0.9-beta-3"), release("2.0.9-nightly.4"))
-        assertNull(ReleaseRepository.findUpdate(onlyPre, "2.0.8", code("2.0.8"), UpdateChannel.STABLE))
-        assertEquals("2.0.9-beta-3", ReleaseRepository.findUpdate(onlyPre, "2.0.8", code("2.0.8"), UpdateChannel.BETA)?.tagName)
+        val user = InstalledBuild.of("2.0.8", 0)
+        fun pick(c: UpdateChannel) = ReleaseRepository.findUpdate(releases, user.versionName, user.versionCode, c)?.tagName
+        assertEquals("2.0.9", pick(UpdateChannel.STABLE))
+        assertEquals("2.0.9-beta-3", pick(UpdateChannel.BETA))
+        assertEquals("2.0.10-nightly.2", pick(UpdateChannel.NIGHTLY))
+        assertNull(ReleaseRepository.findUpdate(listOf(release("2.0.9-beta-3"), release("2.0.9-nightly.4")), "2.0.8", code("2.0.8"), UpdateChannel.STABLE))
     }
 
-    @Test fun nightlyUserIsOfferedMatchingStable() {
-        val releases = listOf(release("2.0.9"), release("2.0.9-nightly.12"))
+    @Test fun nightlyUserIsNotOfferedStableOrBeta() {
+        val releases = listOf(release("2.0.9"), release("2.0.9-beta-3"), release("2.0.9-nightly.12"), release("2.0.9-nightly.13"))
         val found = ReleaseRepository.findUpdate(releases, "2.0.9-nightly.12", code("2.0.9-nightly.12"), UpdateChannel.NIGHTLY)
-        assertEquals("2.0.9", found?.tagName)
+        assertEquals("2.0.9-nightly.13", found?.tagName)
+        assertNull(ReleaseRepository.findUpdate(releases.take(2), "2.0.9-nightly.12", code("2.0.9-nightly.12"), UpdateChannel.NIGHTLY))
     }
 
     @Test fun invalidSlotReleaseNeverOffered() {

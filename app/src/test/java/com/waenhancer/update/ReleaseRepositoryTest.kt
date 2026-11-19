@@ -56,7 +56,9 @@ class ReleaseRepositoryTest {
     fun selectsNewestEligibleBuild() {
         val releases = listOf(release("1.6.8"), release("1.6.9-beta-9"), release("1.6.9"))
         assertEquals("1.6.9", ReleaseRepository.findUpdate(releases, "1.6.8")?.tagName)
-        assertEquals("1.6.9", ReleaseRepository.findUpdate(releases, "1.6.9-beta-9")?.tagName)
+        // A beta build only follows its own channel, so the stable 1.6.9 is not offered automatically.
+        assertNull(ReleaseRepository.findUpdate(releases, "1.6.9-beta-9"))
+        assertEquals("1.6.9", ReleaseRepository.findUpdate(releases, "1.6.9-beta-9", selected = UpdateChannel.STABLE)?.tagName)
     }
 
     @Test

@@ -16,9 +16,6 @@ enum class UpdateChannel(val id: String, val stabilityRank: Int) {
     BETA("beta", 1),
     STABLE("stable", 2);
 
-    /** Channels whose releases may be offered as an update to a user who selected this channel. */
-    fun eligibleChannels(): Set<UpdateChannel> = entries.filter { it.stabilityRank >= stabilityRank }.toSet()
-
     companion object {
         const val PREF_KEY = "update_channel"
         const val MAX_BASE_MAJOR = 209

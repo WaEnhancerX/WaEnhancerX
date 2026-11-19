@@ -57,7 +57,7 @@ object UpdateCheckCoordinator {
             try {
                 val installed = InstalledBuild.read(app)
                 val channel = UpdateChannel.selected(app, installed)
-                val releases = ReleaseRepository.fetchReleases(app, channels = channel.eligibleChannels())
+                val releases = ReleaseRepository.fetchReleases(app, channels = setOf(channel))
                 prefs.edit().putLong("update_last_check", now).apply()
                 val release = ReleaseRepository.findUpdate(releases, installed.versionName, installed.versionCode, channel)
                 if (release == null) {

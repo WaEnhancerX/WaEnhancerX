@@ -120,8 +120,8 @@ fun ChangelogScreen() {
     val installed = remember { InstalledBuild.read(context) }
     val selectedChannel = remember { UpdateChannel.selected(context, installed) }
     var tab by remember { mutableStateOf(selectedChannel) }
-    // Releases the selected channel may be offered plus the viewed tab; stable is always included.
-    val wantedChannels = remember(tab) { selectedChannel.eligibleChannels() + tab }
+    // The selected channel (for update checks), the viewed tab, and stable (for "Switch to stable").
+    val wantedChannels = remember(tab) { setOf(selectedChannel, tab, UpdateChannel.STABLE) }
     var allReleases by remember { mutableStateOf(ReleaseRepository.getCachedReleases(context, wantedChannels)) }
     val releases = allReleases.filter { it.channel == tab }
     var loading by remember { mutableStateOf(releases.isEmpty()) }

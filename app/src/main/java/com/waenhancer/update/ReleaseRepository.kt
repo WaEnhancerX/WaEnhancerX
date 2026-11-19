@@ -136,8 +136,7 @@ object ReleaseRepository {
         forceRefresh: Boolean = false,
         channels: Set<UpdateChannel>? = null,
     ): List<WaexRelease> = withContext(Dispatchers.IO) {
-        val wanted = channels ?: context?.let { UpdateChannel.selected(it).eligibleChannels() }
-            ?: UpdateChannel.STABLE.eligibleChannels()
+        val wanted = channels ?: setOf(context?.let { UpdateChannel.selected(it) } ?: UpdateChannel.STABLE)
         val store = context?.let { PreferenceStores.cacheStore(it, PreferenceStores.GITHUB_API_CACHE) }
         val results = coroutineScope {
             wanted.map { channel -> async { runCatching { loadChannel(store, channel, forceRefresh) } } }.awaitAll()
@@ -252,9 +251,8 @@ object ReleaseRepository {
         installedVersionCode: Long = versionCode(installedVersion),
         selected: UpdateChannel = UpdateChannel.fromVersionName(installedVersion),
     ): WaexRelease? {
-        val eligible = selected.eligibleChannels()
         return releases.asSequence()
-            .filter { it.versionCode > 0 && it.channel in eligible && it.versionCode > installedVersionCode }
+            .filter { it.versionCode > 0 && it.channel == selected && it.versionCode > installedVersionCode }
             .maxByOrNull { it.versionCode }
     }
 
