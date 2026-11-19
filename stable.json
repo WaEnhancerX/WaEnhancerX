@@ -1,6 +1,317 @@
 {
   "schema": 1,
   "channel": "stable",
-  "updated_at": "2026-11-19T00:00:00Z",
-  "releases": []
+  "updated_at": "2026-11-19T06:40:17Z",
+  "releases": [
+    {
+      "tag": "20800-2.0.8",
+      "version_name": "2.0.8",
+      "version_code": 20008999,
+      "published_at": "2026-11-17T09:30:21Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/20800-2.0.8",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v2.0.8_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/20800-2.0.8/WaEnhancerX-v2.0.8_debug.apk",
+          "size": 11659508,
+          "sha256": "c65193b56b7383a97adbb145d868fe71d40afb39db01a9ad3a07aabf3b86d123"
+        },
+        {
+          "name": "WaEnhancerX-v2.0.8_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/20800-2.0.8/WaEnhancerX-v2.0.8_release.apk",
+          "size": 11753564,
+          "sha256": "af284f658ebf2208f58aa08fde456bd1e62663a01a8ab7c31cfd267bd93a486a"
+        }
+      ],
+      "notes": "[Added]\n- Added version support upto 2.26.46.xx\n- Custom Emojis: Choose from cloud emoji styles (iOS, Facebook, Samsung, Twitter, Windows, etc.) with in-app download and management screen\n- Report Issue Feature: Report issues and suggest features within app\n- Added option to show/hide message notifications for locked chats\n- Added Native Floating Navigation: turn on WhatsApp's own floating bottom bar, with optional background and selection colors\n- Supported Versions now suggests the last supported WhatsApp version when your installed one is unsupported, with a link to find it\n- Install a downloaded WhatsApp APK, APKM or XAPK from storage with root (upgrade or downgrade): WAEX checks the package, the supported version range and WhatsApp's signature before installing, and rejects modified or repacked files\n\n[Fixes]\n- Fixed Online dot indicator in conversations list\n- Fixed Floating bottom menu scroll hide\n- Fixed Locked Chats Enhancer still showing locked contacts in New chat, Forward and their search\n- Fixed Hide My Applist detection in diagnostics\n\n\n[Improvements]\n- Improved Module's UI\n- Improved UI of custom emojis screen\n- Improved WhatsApp UI performance\n- Improved Privacy features\n- Improved Separate Groups resolution according to new WA versions\n\n\n[Feature: Report Issues]\n- Report issues directly from app\n- Select issue type (issue or feature)\n- Issues will automatically be created on GitHub Issues\n- Directly track issues status via app\n- Get notified about issue status updates via Telegram Bot\n\n[Feature: Download Supported Versions]\n- Shows \"Install Supported\" when unsupported\n- Clicking opens a new screen to either install from storage or Download\n- It fetches all the supported versions from apkmirror and shows them in a list\n- Download directly within WAEX and upgrade/downgrade effortlessly without relying on any 3rd party downgrade module or downloading in browser\n- Before installation, WAEX will validate the APK and reject if unofficial or not supported\n- This will keep the process clean and organized"
+    },
+    {
+      "tag": "20700-2.0.7",
+      "version_name": "2.0.7",
+      "version_code": 20007999,
+      "published_at": "2026-11-13T23:33:44Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/20700-2.0.7",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v2.0.7_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/20700-2.0.7/WaEnhancerX-v2.0.7_debug.apk",
+          "size": 11466387,
+          "sha256": "831ea68202b11815799072f0f77dde3d88e4a1be043527fe6269bb37a942907e"
+        },
+        {
+          "name": "WaEnhancerX-v2.0.7_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/20700-2.0.7/WaEnhancerX-v2.0.7_release.apk",
+          "size": 11562667,
+          "sha256": "bbe0ca01eb19912f70d62fde9b535295624e197bd34b129ee97660e974112bfd"
+        }
+      ],
+      "notes": "[Added]\n- Theme library: import WAEX theme packages (.zip with style.css and images) from Styles > Custom Theme CSS, switch between them, and delete them.\n- Themes can now use bundled images via url(), background-size, and :root variables with var(--name).\n- Relative time format for Custom Timestamp.\n\n[Fixes]\n- Fixed call recording toggle to respect on/off states of individual apps.\n- Fixed incorrect behaviour of some features being in Waiting state in max mode.\n- Fixed Anti-Delete (preserved messages) issues that could cause crashes or lost message history after a WhatsApp update.\n- Fixed Anti-Delete not recognizing WhatsApp's newer \"Delete message\" dialog.\n- Fixed Message Device Source not showing which device sent a message.\n- Fixed the app restarting itself even when a setting failed to save.\n- Fixed manual \"mark as read\" action sometimes ignoring your privacy settings.\n- Fixed Separate Groups and Parallel Downloading possibly not working on older Android versions.\n- Fixed Edit history\n- Fixed Transcription error: Groq not set for device mode\n- Fixed call recordings being overwritten when two recordings got the same file name.\n- Fixed Parallel Downloading sometimes producing cut-off or corrupt files; it now falls back safely.\n- Fixed Parallel Downloading settings not being saved in Backup and Restore.\n- Fixed Backup and Restore mixing up settings between different WhatsApp target apps.\n\n[Improvements]\n- Improved Message Device Source\n- Improved Chats Limit Bypass according to latest WA versions\n- Improved WhatsApp startup\n- Media Preview button now sits beside the message, like the transcription button, instead of over the media.\n- Double Tap to React is now more reliable across WhatsApp updates.\n- More reliable feature detection after updating WhatsApp.\n- Various internal reliability and testing improvements.\n\n\n[Community contribution]\n- Thanks to @TheKillerMax, @Tttim0o for valuable contributions."
+    },
+    {
+      "tag": "20600-2.0.6",
+      "version_name": "2.0.6",
+      "version_code": 20006999,
+      "published_at": "2026-11-09T04:20:53Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/20600-2.0.6",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v2.0.6_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/20600-2.0.6/WaEnhancerX-v2.0.6_debug.apk",
+          "size": 17242517,
+          "sha256": "ed43f120b2a380cf501bec7547695c1fcb5270e7cd054d7c332f2cce95a231bb"
+        },
+        {
+          "name": "WaEnhancerX-v2.0.6_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/20600-2.0.6/WaEnhancerX-v2.0.6_release.apk",
+          "size": 12058914,
+          "sha256": "6a37ef946b227f1df28afb399e503df77c6e1ae88337f627578c7bc723ca89a0"
+        }
+      ],
+      "notes": "[Added]\n- Added support for versions upto 2.26.45.xx\n- Parallel Downloading: Multi-connection acceleration for downloading large photos, videos, and documents\n- Custom A/B Props support: Override WhatsApp AB properties\n- Search bar style\n- AI audio transcription with multiple models (Offline + Custom API)\n- Custom Timestamp\n- Device Default Emojis: Use device default system emojis (iOS, Samsung, Google) instead of WhatsApp's built-in emojis in both WhatsApp and WhatsApp Business\n- Config Mode: Universal, Target App Specific \n\n[Fixes]\n- Fixed Unread chats counter not showing on Groups tab in latest version\n- Fixed Status tabs indicator position\n- Fixed Delete for me message deletion delay\n- Other privacy and performance bug fixes\n\n[Improvements]\n- Improved Module Status and Target App detection\n- Improved Restart WhatsApp button to not turn on Auto Rotate.\n- Send original quality images and videos\n- Improved Call Recording Module [Under Development]:\n    • Record calls from multiple WhatsApp variants\n    • Save calls from any WhatsApp with call recording support\n    • Link to original contacts and apps\n    • Improved UI\n    • More reliable detection\n- Improved module's UI\n- Improved chats pin logic\n\n\n[Feature: AI Audio Transcription]\n- Local whisper models (Offline)\n- Custom API support (Web API)\n- Multiple models support\n- Download models locally\n\n[Feature: Custom Timestamp]\n- Preset time formats (HH:mm a, HH:mm:ss, HH:mm:ss.SSS, h:mm:ss a, h:mm:ss.SSS a)\n- Custom format patterns supporting date and time\n- Modify timestamp text with ${t} variable\n- Live preview for custom patterns and text templates\n\n[Feature: Config Mode]\n- Universal mode for sharing one configuration across all supported target apps.\n- Target App Specific mode for independent WhatsApp and WhatsApp Business preferences.\n- On first use, a target app inherits the current universal preferences as its starting configuration.\n- Existing target-app values are preserved when switching between universal and target-specific modes.\n- Newly scoped or installed target apps inherit universal values without pre-creating keys for every app.\n- Switching target apps in the settings UI refreshes preference controls while preserving the current tab and scroll position.\n\n[Community contribution]\n- Thanks to @Tttim0o for valuable contributions in audio transcription."
+    },
+    {
+      "tag": "20500-2.0.5",
+      "version_name": "2.0.5",
+      "version_code": 20005999,
+      "published_at": "2026-10-23T18:41:44Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/20500-2.0.5",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v2.0.5_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/20500-2.0.5/WaEnhancerX-v2.0.5_debug.apk",
+          "size": 12382121,
+          "sha256": "8a5eac34223bfd7532ec8dd0b1c39d68d33a2b5e42ba5c2abeb5b0142f209c69"
+        },
+        {
+          "name": "WaEnhancerX-v2.0.5_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/20500-2.0.5/WaEnhancerX-v2.0.5_release.apk",
+          "size": 7938403,
+          "sha256": "f9e7f5106aae883cf028e38de62ceb0d8aad5eb1c2b9b6ab68f0e4fa79614e4a"
+        }
+      ],
+      "notes": "[Added]\r\n- Added support for version 2.26.43.xx\r\n- Time Format (12/24 hours) for timestamp\r\n- In-App Screenshot / Screen Recording restrictions bypass\r\n- Send seen to specific Status\r\n  - Seen button in status view reply bar (Experimental)\r\n- Added module settings for Hooking method (Lightweight, Balanced, Maximum Capability, Customized)\r\n\r\n[Improvements]\r\n- Removed obsolete Facebook Grid and Compact List status layouts\r\n- Enhanced Download Profile Picture with optional \"Save Duplicates\" confirmation\r\n- Enhanced Download Status with optional \"Save Duplicates\" confirmation\r\n- Improved Floating bottom navigation customization\r\n- Hooks injection Optimized\r\n- Flexible removal of Meta AI\r\n  - Remove Home FAB \r\n  - Remove Meta AI entry points\r\n  - Block Meta AI chat\r\n- Improved bootloader spoofer with support of play integrity to avoid WhatsApp Ban / Unverfied app issue (Experimental) \r\n  \r\n\r\n[Fixed]\r\n- Send blue ticks\r\n- Blue ticks on reply\r\n- Remove Meta AI\r\n\r\n\r\n[Feature: Floating bottom bar]\r\n- Horizontal Inner Padding\r\n- Selector type: Default, Oval\r\n- Selector Color\r\n- Hide Tab Labels (Icons Only)\r\n- Other improvements\r\n\r\n[Feature: Hooking Method]\r\n- Hooking method is a new feature that allows you to hook WhatsApp in different ways. \r\n- You can choose between 3 different hooking methods:\r\n  - Balanced: Hooking some features on Startup, some features on demand (lazy injecting) for a balance between battery consumption and compatibility.\r\n  - Maximum: Hooking every feature on Startup for maximum compatibility.\r\n  - Lightweight (Pro): Hooking minimal features on Startup and more features on demand (lazy injecting) for minimum battery consumption.\r\n  - Customized (Pro): You can customize the hooking method for each feature.\r\n\r\n[Feature: Bootloader Spoofer]\r\n- Introduced Play Integrity & Roadblock Bypass: Intercepts WhatsApp's aggressive device integrity checks and suppresses unofficial app verification roadblock screens dynamically.\r\n- Tested on latest WhatsApp beta release (2.26.43.2). If your environment requires strict hardware-backed attestation for SMS/registration verification, ensure your device passes Device Integrity (e.g., using a valid keybox via Bootloader Spoofer or tools like PlayIntegrityFix/TEESimulator).\r\n\r\n\r\n[Notes]\r\n\r\n![Upcoming WhatsApp floating bottom bar](https://raw.githubusercontent.com/WaEnhancerX/WaEnhancerX/main/samples/upcoming-whatsapp-floating-bar.jpeg)\r\n\r\n- Floating bar new features are inspired from WhatsApp's soon upcoming update of Floating bottom bar design.\r\n- You can enjoy the same experience before WhatsApp even launches in beta. \r\n- Use these values to get a similar experince:\r\n  - Horizontal Inner Padding: 5dp\r\n  - Vertical Inner Padding: 0dp\r\n  - Selector type: Oval\r\n  - Selector Color: App Default or by your choice (with 30% opacity)\r\n  - Hide Tab Labels (Icons Only): True\r\n  - Icon Size: 26dp\r\n  - Shadow: Enabled\r\n  - Selected/Unselected Icon color: App Default or by your choice.\r\n\r\n\r\n[Community contribution]\r\n- Thanks to @TheKillerMax for valuable contributions in this update."
+    },
+    {
+      "tag": "20400-2.0.4",
+      "version_name": "2.0.4",
+      "version_code": 20004999,
+      "published_at": "2026-10-19T20:32:24Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/20400-2.0.4",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v2.0.4_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/20400-2.0.4/WaEnhancerX-v2.0.4_debug.apk",
+          "size": 33383559,
+          "sha256": "484fd3c2744bde3351da4ee9cbfb53065a1a899b8fdb6ca84431b64f48328d89"
+        },
+        {
+          "name": "WaEnhancerX-v2.0.4_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/20400-2.0.4/WaEnhancerX-v2.0.4_release.apk",
+          "size": 9304399,
+          "sha256": "84dd63e82880a38cea58fa708a347a3464a09db2f449432b59fa51d19debbb0e"
+        }
+      ],
+      "notes": "[Added]\r\n- Added support upto version 2.26.42.xx\r\n- Added support for switching between debug and release\r\n- Added HMA detection in diagnosis\r\n- Added interface size options in module settings to update the controls size\r\n- Added Status/Stories Style\r\n\r\n[Fixes]\r\n- Fixed missing texts or resources from category titles or descriptions\r\n- Fixed some menu icons were not visible in release mode\r\n- Fixed showing unreleated apps in home list\r\n- Fixed Hide Forwarded\r\n- Fixed Filter Item by ID\r\n- Fixed chat screen ui lags\r\n- Fixed version compatibility bug\r\n- Fixed Delete for me messages not saving + improvements\r\n- Fixed Disable Pinned chat limit\r\n\r\n[Improvements]\r\n- Improved Call recorder (Experimental)\r\n- Improved System Diagnosis\r\n\r\n[New Languages]\r\n- Chinese (Thanks to @wilsonmilson)\r\n- Turkish\r\n- Slovenian (Thanks to @damjang)\r\n\r\n[Community contribution]\r\n- Thanks to @TheKillerMax for valuable contributions in this update."
+    },
+    {
+      "tag": "20300-2.0.3",
+      "version_name": "2.0.3",
+      "version_code": 20003999,
+      "published_at": "2026-10-15T19:42:03Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/20300-2.0.3",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v2.0.3_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/20300-2.0.3/WaEnhancerX-v2.0.3_debug.apk",
+          "size": 34377979,
+          "sha256": "c4531d92851c5f251614e8af822f340737981adeb7128341463f8897e3d42114"
+        },
+        {
+          "name": "WaEnhancerX-v2.0.3_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/20300-2.0.3/WaEnhancerX-v2.0.3_release.apk",
+          "size": 8612340,
+          "sha256": "f19d64239b493785b48540dce068a32a295f33bd33b18e48b46d168896c4ac0f"
+        }
+      ],
+      "notes": "[Added]\n- Multilingual support\n\n[Fixed]\n- Fixed the Disable Screen Off on Proximity Sensor option not working correctly\n- Fixed Seconds on Timestamp\n- Fixed Audio to Voice Status related settings becoming out of sync\n- Fixed hooks injected repeated toasts\n- Fixed Quick Actions\n- Fixed Hide Tabs on Home\n- Fixed Chat Filters\n- Fixed Custom Theme CSS and made it available as a free feature\n- Fixed Custom DPI\n- Fixed Hide Archived Chats\n- Fixed Hide Locked Chats\n- Fixed New Settings Style\n- Fixed IG style stories \n- Fixed Remove License \n- Fixed message sending becomes pending when module active\n\n[Improvements]\n- Improved protection against WhatsApp changing protected WAEnhancerX data or clearing all settings\n- Improved startup of module and performance\n- Improved Delete For Me messages\n- Improved Tasker (Not tested yet)\n\n[Languages]\n- English\n- Spanish ( Español )\n- Arabic ( العربية )\n- Portuguese ( Português )\n- Indonesian ( Bahasa Indonesia )\n- Russian ( Русский )\n- Turkish ( Türkçe )\n- Hindi ( हिन्दी )\n- Urdu ( اردو )\n- German ( Deutsch )\n- French ( Français )\n\n[Notes]\n- WAEnhancerX now requires a rooted device for reliable compatibility and to protect the module's integrity.\n- Rootless setups such as LSPatch or Shizuku are not supported. They may behave unpredictably and increase the risk of WhatsApp or WhatsApp Business account restrictions, so please do not use them with WAEnhancerX.\n\n[Community contribution]\n- Thanks to @TheKillerMax for valuable contributions in this update."
+    },
+    {
+      "tag": "20200-2.0.2",
+      "version_name": "2.0.2",
+      "version_code": 20002999,
+      "published_at": "2026-10-13T08:37:40Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/20200-2.0.2",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v2.0.2_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/20200-2.0.2/WaEnhancerX-v2.0.2_debug.apk",
+          "size": 31923486,
+          "sha256": "2956460da18027ad767de3eaf588b7bb6494612ec6771393787a0ddb3e9026b3"
+        },
+        {
+          "name": "WaEnhancerX-v2.0.2_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/20200-2.0.2/WaEnhancerX-v2.0.2_release.apk",
+          "size": 8165061,
+          "sha256": "28a52c290ebd5e96d53440254c8f5baf68eed711676b28595c1a7b18be936b92"
+        }
+      ],
+      "notes": "[Added]\r\n- Restart required sheet in WhatsApp on updating a pref\r\n- Show message device source\r\n- Unlock WA Plus (Pro)\r\n- Optional Material You (Monet) theme in WaEnhancerX\r\n\r\n[Fixed]\r\n- Fixed update checker sheet\r\n- Fixed message edit history\r\n- Fixed toast on deleted message\r\n- Fixed hook return-type compatibility with newer WhatsApp versions\r\n- Fixed some media settings\r\n\r\n[Improvements]\r\n- Improved performance\r\n- Improved hooks injection strategy\r\n- Hide blue ticks\r\n- Hide delivered\r\n- Improved update downloads with HTTPS enforcement & APK validation\r\n- Improved security when WhatsApp reads feature settings\r\n- Made restarting WhatsApp from the dashboard safer and more reliable"
+    },
+    {
+      "tag": "20100-2.0.1",
+      "version_name": "2.0.1",
+      "version_code": 20001999,
+      "published_at": "2026-10-11T07:57:41Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/20100-2.0.1",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v2.0.1_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/20100-2.0.1/WaEnhancerX-v2.0.1_debug.apk",
+          "size": 31822619,
+          "sha256": "751b861bcac13cad98f720cfcb41244ccc4a4f7f79d57fe84580dc78f7a47fc4"
+        },
+        {
+          "name": "WaEnhancerX-v2.0.1_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/20100-2.0.1/WaEnhancerX-v2.0.1_release.apk",
+          "size": 8130811,
+          "sha256": "e389e0350fd200338d2459ae67af37977f0fe343267d76f00b1f50cb01ccb5e9"
+        }
+      ],
+      "notes": "[Added]\n- Added support for version 2.26.41.xx WA/WB\n- Added support to restore v1 legacy JSON backup files\n- Filter items by id\n- Option to show toast on hooks injection\n- New Chat (Message unsaved number on WhatsApp by long pressing chat button)\n- Keep own deleted for everyone messages in chat with delete indicator (but deleted for receiver)\n- Added a per-chat Hide Anti-Revoke option that replaces preserved deleted messages with WhatsApp's native sender and receiver deleted-message layouts\n\n[Removed]\n- Removed Beta channel flow. Normalized the versioning and update flow\n\n[Fixed]\n- Fixed media preview\n- Fixed module installation/upgrade issues for v1 users\n- Fixed status download and copy to clipboard\n- Fixed Ghost mode according to latest WA/WB\n\n[Improvements]\n- Improved changelog upgrades / downgrades\n- Made initial user permissions optional"
+    },
+    {
+      "tag": "17099-1.7.0",
+      "version_name": "1.7.0",
+      "version_code": 10700999,
+      "published_at": "2026-07-09T05:28:42Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/17099-1.7.0",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.7.0_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17099-1.7.0/WaEnhancerX-v1.7.0_debug.apk",
+          "size": 16888594,
+          "sha256": "e0ab3fc3dbce34ca18cbfbd742c55d552d8ff58defa05b729cecc096b6080422"
+        },
+        {
+          "name": "WaEnhancerX-v1.7.0_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17099-1.7.0/WaEnhancerX-v1.7.0_release.apk",
+          "size": 5261203,
+          "sha256": "21e131f8a66ee3e05fe3a1f71835f09dea132e6f61f17ca404f0d48521cf687a"
+        }
+      ],
+      "notes": "[Added]\r\n- Added support for WhatsApp versions up to 2.26.27.xx (WA/WB)\r\n- WhatsApp Native Embedded Settings UI following WhatsApp Design\r\n- Integrated hardware-tied licensing framework and companion plugin system\r\n- [Pro] Always Typing & Always Recording status options\r\n- [Pro] Message Bomber utility with customizable delays\r\n- [Pro] Local storage Media Deletion options\r\n- [Pro] Status Splitter for posting long videos automatically\r\n- [Pro] Status view controls (rewind/forward, speed, hide reply/reactions)\r\n- User option to load message text as selectable inside chat bubbles\r\n- Toggle option to hide the Meta AI tab on Home Screen\r\n- Option to set custom message forwarding limits\r\n- Option to specify user-defined WA/WB versions\r\n\r\n[Improved]\r\n- Migrated Pro features to modular helper plugin for GPL 3.0 compliance\r\n- Enhanced Edited message history to highlight exact changes (diff visualization)\r\n- Relocated New Chat to Home FAB long-press with localized country hints\r\n- Optimized SQLite queries and scroll performance with custom indexing\r\n- Cleaned up package size and removed unused native dependencies (DexKit)\r\n\r\n[Fixes]\r\n- Fixed Seen Ticks (Hide Blue Ticks) on newer WhatsApp versions\r\n- Fixed default emoji rendering and related system crashes\r\n- Fixed ShareLimit and GroupAdmin plugin startup errors\r\n- Fixed text status custom color and module active state detection on some devices\r\n- Fixed edit message history to persist all versions instead of only two\r\n\r\n[Notes]\r\n- This update may clear old edited message history.\r\n- Embedded Settings are not fully completed, more features will be added in future updates.\r\n- Your support is appreciated! <3"
+    },
+    {
+      "tag": "16999-1.6.9",
+      "version_name": "1.6.9",
+      "version_code": 10609999,
+      "published_at": "2026-06-07T12:20:31Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/16999-1.6.9",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.6.9.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/16999-1.6.9/WaEnhancerX-v1.6.9.apk",
+          "size": 12285456,
+          "sha256": "305d97a8b38abf2dd990a9079236789fc4d038bacf5486802563c1a3d268576f"
+        }
+      ],
+      "notes": "[Added]\r\n- **WhatsApp Support**:\r\n  - Full compatibility with WA/WB versions up to **2.26.23.xx**.\r\n- **Floating Bottom Navigation Bar**:\r\n  - Implemented a smooth floating pill-shaped bottom navigation bar with layout adjustments and transitions.\r\n- **WaEnhancerX Pro Features**:\r\n  - Introduced the premium license verification framework tied to device hardware (via Telegram bot `@waenhancerx_bot`).\r\n  - **Always Typing [Pro]**: Added *Always Typing* and *Always Recording Voice* states.\r\n  - **Message Bomber [Pro]**: Added a message-bombing utility with adjustable delays.\r\n  - **Media Deletion [Pro]**: Added option to completely delete message media files directly from local storage.\r\n  - **Status Splitter [Pro]**: Implemented a status video splitter with full obfuscation support to automatically post long status videos.\r\n  - **Status View Customizations [Pro]**: Custom status playback controls, layouts, fast-forward/rewind gestures, playback speed controllers, play/pause buttons, and options to hide/disable reply bars, quick reactions, and heart buttons.\r\n- **General Enhancements**:\r\n  - Added option to make message text selectable inside chat bubbles.\r\n  - Added toggle to hide the new Meta AI tab on the Home Screen.\r\n  - Added user configuration to select between embedded settings inside WhatsApp or launch as an external standalone application.\r\n  - Added a multi-step \"Report Issue\" flow with title input and validation checks.\r\n\r\n[Improvements]\r\n- **Database & Query Performance**:\r\n  - Integrated a one-time database index optimization to resolve lags (especially when the *Separate Groups* feature is active).\r\n  - Optimized conversation scrolling performance.\r\n- **UX & Design Polish**:\r\n  - Rounded custom bottom sheets and alert dialog buttons to match modern pill-shaped designs.\r\n- **App Size Reduction**:\r\n  - Decoupled `App.java` from licensing using dynamic reflection, purged verbose debug logs, and removed the unused native `DexKit` dependency to decrease package size.\r\n\r\n[Fixes]\r\n- **Media & Audio**:\r\n  - Fixed sending local media files as voice notes and resolved transcoding issues with the Audio-to-Opus utility.\r\n  - Fixed crashes in `AudioPlayerDialog` when loading corrupt or unplayable audio files.\r\n- **Seen Ticks & Online Status**:\r\n  - Resolved seen tick (Hide Blue Ticks) issues.\r\n  - Fixed Hide Typing & Recording voice status hooks.\r\n- **Compatibility & Crash Fixes**:\r\n  - Resolved `MODE_WORLD_READABLE` exceptions in Xposed initialization.\r\n  - Fixed nested preference fragment crashes and navigation errors.\r\n  - Implemented fallback method-resolution logic in `Unobfuscator` for floating action button hook failures.\r\n  - Restored chat date separators (Today, Yesterday, etc.) that were missing under time customization."
+    },
+    {
+      "tag": "16899-1.6.8",
+      "version_name": "1.6.8",
+      "version_code": 10608999,
+      "published_at": "2026-05-20T10:35:33Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/16899-1.6.8",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.6.8.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/16899-1.6.8/WaEnhancerX-v1.6.8.apk",
+          "size": 18300205,
+          "sha256": "b3dd788c65162f0ae6ebcabe3b6ca6b848223939991c5090c33f39579eacb584"
+        }
+      ],
+      "notes": "[Added]\n- Support upto version 2.26.20 for WA/WB\n- Display of a pending changes list directly inside the app restart notification dialog\n- Easy settings entry point shortcut from native menus\n\n[Improvements]\n- Modernized home screen menu styling with customizable icon or 3-dot menu toggle\n- Upgraded the settings system to use direct preferences reading for faster and more reliable configuration loading\n- Improved Group Admin info badge display and participant metadata rendering\n- Enhanced compatibility fallback system to ensure features load correctly on newer WhatsApp updates\n\n[Fixes]\n- Fixed startup crashes related to Meta AI customization\n- Fixed occasional Anti-Revoke toast display crashes\n- Fixed \"View Once\" media downloading icon resolution crashes\n- Fixed a layout crash when viewing media previews\n- Fixed crashes on force starting activities\n- Resolved various errors in the Chat Limit and Contact Blocked plugins"
+    },
+    {
+      "tag": "16799-1.6.7",
+      "version_name": "1.6.7",
+      "version_code": 10607999,
+      "published_at": "2026-05-14T11:03:24Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/16799-1.6.7",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.6.7.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/16799-1.6.7/WaEnhancerX-v1.6.7.apk",
+          "size": 18263989,
+          "sha256": "82ad3c13160af890994c9459020b11b97a434ae45e7181f80369ebc2743f6f3b"
+        }
+      ],
+      "notes": "[Added]\n- Support for WhatsApp and WhatsApp Business up to version 2.26.21\n- See which device a message was sent from (Phone, Web)\n- Redesigned \"Online\" status indicator with new colors and styles\n- Tasker support for automated message sending and history tracking\n- Improved crash reporting to help us fix bugs faster\n- Custom update frequency settings and better \"View Once\" media saving\n- Quick access to settings via a new toolbar shortcut\n- Improved menus and alerts that look more like native WhatsApp\n- Significantly faster app startup and smoother feature loading\n\n[Improvements]\n- Improved settings menu stability and reliability\n- Major performance boost with less lag and smoother scrolling\n- More reliable status media downloading for latest versions\n- Better contact matching for features like \"Hide Read Receipts\"\n- Improved handling of bulk status downloads\n- More efficient internal settings synchronization\n\n[Fixes]\n- Updated Deleted Message and Status protection to work with latest WhatsApp logic\n- Fixed an issue causing repeated \"Restart Required\" messages\n- Fixed several potential crashes in group management features\n- Added missing text for various notifications\n- Cleaned up internal debug logs and temporary files"
+    },
+    {
+      "tag": "16699-1.6.6",
+      "version_name": "1.6.6",
+      "version_code": 10606999,
+      "published_at": "2026-05-08T17:18:16Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/16699-1.6.6",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.6.6.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/16699-1.6.6/WaEnhancerX-v1.6.6.apk",
+          "size": 17489516,
+          "sha256": "2c41e6a09aa15e0eed856f3c584c4af364676d1fa1f3c8ce9b70f7e7db62beb7"
+        }
+      ],
+      "notes": "[Added]\n- Added support for 2.26.18.xx WA/WB versions\n- Implemented direct call recording management from the WhatsApp Calls tab\n- Added native WhatsApp contact picker integration for privacy settings\n- Implemented Bottom Sheet support in AlertDialogWpp for enhanced UI flexibility\n- Added custom view and list item support to Bottom Sheet dialogs\n- Added structured category parsing and formatting to the Changelog screen\n\n[Improvements]\n- Improved IG Style Stories with better navigation logic\n- Enhanced Changelog UI with expandable categories and better formatting\n- Optimized hook performance using reflection field caching\n- Improved layout responsiveness and button labeling in dialogs\n- Applied elevation and ripple effects to various UI components\n- Enhanced Ghost Mode preference persistence and synchronization\n- Added fallback strings for better resource resolution across WA versions\n\n[Fixes]\n- Fixed crashes related to uninitialized FilePicker launchers\n- Fixed NullPointerException in fragment animations during detachment\n- Fixed Firebase initialization deadlocks to prevent app freezes\n- Fixed theme preference crashes and button text visibility in Dark Mode\n- Improved number matching logic in Call Privacy feature"
+    },
+    {
+      "tag": "16599-1.6.5",
+      "version_name": "1.6.5",
+      "version_code": 10605999,
+      "published_at": "2026-05-04T10:15:21Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/16599-1.6.5",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.6.5.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/16599-1.6.5/WaEnhancerX-v1.6.5.apk",
+          "size": 17320834,
+          "sha256": "847a44c777f049b41d2f2b3f5221694990d428915b9ca1d6233522af57531d76"
+        }
+      ],
+      "notes": "[Added]\n- Added option to downgrade to any version of WAE (via Root)!\n\n[Improvements]\n- Improved the UI and performance\n- Enhanced XposedBridge compatibility by including context information when logging, resolving potential NullPointerExceptions\n\n[Fixes]\n- Fixed: Theme Prefs - Crashes and errors\n- Fixed Error: CustomView - No RuleFactory implementation registered!\n- Fixed Auto forward status on reply"
+    },
+    {
+      "tag": "16499-1.6.4",
+      "version_name": "1.6.4",
+      "version_code": 10604999,
+      "published_at": "2026-04-29T02:00:03Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/16499-1.6.4",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.6.4.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/16499-1.6.4/WaEnhancerX-v1.6.4.apk",
+          "size": 15290473,
+          "sha256": "488680b676709f55e6552f046ba63e29482b3c1b6f923b8704e7afb75a931a36"
+        }
+      ],
+      "notes": "[Improvements]\n- Updated app icon\n- Fixed names across the app"
+    },
+    {
+      "tag": "16399-1.6.3",
+      "version_name": "1.6.3",
+      "version_code": 10603999,
+      "published_at": "2026-04-28T19:41:01Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/16399-1.6.3",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.6.3.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/16399-1.6.3/WaEnhancerX-v1.6.3.apk",
+          "size": 15262401,
+          "sha256": "19dcbc069f613ce6690df93dc7c04ad3d88941b1747ababf96d5918c5e9cfa60"
+        }
+      ],
+      "notes": "[Added]\r\n- Call Recording restored in better way\r\n\r\n[Improved]\r\n- Improved App Performance\r\n\r\n[Fixed]\r\n- Crash on Status \r\n- Video Note improved (A crash on video sent is required to make the patch work to act like a video note)\r\n- Stability Improvements"
+    }
+  ]
 }

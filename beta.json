@@ -1,6 +1,565 @@
 {
   "schema": 1,
   "channel": "beta",
-  "updated_at": "2026-11-19T00:00:00Z",
-  "releases": []
+  "updated_at": "2026-11-19T06:40:17Z",
+  "releases": [
+    {
+      "tag": "2003-2.0.0-beta-3",
+      "version_name": "2.0.0-beta-3",
+      "version_code": 20000503,
+      "published_at": "2026-10-08T13:48:10Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/2003-2.0.0-beta-3",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v2.0.0-beta-3_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/2003-2.0.0-beta-3/WaEnhancerX-v2.0.0-beta-3_debug.apk",
+          "size": 31556905,
+          "sha256": "c69b4012d06232e84aa5a4eed1e7b5b471d4d86be9efb185c6b69bae93e1c187"
+        },
+        {
+          "name": "WaEnhancerX-v2.0.0-beta-3_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/2003-2.0.0-beta-3/WaEnhancerX-v2.0.0-beta-3_release.apk",
+          "size": 8013954,
+          "sha256": "c458f4cc35ae8f30670bc21c6076b0a97fcdf2ee7e1d5b6f63c16ec0633e43c2"
+        }
+      ],
+      "notes": "[Updated]\n- Updated Minimum Xposed API to 102\n\n[Fixed]\n- Fixed Seperate groups tab\n- Fixed media preview\n\n[Improvements]\n- Improved Floating Bottom Menu\n- Improved double tab to react\n- Improved Bootloader spoofer for new protections and enabled by default for new users"
+    },
+    {
+      "tag": "2002-2.0.0-beta-2",
+      "version_name": "2.0.0-beta-2",
+      "version_code": 20000502,
+      "published_at": "2026-10-07T14:03:54Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/2002-2.0.0-beta-2",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v2.0.0-beta-2_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/2002-2.0.0-beta-2/WaEnhancerX-v2.0.0-beta-2_debug.apk",
+          "size": 31388498,
+          "sha256": "527b48f51f75abc1e1794b3f385498fa3c41630886a76814c3d2731c44a166bf"
+        },
+        {
+          "name": "WaEnhancerX-v2.0.0-beta-2_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/2002-2.0.0-beta-2/WaEnhancerX-v2.0.0-beta-2_release.apk",
+          "size": 7948421,
+          "sha256": "86f951db9a3478202abbc7d52b27703b9bec275027b718f3aed497072fc817db"
+        }
+      ],
+      "notes": "[Added]\r\n- Added support upto v2.26.40.xx WA/WB\r\n- Self-hook sentinel activation check support\r\n- Universal WhatsApp version detection and multi-package support\r\n- Support for latest WhatsApp & WhatsApp Business\r\n\r\n[Fixes]\r\n- Fixed module activation detection on physical devices\r\n- Kept Xposed entrypoints and ModuleStatus from ProGuard stripping\r\n\r\n[Improvements]\r\n- Unified release and debug signing with project keystore\r\n- Modern Jetpack Compose UI enhancements and performance optimizations"
+    },
+    {
+      "tag": "2001-2.0.0-beta-1",
+      "version_name": "2.0.0-beta-1",
+      "version_code": 20000501,
+      "published_at": "2026-10-07T12:41:39Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/2001-2.0.0-beta-1",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v2.0.0-beta-1_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/2001-2.0.0-beta-1/WaEnhancerX-v2.0.0-beta-1_debug.apk",
+          "size": 31360334,
+          "sha256": "6a44e54321530fd6813f40a41f7c723774755a703e2ddc61b4993ee86be2f6d8"
+        },
+        {
+          "name": "WaEnhancerX-v2.0.0-beta-1_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/2001-2.0.0-beta-1/WaEnhancerX-v2.0.0-beta-1_release.apk",
+          "size": 7833686,
+          "sha256": "1bb833e016a4cb530053376067517b9221d4a37785532880a6b2bdaf02f54d19"
+        }
+      ],
+      "notes": "Release v2.0.0-beta-1\r\n\r\n⚠️ Note on this Initial Release:\r\nSince this is the very first public build of the completely new V2 architecture, expect bugs. Some features might not work exactly as expected right now.\r\n\r\nWhat’s Next?\r\nThis is a fresh open-source start. I will be working on it and pushing improvements on a daily basis. Very soon, with your testing and feedback, this project will reach its highly stable and optimal state.\r\n\r\nThank you for your incredible patience and support. Go check out the new repo, drop a ⭐ to support the project, and let the new journey begin!"
+    },
+    {
+      "tag": "17113-1.7.1-beta-13",
+      "version_name": "1.7.1-beta-13",
+      "version_code": 10701513,
+      "published_at": "2026-09-12T10:14:03Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/17113-1.7.1-beta-13",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.7.1-beta-13_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17113-1.7.1-beta-13/WaEnhancerX-v1.7.1-beta-13_debug.apk",
+          "size": 19237912,
+          "sha256": "d0b4d5c91308a483699806cc30642ab351da7a0f3a3b837a5852c23f69aa0768"
+        },
+        {
+          "name": "WaEnhancerX-v1.7.1-beta-13_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17113-1.7.1-beta-13/WaEnhancerX-v1.7.1-beta-13_release.apk",
+          "size": 7693247,
+          "sha256": "8aac7cffef35ac1d2ff9600b1ee5b489647d294317c71307df1aac21eeacbb46"
+        }
+      ],
+      "notes": "[Added]\r\n- Added support upto 2.26.37.xx WA/WB\r\n- View Connected Devices for multi-device licenses [Pro]\r\n\r\n[Fixes]\r\n- Fixed item filter by ID Remove (Gone)\r\n- Send blue ticks\r\n- Send seen for status according to new update\r\n- WhatsApp homepage Glassmorphism effect\r\n\r\n[Improvements]\r\n- Performance improvements\r\n- Report bug improved\r\n- Improved status view screen"
+    },
+    {
+      "tag": "17112-1.7.1-beta-12",
+      "version_name": "1.7.1-beta-12",
+      "version_code": 10701512,
+      "published_at": "2026-09-05T10:31:55Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/17112-1.7.1-beta-12",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.7.1-beta-12_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17112-1.7.1-beta-12/WaEnhancerX-v1.7.1-beta-12_debug.apk",
+          "size": 19214272,
+          "sha256": "697da0fb0ca117e48134410d77907c0853ffa63c95c6fe5241dcddaea1cd5975"
+        },
+        {
+          "name": "WaEnhancerX-v1.7.1-beta-12_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17112-1.7.1-beta-12/WaEnhancerX-v1.7.1-beta-12_release.apk",
+          "size": 7669934,
+          "sha256": "885ed6e0eac455790523c260a1ca262986cc9a1f80c4236a6e7151e18b416259"
+        }
+      ],
+      "notes": "[Added]\r\n- Added support upto 2.26.36.xx WA/WB\r\n- Hide Delivered for iOS (iPhone/MacOS) [Pro]\r\n\r\n[Fixes]\r\n- Fixed blue ticks on reply according to new WA/WB\r\n\r\n[Improvements]\r\n- Improved the Report Issue flow"
+    },
+    {
+      "tag": "17111-1.7.1-beta-11",
+      "version_name": "1.7.1-beta-11",
+      "version_code": 10701511,
+      "published_at": "2026-09-02T08:46:51Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/17111-1.7.1-beta-11",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.7.1-beta-11_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17111-1.7.1-beta-11/WaEnhancerX-v1.7.1-beta-11_debug.apk",
+          "size": 19210878,
+          "sha256": "6a7a36f427b1201918f6286ab9cf5daaa791990a0d0e851ae3946d9776700136"
+        },
+        {
+          "name": "WaEnhancerX-v1.7.1-beta-11_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17111-1.7.1-beta-11/WaEnhancerX-v1.7.1-beta-11_release.apk",
+          "size": 7650320,
+          "sha256": "e716c5b686a95bcf6ddc65c0fbe9f0f416e1579f8ad9026763ffa570bb65016b"
+        }
+      ],
+      "notes": "[Added]\r\n- Auto Reply with Rules [Pro]\r\n\r\n[Fixes]\r\n- Fixed blue ticks on reply according to new WA/WB\r\n\r\n[Improvement]\r\n- Improved Anti-Revoke to avoid crashes\r\n- Optimized homepage scroll when floating bottom menu is active\r\n- Improved \"Unlock WA Plus\" according to the latest WA/WB [Pro]"
+    },
+    {
+      "tag": "17110-1.7.1-beta-10",
+      "version_name": "1.7.1-beta-10",
+      "version_code": 10701510,
+      "published_at": "2026-08-31T18:44:17Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/17110-1.7.1-beta-10",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.7.1-beta-10_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17110-1.7.1-beta-10/WaEnhancerX-v1.7.1-beta-10_debug.apk",
+          "size": 18697271,
+          "sha256": "b3f8153a0ec1cc42803c7886c3ba645f97fa6a46b9892366fd07ac0ca1a4dc28"
+        },
+        {
+          "name": "WaEnhancerX-v1.7.1-beta-10_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17110-1.7.1-beta-10/WaEnhancerX-v1.7.1-beta-10_release.apk",
+          "size": 7448093,
+          "sha256": "e434448ddd32d6a9c922b9eedc593215fc556c60c0c383d6b0b731de6144da45"
+        }
+      ],
+      "notes": "[Added]\r\n- Upgraded to Xposed Minimum Version 101\r\n\r\n[Fixes]\r\n- Fixed Hide Blue Ticks\r\n- Fixed XSharedPreferences and other deprecations\r\n- Fixed ViewOnce Download\r\n- Fixed send audio as voice according to new WA/WB\r\n\r\n[Improvement]\r\n- Performance optimization\r\n- Moved from XposedBridge to libxposed"
+    },
+    {
+      "tag": "17109-1.7.1-beta-9",
+      "version_name": "1.7.1-beta-9",
+      "version_code": 10701509,
+      "published_at": "2026-08-26T19:46:31Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/17109-1.7.1-beta-9",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.7.1-beta-9_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17109-1.7.1-beta-9/WaEnhancerX-v1.7.1-beta-9_debug.apk",
+          "size": 17138806,
+          "sha256": "23869378de42ea3064226c386010df7b400d1a5576eff7c53066103af153bf34"
+        },
+        {
+          "name": "WaEnhancerX-v1.7.1-beta-9_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17109-1.7.1-beta-9/WaEnhancerX-v1.7.1-beta-9_release.apk",
+          "size": 6233785,
+          "sha256": "34ce448229d87ad1fa43f4985ab06821d12fed54d7093f2f3b26f90bc7e66993"
+        }
+      ],
+      "notes": "[Added]\r\n- Added support upto 2.26.35.xx for WA/WB\r\n- Added pref to choose between action icons or submenu for status screen menu items\r\n\r\n[Fixes]\r\n- Media preview\r\n- Device source according to new WhatsApp version\r\n\r\n[Improvement]\r\n- Enhanced the media preview UI\r\n- Enhanced WaEnhancerX Menu item in status screen for newer WhatsApp versions"
+    },
+    {
+      "tag": "17108-1.7.1-beta-8",
+      "version_name": "1.7.1-beta-8",
+      "version_code": 10701508,
+      "published_at": "2026-08-11T20:58:39Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/17108-1.7.1-beta-8",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.7.1-beta-8_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17108-1.7.1-beta-8/WaEnhancerX-v1.7.1-beta-8_debug.apk",
+          "size": 17125903,
+          "sha256": "6acff9278f693f94c1d0166a45aaa2c7e50dfa1429fed0321e86cf86d9d65dc6"
+        },
+        {
+          "name": "WaEnhancerX-v1.7.1-beta-8_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17108-1.7.1-beta-8/WaEnhancerX-v1.7.1-beta-8_release.apk",
+          "size": 6225914,
+          "sha256": "478020b86250b3cac2bfb7c9ed2d370c2e2714ad7f56b90da3194476faebb530"
+        }
+      ],
+      "notes": "[Fixed]\r\n- Fixed bottom floating menu glassmorphism effect\r\n- Fixed main screen floating menu applying to other screens tabs\r\n- Fixed minor bugs in injected WaeX settings\r\n\r\n[Improvements]\r\n- Optimized Performance\r\n\r\n[Pro]\r\n- Pro changelog in helper plugin sections (v1.0.32)"
+    },
+    {
+      "tag": "17107-1.7.1-beta-7",
+      "version_name": "1.7.1-beta-7",
+      "version_code": 10701507,
+      "published_at": "2026-08-09T22:05:21Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/17107-1.7.1-beta-7",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.7.1-beta-7_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17107-1.7.1-beta-7/WaEnhancerX-v1.7.1-beta-7_debug.apk",
+          "size": 17135399,
+          "sha256": "13118810e5b6c4a6421a71cfe41ac254910dfc923450c4e7bec2b9dca2a02b85"
+        },
+        {
+          "name": "WaEnhancerX-v1.7.1-beta-7_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17107-1.7.1-beta-7/WaEnhancerX-v1.7.1-beta-7_release.apk",
+          "size": 6124577,
+          "sha256": "bd2f7fbfac8ebe0fec82a165a4fec0d7c342625d09e29df512d03607e4e3f70b"
+        }
+      ],
+      "notes": "[Added]\r\n- Added support for WA/WB upto 2.26.32.xx\r\n\r\n[Fixed]\r\n- Fixed error CustomThemeV2\r\n- Fixed Download & Share Status not working in some devices\r\n- Fixed chat flickering on some devices\r\n\r\n[Improvements]\r\n- Optimized Performance\r\n- Improved In-app preferences"
+    },
+    {
+      "tag": "17105-1.7.1-beta-5",
+      "version_name": "1.7.1-beta-5",
+      "version_code": 10701505,
+      "published_at": "2026-07-31T03:39:24Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/17105-1.7.1-beta-5",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.7.1-beta-5_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17105-1.7.1-beta-5/WaEnhancerX-v1.7.1-beta-5_debug.apk",
+          "size": 17088309,
+          "sha256": "cde626d400265a7e397c6462525ed1dc154ed817f40472e86b5eb93662aca83a"
+        },
+        {
+          "name": "WaEnhancerX-v1.7.1-beta-5_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17105-1.7.1-beta-5/WaEnhancerX-v1.7.1-beta-5_release.apk",
+          "size": 6115669,
+          "sha256": "a8256bb1bc51a62625cbcd6a981ed0e80b9c3238304e4fdd62c8441e9cd497c0"
+        }
+      ],
+      "notes": "[Added]\r\n- Added support for WA/WB upto 2.26.30.xx\r\n\r\n[Fixed]\r\n- Crash on startup\r\n- Fixed Floating Pill design issues\r\n\r\n[Improvements]\r\n- Optimized Performance\r\n- Enhanced Message Seen Toast according to new WA/WB versions\r\n- Enhanced Status Seen Toast according to new WA/WB versions"
+    },
+    {
+      "tag": "17102-1.7.1-beta-2",
+      "version_name": "1.7.1-beta-2",
+      "version_code": 10701502,
+      "published_at": "2026-07-18T07:39:49Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/17102-1.7.1-beta-2",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.7.1-beta-2_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17102-1.7.1-beta-2/WaEnhancerX-v1.7.1-beta-2_debug.apk",
+          "size": 17084892,
+          "sha256": "e954868b3c80070e78a3197a1e4699993de3236c193a325cd85bf68f7c4a70c7"
+        },
+        {
+          "name": "WaEnhancerX-v1.7.1-beta-2_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17102-1.7.1-beta-2/WaEnhancerX-v1.7.1-beta-2_release.apk",
+          "size": 5554597,
+          "sha256": "3263eef7cd4c84e6bd9557f1461e47656ad0937f1a7fb294a18fe6500d49ed44"
+        }
+      ],
+      "notes": "[Added]\r\n- Added support upto WA/WB 2.26.28.xx\r\n- Bottom Menu Customization with preview\r\n- [Pro] Unlock premium customization features\r\n- Added option to enable notification when a call is blocked\r\n- [Pro] Added a delete for me messages media recovery system to recover and view deleted photos, videos, voice notes, and stickers directly in the deleted messages log\r\n- Added a search bar in embedded settings to easily find and navigate preferences\r\n- Added a direct download button for video notes (video messages) to quickly save them\r\n\r\n[Improved]\r\n- Improved Delete for me messages ui\r\n\r\n[Fixes]\r\n- Fixed additional call information not showing\r\n- Fixed status bugs\r\n- Fixed the preview icon not showing/working on image messages\r\n- Improved the reliability of the long-press feature on messages"
+    },
+    {
+      "tag": "17008-1.7.0-beta-8",
+      "version_name": "1.7.0-beta-8",
+      "version_code": 10700508,
+      "published_at": "2026-07-01T08:33:53Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/17008-1.7.0-beta-8",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.7.0-beta-8_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17008-1.7.0-beta-8/WaEnhancerX-v1.7.0-beta-8_release.apk",
+          "size": 4933408,
+          "sha256": "da6ff07e7cc0b2de3672c8e117f3cc904fa896613640294df0380c511eeaa622"
+        }
+      ],
+      "notes": "[Added]\r\n- Added support for new WA/WB version 2.26.26.xx\r\n\r\n[Disabled]\r\n- Disabled contact blocked feature\r\n\r\n[Fixes]\r\n- Fixed Maximum -1 contacts limitation bug \r\n- Fixed settings reset bug for some devices"
+    },
+    {
+      "tag": "17007-1.7.0-beta-7",
+      "version_name": "1.7.0-beta-7",
+      "version_code": 10700507,
+      "published_at": "2026-06-28T07:54:13Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/17007-1.7.0-beta-7",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.7.0-beta-7_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17007-1.7.0-beta-7/WaEnhancerX-v1.7.0-beta-7_debug.apk",
+          "size": 56085095,
+          "sha256": "73cf59c69b078d11e1dbcc0fb34acf2b7515146b4b73498549bdcb4d37aeccf4"
+        },
+        {
+          "name": "WaEnhancerX-v1.7.0-beta-7_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17007-1.7.0-beta-7/WaEnhancerX-v1.7.0-beta-7_release.apk",
+          "size": 11051465,
+          "sha256": "a20c1c52efbad4e12088a1ec2600b7da0ce0670299db44cbc1090f74d61800a8"
+        }
+      ],
+      "notes": "[Added]\r\n- Quick Settings Tiles for WAEX essential features\r\n- Dynamic default Keybox instead of hardcoding, this will keep itself synced with our server latest Keybox\r\n\r\n\r\n[Improvements]\r\n- Long press any quick tile takes you to the preference in WAEX\r\n- UI Improvements\r\n\r\n[Fixes]\r\n- Fixed unnecessary ClassNotFoundException errors\r\n\r\nGitHub: https://github.com/mubashardev/WaEnhancer/releases/tag/1.7.0-beta-7\r\n\r\n`Note: Now every release will include both Release and Debug versions for better compatibility. If Release version doesn't work for you, you can switch to debug anytime.`"
+    },
+    {
+      "tag": "17006-1.7.0-beta-6",
+      "version_name": "1.7.0-beta-6",
+      "version_code": 10700506,
+      "published_at": "2026-06-25T23:11:58Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/17006-1.7.0-beta-6",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.7.0-beta-6.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17006-1.7.0-beta-6/WaEnhancerX-v1.7.0-beta-6.apk",
+          "size": 11047436,
+          "sha256": "22652c72babb0e58dec2f309a7c9a6371b87ac5660ca74c2de3ae1d40837e721"
+        }
+      ],
+      "notes": "[Added]\r\n- Added support for version 2.26.25.xx WA/WB\r\n- Set custom forward limit\r\n- Add support for user-defined WA/WB versions\r\n\r\n[Improvements]\r\n- Improved the module to keep it compiliant to GPL 3.0 license\r\n- Migrated all the pro module code to optional Pro plugin\r\n- [Pro] Improved audio trimmer for audio to voice status\r\n- Removed New chat from WaEnhancerX Menu shifted to Long-Press Chat floating button (FAB)\r\n- Improved New Chat Sheet UI\r\n- Improved Emojis loading for system emojis\r\n\r\n[Fixes]\r\n- Fixed ShareLimit plugin Error\r\n- Fixed Xposed framework detection for some devices\r\n- Fixed Disable Default emoji crash for some devices\r\n\r\n\r\nNote: You manually need to turn on the Root access for Helper plugin if it is not enabled by default or not showing runtime permission requests. Usually happens for KSU root users."
+    },
+    {
+      "tag": "17005-1.7.0-beta-5",
+      "version_name": "1.7.0-beta-5",
+      "version_code": 10700505,
+      "published_at": "2026-06-15T11:18:36Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/17005-1.7.0-beta-5",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.7.0-beta-5.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17005-1.7.0-beta-5/WaEnhancerX-v1.7.0-beta-5.apk",
+          "size": 12460837,
+          "sha256": "d205c7a9676112fe94ad11f0ea5381c09e6194de0465d3ec8059d81f5fdbfdd6"
+        }
+      ],
+      "notes": "[Added]\r\n- Added support for 2.26.24.xx WA/WB\r\n- File Size Spoofer (Video/Image message size spoof)\r\n\r\n[Improvements]\r\n- Fixed Floating Bottom Bar for Meta AI tab\r\n- Performance Improvements\r\n\r\n\r\nNote: Spoofed file size will not change the actual size of media, it will only be visible on message bubble for receiver but when receiver will download media, it will download with the actual size of media"
+    },
+    {
+      "tag": "17004-1.7.0-beta-4",
+      "version_name": "1.7.0-beta-4",
+      "version_code": 10700504,
+      "published_at": "2026-06-12T13:07:10Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/17004-1.7.0-beta-4",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.7.0-beta-4.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17004-1.7.0-beta-4/WaEnhancerX-v1.7.0-beta-4.apk",
+          "size": 12413705,
+          "sha256": "97dc0cec2c477d4665158fdc75ffc6ec63dd8ad1a9eade93c014bd5f323d457e"
+        }
+      ],
+      "notes": "[Added]\r\n- [Pro] Use Audio as Voice Status\r\n- Verify Spoofer (Default + Custom Keybox.xml) that how WhatsApp analyzes the device\r\n\r\n[Improved]\r\n- Used new certificates for Default Spoofer"
+    },
+    {
+      "tag": "17003-1.7.0-beta-3",
+      "version_name": "1.7.0-beta-3",
+      "version_code": 10700503,
+      "published_at": "2026-06-10T20:12:17Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/17003-1.7.0-beta-3",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.7.0-beta-3.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/17003-1.7.0-beta-3/WaEnhancerX-v1.7.0-beta-3.apk",
+          "size": 12337820,
+          "sha256": "aee2866e5217ec4be07bb544293f13ebbb3e8a671378c3a4ff4bd7bfc600e6c6"
+        }
+      ],
+      "notes": "[Added]\r\n- [Pro] Advanced Filter items by id options\r\n- Added Save Video Note to Gallery feature\r\n\r\n\r\n[Improvements]\r\n- Fixed and improved Filter item by id"
+    },
+    {
+      "tag": "16909-1.6.9-beta-9",
+      "version_name": "1.6.9-beta-9",
+      "version_code": 10609509,
+      "published_at": "2026-06-07T06:27:28Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/16909-1.6.9-beta-9",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.6.9-beta-9.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/16909-1.6.9-beta-9/WaEnhancerX-v1.6.9-beta-9.apk",
+          "size": 12299390,
+          "sha256": "86cdf00c47d45c32827ebe4798600e0b7cdd3fa2154607007d74d03ebd347f64"
+        }
+      ],
+      "notes": "[Added]\r\nAdded support for WA/WB 2.26.23.xx\r\n\r\n[Improvements]\r\n- Include one-time db optimization for better performance (Dialog will show only once)\r\n- Module's ui Improvements\r\n\r\n[Fixes]\r\n- Fixed sending file as voice note\r\n- Fixed Hide Blue Ticks\r\n- Fixed Hide Typing & Recording Voice\r\n- Fixed Group/Chats Counter when Separate Groups is Enabled"
+    },
+    {
+      "tag": "16908-1.6.9-beta-8",
+      "version_name": "1.6.9-beta-8",
+      "version_code": 10609508,
+      "published_at": "2026-06-05T12:33:44Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/16908-1.6.9-beta-8",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.6.9-beta-8.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/16908-1.6.9-beta-8/WaEnhancerX-v1.6.9-beta-8.apk",
+          "size": 12033490,
+          "sha256": "be04a626f214a6918abf7b781d1a8fa2ad181bbbb3da459ae837e87ee807e995"
+        }
+      ],
+      "notes": "[Added]\r\n- [Pro] Added Always Typing / Recording Voice Simulator Feature\r\n- Customize Status View\r\n    * [Pro] Added Disable Swipe Up to Reply\r\n\r\n\r\n[Improvements]\r\n- Optimized conversation messages scroll to avoid lags\r\n\r\n[Fixes]\r\n- Fixed crash in recordings audio player when loading corrupt or unplayable audio files\r\n- Fixed CustomView Plugin Error\r\n- Fixed MODE_WORLD_READABLE exception\r\n- Fixed My Status Views\r\n- Fixed an issue where chat date separators (Today, Yesterday, etc.) went missing or displayed time formats when Time Customization was loaded"
+    },
+    {
+      "tag": "16907-1.6.9-beta-7",
+      "version_name": "1.6.9-beta-7",
+      "version_code": 10609507,
+      "published_at": "2026-06-03T19:05:42Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/16907-1.6.9-beta-7",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.6.9-beta-7.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/16907-1.6.9-beta-7/WaEnhancerX-v1.6.9-beta-7.apk",
+          "size": 11491176,
+          "sha256": "4329bfb06940fcdfb7777ad849c17d763a122f3a4a6f5254769347d65a369953"
+        }
+      ],
+      "notes": "[Added]\r\n- Added support for WA/WB 2.26.22.xx\r\n- Added Custom Status UI\r\n    * [Pro] Hide Status Reply Bar\r\n    * [Pro] Hide Status Quick Reactions\r\n    * [Pro] Hide Status Heart Button\r\n    * [Pro] Add Status Reply Menu Item\r\n    * [Pro] Status Video Fast Forward / Rewind Gesture\r\n    * [Pro] Status Video Fast Forward Speed\r\n    * [Pro] Status Play/Pause Button\r\n\r\n[Improvements]\r\n- Improved some ui elements\r\n\r\n[Fixes]\r\n- Fixed CustomTime Plugin Error\r\n\r\n\r\n[Fixes]\r\n- Fixed Error getting method loadfabMethod: Fab method not found"
+    },
+    {
+      "tag": "16906-1.6.9-beta-6",
+      "version_name": "1.6.9-beta-6",
+      "version_code": 10609506,
+      "published_at": "2026-06-02T08:29:23Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/16906-1.6.9-beta-6",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.6.9-beta-6.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/16906-1.6.9-beta-6/WaEnhancerX-v1.6.9-beta-6.apk",
+          "size": 11427140,
+          "sha256": "e953a14d741eb3e00c1d3e81ad5573d7acff80c5ff62f2400085508bab6d7652"
+        }
+      ],
+      "notes": "[Added]\r\n- Added support for WA/WB 2.26.22.xx\r\n- Added option to hide new Meta AI tab in Home Screen\r\n- Added Status Splitter [Pro]\r\n- Added option to make text selectable in Chat Bubbles\r\n\r\n[Improvements]\r\n- Optimized app size & performance\r\n- Improved some ui elements\r\n\r\n\r\n[Fixes]\r\n- Fixed Error getting method loadfabMethod: Fab method not found"
+    },
+    {
+      "tag": "16905-1.6.9-beta-5",
+      "version_name": "1.6.9-beta-5",
+      "version_code": 10609505,
+      "published_at": "2026-05-31T20:03:25Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/16905-1.6.9-beta-5",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.6.9-beta-5.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/16905-1.6.9-beta-5/WaEnhancerX-v1.6.9-beta-5.apk",
+          "size": 19335767,
+          "sha256": "5bda8752585c620fcc3457fd4a7fc58c3753e3708b7d38028a9e1b6a39f4c345"
+        }
+      ],
+      "notes": "[Fixes]\n- Fixed MessageBomber, DeleteMessageFile plugin errors\n- Fixed Fragments crash on open (General, Home Screen, Conversation Screen)"
+    },
+    {
+      "tag": "1.6.9-beta-4",
+      "version_name": "1.6.9-beta-4",
+      "version_code": 10609504,
+      "published_at": "2026-05-31T18:07:34Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/1.6.9-beta-4",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.6.9-beta-4.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/1.6.9-beta-4/WaEnhancerX-v1.6.9-beta-4.apk",
+          "size": 19154747,
+          "sha256": "d860b2113f0d20cc5dd107724c03daec078525b8806a77e57e67846e2fa7b7da"
+        }
+      ],
+      "notes": "[Added]\n- Added Support for WA/WB 2.26.21.xx\n- Message Bomber [Pro]\n- Delete Message Media File [Pro]\n\n[Improved]\n- Open WaeX from app based on selected preference (Embedded / External App)\n\n[Enhancements]\n- Pro License Manager to bind license key with device hardware\n\nIntroduced Wa Enhancer X Pro with exciting new features\n\n\n### Flow to get WaEnhancer X Pro License Key\n1. Open <a href=\"https://t.me/waenhancerx_bot\">WaEnhancer X Bot</a> on Telegram and click Start Bot.\n2. Send /plans to see the available plans and select any plan. [Offer: We are giving away free Pro Trial until 7 June 2026]\n3. You will receive your license key\n4. Copy the license key\n5. Open WaEnhancer X, click the Green chip button \"Free\" there and you'll be navigated to license activation screen.\n6. Paste the license key and click Activate.\n7. You will see a success message if the license key is valid.\n\n[Notes] \n- Pro Trial can be obtained from the bot, and license keys will be bound to your device hardware, means you can't use the same license key on another device until the old license is unlinked from the old device.\n- We are launching our pro as MVP for now, more pro features will be added in upcoming updates, we hope you will enjoy our new \"Pro\" features."
+    },
+    {
+      "tag": "16903-1.6.9-beta-3",
+      "version_name": "1.6.9-beta-3",
+      "version_code": 10609503,
+      "published_at": "2026-05-24T03:17:48Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/16903-1.6.9-beta-3",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.6.9-beta-3.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/16903-1.6.9-beta-3/WaEnhancerX-v1.6.9-beta-3.apk",
+          "size": 18324121,
+          "sha256": "6340332c2ec78a7b85b85ddc09aa049c759bc685f0cc1bf7e689e6d04a7f0d40"
+        }
+      ],
+      "notes": "[Improvements]\r\n- Restored Separate Groups feature\r\n- Improved Module Entry tile in Settings Activity for all Languages\r\n- Improved Call info notification\r\n\r\n\r\n[Fixes]\r\n- Fixed crash on startup\r\n- Fixed crash on status custom text color"
+    },
+    {
+      "tag": "16902-1.6.9-beta-2",
+      "version_name": "1.6.9-beta-2",
+      "version_code": 10609502,
+      "published_at": "2026-05-23T09:10:30Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/16902-1.6.9-beta-2",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.6.9-beta-2.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/16902-1.6.9-beta-2/WaEnhancerX-v1.6.9-beta-2.apk",
+          "size": 18320613,
+          "sha256": "31bbbcd0d4ef5ab01fc73d60d56d5e6954ce3f6ca0f8490acc970835ec7da959"
+        }
+      ],
+      "notes": "[Added]\n- Customize text color of deleted messages in Chat Screen\n\n[Improvements]\n- Reintroduced optional Google Crashlytics with a strict, privacy-first explicit consent flow\n- Enhanced overall module stability by utilizing lightweight native integration\n- Improved Module Entry tile in Settings Activity for all Languages\n- Improved WAEX Menu items locales according to WhatsApp Language\n- Improved Status Loading UI\n\n[Fixes]\n- Fixed Deleted Message Indicator not showing\n- Fixed minor UI glitches for a smoother native experience"
+    },
+    {
+      "tag": "16901-1.6.9-beta-1",
+      "version_name": "1.6.9-beta-1",
+      "version_code": 10609501,
+      "published_at": "2026-05-22T19:46:09Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/16901-1.6.9-beta-1",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.6.9-beta-1.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/16901-1.6.9-beta-1/WaEnhancerX-v1.6.9-beta-1.apk",
+          "size": 18317629,
+          "sha256": "7b37bf33ad837f1abaa6dd0fd95f407d1014cfa30f9759d92f8df06c259fc1ac"
+        }
+      ],
+      "notes": "[Improvements]\n- Status Deletion: Deleting statuses is now instantaneous and much more reliable.\n- App Stability: Improved background code so the app runs smoother and updates your chats faster.\n- Optimized overall performance.\n\n[Fixes]\n- Fixed an issue where profile pictures wouldn't load properly on the IG Status screen.\n- Fixed a bug that could cause the app to crash when starting up.\n- Fixed Status Saving."
+    },
+    {
+      "tag": "16804-1.6.8-beta-4",
+      "version_name": "1.6.8-beta-4",
+      "version_code": 10608504,
+      "published_at": "2026-05-20T10:19:33Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/16804-1.6.8-beta-4",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.6.8-beta-4.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/16804-1.6.8-beta-4/WaEnhancerX-v1.6.8-beta-4.apk",
+          "size": 18300221,
+          "sha256": "8c8122131c32129c8b504b8466fae4350cb8cbfc097178148df447f76f939b0f"
+        }
+      ],
+      "notes": "[Improvements]\n- Optimized performance\n\n[Fixes]\n- Fixed ChatLimit Plugin error\n- Fixed ContactBlockedVerify Plugin error\n- Fixed Archived Chats activity Crashed\n- Fixed Disable Meta AI functions"
+    },
+    {
+      "tag": "16803-1.6.8-beta-3",
+      "version_name": "1.6.8-beta-3",
+      "version_code": 10608503,
+      "published_at": "2026-05-19T08:20:50Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/16803-1.6.8-beta-3",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.6.8-beta-3.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/16803-1.6.8-beta-3/WaEnhancerX-v1.6.8-beta-3.apk",
+          "size": 18283837,
+          "sha256": "6acb55963316e303618227f442f12ce7bd9898759f3614f81f013f342ac9e76a"
+        }
+      ],
+      "notes": "[Improvements]\n- Optimized performance\n\n[Fixes]\n- Fixed Hide Tabs showing hidden tabs during swipe\n- Fixed compatibility errors\n- Fixed CustomThemeV2 errors"
+    },
+    {
+      "tag": "16802-1.6.8-beta-2",
+      "version_name": "1.6.8-beta-2",
+      "version_code": 10608502,
+      "published_at": "2026-05-18T03:52:15Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/16802-1.6.8-beta-2",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v1.6.8-beta-2.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/16802-1.6.8-beta-2/WaEnhancerX-v1.6.8-beta-2.apk",
+          "size": 18264029,
+          "sha256": "4f1e3e43cf828ac451aae8a4b80e6cdb6de4fab7fd0c627b896b774e1fa25eed"
+        }
+      ],
+      "notes": "[Improvements]\n- Opttimized performance\n\n[Fixes]\n- Fixed Preferences not saving/loading\n- Fixed Hooks not applying\n- Fixed Revoked message indicator not showing\n- Fixed Crash when opening app\n- Fixed Crash when opening chat\n\nNote: Force stop WhatsApp before updating the module. WhatsApp may take longer time to open on first launch."
+    }
+  ]
 }
