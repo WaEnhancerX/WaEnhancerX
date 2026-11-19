@@ -14,6 +14,7 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 POLICY = ROOT / "app/src/main/java/com/waenhancer/core/emojis/EmojiCloudStorage.java"
+CATALOG = ROOT / "app/src/main/java/com/waenhancer/core/emojis/EmojiCloudCatalog.java"
 PROBE = ROOT / "qa/fixtures/EmojiCloudStorageAndroidProbe.java"
 
 
@@ -34,7 +35,7 @@ def main() -> None:
     parser.add_argument("--serial", required=True)
     args = parser.parse_args()
 
-    for path in (args.adb, args.java, args.javac, args.android_jar, args.d8_jar, POLICY, PROBE):
+    for path in (args.adb, args.java, args.javac, args.android_jar, args.d8_jar, POLICY, CATALOG, PROBE):
         if not path.is_file():
             raise FileNotFoundError(str(path))
 
@@ -50,11 +51,8 @@ def main() -> None:
         dexdir = base / "dex"
         dexdir.mkdir()
         run([str(args.javac), "--release", "8", "-cp", str(args.android_jar),
-             "-d", str(classes), str(POLICY), str(PROBE)])
-        compiled = [
-            classes / "com/waenhancer/core/emojis/EmojiCloudStorage.class",
-            classes / "com/waenhancer/core/emojis/EmojiCloudStorageAndroidProbe.class",
-        ]
+             "-d", str(classes), str(POLICY), str(CATALOG), str(PROBE)])
+        compiled = sorted(classes.rglob("*.class"))
         run([str(args.java), "-cp", str(args.d8_jar), "com.android.tools.r8.D8",
              "--min-api", "24", "--lib", str(args.android_jar),
              "--output", str(dexdir), *[str(p) for p in compiled]])

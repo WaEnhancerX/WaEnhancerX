@@ -43,6 +43,15 @@ public final class EmojiCloudStorageChecks {
         }
     }
 
+    private static void ttc(File file, int fontCount) throws IOException {
+        try (DataOutputStream out = new DataOutputStream(new FileOutputStream(file))) {
+            out.writeInt(0x74746366); // 'ttcf'
+            out.writeInt(0x00010000); // TTC v1.0
+            out.writeInt(fontCount);
+            if (fontCount == 1) out.writeInt(16); // first font offset
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         Path scratch = Files.createTempDirectory("waex-emoji-storage-");
         try {
@@ -100,6 +109,19 @@ public final class EmojiCloudStorageChecks {
             rejected(() -> EmojiCloudStorage.validateDownloadedFile(malformed, 28L, 28L, 28L),
                     "accepted non-font HTTP body");
             Files.delete(malformed.toPath());
+
+            // Exercise the TTC-only branch; an API-26 Integer helper is not
+            // available on WAEX's Android 24 minimum and must not be used.
+            File validTtc = EmojiCloudStorage.createStageFile(root);
+            ttc(validTtc, 1);
+            EmojiCloudStorage.validateDownloadedFile(validTtc, 16L, 16L, 16L);
+            check(validTtc.length() == 16L, "valid TTC fixture was not preserved");
+            Files.delete(validTtc.toPath());
+            File badTtc = EmojiCloudStorage.createStageFile(root);
+            ttc(badTtc, -1); // unsigned count 4,294,967,295 must be rejected
+            rejected(() -> EmojiCloudStorage.validateDownloadedFile(badTtc, 12L, 12L, 12L),
+                    "accepted impossible unsigned TTC font count");
+            Files.delete(badTtc.toPath());
 
             File stage = EmojiCloudStorage.createStageFile(root);
             File concurrentStage = EmojiCloudStorage.createStageFile(root);

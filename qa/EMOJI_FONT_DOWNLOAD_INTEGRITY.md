@@ -34,22 +34,32 @@ first 12 bytes, not complete font content.
   installed font. Failure leaves the prior font in place, and only the newly
   created staging file is removed. Progress reaches 100% only after promotion.
 - Invalid catalog entries are omitted; the remaining valid entries continue to
-  load. Invalid direct filenames cannot be used to remove arbitrary app files.
+  load. The production `EmojiCloudCatalog` parser is exercised with missing
+  fields, a non-object entry, traversal and oversized metadata. Invalid direct
+  filenames cannot be used to remove arbitrary app files.
+- TTC header count conversion uses primitive unsigned masking; the helper
+  does not call `Integer.toUnsignedLong`, which is unavailable before Android 26
+  despite WAEX supporting Android 24 and 25.
 
 ## Reproducible verification
 
 | Test | Input and result | Limit |
 | --- | --- | --- |
-| JVM contract | `python3 qa/test_emoji_font_download_integrity.py`: **PASS 77 assertions**, JDK 17 on Windows 11 | Platform `Os.rename` replaced by strict host double |
+| JVM contract | `python3 qa/test_emoji_font_download_integrity.py`: **PASS 79 assertions**, JDK 17 on Windows 11; also PASS with isolated Linux JDK 21 compiler module | Platform `Os.rename` replaced by strict host double; reduced JDK module uses source/target, not `--release` API checks |
 | Negative controls | Unsafe filenames, ignored declared length and broken replacement each rejected: **3/3 PASS** | Synthetic controls, not WhatsApp |
 | Java Android API | Production helper compiled with `javac --release 8` and `android-34/android.jar`, then D8 `--min-api 24`: **PASS** | Compilation/DEX, not installation into WAEX |
-| Android runtime | `python3 qa/test_emoji_font_android_runtime.py ... --serial emulator-5560`: **PASS 10 checks**, Android 14/API 34, platform `Os.rename` | Isolated `/data/local/tmp` data; no WhatsApp UI or network |
+| Android runtime | `python3 qa/test_emoji_font_android_runtime.py ... --serial emulator-5560`: **PASS 19 checks**, Android 14/API 34, platform `Os.rename` and actual `org.json` production catalog parser | Isolated `/data/local/tmp` data; no WhatsApp UI or network, no Android 24/25 execution |
 | Source parser | `qa/check_syntax.py --root .../core/emojis --json`: **PASS** 1 Java + 1 Kotlin | Syntax only |
 | Kotlin type compile | Kotlin 2.3.20/JDK17, Android API34, OkHttp 4.12.0, Okio 3.6.0, coroutines 1.10.2: **PASS** | Isolated component; no Gradle APK |
 | Full WAEX integration | **BLOCKED / NOT_VERIFIED** | Authentic private `:licensing` inputs unavailable; no candidate APK installed |
 
+The production source and its QA fixtures are proposed separately from the
+`.github/workflows/source-qa.yml` registration. Until that protected workflow
+change is reviewed and merged, the emoji suites need explicit invocation;
+their local results do not imply a hosted GitHub Actions PASS.
+
 Android probe DEX SHA-256:
-`fa2076713475bc53df28175b51816e7f69544f853e2caacf0a044fcc689e6394`.
+`8224a33a166b0c228b62be4f058dbccc9b60375de227f428a477c1170f36b5e5`.
 
 For device reproduction, supply existing local tools explicitly:
 
@@ -79,9 +89,13 @@ failures. No passing hosted CI run is claimed for this unmerged branch.
 
 The code lives in a distinct Git worktree and branch from fork `main@0aaffab`;
 the main checkout and installed WAEX/WhatsApp packages were not modified.
-Reverting its eventual commit restores the prior implementation. No APK,
-release, PR or customer data was published by these tests. Test directories
+Reverting the source commit restores the prior implementation. A source-only
+[PR #199](https://github.com/WaEnhancerX/WaEnhancerX/pull/199) was opened for
+review. Its initial Nightly PR gate held the protected `.github/**` workflow
+change for a maintainer; the revised product diff removes that path, with
+workflow registration tracked independently. No APK, release or customer data
+was published by these tests. Test directories
 under `/data/local/tmp/waex-emoji-integrity-*` are unique and removed by the
 runner. Real WhatsApp/WAEX interactions, other Android versions, changing CDN
-hosts, malformed-but-plausible font payloads and crashes during fsync remain
-NOT_VERIFIED.
+hosts, malformed-but-plausible font payloads, Android 24–25 execution, and
+crashes during fsync remain NOT_VERIFIED.

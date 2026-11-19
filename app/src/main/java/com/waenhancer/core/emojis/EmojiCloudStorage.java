@@ -14,8 +14,8 @@ import java.util.Locale;
 
 /** Validates untrusted font metadata and replaces completed downloads without pre-deleting fonts. */
 public final class EmojiCloudStorage {
-    // The current official catalog's largest pack is < 28 MiB. Leave generous headroom
-    // while bounding a malformed or endless response on devices with limited storage.
+    // The 2026-11-19 catalog includes an 87,758,820-byte (about 83.7 MiB) pack.
+    // Keep headroom while bounding endless responses on limited-storage devices.
     public static final long MAX_FONT_BYTES = 128L * 1024L * 1024L;
     private static final int MAX_FILENAME_BYTES = 240;
 
@@ -96,7 +96,8 @@ public final class EmojiCloudStorage {
             }
             if (magic == 0x74746366) {
                 in.readInt(); // TTC format version
-                long count = Integer.toUnsignedLong(in.readInt());
+                // Integer.toUnsignedLong is Android API 26+, while WAEX supports API 24.
+                long count = in.readInt() & 0xffffffffL;
                 if (count == 0L || count > 512L || bytes < 12L + count * 4L) {
                     throw new IOException("Incomplete TrueType collection header");
                 }

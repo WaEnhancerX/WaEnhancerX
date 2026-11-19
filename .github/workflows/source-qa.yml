@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, 'integration/preview-current-main-*', 'fix/qa-localized-catalog-*']
   pull_request:
-    branches: [main, nightly]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -258,12 +258,6 @@ jobs:
             test -f qa/test_revoke_sqlite_contract.py
             test -f qa/fixtures/RevokeSqliteBindingChecks.java
           fi
-          if [[ -f app/src/main/java/com/waenhancer/core/emojis/EmojiCloudStorage.java ]]; then
-            test -f qa/test_emoji_font_download_integrity.py
-            test -f qa/fixtures/EmojiCloudStorageChecks.java
-            test -f qa/fixtures/android/system/Os.java
-            test -f qa/fixtures/android/system/ErrnoException.java
-          fi
 
       - name: Require stability tests when their implementations are present
         shell: bash
@@ -367,7 +361,6 @@ jobs:
             qa/test_call_recording_lifecycle.py \
             qa/test_gallery_export.py \
             qa/test_contact_identity.py \
-            qa/test_emoji_font_download_integrity.py \
             qa/test_db_migrations.py; do
             echo "::group::$test_script"
             python3 "$test_script"

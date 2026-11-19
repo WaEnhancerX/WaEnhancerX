@@ -88,22 +88,10 @@ object CustomEmojiManager {
                 }
                 val body = response.body?.string() ?: return@withContext Result.failure(IOException("Empty response"))
                 val json = JSONObject(body)
-                val emojisArray = json.optJSONArray("emojis")
-                    ?: return@withContext Result.success(emptyList())
-
-                val list = mutableListOf<CustomEmojiPack>()
-                for (i in 0 until emojisArray.length()) {
-                    val obj = emojisArray.getJSONObject(i)
-                    val filename = obj.getString("filename")
-                    val size = obj.optLong("size", 0L)
-                    val downloadUrl = obj.getString("download_url")
-                    val previewUrl = obj.optString("preview").takeIf { it.isNotBlank() }
-                    if (!EmojiCloudStorage.isSafeFontName(filename)
-                        || !EmojiCloudStorage.isAllowedDeclaredSize(size)
-                        || !EmojiCloudStorage.isApprovedDownloadUrl(downloadUrl)) continue
-                    list.add(CustomEmojiPack(filename, size, downloadUrl, previewUrl))
-                }
-                Result.success(list)
+                // A corrupt entry must not hide the valid packs that follow it.
+                Result.success(EmojiCloudCatalog.parse(json).map { entry ->
+                    CustomEmojiPack(entry.filename, entry.size, entry.downloadUrl, entry.previewUrl)
+                })
             }
         } catch (e: Exception) {
             Result.failure(e)

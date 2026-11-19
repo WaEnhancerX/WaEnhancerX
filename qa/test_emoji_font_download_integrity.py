@@ -8,6 +8,7 @@ validation. It checks that synthetic invalid downloads cannot replace valid data
 from pathlib import Path
 import argparse
 import re
+import shutil
 import subprocess
 import tempfile
 
@@ -22,8 +23,17 @@ def run(source: str, label: str, expect_fail: bool) -> None:
         workspace = Path(work)
         target = workspace / "EmojiCloudStorage.java"
         target.write_text(source, encoding="utf-8")
+        # Some verified JDK runtimes expose jdk.compiler as a module without
+        # installing a standalone javac launcher in PATH.
+        has_javac = shutil.which("javac") is not None
+        compiler = (["javac"] if has_javac else
+                    ["java", "-m", "jdk.compiler/com.sun.tools.javac.Main"])
+        # The reduced JDK module may omit ct.sym; only the normal javac path
+        # checks the exact Java 17 API surface via --release.
+        compatibility = (["--release", "17"] if has_javac else
+                         ["-source", "17", "-target", "17"])
         command = [
-            "javac", "--release", "17", "-d", str(workspace),
+            *compiler, *compatibility, "-d", str(workspace),
             str(target), str(TEST), str(STUB / "ErrnoException.java"),
             str(STUB / "Os.java"),
         ]
