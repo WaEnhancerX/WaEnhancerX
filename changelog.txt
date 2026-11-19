@@ -1,38 +1,8 @@
 [Added]
-- Added version support upto 2.26.46.xx
-- Custom Emojis: Choose from cloud emoji styles (iOS, Facebook, Samsung, Twitter, Windows, etc.) with in-app download and management screen
-- Report Issue Feature: Report issues and suggest features within app
-- Added option to show/hide message notifications for locked chats
-- Added Native Floating Navigation: turn on WhatsApp's own floating bottom bar, with optional background and selection colors
-- Supported Versions now suggests the last supported WhatsApp version when your installed one is unsupported, with a link to find it
-- Install a downloaded WhatsApp APK, APKM or XAPK from storage with root (upgrade or downgrade): WAEX checks the package, the supported version range and WhatsApp's signature before installing, and rejects modified or repacked files
 
 [Fixes]
-- Fixed Online dot indicator in conversations list
-- Fixed Floating bottom menu scroll hide
-- Fixed Locked Chats Enhancer still showing locked contacts in New chat, Forward and their search
-- Fixed Hide My Applist detection in diagnostics
+- Fixed Harmful App Error by play protect
 
 
 [Improvements]
-- Improved Module's UI
-- Improved UI of custom emojis screen
-- Improved WhatsApp UI performance
-- Improved Privacy features
-- Improved Separate Groups resolution according to new WA versions
-
-
-[Feature: Report Issues]
-- Report issues directly from app
-- Select issue type (issue or feature)
-- Issues will automatically be created on GitHub Issues
-- Directly track issues status via app
-- Get notified about issue status updates via Telegram Bot
-
-[Feature: Download Supported Versions]
-- Shows "Install Supported" when unsupported
-- Clicking opens a new screen to either install from storage or Download
-- It fetches all the supported versions from apkmirror and shows them in a list
-- Download directly within WAEX and upgrade/downgrade effortlessly without relying on any 3rd party downgrade module or downloading in browser
-- Before installation, WAEX will validate the APK and reject if unofficial or not supported
-- This will keep the process clean and organized
+- Migrate on-device transcription native libraries to on-demand download and provisioning
