@@ -42,8 +42,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -86,6 +84,8 @@ import com.waenhancer.update.WaexRelease
 import com.waenhancer.update.InstalledBuild
 import com.waenhancer.update.UpdateChannel
 import com.waenhancer.ui.components.RiskConfirmDialog
+import com.waenhancer.ui.components.ReleaseKindChip
+import com.waenhancer.ui.components.WaexSegmentedTabs
 import com.waenhancer.ui.components.channelLabel
 import com.waenhancer.ui.components.installRiskMessage
 import io.noties.markwon.Markwon
@@ -209,26 +209,12 @@ fun ChangelogScreen() {
     ) { insets ->
         Column(Modifier.fillMaxSize().padding(insets)) {
         val channelTabs = listOf(UpdateChannel.STABLE, UpdateChannel.BETA, UpdateChannel.NIGHTLY)
-        PrimaryTabRow(
-            selectedTabIndex = channelTabs.indexOf(tab),
-            containerColor = colors.background,
-            contentColor = colors.primary
-        ) {
-            channelTabs.forEach { channel ->
-                Tab(
-                    selected = channel == tab,
-                    onClick = { tab = channel },
-                    text = {
-                        Text(
-                            channelLabel(channel),
-                            fontWeight = if (channel == tab) FontWeight.Bold else FontWeight.Medium
-                        )
-                    },
-                    selectedContentColor = colors.primary,
-                    unselectedContentColor = colors.onSurfaceVariant
-                )
-            }
-        }
+        WaexSegmentedTabs(
+            labels = channelTabs.map { channelLabel(it) },
+            selectedIndex = channelTabs.indexOf(tab),
+            onSelect = { tab = channelTabs[it] },
+            modifier = Modifier.padding(horizontal = spacing.pageMargin, vertical = 8.dp)
+        )
         PullToRefreshBox(
             isRefreshing = isRefreshing,
             onRefresh = { reloadKey++ },
@@ -352,7 +338,7 @@ fun ChangelogScreen() {
                                         color = colors.onSurface
                                     )
                                 }
-                                Badge(channelLabel(installed.channel), colors.primary)
+                                ReleaseKindChip(installedVersion)
                                 Badge(
                                     if (BuildConfig.IS_DEBUG_VARIANT) UiText.get(R.string.waex_ui_build_debug, "Debug")
                                     else UiText.get(R.string.waex_ui_build_release, "Release"),
@@ -401,7 +387,7 @@ fun ChangelogScreen() {
                             }
                             run {
                                 Row(Modifier.padding(top = 8.dp)) {
-                                    Badge(channelLabel(release.channel), colors.onSurfaceVariant)
+                                    ReleaseKindChip(release.version)
                                     if (isInstalled) Badge(UiText.get(R.string.waex_ui_installed, "Installed"), colors.success)
                                     if (release.tagName == availableUpdate?.tagName) Badge(UiText.get(R.string.waex_ui_update, "Update"), colors.primary)
                                 }
