@@ -44,17 +44,12 @@ android {
         buildConfigField("String", "GIT_SHA", "\"$gitSha\"")
         buildConfigField("String", "MAPPING_ID", "\"${configuredVersionCode}-$gitSha\"")
 
-        // On-device transcription (whisper.cpp) is built for 64-bit ARM only. This filter
-        // applies to the CMake build alone; prebuilt libraries keep all their ABIs.
-        externalNativeBuild {
-            cmake {
-                abiFilters += "arm64-v8a"
-                arguments += listOf(
-                    "-DANDROID_STL=c++_shared", // several native libraries share one C++ runtime
-                    "-DCMAKE_BUILD_TYPE=Release" // debug APKs too: unoptimised whisper.cpp is ~20x slower
-                )
-            }
-        }
+        // waexdiag (root-hiding-tool diagnostic path/command constants, see
+        // NativeDiagPaths) is the only native code still built and bundled directly in the
+        // APK. On-device transcription (whisper.cpp/ggml) used to build here too, but is no
+        // longer bundled: it is downloaded on demand (NativeLibsProvisioner), built manually
+        // with scripts/build-transcription-libs.sh against
+        // app/src/main/cpp/transcription/CMakeLists.txt.
     }
 
     signingConfigs {

@@ -194,13 +194,11 @@ fun ReleaseDetailsScreen(tagName: String) {
     }
 
     activeDownload?.let { (rel, asset) ->
-        val isDowngrade = ReleaseRepository.versionCode(rel.version) < ReleaseRepository.versionCode(installedVersion)
         UpdateDownloadSheet(
             url = asset.downloadUrl,
             expectedSha256 = asset.sha256,
             expectedSize = asset.size,
             version = rel.version,
-            useRoot = isDowngrade || preferences.getBoolean("root_auto_install", false),
             onDismiss = { activeDownload = null }
         )
     }

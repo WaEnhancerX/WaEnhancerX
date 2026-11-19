@@ -1267,13 +1267,11 @@ fun MainContainerScreen() {
 
         downloadingUrl?.let { url ->
             val version = downloadingVersion ?: "latest"
-            val useRoot = preferenceManager.getBoolean("root_auto_install", false)
             UpdateDownloadSheet(
                 url = url,
                 version = version,
                 expectedSha256 = downloadingSha256,
                 expectedSize = downloadingSize,
-                useRoot = useRoot,
                 onDismiss = {
                     downloadingUrl = null
                     downloadingVersion = null
