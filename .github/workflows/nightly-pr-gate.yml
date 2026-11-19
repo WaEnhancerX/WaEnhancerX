@@ -96,8 +96,10 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
+      checks: write
     outputs:
       verdict: ${{ steps.review.outputs.verdict }}
+      confidence: ${{ steps.review.outputs.confidence }}
       reviewed_sha: ${{ steps.review.outputs.reviewed_sha }}
     steps:
       - name: Check out the trusted review files from the base branch only
@@ -125,30 +127,53 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           REVIEW_MODEL: ${{ vars.WAEX_REVIEW_MODEL }}
+          REVIEW_MIN_CONFIDENCE: ${{ vars.WAEX_REVIEW_MIN_CONFIDENCE }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           REVIEW_COMMENT_FILE: ${{ runner.temp }}/review-comment.md
+          REVIEW_PAYLOAD_FILE: ${{ runner.temp }}/review-payload.json
+          REVIEW_CHECK_FILE: ${{ runner.temp }}/review-check.json
         run: python3 scripts/release/ai_review.py
 
-      - name: Publish the verdict on the PR
+      - name: Publish the review, the check and the labels
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           VERDICT: ${{ steps.review.outputs.verdict }}
           COMMENT_FILE: ${{ runner.temp }}/review-comment.md
+          PAYLOAD_FILE: ${{ runner.temp }}/review-payload.json
+          CHECK_FILE: ${{ runner.temp }}/review-check.json
         run: |
           set -euo pipefail
+          repo="$GITHUB_REPOSITORY"
+
+          # Labels are only a filter for people; the check run below is what ties a verdict to a commit.
           case "$VERDICT" in
-            approve) label=ai-approved ;;
-            reject)  label=ai-rejected ;;
-            *)       label=needs-maintainer ;;
+            approve) add=(ai-approved) ;;
+            reject)  add=(ai-rejected needs-maintainer) ;;
+            *)       add=(needs-maintainer) ;;
           esac
-          gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label "$label"
-          if [[ "$VERDICT" != approve && "$label" != needs-maintainer ]]; then
-            gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label needs-maintainer
+          for label in "${add[@]}"; do
+            gh pr edit "$PR_NUMBER" --repo "$repo" --add-label "$label"
+          done
+
+          # A real pull-request review, with inline comments where the finding maps to a diff line.
+          # If GitHub refuses an inline position, post the same review without inline comments
+          # (the body already lists every finding), and as a last resort a plain comment.
+          if [ -s "$PAYLOAD_FILE" ]; then
+            gh api "repos/$repo/pulls/$PR_NUMBER/reviews" --method POST --input "$PAYLOAD_FILE" >/dev/null \
+              || jq 'del(.comments)' "$PAYLOAD_FILE" | gh api "repos/$repo/pulls/$PR_NUMBER/reviews" --method POST --input - >/dev/null \
+              || gh pr comment "$PR_NUMBER" --repo "$repo" --body-file "$COMMENT_FILE"
+          else
+            gh pr comment "$PR_NUMBER" --repo "$repo" --body-file "$COMMENT_FILE"
           fi
-          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file "$COMMENT_FILE"
+
+          # The check run is bound to the reviewed commit and goes stale when a new commit is pushed.
+          if [ -s "$CHECK_FILE" ]; then
+            gh api "repos/$repo/check-runs" --method POST --input "$CHECK_FILE" >/dev/null \
+              || echo "::warning::Could not create the nightly-ai-review check run."
+          fi
 
   merge:
     name: Merge the exact reviewed commit

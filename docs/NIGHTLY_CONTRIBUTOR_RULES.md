@@ -9,7 +9,7 @@ reviewed, merged and released as a Nightly pre-release without waiting for a mai
 
 1. You open a PR against `nightly`.
 2. A gate checks the rules that can be checked mechanically (R1, R2, R4, R5).
-3. An AI reviewer reads only the changed files and their diff and checks the remaining rules.
+3. An AI reviewer reads only the changed files and their diff and checks the remaining rules. It posts a pull-request review that says why it approved, or which rule was broken with the file, line, code, problem and fix, together with a confidence score. An approval with low confidence waits for a maintainer. The verdict is tied to the reviewed commit and a maintainer can ask for a new review at any time.
 4. The public QA check must pass on the exact commit that was reviewed (R13).
 5. If everything passes, that exact commit is merged and a Nightly pre-release is built.
 
