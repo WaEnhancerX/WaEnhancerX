@@ -1,8 +1,30 @@
 {
   "schema": 1,
   "channel": "stable",
-  "updated_at": "2026-11-19T06:40:17Z",
+  "updated_at": "2026-11-19T10:10:08Z",
   "releases": [
+    {
+      "tag": "20009999-2.0.9",
+      "version_name": "2.0.9",
+      "version_code": 20009999,
+      "published_at": "2026-11-19T10:09:49Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/20009999-2.0.9",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v2.0.9_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/20009999-2.0.9/WaEnhancerX-v2.0.9_debug.apk",
+          "size": 7973587,
+          "sha256": "5b0f64587f5edb5ddcfe47ce9e0c98594b840ee98b6f8d1b3e29f94362b8b417"
+        },
+        {
+          "name": "WaEnhancerX-v2.0.9_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/20009999-2.0.9/WaEnhancerX-v2.0.9_release.apk",
+          "size": 8070979,
+          "sha256": "585da692e90640bc76b4fadc9da0eacb74ee88c377468365f9c86c7a4d995c53"
+        }
+      ],
+      "notes": "[Added]\n- Added VirusTotal scan on every Stable Release for all APKs, this makes sure all APKs are safe to use. This will attach a VirusTotal badge/link on every release page for users to verify.\n- Revived Update Channels back into the project\n\n\n[Fixes]\n- Fixed Harmful App Error by play protect\n\n\n[Improvements]\n- Migrate on-device transcription native libraries to on-demand download and provisioning\n\n\n[Update Channels]\nNow you can install stable or nightly build of WAEX on top of each other without any issues.\nContributors are always welcome to contribute to nightly branch of this project."
+    },
     {
       "tag": "20800-2.0.8",
       "version_name": "2.0.8",
