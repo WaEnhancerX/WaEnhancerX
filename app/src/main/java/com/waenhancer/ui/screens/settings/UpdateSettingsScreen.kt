@@ -326,9 +326,9 @@ fun UpdateSettingsScreen() {
         val isChannel = selectionType == "channel"
         val isFrequency = selectionType == "frequency"
         val options = when {
-            isChannel -> UpdateChannel.entries.reversed().map { it.id to "${channelLabel(it)}\n${channelDescription(it)}" }
-            isFrequency -> updateFrequencyOptions()
-            else -> ignoredUpdateOptions()
+            isChannel -> UpdateChannel.entries.reversed().map { Triple(it.id, channelLabel(it), channelDescription(it)) }
+            isFrequency -> updateFrequencyOptions().map { Triple(it.first, it.second, null) }
+            else -> ignoredUpdateOptions().map { Triple(it.first, it.second, null) }
         }
         val selectedValue = when {
             isChannel -> updateChannel.id
@@ -349,36 +349,56 @@ fun UpdateSettingsScreen() {
                     else if (isFrequency) UiText.get(R.string.waex_ui_check_frequency, "Check frequency")
                     else UiText.get(R.string.waex_ui_after_ignoring_an_update, "After ignoring an update")
                 )
-                options.forEach { option ->
-                    val selected = selectedValue == option.first
+                options.forEach { (value, title, description) ->
+                    val selected = selectedValue == value
                     Surface(
                         shape = radius.cardShape,
-                        color = if (selected) colors.primary.copy(alpha = 0.12f) else colors.surfaceDim,
-                        border = BorderStroke(1.dp, if (selected) colors.primary else colors.outlineVariant),
+                        color = if (selected) colors.primary.copy(alpha = 0.10f) else colors.surfaceDim,
+                        border = BorderStroke(if (selected) 1.5.dp else 1.dp, if (selected) colors.primary else colors.outlineVariant),
                         modifier = Modifier.fillMaxWidth().clickable {
                             if (isChannel) {
-                                val chosen = UpdateChannel.fromId(option.first)
+                                val chosen = UpdateChannel.fromId(value)
                                 if (chosen != null && chosen != updateChannel) {
                                     if (UpdateChannel.requiresRiskConfirmation(updateChannel, chosen)) pendingChannel = chosen
                                     else applyChannel(chosen)
                                 }
                             } else if (isFrequency) {
-                                updateFrequency = option.first
-                                prefManager.putString("update_frequency", option.first)
+                                updateFrequency = value
+                                prefManager.putString("update_frequency", value)
                             } else {
-                                ignoredBehavior = option.first
-                                prefManager.putString("update_ignored_behavior", option.first)
+                                ignoredBehavior = value
+                                prefManager.putString("update_ignored_behavior", value)
                             }
                             selector = null
                         }
                     ) {
-                        Text(
-                            text = option.second,
-                            style = typography.bodyLg,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (selected) colors.primary else colors.onSurface,
-                            modifier = Modifier.padding(16.dp)
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .clip(CircleShape)
+                                    .background(if (selected) colors.primary else Color.Transparent)
+                                    .border(1.5.dp, if (selected) colors.primary else colors.outline, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (selected) Icon(WaexIcons.Check, contentDescription = null, tint = colors.onPrimary, modifier = Modifier.size(14.dp))
+                            }
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(
+                                    text = title,
+                                    style = typography.bodyLg,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                                    color = if (selected) colors.primary else colors.onSurface
+                                )
+                                if (description != null) {
+                                    Text(description, style = typography.bodyMd, color = colors.onSurfaceVariant, fontSize = 12.sp)
+                                }
+                            }
+                        }
                     }
                 }
             }
