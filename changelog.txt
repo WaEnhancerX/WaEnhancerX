@@ -1,4 +1,5 @@
 [Added]
+- Added VirusTotal scan on every Stable Release for all APKs, this makes sure all APKs are safe to use. This will attach a VirusTotal badge/link on every release page for users to verify.
 
 [Fixes]
 - Fixed Harmful App Error by play protect
