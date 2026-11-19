@@ -189,4 +189,6 @@ jobs:
           COMMENT_FILE: ${{ runner.temp }}/review-comment.md
           PAYLOAD_FILE: ${{ runner.temp }}/review-payload.json
           CHECK_FILE: ${{ runner.temp }}/review-check.json
+          # Optional: reviews and review comments are posted as this account (for example waex-bot).
+          REVIEW_TOKEN: ${{ secrets.WAEX_BOT_TOKEN }}
         run: bash scripts/release/publish_review.sh
