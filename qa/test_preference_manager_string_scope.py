@@ -23,7 +23,10 @@ values = [n.value for n in tree.body if isinstance(n, ast.Assign)
 if len(values) != 1:
     raise SystemExit('Expected one literal platform fixture')
 reference = ast.literal_eval(values[0])
-stubs = {name: reference[name] for name in ('android/content/SharedPreferences.java', 'android/net/Uri.java')}
+stubs = {name: reference[name] for name in ('androidx/annotation/NonNull.java',
+                                             'androidx/annotation/Nullable.java',
+                                             'android/content/SharedPreferences.java',
+                                             'android/net/Uri.java')}
 stubs.update({
     'android/content/Context.java': '''package android.content;
 public abstract class Context {
@@ -56,6 +59,16 @@ public final class PreferenceRestartTracker {
         throw new AssertionError("Getter tests must not mutate restart state");
     }
 }''',
+    'com/waenhancer/utils/DiagnosticsRecorder.java': '''package com.waenhancer.utils;
+public final class DiagnosticsRecorder {
+    public static void recordPreferenceChange(android.content.Context c, String k,
+                                              boolean targetScoped, String operation) {
+        throw new AssertionError("Getter test unexpectedly recorded a preference change");
+    }
+    public static void recordSettingsTransfer(android.content.Context c, String operation, int count) {
+        throw new AssertionError("Getter test unexpectedly imported/exported settings");
+    }
+}''',
     'com/waenhancer/core/preferences/SettingsBackupCodec.java': '''package com.waenhancer.core.preferences;
 public final class SettingsBackupCodec {
     public static final SettingsBackupCodec INSTANCE = new SettingsBackupCodec();
@@ -64,7 +77,8 @@ public final class SettingsBackupCodec {
 }''',
 })
 src = root / 'app/src/main/java/com/waenhancer'
-sources = [src / p for p in ('config/PreferenceSchema.java', 'config/PreferenceStores.java',
+sources = [src / p for p in ('config/ExclusivePreferences.java',
+                             'config/PreferenceSchema.java', 'config/PreferenceStores.java',
                              'core/preferences/WaexPreferenceManager.java')]
 with tempfile.TemporaryDirectory(prefix='waex_string_scope_') as temp:
     work = Path(temp)
