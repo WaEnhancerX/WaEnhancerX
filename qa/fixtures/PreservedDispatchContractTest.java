@@ -460,6 +460,35 @@ public class PreservedDispatchContractTest {
         owner.run();XposedBridge.fireAfter(param);assertEquals(0,sourceRows());assertFalse(PreserveDeleteForMeHook.isDeleteForMeInProgress());
     }
 
+    @Test public void nestedQualifyingInvocationCannotEndOuterDeleteScope() throws Throwable {
+        registerProvider();
+        Method run=FixtureRunnable.class.getDeclaredMethod("run");
+        XC_MethodHook.MethodHookParam outer=beginRun(new FixtureRunnable(context));
+        assertTrue(PreserveDeleteForMeHook.isDeleteForMeInProgress());
+        XC_MethodHook.MethodHookParam inner=XposedBridge.fireBefore(run,new FixtureRunnable(context),new Object[0]);
+        assertTrue(PreserveDeleteForMeHook.isDeleteForMeInProgress());
+        XposedBridge.fireAfter(inner);
+        assertTrue("The outer Delete-for-me scope must outlive a nested qualified call",
+                PreserveDeleteForMeHook.isDeleteForMeInProgress());
+        XposedBridge.fireAfter(outer);
+        assertFalse(PreserveDeleteForMeHook.isDeleteForMeInProgress());
+    }
+
+    @Test public void nestedUnrecognizedRunnableCannotEndOuterDeleteScope() throws Throwable {
+        registerProvider();
+        Method run=FixtureRunnable.class.getDeclaredMethod("run");
+        XC_MethodHook.MethodHookParam outer=beginRun(new FixtureRunnable(context));
+        assertTrue(PreserveDeleteForMeHook.isDeleteForMeInProgress());
+        FixtureRunnable unrelated=new FixtureRunnable(context);unrelated.selected.clear();
+        XC_MethodHook.MethodHookParam inner=XposedBridge.fireBefore(run,unrelated,new Object[0]);
+        assertFalse(inner.resultWasSet);
+        XposedBridge.fireAfter(inner);
+        assertTrue("A non-matching nested Runnable must not clear its caller's scope",
+                PreserveDeleteForMeHook.isDeleteForMeInProgress());
+        XposedBridge.fireAfter(outer);
+        assertFalse(PreserveDeleteForMeHook.isDeleteForMeInProgress());
+    }
+
     @Test public void futureVaultSchemaCannotBeAcknowledgedOrRelabelled() throws Exception {
         registerProvider();store().getWritableDatabase().setVersion(5);resetStore();
         assertAck(endpoint(ID),false);
