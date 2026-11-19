@@ -1,0 +1,3 @@
+[Fixes]
+- Save the status selected when Download is tapped, even if playback advances
+  before the background save starts.
