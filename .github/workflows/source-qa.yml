@@ -2,9 +2,9 @@ name: Source and JVM regression checks
 
 on:
   push:
-    branches: [main, 'integration/preview-current-main-*', 'fix/qa-localized-catalog-*']
+    branches: [main, nightly, 'integration/preview-current-main-*', 'fix/qa-localized-catalog-*']
   pull_request:
-    branches: [main]
+    branches: [main, nightly]
   workflow_dispatch:
 
 permissions:
@@ -36,6 +36,15 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: Verify release pipeline contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for test in qa/test_version_scheme.py qa/test_next_version.py qa/test_changelog_assembly.py \
+                      qa/test_pr_gate.py qa/test_ai_review.py qa/test_merge_pr.py; do
+            python3 "$test"
+          done
 
       - name: Verify screenshot and default image-quality MobileConfig contracts
         shell: bash
