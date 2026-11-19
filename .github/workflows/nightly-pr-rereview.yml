@@ -1,0 +1,192 @@
+name: Nightly PR re-review
+
+# Runs the same gate and AI review as a new PR on an existing nightly PR, at the head commit it has
+# now. For PRs opened before the gate existed, PRs that got new commits, or a second opinion. Only
+# people with write access can start it (the admin bot or the Actions tab). It never merges: a
+# maintainer merges an approved PR with the nightly-manual-merge workflow. Like the gate it works
+# from trusted scripts and reads the PR through the API only; PR code is never checked out or run.
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number
+        required: true
+        type: string
+      requested_by:
+        description: Who asked for this (informational)
+        required: false
+        default: ''
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: nightly-pr-rereview-${{ inputs.pr_number }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Read the pull request
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      head_sha: ${{ steps.pr.outputs.head_sha }}
+      author_id: ${{ steps.pr.outputs.author_id }}
+      author_type: ${{ steps.pr.outputs.author_type }}
+      base_ref: ${{ steps.pr.outputs.base_ref }}
+      draft: ${{ steps.pr.outputs.draft }}
+      changed_files: ${{ steps.pr.outputs.changed_files }}
+      additions: ${{ steps.pr.outputs.additions }}
+      deletions: ${{ steps.pr.outputs.deletions }}
+    steps:
+      - name: Read the PR and require it to be open
+        id: pr
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ inputs.pr_number }}
+        run: |
+          set -euo pipefail
+          [[ "$NUMBER" =~ ^[0-9]{1,7}$ ]] || { echo "::error::Invalid PR number."; exit 1; }
+          pr="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$NUMBER")"
+          [ "$(jq -r .state <<<"$pr")" = open ] || { echo "::error::PR #$NUMBER is not open."; exit 1; }
+          sha="$(jq -r .head.sha <<<"$pr")"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Unexpected head commit."; exit 1; }
+          {
+            echo "head_sha=$sha"
+            echo "author_id=$(jq -r .user.id <<<"$pr")"
+            echo "author_type=$(jq -r .user.type <<<"$pr")"
+            echo "base_ref=$(jq -r .base.ref <<<"$pr")"
+            echo "draft=$(jq -r .draft <<<"$pr")"
+            echo "changed_files=$(jq -r .changed_files <<<"$pr")"
+            echo "additions=$(jq -r .additions <<<"$pr")"
+            echo "deletions=$(jq -r .deletions <<<"$pr")"
+          } >> "$GITHUB_OUTPUT"
+
+  gate:
+    name: Allowlist, scope and protected-path checks
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      decision: ${{ steps.gate.outputs.decision }}
+      message: ${{ steps.gate.outputs.message }}
+    steps:
+      - name: Check out the trusted gate files from the default branch only
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/release/pr_gate.py
+            .github/nightly-protected-paths.json
+          sparse-checkout-cone-mode: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Decide whether the PR may be reviewed
+        id: gate
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          CONTRIBUTORS_API_URL: ${{ vars.WAEX_CONTRIBUTORS_API_URL }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          PR_AUTHOR_ID: ${{ needs.prepare.outputs.author_id }}
+          PR_AUTHOR_TYPE: ${{ needs.prepare.outputs.author_type }}
+          PR_BASE_REF: ${{ needs.prepare.outputs.base_ref }}
+          PR_DRAFT: ${{ needs.prepare.outputs.draft }}
+          PR_CHANGED_FILES: ${{ needs.prepare.outputs.changed_files }}
+          PR_ADDITIONS: ${{ needs.prepare.outputs.additions }}
+          PR_DELETIONS: ${{ needs.prepare.outputs.deletions }}
+        run: python3 scripts/release/pr_gate.py
+
+  hold:
+    name: Hold the PR for a maintainer
+    needs: [prepare, gate]
+    if: needs.gate.outputs.decision != 'proceed'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Replace the old bot labels and explain why there is no AI review
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          GATE_MESSAGE: ${{ needs.gate.outputs.message }}
+        run: |
+          set -euo pipefail
+          for label in ai-approved ai-rejected needs-maintainer; do
+            gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label "$label" >/dev/null 2>&1 || true
+          done
+          gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label needs-maintainer
+          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
+            "A new review was requested, but this PR cannot get an AI review: ${GATE_MESSAGE}"
+
+  review:
+    name: AI security review (verdict only, cannot merge)
+    needs: [prepare, gate]
+    if: needs.gate.outputs.decision == 'proceed'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: ai-review
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      checks: write
+    steps:
+      - name: Check out the trusted review files from the default branch only
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/release/pr_gate.py
+            scripts/release/ai_review.py
+            scripts/release/publish_review.sh
+            docs/NIGHTLY_CONTRIBUTOR_RULES.md
+          sparse-checkout-cone-mode: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Review the diff
+        id: review
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REVIEW_PROVIDER: ${{ vars.WAEX_REVIEW_PROVIDER }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          REVIEW_MODEL: ${{ vars.WAEX_REVIEW_MODEL }}
+          REVIEW_MIN_CONFIDENCE: ${{ vars.WAEX_REVIEW_MIN_CONFIDENCE }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          PR_HEAD_SHA: ${{ needs.prepare.outputs.head_sha }}
+          REVIEW_COMMENT_FILE: ${{ runner.temp }}/review-comment.md
+          REVIEW_PAYLOAD_FILE: ${{ runner.temp }}/review-payload.json
+          REVIEW_CHECK_FILE: ${{ runner.temp }}/review-check.json
+        run: python3 scripts/release/ai_review.py
+
+      - name: Replace the old labels and publish the new review and check
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          VERDICT: ${{ steps.review.outputs.verdict }}
+          RESET_LABELS: '1'
+          COMMENT_FILE: ${{ runner.temp }}/review-comment.md
+          PAYLOAD_FILE: ${{ runner.temp }}/review-payload.json
+          CHECK_FILE: ${{ runner.temp }}/review-check.json
+        run: bash scripts/release/publish_review.sh
