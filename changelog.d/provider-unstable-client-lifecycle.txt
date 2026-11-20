@@ -1,0 +1,3 @@
+[Improvements]
+- Use short-lived unstable provider clients for hook-to-manager IPC without
+  automatically retrying operations after Binder failures.
