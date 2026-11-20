@@ -331,6 +331,7 @@ jobs:
             qa/test_catalog_schema_alias_contract.py \
             qa/test_slovenian_locale.py \
             qa/test_style_boolean_alias_wiring.py \
+            qa/test_hide_home_tabs_precedence.py \
             qa/test_style_non_boolean_guard.py \
             qa/test_private_hook_logs.py \
             qa/test_exception_message_privacy.py \

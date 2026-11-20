@@ -13,7 +13,6 @@ import org.luckypray.dexkit.query.enums.StringMatchType;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Set;
 import android.app.Activity;
 import com.waenhancer.xposed.utils.ActivityTracker;
@@ -22,7 +21,6 @@ import java.util.Locale;
 /** Removes configured WhatsApp home tabs from both its model and visible menu. */
 public final class HideHomeTabsHook extends BaseFeature {
     private static final String TAG = "[WAEX][HideTabs]";
-    private static final int UPDATES = 300;
 
     public HideHomeTabsHook(@NonNull Context context, @NonNull ClassLoader classLoader,
                             @NonNull SharedPreferences prefs) {
@@ -33,13 +31,11 @@ public final class HideHomeTabsHook extends BaseFeature {
 
     @Override public void hook() throws Throwable {
         Set<String> stored = prefs.getStringSet("hidetabs", null);
-        if (stored == null || stored.isEmpty()) return;
-        HashSet<Integer> hidden = new HashSet<>();
-        for (String value : stored) {
-            try { hidden.add(Integer.parseInt(value)); } catch (NumberFormatException ignored) {}
-        }
+        Set<Integer> hidden = TypedStyleHookPolicy.parseHiddenTabIds(stored);
         if (hidden.isEmpty()) return;
-        if (prefs.getBoolean("igstatus", false)) hidden.remove(UPDATES);
+
+        // Native IGStatus shows stories in Chats; it must not silently undo an
+        // explicit request to hide the separate Updates navigation tab.
 
         DexSearchEngine engine = DexSearchEngine.getInstance();
         engine.initialize(context);
