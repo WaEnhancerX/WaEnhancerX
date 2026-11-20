@@ -1,0 +1,8 @@
+[Fixes]
+- Keep Meta AI and channel recommendation views hidden after host rebinding
+  without replacing their layout sizes.
+- Fall back to app details when Android cannot open the overlay permission page.
+
+[Improvements]
+- Bound floating-bar redraw and transition work, and stop deferred layout
+  callbacks when the view is detached.
