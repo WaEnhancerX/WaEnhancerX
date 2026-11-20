@@ -1,0 +1,3 @@
+[Fixes]
+- Resolve conflicting navigation preferences in the affected universal and
+  app-specific scopes before saving imported settings.
