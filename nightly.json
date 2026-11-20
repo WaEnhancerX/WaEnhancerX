@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "channel": "nightly",
-  "updated_at": "2026-11-20T10:36:51Z",
+  "updated_at": "2026-11-20T12:06:10Z",
   "releases": [
     {
       "tag": "2.1.0-nightly.3",
@@ -23,7 +23,7 @@
           "sha256": "4acfdcb59bc92335869cd91510f82d00debadfa45c3b6a58465fd08e5118ce11"
         }
       ],
-      "notes": "[Added]\n- Added VirusTotal scan on every Stable Release for all APKs, this makes sure all APKs are safe to use. This will attach a VirusTotal badge/link on every release page for users to verify.\n- Revived Update Channels back into the project\n\n\n[Fixes]\n- Fixed Harmful App Error by play protect\n\n\n[Improvements]\n- Migrate on-device transcription native libraries to on-demand download and provisioning\n\n\n[Update Channels]\nNow you can install stable or nightly build of WAEX on top of each other without any issues.\nContributors are always welcome to contribute to nightly branch of this project. \nBuilt from commit 64dbdf69108f112a733bc48276c55437dadca9f3"
+      "notes": "[Added]\n- Added VirusTotal scan on every Stable Release for all APKs, this makes sure all APKs are safe to use. This will attach a VirusTotal badge/link on every release page for users to verify.\n- Revived Update Channels back into the project\n\n\n[Fixes]\n- Fixed Harmful App Error by play protect\n\n\n[Improvements]\n- Migrate on-device transcription native libraries to on-demand download and provisioning\n\n\n[Update Channels]\nNow you can install stable or nightly build of WAEX on top of each other without any issues.\nContributors are always welcome to contribute to nightly branch of this project. \nBuilt from commit 64dbdf69108f112a733bc48276c55437dadca9f3\n\n\n<!-- virustotal:start -->\n**VirusTotal scan** (click a badge to open its report):\n\n[![VirusTotal WaEnhancerX-v2.1.0-nightly.3_debug.apk](https://img.shields.io/badge/VirusTotal:_WaEnhancerX--v2.1.0--nightly.3__debug.apk-0%2F66_detections-brightgreen?logo=virustotal&logoColor=white)](https://www.virustotal.com/gui/file/679fa9f2716d1ba27530c815a4895f4fbca5d6cddbd03fcafc3c30daff235bd5)\n[![VirusTotal WaEnhancerX-v2.1.0-nightly.3_release.apk](https://img.shields.io/badge/VirusTotal:_WaEnhancerX--v2.1.0--nightly.3__release.apk-0%2F65_detections-brightgreen?logo=virustotal&logoColor=white)](https://www.virustotal.com/gui/file/4acfdcb59bc92335869cd91510f82d00debadfa45c3b6a58465fd08e5118ce11)\n<!-- virustotal:end -->"
     },
     {
       "tag": "2.1.0-nightly.2",
