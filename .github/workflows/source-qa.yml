@@ -268,6 +268,12 @@ jobs:
             test -f qa/test_revoke_sqlite_contract.py
             test -f qa/fixtures/RevokeSqliteBindingChecks.java
           fi
+          if [[ -f app/src/main/java/com/waenhancer/core/emojis/EmojiCloudStorage.java ]]; then
+            test -f qa/test_emoji_font_download_integrity.py
+            test -f qa/fixtures/EmojiCloudStorageChecks.java
+            test -f qa/fixtures/android/system/Os.java
+            test -f qa/fixtures/android/system/ErrnoException.java
+          fi
 
       - name: Require stability tests when their implementations are present
         shell: bash
@@ -376,6 +382,13 @@ jobs:
             python3 "$test_script"
             echo '::endgroup::'
           done
+          # The emoji policy and its fixture land in a separate product PR.
+          # The contract guard above requires this suite once that code exists.
+          if [[ -f qa/test_emoji_font_download_integrity.py ]]; then
+            echo '::group::qa/test_emoji_font_download_integrity.py'
+            python3 qa/test_emoji_font_download_integrity.py
+            echo '::endgroup::'
+          fi
           # The earlier forwarding implementation was reverted. Keep its suite
           # conditional until it returns; the implementation guard above still
           # requires the fixture when that source contract is present.
