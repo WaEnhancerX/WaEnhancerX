@@ -43,7 +43,8 @@ jobs:
           set -euo pipefail
           for test in qa/test_version_scheme.py qa/test_next_version.py qa/test_changelog_assembly.py \
                       qa/test_pr_gate.py qa/test_ai_review.py qa/test_merge_pr.py \
-                      qa/test_manual_merge.py qa/test_publish_review.py; do
+                      qa/test_manual_merge.py qa/test_publish_review.py \
+                      qa/test_nightly_release_state.py qa/test_pending_changelog.py; do
             python3 "$test"
           done
 

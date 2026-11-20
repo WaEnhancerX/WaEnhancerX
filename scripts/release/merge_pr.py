@@ -92,8 +92,12 @@ def qa_state(check_runs, name):
 
 
 def merge_reviewed(api, repo, number, reviewed_sha, required_check, wait_seconds,
-                   sleep=time.sleep, clock=time.monotonic):
-    """Return (result, reason). `api(method, path, payload=None)` returns parsed JSON."""
+                   sleep=time.sleep, clock=time.monotonic, skip_qa=False):
+    """Return (result, reason). `api(method, path, payload=None)` returns parsed JSON.
+
+    skip_qa drops only the wait for the QA check. The PR must still be open on nightly with the
+    reviewed head commit and merge cleanly, and the merge is still pinned to that commit.
+    """
     if not SHA_RE.match(reviewed_sha or ""):
         return "held", "bad_input"
     try:
@@ -107,17 +111,18 @@ def merge_reviewed(api, repo, number, reviewed_sha, required_check, wait_seconds
         if pull["head"]["sha"] != reviewed_sha:
             return "held", "head_changed"
 
-        deadline = clock() + wait_seconds
-        while True:
-            runs = api("GET", f"/repos/{repo}/commits/{reviewed_sha}/check-runs?per_page=100")["check_runs"]
-            state = qa_state(runs, required_check)
-            if state == "success":
-                break
-            if state == "failed":
-                return "held", "qa_failed"
-            if clock() >= deadline:
-                return "held", "qa_timeout"
-            sleep(POLL_SECONDS)
+        if not skip_qa:
+            deadline = clock() + wait_seconds
+            while True:
+                runs = api("GET", f"/repos/{repo}/commits/{reviewed_sha}/check-runs?per_page=100")["check_runs"]
+                state = qa_state(runs, required_check)
+                if state == "success":
+                    break
+                if state == "failed":
+                    return "held", "qa_failed"
+                if clock() >= deadline:
+                    return "held", "qa_timeout"
+                sleep(POLL_SECONDS)
 
         for attempt in range(MERGEABLE_RETRIES):
             pull = api("GET", f"/repos/{repo}/pulls/{number}")

@@ -96,6 +96,16 @@ check(run(FakeApi(merge_error=409)) == ("held", "head_changed"), "GitHub 409 mea
 check(run(FakeApi(merge_error=405)) == ("held", "merge_rejected"), "GitHub 405 means merge rejected")
 check(run(FakeApi(merge_error=0)) == ("held", "merge_rejected"), "transport error on merge is held")
 
+# skip_qa drops only the QA wait
+nqa = FakeApi(runs=[[{"id": 9, "name": "other", "status": "completed", "conclusion": "success"}]])
+check(merge_pr.merge_reviewed(nqa, "o/r", 7, SHA, CHECK, 0, skip_qa=True) == ("merged", "merged"), "skip_qa merges without the QA check")
+check(nqa.polls == 0, "skip_qa does not read check runs")
+check(merge_pr.merge_reviewed(FakeApi(runs=[[{"id": 9, "name": CHECK, "status": "completed", "conclusion": "failure"}]]), "o/r", 7, SHA, CHECK, 0, skip_qa=True) == ("merged", "merged"), "skip_qa merges over a failed QA check")
+check(merge_pr.merge_reviewed(FakeApi({"head": {"sha": "b" * 40}}), "o/r", 7, SHA, CHECK, 0, skip_qa=True) == ("held", "head_changed"), "skip_qa still requires the reviewed commit")
+check(merge_pr.merge_reviewed(FakeApi({"mergeable": False}), "o/r", 7, SHA, CHECK, 0, skip_qa=True) == ("held", "conflict"), "skip_qa still requires a clean merge")
+check(merge_pr.merge_reviewed(FakeApi({"draft": True}), "o/r", 7, SHA, CHECK, 0, skip_qa=True) == ("held", "draft"), "skip_qa still refuses a draft")
+check(merge_pr.merge_reviewed(FakeApi(runs=[[{"id": 9, "name": "other", "status": "completed", "conclusion": "success"}]]), "o/r", 7, SHA, CHECK, 0) == ("held", "qa_timeout"), "without skip_qa the QA check is still required")
+
 for bad_sha in ("", "abc", "G" * 40, None):
     check(merge_pr.merge_reviewed(FakeApi(), "o/r", 7, bad_sha, CHECK, 10) == ("held", "bad_input"), f"bad sha {bad_sha!r}")
 
