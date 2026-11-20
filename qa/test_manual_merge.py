@@ -44,6 +44,7 @@ class FakeApi:
         self.label_error = label_error
         self.merge_error = merge_error
         self.calls = []
+        self.label_posts = []
 
     def __call__(self, method, path, payload=None):
         self.calls.append((method, path))
@@ -56,6 +57,7 @@ class FakeApi:
                 raise merge_pr.ApiError(self.label_error)
             return {}
         if method == "POST":
+            self.label_posts.append(payload)
             return {}
         if method == "PUT":
             if self.merge_error is not None:
@@ -116,11 +118,49 @@ unmerged = FakeApi(runs=[review_run(conclusion="failure", verdict="reject")])
 run(unmerged)
 check(not hasattr(unmerged, "merged") and not any(c[0] == "POST" for c in unmerged.calls), "a held request changes nothing")
 
+# ---- explicit QA skip: only the QA check is dropped
+def run_skip(api, allow=True, sha=SHA):
+    return manual_merge.request_manual_merge(api, "o/r", 7, sha, QA, 0, skip_qa=True, allow_qa_override=allow, sleep=lambda s: None, clock=lambda: 0)
+
+
+for name, runs in {"QA failed": [review_run(), qa_run("failure")], "QA missing": [review_run()], "QA running": [review_run(), {"id": 99, "name": QA, "status": "in_progress", "conclusion": None}]}.items():
+    api = FakeApi(runs=runs)
+    check(run_skip(api) == ("merged", "merged", 91), f"skip merges when {name}")
+    check(api.merged["sha"] == SHA, f"skip is still pinned to the approved commit ({name})")
+    check(api.label_posts == [{"labels": ["ai-approved", "qa-skipped"]}], f"skip is labelled qa-skipped ({name})")
+normal = FakeApi()
+run(normal)
+check(normal.label_posts == [{"labels": ["ai-approved"]}], "a normal merge is not labelled qa-skipped")
+
+off = FakeApi(runs=[review_run(), qa_run("failure")])
+check(run_skip(off, allow=False) == ("held", "qa_override_disabled", None), "skip needs the repository switch")
+check(off.calls == [], "a refused skip changes and reads nothing")
+check(run_skip(FakeApi(), allow=False)[:2] == ("held", "qa_override_disabled"), "skip is refused even when QA is green and the switch is off")
+
+for name, api, reason in (
+    ("no review", FakeApi(runs=[qa_run("failure")]), "no_review"),
+    ("rejected", FakeApi(runs=[review_run(conclusion="failure", verdict="reject"), qa_run("failure")]), "not_approved"),
+    ("uncertain", FakeApi(runs=[review_run(conclusion="neutral", verdict="uncertain")]), "not_approved"),
+    ("other app", FakeApi(runs=[review_run(app="evil-app")]), "no_review"),
+    ("new commit", FakeApi(pull={"head": {"sha": OTHER}}, runs=[review_run(), qa_run("failure")]), "head_changed"),
+    ("closed", FakeApi(pull={"state": "closed"}, runs=[review_run()]), "not_open"),
+    ("wrong base", FakeApi(pull={"base": {"ref": "main"}}, runs=[review_run()]), "wrong_base"),
+    ("draft", FakeApi(pull={"draft": True}, runs=[review_run()]), "draft"),
+    ("conflicts", FakeApi(pull={"mergeable": False}, runs=[review_run(), qa_run("failure")]), "conflict"),
+):
+    check(run_skip(api)[:2] == ("held", reason), f"skip does not bypass: {name}")
+    check(not hasattr(api, "merged"), f"nothing merged when skip is refused: {name}")
+check(run_skip(FakeApi(merge_error=409, runs=[review_run()]))[:2] == ("held", "head_changed"), "skip: GitHub 409 still means the head moved")
+check(run_skip(FakeApi(), sha="abc")[:2] == ("held", "bad_input"), "skip: bad sha")
+
 # ---- audit comment and message table
 comment = manual_merge.audit_comment("mubashar_dev", SHA, 91)
 check("mubashar_dev" in comment and "aaaaaaaaaaaa" in comment and "91%" in comment, "audit comment names who, the commit and the confidence")
 check("@octocat" not in manual_merge.audit_comment("@octocat", SHA, None) and "a maintainer" in manual_merge.audit_comment("evil\nname", SHA, None), "audit comment is sanitised")
-check(all(key in manual_merge.REASONS for key in ("no_review", "not_approved", "merged", "qa_failed", "head_changed")), "reason table is complete")
+check(all(key in manual_merge.REASONS for key in ("no_review", "not_approved", "merged", "qa_failed", "head_changed", "qa_override_disabled")), "reason table is complete")
+skipped = manual_merge.audit_comment("mubashar_dev", SHA, 91, skip_qa=True)
+check("QA check was skipped" in skipped and "QA check passed" not in skipped, "the audit comment says QA was skipped")
+check("QA check passed" in comment and "skipped" not in comment, "a normal audit comment says QA passed")
 
 if failures:
     raise SystemExit("Manual merge violations:\n- " + "\n- ".join(failures))
