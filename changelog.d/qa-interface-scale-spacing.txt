@@ -1,3 +1,0 @@
-[Improvements]
-- Update interface-scale regression checks to cover all six spacing tokens from
-  the redesigned settings layout.

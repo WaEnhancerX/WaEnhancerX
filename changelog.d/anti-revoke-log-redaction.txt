@@ -1,3 +1,0 @@
-[Fixes]
-- Remove private message identifiers from the Anti-Revoke native-render failure
-  diagnostic while retaining the exception type.

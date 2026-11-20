@@ -1,3 +1,0 @@
-[Improvements]
-- Update runtime-framework test staging to stop copying the retired observation
-  clock source.

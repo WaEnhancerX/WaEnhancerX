@@ -1,3 +1,0 @@
-[Improvements]
-- Restore the utility imports needed to compile manual-read receipt retry
-  regression fixtures.

@@ -1,3 +1,0 @@
-[Improvements]
-- Refresh preserved-message dispatch test dependencies and strict fixtures for
-  the current Java and Kotlin contracts.

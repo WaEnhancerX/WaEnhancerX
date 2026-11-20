@@ -1,3 +1,0 @@
-[Improvements]
-- Restore revoke SQLite regression fixtures to compile the production row-ID
-  predicate and reject missing or overly permissive patterns.

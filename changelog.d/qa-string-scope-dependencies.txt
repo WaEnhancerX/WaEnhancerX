@@ -1,3 +1,0 @@
-[Improvements]
-- Update scoped-string preference fixtures to compile the production exclusivity
-  helper and fail on unexpected diagnostic writes.

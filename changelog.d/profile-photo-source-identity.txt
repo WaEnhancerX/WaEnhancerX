@@ -1,3 +1,0 @@
-[Fixes]
-- Do not substitute the account owner's photo when the viewed contact's photo
-  source is unavailable.
