@@ -1,0 +1,5 @@
+[Improvements]
+- Reuse status-strip views only when their adapter type and configuration match,
+  and coalesce pending refreshes.
+- Unregister status-strip observers and cancel pending callbacks while the view
+  is detached.
