@@ -11,9 +11,12 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 BRIDGE = ROOT / 'app/src/main/java/com/waenhancer/xposed/bridge/client/PreferenceBridgeClient.java'
+SCHEMA = ROOT / 'app/src/main/java/com/waenhancer/config/PreferenceSchema.java'
+HOOK_ERRORS = ROOT / 'app/src/main/java/com/waenhancer/xposed/utils/HookErrors.java'
 STUBS = {
     'androidx/annotation/NonNull.java': 'package androidx.annotation; public @interface NonNull {}',
     'androidx/annotation/Nullable.java': 'package androidx.annotation; public @interface Nullable {}',
+    'androidx/annotation/VisibleForTesting.java': 'package androidx.annotation; public @interface VisibleForTesting {}',
     'android/net/Uri.java': '''package android.net; public class Uri {
         public final String path; private Uri(String p) { path = p; }
         public static Uri parse(String p) { return new Uri(p); }
@@ -109,6 +112,16 @@ STUBS = {
     'de/robv/android/xposed/XSharedPreferences.java': '''package de.robv.android.xposed;
         public abstract class XSharedPreferences implements android.content.SharedPreferences {
             public void reload() {}
+        }''',
+    # Count/cache behavior belongs to this fixture; the actual unstable-client
+    # lifecycle and AOSP Binder-death semantics are checked in provider_ipc_freezer.
+    'com/waenhancer/xposed/bridge/client/HookProviderIpc.java': '''package com.waenhancer.xposed.bridge.client;
+        public final class HookProviderIpc {
+            public static android.os.Bundle call(android.content.Context context, String method,
+                    String arg, android.os.Bundle extras) {
+                return context.getContentResolver().call(android.net.Uri.parse(
+                        "content://com.waenhancer.hookprovider"), method, arg, extras);
+            }
         }''',
     'test/BridgeContract.java': r'''package test;
         import android.content.*;
@@ -276,5 +289,5 @@ with tempfile.TemporaryDirectory(prefix='waex_test_') as path:
         dest.write_text(content, encoding='utf-8')
     dest_classes = out / 'classes'
     dest_classes.mkdir()
-    subprocess.run(['javac', '-Xlint:unchecked', '-d', str(dest_classes), *map(str, out.rglob('*.java')), str(BRIDGE)], check=True)
+    subprocess.run(['javac', '-Xlint:unchecked', '-d', str(dest_classes), *map(str, out.rglob('*.java')), str(BRIDGE), str(SCHEMA), str(HOOK_ERRORS)], check=True)
     subprocess.run(['java', '-cp', str(dest_classes), 'test.BridgeContract'], check=True)

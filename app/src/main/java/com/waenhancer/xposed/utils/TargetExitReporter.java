@@ -3,13 +3,12 @@ package com.waenhancer.xposed.utils;
 import android.app.ActivityManager;
 import android.app.ApplicationExitInfo;
 import android.content.Context;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 
 import com.waenhancer.utils.DeclaredWhatsAppTargets;
 import com.waenhancer.utils.TargetExitContract;
-import com.waenhancer.xposed.bridge.client.PreferenceBridgeClient;
+import com.waenhancer.xposed.bridge.client.HookProviderIpc;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -83,9 +82,7 @@ public final class TargetExitReporter {
             data.putLongArray("exit_pss_kib", java.util.Arrays.copyOf(pss, count));
             data.putLongArray("exit_rss_kib", java.util.Arrays.copyOf(rss, count));
             // Existing unstable provider route: no crash-thread IPC, no retry on ambiguity.
-            context.getContentResolver().call(
-                    Uri.parse("content://" + PreferenceBridgeClient.AUTHORITY),
-                    "report_target_exit_history", target, data);
+            HookProviderIpc.call(context, "report_target_exit_history", target, data);
         }
     }
 }
