@@ -1,0 +1,5 @@
+[Fixes]
+- Report a saved status only after its output stream closes and the destination
+  is published.
+- Use unique export names and roll back only the destination created by a failed
+  status export.
