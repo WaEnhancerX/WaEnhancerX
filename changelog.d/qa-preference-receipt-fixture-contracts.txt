@@ -1,0 +1,3 @@
+[Improvements]
+- Restore strict preference and receipt-retry fixture dependencies and support
+  resuming manual-retry mutation checks from a named case.
