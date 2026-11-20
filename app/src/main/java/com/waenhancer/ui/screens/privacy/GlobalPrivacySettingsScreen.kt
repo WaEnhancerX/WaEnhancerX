@@ -96,6 +96,7 @@ import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
 import com.waenhancer.ui.navigation.Screen
 import com.waenhancer.ui.screens.privacy.DeletedIndicatorPreferencePolicy
 import com.waenhancer.ui.screens.media.MediaQuickSettingPolicy
+import com.waenhancer.ui.screens.settings.ManualSeenTickPreferencePolicy
 
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -273,6 +274,20 @@ fun GlobalPrivacySettingsScreen(
         }
     }
 
+    fun saveSeenTickPlacement(nextPlacement: String) {
+        if (preferenceManager.putPublicString("seentick", nextPlacement)) {
+            seenTickPlacement = nextPlacement
+            settingsState["seentick"] = ManualSeenTickPreferencePolicy.isEnabled(nextPlacement)
+        } else {
+            // A failed commit may already have changed memory. Keep the last confirmed UI.
+            Toast.makeText(
+                context,
+                UiText.get(R.string.waex_ui_unable_to_save_setting, "Unable to save setting"),
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
     // The same setting also appears in Media. Refresh both display keys on return.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, preferenceManager) {
@@ -304,11 +319,13 @@ fun GlobalPrivacySettingsScreen(
             navController.navigateTo(Screen.CustomEmojis)
             return@update
         }
-        settingsState[key] = value
         if (key == "seentick") {
-            seenTickPlacement = if (value) "1" else "0"
-            preferenceManager.putString("seentick", seenTickPlacement)
-        } else if (key == "typearchive") {
+            val nextPlacement = ManualSeenTickPreferencePolicy.valueAfterExplicitToggle(value, seenTickPlacement)
+            saveSeenTickPlacement(nextPlacement)
+            return@update
+        }
+        settingsState[key] = value
+        if (key == "typearchive") {
             // typearchive is STRING in PreferenceSchema. Never first write
             // a transient Boolean under the same key and notify observers.
             preferenceManager.putString("typearchive", if (value) "1" else "0")
@@ -324,9 +341,7 @@ fun GlobalPrivacySettingsScreen(
         if (key == "hide_read_receipts" && !value) {
             settingsState["blueonreply"] = false
             preferenceManager.putBoolean("blueonreply", false)
-            settingsState["seentick"] = false
-            seenTickPlacement = "0"
-            preferenceManager.putString("seentick", "0")
+            saveSeenTickPlacement("0")
         }
     }
 
@@ -788,8 +803,7 @@ fun GlobalPrivacySettingsScreen(
                                                         .clip(RoundedCornerShape(8.dp))
                                                         .background(if (selected) colors.primary else Color.Transparent)
                                                         .clickable {
-                                                            seenTickPlacement = value
-                                                            preferenceManager.putString("seentick", value)
+                                                            saveSeenTickPlacement(value)
                                                         }
                                                         .padding(vertical = 8.dp),
                                                     contentAlignment = Alignment.Center

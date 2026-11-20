@@ -77,6 +77,41 @@ jobs:
           fi
           kotlinc -version
 
+      - name: Verify Global Privacy manual seen-tick persistence
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/global-privacy-seentick"
+          python3 qa/test_global_privacy_seen_tick_persistence.py --out "$evidence/positive"
+          for mutant in optimistic-confirmation unchecked-placement force-toolbar pending-only-double; do
+            status=0
+            python3 qa/test_global_privacy_seen_tick_persistence.py \
+              --out "$evidence/$mutant" --mutant "$mutant" || status=$?
+            if [[ "$status" -ne 1 ]]; then
+              echo "::error::Expected behavioral failure for $mutant, got exit $status."
+              exit 1
+            fi
+            python3 - "$evidence/$mutant/RESULT.json" <<'PY'
+          import json, sys
+          result = json.load(open(sys.argv[1], encoding="utf-8"))
+          assert result["status"] == "FAIL", result
+          assert result["negative_control"]["detected"] is True, result
+          assert result["behavior_exit_code"] == 1, result
+          PY
+          done
+
+      - name: Preserve Global Privacy manual seen-tick evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: global-privacy-seentick-evidence
+          path: |
+            ${{ runner.temp }}/global-privacy-seentick/*/RESULT.json
+            ${{ runner.temp }}/global-privacy-seentick/*/*.log
+            ${{ runner.temp }}/global-privacy-seentick/*/TestGlobalPrivacy.kt
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Verify target-scoped legacy string preference reads
         shell: bash
         run: |

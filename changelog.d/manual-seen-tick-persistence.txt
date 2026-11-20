@@ -1,0 +1,3 @@
+[Fixes]
+- Confirm manual seen-tick changes only after a successful save and retain the
+  last confirmed selection when saving fails.
