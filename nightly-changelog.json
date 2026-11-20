@@ -6,9 +6,10 @@
     "profile-photo-source-identity.txt",
     "qa-interface-scale-spacing.txt",
     "qa-manual-receipt-imports.txt",
+    "qa-preserved-dispatch-current-contracts.txt",
     "qa-runtime-source-staging.txt",
     "settings-import-exclusivity.txt",
     "status-download-tap-selection.txt"
   ],
-  "notes": "[Fixes]\n- Remove private message identifiers from the Anti-Revoke native-render failure diagnostic while retaining the exception type.\n- Do not substitute the account owner's photo when the viewed contact's photo source is unavailable.\n- Resolve conflicting navigation preferences in the affected universal and app-specific scopes before saving imported settings.\n- Save the status selected when Download is tapped, even if playback advances before the background save starts.\n\n[Improvements]\n- Update interface-scale regression checks to cover all six spacing tokens from the redesigned settings layout.\n- Restore the utility imports needed to compile manual-read receipt retry regression fixtures.\n- Update runtime-framework test staging to stop copying the retired observation clock source.\n"
+  "notes": "[Fixes]\n- Remove private message identifiers from the Anti-Revoke native-render failure diagnostic while retaining the exception type.\n- Do not substitute the account owner's photo when the viewed contact's photo source is unavailable.\n- Resolve conflicting navigation preferences in the affected universal and app-specific scopes before saving imported settings.\n- Save the status selected when Download is tapped, even if playback advances before the background save starts.\n\n[Improvements]\n- Update interface-scale regression checks to cover all six spacing tokens from the redesigned settings layout.\n- Restore the utility imports needed to compile manual-read receipt retry regression fixtures.\n- Refresh preserved-message dispatch test dependencies and strict fixtures for the current Java and Kotlin contracts.\n- Update runtime-framework test staging to stop copying the retired observation clock source.\n"
 }
