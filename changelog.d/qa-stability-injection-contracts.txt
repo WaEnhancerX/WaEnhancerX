@@ -1,0 +1,3 @@
+[Improvements]
+- Align stability regression fixtures with WAEX colors and PID/boot injection
+  classification, replacing the retired observation-clock tests.
