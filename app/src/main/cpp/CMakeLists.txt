@@ -11,3 +11,10 @@ project(waexdiag C)
 # constants for HmaDiagnostics / MagiskDenylistDiagnostics.
 add_library(waexdiag SHARED waex_diag.c)
 target_compile_options(waexdiag PRIVATE -O2)
+
+# The pinned NDK r27 links ELF PT_LOAD segments at 4 KiB unless configured otherwise.
+# Android devices with 16 KiB pages need native ELF alignment independently of ZIP alignment.
+# This target covers waexdiag only; prebuilt opuscodec/licensing libraries need separate fixes.
+target_link_options(waexdiag PRIVATE
+    "-Wl,-z,max-page-size=16384"
+    "-Wl,-z,common-page-size=16384")
