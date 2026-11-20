@@ -1,0 +1,3 @@
+[Improvements]
+- Align injection, runtime-diagnostics and stability regression fixtures with
+  the current PID and boot evidence model.
