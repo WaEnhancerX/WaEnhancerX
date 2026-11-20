@@ -9,9 +9,12 @@ It does not establish comprehensive privacy of every log across WAEX.
 from pathlib import Path
 import re
 
+if not __debug__:
+    raise SystemExit("BLOCKED: privacy assertions are disabled under Python -O")
+
 ROOT = Path(__file__).resolve().parents[1]
 FILES = {
-    "app/src/main/java/com/waenhancer/xposed/features/privacy/BlueOnReplyHook.java": 7,
+    "app/src/main/java/com/waenhancer/xposed/features/privacy/BlueOnReplyHook.java": 13,
     "app/src/main/java/com/waenhancer/xposed/features/privacy/AntiRevokeHook.java": 26,
     "app/src/main/java/com/waenhancer/xposed/features/conversation/PreserveDeleteForMeHook.kt": 9,
     "app/src/main/java/com/waenhancer/xposed/features/conversation/AntiEditMessagesHook.kt": 6,
@@ -114,11 +117,8 @@ total = 0
 for rel, expected in FILES.items():
     src = (ROOT / rel).read_text(encoding="utf-8")
     calls = list(hook_logs(src))
-    # Upstream 93cc35d adds one reviewed, literal-only recipient failure diagnostic.
-    # Keep exact counts and scan every expression; do not allow arbitrary extra logs.
-    recipient_failure = 'TAG + " Cannot dispatch: outgoing recipient is unavailable"'
-    if rel.endswith('/BlueOnReplyHook.java') and recipient_failure in calls:
-        expected += 1
+    # All 13 BlueOnReplyHook expressions were reviewed and compiled independently
+    # in test_blue_on_reply_log_contract.py. Changed callsites require review.
     assert len(calls) == expected, (
         f"{rel}: expected {expected} diagnostic callsites, got {len(calls)}"
     )
