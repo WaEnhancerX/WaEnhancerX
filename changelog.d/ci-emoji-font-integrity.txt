@@ -1,0 +1,3 @@
+[Improvements]
+- Include nightly pull requests in source QA and run the emoji font-integrity
+  suite when available, requiring its fixtures when the download helper exists.
