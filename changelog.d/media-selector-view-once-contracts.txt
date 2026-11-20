@@ -1,0 +1,7 @@
+[Fixes]
+- Guard additional media-quality hooks against ambiguous methods, field mappings
+  and custom A/B overrides.
+- Change only the media-quality presentation flag, leaving the gallery's
+  remaining eligibility checks intact.
+- Apply view-once state changes only to verified incoming messages, preserving
+  outgoing media and unknown ownership.
