@@ -1,0 +1,3 @@
+[Fixes]
+- Use one-shot unstable provider clients for WAEX calls from WhatsApp, closing
+  them after each attempt without retrying ambiguous failures.
