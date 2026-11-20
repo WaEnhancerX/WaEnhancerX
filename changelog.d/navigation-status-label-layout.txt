@@ -1,0 +1,5 @@
+[Fixes]
+- Let bottom navigation accommodate larger text while keeping labels on a single
+  ellipsized line.
+- Constrain dashboard hook-status labels and values so they do not compete for
+  the same row space.
