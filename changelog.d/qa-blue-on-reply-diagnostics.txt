@@ -1,0 +1,3 @@
+[Improvements]
+- Check Blue-on-Reply diagnostic expressions with compiled privacy fixtures and
+  mutations that detect sensitive data in logs.
