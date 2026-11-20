@@ -19,6 +19,8 @@ import org.luckypray.dexkit.query.matchers.MethodMatcher
 import java.io.File
 import java.lang.reflect.Method
 import java.lang.reflect.Field
+import java.util.Collections
+import java.util.IdentityHashMap
 import java.util.concurrent.Executors
 import org.luckypray.dexkit.DexKitBridge
 
@@ -43,7 +45,10 @@ class PreserveDeleteForMeHook(
         private const val PREF_KEY = "preserve_delete_for_me"
         private const val PROVIDER_URI = "content://com.waenhancer.hookprovider"
 
-        private val deleteForMeScope = ThreadLocal<Boolean>()
+        // A nested method invocation must not clear its caller's Delete-for-me scope.
+        // Track qualifying invocations by identity: Xposed calls afterHookedMethod even
+        // when that invocation's beforeHookedMethod decided not to enter the scope.
+        private val deleteForMeScope = ThreadLocal<MutableSet<XC_MethodHook.MethodHookParam>>()
         private val preservationWarningLock = Any()
         private var lastPreservationWarningAtElapsed = -1L
         private const val PRESERVATION_WARNING_INTERVAL_MS = 30_000L
@@ -53,7 +58,19 @@ class PreserveDeleteForMeHook(
 
         /** Lets other database hooks distinguish a local Delete-for-me from a remote revoke. */
         @JvmStatic
-        fun isDeleteForMeInProgress(): Boolean = deleteForMeScope.get() == true
+        fun isDeleteForMeInProgress(): Boolean = deleteForMeScope.get()?.isNotEmpty() == true
+
+        private fun enterDeleteForMeScope(param: XC_MethodHook.MethodHookParam) {
+            val active = deleteForMeScope.get() ?: Collections.newSetFromMap(
+                IdentityHashMap<XC_MethodHook.MethodHookParam, Boolean>()
+            ).also(deleteForMeScope::set)
+            active.add(param)
+        }
+
+        private fun leaveDeleteForMeScope(param: XC_MethodHook.MethodHookParam) {
+            val active = deleteForMeScope.get() ?: return
+            if (active.remove(param) && active.isEmpty()) deleteForMeScope.remove()
+        }
     }
 
     override fun hook() {
@@ -75,11 +92,11 @@ class PreserveDeleteForMeHook(
                                 // Only enter the delete scope after resolving real message keys.
                                 if (!captureRunnableMessages(param.thisObject)) return
                             }
-                            deleteForMeScope.set(true)
+                            enterDeleteForMeScope(param)
                         }
 
                         override fun afterHookedMethod(param: MethodHookParam) {
-                            deleteForMeScope.remove()
+                            leaveDeleteForMeScope(param)
                         }
                     }
                 )
