@@ -1,0 +1,3 @@
+[Fixes]
+- Reject ambiguous or incompatible call-ending callbacks when resolving
+  call-recording events.
