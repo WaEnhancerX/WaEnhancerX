@@ -12,6 +12,8 @@ if '    private static final class ManualReadAttempt' in source:markers.append('
 blocks=[extract(source,m) for m in markers]
 blue='''package com.waenhancer.xposed.features.privacy;
 import java.util.*;import java.lang.reflect.*;
+import com.waenhancer.xposed.utils.HostFields;
+import com.waenhancer.xposed.utils.HookErrors;
 import de.robv.android.xposed.XposedHelpers;import de.robv.android.xposed.XposedBridge;
 public final class BlueOnReplyHook {
  static final String TAG="fixture",PENDING_CHAT_RECEIPT="waex_pending_chat_receipt",MANUAL_CHAT_ATTEMPT="waex_manual_chat_attempt";

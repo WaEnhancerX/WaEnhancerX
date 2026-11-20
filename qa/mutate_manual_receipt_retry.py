@@ -4,7 +4,7 @@ import argparse, json, os, shutil, subprocess, sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 def main():
- p=argparse.ArgumentParser(description=__doc__);p.add_argument('--out',required=True,type=Path);p.add_argument('--kotlinc',default=os.environ.get('KOTLINC') or shutil.which('kotlinc'));a=p.parse_args()
+ p=argparse.ArgumentParser(description=__doc__);p.add_argument('--out',required=True,type=Path);p.add_argument('--kotlinc',default=os.environ.get('KOTLINC') or shutil.which('kotlinc'));p.add_argument('--start-at',default='lost-delayed-retry');a=p.parse_args()
  if not a.kotlinc:p.error('Supply a complete Kotlin compiler distribution')
  a.out.mkdir(parents=True,exist_ok=False);rows=[]
  mutations=[
@@ -13,7 +13,9 @@ def main():
  ('duplicate-veto-recovery','BlueOnReplyHook.java','if (vetoed) return;','/* mutant: duplicate recovery */'),
  ('missing-enqueue-ack','BlueOnReplyHook.java','PENDING_JOBS.remove(recipient, original);','/* mutant: accepted recipe retained */'),
  ('lost-delivery-only-retry','HideReceiptsHook.java','if (BlueOnReplyHook.isManualChatReceipt(job)) {\n                                BlueOnReplyHook.recordSuppressedReadJob(job);\n                            }','/* mutant: delivery-only veto loses retry */')]
- for label,name,old,new in mutations:
+ names=[case[0] for case in mutations]
+ if a.start_at not in names: p.error('Unknown mutation start: '+a.start_at)
+ for label,name,old,new in mutations[names.index(a.start_at):]:
   source=a.out/(label+'-source');shutil.copytree(ROOT/'app',source/'app')
   file=source/'app/src/main/java/com/waenhancer/xposed/features/privacy'/name;text=file.read_text(encoding='utf-8')
   if text.count(old)!=1:raise RuntimeError('Mutation anchor changed: '+label)
