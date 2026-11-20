@@ -1,0 +1,5 @@
+[Fixes]
+- Match runtime process evidence to the target app UID in the manager's Android
+  profile.
+- Prevent generic preference writes from replacing derived runtime process-ID
+  evidence.
