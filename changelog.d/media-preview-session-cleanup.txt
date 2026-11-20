@@ -1,0 +1,8 @@
+[Fixes]
+- Isolate each media preview session so late download, image and video callbacks
+  cannot update a replacement preview.
+- Cancel preview-owned work on dismissal or detachment and release its temporary
+  files, bitmaps and video playback resources.
+
+[Improvements]
+- Coalesce download progress updates within the active preview session.
