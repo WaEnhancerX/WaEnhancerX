@@ -1,8 +1,30 @@
 {
   "schema": 1,
   "channel": "nightly",
-  "updated_at": "2026-11-20T08:12:44Z",
+  "updated_at": "2026-11-20T10:36:51Z",
   "releases": [
+    {
+      "tag": "2.1.0-nightly.3",
+      "version_name": "2.1.0-nightly.3",
+      "version_code": 20100003,
+      "published_at": "2026-11-20T10:36:36Z",
+      "html_url": "https://github.com/WaEnhancerX/WaEnhancerX/releases/tag/2.1.0-nightly.3",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v2.1.0-nightly.3_debug.apk",
+          "url": "https://github.com/WaEnhancerX/WaEnhancerX/releases/download/2.1.0-nightly.3/WaEnhancerX-v2.1.0-nightly.3_debug.apk",
+          "size": 7974514,
+          "sha256": "679fa9f2716d1ba27530c815a4895f4fbca5d6cddbd03fcafc3c30daff235bd5"
+        },
+        {
+          "name": "WaEnhancerX-v2.1.0-nightly.3_release.apk",
+          "url": "https://github.com/WaEnhancerX/WaEnhancerX/releases/download/2.1.0-nightly.3/WaEnhancerX-v2.1.0-nightly.3_release.apk",
+          "size": 8069614,
+          "sha256": "4acfdcb59bc92335869cd91510f82d00debadfa45c3b6a58465fd08e5118ce11"
+        }
+      ],
+      "notes": "[Added]\n- Added VirusTotal scan on every Stable Release for all APKs, this makes sure all APKs are safe to use. This will attach a VirusTotal badge/link on every release page for users to verify.\n- Revived Update Channels back into the project\n\n\n[Fixes]\n- Fixed Harmful App Error by play protect\n\n\n[Improvements]\n- Migrate on-device transcription native libraries to on-demand download and provisioning\n\n\n[Update Channels]\nNow you can install stable or nightly build of WAEX on top of each other without any issues.\nContributors are always welcome to contribute to nightly branch of this project. \nBuilt from commit 64dbdf69108f112a733bc48276c55437dadca9f3"
+    },
     {
       "tag": "2.1.0-nightly.2",
       "version_name": "2.1.0-nightly.2",
