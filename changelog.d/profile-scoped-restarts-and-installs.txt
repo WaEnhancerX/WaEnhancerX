@@ -1,0 +1,5 @@
+[Fixes]
+- Scope WhatsApp restarts and root APK installation to the manager's current
+  Android profile.
+- Verify launch targets and root launch acknowledgements before treating a
+  restart as complete; retain normal launch fallback when needed.
