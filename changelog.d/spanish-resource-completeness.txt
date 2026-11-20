@@ -1,0 +1,3 @@
+[Improvements]
+- Expand Spanish and Latin American Spanish translations for existing settings,
+  installation screens, reporting and diagnostics.
