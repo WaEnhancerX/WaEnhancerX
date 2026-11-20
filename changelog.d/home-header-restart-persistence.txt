@@ -1,0 +1,5 @@
+[Fixes]
+- Wait for Ghost Mode, Freeze Last Seen and DND setting writes to succeed before
+  restarting WhatsApp.
+- Cancel restart callbacks owned by closed screens and report failed or
+  already-pending setting changes.
