@@ -1,0 +1,3 @@
+[Improvements]
+- Update standalone Tasker regression fixtures for current preference and hook
+  lifecycle contracts, with portable JVM tool and classpath handling.
