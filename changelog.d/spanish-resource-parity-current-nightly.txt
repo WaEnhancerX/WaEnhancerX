@@ -1,0 +1,3 @@
+[Fixes]
+- Restore the complete Spanish and Latin American Spanish resource names for
+  current WAEX interface, emoji settings, update channels and diagnostics.

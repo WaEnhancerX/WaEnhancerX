@@ -442,4 +442,165 @@
     <string name="waex_ui_network_unreachable_message" formatted="false">WAEX no pudo conectar con el servicio. Comprueba tu conexión e inténtalo de nuevo.</string>
     <string name="waex_ui_show_as_deleted" formatted="false">Mostrar como mensaje eliminado</string>
     <string name="waex_ui_show_as_deleted_desc" formatted="false">Muestra los mensajes eliminados con el diseño nativo de WhatsApp para mensajes eliminados</string>
+
+    <!-- Chat notifications, stickers, timestamps and native navigation -->
+    <string name="feat_locked_chats_message_notifications_title">Notificaciones de chats bloqueados</string>
+    <string name="feat_locked_chats_message_notifications_desc">Muestra notificaciones de los mensajes de chats bloqueados. Desactiva esta opción para silenciarlas.</string>
+    <string name="feat_remove_sticker_white_outline_title">Quitar el borde blanco de los stickers</string>
+    <string name="feat_remove_sticker_white_outline_desc">Quita el borde blanco que WhatsApp agrega cuando creas un sticker</string>
+    <string name="timestamp_relative_title">Tiempo relativo</string>
+    <string name="timestamp_relative_summary">Ejemplo: hace 5 minutos, ayer, 13 nov.</string>
+    <string name="feat_native_floating_navigation_title">Navegación flotante nativa</string>
+    <string name="feat_native_floating_navigation_desc">Activa la barra inferior flotante de WhatsApp, que todavía se está implementando de forma gradual (Android 11 o superior)</string>
+    <string name="diag_active_targets_title">Aplicaciones de destino activas</string>
+
+    <!-- Custom emoji styles and downloads -->
+    <string name="feat_custom_emojis_title">Emojis personalizados</string>
+    <string name="feat_custom_emojis_desc">Elige un estilo de emojis personalizado (iOS, Twitter, Facebook, etc.)</string>
+    <string name="custom_emojis_tile_title">Seleccionar emojis personalizados</string>
+    <string name="custom_emojis_tile_desc">Toca para explorar y descargar estilos de emojis personalizados</string>
+    <string name="feat_custom_emoji_enabled_title">Emojis personalizados</string>
+    <string name="feat_custom_emoji_enabled_desc">Elige un estilo de emojis personalizado (iOS, Twitter, Facebook, etc.)</string>
+    <string name="feat_custom_emoji_font_title">Fuente de emojis personalizada</string>
+    <string name="feat_custom_emoji_font_desc">Selecciona el estilo de la fuente de emojis personalizada</string>
+    <string name="feat_custom_emojis_disabled_desc">Desactiva «Usar los emojis predeterminados del dispositivo» para usar emojis personalizados</string>
+    <string name="feat_custom_emojis_active_desc">Activo: %1$s</string>
+    <string name="custom_emojis_screen_title">Estilo de emojis</string>
+    <string name="custom_emojis_screen_subtitle">Personaliza el aspecto de los emojis en WhatsApp con estilos del sistema o de la nube</string>
+    <string name="custom_emojis_active_style">Estilo activo</string>
+    <string name="custom_emojis_builtin_section">Estilos integrados</string>
+    <string name="custom_emojis_cloud_section">Paquetes de emojis en la nube</string>
+    <string name="custom_emojis_device_title">Emojis del sistema</string>
+    <string name="custom_emojis_device_desc">Usa los emojis de la fuente del sistema de tu dispositivo Android (OneUI, Pixel, iOS)</string>
+    <string name="custom_emojis_storage_used">Espacio utilizado: %1$s</string>
+    <string name="custom_emojis_clear_all">Eliminar todo</string>
+    <string name="custom_emojis_clear_all_confirm_title">¿Eliminar todas las fuentes descargadas?</string>
+    <string name="custom_emojis_clear_all_confirm_desc">Se eliminarán todas las fuentes de emojis descargadas en el dispositivo para liberar espacio.</string>
+    <string name="custom_emojis_delete_confirm_title">¿Eliminar %1$s?</string>
+    <string name="custom_emojis_delete_confirm_desc">¿Quieres eliminar este paquete de emojis descargado?</string>
+    <string name="custom_emojis_restart_hint">Reinicia WhatsApp para aplicar los cambios en el estilo de emojis</string>
+    <string name="custom_emojis_restart_button">Reiniciar WhatsApp</string>
+    <string name="custom_emojis_sheet_title">Emojis personalizados</string>
+    <string name="custom_emojis_sheet_subtitle">Selecciona emojis personalizados para WhatsApp. Descarga cualquier estilo para aplicarlo.</string>
+    <string name="custom_emojis_default_title">Predeterminados de WhatsApp</string>
+    <string name="custom_emojis_default_desc">Usa los emojis originales integrados en WhatsApp</string>
+    <string name="custom_emojis_download">Descargar</string>
+    <string name="custom_emojis_downloading">Descargando %1$d%%</string>
+    <string name="custom_emojis_select">Seleccionar</string>
+    <string name="custom_emojis_selected">Seleccionado</string>
+    <string name="custom_emojis_delete">Eliminar</string>
+    <string name="custom_emojis_download_first_hint">Primero descarga este paquete de emojis para poder seleccionarlo</string>
+    <string name="custom_emojis_fetch_error">No se pudo cargar la lista de emojis. Comprueba tu conexión.</string>
+    <string name="custom_emojis_download_error">No se pudo completar la descarga. Inténtalo de nuevo.</string>
+    <string name="custom_emojis_retry">Reintentar</string>
+
+    <!-- Issue reporting and feature requests -->
+    <string name="report_issue_cd">Informar de un problema</string>
+    <string name="report_issue_title">Informar de un problema</string>
+    <string name="report_issue_step_of">Paso %1$d de %2$d</string>
+    <string name="report_issue_review_desc">Tu informe de error se enviará a nuestro bot y te avisaremos de su progreso. Tu descripción y configuración se publican en la incidencia pública de GitHub; los registros de la aplicación se mantienen privados. Revisa qué se incluirá:</string>
+    <string name="report_issue_label_device">Dispositivo</string>
+    <string name="report_issue_label_android">Android</string>
+    <string name="report_issue_label_framework">Entorno de ejecución</string>
+    <string name="report_issue_label_module">Módulo</string>
+    <string name="report_issue_label_config_mode">Modo de configuración</string>
+    <string name="report_issue_config_universal">Universal</string>
+    <string name="report_issue_config_per_app">Por aplicación</string>
+    <string name="report_issue_apps_prompt">Selecciona las aplicaciones de destino en las que se produce el error:</string>
+    <string name="report_issue_apps_none">No hay aplicaciones de destino instaladas.</string>
+    <string name="report_issue_submit">Enviar</string>
+    <string name="report_issue_unknown">Desconocido</string>
+    <string name="report_issue_title_prompt">Ponle un nombre breve a tu informe (entre %1$d y %2$d caracteres).</string>
+    <string name="report_issue_title_hint">Título del informe</string>
+    <string name="report_issue_description_prompt">Cuéntanos qué ocurrió. ¿Qué estabas haciendo, qué esperabas y qué sucedió en su lugar?</string>
+    <string name="report_issue_description_hint">Describe qué ocurrió</string>
+    <string name="report_issue_next">Siguiente</string>
+    <string name="report_issue_back">Atrás</string>
+    <string name="report_issue_cancel">Cancelar</string>
+    <string name="report_issue_failed">No se pudo abrir Telegram</string>
+    <string name="report_issue_label_telegram">Telegram</string>
+    <string name="report_issue_preparing">Preparando tu informe…</string>
+    <string name="report_issue_preparing_app">Recopilando registros de %1$s (%2$d de %3$d)</string>
+    <string name="report_issue_preparing_hint">Esto puede tardar unos segundos. Mantén la aplicación abierta.</string>
+    <string name="report_issue_submitting">Enviando tu informe…</string>
+    <string name="report_issue_submitting_percent">%1$d%% enviado</string>
+    <string name="report_issue_finishing">Ya casi está: creando tu incidencia…</string>
+    <string name="report_issue_step_settings">Recopilando tus ajustes</string>
+    <string name="report_issue_step_logs">Recopilando registros de la aplicación</string>
+    <string name="report_issue_step_upload">Subiendo tu informe</string>
+    <string name="report_issue_step_create">Creando tu incidencia</string>
+    <string name="report_issue_done">¡Incidencia creada!</string>
+    <string name="report_issue_done_desc">Te avisaremos por Telegram de los avances.</string>
+    <string name="report_issue_logs_failed">No se pudieron leer los registros de %1$s, por lo que no se envió nada. Asegúrate de que WAEX tenga acceso root y de haber abierto %1$s al menos una vez. Luego, inténtalo de nuevo.</string>
+    <string name="report_issue_unconfirmed">No pudimos confirmar que tu informe se haya enviado. Revisa primero «Mis incidencias» y, si no aparece, inténtalo de nuevo.</string>
+    <string name="report_issue_rejected">El servidor no pudo aceptar tu informe, por lo que no se envió nada. Inténtalo de nuevo en un momento.</string>
+    <string name="report_issue_title_preview">Aparecerá como: %1$s</string>
+    <string name="report_issue_title_example">Por ejemplo: La aplicación se cierra cuando abro un chat</string>
+    <string name="report_issue_description_example">Por ejemplo: Abrí un chat y la aplicación se cerró de inmediato. Empezó a ocurrir después de la última actualización.</string>
+    <string name="report_issue_feature_title_prompt">Ponle un nombre breve a tu idea (entre %1$d y %2$d caracteres).</string>
+    <string name="report_issue_feature_title_hint">Nombre de tu idea</string>
+    <string name="report_issue_feature_title_example">Por ejemplo: Programar mensajes para enviarlos más tarde</string>
+    <string name="report_issue_feature_description_prompt">Cuéntanos tu idea. ¿Qué debería hacer y cómo te ayudaría?</string>
+    <string name="report_issue_feature_description_hint">Describe tu idea</string>
+    <string name="report_issue_feature_description_example">Por ejemplo: Me gustaría escribir un mensaje ahora y elegir la hora a la que se enviará.</string>
+    <string name="report_issue_kind_prompt">¿De qué tipo de problema quieres informar?</string>
+    <string name="report_issue_kind_bug">Algo no funciona bien</string>
+    <string name="report_issue_kind_bug_desc">Un fallo o un comportamiento incorrecto</string>
+    <string name="report_issue_kind_error">Aparece un error o la aplicación se cierra</string>
+    <string name="report_issue_kind_error_desc">Aparece un mensaje de error o la aplicación se cierra sola</string>
+    <string name="report_issue_kind_malfunction">Una función dejó de funcionar</string>
+    <string name="report_issue_kind_malfunction_desc">Antes funcionaba o no hace lo que debería</string>
+    <string name="report_issue_kind_feature">Tengo una idea</string>
+    <string name="report_issue_kind_feature_desc">Sugiere una función nueva o una mejora</string>
+    <string name="report_issue_sent">Informe enviado. ¡Gracias!</string>
+    <string name="report_issue_rate_limited">Espera un minuto antes de enviar otro informe.</string>
+    <string name="report_issue_relay_failed">No se pudo conectar con el servidor. Se abrirá Telegram.</string>
+
+    <!-- Telegram sign-in and sign-out -->
+    <string name="report_login_title">Iniciar sesión con Telegram</string>
+    <string name="report_login_desc">Los informes se entregan a través de nuestro bot de Telegram. Inicia sesión para que podamos contactarte sobre tu problema.</string>
+    <string name="report_login_button">Iniciar sesión con Telegram</string>
+    <string name="report_login_reopen">Volver a abrir Telegram</string>
+    <string name="report_login_waiting">Esperando tu confirmación en Telegram…</string>
+    <string name="report_login_timeout">Se agotó el tiempo para iniciar sesión. Inténtalo de nuevo.</string>
+    <string name="report_login_license_conflict">La licencia de este dispositivo pertenece a %1$s. Inicia sesión con esa cuenta de Telegram.</string>
+    <string name="report_login_logged_in_as">Sesión iniciada como %1$s</string>
+    <string name="report_login_logout">Cerrar sesión</string>
+    <string name="report_login_logout_title">¿Cerrar sesión de Telegram?</string>
+    <string name="report_login_logout_message">Tu sesión está iniciada como %1$s. Después de cerrarla, tendrás que iniciar sesión de nuevo para usar la licencia vinculada a tu cuenta o informar de problemas.</string>
+
+    <!-- Telegram account licenses -->
+    <string name="license_tg_use_my_license">Usar mi licencia</string>
+    <string name="license_tg_desc">Tu licencia está vinculada a tu cuenta de Telegram, por lo que no necesitas una clave.</string>
+    <string name="license_tg_limit_title">Se alcanzó el límite de dispositivos (%1$d/%2$d)</string>
+    <string name="license_tg_limit_desc">Esta licencia no tiene cupos libres para más dispositivos. Agrega un cupo en el bot o desvincula un dispositivo que ya no uses.</string>
+    <string name="license_tg_limit_add">Aumentar el límite de dispositivos</string>
+    <string name="license_tg_login_required">Inicia sesión con Telegram para usar tu licencia.</string>
+
+    <!-- Issue history -->
+    <string name="report_issues_title">Mis incidencias</string>
+    <string name="report_issues_new">Informar de un problema</string>
+    <string name="report_issues_empty_title">Todavía no hay incidencias</string>
+    <string name="report_issues_empty_desc">Las incidencias que envíes aparecerán aquí. Toca el botón para informar de un nuevo problema.</string>
+    <string name="report_issues_load_failed">No se pudieron cargar tus incidencias.</string>
+    <string name="report_issues_retry">Intentar de nuevo</string>
+    <string name="report_issues_closed_ago">Cerrada %1$s</string>
+    <string name="report_issues_status_open">Abierta</string>
+    <string name="report_issues_status_closed">Cerrada</string>
+    <string name="report_issues_status_in_progress">En curso</string>
+
+    <string name="interface_size_title">Tamaño de la interfaz</string>
+    <string name="interface_size_desc">Ajusta el texto, los controles, el espaciado y la navegación en toda la aplicación</string>
+    <string name="interface_size_compact">Compacto</string>
+    <string name="interface_size_standard">Estándar</string>
+    <string name="interface_size_comfortable">Cómodo</string>
+    <string name="interface_size_large">Grande</string>
+    <string name="build_variant_debug">Depuración</string>
+    <string name="build_variant_release">Distribución</string>
+    <string name="status_style_default">Predeterminado</string>
+    <string name="status_style_vertical_rows">Filas verticales</string>
+    <string name="status_style_facebook_grid">Tarjetas de Facebook (cuadrícula)</string>
+    <string name="status_style_vertical_compact">Lista vertical (compacta)</string>
+    <string name="status_style_vertical_circle">Lista vertical (avatares circulares)</string>
+    <string name="status_style_vertical_square">Lista vertical (tarjetas cuadradas)</string>
 </resources>
