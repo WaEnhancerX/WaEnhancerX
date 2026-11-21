@@ -55,10 +55,11 @@ object UpdateCheckCoordinator {
 
         scope.launch {
             try {
-                val installed = app.packageManager.getPackageInfo(app.packageName, 0).versionName ?: "0"
-                val releases = ReleaseRepository.fetchReleases(app)
+                val installed = InstalledBuild.read(app)
+                val channel = UpdateChannel.selected(app, installed)
+                val releases = ReleaseRepository.fetchReleases(app, channels = setOf(channel))
                 prefs.edit().putLong("update_last_check", now).apply()
-                val release = ReleaseRepository.findUpdate(releases, installed)
+                val release = ReleaseRepository.findUpdate(releases, installed.versionName, installed.versionCode, channel)
                 if (release == null) {
                     clearAvailableUpdate(app)
                     _availableRelease.value = null
@@ -72,6 +73,7 @@ object UpdateCheckCoordinator {
                     .putString("available_update_tag", release.tagName)
                     .putString("available_update_name", release.name)
                     .putString("available_update_changelog", release.body)
+                    .putString("available_update_channel", release.channel.id)
                     .apply()
 
                 if (shouldSuppressIgnored(prefs, release.version, now)) return@launch
@@ -93,6 +95,7 @@ object UpdateCheckCoordinator {
             .remove("available_update_tag")
             .remove("available_update_name")
             .remove("available_update_changelog")
+            .remove("available_update_channel")
             .apply()
     }
 

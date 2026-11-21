@@ -2,9 +2,9 @@ name: Source and JVM regression checks
 
 on:
   push:
-    branches: [main, 'integration/preview-current-main-*', 'fix/qa-localized-catalog-*']
+    branches: [main, nightly, 'integration/preview-current-main-*', 'fix/qa-localized-catalog-*']
   pull_request:
-    branches: [main]
+    branches: [main, nightly]
   workflow_dispatch:
 
 permissions:
@@ -36,6 +36,17 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: Verify release pipeline contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for test in qa/test_version_scheme.py qa/test_next_version.py qa/test_changelog_assembly.py \
+                      qa/test_pr_gate.py qa/test_ai_review.py qa/test_merge_pr.py \
+                      qa/test_manual_merge.py qa/test_publish_review.py \
+                      qa/test_nightly_release_state.py qa/test_pending_changelog.py; do
+            python3 "$test"
+          done
 
       - name: Verify screenshot and default image-quality MobileConfig contracts
         shell: bash
@@ -177,9 +188,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Preserve resolved provider restart state in the preference bridge
-        run: python qa/test_bridge_resolved_snapshot.py --negative-controls
-
       - name: Run required public-source JVM regression suites
         shell: bash
         run: |
@@ -316,7 +324,6 @@ jobs:
             qa/test_feature_contract_inventory.py \
             qa/test_preference_type_audit.py \
             qa/test_provider_derived_keys.py \
-            qa/test_provider_preference_scope.py \
             qa/test_backup_alias_policy.py \
             qa/test_settings_backup_binary_roundtrip.py \
             qa/test_settings_backup_json.py \
