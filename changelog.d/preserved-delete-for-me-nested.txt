@@ -1,0 +1,3 @@
+[Fixes]
+- Keep Delete for Me message preservation active until the outer deletion finishes
+  when another hooked deletion runs inside it.

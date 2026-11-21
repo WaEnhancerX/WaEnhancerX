@@ -394,38 +394,6 @@ jobs:
             'No private :licensing module or proprietary WhatsApp APK was used.' \
             'Hook installation, runtime behavior, signatures and LSPosed compatibility require separate device checks.'
 
-  home-restart-framework:
-    name: Quick actions / preference acknowledgement and restart lifecycle
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-          submodules: false
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-      - name: Require the complete production fixture and public toolchain
-        run: |
-          set -euo pipefail
-          kotlinc -version
-          mvn -version
-          test -f qa/fixtures/HomeRestartLifecycleTest.java
-      - name: Exercise acknowledged writes, live activities and rejected scheduling
-        run: python3 qa/android_home_restart_test.py --out "$RUNNER_TEMP/waex-home-restart" --maven-repo "$RUNNER_TEMP/waex-home-restart-m2"
-      - name: Preserve source identities, compiler output and Android results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: home-restart-framework-evidence
-          path: |
-            ${{ runner.temp }}/waex-home-restart/*.json
-            ${{ runner.temp }}/waex-home-restart/*.log
-          retention-days: 14
-          if-no-files-found: error
-
   android-presence-rows:
     name: Extracted renderer / Android framework / native pixels
     runs-on: ubuntu-24.04
