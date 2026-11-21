@@ -11,6 +11,7 @@ import argparse, hashlib, json, os, subprocess, tempfile
 ROOT = Path(__file__).resolve().parents[1]
 STUBS = {
     'androidx/annotation/NonNull.java': 'package androidx.annotation; public @interface NonNull {}',
+    'androidx/annotation/VisibleForTesting.java': 'package androidx.annotation; public @interface VisibleForTesting {}',
     'android/net/Uri.java': 'package android.net; public class Uri {public static Uri parse(String value){return new Uri();}}',
     'android/os/Build.java': '''package android.os; public final class Build {
       public static class VERSION {public static int SDK_INT=34;}
@@ -19,6 +20,7 @@ STUBS = {
     'android/os/Bundle.java': '''package android.os; import java.util.*; public class Bundle {
       public final Map<String,Object> values=new HashMap<>();
       public void putString(String k,String v){values.put(k,v);} public String getString(String k){return (String)values.get(k);}
+      public void putLong(String k,long v){values.put(k,v);} public void putBoolean(String k,boolean v){values.put(k,v);}
       @SuppressWarnings("unchecked") public <T>T getParcelable(String k){return (T)values.get(k);}
       public <T>T getParcelable(String k,Class<T> type){return type.cast(values.get(k));}
     }''',
@@ -33,13 +35,14 @@ STUBS = {
       void unregisterOnSharedPreferenceChangeListener(OnSharedPreferenceChangeListener listener);
     }''',
     'android/content/Context.java': '''package android.content; import android.os.*; import android.net.Uri; import java.util.*;
-    public class Context {public final ContentResolver resolver=new ContentResolver();
+    public class Context {public String getPackageName(){return "com.whatsapp";} public final ContentResolver resolver=new ContentResolver();
       public ContentResolver getContentResolver(){return resolver;} public Context getApplicationContext(){return this;}
-      public static class ContentResolver {public final List<ParcelFileDescriptor> files=new ArrayList<>(); public int deletes,creates; public boolean fail;
+      public static class ContentResolver {public final List<ParcelFileDescriptor> files=new ArrayList<>(); public int deletes,creates,finishes; public final List<Bundle> finished=new ArrayList<>(); public boolean fail;
         public Bundle call(Uri uri,String method,String argument,Bundle request){
           if(method.equals("create_call_recording")){creates++;if(fail)return null;
             Bundle result=new Bundle(); ParcelFileDescriptor fd=new ParcelFileDescriptor();files.add(fd);
             result.values.put("descriptor",fd);result.putString("path","private/"+request.getString("name"));return result;}
+          if(method.equals("finish_call_recording")){finishes++;finished.add(request);return new Bundle();}
           if(method.equals("delete_call_recording")){deletes++;return new Bundle();}
           throw new AssertionError("Unexpected IPC operation: "+method);
         }
@@ -64,6 +67,7 @@ STUBS = {
       public static final class OutputFormat {public static final int MPEG_4=2,OGG=11;}
       public static final class AudioEncoder {public static final int AAC=3,OPUS=7;}
     }''',
+    'com/waenhancer/utils/ContactNameResolver.java': '''package com.waenhancer.utils; public final class ContactNameResolver { public static final ContactNameResolver INSTANCE=new ContactNameResolver(); public static int calls; public String resolveName(android.content.Context c,String jid,String fallback,String unused){calls++;throw new AssertionError("Contact resolution is outside this lifecycle fixture");} }''',
     'com/waenhancer/xposed/core/BaseFeature.java': '''package com.waenhancer.xposed.core; import android.content.*;
     public abstract class BaseFeature {protected final Context context;protected final ClassLoader classLoader;protected final SharedPreferences prefs;
       protected BaseFeature(Context c,ClassLoader l,SharedPreferences p){context=c;classLoader=l;prefs=p;}
@@ -101,6 +105,8 @@ STUBS = {
       public static int registrations,failRegistration; public static boolean failUnhook; public static Runnable afterRegistration;
       public static void reset(){hooks.clear();logs.clear();registrations=0;failRegistration=0;failUnhook=false;afterRegistration=null;}
       public static void log(String s){logs.add(s);}
+      public static void log(Throwable error){java.io.StringWriter text=new java.io.StringWriter();error.printStackTrace(new java.io.PrintWriter(text));log(text.toString());}
+      public static Set<XC_MethodHook.Unhook> hookAllConstructors(Class<?> type,XC_MethodHook hook){throw new AssertionError("Constructor registration is outside this recorder fixture");}
       public static XC_MethodHook.Unhook hookMethod(Member member,XC_MethodHook hook){Method m=(Method)member;m.setAccessible(true);
         if(++registrations==failRegistration)throw new IllegalStateException("private hook failure detail");
         hooks.computeIfAbsent(m,k->new ArrayList<>()).add(hook);if(afterRegistration!=null)afterRegistration.run();
@@ -119,6 +125,20 @@ STUBS = {
     }''',
     'de/robv/android/xposed/XposedHelpers.java': '''package de.robv.android.xposed; public class XposedHelpers {
       public static Class<?> findClassIfExists(String name,ClassLoader loader){try{return Class.forName(name,false,loader);}catch(ClassNotFoundException e){return null;}}
+      private static AssertionError unused(){return new AssertionError("Unexpected Xposed helper outside recorder contract");}
+      public static Class<?> findClass(String name,ClassLoader loader){throw unused();}
+      public static java.lang.reflect.Field findField(Class<?> type,String name){throw unused();}
+      public static java.lang.reflect.Field findFieldIfExists(Class<?> type,String name){throw unused();}
+      public static java.lang.reflect.Method findMethodBestMatch(Class<?> type,String name,Object...args){throw unused();}
+      public static java.lang.reflect.Method findMethodExact(Class<?> type,String name,Object...args){throw unused();}
+      public static java.lang.reflect.Method findMethodExactIfExists(Class<?> type,String name,Object...args){throw unused();}
+      public static XC_MethodHook.Unhook findAndHookMethod(Class<?> type,String name,Object...args){throw unused();}
+      public static XC_MethodHook.Unhook findAndHookMethod(String type,ClassLoader loader,String name,Object...args){throw unused();}
+      public static Object callMethod(Object owner,String name,Object...args){throw unused();}
+      public static Object getObjectField(Object owner,String name){throw unused();}
+      public static Object getAdditionalInstanceField(Object owner,String name){throw unused();}
+      public static Object setAdditionalInstanceField(Object owner,String name,Object value){throw unused();}
+      public static Object removeAdditionalInstanceField(Object owner,String name){throw unused();}
     }''',
     'com/whatsapp/calling/infra/voipcalling/CallState.java': '''package com.whatsapp.calling.infra.voipcalling;
     public enum CallState {NONE,CALLING,ACTIVE,ENDING,CONNECTED_LONELY,RECEIVED_CALL,REJOINING,ACTIVE_ELSEWHERE}''',
@@ -138,6 +158,7 @@ STUBS = {
       public void soundPortCreated(int engine){original();}
       public void callStateChanged(CallState oldState,CallInfo info){original();}
       public void callEnding(CallLogInfo info,int interval,String timeSeries,String log){original();if(clearAtEnd)current=null;}
+      public void callEnding(String decoy) {original();}
       public void fieldstatsReady(WamCall info,UserJid user,boolean lastReport,boolean realtime){original();}
     }''',
     'com/whatsapp/voipcalling/VoipActivityV2.java': 'package com.whatsapp.voipcalling; public class VoipActivityV2 {public void onDestroy(){}}',
@@ -180,8 +201,11 @@ def main():
     production=[media/'CallRecordingHook.java']
     contract=media/'CallRecordingEventContract.java'
     if contract.exists():production.append(contract)
+    recording_files=args.root/'app/src/main/java/com/waenhancer/calls/RecordingOutputFiles.java'
+    if recording_files.exists():production.append(recording_files)
+    production.append(args.root/'app/src/main/java/com/waenhancer/xposed/utils/HookErrors.java')
     sources += [str(s) for s in production]
-    sources.append(str(ROOT/'qa/fixtures/CallRecordingLifecycleChecks.java'))
+    sources.append(str(args.root/'qa/fixtures/CallRecordingLifecycleChecks.java'))
     classpath=str(directory/'classes')
     compile_cmd=['javac','--release','17','-d',classpath]
     if args.dexkit_jar:compile_cmd += ['-cp',os.pathsep.join(map(str,[args.dexkit_jar,args.kotlin_stdlib]))]
@@ -201,7 +225,7 @@ def main():
         print('PASS: complete recorder hook compiles against the real DexKit API; native matching is not executed')
     else:
         with (directory/'behavior.log').open('w') as f:
-            result=subprocess.run(['java','-Xmx64m','-cp',classpath,'CallRecordingLifecycleChecks',args.scenario],stdout=f,stderr=subprocess.STDOUT,timeout=60)
+            result=subprocess.run(['java','-Xmx64m','-Dwaex.fixture.ending='+args.host_variant,'-cp',classpath,'CallRecordingLifecycleChecks',args.scenario],stdout=f,stderr=subprocess.STDOUT,timeout=60)
         print((directory/'behavior.log').read_text());result.check_returncode()
 
 if __name__=='__main__':main()

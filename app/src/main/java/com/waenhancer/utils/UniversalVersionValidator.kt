@@ -20,22 +20,12 @@ object UniversalVersionValidator {
         PREFERENCES_UNAVAILABLE(false)
     }
 
-    private val STATIC_BUILTIN_RULES = listOf(
-        "2.26.42.xx",
-        "2.26.41.xx",
-        "2.26.40.xx",
-        "2.26.39.xx",
-        "2.26.38.xx",
-        "2.26.37.xx",
-        "2.26.36.xx"
-    )
-
     /**
      * Read only the module's version-rule array. Numeric resource IDs are local
      * to a resource table, so a host or unrelated array must never supply rules.
      */
     private fun readBuiltinRules(context: Context?): List<String>? {
-        if (context == null) return STATIC_BUILTIN_RULES
+        if (context == null) return null
         return try {
             val moduleContext = if (context.packageName == MODULE_PACKAGE) {
                 context
@@ -46,24 +36,24 @@ object UniversalVersionValidator {
                 )
             }
             if (moduleContext.packageName != MODULE_PACKAGE) {
-                return STATIC_BUILTIN_RULES
+                return null
             }
             val resources = moduleContext.resources
             val id = resources.getIdentifier("universal_supported_versions", "array", MODULE_PACKAGE)
                 .takeIf { it != 0 } ?: R.array.universal_supported_versions
             val resName = try { resources.getResourceName(id) } catch (_: RuntimeException) { null }
             if (resName != "$MODULE_PACKAGE:array/universal_supported_versions") {
-                return STATIC_BUILTIN_RULES
+                return null
             }
             val rules = resources.getStringArray(id).map { it.trim() }
             val syntax = Regex("[0-9]+(?:\\.[0-9]+)+(?:\\.(?:xx|\\*))?", RegexOption.IGNORE_CASE)
-            rules.takeIf { it.isNotEmpty() && it.all(syntax::matches) } ?: STATIC_BUILTIN_RULES
+            rules.takeIf { it.isNotEmpty() && it.all(syntax::matches) }
         } catch (_: RuntimeException) {
-            STATIC_BUILTIN_RULES
+            null
         } catch (_: PackageManager.NameNotFoundException) {
-            STATIC_BUILTIN_RULES
+            null
         } catch (_: LinkageError) {
-            STATIC_BUILTIN_RULES
+            null
         }
     }
 
@@ -94,9 +84,8 @@ object UniversalVersionValidator {
     fun isSupported(context: Context?, versionName: String?, prefs: SharedPreferences?): Boolean =
         evaluate(context, versionName, prefs).allowed
 
-    /**
-     * Backward-compatible overload for existing call-sites
-     */
+    /** No-context calls cannot access the module resource table and therefore have no built-in rules. */
+    @Deprecated("Pass a Context so supported versions can be loaded from arrays.xml")
     @JvmStatic
     fun isSupported(
         versionName: String?,
@@ -106,12 +95,7 @@ object UniversalVersionValidator {
     }
 
     /**
-     * Checks whether [currentVersion] matches the pattern or wildcard [rule] (e.g. 2.26.30.xx).
-     * Examples:
-     * - "2.26.30.97" matches "2.26.30.xx" -> true
-     * - "2.26.34.2" matches "2.26.34.xx" -> true
-     * - "2.26.34.2" matches "2.26.30.xx" -> false
-     * - "2.26.30.97" matches "2.26.30.97" -> true
+     * Checks whether [currentVersion] matches an exact rule or a branch wildcard rule.
      */
     @JvmStatic
     fun matches(currentVersion: String, rule: String): Boolean {
@@ -137,7 +121,7 @@ object UniversalVersionValidator {
     }
 
     /**
-     * Converts a specific version (e.g. 2.26.36.21) into a branch wildcard (e.g. 2.26.36.xx).
+     * Converts a specific version into a branch wildcard.
      */
     @JvmStatic
     fun toWildcard(version: String): String {

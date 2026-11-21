@@ -6,12 +6,12 @@
 
 **UI customization, automation, and privacy engine for WhatsApp on Android**
 
-WaEnhancer X is an open-source Xposed/LSPosed module for rooted Android that enhances WhatsApp and WhatsApp Business with privacy controls, anti-delete recovery, view-once media tools, interface customization, and productivity features—without repackaging the official app.
+WaEnhancer X is an open-source Xposed/LSPosed module for WhatsApp & WhatsApp Business with privacy tools, anti-delete, view-once media, Meta AI removal, and UI customization.
 
 [![Android Platform](https://img.shields.io/badge/Platform-Android%20API%2024%2B-3DDC84?style=flat&logo=android&logoColor=white)](https://developer.android.com)
 [![Framework](https://img.shields.io/badge/Framework-LSPosed%20%7C%20Zygisk-orange?style=flat)](https://github.com/JingMatrix/LSPosed)
 [![WaEnhancerX Downloads](https://img.shields.io/github/downloads/WaEnhancerX/WaEnhancerX/total.svg?label=GitHub%20Downloads&color=blue)](https://github.com/WaEnhancerX/WaEnhancerX/releases)
-[![LSPosed Repo Downloads](https://img.shields.io/github/downloads/xposed-Modules-Repo/com.waenhancer/total.svg?label=LSPosed%20Repo%20Downloads&color=purple)](https://github.com/xposed-Modules-Repo/com.waenhancer/releases)
+[![XPosed Repo Downloads](https://img.shields.io/github/downloads/xposed-Modules-Repo/com.waenhancer/total.svg?label=XPosed%20Repo%20Downloads&color=purple)](https://github.com/xposed-Modules-Repo/com.waenhancer/releases)
 [![Telegram](https://telegram-badge.pages.dev/api/telegram-badge?channelId=@waenhancerx&label=WaEnhancerX%20Updates&showOnline=true)](https://t.me/waenhancerx)
 [![Telegram](https://telegram-badge.pages.dev/api/telegram-badge?channelId=@waenhancerxhub&label=WaEnhancerX%20Hub&showOnline=true)](https://t.me/waenhancerxhub)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
@@ -259,6 +259,13 @@ Thanks go to these wonderful people ([emoji key](https://allcontributors.org/doc
         <sub><b>damjang</b></sub>
       </a><br />
       <a href="https://github.com/WaEnhancerX/WaEnhancerX/pull/58" title="Translation">🌍</a>
+    </td>
+    <td align="center" valign="top" width="180">
+      <a href="https://github.com/Tttim0o">
+        <img src="https://avatars.githubusercontent.com/u/180036827?v=4" width="100px" alt="Tttim0o" /><br />
+        <sub><b>Tttim0o</b></sub>
+      </a><br />
+      <a href="https://github.com/WaEnhancerX/WaEnhancerX/commits?author=Tttim0o" title="Code">💻</a>
     </td>
   </tr>
 </table>

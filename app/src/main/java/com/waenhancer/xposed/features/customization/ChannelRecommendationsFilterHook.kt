@@ -32,7 +32,7 @@ class ChannelRecommendationsFilterHook(
             val recClass = DexSearchEngine.getInstance().findClassWithCache(
                 context,
                 classLoader,
-                "wpp_channel_rec_class"
+                "waex_channel_rec_class"
             ) { bridge, loader ->
                 val result = bridge.findClass(
                     FindClass.create().matcher(

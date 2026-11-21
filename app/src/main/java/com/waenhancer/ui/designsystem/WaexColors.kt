@@ -32,60 +32,70 @@ data class WaexColors(
     val isLight: Boolean
 ) {
     val isDark: Boolean get() = !isLight
+
+    val success: Color get() = if (isLight) Color(0xFF256B3B) else Color(0xFF8DD99A)
+    val onSuccess: Color get() = if (isLight) Color.White else Color(0xFF073917)
+    val successContainer: Color get() = if (isLight) Color(0xFFB8F2C5) else Color(0xFF174D29)
+    val onSuccessContainer: Color get() = if (isLight) Color(0xFF002109) else Color(0xFFA8F5B5)
+
+    val warning: Color get() = if (isLight) Color(0xFF765A00) else Color(0xFFF2C66D)
+    val onWarning: Color get() = if (isLight) Color.White else Color(0xFF3E2E00)
+    val warningContainer: Color get() = if (isLight) Color(0xFFFFE08A) else Color(0xFF594500)
+    val onWarningContainer: Color get() = if (isLight) Color(0xFF241A00) else Color(0xFFFFE29A)
 }
 
 val lightColors = WaexColors(
-    primary = Color(0xFF008069), // WhatsApp Teal
-    primaryContainer = Color(0xFFE1F3EF),
+    // WhatsApp design spec: brand teal for actions, warm neutral surfaces.
+    primary = Color(0xFF1DAA61), // filled controls, FAB, switch track
+    primaryContainer = Color(0xFFD9FDD3), // sent-bubble / selected-chip green
     onPrimary = Color(0xFFFFFFFF),
-    background = Color(0xFFFFFFFF), // Pure stark white
-    onBackground = Color(0xFF0F0F0F), // Almost black
+    background = Color(0xFFFFFFFF),
+    onBackground = Color(0xFF12181C),
     surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF0F0F0F),
-    surfaceDim = Color(0xFFF5F5F5),
-    surfaceContainerLow = Color(0xFFFAFAFA),
-    surfaceContainer = Color(0xFFFFFFFF),
-    surfaceContainerHigh = Color(0xFFF5F5F5),
-    surfaceContainerHighest = Color(0xFFEAEAEA),
-    onSurfaceVariant = Color(0xFF49454F),
-    outline = Color(0xFFE0E0E0),
-    outlineVariant = Color(0xFFEAEAEA),
-    error = Color(0xFFBA1A1A),
-    errorContainer = Color(0xFFFFDAD6),
+    onSurface = Color(0xFF0A1014),
+    surfaceDim = Color(0xFFF7F5F3),
+    surfaceContainerLow = Color(0xFFF7F5F3),
+    surfaceContainer = Color(0xFFF7F5F3),
+    surfaceContainerHigh = Color(0xFFF6F5F4), // search bar fill
+    surfaceContainerHighest = Color(0xFFE9E5DF),
+    onSurfaceVariant = Color(0xFF5B6368),
+    outline = Color(0xFF8D9599),
+    outlineVariant = Color(0xFFE7E8E8),
+    error = Color(0xFFEA0038),
+    errorContainer = Color(0xFFFFDAD9),
     onError = Color(0xFFFFFFFF),
-    onErrorContainer = Color(0xFF93000A),
-    secondary = Color(0xFF4A4A4A),
+    onErrorContainer = Color(0xFF8A0023),
+    secondary = Color(0xFF5B6368),
     onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFF0F0F0),
-    onSecondaryContainer = Color(0xFF1A1A1A),
+    secondaryContainer = Color(0xFFF1F2F4),
+    onSecondaryContainer = Color(0xFF12181C),
     isLight = true
 )
 
 val darkColors = WaexColors(
-    // Keep these roles in sync with WaEnhancer's values-night palette.
-    primary = Color(0xFF25D366),
-    primaryContainer = Color(0xFF1B5E20),
-    onPrimary = Color(0xFF000000),
-    background = Color(0xFF121212),
-    onBackground = Color(0xFFFFFFFF),
-    surface = Color(0xFF121212),
-    onSurface = Color(0xFFFFFFFF),
-    surfaceDim = Color(0xFF121212),
-    surfaceContainerLow = Color(0xFF1E1E1E),
-    surfaceContainer = Color(0xFF252525),
-    surfaceContainerHigh = Color(0xFF2C2C2C),
-    surfaceContainerHighest = Color(0xFF333333),
-    onSurfaceVariant = Color(0xFFB3B3B3),
-    outline = Color(0xFF64706C),
-    outlineVariant = Color(0xFF2C2C2C),
-    error = Color(0xFFDC2626),
-    errorContainer = Color(0xFF690005),
-    onError = Color(0xFFFFFFFF),
-    onErrorContainer = Color(0xFFFFDAD6),
-    secondary = Color(0xFF25D366),
-    onSecondary = Color(0xFF000000),
-    secondaryContainer = Color(0xFF1B5E20),
-    onSecondaryContainer = Color(0xFFFFFFFF),
+    primary = Color(0xFF21C063),
+    primaryContainer = Color(0xFF103529),
+    onPrimary = Color(0xFF0A1014),
+    background = Color(0xFF0A1014),
+    onBackground = Color(0xFFEAEDEE),
+    surface = Color(0xFF0A1014),
+    onSurface = Color(0xFFF7F8FA),
+    surfaceDim = Color(0xFF0A1014),
+    surfaceContainerLow = Color(0xFF12181C),
+    surfaceContainer = Color(0xFF12181C),
+    surfaceContainerHigh = Color(0xFF23282C),
+    surfaceContainerHighest = Color(0xFF2B3338),
+    onSurfaceVariant = Color(0xFF8D9599),
+    outline = Color(0xFF6C757A),
+    outlineVariant = Color(0xFF23282C),
+    error = Color(0xFFFB5061),
+    errorContainer = Color(0xFF5C0A1A),
+    onError = Color(0xFF0A1014),
+    onErrorContainer = Color(0xFFFFDAD9),
+    secondary = Color(0xFF8D9599),
+    onSecondary = Color(0xFF0A1014),
+    secondaryContainer = Color(0xFF20272B),
+    onSecondaryContainer = Color(0xFFEAEDEE),
     isLight = false
 )
 

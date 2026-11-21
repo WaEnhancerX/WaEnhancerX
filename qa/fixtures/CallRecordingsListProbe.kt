@@ -4,10 +4,12 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.media.MediaPlayer
+import android.media.MediaMetadataRetriever
 import android.os.Build
 import android.os.Environment
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import com.waenhancer.calls.CallRecordingStore
 import java.io.File
 import java.text.DateFormat
 import java.util.Date
@@ -51,10 +53,14 @@ object UiText {
     fun displayLocale() = Locale.US
     fun get(resource: Int, fallback: String, vararg arguments: Any?) =
         if (arguments.isEmpty()) fallback else String.format(Locale.US, fallback, *arguments)
+    fun quantity(resource: Int, count: Int, fallback: String, vararg arguments: Any?) =
+        String.format(Locale.US, fallback, *arguments)
 }
-object R { object string { @@RESOURCE_IDS@@ } }
+object R { object string { @@RESOURCE_IDS@@ }; object plurals { const val waex_recordings_deleted = 1 } }
 
 @@ITEM@@
+@@DURATION@@
+@@FORMAT_TIME@@
 
 class Controller(val owner: Owner, val list: () -> List<RecordedCallItem>,
                  val currentPermission: () -> Boolean, val loading: () -> Boolean,
@@ -64,6 +70,7 @@ class Controller(val owner: Owner, val list: () -> List<RecordedCallItem>,
     fun refresh() = runBlocking { Effects.work() }
     fun names() = list().map { it.file.name }.toTypedArray()
     fun paths() = list().map { it.file.absolutePath }.toTypedArray()
+    fun items() = list().toTypedArray()
     fun permissionGranted() = currentPermission()
     fun requestedPermission() = RequestedPermission.permission
     fun permissionRequestEnabled() = RequestedPermission.enabled
@@ -78,7 +85,8 @@ class Controller(val owner: Owner, val list: () -> List<RecordedCallItem>,
     fun stop() = stopPlayback()
     fun delete(item: RecordedCallItem) = remove(item)
     fun addFile(file: File): RecordedCallItem {
-        val item = RecordedCallItem(file, file.nameWithoutExtension, "fixture date", "fixture size", "fixture duration")
+        val item = RecordedCallItem(file, file.nameWithoutExtension, "fixture date", "fixture size", "fixture duration",
+            "Fixture contact", null, "unknown", "com.whatsapp")
         add(item)
         return item
     }
@@ -95,14 +103,21 @@ object CallRecordingsListProbe {
         var selectedRecordingPaths = emptySet<String>()
         var mediaPlayer: MediaPlayer? = null
         var currentlyPlayingPath: String? = null
+        var isAudioPlaying = false
+        var playbackPosition = 0
+        var playbackDuration = 0
+        var recordingsPendingDelete = emptyList<RecordedCallItem>()
         @@STOP@@
         @@AUDIO_DISPOSE@@
+        @@CLEAR_SELECTION@@
+        @@DELETE@@
         fun playClick(item: RecordedCallItem) {
-            val isPlaying = currentlyPlayingPath == item.file.absolutePath
+            val isActive = currentlyPlayingPath == item.file.absolutePath
             @@PLAY@@
         }
         fun deleteClick(item: RecordedCallItem) {
-            @@DELETE@@
+            // This adapter invokes the confirmed operation; it does not render the dialog.
+            deleteRecordings(listOf(item))
         }
         @@LOAD@@
         @@EFFECT@@

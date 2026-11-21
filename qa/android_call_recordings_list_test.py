@@ -26,10 +26,12 @@ ROOT = Path(__file__).resolve().parents[1]
 SCREEN = Path('app/src/main/java/com/waenhancer/ui/screens/calls/CallsHubScreen.kt')
 PROVIDER = Path('app/src/main/java/com/waenhancer/xposed/bridge/HookProvider.java')
 PATHS = Path('app/src/main/res/xml/file_paths.xml')
+STORE = Path('app/src/main/java/com/waenhancer/calls/CallRecordingStore.kt')
+OUTPUT_FILES = Path('app/src/main/java/com/waenhancer/calls/RecordingOutputFiles.java')
 CORE_SHA256 = 'd1f5a319a77555df7e23858ffb5ed45a95ebb4263fa1ab7a993510ceb53555a0'
 CORE_AAR_SHA256 = '311d83ac67d394076ec21d12ed2d10a44b59cb2929b7dce00e5a90a93842e37d'
 CORE_URL = 'https://dl.google.com/dl/android/maven2/androidx/core/core/1.18.0/core-1.18.0.aar'
-EXPECTED = 84
+EXPECTED = 93
 
 
 def digest(path):
@@ -109,17 +111,23 @@ def main():
     effect, effect_range = block(screen, 'LaunchedEffect(selectedTab, canReadLegacyRecordings')
     stop, stop_range = block(screen, 'fun stopAudio()')
     dispose, dispose_range = block(screen, 'DisposableEffect(Unit)')
-    play, play_range = block(screen, 'onClick = {', screen.index('// Play / Pause Action Button'))
-    delete, delete_range = block(screen, 'onClick = {', screen.index('} else IconButton('))
+    play, play_range = block(screen, 'fun togglePlayback()')
+    delete, delete_range = block(screen, 'fun deleteRecordings(selected: List<RecordedCallItem>)')
+    clear, clear_range = block(screen, 'fun clearRecordingSelection()')
+    duration, duration_range = block(screen, 'private fun readAudioDuration(file: File)')
+    format_time, format_range = block(screen, 'private fun formatPlaybackTime(milliseconds: Int)')
+    if 'onConfirm = { deleteRecordings(recordingsPendingDelete) }' not in screen:
+        raise RuntimeError('Review the current deletion confirmation binding')
     play_body = play[play.index('{') + 1:-1]
-    delete_body = delete[delete.index('{') + 1:-1]
     item_start = screen.index('data class RecordedCallItem(')
     item_end = screen.index('\n)', item_start) + 2
     template = (ROOT / 'qa/fixtures/CallRecordingsListProbe.kt').read_text()
     probe = (template.replace('@@STATE@@', state).replace('@@LOAD@@', load)
              .replace('@@EFFECT@@', effect).replace('@@ITEM@@', screen[item_start:item_end])
              .replace('@@STOP@@', stop).replace('@@AUDIO_DISPOSE@@', dispose)
-             .replace('@@PLAY@@', play_body).replace('@@DELETE@@', delete_body))
+             .replace('@@PLAY@@', play_body).replace('@@DELETE@@', delete)
+             .replace('@@CLEAR_SELECTION@@', clear).replace('@@DURATION@@', duration)
+             .replace('@@FORMAT_TIME@@', format_time))
     resources = sorted(set(re.findall(r'R\.string\.([A-Za-z_][A-Za-z_0-9]*)', probe)))
     probe = probe.replace('@@RESOURCE_IDS@@', '\n'.join('const val ' + name + ' = ' + str(index + 1)
                                                        for index, name in enumerate(resources)))
@@ -127,7 +135,9 @@ def main():
     create, create_range = block((root / PROVIDER).read_text(), 'if ("create_call_recording".equals(method))')
     provider = '''package com.waenhancer.qa.recordings;
 import android.content.Context; import android.os.Bundle; import android.os.ParcelFileDescriptor;
-import java.io.File; import java.io.FileNotFoundException;
+import java.io.File; import java.io.FileNotFoundException; import java.io.IOException;
+import com.waenhancer.calls.CallRecordingRecord; import com.waenhancer.calls.CallRecordingStore;
+import com.waenhancer.calls.RecordingOutputFiles;
 public final class ProviderStorageProbe {
  public static Bundle create(Context context, String name) {
    String method="create_call_recording"; Bundle extras=new Bundle(); extras.putString("name", name);
@@ -137,17 +147,21 @@ public final class ProviderStorageProbe {
 }
 '''.replace('BODY', create)
     (stage / 'ProviderStorageProbe.java').write_text(provider)
+    shutil.copyfile(root / STORE, stage / STORE.name)
+    shutil.copyfile(root / OUTPUT_FILES, stage / OUTPUT_FILES.name)
     fixture = ROOT / 'qa/fixtures/CallRecordingsListAndroidTest.java'
     shutil.copyfile(fixture, stage / fixture.name)
     shutil.copyfile(root / PATHS, out / 'file_paths.xml')
-    identities = {str(path): digest(root / path) for path in [SCREEN, PROVIDER, PATHS]}
+    identities = {str(path): digest(root / path) for path in [SCREEN, PROVIDER, PATHS, STORE, OUTPUT_FILES]}
     identities.update({str(path.relative_to(ROOT)): digest(path) for path in [
         Path(__file__).resolve(), fixture, ROOT / 'qa/fixtures/CallRecordingsListProbe.kt',
         ROOT / 'qa/android_media_preview_test.py', ROOT / 'qa/maven_dependencies.py']})
     fragments = {'state_and_permission': [screen.count('\n', 0, start) + 1, screen.count('\n', 0, end)],
                  'loadRecordings': load_range, 'LaunchedEffect': effect_range,
                  'stopAudio': stop_range, 'audio_disposal': dispose_range,
-                 'play_onClick': play_range, 'delete_onClick': delete_range,
+                 'togglePlayback': play_range, 'deleteRecordings': delete_range,
+                 'clearRecordingSelection': clear_range, 'readAudioDuration': duration_range,
+                 'formatPlaybackTime': format_range,
                  'provider_create_call_recording': create_range}
     (out / 'source-identity.json').write_text(json.dumps({'sha256': identities, 'fragments': fragments}, indent=2) + '\n')
     jars = sorted(deps.glob('*.jar'))
@@ -159,10 +173,10 @@ public final class ProviderStorageProbe {
     runtime_jars += [core, stdlib, coroutine]
     classpath = os.pathsep.join(map(str, [classes, *runtime_jars]))
     if run([str(compiler), '-jvm-target', '17', '-classpath', production_cp,
-            '-d', str(classes), str(stage / 'CallRecordingsListProbe.kt')], out / 'kotlinc-fragments.log'):
+            '-d', str(classes), str(stage / STORE.name), str(stage / 'CallRecordingsListProbe.kt')], out / 'kotlinc-fragments.log'):
         raise RuntimeError('Exact CallsHub fragment compilation failed')
     if run(['javac', '--release', '17', '-cp', classpath, '-d', str(classes),
-            str(stage / 'ProviderStorageProbe.java'), str(stage / fixture.name)], out / 'javac-fixtures.log'):
+            str(stage / OUTPUT_FILES.name), str(stage / 'ProviderStorageProbe.java'), str(stage / fixture.name)], out / 'javac-fixtures.log'):
         raise RuntimeError('Provider branch or framework fixture compilation failed')
     opens = ['java.base/java.lang', 'java.base/java.util', 'java.base/java.io',
              'java.base/java.net', 'java.base/java.security', 'java.base/java.text',

@@ -64,6 +64,8 @@ public class PlayedDispatchTest {
   protected void beforeHookedMethod(MethodHookParam p){}
   static class MethodHookParam{Member method;Object thisObject;Object[]args;Object result;boolean cancelled;void setResult(Object o){result=o;cancelled=true;}}
  }
+ static class HookErrors { static void swallowed(String site, Throwable failure) {} }
+ static class HostFields { static Field[] declared(Class<?> type) { return type.getDeclaredFields(); } }
  static class XposedBridge {
   static Map<Method,XC_MethodHook> hooks=new LinkedHashMap<>();static String lastLog="";
   static void hookMethod(Method m,XC_MethodHook h){hooks.put(m,h);}static void log(String s){lastLog=s;}

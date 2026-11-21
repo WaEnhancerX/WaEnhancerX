@@ -94,7 +94,7 @@ fun DashboardBentoScreen() {
                     ) {
                         Icon(
                             imageVector = WaexIcons.ShieldHeart,
-                            contentDescription = UiText.get(R.string.waex_ui_shield_heart_4bd16fe2, "Shield Heart"),
+                            contentDescription = UiText.get(R.string.waex_ui_shield_heart, "Shield Heart"),
                             tint = colors.primary,
                             modifier = Modifier.size(24.dp)
                         )
@@ -114,7 +114,7 @@ fun DashboardBentoScreen() {
                                 .padding(horizontal = 12.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = UiText.get(R.string.waex_ui_free_plan_6d7e546c, "Free Plan"),
+                                text = UiText.get(R.string.waex_ui_free_plan, "Free Plan"),
                                 style = typography.labelSm,
                                 color = colors.onSurfaceVariant
                             )
@@ -154,12 +154,12 @@ fun DashboardBentoScreen() {
                     ) {
                         Icon(
                             imageVector = WaexIcons.GridView,
-                            contentDescription = UiText.get(R.string.waex_ui_dashboard_67b69646, "Dashboard"),
+                            contentDescription = UiText.get(R.string.waex_ui_dashboard, "Dashboard"),
                             tint = colors.secondary,
                             modifier = Modifier.size(24.dp)
                         )
                         Text(
-                            text = UiText.get(R.string.waex_ui_dashboard_67b69646, "Dashboard"),
+                            text = UiText.get(R.string.waex_ui_dashboard, "Dashboard"),
                             style = typography.labelSm,
                             color = colors.secondary,
                             modifier = Modifier.padding(top = 4.dp)
@@ -171,12 +171,12 @@ fun DashboardBentoScreen() {
                     ) {
                         Icon(
                             imageVector = WaexIcons.Extension,
-                            contentDescription = UiText.get(R.string.waex_ui_modules_76c86c4c, "Modules"),
+                            contentDescription = UiText.get(R.string.waex_ui_modules, "Modules"),
                             tint = colors.primary,
                             modifier = Modifier.size(24.dp)
                         )
                         Text(
-                            text = UiText.get(R.string.waex_ui_modules_76c86c4c, "Modules"),
+                            text = UiText.get(R.string.waex_ui_modules, "Modules"),
                             style = typography.labelSm,
                             color = colors.primary,
                             modifier = Modifier.padding(top = 4.dp)
@@ -226,13 +226,13 @@ fun DashboardBentoScreen() {
                         Box(
                             modifier = Modifier
                                 .size(16.dp)
-                                .background(Color(0xFF10B981), CircleShape)
+                                .background(colors.success, CircleShape)
                         ) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .alpha(alphaAnim)
-                                    .background(Color(0xFF10B981), CircleShape)
+                                    .background(colors.success, CircleShape)
                                     .border(2.dp, Color.White, CircleShape)
                             )
                         }
@@ -252,12 +252,12 @@ fun DashboardBentoScreen() {
                             Icon(
                                 imageVector = WaexIcons.Success,
                                 contentDescription = null,
-                                tint = Color(0xFF10B981),
+                                tint = colors.success,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = UiText.get(R.string.waex_ui_xposed_framework_connected_d363853a, "Xposed Framework Connected"),
+                                text = UiText.get(R.string.waex_ui_xposed_framework_connected, "Xposed Framework Connected"),
                                 style = typography.bodyMd,
                                 color = colors.onSurfaceVariant
                             )
@@ -266,12 +266,12 @@ fun DashboardBentoScreen() {
                             Icon(
                                 imageVector = WaexIcons.Success,
                                 contentDescription = null,
-                                tint = Color(0xFF10B981),
+                                tint = colors.success,
                                 modifier = Modifier.size(18.dp)
                                 )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = UiText.get(R.string.waex_ui_whatsapp_hooked_c9066f8d, "WhatsApp Hooked"),
+                                text = UiText.get(R.string.waex_ui_whatsapp_hooked, "WhatsApp Hooked"),
                                 style = typography.bodyMd,
                                 color = colors.onSurfaceVariant
                             )
@@ -280,12 +280,12 @@ fun DashboardBentoScreen() {
                             Icon(
                                 imageVector = WaexIcons.Success,
                                 contentDescription = null,
-                                tint = Color(0xFF10B981),
+                                tint = colors.success,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = UiText.get(R.string.waex_ui_engine_running_11ac7787, "Engine Running"),
+                                text = UiText.get(R.string.waex_ui_engine_running, "Engine Running"),
                                 style = typography.bodyMd,
                                 color = colors.onSurfaceVariant
                             )
@@ -294,12 +294,12 @@ fun DashboardBentoScreen() {
                             Icon(
                                 imageVector = WaexIcons.Success,
                                 contentDescription = null,
-                                tint = Color(0xFF10B981),
+                                tint = colors.success,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = UiText.get(R.string.waex_ui_compatibility_verified_cca213b2, "Compatibility Verified"),
+                                text = UiText.get(R.string.waex_ui_compatibility_verified, "Compatibility Verified"),
                                 style = typography.bodyMd,
                                 color = colors.onSurfaceVariant
                             )
@@ -332,7 +332,7 @@ fun DashboardBentoScreen() {
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = UiText.get(R.string.waex_ui_hook_success_bf7c8178, "HOOK SUCCESS"),
+                                text = UiText.get(R.string.waex_ui_hook_success, "HOOK SUCCESS"),
                                 style = typography.labelSm,
                                 color = colors.secondary,
                                 fontWeight = FontWeight.Bold
@@ -355,7 +355,7 @@ fun DashboardBentoScreen() {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = UiText.get(R.string.waex_ui_hooks_d412a062, "Hooks"),
+                                    text = UiText.get(R.string.waex_ui_hooks, "Hooks"),
                                     style = typography.bodyMd,
                                     color = colors.onSurfaceVariant
                                 )
@@ -377,7 +377,7 @@ fun DashboardBentoScreen() {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = UiText.get(R.string.waex_ui_features_5697d03d, "Features"),
+                                    text = UiText.get(R.string.waex_ui_features, "Features"),
                                     style = typography.bodyMd,
                                     color = colors.onSurfaceVariant
                                 )
@@ -434,7 +434,7 @@ fun DashboardBentoScreen() {
                         }
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = UiText.get(R.string.waex_ui_advanced_protection_for_your_messaging_b0cdb7dc, "Advanced protection for your messaging experience. Control visibility and message persistence."),
+                            text = UiText.get(R.string.waex_ui_advanced_protection_for_your_messaging, "Advanced protection for your messaging experience. Control visibility and message persistence."),
                             style = typography.bodyMd,
                             color = colors.onSurfaceVariant
                         )
@@ -444,7 +444,7 @@ fun DashboardBentoScreen() {
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            val list = listOf(UiText.get(R.string.waex_ui_ghost_mode_48b2b30e, "Ghost Mode"), UiText.get(R.string.waex_ui_anti_revoke_c56cb768, "Anti Revoke"), UiText.get(R.string.waex_ui_hide_seen_28cfe6b3, "Hide Seen"), UiText.get(R.string.waex_ui_hide_view_status_64ca562e, "Hide View Status"))
+                            val list = listOf(UiText.get(R.string.waex_ui_ghost_mode, "Ghost Mode"), UiText.get(R.string.waex_ui_anti_revoke_label, "Anti Revoke"), UiText.get(R.string.waex_ui_hide_seen, "Hide Seen"), UiText.get(R.string.waex_ui_hide_view_status, "Hide View Status"))
                             list.forEach { tagText ->
                                 Box(
                                     modifier = Modifier
@@ -472,7 +472,7 @@ fun DashboardBentoScreen() {
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = UiText.get(R.string.waex_ui_manage_privacy_settings_cf4ad284, "Manage Privacy Settings"),
+                                text = UiText.get(R.string.waex_ui_manage_privacy_settings, "Manage Privacy Settings"),
                                 style = typography.labelSm,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -484,7 +484,7 @@ fun DashboardBentoScreen() {
                 WaexBentoItemMobile(
                     title = UiText.get(R.string.catalog_tab_media, "Media"),
                     icon = WaexIcons.Image,
-                    chips = listOf(UiText.get(R.string.waex_ui_hd_upload_ee403315, "HD Upload"), UiText.get(R.string.waex_ui_status_download_bbc8b7f1, "Status Download"), UiText.get(R.string.feat_anti_view_once_title, "Unlimited View Once"), UiText.get(R.string.feat_send_audio_as_voice_status_title, "Audio to Voice Status")),
+                    chips = listOf(UiText.get(R.string.waex_ui_hd_upload, "HD Upload"), UiText.get(R.string.waex_ui_status_download, "Status Download"), UiText.get(R.string.feat_anti_view_once_title, "Unlimited View Once"), UiText.get(R.string.feat_send_audio_as_voice_status_title, "Audio to Voice Status")),
                     onManageClick = { navController.navigateTo(Screen.MediaStatusHub) }
                 )
 
@@ -492,7 +492,7 @@ fun DashboardBentoScreen() {
                 WaexBentoItemMobile(
                     title = UiText.get(R.string.customization_coming_soon_title, "Customization"),
                     icon = WaexIcons.Palette,
-                    chips = listOf(UiText.get(R.string.waex_ui_pill_design_5eba892d, "Pill Design"), UiText.get(R.string.waex_ui_custom_status_layout_c8b6c1ff, "Custom Status Layout"), UiText.get(R.string.waex_ui_menu_icons_6ee1d5da, "Menu Icons"), UiText.get(R.string.waex_ui_animated_emojis_cf3b4565, "Animated Emojis")),
+                    chips = listOf(UiText.get(R.string.waex_ui_pill_design, "Pill Design"), UiText.get(R.string.waex_ui_custom_status_layout, "Custom Status Layout"), UiText.get(R.string.waex_ui_menu_icons, "Menu Icons"), UiText.get(R.string.waex_ui_animated_emojis, "Animated Emojis")),
                     onManageClick = { navController.navigateTo(Screen.ConversationEnhancements) }
                 )
 
@@ -534,7 +534,7 @@ fun DashboardBentoScreen() {
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            val list = listOf(UiText.get(R.string.waex_ui_always_typing_b7568ffa, "Always Typing"), UiText.get(R.string.waex_ui_auto_reply_8772ec0f, "Auto Reply"), UiText.get(R.string.waex_ui_status_forward_efd1de1c, "Status Forward"), "Tasker")
+                            val list = listOf(UiText.get(R.string.waex_ui_always_typing, "Always Typing"), UiText.get(R.string.waex_ui_auto_reply, "Auto Reply"), UiText.get(R.string.waex_ui_status_forward, "Status Forward"), "Tasker")
                             list.forEach { tagText ->
                                 Box(
                                     modifier = Modifier
@@ -563,7 +563,7 @@ fun DashboardBentoScreen() {
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = UiText.get(R.string.waex_ui_manage_automation_b6075a0b, "Manage Automation"),
+                                text = UiText.get(R.string.waex_ui_manage_automation, "Manage Automation"),
                                 style = typography.labelSm,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -654,7 +654,7 @@ private fun WaexBentoItemMobile(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = UiText.get(R.string.waex_ui_manage_1_s_8d56809c, "Manage %1\$s", title),
+                    text = UiText.get(R.string.waex_ui_manage_1_s, "Manage %1\$s", title),
                     style = typography.labelSm,
                     fontWeight = FontWeight.SemiBold
                 )

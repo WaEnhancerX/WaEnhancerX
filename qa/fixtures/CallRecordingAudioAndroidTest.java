@@ -112,7 +112,8 @@ public class CallRecordingAudioAndroidTest {
         final List<ParcelFileDescriptor> descriptors = new ArrayList<>();
         final List<File> outputs = new ArrayList<>();
         final List<String> requestedNames = new ArrayList<>();
-        int creates, deletes;
+        int creates, deletes, finishes;
+        final List<Bundle> finished = new ArrayList<>();
         boolean unavailable;
         @Override public boolean onCreate() { return true; }
         @Override public Bundle call(String method, String arg, Bundle request) {
@@ -126,6 +127,9 @@ public class CallRecordingAudioAndroidTest {
                     outputs.add(output); descriptors.add(descriptor); requestedNames.add(request.getString("name"));
                     Bundle result = new Bundle(); result.putParcelable("descriptor", descriptor);
                     result.putString("path", output.getAbsolutePath()); return result;
+                }
+                if ("finish_call_recording".equals(method)) {
+                    finishes++; finished.add(new Bundle(request)); return new Bundle();
                 }
                 if ("delete_call_recording".equals(method)) {
                     deletes++;
@@ -182,6 +186,9 @@ public class CallRecordingAudioAndroidTest {
         prefs = app.getSharedPreferences("waex_audio_fixture", Context.MODE_PRIVATE);
         assertTrue(prefs.edit().clear().putBoolean(ENABLED, true).commit());
         XposedBridge.reset(); RecorderShadow.resetFixture();
+        com.waenhancer.utils.ContactNameResolver.calls = 0;
+        com.waenhancer.config.PreferenceRestartTracker.calls = 0;
+        com.waenhancer.utils.DiagnosticsRecorder.calls = 0;
         host = new VoiceServiceEventCallback();
         storage = new StorageProvider();
         android.content.pm.ProviderInfo info = new android.content.pm.ProviderInfo();
@@ -203,6 +210,7 @@ public class CallRecordingAudioAndroidTest {
             for (ParcelFileDescriptor value : storage.descriptors) value.close();
             for (File value : storage.outputs) value.delete();
         }
+        assertEquals("Unexpected contact lookup was swallowed", 0, com.waenhancer.utils.ContactNameResolver.calls);
     }
 
     private void mode(boolean call, Boolean fallback) {
@@ -334,6 +342,7 @@ public class CallRecordingAudioAndroidTest {
         assertFalse(recording()); assertEquals(1, value.stops); assertEquals(1, value.releases);
         assertEquals(0, storage.deletes); assertTrue(storage.outputs.get(0).exists());
         assertFalse(storage.descriptors.get(0).getFileDescriptor().valid());
+        assertEquals(1, storage.finishes); assertTrue(storage.finished.get(0).getBoolean("successful"));
     }
     @Test public void aacFormatSelectionKeepsSourceChoiceIndependent() throws Throwable {
         mode(true, false); prefs.edit().putString("call_recording_format", "m4a").commit(); start();
@@ -398,6 +407,8 @@ public class CallRecordingAudioAndroidTest {
                     new ByteArrayInputStream(encoded.toByteArray())));
             assertEquals(value, manager.getBoolean(FALLBACK, !value));
         }
+        assertEquals(2, com.waenhancer.config.PreferenceRestartTracker.calls);
+        assertEquals(2, com.waenhancer.utils.DiagnosticsRecorder.calls);
     }
     @Test public void failedPreferenceCommitIsNotAcknowledgedAsSaved() {
         SharedPreferences real = PreferenceStores.publicStore(app);

@@ -124,7 +124,7 @@ fun PerContactPrivacyListScreen(
                             colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFE53935))
                         ) {
                             Text(
-                                text = UiText.get(R.string.waex_ui_clear_all_ddceb7ad, "Clear All"),
+                                text = UiText.get(R.string.waex_ui_clear_all, "Clear All"),
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
@@ -181,8 +181,8 @@ fun PerContactPrivacyListScreen(
                         horizontalArrangement = Arrangement.SpaceAround
                     ) {
                         listOf(
-                            "config" to UiText.get(R.string.waex_ui_configuration_b332c349, "Configuration"),
-                            "rules" to if (contacts.isNotEmpty()) UiText.get(R.string.waex_ui_contact_rules_1_s_c13a5f53, "Contact Rules (%1\$s)", contacts.size) else UiText.get(R.string.waex_ui_contact_rules_9a0c44b0, "Contact Rules")
+                            "config" to UiText.get(R.string.waex_ui_configuration, "Configuration"),
+                            "rules" to if (contacts.isNotEmpty()) UiText.get(R.string.waex_ui_contact_rules_1_s, "Contact Rules (%1\$s)", contacts.size) else UiText.get(R.string.waex_ui_contact_rules, "Contact Rules")
                         ).forEach { (tabId, label) ->
                             val isSelected = selectedTab == tabId
                             val textColor by animateColorAsState(
@@ -243,13 +243,13 @@ fun PerContactPrivacyListScreen(
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = UiText.get(R.string.waex_ui_enable_per_contact_privacy_be0089bd, "Enable Per-Contact Privacy"),
+                                            text = UiText.get(R.string.waex_ui_enable_per_contact_privacy, "Enable Per-Contact Privacy"),
                                             style = typography.bodyLg,
                                             fontWeight = FontWeight.SemiBold,
                                             color = colors.onSurface
                                         )
                                         Text(
-                                            text = UiText.get(R.string.waex_ui_allow_granular_privacy_overrides_for_s_2a8a0ee6, "Allow granular privacy overrides for specific contacts or groups"),
+                                            text = UiText.get(R.string.waex_ui_allow_granular_privacy_overrides_for_s, "Allow granular privacy overrides for specific contacts or groups"),
                                             style = typography.bodyMd,
                                             color = colors.onSurfaceVariant,
                                             fontSize = 12.sp
@@ -277,7 +277,7 @@ fun PerContactPrivacyListScreen(
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Text(
-                                        text = UiText.get(R.string.waex_ui_in_app_shortcut_placement_08e2621d, "IN-APP SHORTCUT PLACEMENT"),
+                                        text = UiText.get(R.string.waex_ui_in_app_shortcut_placement, "IN-APP SHORTCUT PLACEMENT"),
                                         style = typography.labelSm,
                                         fontWeight = FontWeight.Bold,
                                         color = colors.onSurfaceVariant,
@@ -292,9 +292,9 @@ fun PerContactPrivacyListScreen(
                                     ) {
                                         Column(modifier = Modifier.fillMaxWidth()) {
                                             val options = listOf(
-                                                Triple("1", UiText.get(R.string.waex_ui_contact_group_info_screen_5dbeac75, "Contact & Group Info Screen"), UiText.get(R.string.waex_ui_adds_a_dedicated_custom_privacy_tile_o_9290614b, "Adds a dedicated Custom Privacy tile on contact and group details page")),
-                                                Triple("2", UiText.get(R.string.waex_ui_chat_3_dot_options_menu_07e9e5b5, "Chat 3-Dot Options Menu"), UiText.get(R.string.waex_ui_adds_custom_privacy_directly_into_the_81b1ca4c, "Adds 'Custom Privacy' directly into the top-right options menu in chats")),
-                                                Triple("3", UiText.get(R.string.waex_ui_both_info_screen_3_dot_menu_9ea0f0e7, "Both (Info Screen & 3-Dot Menu)"), UiText.get(R.string.waex_ui_displays_the_custom_privacy_shortcut_i_478c235f, "Displays the custom privacy shortcut in both places"))
+                                                Triple("1", UiText.get(R.string.waex_ui_contact_group_info_screen, "Contact & Group Info Screen"), UiText.get(R.string.waex_ui_adds_a_dedicated_custom_privacy_tile_o, "Adds a dedicated Custom Privacy tile on contact and group details page")),
+                                                Triple("2", UiText.get(R.string.waex_ui_chat_3_dot_options_menu, "Chat 3-Dot Options Menu"), UiText.get(R.string.waex_ui_adds_custom_privacy_directly_into_the, "Adds 'Custom Privacy' directly into the top-right options menu in chats")),
+                                                Triple("3", UiText.get(R.string.waex_ui_both_info_screen_3_dot_menu, "Both (Info Screen & 3-Dot Menu)"), UiText.get(R.string.waex_ui_displays_the_custom_privacy_shortcut_i, "Displays the custom privacy shortcut in both places"))
                                             )
 
                                             options.forEachIndexed { index, (typeValue, title, desc) ->
@@ -375,14 +375,14 @@ fun PerContactPrivacyListScreen(
                                     verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     Text(
-                                        text = UiText.get(R.string.waex_ui_how_to_configure_rules_2ee03efe, "How to Configure Rules"),
+                                        text = UiText.get(R.string.waex_ui_how_to_configure_rules, "How to Configure Rules"),
                                         style = typography.bodyMd,
                                         fontWeight = FontWeight.SemiBold,
                                         color = colors.onSurface,
                                         fontSize = 13.sp
                                     )
                                     Text(
-                                        text = UiText.get(R.string.waex_ui_1_open_any_chat_or_contact_info_page_i_f5ec973b, "1. Open any chat or contact info page in WhatsApp.\n2. Tap 'Custom Privacy' to set specific overrides.\n3. Saved rules take priority over global privacy settings."),
+                                        text = UiText.get(R.string.waex_ui_1_open_any_chat_or_contact_info_page_i, "1. Open any chat or contact info page in WhatsApp.\n2. Tap 'Custom Privacy' to set specific overrides.\n3. Saved rules take priority over global privacy settings."),
                                         style = typography.bodyMd,
                                         color = colors.onSurfaceVariant,
                                         lineHeight = 17.sp,
@@ -402,7 +402,7 @@ fun PerContactPrivacyListScreen(
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text(
-                                        text = UiText.get(R.string.waex_ui_view_1_s_configured_contact_s_5418a89a, "View %1\$s Configured Contact(s) →", contacts.size),
+                                        text = UiText.get(R.string.waex_ui_view_1_s_configured_contact_s, "View %1\$s Configured Contact(s) →", contacts.size),
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
@@ -440,7 +440,7 @@ fun PerContactPrivacyListScreen(
                                         )
                                         Spacer(modifier = Modifier.width(10.dp))
                                         Text(
-                                            text = UiText.get(R.string.waex_ui_per_contact_privacy_is_currently_disab_b04d6482, "Per-Contact Privacy is currently disabled in Configuration."),
+                                            text = UiText.get(R.string.waex_ui_per_contact_privacy_is_currently_disab, "Per-Contact Privacy is currently disabled in Configuration."),
                                             style = typography.bodyMd,
                                             color = Color(0xFFE65100),
                                             fontWeight = FontWeight.Medium,
@@ -453,7 +453,7 @@ fun PerContactPrivacyListScreen(
                                             }
                                         ) {
                                             Text(
-                                                text = UiText.get(R.string.waex_ui_enable_5342e09f, "Enable"),
+                                                text = UiText.get(R.string.waex_ui_enable, "Enable"),
                                                 fontWeight = FontWeight.Bold,
                                                 color = Color(0xFFE65100)
                                             )
@@ -490,13 +490,13 @@ fun PerContactPrivacyListScreen(
                                             )
                                         }
                                         Text(
-                                            text = UiText.get(R.string.waex_ui_no_custom_rules_yet_35ba92cb, "No custom rules yet"),
+                                            text = UiText.get(R.string.waex_ui_no_custom_rules_yet, "No custom rules yet"),
                                             style = typography.headlineMd,
                                             fontWeight = FontWeight.Bold,
                                             color = colors.onBackground
                                         )
                                         Text(
-                                            text = UiText.get(R.string.waex_ui_contacts_with_custom_privacy_rules_wil_37b703c4, "Contacts with custom privacy rules will appear here. Rules can be set from inside a WhatsApp conversation."),
+                                            text = UiText.get(R.string.waex_ui_contacts_with_custom_privacy_rules_wil, "Contacts with custom privacy rules will appear here. Rules can be set from inside a WhatsApp conversation."),
                                             style = typography.bodyMd,
                                             color = colors.onSurfaceVariant,
                                             textAlign = TextAlign.Center
@@ -634,11 +634,11 @@ private fun ContactPrivacyRow(
     // Define color codes for each active rule to show beautiful chips
     val activeRulesList = remember(contact) {
         val list = mutableListOf<Pair<String, Color>>()
-        if (contact.hideSeen) list.add(UiText.get(R.string.waex_ui_seen_8894cf30, "Seen") to Color(0xFF1E88E5)) // Blue
-        if (contact.hideTyping) list.add(UiText.get(R.string.waex_ui_typing_25dfb9b4, "Typing") to Color(0xFF43A047)) // Green
-        if (contact.hideRecording) list.add(UiText.get(R.string.waex_ui_rec_a29ea413, "Rec") to Color(0xFFFB8C00)) // Orange
-        if (contact.antiRevoke) list.add(UiText.get(R.string.waex_ui_anti_revoke_e16be3ed, "Anti-Revoke") to Color(0xFFE53935)) // Red
-        if (contact.freezeLastSeen) list.add(UiText.get(R.string.waex_ui_freeze_509b1035, "Freeze") to Color(0xFF00ACC1)) // Teal
+        if (contact.hideSeen) list.add(UiText.get(R.string.waex_ui_seen, "Seen") to Color(0xFF1E88E5)) // Blue
+        if (contact.hideTyping) list.add(UiText.get(R.string.waex_ui_typing, "Typing") to Color(0xFF43A047)) // Green
+        if (contact.hideRecording) list.add(UiText.get(R.string.waex_ui_rec, "Rec") to Color(0xFFFB8C00)) // Orange
+        if (contact.antiRevoke) list.add(UiText.get(R.string.waex_ui_anti_revoke_feature, "Anti-Revoke") to Color(0xFFE53935)) // Red
+        if (contact.freezeLastSeen) list.add(UiText.get(R.string.waex_ui_freeze, "Freeze") to Color(0xFF00ACC1)) // Teal
         list
     }
 
@@ -715,7 +715,7 @@ private fun ContactPrivacyRow(
                         contact.endHour > 12 -> contact.endHour - 12
                         else -> contact.endHour
                     }
-                    UiText.get(R.string.waex_ui_scheduled_1_02d_00_2_s_3_02d_00_4_s_d83744a2, "Scheduled (%1\$02d:00 %2\$s - %3\$02d:00 %4\$s)", startDisplay, startAmPm, endDisplay, endAmPm)
+                    UiText.get(R.string.waex_ui_scheduled_1_02d_00_2_s_3_02d_00_4_s, "Scheduled (%1\$02d:00 %2\$s - %3\$02d:00 %4\$s)", startDisplay, startAmPm, endDisplay, endAmPm)
                 } else {
                     contact.scope.replaceFirstChar { it.uppercase() }
                 }
@@ -744,7 +744,7 @@ private fun ContactPrivacyRow(
                 }
             } else {
                 Text(
-                    text = UiText.get(R.string.waex_ui_no_active_rules_fc15b50c, "No active rules"),
+                    text = UiText.get(R.string.waex_ui_no_active_rules, "No active rules"),
                     style = typography.bodyMd,
                     color = colors.onSurfaceVariant.copy(alpha = 0.6f),
                     fontSize = 11.sp
@@ -772,7 +772,7 @@ private fun ContactPrivacyRow(
         ) {
             Icon(
                 imageVector = WaexIcons.Clear,
-                contentDescription = UiText.get(R.string.waex_ui_remove_custom_rules_a2782b75, "Remove custom rules"),
+                contentDescription = UiText.get(R.string.waex_ui_remove_custom_rules, "Remove custom rules"),
                 tint = colors.error,
                 modifier = Modifier.size(14.dp)
             )
@@ -855,7 +855,7 @@ fun ClearAllConfirmationModal(
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = UiText.get(R.string.waex_ui_clear_all_custom_rules_faed51b9, "Clear All Custom Rules?"),
+                text = UiText.get(R.string.waex_ui_clear_all_custom_rules, "Clear All Custom Rules?"),
                 style = typography.bodyLg,
                 fontWeight = FontWeight.Bold,
                 color = colors.onSurface,
@@ -863,7 +863,7 @@ fun ClearAllConfirmationModal(
                 textAlign = TextAlign.Center
             )
             Text(
-                text = UiText.get(R.string.waex_ui_are_you_sure_you_want_to_remove_all_cu_214cbfda, "Are you sure you want to remove all custom privacy rules? This action will restore default privacy rules for all contacts and cannot be undone."),
+                text = UiText.get(R.string.waex_ui_are_you_sure_you_want_to_remove_all_cu, "Are you sure you want to remove all custom privacy rules? This action will restore default privacy rules for all contacts and cannot be undone."),
                 style = typography.bodyMd,
                 color = colors.onSurfaceVariant,
                 fontSize = 13.sp,
@@ -906,7 +906,7 @@ fun ClearAllConfirmationModal(
                     .weight(1f)
                     .height(48.dp)
             ) {
-                Text(text = UiText.get(R.string.waex_ui_clear_all_ddceb7ad, "Clear All"), style = typography.bodyLg, fontWeight = FontWeight.Bold)
+                Text(text = UiText.get(R.string.waex_ui_clear_all, "Clear All"), style = typography.bodyLg, fontWeight = FontWeight.Bold)
             }
         }
     }

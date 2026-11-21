@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="receipt_observed_message">%1$s 刚刚阅读了你的消息</string>
+    <string name="receipt_observed_status">%1$s 刚刚查看了你的状态</string>
+</resources>

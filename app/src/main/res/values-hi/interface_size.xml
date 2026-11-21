@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="interface_size_title">इंटरफ़ेस आकार</string>
+    <string name="interface_size_desc">ऐप में टेक्स्ट, नियंत्रण, स्पेसिंग और नेविगेशन समायोजित करें</string>
+    <string name="interface_size_compact">कॉम्पैक्ट</string>
+    <string name="interface_size_standard">मानक</string>
+    <string name="interface_size_comfortable">सुविधाजनक</string>
+    <string name="interface_size_large">बड़ा</string>
+    <string name="build_variant_debug">डीबग</string>
+    <string name="build_variant_release">रिलीज़</string>
+</resources>

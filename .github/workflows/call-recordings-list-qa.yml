@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, 'integration/preview-current-main-*']
   pull_request:
-    branches: [main]
+    branches: [main, nightly]
   workflow_dispatch:
 
 permissions:

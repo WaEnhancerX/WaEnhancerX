@@ -9,10 +9,9 @@ import android.os.Looper
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -43,17 +42,17 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UpdateDownloadSheet(
-    url: String, version: String, useRoot: Boolean, onDismiss: () -> Unit,
+    url: String, version: String, onDismiss: () -> Unit,
     expectedSha256: String? = null, expectedSize: Long = 0L
 ) {
     val context = LocalContext.current
     val colors = WaexTheme.colors
     val typography = WaexTheme.typography
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var downloadProgress by remember(context, url, version, useRoot, expectedSha256, expectedSize) { mutableIntStateOf(0) }
-    var downloadedBytes by remember(context, url, version, useRoot, expectedSha256, expectedSize) { mutableLongStateOf(0L) }
-    var downloadTotalBytes by remember(context, url, version, useRoot, expectedSha256, expectedSize) { mutableLongStateOf(0L) }
-    val session = remember(context, url, version, useRoot, expectedSha256, expectedSize) { UpdateDownloadSession() }
+    var downloadProgress by remember(context, url, version, expectedSha256, expectedSize) { mutableIntStateOf(0) }
+    var downloadedBytes by remember(context, url, version, expectedSha256, expectedSize) { mutableLongStateOf(0L) }
+    var downloadTotalBytes by remember(context, url, version, expectedSha256, expectedSize) { mutableLongStateOf(0L) }
+    val session = remember(context, url, version, expectedSha256, expectedSize) { UpdateDownloadSession() }
     val dismiss by rememberUpdatedState(onDismiss)
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
 
@@ -88,8 +87,7 @@ fun UpdateDownloadSheet(
                     }
                     mainHandler.removeCallbacks(progressTask)
                     try {
-                        if (useRoot) UpdateDownloader.installApkWithRoot(context, apkFile, version)
-                        else UpdateDownloader.installApk(context, apkFile, version)
+                        UpdateDownloader.installApkWithRoot(context, apkFile, version)
                     } finally { dismiss() }
                 }) {
                     session.cancel()
@@ -101,7 +99,11 @@ fun UpdateDownloadSheet(
                     if (!session.claimTerminal()) return@post
                     mainHandler.removeCallbacks(progressTask)
                     dismiss()
-                    Toast.makeText(context, UiText.get(R.string.waex_ui_download_failed_1_s_1f37f501, "Download failed: %1\$s", error.message), Toast.LENGTH_LONG).show()
+                    if (NetworkErrorCenter.isNetworkError(error)) {
+                        NetworkErrorCenter.show(error)
+                    } else {
+                        Toast.makeText(context, UiText.get(R.string.waex_ui_download_failed_1_s, "Download failed: %1\$s", error.message), Toast.LENGTH_LONG).show()
+                    }
                 }
             }
         }, expectedSha256, expectedSize)
@@ -113,10 +115,9 @@ fun UpdateDownloadSheet(
         }
     }
 
-    ModalBottomSheet(
+    WaexModalBottomSheet(
         onDismissRequest = {},
-        sheetState = sheetState,
-        containerColor = colors.surfaceContainer
+        sheetState = sheetState
     ) {
         Column(
             Modifier
@@ -125,10 +126,12 @@ fun UpdateDownloadSheet(
                 .padding(horizontal = 24.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(UiText.get(R.string.waex_ui_downloading_update_01436823, "Downloading update"), style = typography.headlineMd, fontWeight = FontWeight.Bold, color = colors.onSurface)
-            LinearProgressIndicator(
+            Text(UiText.get(R.string.waex_ui_downloading_update, "Downloading update"), style = typography.headlineMd, fontWeight = FontWeight.Bold, color = colors.onSurface)
+            WaexLinearProgressIndicator(
                 progress = { downloadProgress / 100f },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(12.dp),
                 color = colors.primary,
                 trackColor = colors.surfaceContainerHighest
             )
@@ -137,7 +140,7 @@ fun UpdateDownloadSheet(
                 style = typography.bodyMd,
                 color = colors.onSurfaceVariant
             )
-            OutlinedButton(onClick = { session.cancel(); dismiss() }, modifier = Modifier.fillMaxWidth()) { Text(UiText.get(R.string.action_cancel, "Cancel")) }
+            WaexSheetTextButton(text = UiText.get(R.string.action_cancel, "Cancel"), onClick = { session.cancel(); dismiss() })
         }
     }
 }

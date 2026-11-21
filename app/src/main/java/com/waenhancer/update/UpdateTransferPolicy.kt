@@ -2,6 +2,7 @@ package com.waenhancer.update
 
 import java.io.IOException
 import java.security.MessageDigest
+import java.util.Locale
 
 /** Integrity agreement with release metadata, not publisher/certificate authentication. */
 internal class UpdateTransferPolicy(expectedSha256: String?, private val expectedSize: Long) {
@@ -10,7 +11,7 @@ internal class UpdateTransferPolicy(expectedSha256: String?, private val expecte
         fun parseAssetDigest(value: String?): String? {
             if (value == null) return null
             require(value.matches(Regex("sha256:[a-fA-F0-9]{64}"))) { "Invalid release digest" }
-            return value.substring(7).lowercase(java.util.Locale.ROOT)
+            return value.substring(7).lowercase(Locale.ROOT)
         }
     }
     private val expectedHash = expectedSha256?.also {

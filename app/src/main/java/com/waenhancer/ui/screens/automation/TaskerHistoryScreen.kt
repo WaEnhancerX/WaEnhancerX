@@ -65,22 +65,22 @@ fun TaskerHistoryScreen() {
                 id = "1",
                 eventType = "SENT",
                 contactName = "+1 555-0192",
-                details = UiText.get(R.string.waex_ui_auto_reply_i_am_currently_driving_will_8c4dec21, "Auto-Reply: I am currently driving, will get back shortly."),
-                timestamp = UiText.get(R.string.waex_ui_today_2_15_pm_3746292d, "Today, 2:15 PM")
+                details = UiText.get(R.string.waex_ui_auto_reply_i_am_currently_driving_will, "Auto-Reply: I am currently driving, will get back shortly."),
+                timestamp = UiText.get(R.string.waex_ui_today_2_15_pm, "Today, 2:15 PM")
             ),
             TaskerHistoryItem(
                 id = "2",
                 eventType = "RECEIVED",
                 contactName = "Alex Thorne",
-                details = UiText.get(R.string.waex_ui_triggered_macro_forward_to_telegram_bo_b1f50fd0, "Triggered Macro: 'Forward to Telegram Bot'"),
-                timestamp = UiText.get(R.string.waex_ui_today_1_40_pm_3985c17d, "Today, 1:40 PM")
+                details = UiText.get(R.string.waex_ui_triggered_macro_forward_to_telegram_bo, "Triggered Macro: 'Forward to Telegram Bot'"),
+                timestamp = UiText.get(R.string.waex_ui_today_1_40_pm, "Today, 1:40 PM")
             ),
             TaskerHistoryItem(
                 id = "3",
                 eventType = "SENT",
                 contactName = "+971 50-0001",
-                details = UiText.get(R.string.waex_ui_automated_morning_briefing_scheduled_d_42884bb5, "Automated Morning Briefing Scheduled Dispatch"),
-                timestamp = UiText.get(R.string.waex_ui_today_9_00_am_6144f2eb, "Today, 9:00 AM")
+                details = UiText.get(R.string.waex_ui_automated_morning_briefing_scheduled_d, "Automated Morning Briefing Scheduled Dispatch"),
+                timestamp = UiText.get(R.string.waex_ui_today_9_00_am, "Today, 9:00 AM")
             )
         )
     }
@@ -120,13 +120,13 @@ fun TaskerHistoryScreen() {
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(CircleShape)
-                                .background(if (isSent) colors.primary.copy(alpha = 0.12f) else Color(0xFF22C55E).copy(alpha = 0.12f)),
+                                .background(if (isSent) colors.primaryContainer else colors.successContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = if (isSent) WaexIcons.Play else WaexIcons.Notifications,
                                 contentDescription = null,
-                                tint = if (isSent) colors.primary else Color(0xFF22C55E),
+                                tint = if (isSent) colors.primary else colors.onSuccessContainer,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -136,7 +136,7 @@ fun TaskerHistoryScreen() {
                         Column(modifier = Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = if (isSent) UiText.get(R.string.waex_ui_action_send_intent_b3deaa4a, "Action: Send Intent") else UiText.get(R.string.waex_ui_event_message_received_29191586, "Event: Message Received"),
+                                    text = if (isSent) UiText.get(R.string.waex_ui_action_send_intent, "Action: Send Intent") else UiText.get(R.string.waex_ui_event_message_received, "Event: Message Received"),
                                     style = typography.bodyLg,
                                     fontWeight = FontWeight.Bold,
                                     color = colors.onSurface
@@ -151,7 +151,7 @@ fun TaskerHistoryScreen() {
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = UiText.get(R.string.waex_ui_target_1_s_d0d8050b, "Target: %1\$s", item.contactName),
+                                text = UiText.get(R.string.waex_ui_target_1_s, "Target: %1\$s", item.contactName),
                                 style = typography.labelSm,
                                 fontWeight = FontWeight.SemiBold,
                                 color = colors.primary,

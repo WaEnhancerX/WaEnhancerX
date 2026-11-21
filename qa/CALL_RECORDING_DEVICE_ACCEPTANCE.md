@@ -1,5 +1,27 @@
 # Call recording: device acceptance
 
+## Current nightly reconciliation (2026-11-21)
+
+Reconciled PR head `e4f3a29a64e7f38f714264b3b01d06d009af9423` with nightly
+`9972e49fac9bfb650c25ee31fde0da9425b67175`. The tested staged tree was
+`bb7587021dfea5eb083742f66c9c3e4405098d16`; subsequent changes only update the
+acceptance documents and changelog fragment. Temurin 21.0.13.1+2, Kotlin 2.0.20,
+Robolectric 4.17 and verified instrumented API 24/28/34 JARs were used on Linux.
+The complete audio-source/preference suite passed 78/78 cases (17.19 seconds
+including compilation). The complete installed-hook lifecycle passed its 109
+checks; the separately extracted current recordings UI/storage suite passed
+93/93 cases. Those are separate contracts, not 280 real calls or audio captures.
+
+The reconciliation retains current peer/direction/start metadata, nonce-based
+output reservation, provider finish notifications, tracked hook registration,
+scoped preferences and the current backup codec. The fixture stages the actual
+new dependencies rather than replacing the provider metadata contract with an
+older shape. Xposed, private custom-property interface signatures, restart
+notification and diagnostics endpoints are explicit, checked boundaries;
+unexpected contact lookups fail. A shadow MediaRecorder still produces no audio.
+Android device, actual call, audio-route and private-module integration acceptance
+remain NOT_VERIFIED. The historical host APK observations below were not repeated.
+
 `python3 qa/test_call_recording_lifecycle.py` compiles the complete production hook
 and exercises its installed callbacks with explicit Android, Xposed, storage,
 host and scheduler doubles. It verifies call identity, event ordering,
@@ -16,8 +38,8 @@ reviewed source contract, not compatibility with every host version or device.
 ## Ending-event overload regression checks
 
 `python3 qa/test_call_recording_event_contract.py` compiles the complete production
-event contract and checks 20 declaration variants for each of the two supported
-callback packages in isolated class loaders (40 Java reflection cases). It checks
+event contract and checks 23 declaration variants for each of the two supported
+callback packages in isolated class loaders (46 Java reflection cases). It checks
 the verified exact signature, a unique typed alternative, unrelated overloads,
 wrong return/static/native/abstract contracts, same-suffix classes from another
 package, and ambiguous typed alternatives. An exact, usable signature takes
@@ -31,6 +53,48 @@ signature. The fixture dispatches the method actually registered by the hook and
 checks that its original arguments/result remain unchanged. This demonstrates
 source handling of that declaration shape; it does not identify another supported
 WhatsApp release. Run the on-device acceptance below for every actual host version.
+## Isolated Android provider acceptance (real Binder, PFD, SQLite)
+
+`qa/android_call_recording_device_test.py` builds a **test-only** APK under a
+different package (`io.github.tkmbrain.waex.callrecordingprobe`) and provider
+authority. It compiles the production `HookProvider`, `RecordingOutputFiles`,
+`CallRecordingStore` and their necessary support classes without changing the
+manager or WhatsApp installations. Unused private licensing/service contracts
+are explicit fail-closed doubles; this is **not** a production WAEX build or a
+replacement for the private hooking engine.
+
+From a checked-out source revision with an installed Android SDK, JDK 17 and
+Kotlin compiler:
+
+```sh
+python3 qa/android_call_recording_device_test.py --validate-sources
+python3 qa/android_call_recording_device_test.py \
+  --out /absolute/empty/output-directory \
+  --sdk /absolute/android/sdk --jdk-home /absolute/jdk17 \
+  --kotlin-home /absolute/kotlin --keystore /absolute/private/probe-key.jks
+```
+
+For an **explicitly selected test device and Android user**, add
+`--execute-device --serial SERIAL --user USER_ID`. An existing probe install
+requires `--replace-probe` with its original signing key. The runner does not
+uninstall or clear apps, and does not send WhatsApp messages or calls. Output
+includes production source hashes, tool commands/exit codes, signed APK hash,
+the installed-package hash before/after, the run UID/user and synthetic case
+results. Preserve `result.json` and `device-result.json` as revision-specific
+evidence; do not infer the runtime behavior from `--validate-sources` alone.
+
+The real-device cases include normal create/write/finish, same-name refusal
+without truncation, distinct names at the same timestamp, invalid names,
+concurrent reservations, injected SQLite failure/cleanup, metadata reopen,
+targeted deletion and descriptor conservation. They execute *Android provider*
+contracts—not LSPosed injection, call events, audio capture, live WhatsApp
+data, or the official WAEX binary. Repeat on each Android user/profile that
+matters; a personal-profile pass does not prove work-profile routing.
+
+The `android_preserved_dispatch_test.py` Robolectric source-compilation gate
+must also compile `RecordingOutputFiles.java` whenever it compiles the current
+production `HookProvider`. These Robolectric checks are not a substitute for
+Android Binder/UID acceptance on real devices.
 
 ## Run on each supported device/build combination
 
@@ -65,6 +129,14 @@ consenting participants and the normal module permissions/settings.
    microphone, wired/Bluetooth routes and speakerphone separately. Confirm
    what is actually audible in the file; successful `MediaRecorder.start()`
    does not establish that both participants were captured.
+10. With authorized test accounts and a legitimate candidate APK, exercise two
+    recording sessions whose requested timestamps fall in the same second (or
+    use an isolated, authenticated provider harness to force the collision).
+    Verify distinct saved paths, intact audio/metadata for both sessions and
+    correct playback. Re-requesting the *same* filename must fail without
+    truncating or deleting its existing bytes. Check this in personal and work
+    profiles where the manager/provider bridge is available. A successful
+    standalone file-allocation test does not replace this provider acceptance.
 
 ## Audio-source limitation
 

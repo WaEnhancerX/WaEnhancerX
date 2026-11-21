@@ -95,6 +95,10 @@ class CatalogSourceTest(unittest.TestCase):
         by_key={r['key']:r for r in rows}
         self.assertNotIn('call_privacy',by_key)
         self.assertNotIn('always_typing',by_key)
+        self.assertNotIn('call_recording',by_key)
+        self.assertNotIn('preserve_delete_for_me',by_key)
+        self.assertNotIn('doubletap2like_emoji',by_key)
+        self.assertEqual('system_compatibility',by_key['app_interface_size']['group_id'])
         self.assertEqual('home_layout_navigation',by_key['status_style']['group_id'])
         self.assertEqual('media_utility_downloader',by_key['download_view_once']['group_id'])
         self.assertEqual('media_quality_status',by_key['send_audio_as_voice_status']['group_id'])

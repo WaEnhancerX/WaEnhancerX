@@ -21,13 +21,15 @@ from test_call_recording_lifecycle import STUBS
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = Path('app/src/main/java/com/waenhancer')
-JAVA_FIRST = [BASE / name for name in ('config/PreferenceSchema.java', 'config/PreferenceStores.java')]
+JAVA_FIRST = [BASE / name for name in ('config/PreferenceSchema.java', 'config/PreferenceStores.java',
+    'config/ExclusivePreferences.java', 'calls/RecordingOutputFiles.java', 'xposed/utils/HookErrors.java')]
+JAVA_LIFECYCLE = [BASE / name for name in ('xposed/core/HookRegistrar.java', 'xposed/core/ViewHookDispatcher.java')]
 KOTLIN = [BASE / name for name in ('xposed/core/BaseFeature.kt', 'core/preferences/SettingsBackupCodec.kt')]
 JAVA_HOOK = [BASE / name for name in (
     'core/preferences/WaexPreferenceManager.java',
     'xposed/features/media/CallRecordingHook.java',
     'xposed/features/media/CallRecordingEventContract.java')]
-PRODUCTION = JAVA_FIRST + KOTLIN + JAVA_HOOK
+PRODUCTION = JAVA_FIRST + KOTLIN + JAVA_LIFECYCLE + JAVA_HOOK
 FIXTURE = Path('qa/fixtures/CallRecordingAudioAndroidTest.java')
 EXPECTED_TESTS = 78
 
@@ -144,7 +146,8 @@ def main():
     fixtures = []
     for name, content in STUBS.items():
         if not (name.startswith(('de/robv/android/xposed/', 'com/whatsapp/'))
-                or name in ('androidx/annotation/NonNull.java',
+                or name in ('androidx/annotation/NonNull.java', 'androidx/annotation/VisibleForTesting.java',
+                            'com/waenhancer/utils/ContactNameResolver.java',
                             'com/waenhancer/xposed/core/devkit/DexSearchEngine.java',
                             'com/waenhancer/xposed/bridge/HookProvider.java')):
             continue
@@ -158,7 +161,26 @@ def main():
                     'public static void log(String s){if(failLog)throw new IllegalStateException("fixture log failure");logs.add(s);}')
         path = stage / 'boundaries' / name
         path.parent.mkdir(parents=True, exist_ok=True); path.write_text(content); fixtures.append(path)
-    for name in ('dagger/hilt/android/qualifiers/ApplicationContext',):
+    boundaries = {
+        'com/waenhancer/licensing/customprops/CustomAbPropsStore.java': '''package com.waenhancer.licensing.customprops;
+ public interface CustomAbPropsStore { boolean getBoolean(String k,boolean d); void putBoolean(String k,boolean v);
+ String getString(String k,String d); void putString(String k,String v); }''',
+        'com/waenhancer/config/PreferenceRestartTracker.java': '''package com.waenhancer.config;
+ public final class PreferenceRestartTracker { public static int calls;
+ public static void onPreferenceChanged(android.content.SharedPreferences prefs,String key) {
+ if(!"call_recording_allow_mic_fallback".equals(key))throw new AssertionError("Unexpected restart key");
+ calls++; } }''',
+        'com/waenhancer/utils/DiagnosticsRecorder.java': '''package com.waenhancer.utils;
+ public final class DiagnosticsRecorder { public static int calls;
+ public static void recordPreferenceChange(android.content.Context context,String key,boolean scoped,String operation) {
+ if(!"call_recording_allow_mic_fallback".equals(key)||scoped||!"PUT".equals(operation))throw new AssertionError("Unexpected diagnostic operation");
+ calls++; }
+ public static void recordSettingsTransfer(android.content.Context c,String op,int count) {throw new AssertionError("Unexpected settings transfer");} }''',
+    }
+    for name, content in boundaries.items():
+        path = stage / 'boundaries' / name
+        path.parent.mkdir(parents=True, exist_ok=True); path.write_text(content); fixtures.append(path)
+    for name in ('dagger/hilt/android/qualifiers/ApplicationContext', 'androidx/annotation/Nullable'):
         package, annotation = name.rsplit('/', 1)
         path = stage / 'boundaries' / (name + '.java')
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -175,9 +197,9 @@ def main():
     run(['javac', '--release', '17', '-cp', production_cp, '-d', str(classes),
          *map(str, fixtures), *[str(staged[p]) for p in JAVA_FIRST]], out / 'javac-fixtures-schema.log')
     run([compiler, '-jvm-target', '17', '-classpath', production_cp, '-d', str(classes),
-         *[str(staged[p]) for p in KOTLIN]], out / 'kotlinc-base-and-codec.log')
+         *[str(staged[p]) for p in KOTLIN + JAVA_LIFECYCLE]], out / 'kotlinc-base-and-codec.log')
     run(['javac', '--release', '17', '-cp', production_cp, '-d', str(classes),
-         *[str(staged[p]) for p in JAVA_HOOK]], out / 'javac-recorder.log')
+         *[str(staged[p]) for p in JAVA_LIFECYCLE + JAVA_HOOK]], out / 'javac-recorder.log')
     run(['javac', '--release', '17', '-cp', classpath, '-d', str(classes),
          str(staged[FIXTURE])], out / 'javac-tests.log')
     opens = ['java.base/java.lang', 'java.base/java.util', 'java.base/java.io', 'java.base/java.net',
@@ -201,7 +223,7 @@ def main():
     summary = {'source_root': str(root), 'junit_exit_code': result, 'passed_tests': count,
                'expected_tests': EXPECTED_TESTS, 'methods_per_sdk': 26, 'sdk': [24, 28, 34],
                'source_sha256': identities,
-               'limits': 'Seven complete production classes: recorder, event contract, BaseFeature, preference schema, stores, preference manager and backup codec. Real Android framework SharedPreferences, Bundle, ContentResolver and ParcelFileDescriptor on Robolectric 24/28/34. Native media operations use an explicit MediaRecorder shadow; no audio or encoded file bytes are generated. Host declarations, Xposed callbacks, scheduler, storage authorization and DexKit native discovery are explicit fixtures. Preference write-failure injection uses an explicit Context/Editor proxy. Real DexKit 2.2.0 API compilation. No complete CallsHub Compose render, full module APK, root, Samsung route, remote participant or real WhatsApp call was tested.'}
+               'limits': 'Complete production recorder, event contract, BaseFeature, HookRegistrar/ViewHookDispatcher, HookErrors, RecordingOutputFiles, preference schema/stores/exclusivity, manager and backup codec. Real Android SharedPreferences, Bundle, ContentResolver and ParcelFileDescriptor on Robolectric 24/28/34. Native media uses an explicit shadow; no audio or encoded bytes. Host, Xposed, scheduler, storage authorization and native DexKit discovery are fixtures. Restart/diagnostic sinks validate and count the expected preference operation, without implementing those subsystems. Only four public CustomAbPropsStore signatures are represented; no private licensing behavior is implemented or tested. Preference failure uses an explicit Context/Editor proxy. Real DexKit 2.2.0 API compilation. No full Compose render, module APK, root, device routing or real call acceptance.'}
     (out / 'result.json').write_text(json.dumps(summary, indent=2) + '\n')
     if not args.allow_test_failure and (result or count != EXPECTED_TESTS):
         raise RuntimeError('Call audio regression gate failed')

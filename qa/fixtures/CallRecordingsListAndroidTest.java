@@ -12,6 +12,8 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.ParcelFileDescriptor;
 import androidx.core.content.FileProvider;
+import com.waenhancer.calls.CallRecordingRecord;
+import com.waenhancer.calls.CallRecordingStore;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -65,7 +67,7 @@ public final class CallRecordingsListAndroidTest {
         static boolean stopFails, releaseFails;
         static Runnable duringStop;
         @RealObject MediaPlayer realPlayer;
-        int prepares, starts, stops, releases;
+        int prepares, starts, stops, releases, pauses;
         MediaPlayer.OnCompletionListener completion;
         @Implementation protected void setDataSource(String path) throws IOException {
             attempts.add(this);
@@ -82,6 +84,8 @@ public final class CallRecordingsListAndroidTest {
         @Implementation protected void setOnCompletionListener(MediaPlayer.OnCompletionListener listener) {
             completion = listener;
         }
+        @Implementation protected void pause() { pauses++; }
+        @Implementation protected int getDuration() { return 12000; }
         @Implementation protected void stop() {
             stops++;
             Runnable reentry = duringStop; duringStop = null;
@@ -116,7 +120,7 @@ public final class CallRecordingsListAndroidTest {
         }
     }
 
-    @Before public void setup() {
+    @Before public void setup() throws Exception {
         app = RuntimeEnvironment.getApplication();
         // Robolectric defaults these directory APIs to separate roots. Model one
         // external volume so the public Recordings path matches external-path XML.
@@ -124,6 +128,8 @@ public final class CallRecordingsListAndroidTest {
         context = new StorageContext(app);
         stem = "fixture_" + UUID.randomUUID().toString().replace("-", "");
         ControlledPlayer.resetFixture(); ShadowToast.reset();
+        Field instance = CallRecordingStore.class.getDeclaredField("instance"); instance.setAccessible(true);
+        instance.set(null, null);
     }
     @After public void cleanup() throws Exception {
         ControlledPlayer.stopFails = ControlledPlayer.releaseFails = false;
@@ -134,6 +140,9 @@ public final class CallRecordingsListAndroidTest {
         for (File file : created) assertTrue(!file.exists() || file.delete());
         Field cache = FileProvider.class.getDeclaredField("sCache"); cache.setAccessible(true);
         ((Map<?, ?>) cache.get(null)).clear();
+        CallRecordingStore.get(app).close();
+        Field instance = CallRecordingStore.class.getDeclaredField("instance"); instance.setAccessible(true);
+        instance.set(null, null);
     }
     private void grantLegacy() {
         context.permissions.put(Manifest.permission.READ_EXTERNAL_STORAGE, PackageManager.PERMISSION_GRANTED);
@@ -313,7 +322,32 @@ public final class CallRecordingsListAndroidTest {
         Controller value = probe(); RecordedCallItem item = playerItem(value); value.play(item);
         ControlledPlayer player = ControlledPlayer.attempts.get(0); value.delete(item);
         assertFalse(item.getFile().exists()); assertAbsent(value, item.getFile()); assertEquals(1, player.releases);
-        assertNull(value.activePlayer()); assertEquals("Recording deleted", ShadowToast.getTextOfLatestToast());
+        assertNull(value.activePlayer()); assertEquals("Deleted 1 recording(s)", ShadowToast.getTextOfLatestToast());
+    }
+    @Test public void indexedMetadataIsRetainedByTheIoListLoad() throws Exception {
+        File file = create(new File(app.getFilesDir(), "call_recordings"), ".m4a", 1000);
+        CallRecordingStore.get(app).begin(new CallRecordingRecord("fixture-call", "fixture@s.whatsapp.net",
+                "Fixture caller", "incoming", "com.whatsapp.w4b", 2000L, 3000L, file.getAbsolutePath(), "completed"));
+        Controller value = probe(); value.refresh();
+        RecordedCallItem item = Arrays.stream(value.items()).filter(x -> x.getFile().equals(file)).findFirst().orElseThrow();
+        assertEquals("Fixture caller", item.getContactName()); assertEquals("fixture@s.whatsapp.net", item.getContactJid());
+        assertEquals("incoming", item.getDirection()); assertEquals("com.whatsapp.w4b", item.getTargetPackage());
+    }
+    @Test public void refusedDeletionPreservesMetadataUntilTheFileIsActuallyRemoved() throws Exception {
+        Controller value = probe(); File file = create(new File(app.getFilesDir(), "call_recordings"), ".m4a", 1000);
+        CallRecordingStore store = CallRecordingStore.get(app);
+        store.begin(new CallRecordingRecord("fixture-call", null, "Fixture caller", "unknown", "com.whatsapp",
+                1000L, 2000L, file.getAbsolutePath(), "completed"));
+        RecordedCallItem refused = value.addFile(new File(file.getAbsolutePath()) { @Override public boolean delete() { return false; } });
+        value.delete(refused); assertEquals(1, store.all().size()); assertTrue(file.exists());
+        value.delete(value.addFile(file)); assertTrue(store.all().isEmpty()); assertFalse(file.exists());
+    }
+    @Test public void currentPauseResumeControlsKeepTheSamePlayerOwner() throws Exception {
+        Controller value = probe(); RecordedCallItem item = playerItem(value); value.play(item);
+        ControlledPlayer player = ControlledPlayer.attempts.get(0);
+        value.play(item); assertEquals(1, player.pauses); assertEquals(0, player.releases);
+        value.play(item); assertEquals(2, player.starts); assertEquals(1, ControlledPlayer.attempts.size());
+        assertSame(player.realPlayer, value.activePlayer()); assertEquals(item.getFile().getAbsolutePath(), value.playingPath());
     }
     @Test public void repeatedFailedPreparationDoesNotAccumulatePlayerOwnership() throws Exception {
         Controller value = probe(); RecordedCallItem item = playerItem(value); ControlledPlayer.failAt = "prepare";

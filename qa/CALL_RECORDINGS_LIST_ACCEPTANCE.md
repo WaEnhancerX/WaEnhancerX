@@ -37,11 +37,14 @@ from an earlier player must not stop a replacement player. Screen disposal uses
 the same cleanup. These changes preserve synchronous local-file preparation;
 they do not claim lower decoder latency or asynchronous playback initialization.
 
-A single-file delete removes its row and reports success only after
-`File.delete()` returns `true`. A false result or an exception retains the row
-and displays a localized failure message. The bulk-delete path already checks
-the result and is unchanged. The playback cleanup and deletion changes do not
-alter recording capture, audio-source selection or microphone permission.
+The current confirmation sheet remains the only UI entry to the unified
+single/batch delete operation. A file's row and SQLite metadata are removed only
+after `File.delete()` returns `true`. A false result or an exception retains both
+and displays a localized failure message, including a partially successful batch.
+All-success batches retain nightly's pluralized success message. Current search,
+filters, caller/direction metadata, selection, expanded-player pause/resume and
+the confirmation step are preserved. The playback cleanup and deletion changes
+do not alter recording capture, audio-source selection or microphone permission.
 
 ## Reproducible framework gate
 
@@ -73,13 +76,25 @@ or validate the application's dependency graph. When porting the gate to an
 older branch, include the unchanged `qa/android_media_preview_test.py` and
 `qa/maven_dependencies.py` helpers if they are absent.
 
-The suite executes 28 JUnit methods on APIs 24, 28 and 34, for 84 cases. Its
-original 14 storage methods remain intact. The immediate pre-cleanup baseline
-(which already contains the storage correction) fails 27 of these 84 cases;
-the candidate passes all 84. The failures cover data-source, prepare and start
-cleanup; rejected stop; repeated failed preparation; false and throwing delete;
-stale completion; and reentrant stop on all three APIs. Success, disposal,
-replacement playback, idempotence and release-exception controls also run.
+The reconciled suite executes 31 JUnit methods on APIs 24, 28 and 34, for 93
+cases. Its original 28 storage/ownership methods remain; three new methods check
+current metadata load, SQLite-index preservation after refused deletion and the
+retained one-owner pause/resume path. The candidate passed 93/93 in 24.54 seconds
+including compilation on Linux, Temurin 21.0.13.1+2 and Kotlin 2.0.20. The tested
+staged tree was `bb7587021dfea5eb083742f66c9c3e4405098d16`, reconciling original
+PR head `e4f3a29a64e7f38f714264b3b01d06d009af9423` with nightly
+`9972e49fac9bfb650c25ee31fde0da9425b67175`. Later changes are documentation and
+changelog only. Source identities, extracted ranges and dependency hashes were
+retained in the execution output. No new current-nightly negative-control run
+or actual-device acceptance is claimed by these results.
+
+Historical, separate evidence: the immediate pre-cleanup revision (already
+containing the storage correction) failed 27/84 cases; its candidate passed
+84/84. Those failures covered data-source, prepare and start cleanup; rejected
+stop; repeated failed preparation; false and throwing delete; stale completion;
+and reentrant stop. Success, disposal, replacement playback, idempotence and
+release-exception controls remain in the current suite. These historical runs
+must not be attributed to the reconciled nightly inputs or added to 93 cases.
 
 The earlier storage-only comparison remains historical evidence: unchanged V39
 screen/XML failed 26 of 42 cases and the first storage candidate passed 42/42.
@@ -88,13 +103,16 @@ load body on Android 24/28. Do not add the historical 42 to the final 84 as if
 they were distinct current coverage.
 
 The gate compiles and executes the exact `CallsHubScreen` state/permission,
-`loadRecordings`, `LaunchedEffect`, `stopAudio`, audio-disposal, play-click and
-delete-click fragments, its complete `RecordedCallItem` declaration, and the
+`loadRecordings`, `LaunchedEffect`, `stopAudio`, audio-disposal, `togglePlayback`,
+confirmed `deleteRecordings`, selection and duration-format fragments, its
+complete nine-field `RecordedCallItem` declaration, and the
 unchanged provider's complete `create_call_recording` branch. Extracted line
 ranges, source identities and staged source are retained. Source bodies are
 not rewritten for baseline or candidate execution; click callbacks are wrapped
 in fixture functions with the same item/playing-state bindings.
 
+The actual current `CallRecordingStore` and `RecordingOutputFiles` are compiled;
+SQLite is real within Robolectric, including metadata retention on failed delete.
 Android Context/Core permission checks, Environment APIs, ParcelFileDescriptor,
 Bundle, directory enumeration, file contents and FileProvider's canonical path
 strategy are real framework/library objects. Permission answers and external
@@ -145,7 +163,8 @@ audio recording/playback and LSPosed are outside this gate.
    completion stops the current player. Repeat with an invalid or inaccessible
    recording; the error must leave no playing row. Native resource behavior
    still needs device profiling.
-8. Delete a writable recording and verify both file and row disappear. Try a
+8. Delete a writable recording through the confirmation sheet and verify its
+   file, row and metadata disappear. Try a
    legacy file that the OS refuses to delete; its row must remain and the
    failure message must appear. A failed delete must never report success.
 
