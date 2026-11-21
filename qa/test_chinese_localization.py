@@ -142,6 +142,21 @@ class ChineseLocaleTests(unittest.TestCase):
         self.assertIn('https://github.com/Walter498', readme)
         self.assertIn('Translation: Simplified Chinese updates and Traditional Chinese (Hong Kong and Taiwan)', readme)
 
+    def test_resource_aliases_remain_references(self):
+        aliases = {k: n.text for k, (n, _) in self.required.items() if (n.text or '').startswith('@string/')}
+        self.assertEqual(len(aliases), 2)
+        for locale, entries in self.targets.items():
+            for name, reference in aliases.items():
+                self.assertEqual(reference, entries[name][0].text, (locale, name, 'quoted aliases render as literal text'))
+                self.assertIn(reference.removeprefix('@string/'), entries)
+
+    def test_emoji_screen_references_are_defined(self):
+        source = (ROOT / 'app/src/main/java/com/waenhancer/ui/screens/conversation/CustomEmojisScreen.kt').read_text()
+        references = set(re.findall(r'R\.string\.([a-zA-Z0-9_]+)', source))
+        self.assertFalse(references - set(self.base), references - set(self.base))
+        self.assertIn('stringResource(R.string.custom_emojis_delete)', source)
+        self.assertNotIn('R.string.waex_ui_remove_download', source)
+
     def test_negative_placeholder_controls(self):
         source = '%1$s %2$d%%'
         for bad in ('%1$d %2$d%%', '%1$s %2$d', '%1$s %3$d%%', '%1$s %2$d%% %2$d'):

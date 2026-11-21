@@ -21,16 +21,22 @@ def inspect_dump(dump, expected):
         assert key not in seen, ('duplicate compiled resource', key)
         seen.add(key)
         configurations = {}
-        for v in re.finditer(r'^      \(([^)]*)\) "(.*?)(?=^      \(|\Z)', body, re.M | re.S):
+        references = set()
+        for v in re.finditer(r'^      \(([^)]*)\) (.*?)(?=^      \(|\Z)', body, re.M | re.S):
             qualifier, content = v.groups()
             assert qualifier not in configurations, (key, qualifier)
             content = content.rstrip('\n')
-            assert content.endswith('"'), (key, qualifier, 'invalid dump string')
-            configurations[qualifier] = content[:-1].replace('\n      ', '\n')
+            if re.fullmatch(r'@string/[a-zA-Z0-9_]+', content):
+                references.add(qualifier)
+                configurations[qualifier] = content
+            else:
+                assert content.startswith('"') and content.endswith('"'), (key, qualifier, 'invalid dump string')
+                configurations[qualifier] = content[1:-1].replace('\n      ', '\n')
         assert '' in configurations, (key, 'missing default')
         for locale in LOCALES:
             if key in expected[locale]:
                 assert configurations.get(locale) == expected[locale][key], (key, locale, configurations.get(locale), expected[locale][key])
+                assert (locale in references) == expected[locale][key].startswith('@string/'), (key, locale, 'alias/literal mismatch')
                 count += 1
             else:
                 assert locale not in configurations, (key, 'non-translatable resource overridden')
@@ -88,7 +94,8 @@ def main():
     expected = {l: {k: text(n.text) for k, (n, _) in catalog('values-' + l).items() if n.tag == 'string'} for l in LOCALES}
     count = inspect_dump(dump, expected)
     controls = [dump.replace('(zh-rHK)', '(fr)'), dump.replace('Package name=com.waenhancer id=7f', 'Package name=wrong id=7f'),
-                dump.replace('one=', 'zero=', 1), dump.replace('網絡', 'NETWORK', 1)]
+                dump.replace('one=', 'zero=', 1), dump.replace('網絡', 'NETWORK', 1),
+                dump.replace('(zh-rHK) @string/interface_size_desc', '(zh-rHK) "@string/interface_size_desc"', 1)]
     for bad in controls:
         try:
             inspect_dump(bad, expected)
@@ -100,7 +107,7 @@ def main():
               'negative_controls': len(controls), 'commands': commands, 'identities': identities,
               'scope': 'Real AAPT2 resource compilation/linking and exact translated-value verification; not a complete APK or device test'}
     (out / 'result.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n')
-    print(f'PASS: {count} exact compiled Chinese values; 4 plural configurations; 4 negative controls. NOT a full app build.')
+    print(f'PASS: {count} exact compiled Chinese values; 4 plural configurations; {len(controls)} negative controls. NOT a full app build.')
 
 
 if __name__ == '__main__':

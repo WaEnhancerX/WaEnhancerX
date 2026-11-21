@@ -378,8 +378,8 @@
     <string name="status_download_saving">"動態下載儲存"</string>
     <string name="save_status_duplicates">"儲存重複副本"</string>
     <string name="save_status_duplicates_desc">"每次都儲存為新檔案"</string>
-    <string name="feat_app_interface_size_title">"@string/interface_size_title"</string>
-    <string name="feat_app_interface_size_desc">"@string/interface_size_desc"</string>
+    <string name="feat_app_interface_size_title">@string/interface_size_title</string>
+    <string name="feat_app_interface_size_desc">@string/interface_size_desc</string>
     <string name="feat_status_style_title">"動態與狀態樣式"</string>
     <string name="feat_status_style_desc">"使用 WhatsApp 原生介面樣式自訂動態與狀態佈局"</string>
     <string name="sending_read_blue_tick">"正在向對方傳送已讀藍勾…"</string>
