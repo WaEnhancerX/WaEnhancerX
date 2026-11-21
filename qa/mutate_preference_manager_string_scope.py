@@ -14,6 +14,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 MANAGER = Path("app/src/main/java/com/waenhancer/core/preferences/WaexPreferenceManager.java")
 INPUTS = [MANAGER,
+          Path("app/src/main/java/com/waenhancer/config/ExclusivePreferences.java"),
           Path("app/src/main/java/com/waenhancer/config/PreferenceSchema.java"),
           Path("app/src/main/java/com/waenhancer/config/PreferenceStores.java"),
           Path("qa/test_bridge_contract.py")]

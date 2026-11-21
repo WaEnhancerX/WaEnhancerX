@@ -1,0 +1,207 @@
+name: Nightly PR gate
+
+# Runs from the base branch (nightly) and never checks out or runs PR code.
+# Only the initial `opened` event is handled; later commits are never re-reviewed
+# or merged automatically.
+on:
+  pull_request_target:
+    types: [opened]
+    branches: [nightly]
+
+permissions: {}
+
+concurrency:
+  group: nightly-pr-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Allowlist, scope and protected-path checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    outputs:
+      decision: ${{ steps.gate.outputs.decision }}
+      reason: ${{ steps.gate.outputs.reason }}
+      head_sha: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Check out the trusted gate files from the base branch only
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/release/pr_gate.py
+            .github/nightly-protected-paths.json
+          sparse-checkout-cone-mode: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Decide whether the PR may continue
+        id: gate
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          CONTRIBUTORS_API_URL: ${{ vars.WAEX_CONTRIBUTORS_API_URL }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_AUTHOR_ID: ${{ github.event.pull_request.user.id }}
+          PR_AUTHOR_TYPE: ${{ github.event.pull_request.user.type }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_DRAFT: ${{ github.event.pull_request.draft }}
+          PR_CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+          PR_ADDITIONS: ${{ github.event.pull_request.additions }}
+          PR_DELETIONS: ${{ github.event.pull_request.deletions }}
+        run: python3 scripts/release/pr_gate.py
+
+      - name: Hold the PR for a maintainer
+        if: steps.gate.outputs.decision != 'proceed'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GATE_MESSAGE: ${{ steps.gate.outputs.message }}
+        run: |
+          set -euo pipefail
+          gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label needs-maintainer
+          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
+            "This PR is waiting for a maintainer review. ${GATE_MESSAGE}"
+
+      - name: Record the result
+        if: always()
+        shell: bash
+        env:
+          DECISION: ${{ steps.gate.outputs.decision }}
+          REASON: ${{ steps.gate.outputs.reason }}
+        run: |
+          {
+            echo '### Nightly PR gate'
+            echo "Decision: \`${DECISION:-none}\` (reason: \`${REASON:-none}\`)"
+            echo 'A passing gate leads to AI review; only the reviewed commit is merged afterwards.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  review:
+    name: AI security review (verdict only, cannot merge)
+    needs: gate
+    if: needs.gate.outputs.decision == 'proceed'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: ai-review
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      checks: write
+    outputs:
+      verdict: ${{ steps.review.outputs.verdict }}
+      confidence: ${{ steps.review.outputs.confidence }}
+      reviewed_sha: ${{ steps.review.outputs.reviewed_sha }}
+    steps:
+      - name: Check out the trusted review files from the base branch only
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/release/pr_gate.py
+            scripts/release/ai_review.py
+            scripts/release/publish_review.sh
+            docs/NIGHTLY_CONTRIBUTOR_RULES.md
+          sparse-checkout-cone-mode: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Review the diff
+        id: review
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REVIEW_PROVIDER: ${{ vars.WAEX_REVIEW_PROVIDER }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          REVIEW_MODEL: ${{ vars.WAEX_REVIEW_MODEL }}
+          REVIEW_MIN_CONFIDENCE: ${{ vars.WAEX_REVIEW_MIN_CONFIDENCE }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          REVIEW_COMMENT_FILE: ${{ runner.temp }}/review-comment.md
+          REVIEW_PAYLOAD_FILE: ${{ runner.temp }}/review-payload.json
+          REVIEW_CHECK_FILE: ${{ runner.temp }}/review-check.json
+        run: python3 scripts/release/ai_review.py
+
+      - name: Publish the review, the check and the labels
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          VERDICT: ${{ steps.review.outputs.verdict }}
+          COMMENT_FILE: ${{ runner.temp }}/review-comment.md
+          PAYLOAD_FILE: ${{ runner.temp }}/review-payload.json
+          CHECK_FILE: ${{ runner.temp }}/review-check.json
+          # Optional: reviews and review comments are posted as this account (for example waex-bot).
+          REVIEW_TOKEN: ${{ secrets.WAEX_BOT_TOKEN }}
+        run: bash scripts/release/publish_review.sh
+
+  merge:
+    name: Merge the exact reviewed commit
+    needs: [gate, review]
+    if: needs.review.outputs.verdict == 'approve'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Check out the trusted merge script from the base branch only
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/release/merge_pr.py
+          sparse-checkout-cone-mode: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Create a short-lived token for the merge app
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.WAEX_APP_ID }}
+          private-key: ${{ secrets.WAEX_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Wait for QA on the reviewed commit, then merge it
+        id: merge
+        shell: bash
+        env:
+          MERGE_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REVIEWED_SHA: ${{ needs.review.outputs.reviewed_sha }}
+          REQUIRED_CHECK: ${{ vars.WAEX_QA_CHECK_NAME }}
+        run: python3 scripts/release/merge_pr.py
+
+      - name: Hold the PR for a maintainer
+        if: steps.merge.outputs.result != 'merged'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          MERGE_MESSAGE: ${{ steps.merge.outputs.message }}
+        run: |
+          set -euo pipefail
+          gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label needs-maintainer
+          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
+            "The automated review approved this PR but it was not merged. ${MERGE_MESSAGE:-The merge step did not run.} A maintainer will take it from here."
