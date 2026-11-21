@@ -1,14 +1,16 @@
 [Added]
+- Added VirusTotal scan on every Stable Release for all APKs, this makes sure all APKs are safe to use. This will attach a VirusTotal badge/link on every release page for users to verify.
+- Revived Update Channels back into the project
 
 
 [Fixes]
-- Fixed call recording toggle to respect on/off states of individual apps.
-- Fixed incorrect behaviour of some features being in Waiting state in max mode.
+- Fixed Harmful App Error by play protect
+
 
 [Improvements]
-- Improved Message Device Source
-- Improved WhatsApp startup
+- Migrate on-device transcription native libraries to on-demand download and provisioning
 
 
-[Community contribution]
-- Thanks to TheKillerMax, @Tttim0o for valuable contributions.
+[Update Channels]
+Now you can install stable or nightly build of WAEX on top of each other without any issues.
+Contributors are always welcome to contribute to nightly branch of this project. 

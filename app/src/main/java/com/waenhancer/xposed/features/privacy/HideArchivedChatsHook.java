@@ -7,6 +7,7 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.xposed.utils.HookErrors;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import org.luckypray.dexkit.query.FindClass;
@@ -124,7 +125,7 @@ public class HideArchivedChatsHook extends BaseFeature {
                                 }
                             }
                         }
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable ignored) { HookErrors.swallowed("HideArchivedChatsHook", ignored); }
                 }
             });
 

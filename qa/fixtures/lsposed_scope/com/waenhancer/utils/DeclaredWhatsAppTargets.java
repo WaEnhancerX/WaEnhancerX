@@ -7,4 +7,7 @@ public final class DeclaredWhatsAppTargets {
     public static Set<String> packages() {
         return Set.of("com.whatsapp", "com.whatsapp.w4b");
     }
+    public static boolean contains(String packageName) {
+        return packages().contains(packageName);
+    }
 }

@@ -16,6 +16,7 @@ public final class PreferenceKeyAliases {
         aliases.put("downloadstatus", "status_downloader");
         aliases.put("downloadviewonce", "download_view_once");
         aliases.put("custom_css", "custom_theme");
+        aliases.put("custom_emoji_enabled", "custom_emojis");
         aliases.put("css_theme", "custom_theme");
         aliases.put("change_dpi", "custom_view_dpi");
         aliases.put("chatfilter", "chat_filters");

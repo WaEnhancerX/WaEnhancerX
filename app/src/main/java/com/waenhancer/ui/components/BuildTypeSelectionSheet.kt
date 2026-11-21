@@ -50,8 +50,7 @@ fun BuildTypeSelectionSheet(
 
     WaexModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.surfaceContainer
+        sheetState = sheetState
     ) {
         Column(
             modifier = Modifier
@@ -144,12 +143,10 @@ fun BuildTypeSelectionSheet(
                 }
             }
 
-            OutlinedButton(
-                onClick = onDismiss,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(UiText.get(R.string.action_cancel, "Cancel"))
-            }
+            WaexSheetTextButton(
+                text = UiText.get(R.string.action_cancel, "Cancel"),
+                onClick = onDismiss
+            )
         }
     }
 }

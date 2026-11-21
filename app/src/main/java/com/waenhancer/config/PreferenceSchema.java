@@ -62,6 +62,24 @@ public final class PreferenceSchema {
     }
 
     public static final String KEY_FORCE_TARGET_DEBUGGABLE = "force_target_debuggable";
+    /** Explicit, device-local consent. Never included in settings backup exports. */
+    public static final String KEY_DIAGNOSTIC_CAPTURE_ENABLED = "diagnostic_capture_enabled";
+    /** Second consent for WhatsApp-owned process exit history, never included in backups. */
+    public static final String KEY_DIAGNOSTIC_TARGET_EXIT_ENABLED = "diagnostic_target_exit_enabled";
+    public static final String KEY_DIAGNOSTIC_TARGET_EXIT_SINCE = "diagnostic_target_exit_since_ms";
+
+    /**
+     * Version-compatibility rules decide whether WAEX may load at all, for every target app,
+     * so they are never scoped per target. Scoping them let a stale seeded copy (or a flag
+     * toggled while another target was selected) silently override the rules the user saw.
+     */
+    public static boolean isGlobalOnly(String key) {
+        return "module_config_mode".equals(key)
+                || "customize_supported_versions".equals(key)
+                || "custom_supported_versions".equals(key)
+                || "custom_supported_versions_str".equals(key)
+                || "bypass_version_check".equals(key);
+    }
 
     private static final Map<String, Entry> ENTRIES;
     private static final Set<String> EXPORTABLE;
@@ -71,6 +89,10 @@ public final class PreferenceSchema {
     static {
         Map<String, Entry> entries = new LinkedHashMap<>();
         add(entries, KEY_FORCE_TARGET_DEBUGGABLE, Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "active_theme", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, KEY_DIAGNOSTIC_CAPTURE_ENABLED, Type.BOOLEAN, Sensitivity.RUNTIME, Store.PUBLIC);
+        add(entries, KEY_DIAGNOSTIC_TARGET_EXIT_ENABLED, Type.BOOLEAN, Sensitivity.RUNTIME, Store.PUBLIC);
+        add(entries, KEY_DIAGNOSTIC_TARGET_EXIT_SINCE, Type.LONG, Sensitivity.RUNTIME, Store.PUBLIC);
         add(entries, "active_xposed_api_version", Type.INT, Sensitivity.RUNTIME, Store.PUBLIC);
         add(entries, "active_xposed_framework", Type.STRING, Sensitivity.RUNTIME, Store.PUBLIC);
         add(entries, "admin_emoji", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
@@ -138,6 +160,11 @@ public final class PreferenceSchema {
         // set is a local, non-exported cache read by the injected WhatsApp process.
         add(entries, "download_profile_save_duplicates", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "download_profile_saved_identities", Type.STRING_SET, Sensitivity.CACHE, Store.PUBLIC);
+        // Both options are read by the injected media downloader. Older builds
+        // stored them as unknown public keys, so preserve that store while
+        // making them eligible for per-target inheritance and settings backups.
+        add(entries, "parallel_downloading", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "parallel_downloading_connections", Type.INT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "call_type", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "call_type_controller", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "call_white_contacts", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
@@ -172,6 +199,9 @@ public final class PreferenceSchema {
         add(entries, "custom_filters", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "custom_privacy", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "custom_privacy_type", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "custom_emojis", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "custom_emoji_enabled", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "custom_emoji_font", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "customforwardlimit", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "customize_supported_versions", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "custom_supported_versions", Type.STRING_SET, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
@@ -283,6 +313,9 @@ public final class PreferenceSchema {
         add(entries, "ignored_version", Type.STRING, Sensitivity.RUNTIME, Store.PRIVATE);
         add(entries, "igstatus", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "native_igstatus", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "native_floating_navigation", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "native_floating_navigation_bg_color", Type.INT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "native_floating_navigation_selection_color", Type.INT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "imagequality", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "init_prefs_creation", Type.BOOLEAN, Sensitivity.RUNTIME, Store.PRIVATE);
         add(entries, "inline_translation", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
@@ -304,6 +337,7 @@ public final class PreferenceSchema {
         add(entries, "metaai_remove_entry_points", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "metaai_block_chat", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "module_heartbeat", Type.LONG, Sensitivity.RUNTIME, Store.PRIVATE);
+        add(entries, "module_config_mode", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "need_restart", Type.BOOLEAN, Sensitivity.RUNTIME, Store.PUBLIC);
         add(entries, "newchat", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "novaconfig", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
@@ -326,6 +360,7 @@ public final class PreferenceSchema {
         add(entries, "remove_status_quick_reactions", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "removechannel_rec", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "removeforwardlimit", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "remove_sticker_white_outline", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "removeseemore", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "repo_stats_json", Type.STRING, Sensitivity.CACHE, Store.PRIVATE);
         add(entries, "repo_stats_time", Type.LONG, Sensitivity.CACHE, Store.PRIVATE);
@@ -371,6 +406,7 @@ public final class PreferenceSchema {
         add(entries, "tasker_secret", Type.STRING, Sensitivity.SECRET, Store.PRIVATE);
         add(entries, "text_color", Type.INT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "thememode", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "timestamp_relative", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "timestamp_format", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "timestamp_custom_pattern", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "timestamp_custom_text", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
@@ -387,6 +423,7 @@ public final class PreferenceSchema {
         add(entries, "archive_open_via_menu", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "archive_open_via_title_long_press", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "archive_open_via_title_triple_tap", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "locked_chats_message_notifications", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "locked_open_via_menu", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "locked_open_via_title_long_press", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "locked_open_via_title_triple_tap", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
@@ -399,6 +436,7 @@ public final class PreferenceSchema {
         add(entries, "update_alert_pref", Type.BOOLEAN, Sensitivity.PRIVATE_SETTING, Store.PRIVATE);
         add(entries, "update_auto_check", Type.BOOLEAN, Sensitivity.PRIVATE_SETTING, Store.PRIVATE);
         add(entries, "update_check", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "update_channel", Type.STRING, Sensitivity.PRIVATE_SETTING, Store.PRIVATE);
         add(entries, "update_frequency", Type.STRING, Sensitivity.PRIVATE_SETTING, Store.PRIVATE);
         add(entries, "update_check_module_open", Type.BOOLEAN, Sensitivity.PRIVATE_SETTING, Store.PRIVATE);
         add(entries, "update_check_whatsapp_open", Type.BOOLEAN, Sensitivity.PRIVATE_SETTING, Store.PRIVATE);
@@ -408,6 +446,7 @@ public final class PreferenceSchema {
         add(entries, "available_update_tag", Type.STRING, Sensitivity.RUNTIME, Store.PUBLIC);
         add(entries, "available_update_name", Type.STRING, Sensitivity.RUNTIME, Store.PUBLIC);
         add(entries, "available_update_changelog", Type.STRING, Sensitivity.RUNTIME, Store.PUBLIC);
+        add(entries, "available_update_channel", Type.STRING, Sensitivity.RUNTIME, Store.PUBLIC);
         add(entries, "verify_blocked_contact", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "video_call_screen_rec", Type.BOOLEAN, Sensitivity.PRIVATE_SETTING, Store.PRIVATE);
         add(entries, "video_limit_size", Type.FLOAT, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);

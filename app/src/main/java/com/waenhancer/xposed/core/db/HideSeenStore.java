@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import com.waenhancer.xposed.utils.HookErrors;
 
 
 public class HideSeenStore extends SQLiteOpenHelper {
@@ -91,7 +92,7 @@ public class HideSeenStore extends SQLiteOpenHelper {
                 updateValues.put("read", isViewedInt);
             }
             db.update(TABLE_NAME, updateValues, "jid=? AND message_id=?", new String[]{jid, messageId});
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("HideSeenStore", ignored); }
     }
 
     public void insertHideSeenMessageAsync(String jid, String messageId, int type, boolean viewed) {
@@ -140,7 +141,7 @@ public class HideSeenStore extends SQLiteOpenHelper {
             if (cursor != null && cursor.moveToFirst()) {
                 return cursor.getInt(0) == 1;
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("HideSeenStore", ignored); }
         return false;
     }
 
@@ -161,7 +162,7 @@ public class HideSeenStore extends SQLiteOpenHelper {
                     list.add(new SeenMessageItem(jid, msgId, viewed));
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("HideSeenStore", ignored); }
         return list;
     }
 }

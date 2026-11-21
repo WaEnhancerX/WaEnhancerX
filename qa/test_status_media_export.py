@@ -17,6 +17,12 @@ from test_gallery_export import STUBS as GALLERY_STUBS
 ROOT = Path(__file__).resolve().parents[1]
 MEDIA = Path('app/src/main/java/com/waenhancer/xposed/features/media')
 STUBS = dict(GALLERY_STUBS)
+STUBS['com/waenhancer/xposed/utils/HookErrors.java'] = '''package com.waenhancer.xposed.utils;
+public final class HookErrors {
+ public static void swallowed(String site,Throwable error){
+  throw new AssertionError("Unexpected swallowed export error at "+site,error);
+ }
+}'''
 STUBS['android/os/Environment.java'] = STUBS['android/os/Environment.java'].replace(
     'DIRECTORY_MOVIES="Movies",', 'DIRECTORY_MUSIC="Music",DIRECTORY_MOVIES="Movies",').replace(
     'public static File root;', 'public static File root;public static Runnable onDirectory;').replace(
@@ -184,7 +190,7 @@ def main():
     hook = (source_root/MEDIA/'StatusDownloadHook.java').read_text()
     start = hook.index('    private void saveMediaFile('); end = hook.index('    private void copyToClipboard(',start)
     body = hook[start:end]
-    assert body.index('StatusMediaExporter.export(ctx, srcFile);') < body.index('waex_ui_status_saved_to_gallery_waex_9f345669')
+    assert body.index('StatusMediaExporter.export(ctx, srcFile);') < body.index('waex_ui_status_saved_to_gallery_waex')
     assert 'FileOutputStream' not in body and 'openOutputStream' not in body
     assert 'getMessage()' not in body
     assert 'MenuItem item = menu.findItem(MENU_ID_STATUS_DOWNLOAD);' in hook

@@ -16,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.waenhancer.ui.designsystem.WaexTheme
@@ -26,6 +27,7 @@ fun WaexPreferenceItem(
     modifier: Modifier = Modifier,
     description: String? = null,
     icon: ImageVector? = null,
+    enabled: Boolean = true,
     onClick: (() -> Unit)? = null,
     showDivider: Boolean = true,
     trailing: (@Composable () -> Unit)? = null
@@ -35,13 +37,13 @@ fun WaexPreferenceItem(
     val spacing = WaexTheme.spacing
     val radius = WaexTheme.radius
 
-    val itemModifier = if (onClick != null) {
+    val itemModifier = if (onClick != null && enabled) {
         modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
     } else {
         modifier.fillMaxWidth()
-    }
+    }.then(if (!enabled) Modifier.alpha(0.42f) else Modifier)
 
     Column(modifier = itemModifier) {
         Row(

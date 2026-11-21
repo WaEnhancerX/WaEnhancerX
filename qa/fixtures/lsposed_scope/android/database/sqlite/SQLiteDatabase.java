@@ -6,6 +6,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 
 /** Strict in-memory SQL double: unexpected SQL/arguments throw, never return all rows. */
@@ -14,6 +15,8 @@ public final class SQLiteDatabase implements Closeable {
     public static boolean unsupportedSchema = false;
     public static final List<ScopeRow> rows = new ArrayList<>();
     public static int queries = 0;
+    public static int moduleQueries = 0;
+    public static int scopeQueries = 0;
 
     public record ScopeRow(int mid, String modulePackage, boolean enabled,
                            String targetPackage, int userId) {}
@@ -31,6 +34,24 @@ public final class SQLiteDatabase implements Closeable {
         queries++;
         if (unsupportedSchema) throw new IllegalStateException("Unsupported LSPosed schema");
         String normalized = sql.replaceAll("\\s+", " ").trim().toLowerCase(Locale.ROOT);
+        if (normalized.equals("select enabled from modules where module_pkg_name = ?")) {
+            if (args == null || args.length != 1) {
+                throw new IllegalArgumentException("Unexpected module SQL bind count");
+            }
+            moduleQueries++;
+            // ScopeRow supplies module fixtures, but a module has one row regardless of its scopes.
+            LinkedHashMap<Integer, String> modules = new LinkedHashMap<>();
+            for (ScopeRow row : rows) {
+                if (row.modulePackage.equals(args[0])) {
+                    String enabled = row.enabled ? "1" : "0";
+                    String previous = modules.putIfAbsent(row.mid, enabled);
+                    if (previous != null && !previous.equals(enabled)) {
+                        throw new IllegalStateException("Inconsistent module fixture");
+                    }
+                }
+            }
+            return new RowCursor(new ArrayList<>(modules.values()));
+        }
         if (normalized.equals("select name from sqlite_master where type='table'")) {
             // Legacy fallback sees no vendor tables in this strict fixture.
             return new RowCursor(List.of());
@@ -46,6 +67,7 @@ public final class SQLiteDatabase implements Closeable {
             throw new IllegalArgumentException("Unexpected SQL bind count: " + Arrays.toString(args));
         }
         int userId = bindsUser ? Integer.parseInt(args[1]) : -1;
+        scopeQueries++;
         List<String> result = new ArrayList<>();
         for (ScopeRow row : rows) {
             if (row.enabled && row.modulePackage.equals(args[0]) &&
@@ -63,6 +85,12 @@ public final class SQLiteDatabase implements Closeable {
 
         private RowCursor(List<String> values) { this.values = values; }
 
+        @Override public boolean moveToFirst() {
+            if (closed) throw new IllegalStateException("Cursor closed");
+            position = 0;
+            return !values.isEmpty();
+        }
+
         @Override public boolean moveToNext() {
             if (closed) throw new IllegalStateException("Cursor closed");
             return ++position < values.size();
@@ -73,6 +101,10 @@ public final class SQLiteDatabase implements Closeable {
                 throw new IllegalStateException("Invalid cursor access");
             }
             return values.get(position);
+        }
+
+        @Override public int getInt(int column) {
+            return Integer.parseInt(getString(column));
         }
 
         @Override public void close() { closed = true; }

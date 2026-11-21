@@ -2,7 +2,7 @@ name: LSPosed scope Android-user isolation
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, nightly]
     paths:
       - 'app/src/main/java/com/waenhancer/utils/LsposedScopeReader.kt'
       - 'qa/test_lsposed_scope_reader.py'

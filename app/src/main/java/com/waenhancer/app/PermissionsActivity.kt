@@ -95,8 +95,7 @@ enum class PermissionType {
     RUNTIME,
     MANAGE_ALL_FILES,
     SYSTEM_ALERT_WINDOW,
-    BATTERY_OPTIMIZATION,
-    INSTALL_PACKAGES
+    BATTERY_OPTIMIZATION
 }
 
 data class PermissionItem(
@@ -313,18 +312,6 @@ class PermissionsActivity : ComponentActivity() {
                 )
             )
 
-            // 8. Install Unknown Apps
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                items.add(
-                    PermissionItem(
-                        id = "install_packages",
-                        title = UiText.get(R.string.waex_ui_install_unknown_apps, "Install Unknown Apps"),
-                        description = UiText.get(R.string.waex_ui_required_for_seamless_in_app_version_u, "Required for seamless in-app version update downloads and module installations."),
-                        icon = WaexIcons.Install,
-                        type = PermissionType.INSTALL_PACKAGES
-                    )
-                )
-            }
 
             return items
         }
@@ -349,13 +336,6 @@ class PermissionsActivity : ComponentActivity() {
                 PermissionType.BATTERY_OPTIMIZATION -> {
                     val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
                     powerManager.isIgnoringBatteryOptimizations(context.packageName)
-                }
-                PermissionType.INSTALL_PACKAGES -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        context.packageManager.canRequestPackageInstalls()
-                    } else {
-                        true
-                    }
                 }
             }
         }
@@ -460,15 +440,6 @@ fun PermissionsScreen(
                     genericSettingsLauncher.launch(intent)
                 } catch (e: Exception) {
                     val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-                    genericSettingsLauncher.launch(intent)
-                }
-            }
-            PermissionType.INSTALL_PACKAGES -> {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    val intent = Intent(
-                        Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                        Uri.parse("package:${context.packageName}")
-                    )
                     genericSettingsLauncher.launch(intent)
                 }
             }

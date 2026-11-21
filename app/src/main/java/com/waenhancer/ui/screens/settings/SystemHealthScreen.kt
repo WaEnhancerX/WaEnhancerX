@@ -1,5 +1,9 @@
 package com.waenhancer.ui.screens.settings
 
+import android.content.ClipData
+import android.content.Intent
+import android.os.Build
+import androidx.core.content.FileProvider
 import com.waenhancer.app.R
 import com.waenhancer.utils.UiText
 
@@ -14,18 +18,24 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,16 +57,17 @@ import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
 import com.waenhancer.utils.SystemDiagnostics
 import com.waenhancer.utils.SystemDiagnosticsReader
 import com.waenhancer.utils.WhatsAppPackageDetector
-import com.waenhancer.utils.XposedRuntimeInspector
+import com.waenhancer.utils.TargetAppManager
 import com.waenhancer.utils.LsposedScopeReader
 import com.waenhancer.utils.LsposedScopeSnapshot
 import com.waenhancer.utils.TargetRuntimePresentation
-import com.waenhancer.ui.components.rememberRuntimeObservationClock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.BorderStroke
 import com.waenhancer.utils.InternalLabels
 import com.waenhancer.utils.MagiskDenylistDiagnostics
+import com.waenhancer.utils.DiagnosticsRecorder
+import kotlinx.coroutines.launch
 
 @Composable
 fun SystemHealthScreen() {
@@ -67,14 +78,20 @@ fun SystemHealthScreen() {
     val spacing = WaexTheme.spacing
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
+    val moduleActivation by TargetAppManager.moduleActivation.collectAsState()
+    val scope = rememberCoroutineScope()
+    var captureEnabled by remember { mutableStateOf(DiagnosticsRecorder.isEnabled(context)) }
+    var advancedExitEnabled by remember { mutableStateOf(DiagnosticsRecorder.isAdvancedEnabled(context)) }
+    var captureChanging by remember { mutableStateOf(false) }
+    var captureExporting by remember { mutableStateOf(false) }
+    var captureFeedback by remember { mutableStateOf<String?>(null) }
+    var confirmCaptureClear by remember { mutableStateOf(false) }
     var diagnostics by remember {
-        mutableStateOf(SystemDiagnosticsReader.getOrFastSnapshot(context))
+        mutableStateOf(SystemDiagnosticsReader.getOrFastSnapshot(context, moduleActivation.active))
     }
     var refreshTrigger by remember { mutableIntStateOf(0) }
-    var runtimeSnapshot by remember {
-        mutableStateOf(XposedRuntimeInspector.cached())
-    }
-    var scopeSnapshot by remember { mutableStateOf<LsposedScopeSnapshot?>(null) }
+    val scopeSnapshot by TargetAppManager.scopeSnapshot.collectAsState()
+    val activeTargets by TargetAppManager.detectedApps.collectAsState()
     var denylistReport by remember {
         mutableStateOf<MagiskDenylistDiagnostics.DenylistReport?>(MagiskDenylistDiagnostics.cached())
     }
@@ -85,23 +102,20 @@ fun SystemHealthScreen() {
         mutableStateOf(preferences.getBoolean("show_restart_sheet", true))
     }
     LaunchedEffect(refreshTrigger) {
-        val liveScope = withContext(Dispatchers.IO) { LsposedScopeReader.read(context) }
-        scopeSnapshot = liveScope
-        diagnostics = withContext(Dispatchers.IO) { SystemDiagnosticsReader.read(context) }
-        val packages = withContext(Dispatchers.IO) {
-            WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot, liveScope)
-                .filter { it.isInstalled }.map { it.packageName }
+        if (refreshTrigger > 0) TargetAppManager.refresh(context)
+    }
+    LaunchedEffect(refreshTrigger, moduleActivation.active) {
+        diagnostics = withContext(Dispatchers.IO) {
+            SystemDiagnosticsReader.read(context, moduleActivation.active)
         }
-        val refreshed = withContext(Dispatchers.IO) {
-            XposedRuntimeInspector.inspect(packages)
-        }
-        runtimeSnapshot = refreshed
-        val denylist = withContext(Dispatchers.IO) {
+    }
+    LaunchedEffect(refreshTrigger, scopeSnapshot, activeTargets.map { it.packageName }) {
+        val packages = activeTargets.filter { it.isInstalled }.map { it.packageName }
+        denylistReport = withContext(Dispatchers.IO) {
             MagiskDenylistDiagnostics.checkDenylistStatus(
-                context, packages, liveScope, forceRefresh = refreshTrigger > 0
+                context, packages, scopeSnapshot, forceRefresh = refreshTrigger > 0
             )
         }
-        denylistReport = denylist
     }
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -110,6 +124,28 @@ fun SystemHealthScreen() {
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    if (confirmCaptureClear) {
+        AlertDialog(
+            onDismissRequest = { confirmCaptureClear = false },
+            title = { Text(stringResource(R.string.diag_capture_confirm_clear_title)) },
+            text = { Text(stringResource(R.string.diag_capture_confirm_clear_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmCaptureClear = false
+                    scope.launch {
+                        withContext(Dispatchers.IO) { DiagnosticsRecorder.clear(context) }
+                        captureFeedback = context.getString(R.string.diag_capture_cleared)
+                    }
+                }) { Text(stringResource(R.string.diag_capture_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmCaptureClear = false }) {
+                    Text(stringResource(R.string.diag_capture_cancel))
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -131,14 +167,8 @@ fun SystemHealthScreen() {
         containerColor = colors.background
     ) { insets ->
         val data = diagnostics
-        val reportedApps = remember(data, refreshTrigger, runtimeSnapshot, scopeSnapshot) {
-            WhatsAppPackageDetector.detectWhatsAppApps(context, runtimeSnapshot, scopeSnapshot)
-                .filter { it.isInstalled }
-        }
-            val observationTime = rememberRuntimeObservationClock()
-            val targetApps = reportedApps.map {
-                TargetRuntimePresentation.asOf(it, observationTime.wall, observationTime.elapsed)
-            }
+        val reportedApps = activeTargets.filter { it.isInstalled }
+            val targetApps = reportedApps
             Column(
                 Modifier.fillMaxSize().padding(insets).verticalScroll(rememberScrollState()).padding(horizontal = spacing.pageMargin, vertical = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -251,6 +281,145 @@ fun SystemHealthScreen() {
                                 preferences.putBoolean("show_restart_sheet", checked)
                             }
                         )
+                    }
+                }
+                Surface(
+                    shape = radius.bentoCardShape,
+                    color = colors.surfaceContainerLow,
+                    border = BorderStroke(1.dp, colors.outlineVariant),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            stringResource(R.string.diag_capture_title),
+                            style = typography.bodyLg,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.onSurface
+                        )
+                        Text(
+                            stringResource(R.string.diag_capture_description),
+                            style = typography.bodyMd,
+                            color = colors.onSurfaceVariant
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                stringResource(R.string.diag_capture_enable),
+                                modifier = Modifier.weight(1f),
+                                style = typography.bodyMd,
+                                color = colors.onSurface
+                            )
+                            StitchSwitch(
+                                checked = captureEnabled,
+                                enabled = !captureChanging,
+                                onCheckedChange = { enabled ->
+                                    if (!captureChanging) {
+                                        captureChanging = true
+                                        scope.launch {
+                                            val saved = withContext(Dispatchers.IO) {
+                                                DiagnosticsRecorder.setEnabled(context, enabled)
+                                            }
+                                            if (saved) {
+                                                captureEnabled = enabled
+                                                if (!enabled) advancedExitEnabled = false
+                                            }
+                                            else captureFeedback = context.getString(R.string.diag_capture_pref_failed)
+                                            captureChanging = false
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                        if (captureEnabled && Build.VERSION.SDK_INT >= 30) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                stringResource(R.string.diag_capture_target_exit_enable),
+                                modifier = Modifier.weight(1f),
+                                style = typography.bodyMd,
+                                color = colors.onSurface
+                            )
+                            StitchSwitch(
+                                checked = advancedExitEnabled,
+                                enabled = captureEnabled && !captureChanging
+                                        && Build.VERSION.SDK_INT >= 30,
+                                onCheckedChange = { enabled ->
+                                    if (captureEnabled && !captureChanging) {
+                                        captureChanging = true
+                                        scope.launch {
+                                            val saved = withContext(Dispatchers.IO) {
+                                                DiagnosticsRecorder.setAdvancedEnabled(context, enabled)
+                                            }
+                                            if (saved) advancedExitEnabled = enabled
+                                            else captureFeedback = context.getString(R.string.diag_capture_pref_failed)
+                                            captureChanging = false
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                        Text(
+                            stringResource(R.string.diag_capture_target_exit_description),
+                            style = typography.bodyMd,
+                            color = colors.onSurfaceVariant
+                        )
+                        }
+                        if (captureEnabled) {
+                        Text(
+                            stringResource(R.string.diag_capture_consent),
+                            style = typography.bodyMd,
+                            color = colors.onSurfaceVariant
+                        )
+                        Button(
+                            enabled = !captureExporting,
+                            onClick = {
+                                captureExporting = true
+                                captureFeedback = null
+                                scope.launch {
+                                    try {
+                                        val file = withContext(Dispatchers.IO) {
+                                            DiagnosticsRecorder.export(context)
+                                        }
+                                        val uri = FileProvider.getUriForFile(
+                                            context, "${context.packageName}.fileprovider", file
+                                        )
+                                        val share = Intent(Intent.ACTION_SEND).apply {
+                                            type = "application/zip"
+                                            putExtra(Intent.EXTRA_STREAM, uri)
+                                            clipData = ClipData.newUri(context.contentResolver, "WAEX diagnostics", uri)
+                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                        context.startActivity(
+                                            Intent.createChooser(
+                                                share, context.getString(R.string.diag_capture_share_chooser)
+                                            )
+                                        )
+                                    } catch (e: java.io.IOException) {
+                                        captureFeedback = context.getString(
+                                            if (e.message?.startsWith("No diagnostic events") == true)
+                                                R.string.diag_capture_no_events
+                                            else R.string.diag_capture_export_failed
+                                        )
+                                    } catch (_: Exception) {
+                                        captureFeedback = context.getString(R.string.diag_capture_share_failed)
+                                    } finally {
+                                        captureExporting = false
+                                    }
+                                }
+                            }
+                        ) { Text(stringResource(R.string.diag_capture_share)) }
+                        }
+                        OutlinedButton(
+                            enabled = !captureExporting,
+                            onClick = { confirmCaptureClear = true }
+                        ) { Text(stringResource(R.string.diag_capture_clear)) }
+                        captureFeedback?.let {
+                            Text(it, style = typography.bodyMd, color = colors.onSurfaceVariant)
+                        }
                     }
                 }
                 Spacer(Modifier.height(12.dp))

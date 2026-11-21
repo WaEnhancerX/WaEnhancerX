@@ -31,6 +31,7 @@ import android.widget.Switch;
 import android.widget.TextView;
 import androidx.core.widget.NestedScrollView;
 import com.waenhancer.config.DndPreferencePolicy;
+import com.waenhancer.xposed.utils.HookErrors;
 import de.robv.android.xposed.XposedBridge;
 import android.view.Window;
 
@@ -97,7 +98,7 @@ final class WaexQuickActionsSheet {
                 secondaryText = tv.data;
             if (activity.getTheme().resolveAttribute(android.R.attr.colorAccent, tv, true))
                 accentColor = tv.data;
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("WaexQuickActionsSheet", ignored); }
 
         final int finalPrimaryText   = primaryText;
         final int finalSecondaryText = secondaryText;

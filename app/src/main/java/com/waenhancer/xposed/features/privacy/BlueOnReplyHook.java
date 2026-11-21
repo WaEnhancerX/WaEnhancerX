@@ -17,6 +17,8 @@ import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.xposed.core.db.HideSeenStore;
 import com.waenhancer.xposed.features.homescreen.MenuIconLoader;
 import com.waenhancer.xposed.utils.ActivityTracker;
+import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.HostFields;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
@@ -67,6 +69,7 @@ public class BlueOnReplyHook extends BaseFeature {
     // status that is being opened.
     private static final Object MANUAL_STATUS_RECEIPT = new Object();
     private static final String PENDING_CHAT_RECEIPT = "waex_pending_chat_receipt";
+    private static final String MANUAL_CHAT_ATTEMPT = "waex_manual_chat_attempt";
 
     private static final class ReadJobRecipe {
         final Constructor<?> constructor;
@@ -216,6 +219,13 @@ public class BlueOnReplyHook extends BaseFeature {
 
     /** Called by the verified SendReadReceiptJob execution hook once hiding is confirmed. */
     public static void recordSuppressedReadJob(Object job) {
+        Object attempt = XposedHelpers.getAdditionalInstanceField(job, MANUAL_CHAT_ATTEMPT);
+        if (attempt instanceof ManualReadAttempt) {
+            // A local privacy veto is not a successful receipt. Retain only the original
+            // action-time recipe for another explicit action, never for automatic retry.
+            ((ManualReadAttempt) attempt).recordLocalVeto();
+            return;
+        }
         Object value = XposedHelpers.getAdditionalInstanceField(job, PENDING_CHAT_RECEIPT);
         if (!(value instanceof PendingChatReceipt)) {
             return;
@@ -223,6 +233,42 @@ public class BlueOnReplyHook extends BaseFeature {
         PendingChatReceipt pending = (PendingChatReceipt) value;
         markEvictedHandled(pending.recipient, PENDING_JOBS.add(pending.recipient, pending.recipe));
         XposedHelpers.removeAdditionalInstanceField(job, PENDING_CHAT_RECEIPT);
+    }
+
+    /** Coordinates enqueue acknowledgement with synchronous or delayed local vetoes. */
+    private static final class ManualReadAttempt {
+        final String recipient;
+        final ReadJobRecipe original;
+        final ReadJobRecipe retryRecipe;
+        private boolean accepted;
+        private boolean vetoed;
+
+        ManualReadAttempt(String recipient, ReadJobRecipe recipe) {
+            this.recipient = recipient;
+            this.original = recipe;
+            // The synthetic or host job may mutate its arrays after construction.
+            // Retry the private original snapshot, not fields from the executing job.
+            this.retryRecipe = new ReadJobRecipe(recipe.constructor, copyArguments(recipe.arguments));
+        }
+
+        synchronized void acknowledgeEnqueue() {
+            if (accepted) return;
+            accepted = true;
+            PENDING_JOBS.remove(recipient, original);
+            if (vetoed) restoreRecipe();
+        }
+
+        synchronized void recordLocalVeto() {
+            if (vetoed) return;
+            vetoed = true;
+            // A synchronous veto inside enqueue must wait for its acknowledgement.
+            // If enqueue throws, the original remains pending and no duplicate is added.
+            if (accepted) restoreRecipe();
+        }
+
+        private void restoreRecipe() {
+            markEvictedHandled(recipient, PENDING_JOBS.add(recipient, retryRecipe));
+        }
     }
 
     private static final class PendingChatReceipt {
@@ -239,7 +285,7 @@ public class BlueOnReplyHook extends BaseFeature {
         Set<String> ids = new LinkedHashSet<>();
         if (job == null) return ids;
         for (Class<?> type = job.getClass(); type != null && type != Object.class; type = type.getSuperclass()) {
-            for (Field field : type.getDeclaredFields()) {
+            for (Field field : HostFields.declared(type)) {
                 if (Modifier.isStatic(field.getModifiers()) || field.getType() != String[].class) continue;
                 try {
                     field.setAccessible(true);
@@ -248,7 +294,7 @@ public class BlueOnReplyHook extends BaseFeature {
                     for (String id : (String[]) value) {
                         if (id != null && !id.isEmpty()) ids.add(id);
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("BlueOnReplyHook", ignored); }
             }
         }
         return ids;
@@ -403,9 +449,9 @@ public class BlueOnReplyHook extends BaseFeature {
             return null;
         }
         Class<?> type=value.getClass(); if (type.getName().startsWith("java.")) return null;
-        for (Class<?> c=type;c!=null&&c!=Object.class;c=c.getSuperclass()) for (Field f:c.getDeclaredFields()) {
+        for (Class<?> c=type;c!=null&&c!=Object.class;c=c.getSuperclass()) for (Field f:HostFields.declared(c)) {
             if (Modifier.isStatic(f.getModifiers()) || f.getType().isPrimitive()) continue;
-            try { f.setAccessible(true); String found=findStatusId(f.get(value),seen,depth+1); if(found!=null)return found; } catch(Throwable ignored) {}
+            try { f.setAccessible(true); String found=findStatusId(f.get(value),seen,depth+1); if(found!=null)return found; } catch (Throwable ignored) { HookErrors.swallowed("BlueOnReplyHook", ignored); }
         } return null;
     }
 
@@ -435,7 +481,7 @@ public class BlueOnReplyHook extends BaseFeature {
         if (jobManager != null) return jobManager;
         if (managerClass != null) {
             try {
-                for (Field field : managerClass.getDeclaredFields()) {
+                for (Field field : HostFields.declared(managerClass)) {
                     if (Modifier.isStatic(field.getModifiers()) && managerClass.isAssignableFrom(field.getType())) {
                         field.setAccessible(true);
                         Object instance = field.get(null);
@@ -445,7 +491,7 @@ public class BlueOnReplyHook extends BaseFeature {
                         }
                     }
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("BlueOnReplyHook", ignored); }
         }
         return null;
     }
@@ -480,11 +526,16 @@ public class BlueOnReplyHook extends BaseFeature {
         int sent = 0;
         for (ReadJobRecipe recipe : pending) {
             try {
+                Object grant = ExplicitReadReceiptPolicy.captureJobGrant(key, recipe.arguments);
+                if (grant == null) continue;
                 HideReceiptsHook.allowExplicitReceiptIds(key, recipe.arguments);
                 Object job = recipe.constructor.newInstance(copyArguments(recipe.arguments));
                 XposedHelpers.setAdditionalInstanceField(job, "blue_on_reply", true);
+                XposedHelpers.setAdditionalInstanceField(job, ExplicitReadReceiptPolicy.JOB_GRANT_KEY, grant);
+                ManualReadAttempt attempt = new ManualReadAttempt(key, recipe);
+                XposedHelpers.setAdditionalInstanceField(job, MANUAL_CHAT_ATTEMPT, attempt);
                 enqueue.invoke(manager, job);
-                PENDING_JOBS.remove(key, recipe);
+                attempt.acknowledgeEnqueue();
                 sent++;
             } catch (Throwable t) {
                 // Constructor or dispatch failure must not leave a stale permission.
@@ -674,7 +725,7 @@ public class BlueOnReplyHook extends BaseFeature {
                 String c = canonicalJid(raw.toString());
                 if (c != null) return c;
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("BlueOnReplyHook", ignored); }
         return canonicalJid(obj.toString());
     }
 

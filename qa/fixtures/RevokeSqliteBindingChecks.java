@@ -1,6 +1,7 @@
 package com.waenhancer.xposed.features.privacy;
 
 import java.util.*;
+import java.util.regex.Pattern;
 
 /** Verbatim production callbacks with explicit SQLite, Xposed, history and UI doubles. */
 public final class RevokeSqliteBindingChecks {

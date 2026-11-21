@@ -7,11 +7,13 @@ import java.util.regex.Pattern;
 
 public final class AppRestartHelper {
     public static boolean databaseAvailable = true;
+    public static int calls = 0;
     private static final Pattern COPY = Pattern.compile("cp -f /data/adb/lspd/config/modules_config\\.db '([^']+)' ");
 
     private AppRestartHelper() {}
 
     public static String runRootCommand(String command) throws IOException {
+        calls++;
         if (!databaseAvailable) return "WAEX_LSPOSED_DB_MISSING";
         Matcher matcher = COPY.matcher(command);
         if (!matcher.find()) throw new IllegalStateException("Unexpected root copy command");

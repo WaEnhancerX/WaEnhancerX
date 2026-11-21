@@ -4,6 +4,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteDatabase.ScopeRow
 import android.os.Process
+import com.waenhancer.config.PreferenceStores
 import com.waenhancer.xposed.utils.AppRestartHelper
 import java.nio.file.Files
 
@@ -49,7 +50,7 @@ object ScopeReaderChecks {
         }
         checkCase("disabled module has no active scope") {
             fixture(1_010_191, ScopeRow(4, MODULE, false, "com.whatsapp", 10)) {
-                expect(emptySet())
+                require(expect(emptySet()).moduleEnabled == false)
             }
         }
         checkCase("other modules cannot lend WAEX scope") {
@@ -84,12 +85,14 @@ object ScopeReaderChecks {
                 SQLiteDatabase.unsupportedSchema = true
                 val snap = LsposedScopeReader.read(this)
                 require(!snap.frameworkReachable && snap.packages.isEmpty())
-                require(snap.error?.contains("Could not parse LSPosed scope") == true)
+                require(snap.error == "Could not read LSPosed scope: IllegalStateException")
             }
         }
         checkCase("no historical shared-preference grant is trusted on process start") {
             fixture(1_010_191) {
+                PreferenceStores.seedLegacyScope(setOf("com.whatsapp"))
                 require(LsposedScopeReader.cached(this) == null)
+                require(PreferenceStores.calls == 0)
             }
         }
         checkCase("in-process cache matches latest successful read") {
@@ -97,6 +100,39 @@ object ScopeReaderChecks {
                 val live = LsposedScopeReader.read(this)
                 require(live === LsposedScopeReader.cached(this))
                 require(live.packages == setOf("com.whatsapp.w4b"))
+            }
+        }
+        checkCase("shared staged parse preserves enabled state without repeating root work") {
+            fixture(1_010_191, ScopeRow(4, MODULE, true, "com.whatsapp.w4b", 10)) {
+                val output = AppRestartHelper.runRootCommand(LsposedScopeReader.stageCommand(this))
+                val snap = LsposedScopeReader.parseStaged(this, output.contains(LsposedScopeReader.STAGED_OK_MARKER))
+                require(snap.packages == setOf("com.whatsapp.w4b") && snap.isLive)
+                require(snap.moduleEnabled == true)
+                require(AppRestartHelper.calls == 1 && SQLiteDatabase.queries == 2)
+                require(cacheDir.listFiles()!!.isEmpty())
+            }
+        }
+        checkCase("staged failure clears prior enabled and scope observations and cleans all copies") {
+            fixture(1_010_191, ScopeRow(4, MODULE, true, "com.whatsapp", 10)) {
+                expect(setOf("com.whatsapp"))
+                listOf("waex_lsposed_scope.db", "waex_lsposed_scope.db-wal", "waex_lsposed_scope.db-shm")
+                    .forEach { java.io.File(cacheDir, it).writeText("synthetic") }
+                val snap = LsposedScopeReader.parseStaged(this, false)
+                require(!snap.isLive && snap.packages.isEmpty() && snap.moduleEnabled == null)
+                require(snap.source == LsposedScopeSnapshot.Source.UNAVAILABLE)
+                require(AppRestartHelper.calls == 1 && SQLiteDatabase.queries == 2)
+                require(cacheDir.listFiles()!!.isEmpty())
+            }
+        }
+        checkCase("missing module has unknown enabled state rather than false evidence") {
+            fixture(1_010_191, ScopeRow(9, "other.module", true, "com.whatsapp", 10)) {
+                require(expect(emptySet()).moduleEnabled == null)
+            }
+        }
+        checkCase("successful read never persists a user-agnostic scope cache") {
+            fixture(1_010_191, ScopeRow(4, MODULE, true, "com.whatsapp", 10)) {
+                expect(setOf("com.whatsapp"))
+                require(PreferenceStores.calls == 0)
             }
         }
         println("PASS $checks strict production-reader cases")
@@ -125,19 +161,26 @@ object ScopeReaderChecks {
             SQLiteDatabase.rows.addAll(rows)
             SQLiteDatabase.unsupportedSchema = false
             SQLiteDatabase.queries = 0
+            SQLiteDatabase.moduleQueries = 0
+            SQLiteDatabase.scopeQueries = 0
             AppRestartHelper.databaseAvailable = true
+            AppRestartHelper.calls = 0
+            PreferenceStores.reset()
             Context(cache).run()
         } finally {
             cache.deleteRecursively()
         }
     }
 
-    private fun Context.expect(expected: Set<String>) {
+    private fun Context.expect(expected: Set<String>): LsposedScopeSnapshot {
         val snapshot = LsposedScopeReader.read(this)
         require(snapshot.frameworkReachable) { "Expected readable LSPosed DB: ${snapshot.error}" }
         require(snapshot.packages == expected) {
             "Expected scope $expected, observed ${snapshot.packages}"
         }
-        require(SQLiteDatabase.queries == 1) { "Unexpected query/fallback count: ${SQLiteDatabase.queries}" }
+        require(SQLiteDatabase.queries == 2 && SQLiteDatabase.moduleQueries == 1 && SQLiteDatabase.scopeQueries == 1) {
+            "Expected exactly one module query and one user-bound scope query: ${SQLiteDatabase.queries}"
+        }
+        return snapshot
     }
 }

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="diag_capture_title">Help us fix problems</string>
+    <string name="diag_capture_description">Turn this on, use WAEX as usual, and when something goes wrong, share a small report with the developers. It is off by default and stays on your phone until you share it.\n\nSaved for up to 7 days: WAEX screens you open, which settings you change (never their values), WAEX crashes, and whether WAEX hooks started correctly in WhatsApp.\n\nNever saved: chats, contacts, media, passwords or logs from other apps.</string>
+    <string name="diag_capture_enable">Save problem reports</string>
+    <string name="diag_capture_target_exit_enable">Include WhatsApp crash history</string>
+    <string name="diag_capture_target_exit_description">Adds the reasons Android recently closed WhatsApp (crash, freeze, low memory). Restart WhatsApp once after turning this on. Requires Android 11 or newer.</string>
+    <string name="diag_capture_share">Share report</string>
+    <string name="diag_capture_clear">Delete saved data</string>
+    <string name="diag_capture_consent">When you share, the report also includes your phone model, Android and app versions, and which WAEX features are on. Nothing is sent automatically. You choose the app and who receives it.</string>
+    <string name="diag_capture_no_events">Nothing to share yet. Use WAEX for a while, then try again after the problem happens.</string>
+    <string name="diag_capture_export_failed">Could not create the report. Check your free storage and try again.</string>
+    <string name="diag_capture_share_failed">No app could accept the report. Try another app from the share menu.</string>
+    <string name="diag_capture_pref_failed">Could not save this setting. Please try again.</string>
+    <string name="diag_capture_confirm_clear_title">Delete saved data?</string>
+    <string name="diag_capture_confirm_clear_body">This removes the problem data saved on your phone. Reports you already shared are not affected.</string>
+    <string name="diag_capture_cancel">Cancel</string>
+    <string name="diag_capture_confirm">Delete</string>
+    <string name="diag_capture_cleared">Saved data deleted.</string>
+    <string name="diag_capture_share_chooser">Share WAEX report</string>
+</resources>

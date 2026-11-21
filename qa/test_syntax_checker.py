@@ -55,6 +55,26 @@ class SyntaxCheckerTests(unittest.TestCase):
         self.assertEqual(obj['syntax_errors'], [])
         self.assertFalse(obj['kotlin_skipped'])
 
+    def test_java_utf8_is_independent_of_legacy_windows_default_charset(self):
+        self.write('src/International.java',
+                   'class International { String text = "日本語 — 💁 🦍"; }\n')
+        code, obj = self.run_checker(
+            '--java-only',
+            env_overrides={'JAVA_TOOL_OPTIONS': '-Dfile.encoding=windows-1252'})
+        self.assertEqual(code, 0, obj)
+        self.assertEqual(obj['status'], 'passed')
+        self.assertEqual((obj['java_files'], obj['kotlin_files']), (1, 0))
+        self.assertFalse(obj['syntax_errors'])
+
+    def test_invalid_utf8_java_bytes_are_rejected(self):
+        self.root.joinpath('Invalid.java').write_bytes(
+            b'class Invalid { String text = "\xff"; }\n')
+        code, obj = self.run_checker('--java-only')
+        self.assertEqual(code, 1, obj)
+        self.assertEqual(obj['status'], 'syntax_error')
+        self.assertTrue(any(error['language'] == 'java'
+                            for error in obj['syntax_errors']))
+
     def test_invalid_java_and_kotlin_are_reported(self):
         self.write('src/Broken.java', 'public class Broken { void broken( { }\n')
         self.write('src/Broken.kt', 'fun broken( {\n')
