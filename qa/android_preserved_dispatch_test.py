@@ -9,7 +9,7 @@ from pathlib import Path
 import argparse,hashlib,json,os,re,shutil,subprocess,zipfile,urllib.request,io
 
 ROOT=Path(__file__).resolve().parents[1]
-EXPECTED_TESTS=99
+EXPECTED_TESTS=105
 PKG=Path('app/src/main/java/com/waenhancer')
 PRODUCTION=[
  PKG/'xposed/features/conversation/PreserveDeleteForMeHook.kt',
@@ -246,9 +246,9 @@ def main():
             r'METHOD\s*=\s*"transcribe_audio"',
             r'METHOD_READY\s*=\s*"transcription_ready"',
             r'METHOD_LOG\s*=\s*"transcription_log"',
-            r'Bundle\s+ready\s*\([^)]*String\s+target\s*\)',
-            r'Bundle\s+handle\s*\([^)]*String\s+target\s*\)',
-            r'Bundle\s+log\s*\('),
+            r'Bundle\s+ready\s*\(', r'Bundle\s+handle\s*\(', r'Bundle\s+log\s*\(',
+            r'Bundle\s+ready\s*\(\s*@NonNull\s+Context\s+context\s*,\s*@Nullable\s+String\s+target\s*\)',
+            r'Bundle\s+handle\s*\(\s*@NonNull\s+Context\s+context\s*,\s*@NonNull\s+Bundle\s+extras\s*,\s*@Nullable\s+String\s+target\s*\)'),
         PKG/'xposed/utils/AppRestartHelper.java': (
             r'void\s+restartPackage\s*\(\s*Context\s+context\s*,\s*String\s+packageName\s*,\s*String\s+appName\s*,\s*boolean\s+showProgressToast\s*\)',),
         PKG/'utils/WhatsAppPackageDetector.kt': (
@@ -257,17 +257,17 @@ def main():
         # Out-of-scope services are compile boundaries. Verify their current
         # declarations so a signature drift does not silently bless a fixture.
         PKG/'utils/DiagnosticsRecorder.java': (
-            r'boolean\s+isAdvancedEnabled\s*\(\s*Context\s+context',
-            r'void\s+recordHookHealth\s*\(',
-            r'int\s+recordTargetExitHistory\s*\(',
-            r'void\s+recordHookSummary\s*\('),
+            r'boolean\s+isAdvancedEnabled\s*\(\s*Context\s+context\s*\)',
+            r'void\s+recordHookHealth\s*\(\s*Context\s+context\s*,\s*String\s+target\s*,\s*String\s+runtime',
+            r'void\s+recordHookSummary\s*\(\s*Context\s+context\s*,\s*String\s+target\s*,\s*String\s+hooksJson\s*\)',
+            r'int\s+recordTargetExitHistory\s*\(\s*Context\s+context\s*,\s*String\s+target\s*,\s*long\[\]\s+times'),
         PKG/'theme/ThemeRepository.kt': (
             r'companion\s+object\s*\{',
-            r'fun\s+assetFile\s*\(context:\s*Context,\s*themeId:\s*String\?,\s*name:\s*String\?\)',
+            r'fun\s+assetFile\s*\(\s*context:\s*Context,\s*themeId:\s*String\?,\s*name:\s*String\?\s*\):\s*File\?',
             r'ThemeIds\.isValidId\(themeId\)',
             r'ThemeIds\.isValidAssetName\(name\)'),
         PKG/'core/preferences/WaexPreferenceManager.java': (
-            r'TARGET_SEEDED_KEY\s*=\s*"target_seeded"',),
+            r'public\s+static\s+final\s+String\s+TARGET_SEEDED_KEY\s*=\s*"target_seeded"\s*;',),
         PKG/'xposed/bridge/HookProvider.java': (
             r'ThemeRepository\.Companion\.assetFile\s*\(',
             r'DiagnosticsRecorder\.recordHookHealth\s*\(',
@@ -280,29 +280,46 @@ def main():
     }
     contract_hashes={}
     for relative,required in contracts.items():
+        if not isinstance(required,tuple) or not all(isinstance(p,str) for p in required):
+            raise RuntimeError(f'Invalid QA source contract patterns: {relative}')
         content=(root/relative).read_text(encoding='utf-8')
         contract_hashes[str(relative)]=hashlib.sha256(content.encode()).hexdigest()
         for pattern in required:
             if re.search(pattern,content) is None:
                 raise RuntimeError(f'Contract changed in {relative}: {pattern}')
+    # AGP generates BuildConfig. Reconstruct only the typed fields needed by the
+    # real DexCacheManager, from the same source properties that feed Gradle.
+    # A namespace/version wiring change must fail the standalone fixture.
+    gradle_file=root/'app/build.gradle.kts'
+    gradle_text=gradle_file.read_text(encoding='utf-8')
+    properties_file=root/'gradle.properties'
+    properties_text=properties_file.read_text(encoding='utf-8')
+    contract_hashes['app/build.gradle.kts']=hashlib.sha256(gradle_text.encode()).hexdigest()
+    contract_hashes['gradle.properties']=hashlib.sha256(properties_text.encode()).hexdigest()
+    for contract in (r'namespace\s*=\s*"com\.waenhancer\.app"',
+                     r'versionCode\s*=\s*configuredVersionCode',
+                     r'versionName\s*=\s*project\.findProperty\("VERSION_NAME"\)',
+                     r'buildConfig\s*=\s*true'):
+        if re.search(contract,gradle_text) is None:
+            raise RuntimeError(f'Generated BuildConfig contract changed: {contract}')
+    version_codes=re.findall(r'(?m)^VERSION_CODE=(\d+)\s*$',properties_text)
+    version_names=re.findall(r'(?m)^VERSION_NAME=([^\r\n]+)$',properties_text)
+    if len(version_codes)!=1 or len(version_names)!=1 or not (0<int(version_codes[0])<=2147483647):
+        raise RuntimeError('Expected one valid Gradle VERSION_CODE and VERSION_NAME')
+    version_name=version_names[0].strip()
+    if not version_name:raise RuntimeError('Empty Gradle VERSION_NAME')
     fixtures={
         'androidx/annotation/NonNull.java':'package androidx.annotation;public @interface NonNull{}',
         'androidx/annotation/Nullable.java':'package androidx.annotation;public @interface Nullable{}',
         'androidx/annotation/VisibleForTesting.java':'package androidx.annotation;public @interface VisibleForTesting{}',
+        'com/waenhancer/app/BuildConfig.java':('package com.waenhancer.app;public final class BuildConfig {'
+            'public static final int VERSION_CODE='+version_codes[0]+';'
+            'public static final String VERSION_NAME='+json.dumps(version_name)+';}'),
         'de/robv/android/xposed/XposedBridge.java':XPOSED,
         'de/robv/android/xposed/XC_MethodHook.java':METHOD_HOOK,
         'de/robv/android/xposed/XposedHelpers.java':XPOSED_HELPERS,
         # Compile-only field descriptor from the real MainHook; Xposed startup is outside this fixture.
         'com/waenhancer/xposed/MainHook.java':'package com.waenhancer.xposed;public class MainHook { public static volatile String sModulePath; }',
-        # Generated Android build metadata is a compile boundary, not an installed
-        # APK identity or a substitute for signing/licensing. Sentinel values keep
-        # the fixture cache generation explicitly distinct from any application.
-        'com/waenhancer/app/BuildConfig.java':'''package com.waenhancer.app;
-public final class BuildConfig {
- public static final int VERSION_CODE=-1;
- public static final String VERSION_NAME="preserved-dispatch-compile-fixture";
- private BuildConfig(){}
-}''',
         'com/waenhancer/utils/WhatsAppPackageDetector.java':'''package com.waenhancer.utils;
 public final class WhatsAppPackageDetector {
  public static java.util.Set<String> getSupportedPackages(android.content.Context c){
