@@ -74,7 +74,7 @@ public final class TestRestartTargetPolicy {
         check(!RestartTargetPolicy.reportsRootId("uid=00(root)"), "exact uid required");
         check(RestartTargetPolicy.reportsActivityLaunch("Starting: Intent {...}\nStatus: ok\nComplete\n"), "launch acknowledged");
         check(RestartTargetPolicy.reportsActivityLaunch("Status: ok\r\nComplete\r\n"), "CRLF acknowledgment");
-        for (String output : new String[]{null, "", "Events injected: 1", "Status: timeout", "Status: okay", "Fake Status: ok", "Status: ok trailing"}) {
+        for (String output : new String[]{null, "", "Events injected: 1", "Status: timeout", "Status: okay", "Fake Status: ok", "Status: ok trailing", "Status: ok\nError: Activity class does not exist"}) {
             check(!RestartTargetPolicy.reportsActivityLaunch(output), "invalid launch acknowledgment");
         }
         for (int userId : new int[]{-1, -2, -3, Integer.MIN_VALUE, Integer.MAX_VALUE, 21475}) {

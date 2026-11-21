@@ -16,7 +16,7 @@ import de.robv.android.xposed.XposedHelpers
 /**
  * Minor Fixes & Stability Initializer for WhatsApp internals.
  *
- * Ensures critical internal providers such as ML Kit (com.google.mlkit.common.internal.MlKitInitProvider)
+ * Ensures critical internal providers such as ML Kit (MlKitInitProvider)
  * are properly initialized before DocumentPickerActivity or related sub-activities instantiate, preventing
  * crashes during document and media selection in WhatsApp.
  */

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feat_metaai_title">إزالة Meta AI</string>
+    <string name="feat_metaai_desc">اختر واجهات Meta AI ونقاط الوصول التي تريد إزالتها.</string>
+    <string name="meta_ai_remove_home_fab">"إزالة الصفحة الرئيسية FAB"</string>
+    <string name="meta_ai_remove_entry_points">"قم بإزالة نقاط الدخول Meta AI"</string>
+    <string name="meta_ai_block_chat">"حظر الدردشة Meta AI"</string>
+</resources>

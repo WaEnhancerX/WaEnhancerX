@@ -3,91 +3,77 @@ package com.waenhancer.ui.components
 import com.waenhancer.app.R
 import com.waenhancer.utils.UiText
 
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Surface
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.statusBarsPadding
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import androidx.compose.ui.text.TextStyle
 
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WaexTopBar(
     title: String,
     modifier: Modifier = Modifier,
     onBackClick: (() -> Unit)? = null,
     titleStyle: TextStyle? = null,
+    titleLeadingIcon: (@Composable () -> Unit)? = null,
     actions: (@Composable RowScope.() -> Unit)? = null
 ) {
     val colors = WaexTheme.colors
     val typography = WaexTheme.typography
-    val spacing = WaexTheme.spacing
-
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = colors.surface
-    ) {
-        Column(modifier = Modifier.statusBarsPadding()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .padding(horizontal = spacing.stackSm),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-
-
-
-                if (onBackClick != null) {
-                    IconButton(
-                        onClick = onBackClick,
-                        modifier = Modifier.align(Alignment.CenterVertically)
-                    ) {
-                        Icon(
-                            imageVector = WaexIcons.Back,
-                            contentDescription = UiText.get(R.string.action_back, "Back"),
-                            tint = colors.onSurface
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(spacing.stackSm))
-                } else {
-                    Spacer(modifier = Modifier.width(spacing.stackMd))
+    TopAppBar(
+        title = {
+            if (titleLeadingIcon != null) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    titleLeadingIcon()
+                    Text(
+                        text = title,
+                        style = titleStyle ?: typography.headlineMd,
+                        color = colors.onSurface
+                    )
                 }
+            } else {
                 Text(
                     text = title,
                     style = titleStyle ?: typography.headlineMd,
-                    color = colors.onSurface,
-                    modifier = Modifier
-                        .weight(1f)
-                        .align(Alignment.CenterVertically)
+                    color = colors.onSurface
                 )
-                if (actions != null) {
-                    Row(
-                        modifier = Modifier.align(Alignment.CenterVertically),
-                        verticalAlignment = Alignment.CenterVertically,
-                        content = actions
+            }
+        },
+        modifier = modifier.fillMaxWidth(),
+        navigationIcon = {
+            if (onBackClick != null) {
+                IconButton(onClick = onBackClick) {
+                    Icon(
+                        imageVector = WaexIcons.Back,
+                        contentDescription = UiText.get(R.string.action_back, "Back")
                     )
                 }
             }
-            HorizontalDivider(
-                thickness = 1.dp,
-                color = colors.outlineVariant
-            )
-        }
-    }
+        },
+        actions = { actions?.invoke(this) },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = colors.background,
+            scrolledContainerColor = colors.surfaceContainer,
+            navigationIconContentColor = colors.onSurface,
+            actionIconContentColor = colors.onSurfaceVariant,
+            titleContentColor = colors.onSurface
+        )
+    )
 }

@@ -39,6 +39,31 @@ version, copy-size and temporary-file checks remain active.
 This change concerns the destination of manager operations. It does not prove
 that the entire reported 1.7-to-2.0 work-profile injection regression is fixed.
 
+## 2026-11-21 nightly reconciliation
+
+The current reconciliation merges original PR head
+`619fca0efed92c04c793b93a5daf7e46370f9e28` with nightly
+`9972e49fac9bfb650c25ee31fde0da9425b67175`. It retains nightly's delegated
+`restartPackage(..., showProgressToast)` entry point, current resource IDs and
+rejection of root-launch output containing `Error:`. A new JVM negative case
+rejects a response containing both `Status: ok` and `Error:`.
+
+On Linux x86-64 with Temurin 21.0.13.1+2 and Kotlin 2.0.20, the merged source
+passed the 87-case Robolectric 4.17 matrix on API 24/28/34 (15.8 seconds), the
+JDK restart policy/subprocess/helper/wiring runner (4.6 seconds), and the
+20-case updater contract runner (6.5 seconds). Framework inputs used verified
+official instrumented SDK JARs and the pinned real OkHttp 4.12.0 API. No device,
+root process, package install, HTTP request or host injection was exercised.
+
+The updater runner initially failed compilation because current production
+RootCommandRunner depends on HookErrors; the runner now stages that actual
+production dependency, annotation declarations and a visible Xposed log boundary.
+No production validation was replaced with a permissive substitute. Tested index
+tree: `a81f6d4a2d70f521a1bc5c2343f8e15ac1555a9b`; subsequent changes are limited
+to this acceptance record and its changelog fragment. The historical V38/V39
+comparisons below are retained as historical evidence, not relabeled as tests of
+this merged revision. Device acceptance remains pending.
+
 ## Framework regression runner
 
     python3 qa/android_work_profile_test.py \

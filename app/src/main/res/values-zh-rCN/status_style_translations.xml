@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="status_style_default">默认</string>
+    <string name="status_style_vertical_rows">纵向行列表</string>
+    <string name="status_style_facebook_grid">Facebook 动态卡片 (网格)</string>
+    <string name="status_style_vertical_compact">纵向紧凑列表</string>
+    <string name="status_style_vertical_circle">纵向圆形头像列表</string>
+    <string name="status_style_vertical_square">纵向方形卡片列表</string>
+</resources>

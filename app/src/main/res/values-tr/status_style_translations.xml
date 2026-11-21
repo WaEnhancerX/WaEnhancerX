@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="status_style_default">Varsayılan</string>
+    <string name="status_style_vertical_rows">Dikey Satırlar</string>
+    <string name="status_style_facebook_grid">Facebook Kartları (Izgara)</string>
+    <string name="status_style_vertical_compact">Dikey Liste (Kompakt)</string>
+    <string name="status_style_vertical_circle">Dikey Liste (Yuvarlak Avatarlar)</string>
+    <string name="status_style_vertical_square">Dikey Liste (Kare Kartlar)</string>
+</resources>

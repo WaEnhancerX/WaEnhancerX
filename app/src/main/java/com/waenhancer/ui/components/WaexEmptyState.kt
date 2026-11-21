@@ -44,15 +44,15 @@ fun WaexEmptyState(
     ) {
         Box(
             modifier = Modifier
-                .size(80.dp)
-                .clip(radius.lgShape)
-                .background(colors.surfaceContainerLow),
+                .size(88.dp)
+                .clip(radius.bentoCardShape)
+                .background(colors.primaryContainer),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = colors.onSurfaceVariant,
+                tint = colors.primary,
                 modifier = Modifier.size(36.dp)
             )
         }

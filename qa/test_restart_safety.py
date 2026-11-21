@@ -22,8 +22,28 @@ scope = [item.text.strip() for arr in xml.findall('string-array')
 assert len(scope) > 10 and 'com.whatsapp' in scope and 'com.whatsapp.w4b' in scope
 
 with tempfile.TemporaryDirectory(prefix='waex_root_runner_') as output:
+    # Current production cleanup records swallowed failures through HookErrors.
+    # Compile that implementation, not a permissive replacement logger.
+    boundaries = {
+        'androidx/annotation/NonNull.java': 'package androidx.annotation; public @interface NonNull {}',
+        'androidx/annotation/VisibleForTesting.java': 'package androidx.annotation; public @interface VisibleForTesting {}',
+        'de/robv/android/xposed/XposedBridge.java': '''package de.robv.android.xposed;
+public final class XposedBridge {
+ public static void log(String message) {
+  System.err.println("[QA diagnostic sink] " + message);
+ }
+}
+''',
+    }
+    boundary_sources = []
+    for name, content in boundaries.items():
+        path = Path(output) / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding='utf-8')
+        boundary_sources.append(path)
     sources = [ROOT/'app/src/main/java/com/waenhancer/utils/AndroidUserScope.java',
-               SRC/'RestartTargetPolicy.java', SRC/'RootCommandRunner.java',
+               SRC/'RestartTargetPolicy.java', SRC/'RootCommandRunner.java', SRC/'HookErrors.java',
+               *boundary_sources,
                QA/'TestRestartTargetPolicy.java', QA/'TestRootCommandRunner.java']
     subprocess.run(['javac', '--release', '17', '-d', output, *map(str, sources)], check=True)
     for name, argv in [('TestRestartTargetPolicy', scope), ('TestRootCommandRunner', [])]:
@@ -55,6 +75,7 @@ public class ComponentName {
  public ComponentName(String p, String c) { packageName=p; cls=c; }
  public String getPackageName() { return packageName; }
  public String getClassName() { return cls; }
+ public String flattenToShortString() { return packageName + "/" + cls; }
 }
 ''',
  'android/content/Intent.java': '''package android.content;

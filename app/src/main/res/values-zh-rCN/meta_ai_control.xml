@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feat_metaai_title">移除 Meta AI</string>
+    <string name="feat_metaai_desc">选择要移除的 Meta AI 界面和访问入口。</string>
+    <string name="meta_ai_remove_home_fab">"移除主页 FAB"</string>
+    <string name="meta_ai_remove_entry_points">"移除 Meta AI 入口点"</string>
+    <string name="meta_ai_block_chat">"屏蔽 Meta AI 聊天"</string>
+</resources>

@@ -1,5 +1,8 @@
 package com.waenhancer.xposed.utils;
 
+import java.lang.reflect.Field;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -55,10 +58,10 @@ public final class TestAppRestartHelper {
     }
 
     private static void awaitIdle() throws Exception {
-        java.lang.reflect.Field state = AppRestartHelper.class.getDeclaredField("RESTART_PENDING");
+        Field state = AppRestartHelper.class.getDeclaredField("RESTART_PENDING");
         state.setAccessible(true);
-        java.util.concurrent.atomic.AtomicBoolean flag =
-                (java.util.concurrent.atomic.AtomicBoolean) state.get(null);
+        AtomicBoolean flag =
+                (AtomicBoolean) state.get(null);
         long until = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
         while (flag.get() && System.nanoTime() < until) Thread.sleep(2L);
         ok(!flag.get(), "restart guard was not released");
@@ -104,7 +107,7 @@ public final class TestAppRestartHelper {
         ok("com.whatsapp".equals(broadcastFallback.launch.getPackage()), "wrong fallback launch package");
         ok((broadcastFallback.launch.getFlags() & (Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK)) ==
                 (Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK), "missing Activity flags");
-        ok(RootCommandRunner.commands.size() == oldRoot + 1, "no-root branch launched activity launch");
+        ok(RootCommandRunner.commands.size() == oldRoot + 1, "no-root branch attempted force-stop");
         awaitIdle();
 
         RootCommandRunner.mode = "root";

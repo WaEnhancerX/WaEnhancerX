@@ -12,6 +12,7 @@
     <string name="go_to_telegram">टेलीग्राम चैनल</string>
     <string name="go_to_github">गिटहब मुद्दे</string>
     <string name="contributors">योगदानकर्ता</string>
+    <string name="contributor">योगदानकर्ता</string>
     <string name="stargazers_title">हमारे समर्थक</string>
     <string name="stargazers_thank_you">WaEnhancerX का समर्थन करने के लिए धन्यवाद</string>
     <string name="stargazers_message">प्रत्येक सितारा अधिक लोगों को प्रोजेक्ट खोजने में मदद करता है। यह दीवार उन सभी के लिए है जिन्होंने अपना समर्थन दिखाया है।</string>
@@ -95,8 +96,8 @@
     <string name="title_deleted_messages">हटाए गए संदेश वॉल्ट</string>
     <string name="feat_always_online_title">हमेशा ऑनलाइन</string>
     <string name="feat_always_online_desc">यदि आप व्हाट्सएप को मिनीमाइज करते हैं तो भी यह आपको ऑनलाइन दिखाता है (यदि आप इसे हालिया से हटाते हैं तो यह काम नहीं करता है)</string>
-    <string name="feat_freezelastseen_title">फ़्रीज़ लास्ट सीन</string>
-    <string name="feat_freezelastseen_desc">आपका अंतिम बार देखा गया समय फ़्रीज़ कर दिया जाएगा</string>
+    <string name="feat_freezelastseen_title">लास्ट सीन फ़्रीज़ करें</string>
+    <string name="feat_freezelastseen_desc">आपका अंतिम बार देखा गया समय स्थिर रहेगा</string>
     <string name="feat_ghostmode_t_title">टाइपिंग छुपाएं</string>
     <string name="feat_ghostmode_t_desc">उपयोगकर्ता यह नहीं देख सकते कि आप टाइप कर रहे हैं</string>
     <string name="feat_ghostmode_r_title">रिकॉर्डिंग ऑडियो छुपाएं</string>
@@ -109,18 +110,16 @@
     <string name="feat_hideread_group_desc">उपयोगकर्ताओं को पता चले बिना समूह स्क्रीन में संदेश देखें</string>
     <string name="feat_blueonreply_title">उत्तर देने पर ब्लू टिक भेजें</string>
     <string name="feat_blueonreply_desc">किसी संदेश का उत्तर देने के बाद ब्लू टिक भेजता है</string>
-    <string name="feat_seentick_title">ब्लू टिक भेजने के लिए शो बटन</string>
-    <string name="feat_seentick_desc">ब्लू टिक भेजने के लिए शो बटन (पठित/देखा गया के रूप में चिह्नित करें)</string>
+    <string name="feat_seentick_title">ब्लू टिक भेजने का बटन दिखाएं</string>
+    <string name="feat_seentick_desc">संदेश को पठित/देखा गया चिह्नित करने के लिए मैन्युअल बटन दिखाएं</string>
     <string name="feat_hide_delivery_receipts_title">छिपाकर वितरित किया गया</string>
     <string name="feat_hide_delivery_receipts_desc">उपयोगकर्ताओं को पता नहीं चलेगा कि उनके संदेश आप तक पहुंचा दिए गए हैं</string>
-    <string name="feat_hide_seen_receipts_title">देखा गया ऑडियो छुपाएं</string>
-    <string name="feat_hide_seen_receipts_desc">सुनते समय ऑडियो रीडिंग भेजने को छुपाता है</string>
-    <string name="feat_hideonceseen_title">एक बार देखने के बाद दृश्य छुपाएं</string>
-    <string name="feat_hideonceseen_desc">उस दृश्य को छुपाएं एक मीडिया को देखा गया है</string>
+    <string name="feat_hide_seen_receipts_title">वॉइस संदेश सुनने की पुष्टि छुपाएं</string>
+    <string name="feat_hide_seen_receipts_desc">ऑडियो सुनते समय प्लेबैक पुष्टि भेजना छुपाता है</string>
+    <string name="feat_hideonceseen_title">व्यू वन्स मीडिया देखने की पुष्टि छुपाएं</string>
+    <string name="feat_hideonceseen_desc">व्यू वन्स फ़ोटो या वीडियो देखने पर प्रेषक को पता नहीं चलने देता</string>
     <string name="feat_anti_revoke_title">निरस्तीकरण विरोधी संदेश</string>
     <string name="feat_anti_revoke_desc">आपके लिए संदेश हटाए नहीं जाएंगे</string>
-    <string name="feat_hide_anti_revoke_title">चैट मेनू में हाईड एंटी-रिवोक जोड़ें</string>
-    <string name="feat_hide_anti_revoke_desc">उस चैट के लिए हटाए गए संदेशों को छिपाने के लिए वार्तालाप मेनू में विकल्प जोड़ें</string>
     <string name="feat_preserve_own_revoke_title">मेरे निरस्त किए गए संदेश रखें</string>
     <string name="feat_preserve_own_revoke_desc">सभी के लिए हटाएं के बाद प्राप्तकर्ताओं के लिए हटाते समय अपनी स्थानीय प्रतिलिपि रखें</string>
     <string name="feat_antirevokestatus_title">एंटी-डिलीट स्थिति</string>
@@ -201,8 +200,8 @@
     <string name="feat_status_text_composer_desc">स्थिति को अनुकूलित करने के लिए रंग चयनकर्ता को दबाकर रखें</string>
     <string name="feat_status_downloader_title">स्थिति डाउनलोड करें और साझा करें</string>
     <string name="feat_status_downloader_desc">स्टेटस साझा करने और डाउनलोड करने के लिए दो बटन दिखाता है</string>
-    <string name="feat_media_upload_quality_title">एचडी गुणवत्ता वाली छवियां और वीडियो</string>
-    <string name="feat_media_upload_quality_desc">डिफ़ॉल्ट रूप से चित्र और वीडियो एचडी गुणवत्ता में भेजें</string>
+    <string name="feat_media_upload_quality_title">मूल गुणवत्ता में चित्र और वीडियो</string>
+    <string name="feat_media_upload_quality_desc">चित्र और वीडियो मूल गुणवत्ता में भेजें</string>
     <string name="feat_send_audio_as_voice_status_title">ऑडियो से वॉयस स्थिति</string>
     <string name="feat_send_audio_as_voice_status_desc">एक स्थानीय ऑडियो फ़ाइल चुनें और इसे ध्वनि स्थिति के रूप में प्रकाशित करें</string>
     <string name="feat_status_video_splitter_title">स्टेटस वीडियो स्प्लिटर</string>
@@ -245,14 +244,14 @@
     <string name="feat_custom_filters_desc">कस्टम व्यू आईडी फ़िल्टर नियमों को सक्षम या अक्षम करें</string>
     <string name="feat_dotonline_title">वार्तालाप सूची में ऑनलाइन डॉट दिखाएं</string>
     <string name="feat_dotonline_desc">होम स्क्रीन पर एक हरा ऑनलाइन बिंदु दिखाएँ</string>
-    <string name="feat_showonlinetext_title">ऑनलाइन दिखाएं/बातचीत सूची में अंतिम बार देखा गया</string>
-    <string name="feat_showonlinetext_desc">ऑनलाइन या होम स्क्रीन पर अंतिम बार देखा गया टेक्स्ट दिखाएं</string>
+    <string name="feat_showonlinetext_title">चैट सूची में ऑनलाइन/अंतिम बार देखा गया दिखाएं</string>
+    <string name="feat_showonlinetext_desc">होम स्क्रीन पर संपर्क का ऑनलाइन या लास्ट सीन दिखाएं</string>
     <string name="feat_typing_online_toasts_title">ऑनलाइन संपर्क पर टोस्ट दिखाएं</string>
     <string name="feat_typing_online_toasts_desc">जब कोई संपर्क ऑनलाइन हो तो एक टोस्ट दिखाएँ</string>
     <string name="feat_channels_enhancements_title">चैनल अनुशंसाएँ हटाएँ</string>
     <string name="feat_channels_enhancements_desc">टैब स्थिति से चैनल अनुशंसाएँ हटाएँ</string>
     <string name="feat_chat_filters_title">प्रकार के लिए फ़िल्टर चैट सक्षम करें</string>
-    <string name="feat_chat_filters_desc">समूहों, संपर्कों और अनदेखे संदेशों के लिए चैट फ़िल्टर करने के विकल्प दिखाएं</string>
+    <string name="feat_chat_filters_desc">समूहों, संपर्कों और अपठित संदेशों के लिए चैट फ़िल्टर करने के विकल्प दिखाएं</string>
     <string name="feat_hide_ui_tabs_title">घर पर टैब छुपाएं</string>
     <string name="feat_hide_ui_tabs_desc">होम स्क्रीन पर अपडेट, समुदाय और कॉल जैसे टैब छुपाएं</string>
     <string name="feat_instagram_status_layout_title">होम स्क्रीन पर आईजीस्टैटस सक्षम करें</string>
@@ -324,9 +323,7 @@
     <string name="diag_hma_checking">जाँच हो रही है…</string>
     <string name="diag_hma_sheet_title">ऐप आइसोलेशन डायग्नोस्टिक्स</string>
     <string name="diag_hma_sheet_desc">Hide My Applist आइसोलेशन नियमों का विवरण जो लक्ष्य पैकेज और मॉड्यूल दृश्यता को प्रभावित करते हैं।</string>
-    <string name="diag_hma_active_targets">कॉन्फ़िगर किए गए लक्ष्य</string>
-    <string name="diag_hma_inactive_targets">अन्य लक्ष्य</string>
-    <string name="diag_hma_btn_fix">ठीक करें</string>
+    <string name="diag_btn_fix">ठीक करें</string>
     <string name="diag_hma_fix_title">ऐप आइसोलेशन ठीक करें</string>
     <string name="diag_hma_fix_message">यह %1$s से मॉड्यूल ब्लॉकिंग नियमों और प्रीसेट को हटाने के लिए Hide My Applist कॉन्फ़िगरेशन को अपडेट करेगा।</string>
     <string name="diag_hma_fix_success">ऐप आइसोलेशन नियम सफलतापूर्वक अपडेट किए गए</string>
@@ -367,4 +364,83 @@
     <string name="diag_target_sheet_injected_badge">इंजेक्टेड</string>
     <string name="diag_target_sheet_section_targets">इंस्टॉल किए गए टारगेट</string>
     <string name="waex_l10n_builtin_match">"समर्थित"</string>
+    <string name="manual_status_seen_section">स्टेटस देखना</string>
+    <string name="manual_status_seen_title">स्टेटस देखा गया मैन्युअल रूप से भेजें</string>
+    <string name="manual_status_seen_desc">चुनें कि वर्तमान स्टेटस को देखा गया के रूप में कैसे चिह्नित करें</string>
+    <string name="manual_status_seen_placement_title">कार्रवाई इस रूप में दिखाएं</string>
+    <string name="manual_status_seen_menu">मेनू विकल्प</string>
+    <string name="manual_status_seen_icon">देखा गया बटन</string>
+    <string name="profile_photo_already_saved">प्रोफ़ाइल फ़ोटो पहले से सहेजी गई है</string>
+    <string name="profile_photo_saving">प्रोफ़ाइल फ़ोटो सहेजना</string>
+    <string name="save_profile_duplicates">डुप्लिकेट सहेजें</string>
+    <string name="save_profile_duplicates_desc">हर बार एक नई फ़ाइल सहेजें</string>
+    <string name="status_already_saved">स्टेटस पहले से सहेजा गया है</string>
+    <string name="status_download_saving">स्टेटस डाउनलोड सहेजना</string>
+    <string name="save_status_duplicates">डुप्लिकेट सहेजें</string>
+    <string name="save_status_duplicates_desc">हर बार एक नई फ़ाइल सहेजें</string>
+    <string name="feat_app_interface_size_title">@string/interface_size_title</string>
+    <string name="feat_app_interface_size_desc">@string/interface_size_desc</string>
+    <string name="feat_status_style_title">स्टोरीज़ और स्टेटस शैली</string>
+    <string name="feat_status_style_desc">मूल UI वेरिएंट के साथ व्हाट्सएप स्टोरीज़ और स्टेटस लेआउट कस्टमाइज़ करें</string>
+    <string name="sending_read_blue_tick">रीड ब्लू टिक भेजा जा रहा है…</string>
+    <string name="diag_target_sheet_custom_rule_warning">सभी ऐप्स इंजेक्ट और सक्रिय हैं। एक कस्टम संस्करण नियम प्रभावी है; इस संस्करण के साथ अनुकूलता आधिकारिक रूप से सत्यापित नहीं की गई है।</string>
+    <string name="feat_bypass_screenshot_restriction_title">स्क्रीनशॉट की अनुमति दें</string>
+    <string name="feat_bypass_screenshot_restriction_desc">पूरे WhatsApp में स्क्रीनशॉट और स्क्रीन रिकॉर्डिंग की अनुमति दें</string>
+    <string name="waex_ui_selected_icon_color">चयनित आइकन रंग</string>
+    <string name="waex_ui_unselected_icon_color">अचयनित आइकन रंग</string>
+    <string name="waex_ui_using_app_default_color">ऐप का डिफ़ॉल्ट रंग उपयोग कर रहे हैं</string>
+
+    <!-- WaEnhancerX 2.0.6 strings -->
+    <string name="config_mode_desc">प्राथमिकताओं को वैश्विक रूप से या प्रत्येक लक्षित ऐप के लिए अलग से कॉन्फ़िगर करें</string>
+    <string name="config_mode_per_target_app">प्रति लक्षित ऐप</string>
+    <string name="config_mode_per_target_app_desc">प्रत्येक लक्षित ऐप के लिए सुविधाओं और प्राथमिकताओं को स्वतंत्र रूप से कस्टमाइज़ करें।</string>
+    <string name="config_mode_title">कॉन्फ़िगरेशन मोड</string>
+    <string name="config_mode_universal">सार्वभौमिक (Universal)</string>
+    <string name="config_mode_universal_desc">सभी संबंधित WhatsApp ऐप्स पर समान प्राथमिकताएं लागू करें।</string>
+    <string name="diag_denylist_blocked">WhatsApp ब्लॉक हो रहा है</string>
+    <string name="diag_denylist_btn_fix_all">सभी ठीक करें</string>
+    <string name="diag_denylist_checking">जाँच हो रही है…</string>
+    <string name="diag_denylist_clean">कोई ऐप ब्लॉक नहीं है</string>
+    <string name="diag_denylist_fix_all_message">यह सभी पहचाने गए WhatsApp पैकेजों को Magisk DenyList से हटा देगा और उन्हें फ़ोर्स-स्टॉप कर देगा ताकि Zygisk/LSPosed अगले लॉन्च पर हुक कर सके।</string>
+    <string name="diag_denylist_fix_failed">Magisk DenyList से हटाने में विफल</string>
+    <string name="diag_denylist_fix_message">यह %1$s को Magisk DenyList से हटा देगा और इसे फ़ोर्स-स्टॉप कर देगा ताकि Zygisk/LSPosed अगले लॉन्च पर हुक कर सके।</string>
+    <string name="diag_denylist_fix_success">Magisk DenyList से सफलतापूर्वक हटा दिया गया</string>
+    <string name="diag_denylist_fix_title">Magisk DenyList ठीक करें</string>
+    <string name="diag_denylist_not_active">सक्रिय नहीं है</string>
+    <string name="diag_denylist_sheet_desc">Magisk DenyList नियमों का अवलोकन जो लक्षित ऐप्स और Zygisk मॉड्यूल इंजेक्शन को प्रभावित करते हैं।</string>
+    <string name="diag_denylist_sheet_title">Magisk DenyList निदान</string>
+    <string name="diag_denylist_target_blocked">लागू DenyList द्वारा अवरोधित</string>
+    <string name="diag_denylist_target_clean">लागू DenyList में मौजूद नहीं है</string>
+    <string name="diag_denylist_target_magisk_inactive">Magisk सक्रिय नहीं है</string>
+    <string name="diag_denylist_target_not_enforced">DenyList प्रवर्तन अक्षम है</string>
+    <string name="diag_label_denylist">Magisk DenyList</string>
+    <string name="feat_custom_ab_props_desc">स्टार्टअप पर प्रॉपर्टी ID द्वारा WhatsApp AB प्रॉपर्टीज़ को ओवरराइड करें</string>
+    <string name="feat_custom_ab_props_title">कस्टम AB प्रॉपर्टीज़</string>
+    <string name="feat_disable_defemojis_desc">WhatsApp के इन-बिल्ट इमोजी के बजाय सिस्टम इमोजी (iOS, Samsung, Google) का उपयोग करें</string>
+    <string name="feat_disable_defemojis_title">डिवाइस डिफ़ॉल्ट इमोजी का उपयोग करें</string>
+    <string name="feat_parallel_downloading_desc">एक साथ कई कनेक्शनों पर बड़े मीडिया और फ़ाइलों को तेज़ी से डाउनलोड करें</string>
+    <string name="feat_parallel_downloading_title">समानांतर डाउनलोडिंग (Parallel Downloading)</string>
+    <string name="navigation_drawer_open">नेविगेशन ड्रॉअर खोलें</string>
+    <string name="parallel_downloading_2">2 कनेक्शन</string>
+    <string name="parallel_downloading_4">4 कनेक्शन (अनुशंसित)</string>
+    <string name="parallel_downloading_8">8 कनेक्शन</string>
+    <string name="parallel_downloading_connections_desc">प्रति डाउनलोड उपयोग किए जाने वाले समानांतर कनेक्शनों की संख्या चुनें</string>
+    <string name="parallel_downloading_connections_title">समानांतर कनेक्शन</string>
+    <string name="requires_setting_enabled">%1$s सक्षम होना आवश्यक है</string>
+    <string name="target_whatsapp">WhatsApp</string>
+    <string name="target_whatsapp_business">WhatsApp Business</string>
+    <string name="timestamp_custom_pattern_hint">उदा. HH:mm a, dd/MM HH:mm:ss</string>
+    <string name="timestamp_custom_pattern_label">कस्टम पैटर्न</string>
+    <string name="timestamp_format_title">समय प्रारूप (Timestamp)</string>
+    <string name="timestamp_invalid_pattern">अमान्य दिनांक/समय पैटर्न</string>
+    <string name="timestamp_modify_text_instructions">अपने चयनित प्रारूप के अनुसार समय चर के रूप में ${t} का उपयोग करें। आप ${t} से पहले और बाद में कोई भी टेक्स्ट जोड़ सकते हैं।</string>
+    <string name="timestamp_modify_text_preview">पूर्वावलोकन (Preview)</string>
+    <string name="timestamp_modify_text_title">टेक्स्ट संशोधित करें</string>
+    <string name="waex_ui_github_rate_limited" formatted="false">GitHub अनुरोध सीमा समाप्त हो गई</string>
+    <string name="waex_ui_github_rate_limited_desc" formatted="false">GitHub API सीमा समाप्त हो गई। ताज़ा करने के लिए नीचे खींचें या कुछ मिनटों बाद पुनः प्रयास करें।</string>
+    <string name="waex_ui_native_igstatus" formatted="false">Native IGStatus</string>
+    <string name="waex_ui_network_timeout_message" formatted="false">अनुरोध में बहुत अधिक समय लगा। अपना कनेक्शन जांचें और पुनः प्रयास करें।</string>
+    <string name="waex_ui_network_unreachable_message" formatted="false">WAEX सेवा तक नहीं पहुंच सका। अपना कनेक्शन जांचें और पुनः प्रयास करें।</string>
+    <string name="waex_ui_show_as_deleted" formatted="false">हटाए गए संदेश के रूप में दिखाएं</string>
+    <string name="waex_ui_show_as_deleted_desc" formatted="false">हटाए गए संदेशों को WhatsApp के मूल लेआउट के साथ प्रदर्शित करें</string>
 </resources>

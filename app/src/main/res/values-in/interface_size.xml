@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="interface_size_title">Ukuran antarmuka</string>
+    <string name="interface_size_desc">Sesuaikan teks, kontrol, spasi, dan navigasi di seluruh aplikasi</string>
+    <string name="interface_size_compact">Ringkas</string>
+    <string name="interface_size_standard">Standar</string>
+    <string name="interface_size_comfortable">Nyaman</string>
+    <string name="interface_size_large">Besar</string>
+    <string name="build_variant_debug">Debug</string>
+    <string name="build_variant_release">Rilis</string>
+</resources>

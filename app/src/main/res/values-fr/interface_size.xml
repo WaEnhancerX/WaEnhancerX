@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="interface_size_title">Taille de l\'interface</string>
+    <string name="interface_size_desc">Ajustez le texte, les commandes, l\'espacement et la navigation dans toute l\'application</string>
+    <string name="interface_size_compact">Compact</string>
+    <string name="interface_size_standard">Standard</string>
+    <string name="interface_size_comfortable">Confortable</string>
+    <string name="interface_size_large">Grand</string>
+    <string name="build_variant_debug">Débogage (Debug)</string>
+    <string name="build_variant_release">Version finale (Release)</string>
+</resources>

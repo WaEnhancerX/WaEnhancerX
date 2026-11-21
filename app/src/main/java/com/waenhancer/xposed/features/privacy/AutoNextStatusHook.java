@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.xposed.utils.HookErrors;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XC_MethodReplacement;
 import de.robv.android.xposed.XposedBridge;
@@ -51,7 +52,7 @@ public class AutoNextStatusHook extends BaseFeature {
 
         // 1. Resolve StatusPlaybackContactFragment or related status playback fragment class
         Class<?> playbackContactFragmentClass = engine.findClassWithCache(
-                context, classLoader, "wpp_status_playback_contact_fragment",
+                context, classLoader, "waex_status_playback_contact_fragment",
                 (bridge, loader) -> {
                     ClassData cd = bridge.findClass(FindClass.create()
                             .matcher(ClassMatcher.create()
@@ -63,7 +64,7 @@ public class AutoNextStatusHook extends BaseFeature {
 
         // 2. Resolve next status playback transition runner method
         Method nextStatusRunMethod = engine.findMethodWithCache(
-                context, classLoader, "wpp_status_playback_run_next",
+                context, classLoader, "waex_status_playback_run_next",
                 (bridge, loader) -> {
                     MethodData md = bridge.findMethod(FindMethod.create()
                             .matcher(MethodMatcher.create()
@@ -92,7 +93,7 @@ public class AutoNextStatusHook extends BaseFeature {
                                     return;
                                 }
                             }
-                        } catch (Throwable ignored) {}
+                        } catch (Throwable ignored) { HookErrors.swallowed("AutoNextStatusHook", ignored); }
                     }
                 }
             });
@@ -100,7 +101,7 @@ public class AutoNextStatusHook extends BaseFeature {
 
         // 3. Resolve onPlaybackFinished callback method to prevent auto-advancing when story/status ends
         Method onPlaybackFinishedMethod = engine.findMethodWithCache(
-                context, classLoader, "wpp_status_on_playback_finished",
+                context, classLoader, "waex_status_on_playback_finished",
                 (bridge, loader) -> {
                     MethodData md = bridge.findMethod(FindMethod.create()
                             .matcher(MethodMatcher.create()

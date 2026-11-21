@@ -65,7 +65,8 @@ final class RestartTargetPolicy {
     }
 
     static boolean reportsActivityLaunch(String commandOutput) {
-        return commandOutput != null && ACTIVITY_LAUNCHED.matcher(commandOutput).find();
+        return commandOutput != null && ACTIVITY_LAUNCHED.matcher(commandOutput).find()
+                && !commandOutput.contains("Error:");
     }
 
     static boolean reportsRootId(String commandOutput) {

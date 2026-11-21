@@ -31,13 +31,19 @@ import androidx.compose.material.icons.rounded.BrightnessAuto
 import androidx.compose.material.icons.rounded.Contacts
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.BatteryChargingFull
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.InstallMobile
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.Mood
 import androidx.compose.material.icons.rounded.PhoneAndroid
+import androidx.compose.material.icons.rounded.Menu
+import androidx.compose.material.icons.rounded.ArrowDropDown
 
 object WaexIcons {
+    val Menu = Icons.Rounded.Menu
+    val ArrowDropDown = Icons.Rounded.ArrowDropDown
     val Back = Icons.AutoMirrored.Rounded.ArrowBack
     val ChevronRight = Icons.Rounded.ChevronRight
     val Info = Icons.Rounded.Info
@@ -54,14 +60,18 @@ object WaexIcons {
     val Premium = Icons.Rounded.Star
     val Search = Icons.Rounded.Search
     val Clear = Icons.Rounded.Clear
+    val Delete = Icons.Rounded.Delete
     val Share = Icons.Rounded.Share
     val Refresh = Icons.Rounded.Refresh
+    val Download = Icons.Rounded.SystemUpdate
+    val DownloadDone = Icons.Rounded.CheckCircle
 
     // Stitch specific icons
     val ShieldHeart = Icons.Rounded.CheckCircle // using CheckCircle as verified badge/shield
     val Security = Icons.Rounded.Security
     val Image = Icons.Rounded.Image
     val Palette = Icons.Rounded.Palette
+    val Mood = Icons.Rounded.Mood
     val AutoAwesome = Icons.Rounded.AutoAwesome
     val GridView = Icons.Rounded.GridView
     val Extension = Icons.Rounded.Extension

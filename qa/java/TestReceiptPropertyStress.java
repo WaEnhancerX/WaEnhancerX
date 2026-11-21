@@ -35,6 +35,14 @@ public final class TestReceiptPropertyStress {
     int total(){return q.size();}
   }
 
+  // Test-only model of successful enqueue acknowledgements; production uses
+  // snapshot then removes each exact accepted recipe. A snapshot alone is read-only.
+  private static <T> java.util.List<T> acknowledgeSnapshot(PendingReadReceiptStore<T> store,String recipient){
+    java.util.List<T> batch=store.snapshot(recipient);
+    for(T item:batch)store.remove(recipient,item);
+    return batch;
+  }
+
   public static void main(String[] args) throws Exception {
     Random random = new Random(0x51EADBEEFL);
     PendingReadReceiptStore<Integer> prod=new PendingReadReceiptStore<>(31,17);
@@ -45,14 +53,14 @@ public final class TestReceiptPropertyStress {
       switch(random.nextInt(5)){
         case 0,1,2 -> {prod.add(key,i);model.add(key,i);}
         case 3 -> must(prod.pendingCount(key)==model.count(key),"count differs at operation="+i);
-        case 4 -> must(prod.drain(key).equals(model.drain(key)),"drain differs at operation="+i);
+        case 4 -> must(acknowledgeSnapshot(prod,key).equals(model.drain(key)),"drain differs at operation="+i);
       }
       must(prod.recipientCount()==model.total(),"recipient bound / exact eviction mismatch at="+i);
       must(prod.recipientCount()<=31,"capacity overflow");
     }
     for(int u=1;u<=60;u++)for(String suffix:namespace){
       String key=u+suffix;
-      must(prod.drain(key).equals(model.drain(key)),"flush differs for "+key);
+      must(acknowledgeSnapshot(prod,key).equals(model.drain(key)),"flush differs for "+key);
     }
     must(prod.recipientCount()==0,"flush complete");
     final PendingReadReceiptStore<Integer> shared=new PendingReadReceiptStore<>(128,64);
@@ -65,7 +73,7 @@ public final class TestReceiptPropertyStress {
           Random r=new Random(thread*2L+200);
           for(int i=0;i<10_000;i++){
             String jid=(r.nextInt(250)+1)+(thread%2==0?"@lid":"@s.whatsapp.net");
-            if((i%4)==0)shared.drain(jid);
+            if((i%4)==0)acknowledgeSnapshot(shared,jid);
             else shared.add(jid,i);
             if(i%20==0)shared.pendingCount(jid);
           }
@@ -73,7 +81,7 @@ public final class TestReceiptPropertyStress {
         finally {done.countDown();}
       }).start();
     }
-    done.await();
+    if(!done.await(30,java.util.concurrent.TimeUnit.SECONDS))throw new AssertionError("Concurrent receipt operations timed out");
     must(errors.get()==0,"concurrent scenario threw exception");
     must(shared.recipientCount()<=128,"concurrent recipient capacity");
     System.out.println("PASS: "+assertions+" differential/capacity assertions; 100,000 serial + 100,000 concurrent mixed operations");
