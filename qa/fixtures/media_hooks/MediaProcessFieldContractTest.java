@@ -138,6 +138,9 @@ public final class MediaProcessFieldContractTest {
   check(Integer.valueOf(51200).equals(PropsOverrideHook.INTEGERS.get(1577)),"max size property installed");
   check(Integer.valueOf(100).equals(PropsOverrideHook.INTEGERS.get(1578)),"quality property installed");
   check(Integer.valueOf(6000).equals(PropsOverrideHook.INTEGERS.get(1576)),"max edge property installed");
+  check(Integer.valueOf(51200).equals(PropsOverrideHook.INTEGERS.get(2477)),"screenshot max size agrees with default profile");
+  check(Integer.valueOf(100).equals(PropsOverrideHook.INTEGERS.get(2475)),"screenshot quality agrees with default profile");
+  check(Integer.valueOf(6000).equals(PropsOverrideHook.INTEGERS.get(2476)),"screenshot max edge agrees with default profile");
   check(Boolean.TRUE.equals(PropsOverrideHook.BOOLEANS.get(6033)),"boolean true property");
   check(Boolean.FALSE.equals(PropsOverrideHook.BOOLEANS.get(9569)),"boolean false preserved");
   int[] defaultProfile=MediaQualityBypassHook.effectiveImageParameters();
@@ -145,10 +148,13 @@ public final class MediaProcessFieldContractTest {
         "default profile reads current property map");
   PropsOverrideHook.INTEGERS.put(1578, 77);
   check(MediaQualityBypassHook.effectiveImageParameters()==null, "custom quality disables conflicting constructor write");
+  PropsOverrideHook.INTEGERS.put(1578, 100);
   PropsOverrideHook.INTEGERS.put(2475, 61);
   check(MediaQualityBypassHook.effectiveImageParameters()==null,
-        "unknown alternate host property route blocks unsafe constructor override");
+        "custom screenshot quality blocks conflicting constructor override");
   PropsOverrideHook.INTEGERS.remove(2475);
+  check(MediaQualityBypassHook.effectiveImageParameters()==null, "missing screenshot configuration prevents provenance guessing");
+  PropsOverrideHook.INTEGERS.put(2475, 100);
   PropsOverrideHook.INTEGERS.put(1578, 0);
   check(MediaQualityBypassHook.effectiveImageParameters()==null, "invalid quality preserved without write");
   PropsOverrideHook.INTEGERS.put(1578, 100);

@@ -72,6 +72,7 @@
       "typearchive",
       "dnd_mode",
       "hide_chats",
+      "locked_chats_message_notifications",
       "custom_privacy"
     ]
   },
@@ -100,10 +101,12 @@
       "hide_forwarded_tag",
       "removeforwardlimit",
       "sticker_confirm_alert",
+      "remove_sticker_white_outline",
       "removeseemore",
       "stamp_copied_message",
       "doubletap2like",
-      "disable_defemojis"
+      "disable_defemojis",
+      "custom_emojis"
     ],
     "proKeys": [
       "message_bomber"
@@ -193,6 +196,7 @@
       "custom_view_dpi",
       "seen_tick_customization",
       "floating_bottom_bar",
+      "native_floating_navigation",
       "unlock_premium_customization",
       "custom_filters",
       "custom_ab_props"

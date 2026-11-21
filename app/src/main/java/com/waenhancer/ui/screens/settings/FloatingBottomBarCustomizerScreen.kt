@@ -1,5 +1,8 @@
 package com.waenhancer.ui.screens.settings
 
+import com.waenhancer.ui.components.WaexSheetTitle
+
+import com.waenhancer.ui.components.WaexSheetHorizontalMargin
 import com.waenhancer.app.R
 import com.waenhancer.utils.UiText
 
@@ -392,7 +395,13 @@ fun FloatingBottomBarCustomizerScreen() {
                         checked = enabled,
                         onCheckedChange = { isChecked ->
                             enabled = isChecked
-                            preferenceManager.putBoolean("floating_bottom_bar", isChecked)
+                            if (isChecked) {
+                                preferenceManager.putBooleans(
+                                    mapOf("floating_bottom_bar" to true, "native_floating_navigation" to false)
+                                )
+                            } else {
+                                preferenceManager.putBoolean("floating_bottom_bar", false)
+                            }
                         }
                     )
                 }
@@ -1060,22 +1069,16 @@ private fun SliderItem(
 
     if (showValueEditor) {
         WaexModalBottomSheet(
-            onDismissRequest = { showValueEditor = false },
-            containerColor = colors.surface
+            onDismissRequest = { showValueEditor = false }
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
+                    .padding(horizontal = WaexSheetHorizontalMargin)
                     .padding(bottom = 28.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    text = label,
-                    style = typography.bodyLg,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurface
-                )
+                WaexSheetTitle(label)
                 OutlinedTextField(
                     value = inputValue,
                     onValueChange = {

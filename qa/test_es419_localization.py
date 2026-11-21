@@ -35,21 +35,21 @@ for folder in ['values','values-es','values-b+es+419']:
 # Every new static R reference is defined. Keep original English only as explicit fallback.
 for path in SRC.rglob('*'):
     if path.suffix not in ['.kt','.java']:continue
-    text=path.read_text()
+    text=path.read_text(encoding="utf-8")
     for key in re.findall(r'R\.string\.(waex_ui_[a-z0-9_]+)',text):assert key in base,(path,key)
-locale=(SRC/'com/waenhancer/utils/LocaleHelper.kt').read_text()
+locale=(SRC/'com/waenhancer/utils/LocaleHelper.kt').read_text(encoding="utf-8")
 assert 'LanguageOption("es-419"' in locale
 assert 'DisplayLocalePolicy.canonicalCode' in locale
-picker=(SRC/'com/waenhancer/ui/screens/settings/ModuleSettingsScreen.kt').read_text()
+picker=(SRC/'com/waenhancer/ui/screens/settings/ModuleSettingsScreen.kt').read_text(encoding="utf-8")
 assert 'text = lang.englishName' not in picker
 assert 'getLanguageExplanation(lang.code)' in picker
 assert 'listOf("System", "Light", "Dark")' in picker, 'Do not translate stored theme values'
 assert 'putString(PREF_APP_LANGUAGE, langCode)' in locale
-bridge=(SRC/'com/waenhancer/xposed/bridge/HookProvider.java').read_text()
+bridge=(SRC/'com/waenhancer/xposed/bridge/HookProvider.java').read_text(encoding="utf-8")
 assert 'new HashMap<String, Object>(prefs.getAll())' in bridge, 'Retain existing language snapshot path'
-assert 'UiText.initialize(appContext, bridgeClient)' in (SRC/'com/waenhancer/xposed/MainHook.java').read_text()
-assert 'UiText.initialize(this, PreferenceStores.publicStore(this))' in (SRC/'com/waenhancer/app/WaexApp.kt').read_text()
-helper=(SRC/'com/waenhancer/utils/UiText.java').read_text()
+assert 'UiText.initialize(appContext, bridgeClient)' in (SRC/'com/waenhancer/xposed/MainHook.java').read_text(encoding="utf-8")
+assert 'UiText.initialize(this, PreferenceStores.publicStore(this))' in (SRC/'com/waenhancer/app/WaexApp.kt').read_text(encoding="utf-8")
+helper=(SRC/'com/waenhancer/utils/UiText.java').read_text(encoding="utf-8")
 assert 'Locale.setDefault' not in helper
 assert 'getResourcePackageName' in helper and 'createPackageContext(MODULE_PACKAGE, 0)' in helper
 assert 'getIdentifier(' not in helper, 'No repeated dynamic resource-name lookups'
@@ -59,14 +59,14 @@ keep = ET.parse(ROOT/'app/src/main/res/raw/waex_localized_ui_keep.xml').getroot(
 kept=keep.attrib['{http://schemas.android.com/tools}keep'].split(',')
 assert '@string/waex_ui_*' in kept and '@plurals/waex_recordings_deleted' in kept
 # Key enums, JIDs, SQL, cryptographic labels and selectors are intentionally not language strings.
-media=(SRC/'com/waenhancer/xposed/features/media/MediaPreviewHook.kt').read_text()
+media=(SRC/'com/waenhancer/xposed/features/media/MediaPreviewHook.kt').read_text(encoding="utf-8")
 for k in ['WhatsApp Image Keys','WhatsApp Video Keys','WhatsApp Audio Keys','WhatsApp Document Keys']:
     assert f'"{k}".toByteArray(Charsets.UTF_8)' in media
-schema=(SRC/'com/waenhancer/config/PreferenceSchema.java').read_text()
+schema=(SRC/'com/waenhancer/config/PreferenceSchema.java').read_text(encoding="utf-8")
 assert 'UiText' not in schema
-catalog=(ROOT/'app/src/main/assets/preference_catalog.json').read_text()
+catalog=(ROOT/'app/src/main/assets/preference_catalog.json').read_text(encoding="utf-8")
 assert 'disable_sensor_proximity' in catalog
-dashboard=(SRC/'com/waenhancer/ui/screens/dashboard/MainDashboardScreen.kt').read_text()
+dashboard=(SRC/'com/waenhancer/ui/screens/dashboard/MainDashboardScreen.kt').read_text(encoding="utf-8")
 assert 'text = InternalLabels.hmaReason(item.reason)' in dashboard
 assert 'text = item.reason,' not in dashboard, 'HMA reason must be localized at its display boundary'
 # Negative controls: a missing slot, malformed token and bidi marker must be recognized.
@@ -81,10 +81,10 @@ with tempfile.TemporaryDirectory() as folder:
     fixture=Path(folder)/'fixture';staged=Path(folder)/'staged';identities={}
     for qualifier in ('values','values-es','values-b+es+419'):
         source=fixture/'app/src/main/res'/qualifier;source.mkdir(parents=True)
-        (source/'extra.xml').write_text('<resources><string name="extra">Extra</string></resources>')
+        (source/'extra.xml').write_text('<resources><string name="extra">Extra</string></resources>', encoding="utf-8")
         (source/'mixed.xml').write_text('<resources><color name="color">#000000</color>'
             '<string name="mixed">A &amp; B</string><plurals name="items"><item quantity="one">%1$d item</item>'
-            '<item quantity="other">%1$d items</item></plurals></resources>')
+            '<item quantity="other">%1$d items</item></plurals></resources>', encoding="utf-8")
     stage_string_resources(fixture,staged,identities)
     assert len(identities)==6
     for qualifier in ('values','values-es','values-b+es+419'):

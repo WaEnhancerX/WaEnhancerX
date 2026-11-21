@@ -13,6 +13,7 @@ VIEW=PKG+'features/privacy/AntiViewOnceHook.java'
 OWNERSHIP=PKG+'features/privacy/ViewOnceMessageContract.java'
 GUARD=PKG+'core/devkit/HookReturnTypeGuard.java'
 REGISTRY=PKG+'core/FeatureRegistry.java'
+ERRORS=PKG+'utils/HookErrors.java'
 FIXTURE='qa/fixtures/media_hooks/MediaProcessFieldContractTest.java'
 MUTANTS=[
  ("reject_verified_jid_subtype",OWNERSHIP,'else if (jidSubtype(field.getType()) && chat == null) chat = field;','else if (jidName(field.getType(), "Jid") && chat == null) chat = field;',"viewonce"),
@@ -43,7 +44,7 @@ MUTANTS=[
 ]
 def main():
  p=argparse.ArgumentParser(description=__doc__);p.add_argument('--out',type=Path,required=True);p.add_argument('--dexkit-jar',type=Path,required=True);p.add_argument('--kotlin-stdlib',type=Path,required=True);a=p.parse_args();out=a.out.resolve();out.mkdir(parents=True,exist_ok=False)
- originals={name:(ROOT/name).read_text(encoding='utf-8') for name in [MEDIA,SELECTOR,PROCESS,VIEW,OWNERSHIP,GUARD,REGISTRY,FIXTURE]}
+ originals={name:(ROOT/name).read_text(encoding='utf-8') for name in [MEDIA,SELECTOR,PROCESS,VIEW,OWNERSHIP,GUARD,REGISTRY,ERRORS,FIXTURE]}
  results=[]
  for name,path,before,after,suite in MUTANTS:
   if originals[path].count(before)!=1:raise AssertionError(name+': nonunique/absent mutation anchor')
@@ -58,7 +59,7 @@ def main():
    text=run.stdout+run.stderr;(out/(name+'.log')).write_text(text,encoding='utf-8')
    if suite=='field':
     report=json.loads((result_dir/'result.json').read_text(encoding='utf-8'))
-    compiled=report['compiler_exit']==0;checks=report['checks'];failures=report['failed'];complete=checks==56 and report['runtime_exit'] is not None
+    compiled=report['compiler_exit']==0;checks=report['checks'];failures=report['failed'];complete=checks==60 and report['runtime_exit'] is not None
    else:
     match=re.search(r'RESULT checks=(\d+) failures=(\d+) suite=(\w+)',run.stdout)
     compiled=match is not None;checks=int(match[1]) if match else 0;failures=int(match[2]) if match else 0;complete=match is not None

@@ -622,10 +622,7 @@ fun StargazersScreen() {
 
     selectedStargazer?.let { stargazer ->
         WaexModalBottomSheet(
-            onDismissRequest = { selectedStargazer = null },
-            containerColor = colors.surface,
-            contentColor = colors.onSurface,
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            onDismissRequest = { selectedStargazer = null }
         ) {
             Column(
                 modifier = Modifier
@@ -823,10 +820,7 @@ fun StargazersScreen() {
     if (showSupportSheet) {
         WaexModalBottomSheet(
             onDismissRequest = { showSupportSheet = false },
-            sheetState = supportSheetState,
-            containerColor = colors.surface,
-            contentColor = colors.onSurface,
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            sheetState = supportSheetState
         ) {
             Column(
                 modifier = Modifier

@@ -10,7 +10,6 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.SparseIntArray;
 import android.view.MenuItem;
 
 import androidx.annotation.NonNull;
@@ -47,9 +46,10 @@ import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import android.app.Activity;
 import com.waenhancer.xposed.utils.ActivityTracker;
+import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.HostFields;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 /** Adds a dedicated Groups home tab and filters the Chats/Groups fragment data sets. */
 public final class SeparateGroupsHook extends BaseFeature {
@@ -213,19 +213,62 @@ public final class SeparateGroupsHook extends BaseFeature {
             }
         });
 
-        for (Method method : conversations.getDeclaredMethods()) {
-            if (method.getParameterTypes().length != 0 || !List.class.isAssignableFrom(method.getReturnType())) continue;
-            method.setAccessible(true);
-            XposedBridge.hookMethod(method, new XC_MethodHook() {
-                @Override protected void afterHookedMethod(MethodHookParam param) {
-                    if (!(param.getResult() instanceof List)) return;
-                    Integer tab;
-                    synchronized (fragmentTabs) { tab = fragmentTabs.get(param.thisObject); }
-                    if (tab == null) return;
-                    param.setResult(filter((List<?>) param.getResult(), tab == GROUPS));
+        hookRowProviders(conversations);
+    }
+
+    /**
+     * Hooks every list-producing method in the fragment hierarchy regardless of name, parameters,
+     * visibility or declaring class (obfuscated names and the declaring class change between
+     * releases). A result is only rewritten when it is a list of chat rows, i.e. its elements
+     * expose a Jid, and the owning fragment is one of the tracked Chats/Groups fragments.
+     */
+    private void hookRowProviders(Class<?> conversations) {
+        Class<?> type = conversations;
+        while (type != null && type != Object.class && !isFrameworkClass(type)) {
+            for (Method method : type.getDeclaredMethods()) {
+                int mods = method.getModifiers();
+                if (Modifier.isAbstract(mods) || Modifier.isNative(mods) || method.isBridge()
+                        || !List.class.isAssignableFrom(method.getReturnType())) continue;
+                try {
+                    method.setAccessible(true);
+                    XposedBridge.hookMethod(method, new XC_MethodHook() {
+                        @Override protected void afterHookedMethod(MethodHookParam param) {
+                            Object result = param.getResult();
+                            if (!(result instanceof List) || ((List<?>) result).isEmpty()) return;
+                            Integer tab = trackedTab(param.thisObject);
+                            if (tab == null && param.args != null) {
+                                for (Object arg : param.args) {
+                                    tab = trackedTab(arg);
+                                    if (tab != null) break;
+                                }
+                            }
+                            if (tab == null || !looksLikeChatRows((List<?>) result)) return;
+                            param.setResult(filter((List<?>) result, tab == GROUPS));
+                        }
+                    });
+                } catch (Throwable t) {
+                    HookErrors.swallowed("SeparateGroupsHook", t);
                 }
-            });
+            }
+            type = type.getSuperclass();
         }
+    }
+
+    private static boolean isFrameworkClass(Class<?> type) {
+        String name = type.getName();
+        return name.startsWith("android.") || name.startsWith("androidx.") || name.startsWith("java.");
+    }
+
+    private static Integer trackedTab(Object candidate) {
+        if (candidate == null) return null;
+        synchronized (fragmentTabs) { return fragmentTabs.get(candidate); }
+    }
+
+    private boolean looksLikeChatRows(List<?> list) {
+        for (Object item : list) {
+            if (item != null) return findJid(item) != null;
+        }
+        return false;
     }
 
     private int tabAt(int index) {
@@ -253,18 +296,21 @@ public final class SeparateGroupsHook extends BaseFeature {
 
     private static final Map<Class<?>, Field> JID_FIELD_CACHE = new ConcurrentHashMap<>();
 
+    private static final Map<Class<?>, Boolean> NO_JID_CLASSES = new ConcurrentHashMap<>();
+
     private Object findJid(Object chat) {
         if (chat == null) return null;
         Class<?> chatClass = chat.getClass();
+        if (NO_JID_CLASSES.containsKey(chatClass) || isFrameworkClass(chatClass)) return null;
         Field cached = JID_FIELD_CACHE.get(chatClass);
         if (cached != null) {
             try {
                 return cached.get(chat);
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("SeparateGroupsHook", ignored); }
         }
         Class<?> type = chatClass;
         while (type != null && type != Object.class) {
-            for (Field field : type.getDeclaredFields()) {
+            for (Field field : HostFields.declared(type)) {
                 if (Modifier.isStatic(field.getModifiers()) || field.getType().isPrimitive()) continue;
                 try {
                     field.setAccessible(true);
@@ -275,10 +321,11 @@ public final class SeparateGroupsHook extends BaseFeature {
                         JID_FIELD_CACHE.put(chatClass, field);
                         return value;
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("SeparateGroupsHook", ignored); }
             }
             type = type.getSuperclass();
         }
+        NO_JID_CLASSES.put(chatClass, Boolean.TRUE);
         return null;
     }
 
@@ -385,7 +432,7 @@ public final class SeparateGroupsHook extends BaseFeature {
                         for (var data : subclasses) {
                             Class<?> cls = data.getInstance(loader);
                             for (Constructor<?> ctor : cls.getDeclaredConstructors()) {
-                                if (ctor.getParameterCount() == 0) {
+                                if (ctor.getParameterTypes().length == 0) {
                                     return cls;
                                 }
                             }
@@ -400,7 +447,7 @@ public final class SeparateGroupsHook extends BaseFeature {
                         for (var data : subclasses) {
                             Class<?> cls = data.getInstance(loader);
                             for (Constructor<?> ctor : cls.getDeclaredConstructors()) {
-                                int count = ctor.getParameterCount();
+                                int count = ctor.getParameterTypes().length;
                                 if (count >= 1 && !ctor.getParameterTypes()[0].isPrimitive()) {
                                     return cls;
                                 }
@@ -416,9 +463,9 @@ public final class SeparateGroupsHook extends BaseFeature {
 
             Constructor<?> foundWrapperCtor = null;
             for (Constructor<?> ctor : badgeWrapperClass.getDeclaredConstructors()) {
-                int count = ctor.getParameterCount();
+                int count = ctor.getParameterTypes().length;
                 if (count >= 1 && !ctor.getParameterTypes()[0].isPrimitive()) {
-                    if (foundWrapperCtor == null || count < foundWrapperCtor.getParameterCount()) {
+                    if (foundWrapperCtor == null || count < foundWrapperCtor.getParameterTypes().length) {
                         foundWrapperCtor = ctor;
                     }
                 }
@@ -431,7 +478,7 @@ public final class SeparateGroupsHook extends BaseFeature {
             Class<?> badgeItemClass = engine.findClassWithCache(context, classLoader,
                     "separate_groups.badge_item_class", (bridge, loader) -> {
                         for (Constructor<?> ctor : badgeItemBaseClass.getDeclaredConstructors()) {
-                            if (ctor.getParameterCount() == 1 && ctor.getParameterTypes()[0] == int.class) {
+                            if (ctor.getParameterTypes().length == 1 && ctor.getParameterTypes()[0] == int.class) {
                                 return badgeItemBaseClass;
                             }
                         }
@@ -440,7 +487,7 @@ public final class SeparateGroupsHook extends BaseFeature {
                         for (var data : candidates) {
                             Class<?> cls = data.getInstance(loader);
                             for (Constructor<?> ctor : cls.getDeclaredConstructors()) {
-                                if (ctor.getParameterCount() == 1 && ctor.getParameterTypes()[0] == int.class) {
+                                if (ctor.getParameterTypes().length == 1 && ctor.getParameterTypes()[0] == int.class) {
                                     return cls;
                                 }
                             }
@@ -455,7 +502,7 @@ public final class SeparateGroupsHook extends BaseFeature {
 
             Constructor<?> foundItemCtor = null;
             for (Constructor<?> ctor : badgeItemClass.getDeclaredConstructors()) {
-                if (ctor.getParameterCount() == 1 && ctor.getParameterTypes()[0] == int.class) {
+                if (ctor.getParameterTypes().length == 1 && ctor.getParameterTypes()[0] == int.class) {
                     ctor.setAccessible(true);
                     foundItemCtor = ctor;
                     break;
@@ -495,7 +542,6 @@ public final class SeparateGroupsHook extends BaseFeature {
                 }
             });
 
-            XposedBridge.log(TAG + " successfully hooked tab badge setter");
         } catch (Throwable t) {
             XposedBridge.log(TAG + " unread badge hook unavailable: " + t);
         }
@@ -555,21 +601,21 @@ public final class SeparateGroupsHook extends BaseFeature {
 
     private static Object getEmptyBadge(Class<?> emptyBadgeClass) {
         if (emptyBadgeClass == null) return null;
-        for (Field f : emptyBadgeClass.getDeclaredFields()) {
+        for (Field f : HostFields.declared(emptyBadgeClass)) {
             if (Modifier.isStatic(f.getModifiers()) && emptyBadgeClass.isAssignableFrom(f.getType())) {
                 try {
                     f.setAccessible(true);
                     Object val = f.get(null);
                     if (val != null) return val;
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("SeparateGroupsHook", ignored); }
             }
         }
         for (Constructor<?> ctor : emptyBadgeClass.getDeclaredConstructors()) {
-            if (ctor.getParameterCount() == 0) {
+            if (ctor.getParameterTypes().length == 0) {
                 try {
                     ctor.setAccessible(true);
                     return ctor.newInstance();
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("SeparateGroupsHook", ignored); }
             }
         }
         return null;
@@ -666,10 +712,6 @@ public final class SeparateGroupsHook extends BaseFeature {
         if (tabId == CHATS) return 0;
         if (tabId == GROUPS) return 1;
         return -1;
-    }
-
-    private boolean isSeparateGroupsEnabled() {
-        return isSeparateGroupsActive();
     }
 
     private static boolean isSeparateGroupsActive() {

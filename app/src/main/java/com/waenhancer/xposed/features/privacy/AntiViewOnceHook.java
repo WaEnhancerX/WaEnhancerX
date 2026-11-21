@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.xposed.utils.HookErrors;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import org.luckypray.dexkit.DexKitBridge;
@@ -95,6 +96,7 @@ public class AntiViewOnceHook extends BaseFeature {
                         if (setter != null) candidates.add(setter);
                     } catch (ReflectiveOperationException | RuntimeException | LinkageError unavailable) {
                         // This individual invoked member may be absent in this host build.
+                        HookErrors.swallowed("AntiViewOnceHook", unavailable);
                     }
                 }
                 if (candidates.size() == 1) stateContracts.add(candidates.iterator().next());
@@ -110,6 +112,7 @@ public class AntiViewOnceHook extends BaseFeature {
                         if (messages.accepts(target)) result.add(target);
                     } catch (ReflectiveOperationException | RuntimeException | LinkageError unavailable) {
                         // Reject one unsupported implementation without losing other media classes.
+                        HookErrors.swallowed("AntiViewOnceHook", unavailable);
                     }
                 }
             }
@@ -133,6 +136,7 @@ public class AntiViewOnceHook extends BaseFeature {
                             ignored -> new LinkedHashSet<>()).add(method);
                 } catch (ReflectiveOperationException | RuntimeException | LinkageError unavailable) {
                     // A direct match still has to satisfy the same message ownership contract.
+                    HookErrors.swallowed("AntiViewOnceHook", unavailable);
                 }
             }
             for (Set<Method> candidates : byMessageType.values()) {

@@ -6,6 +6,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
+import com.waenhancer.xposed.utils.HookErrors;
 
 /** One process-wide hook per hot View method, dispatching only to active feature owners. */
 public final class ViewHookDispatcher {
@@ -71,7 +72,7 @@ public final class ViewHookDispatcher {
                 int mask = (Integer) param.args[1];
                 for (CopyOnWriteArrayList<SetFlagsFilter> listeners : FLAGS.values()) {
                     for (SetFlagsFilter listener : listeners) {
-                        try { flags = listener.filter(view, flags, mask); } catch (Throwable ignored) {}
+                        try { flags = listener.filter(view, flags, mask); } catch (Throwable ignored) { HookErrors.swallowed("ViewHookDispatcher", ignored); }
                     }
                 }
                 param.args[0] = flags;
@@ -84,7 +85,7 @@ public final class ViewHookDispatcher {
             ConcurrentHashMap<Object, CopyOnWriteArrayList<ViewListener>> listeners, View view) {
         for (CopyOnWriteArrayList<ViewListener> owned : listeners.values()) {
             for (ViewListener listener : owned) {
-                try { listener.onView(view); } catch (Throwable ignored) {}
+                try { listener.onView(view); } catch (Throwable ignored) { HookErrors.swallowed("ViewHookDispatcher", ignored); }
             }
         }
     }

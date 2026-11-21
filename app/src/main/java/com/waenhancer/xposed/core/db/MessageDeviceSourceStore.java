@@ -8,6 +8,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 import android.util.LruCache;
 
 import androidx.annotation.Nullable;
+import com.waenhancer.xposed.utils.HookErrors;
 
 public class MessageDeviceSourceStore extends SQLiteOpenHelper {
     private static final String DATABASE_NAME = "MessageDeviceSource.db";
@@ -62,7 +63,7 @@ public class MessageDeviceSourceStore extends SQLiteOpenHelper {
                 values.put(COL_DEVICE_ID, deviceId);
                 dbWrite.insertWithOnConflict(TABLE_NAME, null, values, SQLiteDatabase.CONFLICT_REPLACE);
                 deviceCache.put(messageId, deviceId);
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("MessageDeviceSourceStore", ignored); }
         }
     }
 
@@ -88,7 +89,7 @@ public class MessageDeviceSourceStore extends SQLiteOpenHelper {
                 deviceCache.put(messageId, deviceId);
                 return deviceId;
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("MessageDeviceSourceStore", ignored); }
 
         deviceCache.put(messageId, CACHE_MISS);
         return -1;

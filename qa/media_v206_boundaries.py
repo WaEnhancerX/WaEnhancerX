@@ -23,7 +23,7 @@ public class JSONObject {public JSONObject(){} public JSONObject(String source){
  public JSONObject put(String key,Object value){return this;}}
 '''
     s['com/waenhancer/config/HookingModePolicy.java']='''package com.waenhancer.config;
-public final class HookingModePolicy {public static final String KEY="hooking_mode",BALANCED="Balanced",LIGHTWEIGHT="Lightweight",CUSTOMIZED="Customized",CUSTOMIZATIONS_KEY="hook_customizations";
+public final class HookingModePolicy {public static final String KEY="hooking_mode",BALANCED="Balanced",LIGHTWEIGHT="Lightweight",CUSTOMIZED="Customized",COMPATIBILITY="Compatibility",CUSTOMIZATIONS_KEY="hook_customizations";
  public static String normalize(String value,boolean entitled){if(!"Maximum".equals(value))throw new AssertionError("Only explicit Maximum fixture supported");return value;}}
 '''
     s['com/waenhancer/hooking/HookingEngine.java']='''package com.waenhancer.hooking;
@@ -59,6 +59,16 @@ public final class ActivityTracker {
     base=s[prefix+'core/BaseFeature.java']
     base=base.replace(' public abstract void hook() throws Throwable;', ' public void beginHookTracking(){} public void endHookTracking(){} public void unhookAll(){}\n public abstract void hook() throws Throwable;')
     s[prefix+'core/BaseFeature.java']=base
+    s[prefix+'core/devkit/DexCacheManager.java']='''package com.waenhancer.xposed.core.devkit;
+public final class DexCacheManager {public static DexCacheManager getInstance(android.content.Context c){return new DexCacheManager();}
+ public boolean isColdStart(){return false;}}
+'''
+    s[prefix+'core/FeatureLoadingNotifier.java']='''package com.waenhancer.xposed.core;
+public final class FeatureLoadingNotifier {
+ public static boolean start(android.content.Context c,int count){throw new AssertionError("Cold-start notification outside media fixture");}
+ public static void onFeatureLoaded(String name){throw new AssertionError("Cold-start notification outside media fixture");}
+ public static void finish(android.content.Context c){throw new AssertionError("Cold-start notification outside media fixture");}}
+'''
     dex=s[prefix+'core/devkit/DexSearchEngine.java']
     dex=dex.replace(' public DexKitBridge getBridge(){return bridge;}', ' public DexKitBridge getBridge(){return bridge;}\n public void acquireLease(){} public void releaseLease(){} public void close(){}')
     s[prefix+'core/devkit/DexSearchEngine.java']=dex

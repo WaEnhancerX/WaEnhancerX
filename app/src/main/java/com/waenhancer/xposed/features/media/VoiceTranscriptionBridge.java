@@ -11,6 +11,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.waenhancer.core.transcription.TranscriptionClient;
 import com.waenhancer.core.transcription.TranscriptionRequestHandler;
+import com.waenhancer.xposed.utils.HookErrors;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -249,11 +250,10 @@ final class VoiceTranscriptionBridge {
             retriever.setDataSource(audio.getAbsolutePath());
             String ms = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION);
             if (ms != null) seconds = Math.round(Long.parseLong(ms) / 1000.0);
-        } catch (Throwable ignored) {
-        } finally {
+        } catch (Throwable ignored) { HookErrors.swallowed("VoiceTranscriptionBridge", ignored); } finally {
             try {
                 retriever.release();
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("VoiceTranscriptionBridge", ignored); }
         }
         return seconds >= 0 ? "(" + kb + " KB, " + seconds + " s)" : "(" + kb + " KB)";
     }

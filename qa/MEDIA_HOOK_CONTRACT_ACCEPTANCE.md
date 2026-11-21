@@ -1,5 +1,12 @@
 # Media, view-once and descriptor cache acceptance
 
+Historical initial-PR specification and results. The current host fingerprint,
+raw flag-reader contract, positive-only JPEG range, screenshot property families
+and 2026-11-21 test identities are documented in
+[MEDIA_V206_RECONCILIATION_ACCEPTANCE.md](MEDIA_V206_RECONCILIATION_ACCEPTANCE.md).
+The old predicate, descriptor-cache scope, assertion counts and mutation command
+below are retained as history; they are not current candidate acceptance.
+
 ## What the patch establishes
 
 The complete production `AntiViewOnceHook` now binds a unique state getter/setter

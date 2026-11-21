@@ -17,7 +17,6 @@ import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.PointF
-import android.graphics.PorterDuff
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
@@ -32,11 +31,12 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.view.ViewStub
-import android.view.ViewTreeObserver
 import android.view.Window
 import android.view.WindowManager
 import android.widget.FrameLayout
+import android.widget.HeaderViewListAdapter
+import android.widget.ListAdapter
+import android.widget.ListView
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -48,19 +48,17 @@ import android.widget.Toast
 import android.widget.VideoView
 import androidx.core.graphics.drawable.DrawableCompat
 import com.waenhancer.xposed.core.BaseFeature
-import com.waenhancer.xposed.core.ViewHookDispatcher
+import com.waenhancer.xposed.utils.HookErrors
+import com.waenhancer.xposed.utils.HostClassNames
+import com.waenhancer.xposed.utils.HostResourceIds
 import com.waenhancer.xposed.core.db.MessageStore
-import com.waenhancer.xposed.core.devkit.DexSearchEngine
+import com.waenhancer.xposed.utils.ActivityTracker
 import com.waenhancer.xposed.utils.HKDFv3
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import org.luckypray.dexkit.query.FindClass
-import org.luckypray.dexkit.query.enums.StringMatchType
-import org.luckypray.dexkit.query.matchers.ClassMatcher
-import org.luckypray.dexkit.query.matchers.MethodMatcher
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -95,236 +93,224 @@ class MediaPreviewHook(
     private var currentMediaPlayer: MediaPlayer? = null
     private var currentSpeed: Float = 1.0f
     private var lastProgressPostAt: Long = 0L
+    private val hookedGetViews: MutableSet<java.lang.reflect.Method> = java.util.concurrent.ConcurrentHashMap.newKeySet()
 
     override fun hook() {
         if (!isEnabled("media_preview", isEnabled("enable_media_preview", true))) return
-
-        var videoViewContainerClass: Class<*>? = null
-        var imageViewContainerClass: Class<*>? = null
-
         try {
-            videoViewContainerClass = DexSearchEngine.getInstance().findClassWithCache(
-                context, classLoader, "waex_video_view_container"
-            ) { bridge, loader ->
-                bridge.findClass(FindClass.create().matcher(ClassMatcher.create().addUsingString(
-                    "frame_visibility_serial_worker", StringMatchType.Contains
-                ))).firstOrNull()?.getInstance(loader)
-            }
-
-            if (videoViewContainerClass != null) {
-                XposedBridge.hookAllConstructors(videoViewContainerClass, object : XC_MethodHook() {
-                    override fun afterHookedMethod(param: MethodHookParam) {
-                        if (param.args.size < 2) return
-                        val view = param.thisObject as? View ?: return
-
-                        val invisiblePressSurfaceId = getWaexId(view.context, "invisible_press_surface")
-                        val videoControlFrameViewId = getWaexId(view.context, "video_control_frame_view")
-                        var surface: ViewGroup? = if (invisiblePressSurfaceId > 0) view.findViewById(invisiblePressSurfaceId) else null
-                        if (surface == null && videoControlFrameViewId > 0) {
-                            surface = view.findViewById(videoControlFrameViewId)
-                        }
-
-                        if (surface != null && surface.childCount > 0) {
-                            handlePressSurface(view, surface)
-                        } else {
-                            val legacyStubId = getWaexId(view.context, "video_control_frame_legacy_stub")
-                            if (legacyStubId > 0) {
-                                view.findViewById<ViewStub>(legacyStubId)?.setOnInflateListener { _, inflated ->
-                                    handlePressSurface(view, inflated)
-                                }
-                            }
-                            val viewStubId = getWaexId(view.context, "video_control_frame_view_stub")
-                            if (viewStubId > 0) {
-                                view.findViewById<ViewStub>(viewStubId)?.setOnInflateListener { _, inflated ->
-                                    handlePressSurface(view, inflated)
-                                }
-                            }
+            XposedHelpers.findAndHookMethod(
+                ListView::class.java, "setAdapter", ListAdapter::class.java,
+                object : XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam) {
+                        try {
+                            onSetAdapter(param.thisObject as ListView, param.args[0] as? ListAdapter)
+                        } catch (t: Throwable) {
+                            XposedBridge.log("[WAEX][MediaPreview] setAdapter hook error: ${t.javaClass.simpleName}")
                         }
                     }
-                })
-            }
-        } catch (t: Throwable) {
-            XposedBridge.log("[WAEX][MediaPreview] Error hooking videoViewContainer: ${t.javaClass.simpleName}")
-        }
-
-        try {
-            imageViewContainerClass = DexSearchEngine.getInstance().findClassWithCache(
-                context, classLoader, "waex_image_view_container"
-            ) { bridge, loader ->
-                val hdTouchId = getWaexId(context, "hd_invisible_touch")
-                val controlBtnId = getWaexId(context, "control_btn")
-                val classes = bridge.findClass(FindClass.create().matcher(
-                    ClassMatcher.create().addMethod(
-                        MethodMatcher.create()
-                            .addUsingNumber(hdTouchId)
-                            .addUsingNumber(controlBtnId)
-                    )
-                ))
-                for (c in classes) {
-                    val inst = c.getInstance(loader)
-                    if (ViewGroup::class.java.isAssignableFrom(inst)) return@findClassWithCache inst
                 }
-                null
-            }
-
-            if (imageViewContainerClass != null) {
-                XposedBridge.hookAllConstructors(imageViewContainerClass, object : XC_MethodHook() {
-                    override fun afterHookedMethod(param: MethodHookParam) {
-                        if (param.args.size < 2) return
-                        val view = param.thisObject as? View ?: return
-
-                        val controlFrameId = getWaexId(view.context, "control_frame")
-                        val controlFrameNewId = getWaexId(view.context, "control_frame_new")
-                        var controlFrame: View? = if (controlFrameId > 0) view.findViewById(controlFrameId) else null
-                        if (controlFrame == null && controlFrameNewId > 0) {
-                            controlFrame = view.findViewById(controlFrameNewId)
-                        }
-
-                        if (controlFrame != null) {
-                            handleMediaControlFrame(view, controlFrame)
-                        } else {
-                            val legacyStubId = getWaexId(view.context, "control_frame_legacy_stub")
-                            if (legacyStubId > 0) {
-                                view.findViewById<ViewStub>(legacyStubId)?.setOnInflateListener { _, inflated ->
-                                    handleMediaControlFrame(view, inflated)
-                                }
-                            }
-                            val viewStubId = getWaexId(view.context, "control_frame_view_stub")
-                            if (viewStubId > 0) {
-                                view.findViewById<ViewStub>(viewStubId)?.setOnInflateListener { _, inflated ->
-                                    handleMediaControlFrame(view, inflated)
-                                }
-                            }
-                        }
-                    }
-                })
-            }
-        } catch (t: Throwable) {
-            XposedBridge.log("[WAEX][MediaPreview] Error hooking imageViewContainer: ${t.javaClass.simpleName}")
-        }
-
-        // Secondary fallback: only if primary container hooks could not be resolved
-        if (videoViewContainerClass == null && imageViewContainerClass == null) {
-            try {
-                val mediaRowClass = DexSearchEngine.getInstance().findClassWithCache(
-                    context, classLoader, "waex_media_bubble_layout_v1"
-                ) { bridge, loader ->
-                    bridge.findClass(FindClass.create().matcher(ClassMatcher.create().addUsingString(
-                        "BubbleRelativeLayout/ConversationRowText", StringMatchType.Contains
-                    ))).firstOrNull()?.getInstance(loader)
-                }
-                if (mediaRowClass != null) {
-                    ViewHookDispatcher.onAttached(this) { attached ->
-                        val view = attached as? ViewGroup ?: return@onAttached
-                        if (!mediaRowClass.isInstance(view)) return@onAttached
-                        view.postDelayed({ installAffordanceFallback(view) }, 200L)
-                    }
-                }
-            } catch (t: Throwable) {
-                XposedBridge.log("[WAEX][MediaPreview] Secondary bubble hook error: ${t.javaClass.simpleName}")
-            }
-        }
-    }
-
-    private fun handlePressSurface(mainContainer: View, surface: View) {
-        if (surface !is ViewGroup) return
-        val context = surface.context
-        val controlFrame = surface.getChildAt(0) ?: return
-        if (MEDIA_PREVIEW_WRAPPER_TAG == controlFrame.tag) return
-
-        surface.removeViewAt(0)
-        val linearLayout = LinearLayout(context).apply {
-            tag = MEDIA_PREVIEW_WRAPPER_TAG
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-        }
-
-        surface.addView(linearLayout, 0)
-        linearLayout.addView(controlFrame)
-
-        val prevBtn = createPreviewButton(context, dipToPixels(context, 8f))
-        prevBtn.setOnClickListener { startPreview(mainContainer, context) }
-        linearLayout.addView(prevBtn)
-    }
-
-    private fun handleMediaControlFrame(mainContainer: View, controlFrame: View) {
-        val context = mainContainer.context
-        val mediaContainerId = getWaexId(context, "media_container")
-        val mediaContainer = if (mediaContainerId > 0) mainContainer.findViewById<ViewGroup>(mediaContainerId) else null
-        if (mediaContainer == null) return
-
-        val currentParent = controlFrame.parent as? ViewGroup
-        if (currentParent != null && MEDIA_PREVIEW_WRAPPER_TAG == currentParent.tag) return
-
-        val linearLayout = LinearLayout(context).apply {
-            tag = MEDIA_PREVIEW_WRAPPER_TAG
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                Gravity.CENTER
             )
-            orientation = LinearLayout.VERTICAL
+        } catch (t: Throwable) {
+            XposedBridge.log("[WAEX][MediaPreview] Error hooking ListView.setAdapter: ${t.javaClass.simpleName}")
         }
-
-        currentParent?.removeView(controlFrame)
-        linearLayout.addView(controlFrame)
-        mediaContainer.addView(linearLayout)
-
-        val prevBtn = createPreviewButton(context, dipToPixels(context, 8f))
-        prevBtn.visibility = controlFrame.visibility
-        prevBtn.setOnClickListener { startPreview(mainContainer, context) }
-        linearLayout.addView(prevBtn)
-
-        val layoutListener = ViewTreeObserver.OnGlobalLayoutListener {
-            if (prevBtn.visibility != controlFrame.visibility) {
-                prevBtn.visibility = controlFrame.visibility
-            }
-        }
-        controlFrame.viewTreeObserver.addOnGlobalLayoutListener(layoutListener)
-        controlFrame.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
-            override fun onViewAttachedToWindow(v: View) {}
-            override fun onViewDetachedFromWindow(v: View) {
-                try {
-                    v.viewTreeObserver.removeOnGlobalLayoutListener(layoutListener)
-                } catch (_: Throwable) {}
-                v.removeOnAttachStateChangeListener(this)
-            }
-        })
     }
 
-    private fun installAffordanceFallback(root: ViewGroup) {
-        if (root.getTag(TAG_INSTALLED) == true) return
-        val control = CONTROL_IDS.asSequence().mapNotNull { name ->
-            val id = getWaexId(root.context, name)
-            if (id > 0) root.findViewById<View>(id) else null
-        }.firstOrNull { it.visibility == View.VISIBLE } ?: return
+    private fun onSetAdapter(list: ListView, adapterIn: ListAdapter?) {
+        if (list.id != AndroidR.id.list) return
+        val tracked = ActivityTracker.getCurrentActivity()
+        val host = list.context
+        val inConversation = (tracked != null && HostClassNames.simpleNameContains(tracked.javaClass, "Conversation")) ||
+            (host is android.app.Activity && HostClassNames.simpleNameContains(host.javaClass, "Conversation"))
+        if (!inConversation) return
 
-        val host = control.parent as? ViewGroup ?: return
-        if (host.findViewWithTag<View>(BUTTON_TAG) != null || host.tag == MEDIA_PREVIEW_WRAPPER_TAG) return
+        var adapter: ListAdapter? = adapterIn
+        if (adapter is HeaderViewListAdapter) adapter = adapter.wrappedAdapter
+        if (adapter == null) return
 
-        val prevBtn = createPreviewButton(root.context, dipToPixels(root.context, 8f)).apply {
-            tag = BUTTON_TAG
-            setOnClickListener { startPreview(root, root.context) }
-        }
-
-        when (host) {
-            is FrameLayout -> host.addView(prevBtn, FrameLayout.LayoutParams(
-                dipToPixels(root.context, 42f),
-                dipToPixels(root.context, 32f),
-                Gravity.CENTER
-            ).apply {
-                topMargin = dipToPixels(root.context, 48f)
+        val params = arrayOf<Class<*>>(Int::class.javaPrimitiveType!!, View::class.java, ViewGroup::class.java)
+        val getView = XposedHelpers.findMethodExactIfExists(adapter.javaClass, "getView", *params)
+            ?: runCatching { XposedHelpers.findMethodBestMatch(adapter.javaClass, "getView", *params) }.getOrNull()
+            ?: return
+        if (!hookedGetViews.add(getView)) return
+        try {
+            XposedBridge.hookMethod(getView, object : XC_MethodHook() {
+                override fun afterHookedMethod(param: MethodHookParam) {
+                    try {
+                        val row = param.result as? ViewGroup ?: return
+                        val rowAdapter = param.thisObject as? ListAdapter ?: return
+                        val position = param.args[0] as? Int ?: return
+                        decorateRow(row, rowAdapter, position)
+                    } catch (t: Throwable) {
+                        XposedBridge.log("[WAEX][MediaPreview] decorate error: ${t.javaClass.simpleName}")
+                    }
+                }
             })
-            else -> host.addView(prevBtn, ViewGroup.LayoutParams(
-                dipToPixels(root.context, 42f),
-                dipToPixels(root.context, 32f)
-            ))
+        } catch (t: Throwable) {
+            hookedGetViews.remove(getView)
+            XposedBridge.log("[WAEX][MediaPreview] Error hooking getView: ${t.javaClass.simpleName}")
         }
-        root.setTag(TAG_INSTALLED, true)
+    }
+
+    /**
+     * The preview button is a sibling of the message bubble, laid out in the free space beside it
+     * (the same placement the voice-note transcription button uses). WhatsApp's own download/play
+     * controls are never moved, resized or covered, so their tap targets stay exactly as shipped.
+     */
+    private fun rowKind(row: ViewGroup): Int {
+        val id = row.id
+        if (id == View.NO_ID) return KIND_NONE
+        return rowKindCache.getOrPut(id) {
+            val entry = runCatching { HostResourceIds.entryName(row, id) }.getOrNull().orEmpty()
+            when {
+                entry == "conversation_row_image" -> KIND_IMAGE
+                entry == "conversation_row_video" || (entry.startsWith("conversation_row_") && entry.contains("video")) -> KIND_VIDEO
+                else -> KIND_NONE
+            }
+        }
+    }
+
+    private fun decorateRow(row: ViewGroup, adapter: ListAdapter, position: Int) {
+        val existing = row.getTag(TAG_SIDE_BTN) as? ImageButton
+        val kind = rowKind(row)
+        if (kind == KIND_NONE || !isEnabled("media_preview", isEnabled("enable_media_preview", true))) {
+            existing?.let {
+                it.setTag(TAG_SIDE_ITEM, null)
+                it.visibility = View.GONE
+            }
+            return
+        }
+        val item = runCatching { adapter.getItem(position) }.getOrNull()
+        if (item == null) {
+            existing?.let {
+                it.setTag(TAG_SIDE_ITEM, null)
+                it.visibility = View.GONE
+            }
+            return
+        }
+        installSideButton(row, item, alwaysVisible = kind == KIND_VIDEO)
+    }
+
+    private fun installSideButton(row: ViewGroup, item: Any, alwaysVisible: Boolean) {
+        try {
+            val existing = row.getTag(TAG_SIDE_BTN) as? ImageButton
+            if (existing != null && existing.parent === row) {
+                bindSideButton(existing, item, alwaysVisible)
+                positionSideButton(row, existing)
+                return
+            }
+
+            val ctx = row.context
+            val size = dipToPixels(ctx, SIDE_BTN_SIZE_DP)
+            val btn = createSideButton(ctx, size)
+            btn.setOnClickListener { v ->
+                val message = v.getTag(TAG_SIDE_ITEM) ?: return@setOnClickListener
+                startPreview(row, v.context, message)
+            }
+            bindSideButton(btn, item, alwaysVisible)
+            row.addView(btn, ViewGroup.MarginLayoutParams(size, size))
+            row.setTag(TAG_SIDE_BTN, btn)
+
+            // Re-place after every row layout pass so recycling/resizing keeps it beside the bubble.
+            row.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> positionSideButton(row, btn) }
+            positionSideButton(row, btn)
+        } catch (t: Throwable) {
+            XposedBridge.log("[WAEX][MediaPreview] side button error: ${t.javaClass.simpleName}")
+        }
+    }
+
+    private fun bindSideButton(btn: ImageButton, item: Any, alwaysVisible: Boolean) {
+        btn.setTag(TAG_SIDE_ITEM, item)
+        btn.setTag(TAG_SIDE_ALWAYS, alwaysVisible)
+    }
+
+    /** Image rows only offer a preview while WhatsApp itself shows its download control. */
+    private fun isControlVisible(row: ViewGroup): Boolean {
+        val ctx = row.context
+        for (name in CONTROL_IDS) {
+            val id = getWaexId(ctx, name)
+            if (id <= 0) continue
+            val control = row.findViewById<View>(id) ?: continue
+            return control.isShown
+        }
+        return false
+    }
+
+    private fun positionSideButton(row: ViewGroup, btn: ImageButton) {
+        val bound = btn.getTag(TAG_SIDE_ITEM) != null
+        val always = btn.getTag(TAG_SIDE_ALWAYS) == true
+        val show = bound && (always || isControlVisible(row))
+        val wanted = if (show) View.VISIBLE else View.GONE
+        if (btn.visibility != wanted) btn.visibility = wanted
+        if (!show) return
+
+        val rowWidth = row.width
+        val rowHeight = row.height
+        if (rowWidth <= 0 || rowHeight <= 0) return
+
+        val ctx = row.context
+        val size = dipToPixels(ctx, SIDE_BTN_SIZE_DP)
+        val margin = dipToPixels(ctx, SIDE_BTN_MARGIN_DP)
+
+        val mainId = getWaexId(ctx, "main_layout")
+        val bubble = if (mainId > 0) row.findViewById<View>(mainId) else null
+
+        var left = rowWidth - size - margin
+        var top = (rowHeight - size) / 2
+        if (bubble != null && bubble.width > 0 && bubble !== row) {
+            val bLeft = rowRelativeLeft(row, bubble)
+            val bTop = rowRelativeTop(row, bubble)
+            val bRight = bLeft + bubble.width
+            top = bTop + (bubble.height - size) / 2
+            val outgoing = (rowWidth - bRight) < bLeft
+            left = if (outgoing) {
+                // Outgoing bubble hugs the right edge: button goes on its left.
+                maxOf(margin, bLeft - size - margin)
+            } else {
+                // Incoming bubble hugs the left edge: button goes on its right.
+                minOf(rowWidth - size - margin, bRight + margin)
+            }
+        }
+
+        // Stack with WhatsApp's own forward button instead of covering it.
+        val forwardId = getWaexId(ctx, "action_button")
+        val forward = if (forwardId > 0) row.findViewById<View>(forwardId) else null
+        if (forward != null && forward.isShown && forward.width > 0) {
+            val fLeft = rowRelativeLeft(row, forward)
+            val fTop = rowRelativeTop(row, forward)
+            val gap = margin
+            left = fLeft + (forward.width - size) / 2
+            top = fTop + forward.height + gap
+            if (top + size > rowHeight) top = fTop - size - gap
+        }
+
+        top = top.coerceIn(0, maxOf(0, rowHeight - size))
+        left = left.coerceIn(0, maxOf(0, rowWidth - size))
+        btn.layout(left, top, left + size, top + size)
+    }
+
+    private fun rowRelativeLeft(row: ViewGroup, view: View): Int {
+        var x = 0
+        var v: View = view
+        while (v !== row) {
+            x += v.left
+            v = (v.parent as? View) ?: break
+        }
+        return x
+    }
+
+    private fun rowRelativeTop(row: ViewGroup, view: View): Int {
+        var y = 0
+        var v: View = view
+        while (v !== row) {
+            y += v.top
+            v = (v.parent as? View) ?: break
+        }
+        return y
     }
 
     private fun createEyeDrawable(context: Context): Drawable {
-        val size = dipToPixels(context, 24f)
+        // Sized to match the glyph of WhatsApp's own forward button inside its 32dp circle.
+        val size = dipToPixels(context, 20f)
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -357,28 +343,35 @@ class MediaPreviewHook(
         return BitmapDrawable(context.resources, bitmap)
     }
 
-    private fun createPreviewButton(context: Context, topMargin: Int): ImageView {
-        val drawable = createEyeDrawable(context)
-        val padding = dipToPixels(context, 4f)
-        val prevBtn = ImageView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(dipToPixels(context, 42f), dipToPixels(context, 32f)).apply {
-                gravity = Gravity.CENTER
-                this.topMargin = topMargin
-            }
-            setImageDrawable(drawable)
-            setPadding(padding, padding, padding, padding)
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(0x99000000.toInt())
-            }
-            scaleType = ImageView.ScaleType.FIT_CENTER
+    /** Dark translucent circle + white eye, matching WhatsApp's forward button and the CC button. */
+    private fun createSideButton(context: Context, size: Int): ImageButton {
+        val night = (context.resources.configuration.uiMode and
+            android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+        val circle = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(if (night) 0xFF0F181D.toInt() else 0x66000000)
         }
-        return prevBtn
+        val mask = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(Color.WHITE)
+        }
+        val ripple = android.graphics.drawable.RippleDrawable(
+            android.content.res.ColorStateList.valueOf(Color.argb(60, 255, 255, 255)), circle, mask
+        )
+        return ImageButton(context).apply {
+            background = ripple
+            setImageDrawable(createEyeDrawable(context))
+            setPadding(0, 0, 0, 0)
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+            contentDescription = "Preview media"
+            minimumWidth = size
+            minimumHeight = size
+        }
     }
 
-    private fun startPreview(messageSource: View, context: Context) {
+    private fun startPreview(messageSource: View, context: Context, message: Any? = null) {
         try {
-            val objMessage = resolveMessageDeep(messageSource)
+            val objMessage = message ?: resolveMessageDeep(messageSource)
                 ?: resolveFMessageFromKeyTag(messageSource.tag)
 
             var rowId = extractRowId(objMessage)
@@ -1036,7 +1029,7 @@ class MediaPreviewHook(
                     } else {
                         updatePlayPauseButton(controls, true)
                     }
-                } catch (_: Exception) {}
+                } catch (ignored: Exception) { HookErrors.swallowed("MediaPreviewHook", ignored) }
             }
         }
         buttonsContainer.addView(speedBtn)
@@ -1063,7 +1056,7 @@ class MediaPreviewHook(
             currentMediaPlayer?.let { mp ->
                 try {
                     mp.setVolume(if (newMuted) 0f else 1f, if (newMuted) 0f else 1f)
-                } catch (_: Exception) {}
+                } catch (ignored: Exception) { HookErrors.swallowed("MediaPreviewHook", ignored) }
             }
         }
         buttonsContainer.addView(muteBtn)
@@ -1152,7 +1145,7 @@ class MediaPreviewHook(
         currentMediaPlayer?.let {
             try {
                 it.release()
-            } catch (_: Exception) {}
+            } catch (ignored: Exception) { HookErrors.swallowed("MediaPreviewHook", ignored) }
             currentMediaPlayer = null
         }
         currentVideoView = null
@@ -1252,7 +1245,7 @@ class MediaPreviewHook(
                     val value = field.get(message)
                     if (value is Long && value > 0L) return value
                     if (value is Int && value > 0) return value.toLong()
-                } catch (_: Throwable) {}
+                } catch (ignored: Throwable) { HookErrors.swallowed("MediaPreviewHook", ignored) }
             }
             type = type.superclass
         }
@@ -1277,7 +1270,7 @@ class MediaPreviewHook(
                         extractMessageIdFromKey(candidate)?.let { return it }
                         KEY_ID_REGEX.find(representation)?.groupValues?.getOrNull(1)?.let { return it }
                     }
-                } catch (_: Throwable) {}
+                } catch (ignored: Throwable) { HookErrors.swallowed("MediaPreviewHook", ignored) }
             }
             type = type.superclass
         }
@@ -1462,51 +1455,8 @@ class MediaPreviewHook(
         return null
     }
 
-    private fun showBitmap(context: Context, sourceBitmap: Bitmap) {
-        val dialog = Dialog(context, AndroidR.style.Theme_Black_NoTitleBar_Fullscreen).apply {
-            requestWindowFeature(Window.FEATURE_NO_TITLE)
-            setCancelable(true)
-            setCanceledOnTouchOutside(false)
-        }
-        val container = FrameLayout(context).apply {
-            setBackgroundColor(Color.BLACK)
-            isClickable = true
-            isFocusable = true
-        }
-        val close = TextView(context).apply {
-            text = "✕"
-            textSize = 24f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            contentDescription = UiText.get(R.string.waex_ui_close_preview, "Close preview")
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(0x99000000.toInt())
-            }
-            setOnClickListener { dialog.dismiss() }
-        }
-        val imageView = ZoomableImageView(context).apply {
-            setImageBitmap(sourceBitmap)
-            setBackgroundColor(Color.BLACK)
-        }
-        container.addView(imageView, FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER
-        ))
-        container.addView(close, FrameLayout.LayoutParams(
-            dipToPixels(context, 44f),
-            dipToPixels(context, 44f),
-            Gravity.TOP or Gravity.END
-        ).apply {
-            topMargin = dipToPixels(context, 18f)
-            marginEnd = dipToPixels(context, 16f)
-        })
-        dialog.setContentView(container)
-        dialog.show()
-        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-    }
-
     private fun getWaexId(context: Context, name: String): Int {
-        return context.resources.getIdentifier(name, "id", context.packageName)
+        return HostResourceIds.id(context, name)
     }
 
     private fun dipToPixels(context: Context, dip: Float): Int {
@@ -1516,9 +1466,15 @@ class MediaPreviewHook(
     }
 
     companion object {
-        private const val TAG_INSTALLED = 0x7f0f7b20
-        private const val BUTTON_TAG = "waex_media_preview"
-        private const val MEDIA_PREVIEW_WRAPPER_TAG = "waex_media_preview_wrapper"
+        private const val TAG_SIDE_BTN = 0x7f0f7b21
+        private const val TAG_SIDE_ITEM = 0x7f0f7b22
+        private const val TAG_SIDE_ALWAYS = 0x7f0f7b23
+        private const val KIND_NONE = 0
+        private const val KIND_IMAGE = 1
+        private const val KIND_VIDEO = 2
+        private val rowKindCache = java.util.concurrent.ConcurrentHashMap<Int, Int>()
+        private const val SIDE_BTN_SIZE_DP = 32f
+        private const val SIDE_BTN_MARGIN_DP = 6f
         private val KEY_ID_REGEX = Regex("(?:messageId|messageID|keyId|id)=([A-Za-z0-9_-]{6,})")
 
         private val CONTROL_IDS = listOf(

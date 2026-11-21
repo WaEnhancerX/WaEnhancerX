@@ -36,7 +36,7 @@ with tempfile.TemporaryDirectory(prefix="waex_media_v206_") as tmp:
   m=re.search(r"FIELD_CONTRACT checks=(\d+) failures=(\d+)",execution.stdout)
   if m:checked=int(m.group(1));failed=int(m.group(2))
   rc=execution.returncode
- report={"status":"PASS" if compiled.returncode==0 and rc==0 and checked==56 and failed==0 else "FAIL",
+ report={"status":"PASS" if compiled.returncode==0 and rc==0 and checked==60 and failed==0 else "FAIL",
          "compiler_exit":compiled.returncode,"runtime_exit":rc,"checks":checked,"failed":failed,
          "sources_sha256":{str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sources},
          "genuine_dexkit_sha256":hashlib.sha256(deps[0].read_bytes()).hexdigest(),

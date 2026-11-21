@@ -9,6 +9,7 @@ import com.waenhancer.xposed.core.devkit.HookReturnTypeGuard;
 import com.waenhancer.xposed.features.customization.PropsOverrideHook;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
+import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.enums.StringMatchType;
@@ -42,9 +43,12 @@ public class MediaQualityBypassHook extends BaseFeature {
     private final Set<Method> installedMethods = new LinkedHashSet<>();
     private final Set<Class<?>> installedConstructors = new LinkedHashSet<>();
 
-    private static final int[] IMAGE_MAX_SIZE_PROPS = {1577, 6030, 2656, 15752, 15746};
-    private static final int[] IMAGE_QUALITY_PROPS = {1581, 1575, 1578, 6029, 2655, 15749};
-    private static final int[] IMAGE_MAX_EDGE_PROPS = {1576, 2654, 6032, 15748, 3068};
+    // WhatsApp 2.26.43.76 also constructs a screenshot-specific ProcessImageQuality
+    // from MobileConfig ints 2477 (maxKb), 2475 (quality), 2476 (maxEdge).
+    // These are separate from the default image settings (1577/1578/1576).
+    private static final int[] IMAGE_MAX_SIZE_PROPS = {1577, 6030, 2656, 15752, 15746, 2477};
+    private static final int[] IMAGE_QUALITY_PROPS = {1581, 1575, 1578, 6029, 2655, 15749, 2475};
+    private static final int[] IMAGE_MAX_EDGE_PROPS = {1576, 2654, 6032, 15748, 3068, 2476};
 
     public MediaQualityBypassHook(@NonNull Context context, @NonNull ClassLoader classLoader, @NonNull SharedPreferences prefs) {
         super(context, classLoader, prefs);
@@ -100,8 +104,12 @@ public class MediaQualityBypassHook extends BaseFeature {
                 return;
             }
 
+            // A persisted class descriptor does not open the native metadata bridge.
+            // Keep the resolution lease's current warm-cache initialization contract.
+            DexSearchEngine engine = DexSearchEngine.getInstance();
+            engine.initialize(context);
             List<Field> fields = ProcessImageQualityContract.resolve(
-                    DexSearchEngine.getInstance().getBridge(), qualityClass, classLoader);
+                    engine.getBridge(), qualityClass, classLoader);
             if (fields == null || fields.size() != 3) {
                 XposedBridge.log(TAG + " ProcessImageQuality value-object contract unavailable");
                 return;
@@ -191,18 +199,14 @@ public class MediaQualityBypassHook extends BaseFeature {
      * Preserve the existing MobileConfig precedence: explicit user Custom A/B
      * properties are written after the built-in quality defaults.
      *
-     * The 2477/2475/2476 property family is an observed alternative host route;
-     * when explicitly configured it is not safe to apply the 1577/1578/1576
-     * constructor profile without proving which provider built this instance.
+     * Both default-image and screenshot property families must agree before
+     * constructor writes. Their IDs alone do not prove the instance's provenance.
      */
     static int[] effectiveImageParameters() {
         // A constructor has no property-ID provenance. Do not guess which custom
         // route produced it or force one ID family's value onto another family.
         // Explicit non-default or missing configuration disables this extra write;
         // the independent property dispatcher remains responsible for its values.
-        if (PropsOverrideHook.INTEGERS.containsKey(2477)
-                || PropsOverrideHook.INTEGERS.containsKey(2475)
-                || PropsOverrideHook.INTEGERS.containsKey(2476)) return null;
         for (int id : IMAGE_MAX_SIZE_PROPS) {
             if (!Integer.valueOf(IMAGE_MAX_KB).equals(PropsOverrideHook.INTEGERS.get(id))) return null;
         }

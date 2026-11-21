@@ -52,7 +52,26 @@ is ambiguous. Its production source identities are recorded separately. This
 filter changes only identity collection and leaves dependency resolution errors
 and every framework test mandatory.
 
-## Regression controls reproduced during development
+### Current page-margin contract (upstream November 2026)
+
+The design-system page margin is now **24 dp** at Compact, not the 16 dp
+used in the original October 19 fixture. Upstream deliberately changed the
+base margin from 16 to 20 dp in `ff900d71249f7b4944143971b3869595b4de3e25`
+(October 30), then from 20 to 24 dp in
+`36967a920352b16114caeb6b5ac624087faf7384` (November 8).
+The reconfiguration test retains its independent fixed expected value for the
+current design: 24 dp converted at the active density, once per size factor.
+At density 2.75, the expected Compact margin and reset value are **66 px**;
+Large is **82.5 px**. All 24 repeated configuration changes and all 12
+Robolectric executions remain mandatory.
+
+On Windows, the runner resolves `bash` to the executable in `PATH` and passes
+the Gradle wrapper path with forward slashes. This avoids Windows choosing
+the WSL launcher instead of Git Bash, or a backslash path causing `gradlew`
+to resolve its wrapper JAR from the wrong directory. It does not alter
+Linux CI's compiler or test semantics.
+
+## Historical October 19 regression controls (16 dp design)
 
 The complete theme from upstream commit
 `9098c0fbf9e2ec547d0f8ac5181395006d1a2b01` compiled and failed all 12 behavioral
@@ -60,7 +79,9 @@ executions. The corrected theme passed all 12. A separately compiled mutant
 which reset the system font scale to 1.0 failed the six accessibility and
 reconfiguration executions, while the six ordinary-scale executions passed.
 
-At density 2.75 and fontScale 1.0, the real Compose conversions produced:
+At density 2.75 and fontScale 1.0, the original October 19 design's real
+Compose conversions produced the following **historical** measurements; the
+page-margin row is not the current 24 dp design contract:
 
 | Quantity | Compact | Previous Large | Corrected Large |
 | --- | ---: | ---: | ---: |

@@ -1,5 +1,7 @@
 package com.waenhancer.ui.screens.automation
 
+import com.waenhancer.ui.components.WaexSheetTitle
+
 import com.waenhancer.app.R
 import com.waenhancer.utils.UiText
 
@@ -184,12 +186,7 @@ fun TranscriptionLogSection() {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text(
-                                text = UiText.get(R.string.waex_ui_transcription_log, "Transcription Diagnostics"),
-                                style = typography.titleMd,
-                                fontWeight = FontWeight.Bold,
-                                color = colors.onSurface
-                            )
+                            WaexSheetTitle(UiText.get(R.string.waex_ui_transcription_log, "Transcription Diagnostics"))
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
                                 color = if (isPollingActive) colors.success.copy(alpha = 0.15f) else colors.outlineVariant.copy(alpha = 0.3f)

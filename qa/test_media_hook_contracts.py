@@ -30,6 +30,7 @@ public class ContentResolver {public android.os.Bundle call(android.net.Uri u,St
 public interface SharedPreferences { boolean getBoolean(String key, boolean fallback); }
 """,
     "androidx/annotation/NonNull.java": "package androidx.annotation; public @interface NonNull {}",
+    "androidx/annotation/VisibleForTesting.java": "package androidx.annotation; public @interface VisibleForTesting {}",
     P + "core/BaseFeature.java": """package com.waenhancer.xposed.core;
 import android.content.*;
 public abstract class BaseFeature {
@@ -270,6 +271,7 @@ def main():
     args = parser.parse_args()
     source = args.source_root / "app/src/main/java"
     production = [source / (P + "core/devkit/HookReturnTypeGuard.java"),
+                  source / (P + "utils/HookErrors.java"),
                   source / (P + "features/privacy/AntiViewOnceHook.java"),
                   source / (P + "features/media/MediaQualityBypassHook.java")]
     selector = source / (P + "features/media/MediaQualitySelectorContract.java")
@@ -307,14 +309,20 @@ public class {name} extends com.waenhancer.xposed.core.BaseFeature {{
  public String getName(){{return "{name}";}}
 }}
 """
-        if name == "DeviceDefaultEmojisFeature":
+        if name in {"DeviceDefaultEmojisFeature", "CustomEmojisFeature"}:
             content = """package com.waenhancer.licensing.features;
-public final class DeviceDefaultEmojisFeature {
+public final class EMOJI_CLASS {
  public interface Query {Class<?> execute(org.luckypray.dexkit.DexKitBridge b,ClassLoader l)throws Throwable;}
  public interface Finder {Class<?> find(String key,Query query);}
  public static void install(android.content.Context c,ClassLoader l,android.content.SharedPreferences p,Finder finder){throw new AssertionError("Emoji implementation outside media fixture");}
 }
-"""
+""".replace("EMOJI_CLASS", name)
+        if name == "LockedChatNotificationsHook":
+            content = content.replace(' public void hook()', ' public static boolean isSuppressing(android.content.SharedPreferences p){return !p.getBoolean("locked_chats_message_notifications",true);}\n public void hook()')
+        if name == "NativeFloatingNavigationHook":
+            content = content.replace(' public void hook()', ' public static final int FLOATING_NAVIGATION_PROP=36795;\n public static boolean isActive(android.content.SharedPreferences p){return p.getBoolean("native_floating_navigation",false)&&!p.getBoolean("floating_bottom_bar",false);}\n public void hook()')
+        if name == "StickerOutlineHook":
+            content = content.replace(' public void hook()', ' public static final String PREF_KEY="remove_sticker_white_outline";\n public void hook()')
         stubs[qualified.replace(".", "/") + ".java"] = content
     with tempfile.TemporaryDirectory(prefix="waex_media_hooks_") as directory:
         dest = Path(directory)

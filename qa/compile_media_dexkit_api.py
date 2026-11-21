@@ -27,6 +27,7 @@ def main():
     source = args.source_root / "app/src/main/java"
     production = [source / (P + path) for path in [
         "core/devkit/HookReturnTypeGuard.java",
+        "utils/HookErrors.java",
         "features/media/MediaQualityBypassHook.java",
         "features/media/MediaQualitySelectorContract.java",
         "features/media/ProcessImageQualityContract.java",

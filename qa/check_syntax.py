@@ -54,7 +54,10 @@ public final class WaexJavaSyntaxRunner {
         List<File> files = new ArrayList<>();
         for (String path : paths) files.add(new File(path));
         DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
-        try (StandardJavaFileManager manager = compiler.getStandardFileManager(diagnostics, null, null)) {
+        // Repository source files are UTF-8 regardless of the host's default
+        // code page (notably Windows-1252). Never silently misparse characters.
+        try (StandardJavaFileManager manager = compiler.getStandardFileManager(
+                diagnostics, null, java.nio.charset.StandardCharsets.UTF_8)) {
             Iterable<? extends JavaFileObject> sources = manager.getJavaFileObjectsFromFiles(files);
             JavacTask task = (JavacTask) compiler.getTask(
                     null, manager, diagnostics,
@@ -141,7 +144,10 @@ public final class WaexKotlinSyntaxRunner {
             KtPsiFactory factory = new KtPsiFactory(env.getProject(), false);
             for (String path : paths) {
                 File file = new File(path);
-                KtFile kt = factory.createFile(file.getName(), Files.readString(file.toPath()));
+                // IntelliJ PSI requires LF even when Git checks out CRLF on Windows.
+                // Normalize the parser input only; never rewrite production sources.
+                String input = Files.readString(file.toPath()).replace("\r\n", "\n").replace('\r', '\n');
+                KtFile kt = factory.createFile(file.getName(), input);
                 for (PsiErrorElement error : PsiTreeUtil.collectElementsOfType(kt, PsiErrorElement.class)) {
                     errors++;
                     String message = error.getErrorDescription().replace('\n', ' ').replace('\t', ' ');

@@ -7,6 +7,7 @@ import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.TypedArray;
 import android.graphics.Color;
@@ -27,6 +28,9 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.waenhancer.xposed.core.BaseFeature;
+import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.HostClassNames;
+import com.waenhancer.xposed.utils.HostResourceIds;
 import com.waenhancer.xposed.core.components.WaexBottomSheet;
 import com.waenhancer.xposed.utils.ActivityTracker;
 import de.robv.android.xposed.XC_MethodHook;
@@ -68,6 +72,7 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
     private static final int TAG_CC_BTN = 0x57414343;   // 'WACC'
     private static final int TAG_FILE = 0x57414346;     // 'WACF'
     private static final int TAG_LISTENER = 0x5741434C; // 'WACL'
+    private static final int TAG_ROW_KIND = 0x5741434B; // 'WACK' - memoized voice-row check
 
     private static final AtomicBoolean LOOKUP_WARNED = new AtomicBoolean(false);
 
@@ -83,6 +88,7 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
             java.util.Collections.synchronizedSet(new java.util.HashSet<>());
     private WeakReference<ListView> listViewRef = new WeakReference<>(null);
     private boolean readyRefreshPending;
+    private volatile android.app.Dialog currentSheet;
     private final AtomicBoolean disabled = new AtomicBoolean(false);
 
     // Cached resource IDs (looked up once — getIdentifier is slow)
@@ -92,8 +98,13 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
     private static volatile int sMainLayoutId;
     private static volatile int sActionButtonId;
 
+    // Additional audio-row markers (voice notes, outgoing notes, plain audio files)
+    private static final String[] EXTRA_AUDIO_IDS = {
+            "audio_root_layout", "audio_seekbar", "audio_visualizer", "conversation_row_voice_note_profile_avatar"
+    };
+
     // Button size / margin in dp
-    private static final int BTN_SIZE_DP = 36;
+    private static final int BTN_SIZE_DP = 32; // matches WhatsApp's forward action_button (64px @ 320dpi)
     private static final int BTN_MARGIN_DP = 8;
 
     public VoiceNoteRowTranscriptHook(@NonNull Context context, @NonNull ClassLoader classLoader,
@@ -116,7 +127,7 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
 
     private void onSetAdapter(ListView listView, @Nullable ListAdapter adapter) {
         Activity activity = ActivityTracker.getCurrentActivity();
-        if (activity == null || !activity.getClass().getSimpleName().contains("Conversation")) return;
+        if (activity == null || !HostClassNames.simpleNameContains(activity.getClass(), "Conversation")) return;
         if (adapter instanceof HeaderViewListAdapter) {
             adapter = ((HeaderViewListAdapter) adapter).getWrappedAdapter();
         }
@@ -144,15 +155,15 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
     private Method findGetViewMethod(Class<?> adapterClass) {
         try {
             return adapterClass.getMethod("getView", int.class, View.class, ViewGroup.class);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("VoiceNoteRowTranscriptHook", ignored); }
         try {
             return XposedHelpers.findMethodExactIfExists(adapterClass, "getView",
                     int.class, View.class, ViewGroup.class);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("VoiceNoteRowTranscriptHook", ignored); }
         try {
             return XposedHelpers.findMethodBestMatch(adapterClass, "getView",
                     int.class, View.class, ViewGroup.class);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("VoiceNoteRowTranscriptHook", ignored); }
         return null;
     }
 
@@ -205,10 +216,21 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
      */
     @Nullable
     private ViewGroup findVoiceNoteRow(ViewGroup row) {
+        // A recycled row view always keeps the same layout, so the (7x findViewById) probe
+        // runs once per view instance instead of on every scroll bind.
+        Object memo = row.getTag(TAG_ROW_KIND);
+        if (memo != null) return Boolean.TRUE.equals(memo) ? row : null;
+        ViewGroup found = probeVoiceNoteRow(row);
+        row.setTag(TAG_ROW_KIND, found != null);
+        return found;
+    }
+
+    @Nullable
+    private ViewGroup probeVoiceNoteRow(ViewGroup row) {
         int id = sVoiceNoteRowId;
         Context ctx = row.getContext();
         if (id == 0) {
-            id = ctx.getResources().getIdentifier("conversation_row_voice_note", "id", ctx.getPackageName());
+            id = HostResourceIds.id(ctx, "conversation_row_voice_note");
             if (id != 0) sVoiceNoteRowId = id;
         }
         if (id != 0 && (row.getId() == id || row.findViewById(id) != null)) {
@@ -216,15 +238,19 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
         }
         int audioPlayerId = sAudioPlayerId;
         if (audioPlayerId == 0) {
-            audioPlayerId = ctx.getResources().getIdentifier("conversation_row_audio_player_view", "id", ctx.getPackageName());
+            audioPlayerId = HostResourceIds.id(ctx, "conversation_row_audio_player_view");
             if (audioPlayerId != 0) sAudioPlayerId = audioPlayerId;
         }
         if (audioPlayerId != 0 && row.findViewById(audioPlayerId) != null) {
             return row;
         }
+        for (String name : EXTRA_AUDIO_IDS) {
+            int extra = HostResourceIds.id(ctx, name);
+            if (extra != 0 && row.findViewById(extra) != null) return row;
+        }
         int audioRowId = sAudioRowId;
         if (audioRowId == 0) {
-            audioRowId = ctx.getResources().getIdentifier("conversation_row_audio", "id", ctx.getPackageName());
+            audioRowId = HostResourceIds.id(ctx, "conversation_row_audio");
             if (audioRowId != 0) sAudioRowId = audioRowId;
         }
         if (audioRowId != 0 && (row.getId() == audioRowId || row.findViewById(audioRowId) != null)) {
@@ -238,15 +264,23 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
         int id = sMainLayoutId;
         if (id == 0) {
             Context ctx = row.getContext();
-            id = ctx.getResources().getIdentifier("main_layout", "id", ctx.getPackageName());
+            id = HostResourceIds.id(ctx, "main_layout");
             if (id != 0) sMainLayoutId = id;
         }
         if (id != 0) {
             View main = row.findViewById(id);
             if (main != null) return main;
         }
+        // Fallback: bubble containing audio_root_layout
+        int rootId = HostResourceIds.id(row.getContext(), "audio_root_layout");
+        if (rootId != 0) {
+            View root = row.findViewById(rootId);
+            if (root != null && root.getParent() instanceof View && root.getParent() != row) {
+                return (View) root.getParent();
+            }
+        }
         // Fallback: search for child containing conversation_row_audio_player_view
-        int audioPlayerId = row.getContext().getResources().getIdentifier("conversation_row_audio_player_view", "id", row.getContext().getPackageName());
+        int audioPlayerId = HostResourceIds.id(row.getContext(), "conversation_row_audio_player_view");
         if (audioPlayerId != 0) {
             View player = row.findViewById(audioPlayerId);
             if (player != null) {
@@ -293,29 +327,27 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
         Context ctx = row.getContext();
         int sizePx = dp(ctx, BTN_SIZE_DP);
 
-        // Circular background: subtle translucent white circle (or dark in dark mode)
+        // Match WhatsApp's own forward button: dark translucent circle + white glyph, no elevation.
+        boolean dark = isDarkTheme(ctx);
         GradientDrawable circle = new GradientDrawable();
         circle.setShape(GradientDrawable.OVAL);
-        circle.setColor(Color.argb(220, 255, 255, 255));
-        // Ripple for press feedback
+        circle.setColor(dark ? 0xFF0F181D : 0x66000000);
         GradientDrawable rippleMask = new GradientDrawable();
         rippleMask.setShape(GradientDrawable.OVAL);
         rippleMask.setColor(Color.WHITE);
-        android.content.res.ColorStateList rippleColor =
-                android.content.res.ColorStateList.valueOf(Color.argb(80, 0, 0, 0));
         android.graphics.drawable.RippleDrawable background =
-                new android.graphics.drawable.RippleDrawable(rippleColor, circle, rippleMask);
+                new android.graphics.drawable.RippleDrawable(
+                        android.content.res.ColorStateList.valueOf(Color.argb(60, 255, 255, 255)),
+                        circle, rippleMask);
 
-        // Build the CC icon matching close-caption-svgrepo-com.svg
-        CaptionDrawable icon = new CaptionDrawable(dp(ctx, 22), Color.argb(220, 30, 30, 30));
+        CaptionDrawable icon = new CaptionDrawable(dp(ctx, 22), Color.WHITE);
 
         ImageButton btn = new ImageButton(ctx);
         btn.setBackground(background);
         btn.setImageDrawable(icon);
-        btn.setPadding(dp(ctx, 4), dp(ctx, 4), dp(ctx, 4), dp(ctx, 4));
+        btn.setPadding(0, 0, 0, 0);
         btn.setScaleType(android.widget.ImageView.ScaleType.CENTER_INSIDE);
         btn.setContentDescription("Transcribe voice note");
-        btn.setElevation(dp(ctx, 2));
 
         ViewGroup.LayoutParams lp = new ViewGroup.MarginLayoutParams(sizePx, sizePx);
 
@@ -590,18 +622,22 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
         VoiceTranscriptionBridge.interactive().post(safe(() -> {
             Boolean ready = VoiceTranscriptionBridge.ready(context);
             if (ready == null || !ready) {
-                VoiceTranscriptionBridge.main().post(safe(() ->
-                        body.setText(ready == null
-                                ? "Could not reach WAEX — is the module active?"
-                                : "No transcription provider configured.\nOpen WAEX → Audio & AI to set one up.")));
+                String message = ready == null
+                        ? "Could not reach WAEX — is the module active?"
+                        : "No transcription provider configured.";
+                VoiceTranscriptionBridge.main().post(safe(() -> showErrorSheet(message)));
                 return;
             }
             VoiceTranscriptionBridge.Result result = VoiceTranscriptionBridge.transcribe(context, note);
             String shown = result.text != null ? displayText(result.text, note) : null;
-            VoiceTranscriptionBridge.main().post(safe(() -> body.setText(shown != null
-                    ? shown
-                    : UiText.get(R.string.waex_ui_transcription_failed, "Transcription failed")
-                            + "\n" + result.error)));
+            VoiceTranscriptionBridge.main().post(safe(() -> {
+                if (shown != null) {
+                    body.setText(shown);
+                } else {
+                    showErrorSheet(UiText.get(R.string.waex_ui_transcription_failed, "Transcription failed")
+                            + "\n" + result.error);
+                }
+            }));
         }));
     }
 
@@ -701,7 +737,8 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
     }
 
     private void showSheet(Activity activity, String title, TextView body, File note, View topRightView) {
-        new WaexBottomSheet(activity)
+        dismissCurrentSheet();
+        currentSheet = new WaexBottomSheet(activity)
                 .asBottomSheet()
                 .setTitle(title)
                 .setTopRightView(topRightView)
@@ -717,6 +754,45 @@ public final class VoiceNoteRowTranscriptHook extends BaseFeature {
                 })
                 .setNegativeButton(UiText.get(R.string.waex_ui_close, "Close"),
                         (dialog, which) -> dialog.dismiss())
+                .show();
+    }
+
+    private void dismissCurrentSheet() {
+        android.app.Dialog sheet = currentSheet;
+        currentSheet = null;
+        if (sheet != null && sheet.isShowing()) {
+            try { sheet.dismiss(); } catch (Throwable ignored) { HookErrors.swallowed("VoiceNoteRowTranscriptHook", ignored); }
+        }
+    }
+
+    /** Replaces the transcript sheet with an error sheet whose only action is "Fix". */
+    private void showErrorSheet(String message) {
+        Activity activity = ActivityTracker.getCurrentActivity();
+        if (activity == null || activity.isFinishing()) return;
+        dismissCurrentSheet();
+
+        TextView body = new TextView(activity);
+        body.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        body.setTextColor(themeTextColor(activity));
+        body.setText(message);
+
+        currentSheet = new WaexBottomSheet(activity)
+                .asBottomSheet()
+                .setTitle(UiText.get(R.string.waex_ui_voice_note_transcript, "Voice note transcript"))
+                .setView(body)
+                .setPositiveButton(UiText.get(R.string.waex_ui_fix, "Fix"), (dialog, which) -> {
+                    try {
+                        Intent intent = new Intent();
+                        intent.setClassName("com.waenhancer", "com.waenhancer.app.MainActivity");
+                        intent.putExtra("target_screen", "audio_transcription");
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                                | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                        activity.startActivity(intent);
+                    } catch (Throwable t) {
+                        VoiceTranscriptionBridge.log("Could not open WAEX: " + VoiceTranscriptionBridge.describe(t));
+                    }
+                    dialog.dismiss();
+                })
                 .show();
     }
 

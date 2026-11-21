@@ -1,6 +1,9 @@
 # Media and incoming view-once reconciliation — WAEX 2.0.6
 
-**Candidate:** focused reconciliation of existing PR #106 against the upstream `4750124e36223dd21d8535c14f2fb658025d8480` baseline. The older PR head is `80be2429761cd7a34d7c44d56077f02dd74f5392`.
+**Current reconciliation:** existing PR #106 merged with fixed nightly
+`9972e49fac9bfb650c25ee31fde0da9425b67175` on 2026-11-21. The previous
+reconciliation used upstream `4750124e36223dd21d8535c14f2fb658025d8480`
+and older PR head `80be2429761cd7a34d7c44d56077f02dd74f5392`.
 
 ## Retained production behavior
 
@@ -23,7 +26,7 @@ The native DexKit `app_process` shell probe separately matched the inspected hel
 1. Never choose the first of multiple valid-looking DexKit candidates; reject ambiguity and use new cache-key generations for changed search contracts.
 2. The view-once transition is **1 to 0 only for an incoming message** with a verified, immutable primary key and unique setter. Outgoing/unknown identities and unrelated receivers are unchanged.
 3. The structured quality route requires a unique concrete class, one verified `(int,int,int)` constructor, a checked field set and the exact known host format. Before writing, confirm the three distinct fields against the object's own formatted values, rejecting equal/ambiguous labels.
-4. Existing dimensions must not be reduced. Explicit custom A/B properties take precedence; an unsupported alternate ID family or inconsistent/missing configuration disables this extra constructor write instead of guessing.
+4. Existing dimensions must not be reduced. Explicit custom A/B properties take precedence. Current default-image and screenshot IDs (2477/2475/2476) must all agree with the built-in defaults; inconsistent/missing configuration disables the extra constructor write instead of guessing provenance.
 5. Failure while writing reflected fields disables further writes on that callback. Restoration is **best effort**, not atomic. The log distinguishes restored and incomplete rollback without including object contents.
 6. A successful installed callback is not evidence of all media sub-options working. Explicitly record partial availability; do not say `ACTIVE` proves HD transfer or FPS.
 7. A test fixture can model Xposed dispatch and Android APIs, but a synthetic `PASS` cannot be promoted to production WhatsApp compatibility.
@@ -40,7 +43,39 @@ python3 qa/test_media_v206_field_contract.py --dexkit-jar /path/to/dexkit-2.2.0.
 python3 qa/mutate_media_v206_hardening.py --dexkit-jar /path/to/dexkit-2.2.0.jar --kotlin-stdlib /path/to/kotlin-stdlib.jar --out /tmp/waex-media-mutants
 ```
 
-The complete production media/view-once hook fixtures have **237 behavioral checks per JID family** in the last complete local suite. The production field/precedence/callback fixture has **56 checks**, including a reported failed rollback. **25 mutation variants** must compile, complete their respective oracles and fail a behavioral assertion. The runner rejects compiler errors and incomplete tests as invalid mutation outcomes.
+On 2026-11-21, Linux x86-64 / Temurin 21.0.13.1+2 / Kotlin 2.0.20 stdlib /
+Python 3.13.5 passed **237 checks per JID family** (two executions of the same
+behavioral corpus, not 474 independent cases). The field/precedence/callback
+fixture passed **60 checks**, preserving the previous 56 and adding independent
+screenshot-ID/default/missing-configuration expectations. All **25 mutation
+variants** compiled, completed their respective oracles and failed behavioral
+assertions. The complete classes also type-checked against real DexKit 2.2.0.
+The legacy-family/API/field/screenshot/mutation command batch took 37.598 seconds;
+this is test duration, not product performance. The independent current screenshot
+property suite passed 59 assertions.
+
+The current cold/persisted cache suite passed nine scenarios with the real
+DexSearchEngine, DexCacheManager, negative cache and both production structural
+contracts. A seeded descriptor in a fresh JVM hit disk exactly once, avoided a
+class search, opened the metadata bridge, and installed the constructor callback.
+Removing only the consumer's explicit initialize(context) compiled and completed
+the warm case but failed six behavioral assertions. The public media workflow
+executes and retains this negative control; a compiler/startup error is not a
+valid detected mutation. Host fingerprint admission is an explicit synthetic
+boundary in this cache fixture, not a real-APK acceptance.
+
+The older native shell result above was not rerun. The current registry fixture
+compiles real HookErrors and exposes current unrelated feature APIs as explicit
+strict boundaries; cold-start notification and private feature execution throw
+if unexpectedly reached. Current diagnostics and the deferred report executor
+are not reverted to their old forms.
+
+The broader unchanged test_media_preference_sync.py passed its 6083 Media Hub
+mapping checks, then failed to compile WaexPreferenceManager: its current fixture
+omits ExclusivePreferences and DiagnosticsRecorder (seven missing-symbol errors).
+This shared nightly fixture failure is retained as FAIL; the passing mapping
+subtest is not a passing complete preference transport suite. No control was
+removed or weakened to hide it.
 
 The complete public media hook classes must type-check against **real DexKit types**, not invented classes. The separate shell probe is optional and must record the actual APK, native-library and ABI identity. No account, chats, messages or private data are needed for the source gates.
 
@@ -52,7 +87,7 @@ The complete public media hook classes must type-check against **real DexKit typ
 - Multiple concurrent property updates need a coherent-snapshot contract; stable startup-time configuration is the tested case.
 - `unhookAll()` clears retained Xposed handles, while feature-local installed-method sets may remain; reuse of an identical feature object after unhook is not certified.
 - Reflected updates and rollback are not all-or-nothing; failed restoration emits a bounded, content-free diagnostic.
-- The latest known full WAEX Debug/Release build remains **BLOCKED** by private `:licensing` and official signing artifacts. A standalone APK or shell probe does not substitute for the full module.
+- The earlier recorded full WAEX Debug/Release build was **BLOCKED** by private `:licensing` and official signing artifacts. A new full module build was not performed for this reconciliation; standalone JVM/API probes do not substitute for it.
 - With an authorized test build, measure native hook installation and actual host callbacks, editor UI and output, exceptions, cross-profile routing, memory and cold-start I/O on multiple WhatsApp and Android versions. Verify real media bytes and call paths separately.
 - Do not publish claims of compatibility for every ROM or device based on one tested x86_64 emulator.
 
