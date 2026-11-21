@@ -38,6 +38,9 @@ import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
 import com.waenhancer.app.BuildConfig
 import com.waenhancer.update.ReleaseRepository
+import com.waenhancer.update.InstalledBuild
+import com.waenhancer.ui.components.RiskConfirmDialog
+import com.waenhancer.ui.components.installRiskMessage
 import com.waenhancer.update.WaexAsset
 import com.waenhancer.update.WaexRelease
 import com.waenhancer.update.normalizeVersion
@@ -65,10 +68,9 @@ fun ReleaseDetailsScreen(tagName: String) {
     var retry by remember { mutableStateOf(0) }
     var showBuildSelection by remember { mutableStateOf(false) }
     var activeDownload by remember { mutableStateOf<Pair<WaexRelease, WaexAsset>?>(null) }
-    val installedVersion = remember {
-        @Suppress("DEPRECATION")
-        context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
-    }
+    val installed = remember { InstalledBuild.read(context) }
+    val installedVersion = installed.versionName
+    var pendingRisk by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
     LaunchedEffect(tagName, retry) {
         error = null
         runCatching { ReleaseRepository.fetchRelease(tagName, context) }
@@ -113,29 +115,35 @@ fun ReleaseDetailsScreen(tagName: String) {
                             if (BuildConfig.IS_DEBUG_VARIANT) releaseAsset else debugAsset
                         } else null
 
-                        val isDowngrade = ReleaseRepository.versionCode(item.version) < ReleaseRepository.versionCode(installedVersion)
+                        val isDowngrade = item.versionCode < installed.versionCode
                         val allowDowngrade = preferences.getBoolean("downgrades_enabled", false)
                         val canInstall = canSwitchMode || (!isDowngrade || allowDowngrade)
 
                         if (canInstall && (item.assets.isNotEmpty() || item.downloadUrl != null)) {
                             Button(
                                 onClick = {
-                                    if (canSwitchMode && otherModeAsset != null) {
-                                        activeDownload = item to otherModeAsset
-                                    } else if (item.assets.size > 1) {
-                                        showBuildSelection = true
-                                    } else {
-                                        val asset = item.assets.firstOrNull() ?: item.defaultAsset
-                                        if (asset != null) {
-                                            activeDownload = item to asset
-                                        } else if (item.downloadUrl != null) {
-                                            activeDownload = item to WaexAsset(
-                                                name = "WaEnhancerX-${item.tagName}.apk",
-                                                downloadUrl = item.downloadUrl!!,
-                                                size = item.downloadSize
-                                            )
+                                    val install = {
+                                        if (item.assets.size > 1) {
+                                            showBuildSelection = true
+                                        } else {
+                                            val asset = item.assets.firstOrNull() ?: item.defaultAsset
+                                            if (asset != null) {
+                                                activeDownload = item to asset
+                                            } else if (item.downloadUrl != null) {
+                                                activeDownload = item to WaexAsset(
+                                                    name = "WaEnhancerX-${item.tagName}.apk",
+                                                    downloadUrl = item.downloadUrl!!,
+                                                    size = item.downloadSize
+                                                )
+                                            }
                                         }
                                     }
+                                    val risk = installRiskMessage(isDowngrade, item.channel, installed.channel)
+                                    if (canSwitchMode && otherModeAsset != null) {
+                                        activeDownload = item to otherModeAsset
+                                    } else if (risk != null) {
+                                        pendingRisk = risk to install
+                                    } else install()
                                 },
                                 modifier = Modifier.weight(1f)
                             ) {
@@ -193,14 +201,22 @@ fun ReleaseDetailsScreen(tagName: String) {
         )
     }
 
+    pendingRisk?.let { (message, proceed) ->
+        RiskConfirmDialog(
+            title = UiText.get(R.string.waex_ui_install_risk_title, "Install this build?"),
+            message = message,
+            confirmLabel = UiText.get(R.string.waex_ui_install_risk_confirm, "Install anyway"),
+            onConfirm = { pendingRisk = null; proceed() },
+            onDismiss = { pendingRisk = null }
+        )
+    }
+
     activeDownload?.let { (rel, asset) ->
-        val isDowngrade = ReleaseRepository.versionCode(rel.version) < ReleaseRepository.versionCode(installedVersion)
         UpdateDownloadSheet(
             url = asset.downloadUrl,
             expectedSha256 = asset.sha256,
             expectedSize = asset.size,
             version = rel.version,
-            useRoot = isDowngrade || preferences.getBoolean("root_auto_install", false),
             onDismiss = { activeDownload = null }
         )
     }

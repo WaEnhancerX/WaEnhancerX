@@ -9,12 +9,22 @@ import tempfile
 
 from locale_coverage_report import explain, inventory
 
+if not __debug__:
+    raise SystemExit('BLOCKED: inventory controls require Python assertions; do not run with -O')
+
 
 def table(**values):
     return {key: (value, True) for key, value in values.items()}
 
 
 original = table(title="Title", body="Body %1$s")
+try:
+    inventory({}, {}, {})
+except ValueError as error:
+    assert 'Default string table is empty' in str(error)
+else:
+    raise AssertionError('An empty source tree cannot be accepted as complete')
+
 complete_es = table(title="Título", body="Cuerpo %1$s")
 ok = inventory(original, complete_es, dict(complete_es))
 assert ok["complete"] is True
@@ -67,4 +77,16 @@ with tempfile.TemporaryDirectory() as sandbox:
     accepted = subprocess.run(command + ["--strict"], text=True, capture_output=True, check=False)
     assert accepted.returncode == 0 and "COMPLETE" in accepted.stdout
 
-print("PASS: complete, missing, extra, divergent, JSON, strict rejection and strict acceptance controls")
+with tempfile.TemporaryDirectory() as sandbox:
+    root = Path(sandbox)
+    command = [sys.executable, str(Path(__file__).with_name("locale_coverage_report.py")),
+               "--source-root", str(root), "--strict", "--out", str(root / "absent-evidence")]
+    empty = subprocess.run(command, text=True, capture_output=True, check=False)
+    assert empty.returncode != 0 and "Default string table is empty" in empty.stderr
+    assert not (root / "absent-evidence").exists()
+    optimized = subprocess.run([sys.executable, "-O", *command[1:]],
+                               text=True, capture_output=True, check=False)
+    assert optimized.returncode != 0 and "BLOCKED:" in optimized.stderr
+    assert not (root / "absent-evidence").exists()
+
+print("PASS: complete, missing, extra, divergent, JSON, strict rejection/acceptance, empty-input and optimized-run controls")

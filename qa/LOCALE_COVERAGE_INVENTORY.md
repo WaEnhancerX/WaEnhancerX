@@ -3,6 +3,24 @@
 This is an **evidence-producing diagnostic**, not a localization fix or a substitute
 for the existing source, AAPT2, Robolectric, and runtime locale acceptance tests.
 
+## Current Nightly reconciliation — 21 November 2026
+
+On `nightly@9972e49fac9bfb650c25ee31fde0da9425b67175`, the unchanged resources
+contain 1,823 default strings, 1,560 Spanish strings and 1,542 Latin American
+Spanish strings. There are 263 missing `es` keys and 281 missing `es-419` keys,
+no extra keys, and eighteen keys present only in `es`. These are source string
+inventories, not a claim about plurals, rendered screens or installed WhatsApp.
+
+The merge retains the new release-pipeline regression step as well as the locale
+inventory and always-upload evidence step. No existing strict acceptance check
+is removed or made optional. Empty default tables are rejected rather than
+reported as complete; optimized Python is refused because the shared XML parser
+uses assertion-based duplicate-resource guards. The synthetic suite includes
+empty-input and optimized-execution rejection. Workflow changes still require
+R5 maintainer review, and the updated head requires fresh QA/review.
+
+## Reproduction and historical reference
+
 The `source-and-jvm` job runs the synthetic positive/negative controls and writes
 `waex-locale-coverage-inventory/locale-coverage.json` before the strict localization
 checks. The report contains every missing, extra, or divergent resource name and

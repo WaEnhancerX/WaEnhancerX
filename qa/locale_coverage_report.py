@@ -17,9 +17,14 @@ from localization_support import entries
 ROOT = Path(__file__).resolve().parents[1]
 QUALIFIERS = {"es": "values-es", "es-419": "values-b+es+419"}
 
+if not __debug__:
+    raise SystemExit('BLOCKED: XML duplicate guards require Python assertions; do not run with -O')
+
 
 def inventory(default, spanish, latam):
     """Return a deterministic, serializable inventory from parsed XML maps."""
+    if not default:
+        raise ValueError('Default string table is empty; no locale acceptance can be inferred')
     reference = set(default)
     locales = {"es": spanish, "es-419": latam}
     report = {
@@ -96,7 +101,7 @@ def main():
         out = args.out.resolve()
         out.mkdir(parents=True, exist_ok=False)
         (out / "locale-coverage.json").write_text(
-            json.dumps({"scope": "source XML keys and values only; not Android rendering",
+            json.dumps({"scope": "source XML string keys and values only; not plurals or Android rendering",
                         "coverage": report, "source_sha256": source_hashes(root)},
                        ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(explain(report))

@@ -62,12 +62,12 @@ dependencies {
     write('src/main/AndroidManifest.xml','<manifest xmlns:android="http://schemas.android.com/apk/res/android"/>')
     identity={p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in ('app/build.gradle.kts','gradle/libs.versions.toml')}
     modes=['update','filter','clock'] if a.mode=='all' else [a.mode]
-    sources={'update':['update/UpdateDownloader.kt','update/UpdateTransferPolicy.kt','update/UpdateDownloadSession.kt','update/ReleaseRepository.kt','ui/components/UpdateDownloadSheet.kt','xposed/utils/RootCommandRunner.java',
+    sources={'update':['update/UpdateDownloader.kt','update/UpdateTransferPolicy.kt','update/UpdateDownloadSession.kt','update/ReleaseRepository.kt','update/UpdateChannel.kt','update/ReleaseIndex.kt','ui/components/UpdateDownloadSheet.kt','xposed/utils/RootCommandRunner.java',
                        'config/PreferenceStores.java','config/PreferenceSchema.java','ui/components/NetworkErrorSheet.kt','ui/components/WaexModalBottomSheet.kt','ui/components/WaexProgressIndicator.kt',
                        'ui/designsystem/WaexIcons.kt','ui/designsystem/WaexRadius.kt','ui/designsystem/WaexElevation.kt'],
              'filter':['xposed/features/customization/FilterItemsHook.kt','model/FilterItem.kt','xposed/core/ViewHookDispatcher.java'],
              'clock':['ui/components/RuntimeObservationClock.kt','utils/InjectionEvidence.kt']}
-    expected={'update':5,'filter':3,'clock':1}
+    expected={'update':12,'filter':3,'clock':1}
     for mode in modes:
         for rel in sources[mode]:
             source=root/'app/src/main/java/com/waenhancer'/rel
