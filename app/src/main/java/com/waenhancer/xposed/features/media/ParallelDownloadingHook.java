@@ -7,6 +7,7 @@ import androidx.annotation.NonNull;
 
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.xposed.utils.HookErrors;
 
 import java.io.InputStream;
 import java.lang.reflect.InvocationHandler;
@@ -106,7 +107,6 @@ public class ParallelDownloadingHook extends BaseFeature {
                 }
             });
 
-            XposedBridge.log(TAG + " Installed parallel downloading hook on: " + downloadMethod.getName());
         } catch (Throwable error) {
             XposedBridge.log(TAG + " Error installing hook: " + error.getMessage());
         }
@@ -122,7 +122,7 @@ public class ParallelDownloadingHook extends BaseFeature {
             try {
                 String strVal = prefs.getString(PREF_CONNECTIONS_KEY, "4");
                 count = Integer.parseInt(strVal);
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("ParallelDownloadingHook", ignored); }
         }
         if (count < 2 || count > 16) {
             count = DEFAULT_CONNECTIONS;
@@ -134,7 +134,7 @@ public class ParallelDownloadingHook extends BaseFeature {
         if (response == null) return -1L;
         try {
             for (Method m : response.getClass().getMethods()) {
-                if (m.getParameterCount() == 0) {
+                if (m.getParameterTypes().length == 0) {
                     String name = m.getName().toLowerCase();
                     if (name.contains("contentlength") || name.equals("length") || name.equals("getlength")) {
                         Object res = m.invoke(response);
@@ -144,7 +144,7 @@ public class ParallelDownloadingHook extends BaseFeature {
                     }
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("ParallelDownloadingHook", ignored); }
         return -1L;
     }
 

@@ -1,6 +1,7 @@
 package com.waenhancer.core.preferences
 
 import android.content.Context
+import com.waenhancer.config.ExclusivePreferences
 import com.waenhancer.config.PreferenceSchema
 import com.waenhancer.config.PreferenceStores
 import org.json.JSONArray
@@ -113,13 +114,57 @@ object SettingsBackupCodec {
         "call_recording_enable" to "call_recording_enabled"
     )
 
+    /**
+     * Enumerate persisted keys, not only the unqualified schema catalogue: target overrides
+     * are stored as package:key. Keep each complete key and use its canonical definition
+     * only for type/store/sensitivity.
+     */
+    private fun collectRecords(context: Context): List<Record> {
+        val publicValues = PreferenceStores.publicStore(context).all
+        val privateValues = PreferenceStores.privateStore(context).all
+        return (publicValues.keys + privateValues.keys).sorted().mapNotNull { key ->
+            val entry = backupEntry(key) ?: return@mapNotNull null
+            val value = if (entry.store == PreferenceSchema.Store.PRIVATE) {
+                privateValues[key] ?: publicValues[key]
+            } else {
+                publicValues[key] ?: privateValues[key]
+            } ?: return@mapNotNull null
+            normalizeForKey(entry.key, entry.type, value)?.let { Record(key, entry.type, it) }
+        }
+    }
+
+    /**
+     * Human-readable `key = value` sections for bug reports, using the same exportable-key rules
+     * as [encode]. In universal mode there is one section with the shared settings; in per-app
+     * mode there is one section per package holding that app's own overrides.
+     */
+    fun renderSettingsSections(
+        context: Context,
+        perApp: Boolean,
+        packages: List<String>
+    ): List<Pair<String, String>> {
+        val records = collectRecords(context)
+        fun render(entries: List<Pair<String, Record>>): String = entries.joinToString("\n") { (key, record) ->
+            val value = when (val raw = record.value) {
+                is Set<*> -> raw.filterIsInstance<String>().sorted().joinToString(",", "[", "]")
+                else -> raw.toString()
+            }.replace('\n', ' ').replace('\r', ' ').take(200)
+            "$key = $value"
+        }
+        if (!perApp) {
+            val shared = records.filter { it.key.indexOf(':') <= 0 }.map { it.key to it }
+            return listOf("Universal" to render(shared))
+        }
+        return packages.map { pkg ->
+            val prefix = "$pkg:"
+            val own = records.filter { it.key.startsWith(prefix) }.map { it.key.removePrefix(prefix) to it }
+            pkg to render(own)
+        }
+    }
+
     fun encode(context: Context, output: OutputStream): Int =
         DataOutputStream(BufferedOutputStream(output)).use { out ->
-            val records = PreferenceSchema.exportableKeys().sorted().mapNotNull { key ->
-                val value = PreferenceStores.read(context, key) ?: return@mapNotNull null
-                val entry = PreferenceSchema.entry(key) ?: return@mapNotNull null
-                normalizeForKey(key, entry.type, value)?.let { Record(key, entry.type, it) }
-            }
+            val records = collectRecords(context)
             // Validate the complete container before emitting a header. Otherwise
             // encode() could succeed with a file decode() necessarily rejects.
             validateEncodedSize(records)
@@ -193,12 +238,13 @@ object SettingsBackupCodec {
         // during the import cannot silently mutate our rollback snapshots.
         val publicBefore = snapshotForRollback(publicStore.all)
         val privateBefore = snapshotForRollback(privateStore.all)
+        val writes = resolveExclusiveImportConflicts(records, publicBefore)
         val publicKeys = LinkedHashSet<String>()
         val privateKeys = LinkedHashSet<String>()
         val publicEditor = publicStore.edit()
         val privateEditor = privateStore.edit()
-        records.forEach { record ->
-            val schema = PreferenceSchema.entry(record.key)!!
+        writes.forEach { record ->
+            val schema = backupEntry(record.key)!!
             val isPrivate = schema.store == PreferenceSchema.Store.PRIVATE
             val editor = if (isPrivate) privateEditor else publicEditor
             if (isPrivate) privateKeys.add(record.key) else publicKeys.add(record.key)
@@ -238,6 +284,65 @@ object SettingsBackupCodec {
             throw IllegalStateException("Backup restore failed; previous preferences restored", failure)
         }
         return records.size
+    }
+
+    /**
+     * Normalize the resulting imported settings before either store commits. Use the declared
+     * restore priority (not the last-write-wins policy used by interactive toggles), independent
+     * of the manager's selected UI target. Only imported scopes and targets inheriting a changed
+     * universal member are affected; unrelated pre-existing conflicts remain untouched.
+     *
+     * Additional partner writes participate in the same public commit and touched-key rollback.
+     * The caller still reports the number of accepted input records, not these auxiliary writes.
+     */
+    private fun resolveExclusiveImportConflicts(
+        records: List<Record>,
+        publicBefore: Map<String, Any?>
+    ): List<Record> {
+        val writes = records.associateByTo(LinkedHashMap()) { it.key }
+        val merged = publicBefore.toMutableMap()
+        records.filter { backupEntry(it.key)?.store == PreferenceSchema.Store.PUBLIC }
+            .forEach { merged[it.key] = it.value }
+
+        for ((keep, clear) in ExclusivePreferences.clearedOnConflict()) {
+            val scopes = LinkedHashSet<String>()
+            val changedUniversal = LinkedHashSet<String>()
+            for (record in records) {
+                val canonical = backupEntry(record.key)?.key
+                if (canonical != keep && canonical != clear) continue
+                val prefix = record.key.removeSuffix(canonical)
+                scopes.add(prefix)
+                if (prefix.isEmpty()) changedUniversal.add(canonical)
+            }
+            if (scopes.isEmpty()) continue
+            fun enabled(prefix: String, key: String): Boolean {
+                val qualified = prefix + key
+                val value = if (merged.containsKey(qualified)) merged[qualified] else merged[key]
+                return value != null && normalize(PreferenceSchema.Type.BOOLEAN, value) == true
+            }
+            fun normalizeScope(prefix: String) {
+                if (enabled(prefix, keep) && enabled(prefix, clear)) {
+                    val key = prefix + clear
+                    writes[key] = Record(key, PreferenceSchema.Type.BOOLEAN, false)
+                    merged[key] = false
+                    if (prefix.isEmpty()) changedUniversal.add(clear)
+                }
+            }
+
+            // Resolve universal first: its corrected value is the fallback seen by targets.
+            val universalChanged = changedUniversal.isNotEmpty()
+            if (universalChanged) normalizeScope("")
+            if (universalChanged) {
+                for (key in merged.keys) {
+                    val canonical = backupEntry(key)?.key
+                    if ((canonical != keep && canonical != clear) || key == canonical) continue
+                    val prefix = key.removeSuffix(canonical)
+                    if (changedUniversal.any { !merged.containsKey(prefix + it) }) scopes.add(prefix)
+                }
+            }
+            scopes.filter { it.isNotEmpty() }.sorted().forEach(::normalizeScope)
+        }
+        return writes.values.toList()
     }
 
     private fun snapshotForRollback(values: Map<String, *>): Map<String, Any?> =
@@ -318,9 +423,9 @@ object SettingsBackupCodec {
                     }
 
                     if (key != null) {
-                        val schema = PreferenceSchema.entry(key)
-                        if (schema != null && schema.isExportable()) {
-                            val normalized = normalizeForKey(key, schema.type, value)
+                        val schema = backupEntry(key)
+                        if (schema != null) {
+                            val normalized = normalizeForKey(schema.key, schema.type, value)
                             if (normalized != null) {
                                 add(Record(key, schema.type, normalized))
                             }
@@ -368,14 +473,12 @@ object SettingsBackupCodec {
             // when both are present in one unversioned JSON backup, regardless
             // of the JSONObject key iteration order.
             if (legacy && rawKey != key && source.has(key)) continue
-            if (isSensitive(key)) continue
-
-            val schema = PreferenceSchema.entry(key) ?: continue
-            if (!schema.isExportable()) continue
+            val schema = backupEntry(key) ?: continue
+            if (isSensitive(schema.key)) continue
 
             val rawVal = source.opt(rawKey) ?: continue
             val decodedValue = decodeJsonValue(rawVal, legacy) ?: continue
-            val normalized = normalizeForKey(key, schema.type, decodedValue) ?: continue
+            val normalized = normalizeForKey(schema.key, schema.type, decodedValue) ?: continue
             records.add(Record(key, schema.type, normalized))
         }
         return records
@@ -456,6 +559,43 @@ object SettingsBackupCodec {
         }
     }
 
+    /**
+     * Target qualification never grants exportability to an unknown/secret key.
+     * Accept Android application IDs without requiring installation, so backups
+     * remain portable. A package scope is not an Android user/profile identity.
+     * Only the unqualified configuration-mode key has meaning in production.
+     */
+    private fun backupEntry(key: String): PreferenceSchema.Entry? {
+        PreferenceSchema.entry(key)?.let { return it.takeIf { entry -> entry.isExportable() } }
+        val separator = key.indexOf(':')
+        if (separator <= 0 || separator == key.lastIndex || key.indexOf(':', separator + 1) >= 0) return null
+        val target = key.substring(0, separator)
+        if (!isTargetPackage(target)) return null
+        val canonical = key.substring(separator + 1)
+        if (canonical == "module_config_mode") return null
+        val entry = PreferenceSchema.entry(canonical)
+        return if (entry != null && entry.isExportable()) entry else null
+    }
+
+    // Iterative validation avoids regex recursion on an untrusted, long key.
+    private fun isTargetPackage(value: String): Boolean {
+        var segmentStart = true
+        var hasSeparator = false
+        for (char in value) {
+            if (char == '.') {
+                if (segmentStart) return false
+                hasSeparator = true
+                segmentStart = true
+            } else {
+                val letter = char in 'a'..'z' || char in 'A'..'Z'
+                if (segmentStart && !letter) return false
+                if (!letter && char !in '0'..'9' && char != '_') return false
+                segmentStart = false
+            }
+        }
+        return hasSeparator && !segmentStart
+    }
+
     private fun resolveKey(originalKey: String, legacyJson: Boolean): String? {
         // Every key already present in the schema retains its OWN meaning, even
         // in old unversioned JSON backups. Same-type legacy aliases can denote
@@ -463,6 +603,7 @@ object SettingsBackupCodec {
         // hide_seen_receipts vs hidereceipt). Rewriting them changes privacy
         // settings without the user's intention.
         if (PreferenceSchema.entry(originalKey) != null) return originalKey
+        if (backupEntry(originalKey) != null) return originalKey
 
         // Only truly unknown old keys may migrate, and only from legacy JSON.
         // New binary/JSON backup formats must never guess missing key names.

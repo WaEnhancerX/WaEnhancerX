@@ -115,9 +115,7 @@ fun WaexColorPickerDialog(
 
     WaexModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.surface,
-        shape = radius.bottomSheetShape
+        sheetState = sheetState
     ) {
         Column(
             modifier = Modifier
@@ -125,7 +123,7 @@ fun WaexColorPickerDialog(
                 .verticalScroll(rememberScrollState())
                 .imePadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = WaexSheetHorizontalMargin)
                 .padding(bottom = 24.dp)
         ) {
                 Text(
@@ -298,38 +296,26 @@ fun WaexColorPickerDialog(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Actions
-                Button(
+                WaexSheetPrimaryButton(
+                    text = UiText.get(R.string.action_apply, "Apply"),
                     onClick = {
                         onColorSelected(selectedColorHex)
                         onDismiss()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.primary),
-                    shape = radius.buttonShape,
-                    modifier = Modifier.fillMaxWidth().height(50.dp)
-                ) {
-                    Text(UiText.get(R.string.action_apply, "Apply"), color = colors.onPrimary, fontWeight = FontWeight.Bold)
-                }
-                Spacer(modifier = Modifier.height(10.dp))
+                    }
+                )
                 if (onUseDefault != null) {
-                    OutlinedButton(
+                    WaexSheetTextButton(
+                        text = UiText.get(R.string.waex_ui_use_app_default_color, "Use App Default Color"),
                         onClick = {
                             onUseDefault()
                             onDismiss()
-                        },
-                        shape = radius.buttonShape,
-                        modifier = Modifier.fillMaxWidth().height(50.dp)
-                    ) {
-                        Text(UiText.get(R.string.waex_ui_use_app_default_color, "Use App Default Color"), color = colors.onSurface)
-                    }
-                    Spacer(modifier = Modifier.height(10.dp))
+                        }
+                    )
                 }
-                OutlinedButton(
-                    onClick = onDismiss,
-                    shape = radius.buttonShape,
-                    modifier = Modifier.fillMaxWidth().height(50.dp)
-                ) {
-                    Text(UiText.get(R.string.action_cancel, "Cancel"), color = colors.onSurface)
-                }
+                WaexSheetTextButton(
+                    text = UiText.get(R.string.action_cancel, "Cancel"),
+                    onClick = onDismiss
+                )
         }
     }
 }

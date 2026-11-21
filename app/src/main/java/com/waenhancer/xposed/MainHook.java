@@ -1,6 +1,7 @@
 package com.waenhancer.xposed;
 
 import android.app.Activity;
+import androidx.annotation.NonNull;
 import android.app.Application;
 import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
@@ -12,6 +13,8 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.Process;
 import android.widget.Toast;
 import java.lang.reflect.Field;
@@ -33,15 +36,17 @@ import com.waenhancer.xposed.core.components.WaexBottomSheet;
 import com.waenhancer.xposed.features.customization.PropsOverrideHook;
 import com.waenhancer.xposed.features.updates.WhatsAppUpdateSheet;
 import com.waenhancer.xposed.utils.ActivityTracker;
+import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.TargetExitReporter;
 import com.waenhancer.xposed.utils.ModuleStatus;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Locale;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.IXposedHookZygoteInit;
@@ -67,17 +72,7 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
     private static XSharedPreferences sPrefs;
     private static volatile PreferenceBridgeClient sPreferenceBridge;
     private static final AtomicBoolean TARGET_INITIALIZED = new AtomicBoolean(false);
-    private static final AtomicBoolean HEARTBEAT_STARTED = new AtomicBoolean(false);
     private static final AtomicBoolean INJECTION_TOAST_SHOWN = new AtomicBoolean(false);
-    private static final long HEARTBEAT_INTERVAL_MS = 10_000L;
-    // The heartbeat performs synchronous provider IPC. Never dispatch it on
-    // WhatsApp's UI Looper: a slow, frozen or dying manager must not stall frames.
-    private static final ScheduledExecutorService HEARTBEAT_EXECUTOR =
-            Executors.newSingleThreadScheduledExecutor(task -> {
-                Thread thread = new Thread(task, "WAEX Runtime Health");
-                thread.setDaemon(true);
-                return thread;
-            });
     private static volatile String sRuntimeStatus = "INJECTED";
     private static volatile String sBridgeStatus = "PENDING";
     private static volatile String sRuntimeError;
@@ -113,7 +108,7 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
 
         // System Framework Hook (Developer Options: JDWP debugger for target WhatsApp packages)
         if ("android".equals(packageName)) {
-            if (BuildConfig.DEBUG) {
+            if (BuildConfig.IS_DEBUG_VARIANT) {
                 try {
                     XC_MethodHook startHook = new XC_MethodHook() {
                         @Override
@@ -129,7 +124,6 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                         if (prefs.getBoolean(PreferenceSchema.KEY_FORCE_TARGET_DEBUGGABLE, false)) {
                                             int runtimeFlags = ((Number) param.args[5]).intValue();
                                             param.args[5] = runtimeFlags | 1; // 1 = Zygote.DEBUG_ENABLE_JDWP
-                                            XposedBridge.log("[WAEX] Debugger (JDWP) enabled for: " + processName);
                                         }
                                     }
                                 }
@@ -158,7 +152,6 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                                     prefs.reload();
                                                     if (prefs.getBoolean(PreferenceSchema.KEY_FORCE_TARGET_DEBUGGABLE, false)) {
                                                         info.flags |= ApplicationInfo.FLAG_DEBUGGABLE;
-                                                        XposedBridge.log("[WAEX] ProcessList: forced FLAG_DEBUGGABLE on ProcessRecord." + info.packageName);
                                                     }
                                                 }
                                             }
@@ -170,7 +163,6 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                                     prefs.reload();
                                                     if (prefs.getBoolean(PreferenceSchema.KEY_FORCE_TARGET_DEBUGGABLE, false)) {
                                                         ai.flags |= ApplicationInfo.FLAG_DEBUGGABLE;
-                                                        XposedBridge.log("[WAEX] ProcessList: forced FLAG_DEBUGGABLE on ApplicationInfo." + ai.packageName);
                                                     }
                                                 }
                                             }
@@ -201,7 +193,6 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                                     prefs.reload();
                                                     if (prefs.getBoolean(PreferenceSchema.KEY_FORCE_TARGET_DEBUGGABLE, false)) {
                                                         ai.flags |= ApplicationInfo.FLAG_DEBUGGABLE;
-                                                        XposedBridge.log("[WAEX] AMS: forced FLAG_DEBUGGABLE on " + ai.packageName);
                                                     }
                                                 }
                                             }
@@ -280,7 +271,7 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                             }
                         }
                 );
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("MainHook", ignored); }
             return;
         }
 
@@ -308,7 +299,7 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                             @Override
                             protected void afterHookedMethod(MethodHookParam param) {
                                 Context context = (Context) param.thisObject;
-                                if (BuildConfig.DEBUG) {
+                                if (BuildConfig.IS_DEBUG_VARIANT) {
                                     try {
                                         boolean isDebuggableRequested = (preloadedPrefs != null
                                                 && preloadedPrefs.getBoolean(PreferenceSchema.KEY_FORCE_TARGET_DEBUGGABLE, false));
@@ -316,8 +307,7 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                             context.getApplicationInfo().flags |= ApplicationInfo.FLAG_DEBUGGABLE;
                                             try {
                                                 android.webkit.WebView.setWebContentsDebuggingEnabled(true);
-                                            } catch (Throwable ignored) {}
-                                            XposedBridge.log("[WAEX] Forced FLAG_DEBUGGABLE on " + lpparam.packageName);
+                                            } catch (Throwable ignored) { HookErrors.swallowed("MainHook", ignored); }
                                         }
                                     } catch (Throwable t) {
                                         XposedBridge.log("[WAEX] Error setting debuggable flag: " + t.getMessage());
@@ -368,7 +358,7 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                 if (!TARGET_INITIALIZED.compareAndSet(false, true)) {
                     return;
                 }
-                XposedBridge.log("[WAEX] Triggering target initialization with context: " + appContext.getClass().getName());
+                final long initStart = System.nanoTime();
                 try {
                     if (appContext instanceof Application) {
                         ActivityTracker.install((Application) appContext);
@@ -378,18 +368,27 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                             + t.getClass().getSimpleName());
                 }
 
-                try {
-                    WhatsAppPackageDetector.registerHookedPackage(appContext, packageName);
-                } catch (Throwable t) {
-                    XposedBridge.log("[WAEX] Hooked-package reporting failed: "
-                            + t.getClass().getSimpleName());
-                }
+                // Dashboard bookkeeping (package registration, runtime status, update check) is not
+                // needed to start WhatsApp. Each is a cross-process call into the WAEX provider,
+                // which may have to cold-start the WAEX process, so none of them may run on this
+                // thread. They are queued and sent from one background thread once a screen shows.
+                installDeferredReporting(appContext);
+                queueDeferred(() -> {
+                    try {
+                        WhatsAppPackageDetector.registerHookedPackage(appContext, packageName);
+                    } catch (Throwable t) {
+                        XposedBridge.log("[WAEX] Hooked-package reporting failed: "
+                                + t.getClass().getSimpleName());
+                    }
+                });
                 reportTargetRuntime(appContext, packageName, "INJECTED", "PENDING", null);
-                try {
-                    appContext.getContentResolver().call(
-                            Uri.parse("content://com.waenhancer.hookprovider"),
-                            "request_update_check", packageName, null);
-                } catch (Throwable ignored) {}
+                queueDeferred(() -> {
+                    try {
+                        appContext.getContentResolver().call(
+                                Uri.parse("content://com.waenhancer.hookprovider"),
+                                "request_update_check", packageName, null);
+                    } catch (Throwable ignored) { HookErrors.swallowed("MainHook", ignored); }
+                });
 
                 try {
                     IntentFilter filter = new IntentFilter("com.waenhancer.WHATSAPP.RESTART");
@@ -408,7 +407,7 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                     } else {
                         appContext.registerReceiver(receiver, filter, RESTART_PERMISSION, null);
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("MainHook", ignored); }
 
                 boolean showHookToast = true;
                 try {
@@ -417,10 +416,24 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                         resolvedBridge = new PreferenceBridgeClient(appContext, preloadedPrefs);
                         sPreferenceBridge = resolvedBridge;
                     } else {
+                        long bridgeWait = System.nanoTime();
                         resolvedBridge.awaitInitialSync();
+                        logStartupStage("bridge awaitInitialSync (blocked)", bridgeWait);
                     }
                     final PreferenceBridgeClient bridgeClient = resolvedBridge;
                     UiText.initialize(appContext, bridgeClient);
+                    // Only on an explicitly consented WhatsApp launch, read the OS ring buffer
+                    // as the host's own UID. Runs once on a low-priority background thread,
+                    // independent of version support and without any crash-path interception.
+                    try {
+                        boolean advancedConsent = bridgeClient.getBoolean(
+                                PreferenceSchema.KEY_DIAGNOSTIC_CAPTURE_ENABLED, false)
+                                && bridgeClient.getBoolean(
+                                PreferenceSchema.KEY_DIAGNOSTIC_TARGET_EXIT_ENABLED, false);
+                        TargetExitReporter.scheduleOnce(appContext, packageName, advancedConsent,
+                                bridgeClient.getLong(
+                                        PreferenceSchema.KEY_DIAGNOSTIC_TARGET_EXIT_SINCE, 0L));
+                    } catch (RuntimeException ignored) { HookErrors.swallowed("MainHook", ignored); }
                     reportTargetRuntime(
                             appContext,
                             packageName,
@@ -456,11 +469,13 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                     showHookToast = bridgeClient.getBoolean("show_hook_toast", true);
 
                     // Verify universal version compatibility before loading hooks
+                    long guardStart = System.nanoTime();
                     boolean isSupported = VersionGuard.verifyAndGuard(
                             appContext,
                             lpparam.classLoader,
                             bridgeClient
                     );
+                    logStartupStage("version guard", guardStart);
 
                     if (isSupported) {
                         try {
@@ -477,9 +492,15 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                         + t.getClass().getSimpleName());
                             }
                         }
+                        long registryStart = System.nanoTime();
                         FeatureRegistry registry = new FeatureRegistry(appContext, lpparam.classLoader, bridgeClient);
+                        logStartupStage("FeatureRegistry constructor", registryStart);
+                        long installStart = System.nanoTime();
                         registry.initializeAll();
-                        registry.reportInjectedHooks(appContext, packageName);
+                        logStartupStage("initializeAll (startup features)", installStart);
+                        logStartupStage("TOTAL target init (main thread)", initStart);
+                        queueDeferred(() -> registry.reportInjectedHooks(appContext, packageName));
+                        registerHookReportReceiver(appContext, packageName, registry);
                         reportTargetRuntime(
                                 appContext,
                                 packageName,
@@ -524,7 +545,7 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
                                         Field appContextField = param.thisObject.getClass().getField("appContext");
                                         Object ctx = appContextField.get(param.thisObject);
                                         if (ctx instanceof Context) app = ctx;
-                                    } catch (Throwable ignored) {}
+                                    } catch (Throwable ignored) { HookErrors.swallowed("MainHook", ignored); }
                                 }
                                 if (app instanceof Context) {
                                     initializeTargetFromContext.accept((Context) app);
@@ -585,38 +606,116 @@ public class MainHook implements IXposedHookLoadPackage, IXposedHookZygoteInit {
         ActivityTracker.addListener(listener);
     }
 
+    /**
+     * The manager asks a running target to re-publish its hook catalogue (home-screen resume or
+     * the card's refresh button). Same signature-permission contract as the restart receiver; the
+     * IPC runs off the main thread.
+     */
+    private static void registerHookReportReceiver(Context appContext, String packageName,
+                                                   FeatureRegistry registry) {
+        try {
+            IntentFilter filter = new IntentFilter("com.waenhancer.action.REPORT_HOOKS");
+            BroadcastReceiver receiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    if (!packageName.equals(intent.getStringExtra("PKG"))) return;
+                    Thread worker = new Thread(() -> {
+                        try {
+                            registry.reportInjectedHooks(appContext, packageName);
+                        } catch (Throwable ignored) { HookErrors.swallowed("MainHook", ignored); }
+                    }, "WAEX-HookReport");
+                    worker.setDaemon(true);
+                    worker.start();
+                }
+            };
+            if (Build.VERSION.SDK_INT >= 33) {
+                appContext.registerReceiver(receiver, filter, RESTART_PERMISSION,
+                        null, Context.RECEIVER_EXPORTED);
+            } else {
+                appContext.registerReceiver(receiver, filter, RESTART_PERMISSION, null);
+            }
+        } catch (Throwable t) {
+            XposedBridge.log("[WAEX] Hook report receiver failed: " + t.getClass().getSimpleName());
+        }
+    }
+
     private static void reportTargetRuntime(Context context, String packageName,
                                             String runtimeStatus, String bridgeStatus,
                                             String error) {
         Context appContext = context.getApplicationContext() != null
                 ? context.getApplicationContext() : context;
+        // In-process state is updated immediately; only the provider IPC is deferred.
         sRuntimeStatus = runtimeStatus;
         sBridgeStatus = bridgeStatus;
         sRuntimeError = error;
-        WhatsAppPackageDetector.reportRuntimeHealth(
-                appContext, packageName, runtimeStatus, bridgeStatus, error);
+        queueDeferred(() -> WhatsAppPackageDetector.reportRuntimeHealth(
+                appContext, packageName, runtimeStatus, bridgeStatus, error));
+    }
 
-        if (HEARTBEAT_STARTED.compareAndSet(false, true)) {
-            try {
-                // Fixed delay preserves the existing interval measured from
-                // each completed report and prevents overlapping provider calls.
-                HEARTBEAT_EXECUTOR.scheduleWithFixedDelay(() -> {
-                    try {
-                        WhatsAppPackageDetector.reportRuntimeHealth(
-                                appContext, packageName, sRuntimeStatus, sBridgeStatus, sRuntimeError);
-                    } catch (RuntimeException t) {
-                        // A single failed report must not permanently cancel
-                        // the scheduled status refresh.
-                        XposedBridge.log("[WAEX] Runtime heartbeat failed: "
-                                + t.getClass().getSimpleName());
-                    }
-                }, HEARTBEAT_INTERVAL_MS, HEARTBEAT_INTERVAL_MS, TimeUnit.MILLISECONDS);
-            } catch (RuntimeException failure) {
-                HEARTBEAT_STARTED.set(false);
-                XposedBridge.log("[WAEX] Runtime heartbeat scheduling failed: "
-                        + failure.getClass().getSimpleName());
-            }
+    /** Startup profiling: one log line per stage, tagged so it can be grepped from the Xposed log. */
+    private static void logStartupStage(String stage, long startNanos) {
+        long ms = (System.nanoTime() - startNanos) / 1_000_000L;
+        XposedBridge.log("[WAEX][Startup] " + stage + " " + ms + "ms");
+    }
+
+    // ── Deferred, off-main-thread reporting ─────────────────────────────────────────────────
+    private static final ExecutorService REPORT_EXECUTOR =
+            Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "WAEX-Report");
+                t.setDaemon(true);
+                t.setPriority(Thread.MIN_PRIORITY);
+                return t;
+            });
+    private static final ConcurrentLinkedQueue<Runnable> DEFERRED_REPORTS =
+            new ConcurrentLinkedQueue<>();
+    private static final AtomicBoolean REPORTING_RELEASED =
+            new AtomicBoolean(false);
+    private static final AtomicBoolean REPORTING_INSTALLED =
+            new AtomicBoolean(false);
+    private static final long REPORTING_FALLBACK_MS = 5_000L;
+
+    /** Runs {@code task} on the reporting thread; held back until WhatsApp is on screen. */
+    private static void queueDeferred(Runnable task) {
+        if (REPORTING_RELEASED.get()) {
+            REPORT_EXECUTOR.execute(task);
+        } else {
+            DEFERRED_REPORTS.add(task);
+            // Lost race: released between the check and the add, so drain now.
+            if (REPORTING_RELEASED.get()) drainDeferred();
         }
+    }
+
+    private static void drainDeferred() {
+        Runnable task;
+        while ((task = DEFERRED_REPORTS.poll()) != null) {
+            REPORT_EXECUTOR.execute(task);
+        }
+    }
+
+    private static void releaseDeferredReporting() {
+        if (REPORTING_RELEASED.compareAndSet(false, true)) drainDeferred();
+    }
+
+    /**
+     * Releases queued reports when the first Activity resumes, or after a fallback delay so a
+     * process that never shows a screen (background start) still reports to the dashboard.
+     */
+    private static void installDeferredReporting(Context appContext) {
+        if (!REPORTING_INSTALLED.compareAndSet(false, true)) return;
+        try {
+            ActivityTracker.addListener(new ActivityTracker.ActivityListener() {
+                @Override public void onActivityCreated(@NonNull Activity activity) {}
+                @Override public void onActivityResumed(@NonNull Activity activity) {
+                    releaseDeferredReporting();
+                }
+                @Override public void onActivityStopped(@NonNull Activity activity) {}
+                @Override public void onActivityDestroyed(@NonNull Activity activity) {}
+            });
+        } catch (Throwable ignored) { HookErrors.swallowed("MainHook", ignored); }
+        // Already on screen (late injection): nothing to wait for.
+        if (ActivityTracker.getCurrentActivity() != null) releaseDeferredReporting();
+        new Handler(Looper.getMainLooper()).postDelayed(
+                MainHook::releaseDeferredReporting, REPORTING_FALLBACK_MS);
     }
 
     /**

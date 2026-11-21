@@ -1,0 +1,8 @@
+[Added]
+- Describe a new user-visible feature.
+
+[Fixes]
+- Describe a bug that is now fixed.
+
+[Improvements]
+- Describe an improvement to an existing feature.

@@ -1,33 +1,25 @@
 #!/usr/bin/env python3
-"""Compile the real MainHook heartbeat method and test its scheduler contract.
+"""Check the current off-main runtime reporting contract, not the retired heartbeat.
 
-This is a focused Java contract probe, not a full WAEX APK or WhatsApp test.
-The method and executor declaration are extracted byte-for-byte from production.
+Exact production declarations/methods are extracted from MainHook. Android
+lifecycle/provider endpoints are strict doubles; this is not APK/device acceptance.
 """
-
 import argparse
 import hashlib
 import json
-import re
-import shutil
-import subprocess
-import sys
-import tempfile
 from pathlib import Path
-
+import re
+import subprocess
+import tempfile
 
 MAIN_REL = Path("app/src/main/java/com/waenhancer/xposed/MainHook.java")
-START = "private static void reportTargetRuntime("
-EXECUTOR = "private static final ScheduledExecutorService HEARTBEAT_EXECUTOR"
 
 
-def extract_braced(source: str, marker: str) -> str:
-    start = source.find(marker)
-    if start < 0:
-        raise AssertionError(f"Missing production declaration: {marker}")
-    opening = source.find("{", start)
-    if opening < 0:
-        raise AssertionError(f"Malformed production declaration: {marker}")
+def extract_braced(source, marker):
+    if source.count(marker) != 1:
+        raise AssertionError(f"Expected one production declaration: {marker}")
+    start = source.index(marker)
+    opening = source.index("{", start)
     depth = 0
     for index in range(opening, len(source)):
         if source[index] == "{":
@@ -35,313 +27,284 @@ def extract_braced(source: str, marker: str) -> str:
         elif source[index] == "}":
             depth -= 1
             if depth == 0:
-                return source[start : index + 1]
+                return source[start:index + 1]
     raise AssertionError(f"Unbalanced production declaration: {marker}")
 
 
-def extract_production(source: str) -> tuple[str, str]:
-    declaration = re.search(
-        r"private static final ScheduledExecutorService HEARTBEAT_EXECUTOR\s*=\s*"
-        r"Executors\.newSingleThreadScheduledExecutor\(task -> \{"
-        r"[\s\S]*?\n\s*\}\);",
-        source,
-    )
-    if declaration is None:
-        raise AssertionError("Missing dedicated, single-threaded heartbeat executor")
-    worker = declaration.group(0)
-    method = extract_braced(source, START)
-    if "scheduleWithFixedDelay(" not in method:
-        raise AssertionError("Heartbeat must use completion-relative fixed delay")
-    if "TimeUnit.MILLISECONDS" not in method:
-        raise AssertionError("Heartbeat interval must retain millisecond units")
-    if "Handler(Looper.getMainLooper())" in method:
-        raise AssertionError("Heartbeat must not be scheduled on WhatsApp's UI Looper")
-    if "thread.setDaemon(true)" not in worker:
-        raise AssertionError("Heartbeat executor thread must be daemon")
-    if "HEARTBEAT_STARTED.compareAndSet(false, true)" not in method:
-        raise AssertionError("Missing at-most-once heartbeat scheduling guard")
-    return worker, method
+def extract_production(source):
+    # Current nightly removed the clock. Reintroducing it is not reconciliation.
+    if re.search(r"HEARTBEAT_|scheduleWithFixedDelay|scheduleAtFixedRate", source):
+        raise AssertionError("Retired periodic runtime clock was reintroduced")
+    begin = source.index("private static final ExecutorService REPORT_EXECUTOR")
+    end = source.index("/** Runs", begin)
+    declarations = source[begin:end]
+    fields = []
+    for name in ("sRuntimeStatus", "sBridgeStatus", "sRuntimeError"):
+        match = re.search(r"private static volatile String " + name + r"[^;]*;", source)
+        if not match:
+            raise AssertionError(f"Missing runtime state: {name}")
+        fields.append(match.group(0))
+    methods = [extract_braced(source, "private static void " + name + "(")
+               for name in ("reportTargetRuntime", "queueDeferred", "drainDeferred",
+                            "releaseDeferredReporting", "installDeferredReporting")]
+    return "\n".join([*fields, declarations, *methods])
 
 
-JAVA_TEMPLATE = r"""
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.CopyOnWriteArrayList;
-
+JAVA = r'''
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
+@interface NonNull {}
 class Context {
-    Context getApplicationContext() { return this; }
+    Context app = this;
+    Context getApplicationContext() { return app; }
 }
-
-class XposedBridge {
-    static final List<String> errors = new CopyOnWriteArrayList<>();
-    static void log(String message) { errors.add(message); }
+class Activity {}
+class Looper {
+    static final Looper MAIN = new Looper();
+    static Looper getMainLooper() { return MAIN; }
 }
-
+class Handler {
+    static final List<Runnable> callbacks = new ArrayList<>();
+    static final List<Long> delays = new ArrayList<>();
+    Handler(Looper looper) { if (looper != Looper.MAIN) throw new AssertionError("unexpected Looper"); }
+    boolean postDelayed(Runnable task, long delay) {
+        if (task == null || delay != 5000L) throw new AssertionError("unexpected fallback contract");
+        callbacks.add(task); delays.add(delay); return true;
+    }
+}
+class ActivityTracker {
+    interface ActivityListener {
+        void onActivityCreated(Activity activity);
+        void onActivityResumed(Activity activity);
+        void onActivityStopped(Activity activity);
+        void onActivityDestroyed(Activity activity);
+    }
+    static final List<ActivityListener> listeners = new ArrayList<>();
+    static Activity current;
+    static boolean fail;
+    static void addListener(ActivityListener listener) {
+        if (fail) throw new IllegalStateException("synthetic listener failure");
+        listeners.add(listener);
+    }
+    static Activity getCurrentActivity() { return current; }
+}
+class HookErrors {
+    static int calls;
+    static void swallowed(String site, Throwable failure) {
+        if (!"MainHook".equals(site) || !(failure instanceof IllegalStateException))
+            throw new AssertionError("unexpected diagnostic");
+        calls++;
+    }
+}
 class WhatsAppPackageDetector {
-    static final List<Record> reports = new CopyOnWriteArrayList<>();
-    static final AtomicBoolean failNext = new AtomicBoolean();
+    record Report(Context context, String pkg, String status, String bridge, String error, Thread thread) {}
+    static final List<Report> reports = new CopyOnWriteArrayList<>();
     static final AtomicInteger active = new AtomicInteger();
     static final AtomicInteger maxActive = new AtomicInteger();
-    static volatile long slowMillis;
-
-    static final class Record {
-        final Thread thread;
-        final String status;
-        final String bridge;
-        final long startedNanos;
-        Record(String status, String bridge) {
-            this.thread = Thread.currentThread();
-            this.status = status;
-            this.bridge = bridge;
-            this.startedNanos = System.nanoTime();
-        }
-    }
-
-    static void reportRuntimeHealth(Context ctx, String pkg, String status,
-                                    String bridge, String error) {
-        if (ctx == null || !"com.whatsapp".equals(pkg)) {
-            throw new AssertionError("Unexpected context or target");
-        }
-        int concurrent = active.incrementAndGet();
-        maxActive.accumulateAndGet(concurrent, Math::max);
+    static volatile CountDownLatch hold;
+    static volatile CountDownLatch entered;
+    static volatile boolean failNext;
+    static void reportRuntimeHealth(Context context, String pkg, String status, String bridge, String error) {
+        if (context == null || !("com.whatsapp".equals(pkg) || "com.whatsapp.w4b".equals(pkg)))
+            throw new AssertionError("unexpected context/package");
+        int count = active.incrementAndGet();
+        maxActive.accumulateAndGet(count, Math::max);
         try {
-            reports.add(new Record(status, bridge));
-            if (failNext.compareAndSet(true, false)) {
-                throw new IllegalStateException("controlled heartbeat failure");
+            reports.add(new Report(context, pkg, status, bridge, error, Thread.currentThread()));
+            CountDownLatch wait = hold;
+            if (wait != null) {
+                entered.countDown();
+                if (!wait.await(500, TimeUnit.MILLISECONDS)) throw new AssertionError("provider wait timed out");
             }
-            if (slowMillis > 0) {
-                try { Thread.sleep(slowMillis); }
-                catch (InterruptedException interrupted) {
-                    Thread.currentThread().interrupt();
-                }
-            }
-        } finally {
-            active.decrementAndGet();
-        }
+            if (failNext) { failNext = false; throw new IllegalStateException("synthetic provider failure"); }
+        } catch (InterruptedException failure) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError(failure);
+        } finally { active.decrementAndGet(); }
     }
 }
-
-class MainHookHarness {
-    private static final AtomicBoolean HEARTBEAT_STARTED = new AtomicBoolean(false);
-    // Only the timer duration is scaled down in this isolated contract probe.
-    private static final long HEARTBEAT_INTERVAL_MS = 40L;
-    private static volatile String sRuntimeStatus = "INJECTED";
-    private static volatile String sBridgeStatus = "PENDING";
-    private static volatile String sRuntimeError;
-
-    /* EXACT_EXECUTOR */
-
-    /* EXACT_METHOD */
-
-    static void testReport(Context context, String packageName, String status,
-                           String bridge, String error) {
-        reportTargetRuntime(context, packageName, status, bridge, error);
+class MainHook {
+    /* PRODUCTION */
+    static void report(Context c, String pkg, String state, String bridge, String error) {
+        reportTargetRuntime(c, pkg, state, bridge, error);
     }
-    static boolean heartbeatStarted() { return HEARTBEAT_STARTED.get(); }
-    static void stopHeartbeat() { HEARTBEAT_EXECUTOR.shutdownNow(); }
+    static void release() { releaseDeferredReporting(); }
+    static void install() { installDeferredReporting(new Context()); }
+    static String state() { return sRuntimeStatus + "/" + sBridgeStatus + "/" + sRuntimeError; }
+    static void flush() throws Exception { REPORT_EXECUTOR.submit(() -> {}).get(3, TimeUnit.SECONDS); }
+    static void reset() throws Exception {
+        if (WhatsAppPackageDetector.hold != null) WhatsAppPackageDetector.hold.countDown();
+        flush();
+        DEFERRED_REPORTS.clear(); REPORTING_RELEASED.set(false); REPORTING_INSTALLED.set(false);
+        sRuntimeStatus="INJECTED"; sBridgeStatus="PENDING"; sRuntimeError=null;
+        WhatsAppPackageDetector.reports.clear(); WhatsAppPackageDetector.maxActive.set(0);
+        WhatsAppPackageDetector.hold=null; WhatsAppPackageDetector.entered=null; WhatsAppPackageDetector.failNext=false;
+        ActivityTracker.listeners.clear(); ActivityTracker.current=null; ActivityTracker.fail=false;
+        Handler.callbacks.clear(); Handler.delays.clear(); HookErrors.calls=0;
+    }
+    static void stop() { REPORT_EXECUTOR.shutdownNow(); }
 }
-
 public class RuntimeHeartbeatChecks {
-    private static int cases;
-    private static void check(boolean condition, String name) {
-        if (!condition) throw new AssertionError(name);
-        cases++;
-    }
-    private static void awaitReports(int count, long maxMillis) throws Exception {
-        long until = System.nanoTime() + maxMillis * 1_000_000L;
-        while (WhatsAppPackageDetector.reports.size() < count &&
-                System.nanoTime() < until) Thread.sleep(8);
-        check(WhatsAppPackageDetector.reports.size() >= count,
-                "Timed out waiting for report " + count);
+    interface Check { void run() throws Exception; }
+    static int cases, failed;
+    static final Thread caller = Thread.currentThread();
+    static final List<Throwable> uncaught = new CopyOnWriteArrayList<>();
+    static void check(boolean value, String message) { if (!value) throw new AssertionError(message); }
+    static void report(String state) { MainHook.report(new Context(), "com.whatsapp", state, "PROVIDER", null); }
+    static List<WhatsAppPackageDetector.Report> records() { return WhatsAppPackageDetector.reports; }
+    static void test(String name, Check body) throws Exception {
+        MainHook.reset(); cases++;
+        try { body.run(); System.out.println("PASS|" + name); }
+        catch (Throwable error) { failed++; System.out.println("FAIL|" + name + "|" + error); }
+        finally { if (WhatsAppPackageDetector.hold != null) WhatsAppPackageDetector.hold.countDown(); MainHook.flush(); }
     }
     public static void main(String[] args) throws Exception {
-        Thread main = Thread.currentThread();
+        Thread.setDefaultUncaughtExceptionHandler((thread,error) -> uncaught.add(error));
         try {
-            MainHookHarness.testReport(new Context(), "com.whatsapp",
-                    "READY", "PROVIDER", null);
-            check(WhatsAppPackageDetector.reports.size() == 1,
-                    "Initial report must be available synchronously");
-            check(WhatsAppPackageDetector.reports.get(0).thread == main,
-                    "Keep the original initial-report contract");
-            Thread.sleep(12);
-            check(WhatsAppPackageDetector.reports.size() == 1,
-                    "First background report must retain its initial delay");
-
-            awaitReports(4, 1100);
-            Thread worker = WhatsAppPackageDetector.reports.get(1).thread;
-            check(worker != main, "Recurring provider IPC cannot use the UI thread");
-            check(worker.isDaemon(), "Heartbeat must not keep the process alive");
-            check(worker.getName().equals("WAEX Runtime Health"),
-                    "Scheduled thread must have a stable diagnostic name");
-            for (int i = 1; i < WhatsAppPackageDetector.reports.size(); i++) {
-                check(WhatsAppPackageDetector.reports.get(i).thread == worker,
-                        "Must reuse only one worker thread");
-            }
-
-            int before = WhatsAppPackageDetector.reports.size();
-            MainHookHarness.testReport(new Context(), "com.whatsapp",
-                    "READY_WITH_ERRORS", "FAILED", null);
-            check(WhatsAppPackageDetector.reports.size() == before + 1,
-                    "A new status must retain immediate reporting");
-            awaitReports(before + 3, 1100);
-            check(WhatsAppPackageDetector.reports.get(
-                    WhatsAppPackageDetector.reports.size() - 1).status.equals("READY_WITH_ERRORS"),
-                    "Recurring report must observe the newest volatile runtime status");
-
-            WhatsAppPackageDetector.failNext.set(true);
-            int failedAt = WhatsAppPackageDetector.reports.size();
-            awaitReports(failedAt + 3, 1100);
-            check(!XposedBridge.errors.isEmpty(),
-                    "Report failure must remain observable");
-            check(XposedBridge.errors.get(0).contains("IllegalStateException"),
-                    "Only bounded failure type is logged");
-            check(WhatsAppPackageDetector.reports.size() >= failedAt + 3,
-                    "A failed report must not cancel subsequent heartbeats");
-
-            WhatsAppPackageDetector.slowMillis = 85L;
-            int slowFrom = WhatsAppPackageDetector.reports.size();
-            awaitReports(slowFrom + 3, 1700);
-            check(WhatsAppPackageDetector.maxActive.get() == 1,
-                    "Provider calls must not overlap");
-            List<WhatsAppPackageDetector.Record> slow = new ArrayList<>(
-                    WhatsAppPackageDetector.reports.subList(
-                            slowFrom, WhatsAppPackageDetector.reports.size()));
-            long minStartGapMs = Long.MAX_VALUE;
-            for (int i = 1; i < slow.size(); i++) {
-                long gapMs = (slow.get(i).startedNanos - slow.get(i - 1).startedNanos)
-                        / 1_000_000L;
-                minStartGapMs = Math.min(minStartGapMs, gapMs);
-            }
-            check(minStartGapMs >= 115L,
-                    "Fixed-delay scheduling must wait after a slow provider call: "
-                            + minStartGapMs);
-            check(MainHookHarness.heartbeatStarted(),
-                    "Scheduling guard must remain active");
-            System.out.println("PASS " + cases + " checks, one daemon worker, " +
-                    "failure recovery, status propagation, no overlapping IPC");
-        } finally {
-            MainHookHarness.stopHeartbeat();
-        }
+            test("state changes immediately but IPC waits for release", () -> {
+                MainHook.report(new Context(),"com.whatsapp","READY","FAILED","error-type");
+                check(MainHook.state().equals("READY/FAILED/error-type"),"local status not updated");
+                MainHook.flush(); check(records().isEmpty(),"provider ran before release");
+            });
+            test("queued reports preserve order and captured status", () -> {
+                report("FIRST"); report("SECOND"); MainHook.release(); MainHook.flush();
+                check(records().size()==2,"queued reports lost/duplicated");
+                check(records().get(0).status().equals("FIRST")&&records().get(1).status().equals("SECOND"),"captured status overwritten");
+            });
+            test("application context and business package are preserved", () -> {
+                Context owner=new Context(), app=new Context(); owner.app=app;
+                MainHook.report(owner,"com.whatsapp.w4b","READY","PROVIDER","diagnostic");
+                MainHook.release();MainHook.flush(); var r=records().get(0);
+                check(r.context()==app&&r.pkg().equals("com.whatsapp.w4b")&&r.error().equals("diagnostic"),"IPC inputs changed");
+            });
+            test("missing application context falls back to caller context", () -> {
+                Context owner=new Context();owner.app=null; MainHook.report(owner,"com.whatsapp","READY","PROVIDER",null);
+                MainHook.release();MainHook.flush();check(records().get(0).context()==owner,"context fallback lost");
+            });
+            test("one low priority daemon worker handles provider IPC", () -> {
+                MainHook.release();report("FIRST");report("SECOND");MainHook.flush();
+                Thread worker=records().get(0).thread();
+                check(worker!=caller&&worker.isDaemon(),"IPC worker is caller or non-daemon");
+                check(worker.getName().equals("WAEX-Report")&&worker.getPriority()==Thread.MIN_PRIORITY,"worker identity/priority changed");
+                check(records().get(1).thread()==worker,"worker not reused");
+            });
+            test("repeated release never duplicates a report", () -> {
+                report("ONCE");for(int i=0;i<4;i++)MainHook.release();MainHook.flush();check(records().size()==1,"duplicate drain");
+            });
+            test("later reports execute after release", () -> {
+                MainHook.release();report("LATER");MainHook.flush();check(records().size()==1,"post-release report missing");
+                check(records().get(0).thread()!=caller,"post-release caller IPC");
+            });
+            test("reporting installation is idempotent", () -> {
+                MainHook.install();MainHook.install();check(ActivityTracker.listeners.size()==1&&Handler.callbacks.size()==1,"duplicate lifecycle registration");
+                check(Handler.delays.get(0)==5000L,"fallback delay changed");
+            });
+            test("resume releases queued reporting", () -> {
+                report("RESUME");MainHook.install(); var listener=ActivityTracker.listeners.get(0);
+                listener.onActivityCreated(new Activity());listener.onActivityStopped(new Activity());listener.onActivityDestroyed(new Activity());
+                MainHook.flush();check(records().isEmpty(),"non-resume lifecycle released reports");
+                listener.onActivityResumed(new Activity());MainHook.flush();check(records().size()==1,"resume did not drain");
+            });
+            test("late injection releases if activity already exists", () -> {
+                report("LATE");ActivityTracker.current=new Activity();MainHook.install();MainHook.flush();check(records().size()==1,"late injection stuck");
+            });
+            test("fallback releases but does not perform IPC on UI callback", () -> {
+                report("FALLBACK");MainHook.install();Handler.callbacks.get(0).run();MainHook.flush();
+                check(records().size()==1&&records().get(0).thread()!=caller,"fallback IPC ran inline");
+            });
+            test("listener failure remains diagnosed and fallback works", () -> {
+                report("FAILURE");ActivityTracker.fail=true;MainHook.install();check(HookErrors.calls==1,"registration failure not diagnosed");
+                Handler.callbacks.get(0).run();MainHook.flush();check(records().size()==1,"fallback missing after listener failure");
+            });
+            test("slow provider calls do not overlap or block report submission", () -> {
+                MainHook.release();WhatsAppPackageDetector.hold=new CountDownLatch(1);WhatsAppPackageDetector.entered=new CountDownLatch(1);
+                report("SLOW");check(WhatsAppPackageDetector.entered.await(2,TimeUnit.SECONDS),"provider never entered");
+                report("NEXT");check(records().size()==1,"second call overlapped first");
+                WhatsAppPackageDetector.hold.countDown();MainHook.flush();
+                check(records().size()==2&&WhatsAppPackageDetector.maxActive.get()==1,"serial provider contract broken");
+            });
+            test("provider exception does not discard later reports", () -> {
+                MainHook.release();WhatsAppPackageDetector.failNext=true;report("FAIL");report("RECOVER");MainHook.flush();
+                check(records().size()==2&&records().get(1).status().equals("RECOVER"),"worker failure lost later report");
+                check(!uncaught.isEmpty()&&uncaught.get(uncaught.size()-1) instanceof IllegalStateException,"failure not visible");
+            });
+            test("concurrent release and enqueue preserve every report", () -> {
+                int threads=6, each=40; ExecutorService senders=Executors.newFixedThreadPool(threads);
+                CountDownLatch start=new CountDownLatch(1); List<Future<?>> futures=new ArrayList<>();
+                try {
+                    for(int i=0;i<threads;i++){final int id=i;futures.add(senders.submit(() -> {try{start.await();}catch(InterruptedException e){throw new AssertionError(e);}for(int j=0;j<each;j++)report(id+":"+j);}));}
+                    start.countDown();MainHook.release();for(Future<?> f:futures)f.get(3,TimeUnit.SECONDS);MainHook.flush();
+                    Set<String> unique=new HashSet<>();for(var r:records())unique.add(r.status());
+                    check(records().size()==threads*each&&unique.size()==threads*each,"race lost or duplicated a report");
+                    check(WhatsAppPackageDetector.maxActive.get()==1,"concurrent provider IPC");
+                } finally { senders.shutdownNow(); }
+            });
+            System.out.println("RESULT|"+cases+"|"+failed);
+            check(cases==15&&failed==0,"runtime reporting regressions");
+        } finally { MainHook.stop(); }
     }
 }
-"""
+'''
 
 
-def compiler() -> list[str]:
-    direct = shutil.which("javac")
-    if direct:
-        return [direct]
-    java = shutil.which("java")
-    if java:
-        return [java, "com.sun.tools.javac.Main"]
-    raise RuntimeError("JDK 17+ Java compiler is unavailable")
-
-
-def run_once(source: str, directory: Path) -> dict:
-    worker, method = extract_production(source)
-    generated = JAVA_TEMPLATE.replace("/* EXACT_EXECUTOR */", worker).replace(
-        "/* EXACT_METHOD */", method
-    )
-    directory.mkdir(parents=True, exist_ok=True)
+def run_once(source, directory):
+    production = extract_production(source)
+    generated = JAVA.replace("/* PRODUCTION */", production)
+    directory.mkdir(parents=True)
     fixture = directory / "RuntimeHeartbeatChecks.java"
     fixture.write_text(generated, encoding="utf-8")
-    prefix = compiler()
-    cp = subprocess.run(
-        prefix + ["--release", "17", "-d", str(directory), str(fixture)],
-        text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60,
-    )
-    mode = "--release 17"
-    compile_log = cp.stdout
-    # Some minimal JDK images expose javac but omit the ct.sym archive needed
-    # for --release. Retain a JDK-17 bytecode smoke test; do not mislabel this
-    # fallback as API-signature validation.
-    if cp.returncode and "release version 17 not supported" in cp.stdout:
-        cp = subprocess.run(
-            prefix + ["-source", "17", "-target", "17",
-                      "-d", str(directory), str(fixture)],
-            text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            timeout=60,
-        )
-        mode = "-source 17 -target 17 (ct.sym unavailable)"
-        compile_log += "\nFALLBACK:\n" + cp.stdout
-    (directory / "compile.log").write_text(compile_log, encoding="utf-8")
-    if cp.returncode:
-        return {"status": "FAIL", "stage": "compile", "output": cp.stdout[-2000:]}
-    proc = subprocess.run(
-        ["java", "-cp", str(directory), "RuntimeHeartbeatChecks"],
-        text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=12,
-    )
-    (directory / "runtime.log").write_text(proc.stdout, encoding="utf-8")
-    return {
-        "status": "PASS" if proc.returncode == 0 else "FAIL",
-        "exit_code": proc.returncode,
-        "compiler_mode": mode,
-        "output": proc.stdout[-2000:],
-    }
+    steps = []
+    for command in (["javac", "--release", "17", "-d", str(directory), str(fixture)],
+                    ["java", "-cp", str(directory), "RuntimeHeartbeatChecks"]):
+        process = subprocess.run(command, text=True, capture_output=True, timeout=20)
+        log = process.stdout + process.stderr
+        stage = "compile" if command[0] == "javac" else "runtime"
+        (directory / f"{stage}.log").write_text(log, encoding="utf-8")
+        steps.append({"command": command, "exit": process.returncode, "output": log})
+        if stage == "compile" and process.returncode:
+            break
+    summary = re.search(r"RESULT\|(\d+)\|(\d+)", steps[-1]["output"])
+    return {"compiled": len(steps) == 2, "passed": len(steps) == 2 and steps[-1]["exit"] == 0,
+            "cases": int(summary[1]) if summary else 0, "failures": int(summary[2]) if summary else None,
+            "source_sha256": hashlib.sha256(source.encode()).hexdigest(),
+            "extracted_sha256": hashlib.sha256(production.encode()).hexdigest(),
+            "generated_sha256": hashlib.sha256(generated.encode()).hexdigest(), "steps": steps}
 
 
-def main() -> int:
+def execute(root, out):
+    source = (root / MAIN_REL).read_text(encoding="utf-8")
+    result = {"candidate": run_once(source, out / "candidate"), "mutations": {},
+              "scope": "Extracted production methods/declarations with strict JVM lifecycle/provider doubles; no APK/device."}
+    for name, before, after in (
+        ("non-daemon", "t.setDaemon(true);", "t.setDaemon(false);"),
+        ("inline-provider", "REPORT_EXECUTOR.execute(task);", "task.run();"),
+        ("discard-before-release", "DEFERRED_REPORTS.add(task);", "/* mutation: discarded */"),
+        ("duplicate-installation", "if (!REPORTING_INSTALLED.compareAndSet(false, true)) return;", "REPORTING_INSTALLED.set(true);"),
+    ):
+        count = source.count(before)
+        assert count == (2 if name == "inline-provider" else 1), f"mutation marker changed: {name}"
+        result["mutations"][name] = run_once(source.replace(before, after), out / name)
+    result["status"] = "PASS" if result["candidate"]["passed"] and all(
+        entry["compiled"] and entry["cases"] == 15 and not entry["passed"] and entry["failures"] > 0
+        for entry in result["mutations"].values()) else "FAIL"
+    (out / "result.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps({k: {name: value for name, value in v.items() if name != "steps"}
+                      for k, v in [("candidate", result["candidate"]), *result["mutations"].items()]}, indent=2))
+    print(result["status"])
+    return result["status"] == "PASS"
+
+
+def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--source-root", type=Path,
-                        default=Path(__file__).resolve().parent.parent)
+    parser.add_argument("--source-root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--out", type=Path)
-    parser.add_argument("--baseline-root", type=Path)
     args = parser.parse_args()
-
-    production = (args.source_root / MAIN_REL).read_text(encoding="utf-8")
     if args.out:
-        out = args.out.resolve()
-        if out.exists():
-            raise SystemExit("Output directory must not already exist")
-        out.mkdir(parents=True)
-        context = None
-    else:
-        context = tempfile.TemporaryDirectory(prefix="waex-heartbeat-")
-        out = Path(context.name)
-    try:
-        positive = run_once(production, out / "candidate")
-        if positive["status"] != "PASS":
-            print(json.dumps({"candidate": positive}, indent=2), file=sys.stderr)
-            return 1
-        negative = {}
-        if args.baseline_root:
-            baseline = (args.baseline_root / MAIN_REL).read_text(encoding="utf-8")
-            try:
-                run_once(baseline, out / "baseline")
-                negative["baseline_main_looper"] = "FAIL: old implementation admitted"
-            except AssertionError:
-                negative["baseline_main_looper"] = "PASS: rejected"
-        mutated = production.replace("thread.setDaemon(true)", "thread.setDaemon(false)", 1)
-        try:
-            run_once(mutated, out / "negative_not_daemon")
-            negative["non_daemon_mutation"] = "FAIL: mutation admitted"
-        except AssertionError:
-            negative["non_daemon_mutation"] = "PASS: rejected"
-        mutated = production.replace("scheduleWithFixedDelay(", "scheduleAtFixedRate(", 1)
-        try:
-            run_once(mutated, out / "negative_fixed_rate")
-            negative["fixed_rate_mutation"] = "FAIL: mutation admitted"
-        except AssertionError:
-            negative["fixed_rate_mutation"] = "PASS: rejected"
-        result = {
-            "source_sha256": hashlib.sha256(production.encode()).hexdigest(),
-            "fixture_sha256": hashlib.sha256(JAVA_TEMPLATE.encode()).hexdigest(),
-            "candidate": positive,
-            "negative_controls": negative,
-            "evidence_scope": "Exact MainHook method/executor extracted; JVM-only, no APK",
-        }
-        (out / "result.json").write_text(json.dumps(result, indent=2) + "\n",
-                                         encoding="utf-8")
-        print(json.dumps(result, indent=2))
-        return 0 if all(v.startswith("PASS") for v in negative.values()) else 1
-    finally:
-        if context:
-            context.cleanup()
+        args.out.mkdir(parents=True, exist_ok=False)
+        return 0 if execute(args.source_root, args.out) else 1
+    with tempfile.TemporaryDirectory(prefix="waex-runtime-reporting-") as folder:
+        return 0 if execute(args.source_root, Path(folder)) else 1
 
 
 if __name__ == "__main__":

@@ -39,12 +39,14 @@ fun StitchSwitch(
             )
         },
         colors = SwitchDefaults.colors(
-            checkedThumbColor = colors.onPrimary,
+            checkedThumbColor = colors.background,
             checkedTrackColor = colors.primary,
             checkedBorderColor = colors.primary,
+            checkedIconColor = colors.primary,
             uncheckedThumbColor = colors.outline,
-            uncheckedTrackColor = colors.surfaceContainerHighest,
+            uncheckedTrackColor = colors.surfaceContainer,
             uncheckedBorderColor = colors.outline,
+            uncheckedIconColor = colors.background,
             disabledCheckedThumbColor = colors.onSurface.copy(alpha = 0.38f),
             disabledCheckedTrackColor = colors.primary.copy(alpha = 0.32f),
             disabledUncheckedThumbColor = colors.onSurface.copy(alpha = 0.38f),

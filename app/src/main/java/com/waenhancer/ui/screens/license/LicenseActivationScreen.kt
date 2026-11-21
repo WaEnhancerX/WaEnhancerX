@@ -1,5 +1,6 @@
 package com.waenhancer.ui.screens.license
 
+import com.waenhancer.licensing.report.ReportLogin
 import com.waenhancer.app.R
 import com.waenhancer.utils.UiText
 
@@ -103,6 +104,7 @@ fun LicenseActivationScreen() {
     var proStatus by remember { mutableStateOf(LicenseManager.getProStatus(context)) }
     var planName by remember { mutableStateOf(LicenseManager.getProPlanName(context)) }
     var licenseKeyInput by remember { mutableStateOf("") }
+    var tgLogin by remember { mutableStateOf(ReportLogin.login(context)) }
     var isVerifying by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
     var showRemoveLicenseDialog by remember { mutableStateOf(false) }
@@ -438,6 +440,18 @@ fun LicenseActivationScreen() {
                 // ─── COMPACT ACTIVATION CARD ───
                 WaexCard(modifier = Modifier.fillMaxWidth()) {
                     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        val activeLogin = tgLogin
+                        if (activeLogin != null) {
+                            TelegramLicenseActivation(
+                                login = activeLogin,
+                                onActivated = {
+                                    proStatus = "ACTIVE"
+                                    planName = LicenseManager.getProPlanName(context)
+                                    AppRestartHelper.restartWhatsAppAndModule(context)
+                                },
+                                onLoggedOut = { tgLogin = null }
+                            )
+                        } else {
                         Text(
                             text = UiText.get(R.string.waex_ui_enter_your_license_key_to_unlock_all_p, "Enter your license key to unlock all premium features."),
                             style = typography.bodyMd,
@@ -579,6 +593,7 @@ fun LicenseActivationScreen() {
                                     style = typography.bodyMd.copy(fontWeight = FontWeight.Bold)
                                 )
                             }
+                        }
                         }
                     }
                 }

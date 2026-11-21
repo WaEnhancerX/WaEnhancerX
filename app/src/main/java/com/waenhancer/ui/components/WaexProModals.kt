@@ -1,5 +1,7 @@
 package com.waenhancer.ui.components
 
+import com.waenhancer.licensing.report.ReportLogin
+import com.waenhancer.ui.screens.license.TelegramLicenseActivation
 import com.waenhancer.app.R
 import com.waenhancer.utils.UiText
 
@@ -63,6 +65,7 @@ fun LicenseActivationModal(
     var licenseKey by remember { mutableStateOf("") }
     var verifyState by remember { mutableStateOf("idle") } // "idle" | "verifying" | "success" | "error"
     var errorMessage by remember { mutableStateOf("") }
+    var tgLogin by remember { mutableStateOf(ReportLogin.login(context)) }
 
     Column(
         modifier = Modifier
@@ -137,6 +140,17 @@ fun LicenseActivationModal(
         }
         Spacer(modifier = Modifier.height(16.dp))
 
+        val activeLogin = tgLogin
+        if (activeLogin != null) {
+            TelegramLicenseActivation(
+                login = activeLogin,
+                onActivated = {
+                    onActivated()
+                    AppRestartHelper.restartWhatsAppAndModule(context)
+                },
+                onLoggedOut = { tgLogin = null }
+            )
+        } else {
         // Key Input Box
         Box(
             modifier = Modifier
@@ -284,6 +298,8 @@ fun LicenseActivationModal(
             } else {
                 Text(text = UiText.get(R.string.waex_ui_verify_activate, "Verify & Activate"), style = typography.bodyMd, fontWeight = FontWeight.Bold)
             }
+        }
+
         }
 
         Spacer(modifier = Modifier.height(14.dp))

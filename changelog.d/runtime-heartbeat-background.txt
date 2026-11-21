@@ -1,3 +1,0 @@
-[Improvements]
-- Run recurring runtime-health reports on a single background worker instead of
-  WhatsApp's main thread, preserving reporting intervals and failure recovery.

@@ -1,4 +1,49 @@
-# Runtime health heartbeat: WhatsApp UI-thread isolation
+# Runtime reporting: WhatsApp UI-thread isolation
+
+## Current nightly reconciliation (2026-11-21)
+
+Nightly `9972e49fac9bfb650c25ee31fde0da9425b67175` retired the runtime
+observation clock in `1b029ec8` and introduced deferred off-main reporting in
+`c620085e`. The reconciled `MainHook.java` is byte-identical to that nightly.
+No periodic executor, 10-second heartbeat, or 25-second freshness rule is
+reintroduced. The current changes are focused QA and its workflow wiring;
+the old runtime fix has been superseded by upstream's event-driven reporting.
+
+```sh
+python3 qa/test_runtime_heartbeat_thread.py --out /new/empty/output-directory
+```
+
+The legacy runner filename remains for continuity. It now extracts the exact
+current executor/state declarations and five production reporting methods.
+It preserves the five-second fallback without timing substitution and uses
+strict lifecycle, Handler, context, diagnostic and provider doubles. The
+single-thread executor is real JVM code. The fixture tests:
+
+- Immediate in-process status versus deferred IPC; FIFO and captured values.
+- Application-context fallback and the supplied target package.
+- A single daemon, low-priority worker, distinct from the calling thread.
+- Idempotent release/installation, activity-resume and late-injection paths.
+- Fallback delivery after absent activity or listener registration failure.
+- Serial calls with a controlled blocked provider, later delivery after an
+  exception, and 240 reports queued concurrently with release.
+
+On Linux, Python 3.13.5 and Temurin JDK 21.0.13.1+2 (`javac --release 17`),
+15 scenarios passed. Four negative mutations compiled and completed all 15
+scenarios: non-daemon (1 failure), inline IPC (6), discarded pre-release queue
+(8), and duplicate installation (1). A compilation failure is never credited
+as a detected mutation. The entire run took 4.329 seconds on this host; this
+is test duration, not a performance measurement of WhatsApp.
+
+Current acceptance is JVM-only. No integrated APK, Android lifecycle, provider
+survival, real hook effect, frame-time improvement or compatibility matrix is
+established. The documented 2026-11-12 device observations below apply only
+to the historical scheduler and must not be reused as current runtime evidence.
+
+## Historical record — 2026-11-12 scheduler, no longer current
+
+All remaining sections retain the original investigation and commands as
+history. Their heartbeat, freshness and baseline-runner contracts are retired;
+use the command and acceptance boundaries above for the current revision.
 
 ## Observable baseline and scope
 

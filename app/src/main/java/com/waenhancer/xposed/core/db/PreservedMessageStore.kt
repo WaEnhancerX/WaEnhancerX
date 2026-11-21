@@ -7,6 +7,7 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.util.Log
 import com.waenhancer.utils.ContactIdentityPolicy
+import com.waenhancer.xposed.utils.HookErrors
 
 /**
  * SQLite Store for Preserved "Delete For Me" messages.
@@ -207,7 +208,7 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
                     )
                 }
             }
-        } catch (ignored: Throwable) {}
+        } catch (ignored: Throwable) { HookErrors.swallowed("PreservedMessageStore", ignored) }
         return list
     }
 
@@ -237,7 +238,7 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
                     )
                 }
             }
-        } catch (_: Throwable) {}
+        } catch (ignored: Throwable) { HookErrors.swallowed("PreservedMessageStore", ignored) }
         return null
     }
 
@@ -253,7 +254,7 @@ class PreservedMessageStore private constructor(context: Context) : SQLiteOpenHe
                 if (cursor.moveToNext()) return null
                 if (!name.isNullOrBlank() && !name.all { it.isDigit() || it == '+' }) return name
             }
-        } catch (_: Exception) { }
+        } catch (ignored: Exception) { HookErrors.swallowed("PreservedMessageStore", ignored) }
         return null
     }
 }

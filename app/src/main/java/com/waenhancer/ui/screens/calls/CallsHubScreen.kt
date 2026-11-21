@@ -1,5 +1,8 @@
 package com.waenhancer.ui.screens.calls
 
+import com.waenhancer.ui.components.WaexSheetTitle
+
+import com.waenhancer.ui.components.WaexSheetHorizontalMargin
 import com.waenhancer.utils.UiText
 
 import android.Manifest
@@ -1376,23 +1379,18 @@ fun CallsHubScreen() {
 
         WaexModalBottomSheet(
             onDismissRequest = { showWhoCanCallSheet = false },
-            sheetState = whoCanCallSheetState,
-            containerColor = colors.surface,
-            shape = radius.bottomSheetShape
+            sheetState = whoCanCallSheetState
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(horizontal = 20.dp)
+                    .padding(horizontal = WaexSheetHorizontalMargin)
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(
+                WaexSheetTitle(
                     text = UiText.get(R.string.waex_ui_who_can_call_me, "Who Can Call Me"),
-                    style = typography.titleMd,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurface,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
 
@@ -1472,23 +1470,18 @@ fun CallsHubScreen() {
 
         WaexModalBottomSheet(
             onDismissRequest = { showRejectionTypeSheet = false },
-            sheetState = rejectionSheetState,
-            containerColor = colors.surface,
-            shape = radius.bottomSheetShape
+            sheetState = rejectionSheetState
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(horizontal = 20.dp)
+                    .padding(horizontal = WaexSheetHorizontalMargin)
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(
+                WaexSheetTitle(
                     text = "Call Rejection Type",
-                    style = typography.titleMd,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurface,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
 

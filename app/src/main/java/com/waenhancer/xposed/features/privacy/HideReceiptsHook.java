@@ -30,7 +30,10 @@ import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import com.waenhancer.xposed.features.customization.PropsOverrideHook;
+import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.HostFields;
 import java.lang.reflect.Modifier;
 
 /**
@@ -106,7 +109,7 @@ public class HideReceiptsHook extends BaseFeature {
 
             if (protocolTreeNodeClass != null && keyValueClass != null) {
                 Class<?> keyValueArrayType = Array.newInstance(keyValueClass, 0).getClass();
-                for (Field f : protocolTreeNodeClass.getDeclaredFields()) {
+                for (Field f : HostFields.declared(protocolTreeNodeClass)) {
                     if (f.getType() == keyValueArrayType) {
                         fieldAttributes = f;
                         fieldAttributes.setAccessible(true);
@@ -115,7 +118,7 @@ public class HideReceiptsHook extends BaseFeature {
                 }
 
                 List<Field> strFields = new ArrayList<>();
-                for (Field f : keyValueClass.getDeclaredFields()) {
+                for (Field f : HostFields.declared(keyValueClass)) {
                     if (f.getType() == String.class) {
                         f.setAccessible(true);
                         strFields.add(f);
@@ -263,7 +266,7 @@ public class HideReceiptsHook extends BaseFeature {
                     sendJobClass = XposedHelpers.findClassIfExists(
                             "com.whatsapp.jobqueue.job.SendReadReceiptJob", classLoader);
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
 
             if (sendJobClass == null) {
                 sendJobClass = DexSearchEngine.getInstance().findClassWithCache(
@@ -307,7 +310,7 @@ public class HideReceiptsHook extends BaseFeature {
                                             captureJid, (Constructor<?>) param.method, param.args, job);
                                 }
                             }
-                        } catch (Throwable ignored) {}
+                        } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
                     }
                 });
 
@@ -322,11 +325,10 @@ public class HideReceiptsHook extends BaseFeature {
                 XposedBridge.hookMethod(executionMethod, new XC_MethodHook() {
                     @Override
                     protected void beforeHookedMethod(MethodHookParam param) {
-                        if (!resolvedJobClass.isInstance(param.thisObject)) return;
+                        if (!ReceiptJobExecutionPolicy.isExecutionCall(resolvedJobClass, executionMethod,
+                                param.method, param.thisObject, param.args)) return;
                         Object job = param.thisObject;
                         if (BlueOnReplyHook.isManualStatusReceipt(job)) return;
-                        // This is a newly created explicit chat read receipt. It must bypass
-                        if (BlueOnReplyHook.isManualChatReceipt(job)) return;
                         if (Boolean.TRUE.equals(XposedHelpers.getAdditionalInstanceField(
                                 job, "waex_hide_status_view"))) {
                             param.setResult(null);
@@ -343,6 +345,13 @@ public class HideReceiptsHook extends BaseFeature {
                         // Never rewrite dispatcher type 89: SendReadReceiptJob waits for its
                         // acknowledgement. Cancel its verified execution body instead.
                         String target = resolveConversationTarget(jid, participant);
+                        boolean hideDelivery = shouldHideDeliveryReceipt(target);
+                        if (BlueOnReplyHook.isManualChatReceipt(job)
+                                && ExplicitReadReceiptPolicy.refreshJobGrant(
+                                XposedHelpers.getAdditionalInstanceField(job, ExplicitReadReceiptPolicy.JOB_GRANT_KEY),
+                                jid, target, hideDelivery, EXPLICIT_RECEIPT_IDS, SystemClock.elapsedRealtime())) {
+                            return;
+                        }
                         if (shouldHideReadReceipt(target)) {
                             // Step 1: try the staged two-step path (works when constructor args
                             // contained a String[] of message IDs — most common case).
@@ -360,7 +369,14 @@ public class HideReceiptsHook extends BaseFeature {
                             param.setResult(null);
                             return;
                         }
-                        if (shouldHideDeliveryReceipt(target)) param.setResult(null);
+                        if (hideDelivery) {
+                            // Read hiding may have been disabled while this explicit job waited.
+                            // A delivery/Ghost veto must still preserve its original retry scope.
+                            if (BlueOnReplyHook.isManualChatReceipt(job)) {
+                                BlueOnReplyHook.recordSuppressedReadJob(job);
+                            }
+                            param.setResult(null);
+                        }
                     }
                 });
             }
@@ -371,22 +387,24 @@ public class HideReceiptsHook extends BaseFeature {
 
     private Method resolveReadReceiptExecution(final Class<?> jobClass) {
         Method method = DexSearchEngine.getInstance().findMethodWithCache(
-                context, classLoader, "waex_send_read_receipt_execution_v1",
+                context, classLoader, "waex_send_read_receipt_execution_v2",
                 (bridge, loader) -> {
                     ClassData jobData = bridge.getClassData(jobClass);
                     if (jobData == null) return null;
                     MethodDataList matches = jobData.findMethod(FindMethod.create()
-                            .matcher(MethodMatcher.create()
+                            .matcher(MethodMatcher.create().paramCount(0).returnType("void")
                                     .addUsingString("receipt", StringMatchType.Equals)));
                     if (matches.isEmpty() && jobData.getSuperClass() != null) {
                         matches = jobData.getSuperClass().findMethod(FindMethod.create()
-                                .matcher(MethodMatcher.create()
+                                .matcher(MethodMatcher.create().paramCount(0).returnType("void")
                                         .addUsingString("receipt", StringMatchType.Equals)));
                     }
                     if (matches.size() != 1) return null;
-                    return matches.get(0).getMethodInstance(loader);
+                    Method selected = matches.get(0).getMethodInstance(loader);
+                    return ReceiptJobExecutionPolicy.isExecutionMethod(jobClass, selected) ? selected : null;
                 });
-        return method;
+        // Cache hits must satisfy the same contract as fresh native search results.
+        return ReceiptJobExecutionPolicy.isExecutionMethod(jobClass, method) ? method : null;
     }
 
     private boolean isManualSeenTickEnabled() {
@@ -467,12 +485,19 @@ public class HideReceiptsHook extends BaseFeature {
                         if (param.getResult() == null) return;
                         Object node = param.getResult();
 
+                        String type = getAttributeValue(node, "type");
+                        boolean isReadReceipt = "read".equals(type);
+                        // A receipt node can also carry retry/recovery, own-device sync,
+                        // played or future protocol messages. Only an ordinary delivery
+                        // receipt (no type) or an explicit read receipt belongs to these
+                        // two privacy controls. Preserve all other nodes and their sts.
+                        if (type != null && !isReadReceipt) return;
+
                         String to = getAttributeValue(node, "to");
                         String participant = getAttributeValue(node, "participant");
-                        String type = getAttributeValue(node, "type");
                         String messageId = getAttributeValue(node, "id");
 
-                        boolean isStatusStanza = isStatusTarget(to, participant) || "readstatus".equals(type);
+                        boolean isStatusStanza = isStatusTarget(to, participant);
 
                         if (isStatusStanza) {
                             // Status view receipts are suppressed via incoming interceptor and SendReadReceiptJob.
@@ -483,16 +508,14 @@ public class HideReceiptsHook extends BaseFeature {
                         // Only explicit READ receipts may bypass hiding for the exact
                         // recipient + message ID. Preserve delivery hiding and Ghost Mode.
                         String target = resolveConversationTarget(to, participant);
-                        boolean alreadyViewed = HideSeenStore.getInstance(context).isAlreadyViewed(target, messageId, HideSeenStore.TYPE_READ);
-                        if (alreadyViewed) {
-                            return; // Already marked as read by Send Blue Tick / Blue on Reply!
-                        }
-
                         boolean hideDelivery = shouldHideDeliveryReceipt(target);
+                        // Viewed/handled history can also be set by bounded-queue eviction.
+                        // It is not explicit consent. Only the exact ID allowance below may
+                        // exempt a read receipt, and never delivery privacy or Ghost Mode.
                         if (ExplicitReadReceiptPolicy.maySend(type, target, messageId,
                                 hideDelivery, EXPLICIT_RECEIPT_IDS,
                                 SystemClock.elapsedRealtime())) return;
-                        boolean hideRead = shouldHideReadReceipt(target);
+                        boolean hideRead = isReadReceipt && shouldHideReadReceipt(target);
 
                         if (hideDelivery) {
                             applyHideDelivery(node);
@@ -615,7 +638,7 @@ public class HideReceiptsHook extends BaseFeature {
             Boolean fromMe = null;
             for (Class<?> type = keyObj.getClass(); type != null && type != Object.class;
                  type = type.getSuperclass()) {
-                for (Field field : type.getDeclaredFields()) {
+                for (Field field : HostFields.declared(type)) {
                     if (Modifier.isStatic(field.getModifiers())) continue;
                     field.setAccessible(true);
                     if (field.getType() == String.class) {
@@ -654,12 +677,28 @@ public class HideReceiptsHook extends BaseFeature {
         }
     }
 
+    /** The field that held the message key, per message class: it is the same for every message. */
+    private static final ClassValue<AtomicReference<Field>> MESSAGE_KEY_FIELDS =
+            new ClassValue<AtomicReference<Field>>() {
+                @Override protected AtomicReference<Field> computeValue(Class<?> type) {
+                    return new AtomicReference<>();
+                }
+            };
+
     private Object findMessageKey(Object message) {
         if (message == null) return null;
-        // Prefer semantic key wrappers, then fall back to a validated field contract.
+        Field known = MESSAGE_KEY_FIELDS.get(message.getClass()).get();
+        if (known != null) {
+            try {
+                Object candidate = known.get(message);
+                if (candidate != null) return candidate;
+            } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
+        }
+        // First sight of this class (or an unset key): discover the field. Prefer semantic key
+        // wrappers, then fall back to a validated field contract.
         for (Class<?> type = message.getClass(); type != null && type != Object.class;
              type = type.getSuperclass()) {
-            for (Field field : type.getDeclaredFields()) {
+            for (Field field : HostFields.declared(type)) {
                 if (Modifier.isStatic(field.getModifiers())
                         || field.getType().isPrimitive()) continue;
                 try {
@@ -668,9 +707,12 @@ public class HideReceiptsHook extends BaseFeature {
                     if (candidate == null) continue;
                     String className = candidate.getClass().getName();
                     if (className.contains("Key")
-                            || candidate.toString().startsWith("Key(")) return candidate;
-                    if (isMessageKey(candidate)) return candidate;
-                } catch (Throwable ignored) {}
+                            || candidate.toString().startsWith("Key(")
+                            || isMessageKey(candidate)) {
+                        MESSAGE_KEY_FIELDS.get(message.getClass()).set(field);
+                        return candidate;
+                    }
+                } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
             }
         }
         return null;
@@ -683,7 +725,7 @@ public class HideReceiptsHook extends BaseFeature {
         boolean direction = false;
         for (Class<?> type = candidate.getClass(); type != null && type != Object.class;
              type = type.getSuperclass()) {
-            for (Field field : type.getDeclaredFields()) {
+            for (Field field : HostFields.declared(type)) {
                 if (Modifier.isStatic(field.getModifiers())) continue;
                 try {
                     field.setAccessible(true);
@@ -697,7 +739,7 @@ public class HideReceiptsHook extends BaseFeature {
                             && extractTypedJid(field.get(candidate)) != null) {
                         jid = true;
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
             }
         }
         return jid && id && direction;
@@ -757,14 +799,14 @@ public class HideReceiptsHook extends BaseFeature {
         if (className.startsWith("java.") || className.startsWith("android.")) return null;
         for (Class<?> type = candidateClass; type != null && type != Object.class;
              type = type.getSuperclass()) {
-            for (Field field : type.getDeclaredFields()) {
+            for (Field field : HostFields.declared(type)) {
                 if (Modifier.isStatic(field.getModifiers())
                         || field.getType().isPrimitive()) continue;
                 try {
                     field.setAccessible(true);
                     Object found = findFMessage(field.get(candidate), seen, depth + 1);
                     if (found != null) return found;
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
             }
         }
         return null;
@@ -856,7 +898,7 @@ public class HideReceiptsHook extends BaseFeature {
         if (fieldKey != null) {
             try {
                 return (String) fieldKey.get(kv);
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
         }
         return null;
     }
@@ -866,7 +908,7 @@ public class HideReceiptsHook extends BaseFeature {
             try {
                 String str = (String) fieldValue.get(kv);
                 if (str != null) return str;
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
         }
         if (fieldJid != null) {
             try {
@@ -875,10 +917,10 @@ public class HideReceiptsHook extends BaseFeature {
                     try {
                         Object raw = XposedHelpers.callMethod(jidObj, "getRawString");
                         if (raw != null) return raw.toString();
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
                     return jidObj.toString();
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
         }
         return null;
     }
@@ -895,7 +937,7 @@ public class HideReceiptsHook extends BaseFeature {
                     return getValue(kv);
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
         return null;
     }
 
@@ -910,7 +952,7 @@ public class HideReceiptsHook extends BaseFeature {
             try {
                 Object raw = XposedHelpers.callMethod(fieldVal, "getRawString");
                 if (raw != null) return raw.toString();
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
             return fieldVal.toString();
         } catch (Throwable ignored) {
             return null;
@@ -922,7 +964,7 @@ public class HideReceiptsHook extends BaseFeature {
         try {
             Class<?> curr = fMessageObj.getClass();
             while (curr != null && curr != Object.class) {
-                for (Field f : curr.getDeclaredFields()) {
+                for (Field f : HostFields.declared(curr)) {
                     f.setAccessible(true);
                     Object val = f.get(fMessageObj);
                     if (val != null) {
@@ -934,18 +976,14 @@ public class HideReceiptsHook extends BaseFeature {
                 }
                 curr = curr.getSuperclass();
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
         return null;
     }
 
     private boolean isStatusTarget(String jid, String participant) {
-        if (jid != null && (jid.equals("status@broadcast") || jid.contains("status") || jid.contains("broadcast"))) {
-            return true;
-        }
-        if (participant != null && (participant.contains("status") || participant.contains("broadcast"))) {
-            return true;
-        }
-        return false;
+        // Numeric broadcast-list recipients are ordinary conversations. Matching
+        // the namespace or a substring would apply status privacy to their jobs.
+        return "status@broadcast".equals(jid) || "status@broadcast".equals(participant);
     }
 
     private boolean shouldHideStatusView(String target) {
@@ -1105,7 +1143,7 @@ public class HideReceiptsHook extends BaseFeature {
             // Check media type / view once properties dynamically
             Class<?> cls = msgObj.getClass();
             while (cls != null && cls != Object.class) {
-                for (Field f : cls.getDeclaredFields()) {
+                for (Field f : HostFields.declared(cls)) {
                     f.setAccessible(true);
                     String name = f.getName().toLowerCase();
                     if (f.getType() == int.class || f.getType() == byte.class) {
@@ -1123,7 +1161,7 @@ public class HideReceiptsHook extends BaseFeature {
                 }
                 cls = cls.getSuperclass();
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
 
         // Fallback: If either toggle is enabled and played method is triggered for this message
         return hideVoiceNote || hideViewOnce;
@@ -1166,7 +1204,7 @@ public class HideReceiptsHook extends BaseFeature {
                 if (val instanceof String) return !"0".equals(val) && !"false".equalsIgnoreCase((String) val);
                 if (val instanceof Number) return ((Number) val).intValue() != 0;
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
         return isEnabled("stealth_status_view", false) || isEnabled("hidestatusview", false);
     }
 

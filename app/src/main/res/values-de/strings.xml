@@ -323,9 +323,7 @@
     <string name="diag_hma_checking">Überprüfen…</string>
     <string name="diag_hma_sheet_title">App-Isolations-Diagnose</string>
     <string name="diag_hma_sheet_desc">Übersicht über Hide My Applist-Isolationsregeln, die Zielpakete und Modulsichtbarkeit betreffen.</string>
-    <string name="diag_hma_active_targets">Konfigurierte Ziele</string>
-    <string name="diag_hma_inactive_targets">Weitere Ziele</string>
-    <string name="diag_hma_btn_fix">Beheben</string>
+    <string name="diag_btn_fix">Beheben</string>
     <string name="diag_hma_fix_title">App-Isolation beheben</string>
     <string name="diag_hma_fix_message">Dadurch wird die Konfiguration von Hide My Applist aktualisiert, um Modul-Blockierungsregeln und Voreinstellungen für %1$s zu entfernen.</string>
     <string name="diag_hma_fix_success">App-Isolationsregeln erfolgreich aktualisiert</string>
@@ -399,9 +397,7 @@
     <string name="config_mode_title">Konfigurationsmodus</string>
     <string name="config_mode_universal">Universal</string>
     <string name="config_mode_universal_desc">Dieselben Einstellungen auf alle erfassten WhatsApp-Apps anwenden.</string>
-    <string name="diag_denylist_active_targets">In DenyList enthaltene Ziele</string>
     <string name="diag_denylist_blocked">WhatsApp wird blockiert</string>
-    <string name="diag_denylist_btn_fix">Beheben</string>
     <string name="diag_denylist_btn_fix_all">Alle beheben</string>
     <string name="diag_denylist_checking">Wird überprüft…</string>
     <string name="diag_denylist_clean">Keine Ziele blockiert</string>
@@ -410,7 +406,6 @@
     <string name="diag_denylist_fix_message">Dadurch wird %1$s aus der Magisk-DenyList entfernt und erzwungen beendet, damit Zygisk/LSPosed es beim nächsten Start einbinden kann.</string>
     <string name="diag_denylist_fix_success">Erfolgreich aus der Magisk-DenyList entfernt</string>
     <string name="diag_denylist_fix_title">Magisk-DenyList reparieren</string>
-    <string name="diag_denylist_inactive_targets">Andere Ziele</string>
     <string name="diag_denylist_not_active">Nicht aktiv</string>
     <string name="diag_denylist_sheet_desc">Übersicht über Magisk-DenyList-Regeln, die Zielpakete und die Modulinjektion über Zygisk betreffen.</string>
     <string name="diag_denylist_sheet_title">Magisk-DenyList-Diagnose</string>
