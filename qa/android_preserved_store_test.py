@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCES = [
     Path('app/src/main/java/com/waenhancer/utils/ContactIdentityPolicy.java'),
     Path('app/src/main/java/com/waenhancer/xposed/core/db/PreservedMessageStore.kt'),
+    Path('app/src/main/java/com/waenhancer/xposed/utils/HookErrors.java'),
 ]
 EXPECTED_TESTS = 33
 POM = '''<project xmlns="http://maven.apache.org/POM/4.0.0">
@@ -116,10 +117,24 @@ object VaultRowKey {
     android = deps / 'android-all-14-robolectric-10818077.jar'
     if not android.is_file():
         raise RuntimeError('Pinned Android compilation API is missing')
+    # Compile genuine production HookErrors with only its Xposed/annotation boundaries.
+    # Keep the Xposed logger visible to the fixture; never replace production failure handling.
+    boundaries = {
+        'androidx/annotation/NonNull.java': 'package androidx.annotation; public @interface NonNull {}',
+        'androidx/annotation/VisibleForTesting.java': 'package androidx.annotation; public @interface VisibleForTesting {}',
+        'de/robv/android/xposed/XposedBridge.java':
+            'package de.robv.android.xposed; public final class XposedBridge { public static void log(String message) { System.err.println(message); } }',
+    }
+    support = []
+    for relative, content in boundaries.items():
+        dest = stage / relative
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(content, encoding='utf-8')
+        support.append(dest)
     # Compile production only against its own API dependencies. Robolectric test
     # internals may use a newer Kotlin metadata version than the app compiler.
     production_cp = os.pathsep.join([str(classes), str(android), str(kotlin_runtime)])
-    run(['javac', '--release', '17', '-cp', cp, '-d', str(classes), str(staged[0])], out / 'javac-production.log')
+    run(['javac', '--release', '17', '-cp', cp, '-d', str(classes), str(staged[0]), str(staged[2]), *map(str, support)], out / 'javac-production.log')
     run([compiler, '-jvm-target', '17', '-classpath', production_cp, '-d', str(classes), str(staged[1]), str(row_key)], out / 'kotlinc-production.log')
     run(['javac', '--release', '17', '-cp', classpath, '-d', str(classes), str(test_dest)], out / 'javac-tests.log')
     opens = ['java.base/java.lang', 'java.base/java.util', 'java.base/java.io', 'java.base/java.net',
