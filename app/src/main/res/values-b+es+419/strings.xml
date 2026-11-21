@@ -589,18 +589,4 @@
     <string name="report_issues_status_closed">Cerrada</string>
     <string name="report_issues_status_in_progress">En curso</string>
 
-    <string name="interface_size_title">Tamaño de la interfaz</string>
-    <string name="interface_size_desc">Ajusta el texto, los controles, el espaciado y la navegación en toda la aplicación</string>
-    <string name="interface_size_compact">Compacto</string>
-    <string name="interface_size_standard">Estándar</string>
-    <string name="interface_size_comfortable">Cómodo</string>
-    <string name="interface_size_large">Grande</string>
-    <string name="build_variant_debug">Depuración</string>
-    <string name="build_variant_release">Distribución</string>
-    <string name="status_style_default">Predeterminado</string>
-    <string name="status_style_vertical_rows">Filas verticales</string>
-    <string name="status_style_facebook_grid">Tarjetas de Facebook (cuadrícula)</string>
-    <string name="status_style_vertical_compact">Lista vertical (compacta)</string>
-    <string name="status_style_vertical_circle">Lista vertical (avatares circulares)</string>
-    <string name="status_style_vertical_square">Lista vertical (tarjetas cuadradas)</string>
 </resources>
