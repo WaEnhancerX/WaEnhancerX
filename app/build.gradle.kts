@@ -3,6 +3,8 @@ import java.io.FileInputStream
 import java.security.KeyStore
 import java.security.MessageDigest
 
+import com.android.build.gradle.api.ApkVariantOutput
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -35,7 +37,19 @@ android {
         }
 
         val devGh = project.findProperty("DEV_GH")?.toString()?.trim() ?: "mubashardev"
+        val gitSha = (project.findProperty("GIT_SHA")?.toString()
+            ?: System.getenv("GITHUB_SHA") ?: "unknown").take(12)
         buildConfigField("String", "DEV_GH", "\"$devGh\"")
+        buildConfigField("String", "GH_DEV", "\"$devGh\"")
+        buildConfigField("String", "GIT_SHA", "\"$gitSha\"")
+        buildConfigField("String", "MAPPING_ID", "\"${configuredVersionCode}-$gitSha\"")
+
+        // waexdiag (root-hiding-tool diagnostic path/command constants, see
+        // NativeDiagPaths) is the only native code still built and bundled directly in the
+        // APK. On-device transcription (whisper.cpp/ggml) used to build here too, but is no
+        // longer bundled: it is downloaded on demand (NativeLibsProvisioner), built manually
+        // with scripts/build-transcription-libs.sh against
+        // app/src/main/cpp/transcription/CMakeLists.txt.
     }
 
     signingConfigs {
@@ -83,11 +97,31 @@ android {
 
     buildTypes {
         debug {
+            // Debug APKs are distributed to testers, so run the same whole-program
+            // shrinking/obfuscation pass as release. The mapping file remains under
+            // app/build/outputs/mapping/debug for local crash retracing.
+            // R8 only renames (obfuscates) classes/members when the variant's merged
+            // manifest is non-debuggable; with the default isDebuggable = true it
+            // still shrinks with isMinifyEnabled = true but silently skips renaming,
+            // which left :licensing fully readable in debug APKs. Forcing
+            // isDebuggable = false makes R8 run its real release-equivalent pass here
+            // too.
+            // NOTE: AGP derives BuildConfig.DEBUG from isDebuggable, so flipping it
+            // also flips BuildConfig.DEBUG to false. Code that needs "is this WAEX's
+            // debug variant" (update-channel asset switching, the JDWP developer
+            // option, ...) must use BuildConfig.IS_DEBUG_VARIANT below instead, which
+            // tracks the buildType identity, not manifest debuggability.
+            isDebuggable = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            buildConfigField("boolean", "IS_DEBUG_VARIANT", "true")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName("releaseConfig")
         }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            buildConfigField("boolean", "IS_DEBUG_VARIANT", "false")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName("releaseConfig")
         }
@@ -103,12 +137,35 @@ android {
         buildConfig = true
     }
 
+    // AndroidX/Compose/Material libraries bundle their own string translations for ~70+
+    // locales (e.g. accessibility labels). shrinkResources can't drop the ones we never
+    // show, because the resource IS referenced from code, just not in a locale we ship
+    // our own translation for. Restrict packaging to the locales app/src/main/res
+    // actually has a values-<locale> folder for; anything else silently falls back to
+    // the default (English) strings, which is what already happens for those languages.
+    androidResources {
+        localeFilters += setOf(
+            "ar", "b+es+419", "de", "es", "fr", "hi", "in", "pt", "ru", "sl", "tr", "ur", "zh-rCN"
+        )
+    }
+
+    ndkVersion = "27.0.12077973"
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
         jniLibs {
-            useLegacyPackaging = false
+            // Xposed injects WAEX code into WhatsApp's process. DexSearchEngine loads
+            // libdexkit.so through WAEX's absolute nativeLibraryDir path, so the .so
+            // must be extracted instead of being mmap'd directly from the APK.
+            useLegacyPackaging = true
         }
     }
 
@@ -119,10 +176,10 @@ android {
     applicationVariants.all {
         val variant = this
         variant.outputs.forEach {
-            val output = it as? com.android.build.gradle.api.ApkVariantOutput
+            val output = it as? ApkVariantOutput
             if (output != null) {
                 val suffix = if (variant.buildType.name == "debug") "_debug" else "_release"
-                output.outputFileName = "WaEnhancerX-v${variant.versionName}${suffix}.apk"
+                output.outputFileName = "WaEnhancerX-v${variant.versionName.substringBefore('+')}${suffix}.apk"
             }
         }
     }
@@ -147,7 +204,8 @@ dependencies {
 
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
-    implementation(libs.androidx.compose.material3)
+    // Material 3 Expressive wavy progress indicators compatible with AGP 9.0.x and compileSdk 36
+    implementation("androidx.compose.material3:material3:1.5.0-alpha18")
     implementation(libs.androidx.compose.icons.core)
     implementation("androidx.compose.material:material-icons-extended")
     debugImplementation(libs.androidx.compose.ui.tooling)
@@ -187,6 +245,7 @@ dependencies {
 
     // Testing
     testImplementation(libs.junit)
+    testImplementation(libs.libxposed.legacy)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.test.ext.junit)

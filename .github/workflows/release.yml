@@ -1,0 +1,396 @@
+name: Release
+
+# Stable (main) and beta are released by pushing to that branch with the word --release in the final
+# commit message. Nightly is never released by a push: it is started by hand (Run workflow) or by the
+# schedule every twelve hours, and it builds the head of the nightly branch only when something was
+# merged since the last Nightly (see scripts/release/nightly_release_state.py).
+#
+# The notes of a Nightly are the changelog fragments (changelog.d/*.txt) that the merged pull requests
+# brought, merged section by section (scripts/release/assemble-notes.py). The release clears exactly the
+# fragments it used, so the next Nightly starts empty and shows only what is new. Stable and beta keep
+# using changelog.txt.
+#
+# Branch rules: protect-main and protect-beta block every push except from bypass actors, and
+# protect-nightly additionally requires pull requests. The version-bump commit is therefore pushed
+# with RELEASE_PUSH_TOKEN (a bypass user) when set, otherwise with a WAEX app installation token
+# (bypass actor on nightly; add the app to protect-main and protect-beta bypass lists too).
+#
+# Two jobs keep the powerful tokens away from the build. `build` compiles and signs the code with
+# only the signing secrets and a read-only token, and it never receives a token that can push or
+# publish. `publish` holds the push and publish tokens but never runs Gradle or any repository
+# code; it only validates the values that `build` reports, commits gradle.properties (and clears the
+# used fragments) and uploads the APKs. The private :licensing module is checked out during `build`
+# only, with a read-only token that is not persisted in the checkout.
+on:
+  push:
+    branches: [main, beta]
+  schedule:
+    # 00:05 and 12:05 UTC. A scheduled run belongs to the default branch but only ever releases nightly.
+    - cron: '5 */12 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'The word true builds a Nightly even when nothing new was merged'
+        required: false
+        default: 'false'
+        type: string
+
+permissions: {}
+
+# One release at a time so version bumps and tags never race.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Detect release request
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      should_release: ${{ steps.flags.outputs.should_release }}
+      channel: ${{ steps.flags.outputs.channel }}
+      branch: ${{ steps.flags.outputs.branch }}
+      head_sha: ${{ steps.flags.outputs.head_sha }}
+    steps:
+      # Nightly comes from the schedule or a manual run, whose workflow belongs to another branch, so the
+      # branch to build is named explicitly and the decision script is taken from the default branch.
+      - name: Check out nightly to see what was merged since the last release
+        if: github.event_name != 'push'
+        uses: actions/checkout@v4
+        with:
+          ref: nightly
+          fetch-depth: 0
+          path: nightly
+          persist-credentials: false
+
+      - name: Check out the decision script from the default branch
+        if: github.event_name != 'push'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted
+          persist-credentials: false
+          sparse-checkout: scripts/release/nightly_release_state.py
+          sparse-checkout-cone-mode: false
+
+      - name: Decide what to release
+        id: flags
+        env:
+          EVENT: ${{ github.event_name }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          REF_NAME: ${{ github.ref_name }}
+          PUSH_SHA: ${{ github.sha }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          channel=""; branch=""; should=false; sha=""; reason=""
+          if [ "$EVENT" = push ]; then
+            case "$REF_NAME" in
+              main) channel=stable; branch=main ;;
+              beta) channel=beta; branch=beta ;;
+            esac
+            sha="$PUSH_SHA"
+            if [ -n "$channel" ] && [[ "$COMMIT_MSG" =~ (^|[[:space:]])--release([[:space:]]|$) ]]; then
+              should=true; reason="release flag"
+            else
+              reason="no --release flag"
+            fi
+          else
+            channel=nightly; branch=nightly
+            args=(--repo nightly)
+            [ "$FORCE" = true ] && args+=(--force)
+            state="$(python3 trusted/scripts/release/nightly_release_state.py "${args[@]}")"
+            echo "$state"
+            should="$(sed -n 's/^should_release=//p' <<<"$state")"
+            sha="$(sed -n 's/^head_sha=//p' <<<"$state")"
+            reason="$(sed -n 's/^reason=//p' <<<"$state"), $(sed -n 's/^new_commits=//p' <<<"$state") new commit(s)"
+          fi
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Could not determine the commit to build."; exit 1; }
+          [[ "$should" = true || "$should" = false ]] || { echo "::error::Unexpected decision."; exit 1; }
+          {
+            echo "should_release=$should"
+            echo "channel=$channel"
+            echo "branch=$branch"
+            echo "head_sha=$sha"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### Release gate"
+            echo "Channel: \`${channel:-none}\`, release: \`$should\` (${reason}), commit \`${sha:0:12}\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    name: Build ${{ needs.gate.outputs.channel }}
+    needs: gate
+    if: needs.gate.outputs.should_release == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      CHANNEL: ${{ needs.gate.outputs.channel }}
+      HEAD_SHA: ${{ needs.gate.outputs.head_sha }}
+    outputs:
+      version_code: ${{ steps.version.outputs.version_code }}
+      version_name: ${{ steps.version.outputs.version_name }}
+    steps:
+      # Credentials are not persisted: Gradle and every build script run in this job. The commit is the
+      # one the gate decided on, not whatever the branch has moved to since.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      # :licensing is a private module that is not tracked in this repository. It is required to
+      # build a working APK, so it is cloned here with a read-only token for that one repository.
+      # The token is only an input of this checkout step and is not left in the workspace.
+      - name: Check out private licensing module
+        uses: actions/checkout@v4
+        with:
+          repository: mubashardev/waex-licensing
+          token: ${{ secrets.LICENSING_REPO_TOKEN }}
+          path: licensing
+          persist-credentials: false
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: temurin
+          cache: gradle
+
+      - name: Calculate next version and update gradle.properties
+        id: version
+        run: |
+          python3 scripts/release/next_version.py --channel "$CHANNEL" --sha "$HEAD_SHA" --write >> "$GITHUB_OUTPUT"
+          name="$(grep '^VERSION_NAME=' gradle.properties | cut -d= -f2- | tr -d '\r\n')"
+          code="$(grep '^VERSION_CODE=' gradle.properties | cut -d= -f2- | tr -d '\r\n')"
+          echo "Releasing $name ($code) on $CHANNEL"
+
+      # The notes are made before Gradle runs and handed over right away. A Nightly uses the changelog
+      # fragments merged since the last one; stable and beta use changelog.txt.
+      - name: Prepare the release notes
+        run: |
+          mkdir -p release_notes
+          if [ "$CHANNEL" = nightly ]; then
+            python3 scripts/release/assemble-notes.py --dir changelog.d --lenient \
+              --out release_notes/body.txt --files-out release_notes/consumed.txt
+          else
+            cp changelog.txt release_notes/body.txt
+            : > release_notes/consumed.txt
+          fi
+          echo "Release notes:"; cat release_notes/body.txt
+
+      - name: Upload the release notes for the publish job
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release_notes/*.txt
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Build APKs
+        env:
+          KEY_STORE: ${{ secrets.KEY_STORE }}
+          KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          ALIAS: ${{ secrets.ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          if [ -n "$KEY_STORE" ]; then
+            echo "$KEY_STORE" | base64 --decode > release.jks
+          fi
+          ./gradlew assembleRelease assembleDebug \
+            -PandroidStoreFile=release.jks \
+            -PandroidStorePassword="$KEY_STORE_PASSWORD" \
+            -PandroidKeyAlias="$ALIAS" \
+            -PandroidKeyPassword="$KEY_PASSWORD"
+          rm -f release.jks
+
+      - name: Collect APKs
+        env:
+          NAME: ${{ steps.version.outputs.version_name }}
+        run: |
+          clean="${NAME%%+*}"
+          mkdir -p release_artifacts
+          cp "app/build/outputs/apk/release/WaEnhancerX-v${clean}_release.apk" release_artifacts/
+          cp "app/build/outputs/apk/debug/WaEnhancerX-v${clean}_debug.apk" release_artifacts/
+          ls -l release_artifacts
+
+      - name: Upload APKs for the publish job
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apks
+          path: release_artifacts/*.apk
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish ${{ needs.gate.outputs.channel }}
+    needs: [gate, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      actions: write
+    env:
+      CHANNEL: ${{ needs.gate.outputs.channel }}
+      BRANCH: ${{ needs.gate.outputs.branch }}
+      HEAD_SHA: ${{ needs.gate.outputs.head_sha }}
+      XPOSED_REPO_TOKEN: ${{ secrets.XPOSED_REPO_TOKEN }}
+      PUSH_TOKEN: ${{ secrets.RELEASE_PUSH_TOKEN }}
+      BUILD_VERSION_CODE: ${{ needs.build.outputs.version_code }}
+      BUILD_VERSION_NAME: ${{ needs.build.outputs.version_name }}
+    steps:
+      # The build job ran repository code, so what it reports is checked before it is used.
+      - name: Validate the version reported by the build
+        id: version
+        run: |
+          [[ "$BUILD_VERSION_CODE" =~ ^[0-9]{5,10}$ ]] || { echo "::error::Unexpected version code."; exit 1; }
+          [[ "$BUILD_VERSION_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-beta-[0-9]+|-nightly\.[0-9]+\+[0-9a-f]{7,40})?$ ]] \
+            || { echo "::error::Unexpected version name."; exit 1; }
+          case "$CHANNEL" in
+            stable) [[ "$BUILD_VERSION_NAME" =~ ^[0-9.]+$ ]] ;;
+            beta) [[ "$BUILD_VERSION_NAME" == *-beta-* ]] ;;
+            nightly) [[ "$BUILD_VERSION_NAME" == *-nightly.* ]] ;;
+            *) false ;;
+          esac || { echo "::error::Version does not match the $CHANNEL channel."; exit 1; }
+          clean="${BUILD_VERSION_NAME%%+*}"
+          {
+            echo "clean_name=$clean"
+            echo "tag=$clean"
+          } >> "$GITHUB_OUTPUT"
+
+      # The branch rules only let bypass actors push, so the bump commit needs a real identity.
+      - name: Create push token for the merge app
+        id: app-token
+        if: env.PUSH_TOKEN == ''
+        continue-on-error: true
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.WAEX_APP_ID }}
+          private-key: ${{ secrets.WAEX_APP_PRIVATE_KEY }}
+
+      # This job never runs Gradle or repository scripts, so a push-capable token may stay here. It works
+      # on the branch tip, which may be ahead of the built commit; only gradle.properties and the used
+      # changelog fragments change here.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate.outputs.branch }}
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PUSH_TOKEN || steps.app-token.outputs.token || github.token }}
+
+      - name: Download the built APKs
+        uses: actions/download-artifact@v4
+        with:
+          name: release-apks
+          path: release_artifacts
+
+      - name: Download the release notes
+        uses: actions/download-artifact@v4
+        with:
+          name: release-notes
+          path: release_notes_in
+
+      - name: Check the APK set
+        env:
+          NAME: ${{ steps.version.outputs.clean_name }}
+        run: |
+          cd release_artifacts
+          expected="WaEnhancerX-v${NAME}_debug.apk
+          WaEnhancerX-v${NAME}_release.apk"
+          [ "$(ls -1 | sort)" = "$expected" ] || { echo "::error::Unexpected release artifacts:"; ls -l; exit 1; }
+          for f in *.apk; do [ "$(wc -c < "$f")" -gt 1048576 ] || { echo "::error::$f is too small."; exit 1; }; done
+          ls -l
+
+      - name: Prepare release notes
+        run: |
+          [[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Unexpected commit."; exit 1; }
+          [ -f release_notes_in/body.txt ] && [ -f release_notes_in/consumed.txt ] \
+            || { echo "::error::The release notes are missing."; exit 1; }
+          head -c 60000 release_notes_in/body.txt > notes.txt
+          if ! grep -q '[^[:space:]]' notes.txt; then echo "No user-visible changes were recorded." > notes.txt; fi
+          if [ "$CHANNEL" = nightly ]; then
+            printf '\nBuilt from commit %s\n' "$HEAD_SHA" >> notes.txt
+          fi
+          echo "Release notes:"; cat notes.txt
+
+      - name: Commit version bump
+        id: bump
+        run: |
+          sed -i -E "s/^VERSION_CODE=.*/VERSION_CODE=${BUILD_VERSION_CODE}/; s/^VERSION_NAME=.*/VERSION_NAME=${BUILD_VERSION_NAME}/" gradle.properties
+          [ "$(grep -c '^VERSION_CODE=' gradle.properties)" = 1 ] && [ "$(grep -c '^VERSION_NAME=' gradle.properties)" = 1 ] \
+            || { echo "::error::gradle.properties must contain exactly one VERSION_CODE and VERSION_NAME."; exit 1; }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add gradle.properties
+          # A Nightly clears exactly the changelog fragments that went into its notes; fragments of pull
+          # requests merged while it was building stay for the next one.
+          if [ "$CHANNEL" = nightly ]; then
+            while IFS= read -r name; do
+              [ -n "$name" ] || continue
+              [[ "$name" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*\.txt$ ]] || { echo "::error::Unexpected fragment name."; exit 1; }
+              git rm -q --ignore-unmatch -- "changelog.d/$name"
+            done < release_notes_in/consumed.txt
+          fi
+          # The first release of a base version already matches gradle.properties.
+          if git diff --cached --quiet; then
+            echo "gradle.properties already matches ${BUILD_VERSION_NAME} (${BUILD_VERSION_CODE}); nothing to commit."
+          else
+            git commit -m "chore(release): ${CHANNEL} ${BUILD_VERSION_NAME} (${BUILD_VERSION_CODE}) [skip ci]"
+            # Other PRs may have landed while this build ran; only gradle.properties changes here,
+            # so rebasing the bump commit is safe.
+            for attempt in 1 2 3; do
+              git push origin "HEAD:${BRANCH}" && break
+              [ "$attempt" = 3 ] && { echo "::error::Could not push the version bump to ${BRANCH}. Check the branch rules allow the push token."; exit 1; }
+              git pull --rebase origin "${BRANCH}"
+            done
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ github.token }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ steps.bump.outputs.sha }}
+          name: WaEnhancerX v${{ steps.version.outputs.clean_name }}
+          body_path: notes.txt
+          prerelease: ${{ env.CHANNEL != 'stable' }}
+          files: |
+            release_artifacts/WaEnhancerX-v${{ steps.version.outputs.clean_name }}_release.apk
+            release_artifacts/WaEnhancerX-v${{ steps.version.outputs.clean_name }}_debug.apk
+
+      # Stable and beta are also published to the module repository; nightly never is.
+      - name: Publish to Xposed module repository
+        if: env.CHANNEL != 'nightly' && env.XPOSED_REPO_TOKEN != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: Xposed-Modules-Repo/com.waenhancer
+          token: ${{ secrets.XPOSED_REPO_TOKEN }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: WaEnhancerX v${{ steps.version.outputs.clean_name }}
+          body_path: notes.txt
+          prerelease: ${{ env.CHANNEL != 'stable' }}
+          files: |
+            release_artifacts/WaEnhancerX-v${{ steps.version.outputs.clean_name }}_release.apk
+            release_artifacts/WaEnhancerX-v${{ steps.version.outputs.clean_name }}_debug.apk
+
+      - name: Refresh release index
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run release-index.yml --repo "$GITHUB_REPOSITORY"
+
+      # Releases created with the workflow token never emit a `released` event, so the
+      # VirusTotal workflow would not run on its own. Dispatch it for every channel
+      # (stable, beta and nightly).
+      - name: Start VirusTotal scan
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: gh workflow run virustotal-scan.yml --repo "$GITHUB_REPOSITORY" -f tag="$TAG"

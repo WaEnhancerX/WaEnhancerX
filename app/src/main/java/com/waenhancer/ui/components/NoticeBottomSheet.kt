@@ -29,7 +29,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -73,7 +72,7 @@ fun NoticeBottomSheet(
 
     val severityColor = when (notice.severityRank) {
         3 -> colors.error
-        2 -> Color(0xFFF59E0B) // Amber/Warning
+        2 -> colors.warning
         else -> colors.primary
     }
 
@@ -83,34 +82,23 @@ fun NoticeBottomSheet(
     }
 
     val severityLabel = when (notice.severityRank) {
-        3 -> UiText.get(R.string.waex_ui_urgent_ee603f0d, "URGENT")
-        2 -> UiText.get(R.string.waex_ui_important_ed99f4e1, "IMPORTANT")
-        else -> UiText.get(R.string.waex_ui_announcement_35236c01, "ANNOUNCEMENT")
+        3 -> UiText.get(R.string.waex_ui_urgent, "URGENT")
+        2 -> UiText.get(R.string.waex_ui_important, "IMPORTANT")
+        else -> UiText.get(R.string.waex_ui_announcement, "ANNOUNCEMENT")
     }
 
-    ModalBottomSheet(
+    WaexModalBottomSheet(
         onDismissRequest = {
             if (notice.dismissible) {
                 onDismiss()
             }
         },
-        sheetState = sheetState,
-        containerColor = colors.surface,
-        shape = radius.bottomSheetShape,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(top = 10.dp, bottom = 6.dp)
-                    .size(width = 36.dp, height = 4.dp)
-                    .clip(CircleShape)
-                    .background(colors.outlineVariant.copy(alpha = 0.6f))
-            )
-        }
+        sheetState = sheetState
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = WaexSheetHorizontalMargin)
                 .padding(bottom = 28.dp)
                 .verticalScroll(rememberScrollState())
         ) {
@@ -168,7 +156,7 @@ fun NoticeBottomSheet(
                     ) {
                         Icon(
                             imageVector = WaexIcons.Clear,
-                            contentDescription = UiText.get(R.string.waex_ui_dismiss_48845bff, "Dismiss"),
+                            contentDescription = UiText.get(R.string.waex_ui_dismiss, "Dismiss"),
                             tint = colors.onSurfaceVariant,
                             modifier = Modifier.size(16.dp)
                         )
@@ -219,70 +207,28 @@ fun NoticeBottomSheet(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (hasPrimary) {
-                    Button(
+                    WaexSheetPrimaryButton(
+                        text = primaryAction!!.label,
                         onClick = {
                             onDismiss()
-                            handleAction(context, primaryAction!!)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(46.dp),
-                        shape = radius.fullShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colors.primary,
-                            contentColor = colors.onPrimary
-                        )
-                    ) {
-                        Text(
-                            text = primaryAction!!.label,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-                    }
+                            handleAction(context, primaryAction)
+                        }
+                    )
                 }
 
                 if (hasSecondary) {
-                    OutlinedButton(
+                    WaexSheetTextButton(
+                        text = secondaryAction!!.label,
                         onClick = {
                             onDismiss()
-                            handleAction(context, secondaryAction!!)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp),
-                        shape = radius.fullShape,
-                        border = BorderStroke(1.dp, colors.outlineVariant),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = colors.onSurface
-                        )
-                    ) {
-                        Text(
-                            text = secondaryAction!!.label,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 13.5.sp
-                        )
-                    }
+                            handleAction(context, secondaryAction)
+                        }
+                    )
                 }
 
                 if (!hasPrimary && !hasSecondary && notice.dismissible) {
-                    val dismissLabel = dismissAction?.label?.takeIf { it.isNotBlank() } ?: UiText.get(R.string.waex_ui_dismiss_48845bff, "Dismiss")
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp),
-                        shape = radius.fullShape,
-                        border = BorderStroke(1.dp, colors.outlineVariant),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = colors.onSurfaceVariant
-                        )
-                    ) {
-                        Text(
-                            text = dismissLabel,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 13.5.sp
-                        )
-                    }
+                    val dismissLabel = dismissAction?.label?.takeIf { it.isNotBlank() } ?: UiText.get(R.string.waex_ui_dismiss, "Dismiss")
+                    WaexSheetPrimaryButton(text = dismissLabel, onClick = onDismiss)
                 }
             }
         }
@@ -319,4 +265,3 @@ private fun handleAction(context: Context, action: NoticeAction) {
         } catch (_: Exception) {}
     }
 }
-

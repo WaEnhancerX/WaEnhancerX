@@ -39,8 +39,35 @@ data class HookedAppInfo(
     val bridgeStatus: String = "NOT_REPORTED",
     val initializationError: String? = null,
     val injectionEvidence: InjectionEvidence = if (isHooked) InjectionEvidence.CURRENT else InjectionEvidence.NO_REPORT,
-    val processObservedAtElapsed: Long = -1L
+    val processObservedAtElapsed: Long = -1L,
+    /** True for every target the module should treat as active (anything but NOT_IN_SCOPE). */
+    val inLsposedScope: Boolean = false,
+    val scopeState: TargetScopeState = TargetScopeState.UNVERIFIED
 )
+
+/** How a target's membership in the module's LSPosed scope was established. */
+enum class TargetScopeState {
+    /** Framework scope lists the target (live read, or last known when the framework is unreachable). */
+    IN_SCOPE,
+    /** Scope could not be read, but a current runtime report proves the module is injected. */
+    INJECTED,
+    /** Scope could not be read and there is no evidence either way; keep the target visible. */
+    UNVERIFIED,
+    /** A live framework read shows the target is not in scope. Never shown as an active target. */
+    NOT_IN_SCOPE
+}
+
+/**
+ * Scope decision for one installed candidate. Only a live framework read can say "not in scope",
+ * and current injection always wins over stale data.
+ */
+internal fun classifyScope(packageName: String, scope: LsposedScopeSnapshot, injected: Boolean): TargetScopeState = when {
+    scope.isLive && scope.contains(packageName) -> TargetScopeState.IN_SCOPE
+    injected -> TargetScopeState.INJECTED
+    scope.isLive -> TargetScopeState.NOT_IN_SCOPE
+    scope.contains(packageName) -> TargetScopeState.IN_SCOPE
+    else -> TargetScopeState.UNVERIFIED
+}
 
 internal fun hasCurrentInjection(
     isModuleActive: Boolean,
@@ -48,10 +75,9 @@ internal fun hasCurrentInjection(
     currentBoot: Int,
     reportedPid: Int,
     runningPids: Set<Int>,
-    lastActiveTime: Long,
-    now: Long
+    lastActiveTime: Long
 ): Boolean = classifyInjection(isModuleActive, recordedBoot, currentBoot, reportedPid,
-    runningPids, lastActiveTime, now) == InjectionEvidence.CURRENT
+    runningPids, lastActiveTime) == InjectionEvidence.CURRENT
 
 
 object WhatsAppPackageDetector {
@@ -209,118 +235,97 @@ object WhatsAppPackageDetector {
         }
     }
 
+    /** Packages the module reported from inside a target (provider-authorized), as dynamic evidence. */
+    private fun reportedPackages(context: Context): Set<String> = runCatching {
+        PreferenceStores.publicStore(context).getStringSet("hooked_whatsapp_packages", emptySet()).orEmpty()
+    }.getOrDefault(emptySet())
+
     /**
-     * Discovers all installed and active WhatsApp-based applications on the device.
+     * Candidate targets: the fixed supported list, narrowed to apps the module's LSPosed scope
+     * contains (or that reported injection from inside their own process), and installed.
+     * Scoped apps outside the supported list are never targets.
+     */
+    @JvmStatic
+    fun candidatePackages(context: Context, scope: LsposedScopeSnapshot?): List<String> {
+        val pm = context.packageManager
+        return selectCandidates(scope?.packages.orEmpty(), reportedPackages(context))
+            .filter { runCatching { pm.getPackageInfo(it, 0) }.isSuccess }
+    }
+
+    internal fun selectCandidates(scoped: Set<String>, reported: Set<String>): List<String> =
+        (scoped + reported).filter { DeclaredWhatsAppTargets.contains(it) && it != MODULE_PACKAGE }
+
+    /**
+     * Discovers the active target apps: installed apps from the fixed supported list that are in the
+     * module's LSPosed scope (read from the framework). When the scope could not be read, only the last known
+     * scope and apps that reported injection are listed, and they are marked accordingly.
      */
     @JvmStatic
     fun detectWhatsAppApps(
         context: Context,
-        runtimeSnapshot: XposedRuntimeSnapshot? = XposedRuntimeInspector.cached()
+        runtimeSnapshot: XposedRuntimeSnapshot? = null,
+        scopeSnapshot: LsposedScopeSnapshot? = null
     ): List<HookedAppInfo> {
         val pm = context.packageManager
-        val discoveredPackages = LinkedHashSet<String>()
-
-        // 1. Use the same declared targets as the pre-Context Xposed entry point.
-        discoveredPackages.addAll(getSupportedPackages(context))
-
-        val isGlobalModuleActive = ModuleStatus.isModuleActive()
-
-        // 2. Read packages that have been hooked by Xposed runtime
-        var hookedSet: Set<String>? = null
+        val sentinelActive = ModuleStatus.isModuleActive()
+        val scope = scopeSnapshot ?: LsposedScopeReader.cached(context) ?: LsposedScopeSnapshot(
+            modulePackage = MODULE_PACKAGE,
+            packages = emptySet(),
+            frameworkReachable = false,
+            source = LsposedScopeSnapshot.Source.UNAVAILABLE,
+            error = "Scope check pending"
+        )
         val prefs = PreferenceStores.publicStore(context)
-        try {
-            hookedSet = prefs.getStringSet("hooked_whatsapp_packages", null)
-            if (hookedSet != null) {
-                discoveredPackages.addAll(hookedSet.filter { isWhatsAppPackageName(it) })
-            }
-        } catch (_: Throwable) {}
-
-        // Do not scan labels/substrings or promote historical reports to new targets.
-        // Membership does not bypass HookProvider caller authorization or LSPosed scope.
-
-        discoveredPackages.remove(MODULE_PACKAGE)
-
+        val currentBoot = currentBootCount(context)
         val result = mutableListOf<HookedAppInfo>()
 
-        for (pkg in discoveredPackages) {
-            try {
-                val pInfo = pm.getPackageInfo(pkg, 0)
-                val label = pm.getApplicationLabel(pInfo.applicationInfo ?: continue).toString()
-                val friendlyName = when {
-                    label.isNotBlank() && label != pkg -> label
-                    pkg == "com.whatsapp" -> "WhatsApp"
-                    pkg == "com.whatsapp.w4b" -> "WhatsApp Business"
-                    pkg == "com.gbwhatsapp" -> "GBWhatsApp"
-                    pkg == "com.fmwhatsapp" -> "FMWhatsApp"
-                    pkg == "com.yowhatsapp" || pkg == "com.yowa" -> "YoWhatsApp"
-                    pkg == "com.aerowtsapp" || pkg == "com.aero" -> "Aero WhatsApp"
-                    pkg == "com.delta" -> "Delta WhatsApp"
-                    pkg == "com.ultra" -> "Ultra WhatsApp"
-                    pkg == "com.delight" -> "Delight WhatsApp"
-                    pkg == "com.ymwhatsapp" -> "YMWhatsApp"
-                    pkg == "com.nowha" || pkg == "com.nowha2" -> "NO-WA"
-                    pkg.contains("litex") -> "WhatsApp LiteX"
-                    else -> "WhatsApp ($pkg)"
-                }
+        for (pkg in candidatePackages(context, scope)) {
+            val pInfo = try { pm.getPackageInfo(pkg, 0) } catch (_: PackageManager.NameNotFoundException) { continue }
 
-                val lastActiveTime = prefs.getLong("last_active_$pkg", 0L)
-                val recordedBoot = prefs.getInt("runtime_boot_$pkg", Int.MIN_VALUE)
-                val currentBoot = currentBootCount(context)
-                val reportedPid = prefs.getInt("runtime_pid_$pkg", -1)
-                val evidence = classifyInjection(
-                    isModuleActive = isGlobalModuleActive,
-                    recordedBoot = recordedBoot,
-                    currentBoot = currentBoot,
-                    reportedPid = reportedPid,
-                    runningPids = runtimeSnapshot?.pidsFor(pkg, android.os.SystemClock.elapsedRealtime()),
+            val lastActiveTime = prefs.getLong("last_active_$pkg", 0L)
+            // A report delivered by the target through the authorized provider proves the module
+            // loaded there even if the manager process itself is outside the LSPosed scope.
+            val evidence = classifyInjection(
+                isModuleActive = sentinelActive || lastActiveTime > 0L,
+                recordedBoot = prefs.getInt("runtime_boot_$pkg", Int.MIN_VALUE),
+                currentBoot = currentBoot,
+                reportedPid = prefs.getInt("runtime_pid_$pkg", -1),
+                runningPids = runtimeSnapshot?.pidsFor(pkg),
+                lastActiveTime = lastActiveTime
+            )
+            val isInjected = evidence == InjectionEvidence.CURRENT
+            val scopeState = classifyScope(pkg, scope, isInjected)
+            if (scopeState == TargetScopeState.NOT_IN_SCOPE) continue
+
+            result.add(
+                HookedAppInfo(
+                    packageName = pkg,
+                    appName = appLabel(pm, pInfo.applicationInfo, pkg),
+                    versionName = "v${pInfo.versionName ?: UiText.get(R.string.waex_ui_unknown, "Unknown")}",
+                    isInstalled = true,
+                    isHooked = isInjected,
+                    // Last known report is kept for stopped targets too; the UI labels it as not current.
+                    injectedHooks = getInjectedHooks(context, pkg),
                     lastActiveTime = lastActiveTime,
-                    now = System.currentTimeMillis()
+                    runtimeStatus = prefs.getString("runtime_status_$pkg", "NOT_DETECTED") ?: "NOT_DETECTED",
+                    bridgeStatus = prefs.getString("bridge_status_$pkg", "NOT_REPORTED") ?: "NOT_REPORTED",
+                    initializationError = prefs.getString("runtime_error_$pkg", null),
+                    injectionEvidence = evidence,
+                    processObservedAtElapsed = runtimeSnapshot?.observedAtElapsed ?: -1L,
+                    inLsposedScope = true,
+                    scopeState = scopeState
                 )
-                val isInjected = evidence == InjectionEvidence.CURRENT
-                val injectedHooks = if (isInjected) getInjectedHooks(context, pkg) else emptyList()
-
-                result.add(
-                    HookedAppInfo(
-                        packageName = pkg,
-                        appName = friendlyName,
-                        versionName = "v${pInfo.versionName ?: UiText.get(R.string.waex_ui_unknown_b764cdc0, "Unknown")}",
-                        isInstalled = true,
-                        isHooked = isInjected,
-                        injectedHooks = injectedHooks,
-                        lastActiveTime = lastActiveTime,
-                        runtimeStatus = prefs.getString("runtime_status_$pkg", "NOT_DETECTED") ?: "NOT_DETECTED",
-                        bridgeStatus = prefs.getString("bridge_status_$pkg", "NOT_REPORTED") ?: "NOT_REPORTED",
-                        initializationError = prefs.getString("runtime_error_$pkg", null),
-                        injectionEvidence = evidence,
-                        processObservedAtElapsed = runtimeSnapshot?.observedAtElapsed ?: -1L
-                    )
-                )
-            } catch (e: PackageManager.NameNotFoundException) {
-                // Only list standard WPP / Business if uninstalled as placeholders if no apps are installed
-                if (pkg == "com.whatsapp" || pkg == "com.whatsapp.w4b") {
-                    val name = if (pkg == "com.whatsapp") "WhatsApp" else "WhatsApp Business"
-                    result.add(
-                        HookedAppInfo(
-                            packageName = pkg,
-                            appName = name,
-                            versionName = UiText.get(R.string.waex_ui_not_installed_d08041a7, "Not Installed"),
-                            isInstalled = false,
-                            isHooked = false,
-                            injectedHooks = emptyList(),
-                            lastActiveTime = 0L
-                        )
-                    )
-                }
-            }
+            )
         }
+        return result.sortedBy { it.appName.lowercase() }
+    }
 
-        // Filter out uninstalled placeholders if at least one app is installed
-        val installedCount = result.count { it.isInstalled }
-        val visible = if (installedCount > 0) {
-            result.filter { it.isInstalled }
-        } else {
-            result
-        }
-        return visible.sortedBy { it.appName.lowercase() }
+    /** The label the user sees on their launcher; the package name only if the system has none. */
+    private fun appLabel(pm: PackageManager, info: android.content.pm.ApplicationInfo?, pkg: String): String {
+        val launcher = runCatching {
+            pm.getLaunchIntentForPackage(pkg)?.let { pm.resolveActivity(it, 0)?.loadLabel(pm)?.toString() }
+        }.getOrNull()?.takeIf { it.isNotBlank() }
+        val app = info?.let { runCatching { pm.getApplicationLabel(it).toString() }.getOrNull() }?.takeIf { it.isNotBlank() }
+        return launcher ?: app ?: pkg
     }
 }

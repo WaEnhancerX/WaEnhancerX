@@ -8,12 +8,14 @@ import android.view.MenuItem;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.xposed.utils.ActivityTracker;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.enums.StringMatchType;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
 import org.luckypray.dexkit.result.ClassData;
+import java.lang.reflect.Method;
 
 
 public class NewSettingsStyleHook extends BaseFeature {
@@ -66,9 +68,12 @@ public class NewSettingsStyleHook extends BaseFeature {
             int meTabMenuItemId = context.getResources().getIdentifier(
                     "me_tab_menu_item", "id", context.getPackageName());
 
-            XposedBridge.hookAllMethods(homeActivityClass, "onCreateOptionsMenu", new XC_MethodHook() {
+            Method createMenu = findHierarchyMethod(homeActivityClass, "onCreateOptionsMenu", Menu.class);
+            if (createMenu == null) return;
+            XposedBridge.hookMethod(createMenu, new XC_MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
+                    if (!homeActivityClass.isInstance(param.thisObject)) return;
                     if (param.args != null && param.args.length > 0 && param.args[0] instanceof Menu) {
                         Menu menu = (Menu) param.args[0];
                         if (meTabMenuItemId != 0) {
@@ -80,15 +85,32 @@ public class NewSettingsStyleHook extends BaseFeature {
                     }
                 }
             });
+            refreshCurrentHomeMenu(homeActivityClass);
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Failed to hook HomeActivity menu for me_tab_menu_item: " + t.getMessage());
         }
     }
 
+    private static Method findHierarchyMethod(Class<?> leaf, String name, Class<?>... parameters) {
+        for (Class<?> current = leaf; current != null && current != Object.class;
+             current = current.getSuperclass()) {
+            try {
+                return current.getDeclaredMethod(name, parameters);
+            } catch (NoSuchMethodException ignored) {}
+        }
+        return null;
+    }
+
+    private void refreshCurrentHomeMenu(@NonNull Class<?> homeActivityClass) {
+        Activity activity = ActivityTracker.getCurrentActivity();
+        if (activity == null || !homeActivityClass.isInstance(activity)) return;
+        activity.runOnUiThread(activity::invalidateOptionsMenu);
+    }
+
     private Class<?> resolveHomeActivityClass() {
         try {
             return DexSearchEngine.getInstance().findClassWithCache(
-                    context, classLoader, "wpp_home_activity_class",
+                    context, classLoader, "waex_home_activity_class",
                     (bridge, loader) -> {
                         ClassData cd = bridge.findClass(FindClass.create()
                                 .matcher(ClassMatcher.create()

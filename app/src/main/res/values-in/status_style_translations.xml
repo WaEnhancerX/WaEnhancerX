@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="status_style_default">Default</string>
+    <string name="status_style_vertical_rows">Baris vertikal</string>
+    <string name="status_style_facebook_grid">Kartu Facebook (kotak)</string>
+    <string name="status_style_vertical_compact">Daftar vertikal (ringkas)</string>
+    <string name="status_style_vertical_circle">Daftar vertikal (avatar bundar)</string>
+    <string name="status_style_vertical_square">Daftar vertikal (kartu persegi)</string>
+</resources>

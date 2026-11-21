@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feat_metaai_title">Hapus Meta AI</string>
+    <string name="feat_metaai_desc">Pilih bagian dan titik akses Meta AI yang ingin dihapus.</string>
+    <string name="meta_ai_remove_home_fab">"Hapus Beranda FAB"</string>
+    <string name="meta_ai_remove_entry_points">"Hapus titik masuk Meta AI"</string>
+    <string name="meta_ai_block_chat">"Blokir obrolan Meta AI"</string>
+</resources>

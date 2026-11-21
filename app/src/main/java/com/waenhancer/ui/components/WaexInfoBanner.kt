@@ -52,15 +52,15 @@ fun WaexInfoBanner(
             icon = WaexIcons.Info
         )
         BannerType.WARNING -> BannerTheme(
-            bgColor = Color(0xFFFFF7E6), // Light Orange
-            borderColor = Color(0xFFFFD591), // Orange Border
-            contentColor = Color(0xFFD4380D), // Orange Text
+            bgColor = colors.warningContainer,
+            borderColor = colors.warning,
+            contentColor = colors.onWarningContainer,
             icon = WaexIcons.Warning
         )
         BannerType.ERROR -> BannerTheme(
-            bgColor = colors.errorContainer.copy(alpha = 0.15f),
+            bgColor = colors.errorContainer,
             borderColor = colors.error,
-            contentColor = colors.error,
+            contentColor = colors.onErrorContainer,
             icon = WaexIcons.Warning
         )
     }
@@ -87,14 +87,14 @@ fun WaexInfoBanner(
                     Text(
                         text = title,
                         style = typography.bodyLg.copy(fontWeight = FontWeight.SemiBold),
-                        color = colors.onSurface
+                        color = if (bannerType == BannerType.INFO) colors.onSurface else bannerTheme.contentColor
                     )
                     Spacer(modifier = Modifier.height(spacing.stackSm))
                 }
                 Text(
                     text = message,
                     style = typography.bodyMd,
-                    color = colors.onSurface
+                    color = if (bannerType == BannerType.INFO) colors.onSurface else bannerTheme.contentColor
                 )
                 if (actionText != null && onActionClick != null) {
                     Spacer(modifier = Modifier.height(spacing.stackMd))

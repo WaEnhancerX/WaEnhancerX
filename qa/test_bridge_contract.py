@@ -89,6 +89,14 @@ STUBS = {
         public abstract class Context {
             public Context getApplicationContext() { return this; }
             public abstract ContentResolver getContentResolver();
+            public abstract String getPackageName();
+        }''',
+    'com/waenhancer/config/PreferenceRestartTracker.java': '''package com.waenhancer.config;
+        public final class PreferenceRestartTracker {
+            private PreferenceRestartTracker() {}
+            public static final String NEED_RESTART = "need_restart";
+            public static final String PENDING_CHANGES = "pending_restart_changes";
+            public static final String SHOW_RESTART_SHEET = "show_restart_sheet";
         }''',
     'android/content/ContentResolver.java': '''package android.content;
         public abstract class ContentResolver {
@@ -167,7 +175,11 @@ STUBS = {
             }
             static class Ctx extends Context {
                 final Resolver resolver = new Resolver();
+                final String targetPackage;
+                Ctx() { this("com.whatsapp"); }
+                Ctx(String targetPackage) { this.targetPackage = targetPackage; }
                 @Override public ContentResolver getContentResolver() { return resolver; }
+                @Override public String getPackageName() { return targetPackage; }
             }
             static void check(boolean expected, String message) {
                 if (!expected) throw new AssertionError(message);
@@ -187,8 +199,12 @@ STUBS = {
                 check(prefs.getInt("int_as_string", 0)==42, "numeric compatibility");
                 prefs.getStringSet("choices", null).clear();
                 check(prefs.getStringSet("choices", null).size()==2, "defensive string sets");
-                prefs.getAll().clear();
-                check(prefs.contains("choices"), "detached getAll result");
+                try {
+                    prefs.getAll().clear();
+                    throw new AssertionError("getAll exposed a mutable external snapshot");
+                } catch (UnsupportedOperationException expected) {
+                    check(prefs.contains("choices"), "read-only getAll changed the source cache");
+                }
                 AtomicInteger notifications = new AtomicInteger();
                 SharedPreferences.OnSharedPreferenceChangeListener listener = (p, key) -> notifications.incrementAndGet();
                 prefs.registerOnSharedPreferenceChangeListener(listener);
@@ -210,10 +226,47 @@ STUBS = {
                 check(!prefs.edit().putString("failure", "x").commit(), "IPC failure returns false");
                 check(!prefs.contains("failure"), "failed commit does not mutate cache");
                 check(notifications.get()==notificationsBefore, "listener unregister works");
+                // Per-target mode must select only this injected package's values.
+                Ctx normal = new Ctx("com.whatsapp");
+                normal.resolver.db.put("module_config_mode", "Per Target App");
+                normal.resolver.db.put("imagequality", false);
+                normal.resolver.db.put("com.whatsapp:imagequality", true);
+                normal.resolver.db.put("com.whatsapp.w4b:imagequality", false);
+                normal.resolver.db.put("need_restart", true);
+                normal.resolver.db.put("com.whatsapp:need_restart", true);
+                normal.resolver.db.put("com.whatsapp:pending_restart_changes", Set.of("imagequality"));
+                normal.resolver.db.put("com.whatsapp.w4b:need_restart", false);
+                PreferenceBridgeClient normalBridge = new PreferenceBridgeClient(normal, null);
+                check(normalBridge.getBoolean("imagequality", false), "personal package override not applied");
+                check(normalBridge.getBoolean("need_restart", false), "personal restart state not scoped");
+                check(normalBridge.getStringSet("pending_restart_changes", null).equals(Set.of("imagequality")),
+                    "personal pending restart set not scoped");
+                Ctx business = new Ctx("com.whatsapp.w4b");
+                business.resolver.db.putAll(normal.resolver.db);
+                PreferenceBridgeClient businessBridge = new PreferenceBridgeClient(business, null);
+                check(!businessBridge.getBoolean("imagequality", true), "Business package value crossed personal boundary");
+                check(!businessBridge.getBoolean("need_restart", true), "Business package inherited personal restart");
+                check(!businessBridge.contains("pending_restart_changes"),
+                    "Business package inherited personal pending restart set");
+                Ctx absent = new Ctx("com.whatsapp.clone");
+                absent.resolver.db.putAll(normal.resolver.db);
+                PreferenceBridgeClient absentBridge = new PreferenceBridgeClient(absent, null);
+                check(!absentBridge.getBoolean("imagequality", true), "unknown package lost universal fallback");
+                check(!absentBridge.getBoolean("need_restart", true), "unknown package inherited universal restart");
                 System.out.println("OK: hydration, type coercion, snapshots, set-copy, atomic edits, clear, remove, async apply, failure and listeners");
             }
         }''',
 }
+
+# The lightweight restart-tracker fixture contains only constants used by the
+# bridge. Fail if its values diverge from production; do not silently mock a
+# different restart namespace.
+restart_source = (ROOT / 'app/src/main/java/com/waenhancer/config/PreferenceRestartTracker.java').read_text()
+for name, value in (('NEED_RESTART', 'need_restart'),
+                    ('PENDING_CHANGES', 'pending_restart_changes'),
+                    ('SHOW_RESTART_SHEET', 'show_restart_sheet')):
+    if f'public static final String {name} = "{value}";' not in restart_source:
+        raise AssertionError(f'Bridge fixture restart constant does not match production: {name}')
 
 with tempfile.TemporaryDirectory(prefix='waex_test_') as path:
     out = Path(path)

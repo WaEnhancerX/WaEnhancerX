@@ -37,7 +37,10 @@ public final class TestRestartTargetPolicy {
             check(RestartTargetPolicy.forceStopCommand(packageName, scope).equals(
                     "am force-stop '" + packageName + "'"), "force-stop shell quoting");
             check(RestartTargetPolicy.launchCommand(packageName, scope).equals(
-                    "monkey -p '" + packageName + "' -c android.intent.category.LAUNCHER 1"), "launch scoping");
+                    "ACT=$(pm resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER '"
+                            + packageName + "' | tail -n 1) && am start -n \"$ACT\""), "launch scoping");
+            check(RestartTargetPolicy.launchCommand(packageName, packageName + "/.Main", scope).equals(
+                    "am start -n '" + packageName + "/.Main'"), "explicit component launch");
         }
         reject(null, scope); reject("", scope); reject(" ", scope);
         reject("com.whatsapp;reboot", scope);
@@ -72,12 +75,10 @@ public final class TestRestartTargetPolicy {
         check(!RestartTargetPolicy.reportsRootId("uid=1000(shell) gid=1000(shell)"), "shell is not root");
         check(!RestartTargetPolicy.reportsRootId("notroot uid=100"), "nonroot rejected");
         check(!RestartTargetPolicy.reportsRootId("uid=00(root)"), "exact uid required");
-        check(RestartTargetPolicy.reportsMonkeyLaunch("Events injected: 1\n"), "launched");
-        check(RestartTargetPolicy.reportsMonkeyLaunch("Monkey started\nEvents injected: 14\n"), "multi event");
-        check(!RestartTargetPolicy.reportsMonkeyLaunch("No activities found to run"), "no activities");
-        check(!RestartTargetPolicy.reportsMonkeyLaunch("Events injected: 0"), "zero injected");
-        check(!RestartTargetPolicy.reportsMonkeyLaunch(null), "null monkey output");
-        check(!RestartTargetPolicy.reportsMonkeyLaunch("Fake Events injected: 01"), "invalid output format");
+        check(RestartTargetPolicy.reportsRootLaunch("Starting: Intent { cmp=com.whatsapp/.Main }\n"), "launched");
+        check(RestartTargetPolicy.reportsRootLaunch("Starting: Intent { act=android.intent.action.MAIN }\nWarning: already running\n"), "multi line start");
+        check(!RestartTargetPolicy.reportsRootLaunch("Error: Activity class does not exist"), "error report");
+        check(!RestartTargetPolicy.reportsRootLaunch(null), "null root launch output");
 
         // Test common shell metacharacters against arbitrary declared-scope mistakes.
         String[] invalid = {"'", "\"", ";", "&", "|", String.valueOf((char)96), "$", "(", ")", " ", "\n", "\r", "\\", "<", ">", "?", "#", "*", "[", "]"};

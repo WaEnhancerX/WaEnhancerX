@@ -38,7 +38,11 @@ sheet = (src / "xposed/features/homescreen/WaexQuickActionsSheet.java").read_tex
 privacy = (src / "ui/screens/privacy/GlobalPrivacySettingsScreen.kt").read_text()
 for name, text in [("hook", hook), ("header", header), ("sheet", sheet), ("privacy", privacy)]:
     assert "DndPreferencePolicy.isEnabled(" in text, f"{name} bypasses tested DND policy"
-assert header.count("promptDndModeSheet(") == 4, "all DND menu paths must defer to confirmation"
+# Nightly removed the unused raw-ID dispatcher in 19a86ef0. Check both live
+# entry points explicitly instead of requiring its now-dead third call site.
+assert '/* onDndToggle    */ () -> promptDndModeSheet(activity)' in header
+assert 'if (id == MENU_ID_DND) {\n            if (activityObj instanceof Activity) {\n                promptDndModeSheet((Activity) activityObj);' in header
+assert header.count("promptDndModeSheet(") == 3, "unexpected DND dispatch path"
 assert 'isEnabled(PREF_KEY, false) || isEnabled("dndmode", false)' not in hook
 assert header.count('saveAndRestart(activity, "dnd_mode", !active)') == 1
 assert 'putBoolean("dnd_mode"' not in sheet, "quick sheet must not mutate DND before confirmation"

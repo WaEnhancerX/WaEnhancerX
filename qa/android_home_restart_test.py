@@ -23,6 +23,11 @@ SOURCES = [Path(p) for p in (
  'app/src/main/java/com/waenhancer/xposed/features/homescreen/HomeScreenHeaderActionsHook.java',
  'app/src/main/java/com/waenhancer/xposed/core/BaseFeature.kt',
  'app/src/main/java/com/waenhancer/xposed/bridge/client/PreferenceBridgeClient.java',
+ 'app/src/main/java/com/waenhancer/config/PreferenceSchema.java',
+ 'app/src/main/java/com/waenhancer/xposed/utils/HookErrors.java',
+ 'app/src/main/java/com/waenhancer/xposed/utils/HostResourceIds.java',
+ 'app/src/main/java/com/waenhancer/xposed/core/HookRegistrar.java',
+ 'app/src/main/java/com/waenhancer/xposed/core/ViewHookDispatcher.java',
  'app/src/main/java/com/waenhancer/config/DndPreferencePolicy.java',
  'app/src/main/java/com/waenhancer/xposed/features/privacy/ArchivedChatsPreferencePolicy.java',
 )]
@@ -179,6 +184,50 @@ SERVICES = {'androidx/annotation/NonNull.java': 'package androidx.annotation; pu
                                                               ' public static void '
                                                               'reset(){calls.clear();fail=false;onRestart=null;}\n'
                                                               '}'}
+# Only external registration endpoints are replaced. Calls not covered by the
+# restart lifecycle contract fail loudly rather than pretending to install hooks.
+SERVICES.update({
+ 'androidx/annotation/VisibleForTesting.java': 'package androidx.annotation; public @interface VisibleForTesting {}',
+ 'com/waenhancer/config/PreferenceRestartTracker.java': '''package com.waenhancer.config;
+ public final class PreferenceRestartTracker {
+  public static final String NEED_RESTART="need_restart";
+  public static final String PENDING_CHANGES="pending_restart_changes";
+ }''',
+ 'de/robv/android/xposed/XC_MethodHook.java': '''package de.robv.android.xposed;
+ public abstract class XC_MethodHook {
+  public class Unhook {public void unhook(){throw new AssertionError("Hook removal is outside this fixture");}}
+  public static class MethodHookParam {public Object[] args;public Object thisObject;public void setResult(Object value){}}
+  protected void beforeHookedMethod(MethodHookParam p) throws Throwable {}
+  protected void afterHookedMethod(MethodHookParam p) throws Throwable {}
+ }''',
+ 'de/robv/android/xposed/XposedBridge.java': '''package de.robv.android.xposed;
+ public final class XposedBridge {
+  public static final java.util.List<String> logs=new java.util.concurrent.CopyOnWriteArrayList<>();
+  public static void log(String value){logs.add(value);}
+  public static void log(Throwable value){java.io.StringWriter text=new java.io.StringWriter();value.printStackTrace(new java.io.PrintWriter(text));logs.add(text.toString());}
+  public static XC_MethodHook.Unhook hookMethod(java.lang.reflect.Member m,XC_MethodHook hook){throw new AssertionError("Hook installation is outside this fixture");}
+  public static java.util.Set<XC_MethodHook.Unhook> hookAllMethods(Class<?> c,String n,XC_MethodHook hook){throw new AssertionError("Hook installation is outside this fixture");}
+  public static java.util.Set<XC_MethodHook.Unhook> hookAllConstructors(Class<?> c,XC_MethodHook hook){throw new AssertionError("Hook installation is outside this fixture");}
+ }''',
+ 'de/robv/android/xposed/XposedHelpers.java': '''package de.robv.android.xposed;
+ public final class XposedHelpers {
+  private static AssertionError unsupported(){return new AssertionError("Host reflection is outside this restart fixture");}
+  public static Class<?> findClass(String n,ClassLoader c){throw unsupported();}
+  public static Class<?> findClassIfExists(String n,ClassLoader c){throw unsupported();}
+  public static java.lang.reflect.Field findField(Class<?> c,String n){throw unsupported();}
+  public static java.lang.reflect.Field findFieldIfExists(Class<?> c,String n){throw unsupported();}
+  public static java.lang.reflect.Method findMethodBestMatch(Class<?> c,String n,Object... a){throw unsupported();}
+  public static java.lang.reflect.Method findMethodExact(Class<?> c,String n,Object... a){throw unsupported();}
+  public static java.lang.reflect.Method findMethodExactIfExists(Class<?> c,String n,Object... a){throw unsupported();}
+  public static XC_MethodHook.Unhook findAndHookMethod(Class<?> c,String n,Object... a){throw unsupported();}
+  public static XC_MethodHook.Unhook findAndHookMethod(String c,ClassLoader l,String n,Object... a){throw unsupported();}
+  public static Object callMethod(Object o,String n,Object... a){throw unsupported();}
+  public static Object getObjectField(Object o,String n){throw unsupported();}
+  public static Object getAdditionalInstanceField(Object o,String n){throw unsupported();}
+  public static Object setAdditionalInstanceField(Object o,String n,Object v){throw unsupported();}
+  public static Object removeAdditionalInstanceField(Object o,String n){throw unsupported();}
+ }''',
+})
 POM = '''<project xmlns="http://maven.apache.org/POM/4.0.0">
 <modelVersion>4.0.0</modelVersion><groupId>org.waex.qa</groupId>
 <artifactId>home-restart-qa-only</artifactId><version>1</version>
@@ -239,6 +288,12 @@ def main():
     sources = []
     identities = {}
     service_identities = {}
+    tracker = root / 'app/src/main/java/com/waenhancer/config/PreferenceRestartTracker.java'
+    tracker_source = tracker.read_text()
+    for name, value in (('NEED_RESTART', 'need_restart'), ('PENDING_CHANGES', 'pending_restart_changes')):
+        if not re.search(r'public static final String\s+' + name + r'\s*=\s*"' + value + r'";', tracker_source):
+            raise RuntimeError('Restart fixture constant no longer matches production: ' + name)
+    identities[str(tracker.relative_to(root))] = hashlib.sha256(tracker.read_bytes()).hexdigest()
     for relative in SOURCES:
         source, dest = root / relative, stage / relative
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -271,7 +326,7 @@ def main():
     android = deps / 'android-all-14-robolectric-10818077.jar'
     production_cp = os.pathsep.join([str(android), str(kotlin_runtime)])
     run([compiler, '-jvm-target', '17', '-classpath', production_cp, '-d', str(classes),
-         *[str(p) for p in sources if p.suffix == '.kt']], out / 'kotlinc.log')
+         *[str(p) for p in sources if p.name != 'HomeRestartLifecycleTest.java']], out / 'kotlinc.log')
     run(['javac', '--release', '17', '-cp', str(classes) + os.pathsep + cp, '-d', str(classes),
          *[str(p) for p in sources if p.suffix == '.java']], out / 'javac.log')
     opens = ['java.base/java.lang', 'java.base/java.util', 'java.base/java.io', 'java.base/java.net',

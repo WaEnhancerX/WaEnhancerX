@@ -2,15 +2,18 @@ package com.waenhancer.ui.screens.conversation
 
 import com.waenhancer.app.R
 import com.waenhancer.utils.UiText
+import com.waenhancer.utils.EmojiInputPolicy
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Scaffold
@@ -36,15 +39,21 @@ import com.waenhancer.ui.navigation.LocalIsPro
 import com.waenhancer.ui.navigation.LocalOnActivatePro
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
+import com.waenhancer.ui.navigation.Screen
 import kotlinx.coroutines.delay
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
 import com.waenhancer.ui.components.WaexEmojiPickerDialog
 import com.waenhancer.ui.components.WaexPreferenceItem
 
 @Composable
-fun ConversationEnhancementsScreen() {
+fun ConversationEnhancementsScreen(targetEpoch: Int = 0) {
     val navController = LocalWaexNavController.current
     val preferenceManager = LocalWaexPreferenceManager.current
     val isPro = LocalIsPro.current
@@ -78,18 +87,31 @@ fun ConversationEnhancementsScreen() {
 
     val convKeys = remember {
         listOf(
-            "message_bomber", "anti_edit_messages", "message_device_source", "preserve_delete_for_me", "preserve_own_revoke", "revokeallmessages", "hide_forwarded_tag",
-            "removeforwardlimit", "sticker_confirm_alert", "removeseemore", "stamp_copied_message", "doubletap2like",
+            "message_bomber", "anti_edit_messages", "message_device_source", "preserve_own_revoke", "revokeallmessages", "hide_forwarded_tag",
+            "removeforwardlimit", "sticker_confirm_alert", "remove_sticker_white_outline", "removeseemore", "stamp_copied_message", "doubletap2like",
             "jump_to_first_message", "unlimited_pinned_chats", "broadcast_tag", "direct_chat_dialer",
-            "inline_translation", "copy_status_text", "animation_emojis", "disable_defemojis"
+            "inline_translation", "copy_status_text", "animation_emojis", "disable_defemojis", "custom_emojis", "custom_emoji_enabled"
         )
     }
 
-    val stateMap = remember {
+    val stateMap = remember(targetEpoch) {
         mutableStateMapOf<String, Boolean>().apply {
             convKeys.forEach { key ->
                 put(key, preferenceManager.getBoolean(key, false))
             }
+        }
+    }
+
+    var customEmojiFont by remember(targetEpoch) {
+        mutableStateOf(preferenceManager.getString("custom_emoji_font", "") ?: "")
+    }
+
+    LaunchedEffect(navController.currentScreen) {
+        if (navController.currentScreen == Screen.ConversationEnhancements) {
+            convKeys.forEach { key ->
+                stateMap[key] = preferenceManager.getBoolean(key, false)
+            }
+            customEmojiFont = preferenceManager.getString("custom_emoji_font", "") ?: ""
         }
     }
 
@@ -120,8 +142,8 @@ fun ConversationEnhancementsScreen() {
         ) {
             // Section 1: Message Protection & Controls
             WaexSectionHeader(
-                title = UiText.get(R.string.waex_ui_message_protection_controls_ecb4dab0, "Message Protection & Controls"),
-                subtitle = UiText.get(R.string.waex_ui_preserve_edits_prevent_limits_and_safe_6139d177, "Preserve edits, prevent limits, and safeguard messages")
+                title = UiText.get(R.string.waex_ui_message_protection_controls, "Message Protection & Controls"),
+                subtitle = UiText.get(R.string.waex_ui_preserve_edits_prevent_limits_and_safe, "Preserve edits, prevent limits, and safeguard messages")
             )
 
             WaexCard(modifier = Modifier.fillMaxWidth()) {
@@ -133,7 +155,7 @@ fun ConversationEnhancementsScreen() {
                         label = "bomber_highlight_bg"
                     )
                     WaexSwitchPreference(
-                        title = UiText.get(R.string.waex_ui_message_bomber_pro_33022491, "Message Bomber · Pro"),
+                        title = UiText.get(R.string.waex_ui_message_bomber_pro, "Message Bomber · Pro"),
                         description = UiText.get(R.string.feat_message_bomber_desc, "Send a short, delayed sequence of messages from inside a WhatsApp chat"),
                         checked = isPro && (stateMap["message_bomber"] ?: false),
                         onCheckedChange = { enabled ->
@@ -189,14 +211,6 @@ fun ConversationEnhancementsScreen() {
                             }
                     )
                     WaexSwitchPreference(
-                        title = UiText.get(R.string.feat_preserve_delete_for_me_title, "Delete (for me)"),
-                        description = UiText.get(R.string.waex_ui_retain_messages_locally_when_delete_fo_83f67a27, "Retain messages locally when Delete for Me is pressed"),
-                        checked = stateMap["preserve_delete_for_me"] ?: false,
-                        onCheckedChange = { onToggle("preserve_delete_for_me", it) },
-                        icon = WaexIcons.Security,
-                        showDivider = true
-                    )
-                    WaexSwitchPreference(
                         title = UiText.get(R.string.feat_preserve_own_revoke_title, "Keep My Revoked Messages"),
                         description = UiText.get(R.string.feat_preserve_own_revoke_desc, "Keep your local copy after Delete for Everyone while deleting it for recipients"),
                         checked = stateMap["preserve_own_revoke"] ?: false,
@@ -237,8 +251,16 @@ fun ConversationEnhancementsScreen() {
                         showDivider = true
                     )
                     WaexSwitchPreference(
+                        title = UiText.get(R.string.feat_remove_sticker_white_outline_title, "Remove Sticker White Outline"),
+                        description = UiText.get(R.string.feat_remove_sticker_white_outline_desc, "Remove the white border WhatsApp adds when you create a sticker"),
+                        checked = stateMap["remove_sticker_white_outline"] ?: false,
+                        onCheckedChange = { onToggle("remove_sticker_white_outline", it) },
+                        icon = WaexIcons.Settings,
+                        showDivider = true
+                    )
+                    WaexSwitchPreference(
                         title = UiText.get(R.string.feat_removeseemore_title, "Remove \"See More\" Button"),
-                        description = UiText.get(R.string.waex_ui_disable_see_more_button_and_show_all_l_74a0a668, "Disable \"See More\" button and show all long message"),
+                        description = UiText.get(R.string.waex_ui_disable_see_more_button_and_show_all_l, "Disable \"See More\" button and show all long message"),
                         checked = stateMap["removeseemore"] ?: false,
                         onCheckedChange = { onToggle("removeseemore", it) },
                         icon = WaexIcons.Info,
@@ -259,21 +281,21 @@ fun ConversationEnhancementsScreen() {
                         checked = doubleTapEnabled,
                         onCheckedChange = { onToggle("doubletap2like", it) },
                         icon = WaexIcons.AutoAwesome,
-                        showDivider = doubleTapEnabled
+                        showDivider = true
                     )
 
                     if (doubleTapEnabled) {
                         var showEmojiPicker by remember { mutableStateOf(false) }
                         var currentEmoji by remember {
-                            mutableStateOf(preferenceManager.getString("doubletap2like_emoji", "👍").ifBlank { "👍" })
+                            mutableStateOf(EmojiInputPolicy.singleEmojiOrDefault(preferenceManager.getString("doubletap2like_emoji", "👍")))
                         }
 
                         WaexPreferenceItem(
-                            title = UiText.get(R.string.waex_ui_custom_reaction_9a565091, "Custom Reaction"),
-                            description = UiText.get(R.string.waex_ui_change_the_default_emoji_sent_when_dou_9ed5b05d, "Change the default emoji sent when double-clicking (%1\$s)", currentEmoji),
+                            title = UiText.get(R.string.waex_ui_custom_reaction, "Custom Reaction"),
+                            description = UiText.get(R.string.waex_ui_change_the_default_emoji_sent_when_dou, "Change the default emoji sent when double-clicking (%1\$s)", currentEmoji),
                             icon = WaexIcons.Palette,
                             onClick = { showEmojiPicker = true },
-                            showDivider = false,
+                            showDivider = true,
                             trailing = {
                                 Surface(
                                     shape = CircleShape,
@@ -300,13 +322,54 @@ fun ConversationEnhancementsScreen() {
                             )
                         }
                     }
+
+                    val deviceEmojisEnabled = stateMap["disable_defemojis"] ?: false
+                    val customEmojiEnabled = (stateMap["custom_emojis"] ?: false) || (stateMap["custom_emoji_enabled"] ?: false)
+                    val activeEmojiStyle = when {
+                        deviceEmojisEnabled -> UiText.get(R.string.custom_emojis_device_title, "Device System Emojis")
+                        customEmojiEnabled && customEmojiFont.isNotEmpty() -> customEmojiFont.removeSuffix(".ttf")
+                        else -> UiText.get(R.string.custom_emojis_default_title, "WhatsApp Default")
+                    }
+
+                    WaexPreferenceItem(
+                        title = UiText.get(R.string.custom_emojis_screen_title, "Emoji Style"),
+                        description = UiText.get(R.string.feat_custom_emojis_active_desc, "Active: %1\$s", activeEmojiStyle),
+                        icon = WaexIcons.Mood,
+                        onClick = { navController.navigateTo(Screen.CustomEmojis) },
+                        showDivider = false,
+                        trailing = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Surface(
+                                    shape = WaexTheme.radius.fullShape,
+                                    color = colors.primary.copy(alpha = 0.12f)
+                                ) {
+                                    Text(
+                                        text = activeEmojiStyle,
+                                        style = typography.labelSm,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = colors.primary,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    )
+                                }
+                                Icon(
+                                    imageVector = WaexIcons.ChevronRight,
+                                    contentDescription = null,
+                                    tint = colors.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    )
                 }
             }
 
             // Section 2: Chat Navigation & Shortcuts
             WaexSectionHeader(
                 title = UiText.get(R.string.sec_chat_navigation_shortcuts, "Chat Navigation & Shortcuts"),
-                subtitle = UiText.get(R.string.waex_ui_fast_navigation_and_conversation_produ_83302a70, "Fast navigation and conversation productivity tools")
+                subtitle = UiText.get(R.string.waex_ui_fast_navigation_and_conversation_produ, "Fast navigation and conversation productivity tools")
             )
 
             WaexCard(modifier = Modifier.fillMaxWidth()) {

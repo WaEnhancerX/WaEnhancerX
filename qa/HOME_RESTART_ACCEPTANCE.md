@@ -45,6 +45,44 @@ not treated as success. If the main looper rejects a worker's result and its
 cleanup post, the code releases ownership and logs the failure; no UI delivery
 can be promised on that unavailable queue.
 
+## 2026-11-21 nightly reconciliation
+
+The current reconciliation merges original PR head
+`e699c66c4b90bba9d243082aa9081743f990a2ac` with nightly
+`9972e49fac9bfb650c25ee31fde0da9425b67175`, retaining current resource names,
+host integration and the upstream removal of a dead menu dispatcher. Both live
+DND entry points are checked explicitly; the removed dispatcher's old string
+count is not used as a behavioral oracle.
+
+The complete candidate hook passed all 57 framework cases on API 24/28/34 in
+14.9 seconds using Linux x86-64, Temurin 21.0.13.1+2, Kotlin 2.0.20 and Robolectric
+4.17. The DND policy/legacy-OR negative control and current entry-point checks
+also passed. Tested index tree: `e1207f40c6a8698c521348f79ae12c1b17b22fd1`.
+
+The runner now compiles the current actual HookRegistrar, ViewHookDispatcher,
+PreferenceSchema, HostResourceIds and HookErrors dependencies. The only
+PreferenceRestartTracker replacement is a compile-time adapter for its two
+constants, each checked against the actual production declaration and source
+hash; no tracker behavior is claimed. Unexpected Xposed registration/reflection
+calls fail visibly. A first run compiled but stopped during Robolectric SDK
+initialization because an HTTP redirect had produced HTML instead of JARs;
+that invalid-environment result is not a product failure. The passing run used
+official redirected SDK artifacts verified against publisher digests.
+
+The same fixture was also run against current nightly
+`9972e49fac9bfb650c25ee31fde0da9425b67175`: compilation completed, all 57 cases ran,
+and 51 failed behaviorally (45 AssertionError and six ComparisonFailure) in
+21.0 seconds. No initialization or other runtime errors were accepted. The
+baseline still restarts before held writes are acknowledged and retains stale
+restart ownership. That command deliberately returned failure; this successful
+negative control does not make nightly correct. Test, dependency and external
+fixture identities match the passing candidate run.
+
+The earlier baseline comparisons below remain historical; they are not
+attributed to this merged revision. No WhatsApp process was restarted, no device
+hook ran and no setting's end-to-end host effect was accepted by this framework
+run. Subsequent edits are acceptance/changelog documentation only.
+
 ## Framework regression runner
 
 ```bash
@@ -71,7 +109,8 @@ python3 qa/android_home_restart_test.py \
 
 The complete, unmodified production files copied from `--source-root` are
 `HomeScreenHeaderActionsHook`, Kotlin `BaseFeature`, `PreferenceBridgeClient`,
-`DndPreferencePolicy` and `ArchivedChatsPreferencePolicy`. The test invokes
+`DndPreferencePolicy`, `ArchivedChatsPreferencePolicy`, current registration and
+view dispatch, schema, resource-ID and diagnostic dependencies. The test invokes
 the real confirmation callbacks and uses the real bridge with a controlled
 ContentProvider that can hold or reject its acknowledgement.
 

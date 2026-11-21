@@ -15,6 +15,7 @@ import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import com.waenhancer.xposed.utils.ActivityTracker
+import com.waenhancer.xposed.utils.HostResourceIds
 
 /**
  * Enables long-press copy functionality for status text captions and text status updates.
@@ -75,9 +76,9 @@ class CopyStatusTextHook(
     private fun copyToClipboard(context: Context, text: String) {
         try {
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-            val clip = ClipData.newPlainText(UiText.get(R.string.waex_ui_status_text_b35d0184, "Status Text"), text)
+            val clip = ClipData.newPlainText(UiText.get(R.string.waex_ui_status_text, "Status Text"), text)
             clipboard?.setPrimaryClip(clip)
-            Toast.makeText(context, UiText.get(R.string.waex_ui_copied_status_text_to_clipboard_b81c6089, "Copied status text to clipboard"), Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, UiText.get(R.string.waex_ui_copied_status_text_to_clipboard, "Copied status text to clipboard"), Toast.LENGTH_SHORT).show()
         } catch (t: Throwable) {
             XposedBridge.log("$TAG Failed to copy to clipboard: ${t.message}")
         }
@@ -86,7 +87,7 @@ class CopyStatusTextHook(
     private fun getResourceEntryName(view: View): String? {
         return try {
             if (view.id != View.NO_ID && view.resources != null) {
-                view.resources.getResourceEntryName(view.id)
+                HostResourceIds.entryName(view, view.id)
             } else null
         } catch (ignored: Throwable) {
             null

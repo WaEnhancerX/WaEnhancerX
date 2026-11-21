@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Arrays;
 
 /** Validates and snapshots the host relationships established by the receipt anchors. */
 final class ReceiptObservationContract {
@@ -16,7 +17,7 @@ final class ReceiptObservationContract {
         int flags = method.getModifiers();
         return !Modifier.isStatic(flags) && !Modifier.isAbstract(flags) && !Modifier.isNative(flags)
                 && !method.isBridge() && !method.isSynthetic()
-                && java.util.Arrays.equals(method.getParameterTypes(), parameters);
+                && Arrays.equals(method.getParameterTypes(), parameters);
     }
 
     static final class Keys {
