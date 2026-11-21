@@ -1,0 +1,59 @@
+name: Chinese localization resource checks
+
+on:
+  pull_request:
+    paths:
+      - 'app/src/main/res/values*/**'
+      - 'app/src/main/java/com/waenhancer/utils/LocaleHelper.kt'
+      - 'app/src/main/java/com/waenhancer/ui/screens/conversation/CustomEmojisScreen.kt'
+      - 'app/build.gradle.kts'
+      - 'qa/*chinese*'
+      - 'README.md'
+      - '.github/workflows/chinese-localization-qa.yml'
+  push:
+    branches: ['l10n/chinese-*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  resource-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Parse changed Kotlin sources with the real Kotlin compiler parser
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v kotlinc
+          mkdir -p "$RUNNER_TEMP/chinese-source-syntax"
+          cp app/src/main/java/com/waenhancer/utils/LocaleHelper.kt "$RUNNER_TEMP/chinese-source-syntax/"
+          cp app/src/main/java/com/waenhancer/ui/screens/conversation/CustomEmojisScreen.kt "$RUNNER_TEMP/chinese-source-syntax/"
+          python3 qa/check_syntax.py --root "$RUNNER_TEMP/chinese-source-syntax" --json
+      - name: Validate coverage, formatting, regional terminology and registration
+        run: python3 qa/test_chinese_localization.py
+      - name: Compile resources and verify every compiled Chinese value
+        run: python3 qa/verify_chinese_resources.py --out "$RUNNER_TEMP/chinese-resource-evidence"
+      - name: Preserve resource evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chinese-resource-evidence
+          path: |
+            ${{ runner.temp }}/chinese-resource-evidence/*.txt
+            ${{ runner.temp }}/chinese-resource-evidence/*.log
+            ${{ runner.temp }}/chinese-resource-evidence/*.json
+          if-no-files-found: warn
+          retention-days: 14

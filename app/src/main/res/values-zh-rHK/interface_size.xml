@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="interface_size_title">"界面大小"</string>
+    <string name="interface_size_desc">"調整整個應用程式內的文本、控件、間距和導航大小"</string>
+    <string name="interface_size_compact">"緊湊"</string>
+    <string name="interface_size_standard">"標準"</string>
+    <string name="interface_size_comfortable">"寬鬆"</string>
+    <string name="interface_size_large">"大"</string>
+    <string name="build_variant_debug">"調試版 (Debug)"</string>
+    <string name="build_variant_release">"正式版 (Release)"</string>
+</resources>

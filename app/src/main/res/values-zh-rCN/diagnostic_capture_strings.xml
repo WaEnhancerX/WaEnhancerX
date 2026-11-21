@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="diag_capture_title">"协助排查问题"</string>
+    <string name="diag_capture_description">"开启后照常使用 WAEX，遇到异常时可导出轻量诊断报告分享给开发者。默认关闭，数据仅保存在本机，不会自动上传。\n\n下列内容最多保留 7 天：在 WAEX 中打开的页面、更改过的设置项（绝不记录具体值）、WAEX 崩溃记录，以及 WhatsApp 内的 Hook 是否正常启动。\n\n不会记录的内容：聊天记录、联系人、媒体文件、密码或其他应用的日志。"</string>
+    <string name="diag_capture_enable">"保存诊断数据"</string>
+    <string name="diag_capture_target_exit_enable">"包含 WhatsApp 崩溃记录"</string>
+    <string name="diag_capture_target_exit_description">"记录 Android 近期关闭 WhatsApp 的原因（崩溃、无响应、内存不足等）。开启后请重启一次 WhatsApp。需要 Android 11 及以上版本。"</string>
+    <string name="diag_capture_share">"导出诊断报告"</string>
+    <string name="diag_capture_clear">"删除已保存的诊断数据"</string>
+    <string name="diag_capture_consent">"分享时，诊断报告还会附带机型、Android 与应用版本，以及已启用的 WAEX 功能。不会自动上传，由你决定通过哪个应用发给谁。"</string>
+    <string name="diag_capture_no_events">"暂无可导出的诊断数据。请先照常使用 WAEX 一段时间，出现问题后再试。"</string>
+    <string name="diag_capture_export_failed">"无法生成诊断报告，请检查可用存储空间后重试。"</string>
+    <string name="diag_capture_share_failed">"没有能接收诊断报告的应用，请在分享菜单中换一个应用试试。"</string>
+    <string name="diag_capture_pref_failed">"无法保存设置，请重试。"</string>
+    <string name="diag_capture_confirm_clear_title">"删除已保存的诊断数据？"</string>
+    <string name="diag_capture_confirm_clear_body">"这会删除保存在本机的诊断数据，已分享的诊断报告不受影响。"</string>
+    <string name="diag_capture_cancel">"取消"</string>
+    <string name="diag_capture_confirm">"删除"</string>
+    <string name="diag_capture_cleared">"已删除保存的诊断数据。"</string>
+    <string name="diag_capture_share_chooser">"分享 WAEX 诊断报告"</string>
+</resources>

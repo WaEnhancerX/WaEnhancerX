@@ -17,6 +17,8 @@ object LocaleHelper {
         LanguageOption("system", "Follow System", "System Default"),
         LanguageOption("en", "English", "English"),
         LanguageOption("zh-CN", "Chinese (Simplified)", "简体中文"),
+        LanguageOption("zh-HK", "Chinese (Traditional, Hong Kong)", "繁體中文（香港）"),
+        LanguageOption("zh-TW", "Chinese (Traditional, Taiwan)", "繁體中文（台灣）"),
         LanguageOption("es-419", "Spanish (Latin America)", "Español (Latinoamérica)"),
         LanguageOption("ar", "Arabic", "العربية"),
         LanguageOption("pt", "Portuguese", "Português"),

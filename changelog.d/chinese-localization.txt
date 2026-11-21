@@ -1,0 +1,10 @@
+[Added]
+- Add selectable Traditional Chinese translations for Hong Kong and Taiwan.
+
+[Fixes]
+- Complete missing Simplified Chinese strings and correct technical terminology,
+  formatting arguments and whitespace in concatenated messages.
+- Localize previously hardcoded Emoji-style controls and accessibility labels.
+
+[Improvements]
+- Add Chinese resource coverage checks and an AAPT2 resource-table verification job.

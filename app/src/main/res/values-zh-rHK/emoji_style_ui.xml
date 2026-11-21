@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="emoji_style_ui_apply" formatted="false">"套用"</string>
+    <string name="emoji_style_ui_offline_download" formatted="false">"離線時無法下載"</string>
+    <string name="emoji_style_ui_downloaded_size">"已下載 %1$s"</string>
+    <string name="emoji_style_ui_builtin" formatted="false">"內置"</string>
+    <string name="emoji_style_ui_default_desc" formatted="false">"原始內置 Emoji"</string>
+    <string name="emoji_style_ui_device_desc" formatted="false">"使用手機的系統 Emoji 字型"</string>
+    <string name="emoji_style_ui_cloud" formatted="false">"雲端樣式"</string>
+    <string name="emoji_style_ui_load_error" formatted="false">"無法載入樣式。"</string>
+    <string name="emoji_style_ui_remove_title">"刪除 %1$s？"</string>
+    <string name="emoji_style_ui_remove_message">"刪除已下載的 Emoji 字型（%1$s）？"</string>
+    <string name="emoji_style_ui_clear_title" formatted="false">"刪除所有已下載的字型？"</string>
+    <string name="emoji_style_ui_clear_message">"刪除所有已儲存的 Emoji 字型（%1$s）？"</string>
+    <string name="emoji_style_ui_active_size">"使用中 · %1$s"</string>
+    <string name="emoji_style_ui_ready_size">"就緒 · %1$s"</string>
+    <string name="emoji_style_ui_preview">"%1$s 預覽"</string>
+    <string name="emoji_style_ui_restart_to_apply" formatted="false">"重新啟動以套用"</string>
+    <string name="emoji_style_ui_force_stop">"強制停止 %1$s 以載入新的 Emoji 樣式。"</string>
+    <string name="emoji_style_ui_restart" formatted="false">"重新啟動"</string>
+</resources>
