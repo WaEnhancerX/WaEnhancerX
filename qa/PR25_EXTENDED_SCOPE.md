@@ -17,7 +17,7 @@ verified unchanged against an existing green integration QA run.
   without embedding private fields/identifiers from Throwable messages.
 - `xposed/features/privacy/CallPrivacyHook.java`: redact 9 error logs.
 - `xposed/core/db/MessageStore.kt`,
-  `xposed/core/components/NativeWhatsAppDialog.kt`, and
+  `xposed/core/components/WaexBottomSheet.kt`, and
   `xposed/features/media/StatusDownloadHook.java`: redact 18 error
   callsites, preserving user-facing status-save error notifications.
 

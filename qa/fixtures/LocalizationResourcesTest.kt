@@ -53,15 +53,15 @@ class LocalizationResourcesTest {
         for (tag in listOf("es-419", "es")) {
             UiText.initialize(c, prefs(tag))
             assertEquals("es-419", UiText.displayLocale().toLanguageTag())
-            assertEquals("en línea", UiText.get(id(c, "waex_ui_online_f6fc84c9"), "online"))
-            assertEquals("No se pudo guardar el ajuste", UiText.get(id(c, "waex_ui_unable_to_save_setting_d9dcb19d"), "Unable to save setting"))
+            assertEquals("en línea", UiText.get(id(c, "waex_ui_online"), "online"))
+            assertEquals("No se pudo guardar el ajuste", UiText.get(id(c, "waex_ui_unable_to_save_setting"), "Unable to save setting"))
         }
     }
     @Test fun preferenceChangesInvalidateLocaleCacheWithoutChangingGlobalLocale() {
         val original = Locale.getDefault()
         val c = module(); val p = prefs("es-419")
         UiText.initialize(c, p)
-        val key = id(c, "waex_ui_online_f6fc84c9")
+        val key = id(c, "waex_ui_online")
         assertEquals("en línea", UiText.get(key, "online"))
         assertTrue(p.edit().putString("app_language", "en").commit())
         assertEquals("online", UiText.get(key, "online"))
@@ -71,7 +71,7 @@ class LocalizationResourcesTest {
     }
     @Test fun formattingAndPluralSelectionUseRealResources() {
         val c = module(); UiText.initialize(c, prefs("es-419"))
-        assertEquals("última conexión: 18:05", UiText.get(id(c, "waex_ui_last_seen_1_s_752c705a"), "last seen %1\$s", "18:05"))
+        assertEquals("última conexión: 18:05", UiText.get(id(c, "waex_ui_last_seen_1_s"), "last seen %1\$s", "18:05"))
         val plural = id(c, "waex_recordings_deleted", "plurals")
         assertEquals("Se eliminó 1 grabación", UiText.quantity(plural, 1, "Deleted %1\$d recordings", 1))
         assertEquals("Se eliminaron 2 grabaciones", UiText.quantity(plural, 2, "Deleted %1\$d recordings", 2))
@@ -86,7 +86,7 @@ class LocalizationResourcesTest {
             }
         }
         UiText.initialize(host, prefs("es-419"))
-        assertEquals("en línea", UiText.get(id(c, "waex_ui_online_f6fc84c9"), "online"))
+        assertEquals("en línea", UiText.get(id(c, "waex_ui_online"), "online"))
         // android.R ids refer to a different table owner, never a translated module key.
         assertEquals("explicit fallback", UiText.get(android.R.string.ok, "explicit fallback"))
     }
@@ -98,7 +98,7 @@ class LocalizationResourcesTest {
             override fun createPackageContext(name: String, flags: Int): Context = throw PackageManager.NameNotFoundException()
         }
         UiText.initialize(hidden, prefs("es-419"))
-        assertEquals("online", UiText.get(id(c, "waex_ui_online_f6fc84c9"), "online"))
+        assertEquals("online", UiText.get(id(c, "waex_ui_online"), "online"))
         UiText.initialize(c, prefs("es-419"))
         assertEquals("missing", UiText.get(0, "missing"))
     }

@@ -29,7 +29,10 @@ DASH = JAVA/'ui/screens/dashboard/MainDashboardScreen.kt'
 DESIGN = JAVA/'ui/designsystem'
 FIXTURE = ROOT/'qa/fixtures/manager_layout'
 LABEL_KEYS = ['nav_home', 'nav_controls', 'nav_media', 'nav_automation', 'nav_styles',
-              'view_all', 'injected_hooks_active_count']
+              'view_all', 'injected_hooks_active_count', 'waex_ui_hooks_last_report',
+              'waex_ui_hooks_paused_short', 'waex_ui_hooks_not_reported_short',
+              'waex_ui_hooks_checking', 'waex_ui_hooks_paused_hint',
+              'waex_ui_hooks_unresponsive_hint', 'waex_ui_refresh_hooks']
 COMPOSE_PLUGIN_VERSION = '2.0.20'
 COMPOSE_PLUGIN_SHA256 = '79ecd166c37597fefdd31f55a34492637721ec416f53b924bede67b76371754a'
 
@@ -123,9 +126,11 @@ def resources(root, stage):
                         text = text[1:-1]
                     text = re.sub(r'\\([\\\'"$])', r'\1', text)
                     labels[item.attrib['name']] = text
-        if set(labels) != set(LABEL_KEYS):
+        required = set(LABEL_KEYS if language == 'en' else LABEL_KEYS[:7])
+        if not required.issubset(labels):
             raise RuntimeError('Missing production labels in '+folder)
-        maps[language] = labels
+        # Android falls back to default resources for untranslated newer hints.
+        maps[language] = maps.get('en', {}) | labels
     r = stage/'resource-ids/com/waenhancer/app/R.java'
     r.parent.mkdir(parents=True, exist_ok=True)
     r.write_text('package com.waenhancer.app; public final class R {public static final class string {'+
@@ -158,8 +163,8 @@ def execute(root, out, deps, compiler, kotlin_home, args, baseline):
     bottom, nav_range = extract(nav_source, '        bottomBar = {\n            if (isRoot) {\n',
         '\n            }\n        },', 'bottom navigation')
     counter, counter_range = extract(dash_source,
-        '                                        val totalCount = app.injectedHooks.size\n\n',
-        '\n                                    }\n                                }\n                            }', 'hook counter')
+        '                                            app.runtimeStatus == "COMPATIBILITY_UNAVAILABLE" || !decision.allowed\n\n',
+        '\n                                    }\n                                }\n                                    if (app.isInstalled', 'hook counter')
     (out/'layout-ranges.json').write_text(json.dumps({str(NAV): nav_range, str(DASH): counter_range}, indent=2)+'\n')
     header = '''package com.waenhancer.fixture
 import androidx.compose.animation.*
@@ -167,6 +172,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -175,6 +181,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.*
 import com.waenhancer.app.R
 import com.waenhancer.ui.designsystem.*
@@ -186,7 +194,8 @@ import kotlinx.coroutines.launch
         'val coroutineScope=rememberCoroutineScope();val pagerState=remember { FixturePager() }\n'+bottom+
         '\n}\n@Composable internal fun CounterFragment() {\n'
         'val colors=lightColors;val typography=WaexTypography();val radius=WaexRadius()\n'
-        'val activeCount=58;val totalCount=58;val app=FixtureApp();val navController=remember { FixtureNavigation() }\n'+counter+'\n}\n')
+        'val activeCount=58;val totalCount=58;val app=FixtureApp();val navController=remember { FixtureNavigation() }\n'
+        'val hasReport=true;val paused=false;val syncing=false;val unresponsive=false;val context=LocalContext.current\n'+counter+'\n}\n')
     jars, java_sources = prepare_resources(deps, stage)
     # The complete style implementation is compiled. Only its font-resource
     # loader changes from Android R IDs to the identical checked-in TTF files.
@@ -229,8 +238,9 @@ import kotlinx.coroutines.launch
     failure_count = len(re.findall(r'^\d+\) ', log, re.M))
     passed = 'OK (10 tests)' in log
     valid = passed and status == 0 if not baseline else (
-        status != 0 and 'Tests run: 10,  Failures: 6' in log and failure_count == 6 and
-        log.count('\njava.lang.AssertionError') == 6)
+        status != 0 and 'Tests run: 10,  Failures: 2' in log and failure_count == 2 and
+        log.count('\njava.lang.AssertionError') == 2 and
+        log.count('Navigation items must grow beyond the current fixed 72dp height') == 2)
     result = {'baseline': baseline, 'source_root': str(root), 'tests': 10, 'failures': failure_count,
         'exit_code': status, 'accepted': valid, 'source_sha256': identities,
         'layout_ranges': {str(NAV): nav_range, str(DASH): counter_range}, 'scope': __doc__}

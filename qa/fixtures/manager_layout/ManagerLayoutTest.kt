@@ -96,20 +96,25 @@ private class LayoutProbe(
 @Config(sdk = [28, 34], manifest = Config.NONE)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class ManagerLayoutTest {
-    @Test fun spanishCounterReservesOneLineForTheActionAtNarrowWidth() {
+    @Test fun spanishCounterPreservesTheRefreshActionAtNarrowWidth() {
         LayoutProbe(272, 1f) { CounterFragment() }.use { probe ->
-            val action = probe.text(FixtureLabels.forLanguage("es").getValue(R.string.view_all))
-            val layout = probe.layout(action)
-            assertEquals("The action must remain one readable line", 1, layout.lineCount)
-            assertFalse("The action must fit its measured height", layout.didOverflowHeight)
-            assertTrue("The action must retain nonzero width", action.boundsInRoot.width > 20f)
+            val counter = probe.text(String.format(java.util.Locale.ROOT,
+                FixtureLabels.forLanguage("es").getValue(R.string.injected_hooks_active_count), 58, 58))
+            val layout = probe.layout(counter)
+            assertTrue("The counter stays bounded", layout.lineCount in 1..2)
+            assertTrue("The counter's lines must fit", layout.multiParagraph.height <= layout.size.height)
+            val refresh = probe.clickTargets().single { it.boundsInRoot.width == 30f }
+            assertTrue("Counter must not displace refresh", counter.boundsInRoot.right <= refresh.boundsInRoot.left)
+            TargetAppManager.requests.clear()
+            assertTrue(refresh.config[SemanticsActions.OnClick].action?.invoke() == true)
+            assertEquals(listOf(listOf("com.whatsapp")), TargetAppManager.requests)
         }
     }
 
-    @Test fun spanishBottomLabelsRemainOneLineAtNarrowWidth() {
+    @Test fun spanishBottomLabelsRetainTheCurrentTwoLineLimitAtNarrowWidth() {
         LayoutProbe(280, 1f) { BottomFragment() }.use { probe ->
             val label = probe.text(FixtureLabels.forLanguage("es").getValue(R.string.nav_automation))
-            assertEquals("Automation must not wrap below the capsule", 1, probe.layout(label).lineCount)
+            assertTrue("Automation must stay inside the two-line contract", probe.layout(label).lineCount in 1..2)
         }
     }
 
@@ -117,12 +122,12 @@ class ManagerLayoutTest {
         LayoutProbe(320, 2f) { BottomFragment() }.use { probe ->
             val targets = probe.clickTargets()
             assertEquals(5, targets.size)
-            assertTrue("Capsule items must grow beyond the former fixed 54dp height",
-                targets.all { it.boundsInRoot.height > 54f })
+            assertTrue("Navigation items must grow beyond the current fixed 72dp height",
+                targets.all { it.boundsInRoot.height > 72f })
             for (tab in BottomTab.entries) {
                 val label = probe.text(FixtureLabels.forLanguage("es").getValue(tab.labelRes))
                 val layout = probe.layout(label)
-                assertEquals(1, layout.lineCount)
+                assertTrue(layout.lineCount in 1..2)
                 // didOverflowHeight also includes didExceedMaxLines: a narrow
                 // single-line ellipsis may set it even when its full line fits.
                 // Compare the real paragraph and line bounds to the allocated
@@ -131,7 +136,7 @@ class ManagerLayoutTest {
                 assertTrue("Scaled paragraph must fit its allocated height: "+tab,
                     layout.multiParagraph.height <= layout.size.height.toFloat())
                 assertTrue("The line bottom must remain visible: "+tab,
-                    layout.getLineBottom(0) <= layout.size.height.toFloat())
+                    layout.getLineBottom(layout.lineCount - 1) <= layout.size.height.toFloat())
                 assertTrue("The line top must remain visible: "+tab, layout.getLineTop(0) >= 0f)
                 println("SCALED_LABEL tab="+tab+" textSize="+layout.size+
                     " paragraphHeight="+layout.multiParagraph.height+

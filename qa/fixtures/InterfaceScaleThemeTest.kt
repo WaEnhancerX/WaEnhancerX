@@ -196,8 +196,23 @@ class InterfaceScaleThemeTest {
             for ((size, base, sample) in observations) {
                 near("latest density", base.density * size.scale, sample.density.density)
                 near("latest font scale", base.fontScale, sample.density.fontScale)
-                near("latest page margin", with(base) { 16.dp.toPx() } * size.scale,
-                    sample.dp(sample.spacing.pageMargin))
+                // The six base spacing tokens were revised by upstream 54ae5e34
+                // on 2026-11-14. Keep these expectations independent of the
+                // production token values so proportionally wrong gaps still fail.
+                val expectedGaps = listOf(
+                    "page margin" to 16.dp,
+                    "gutter" to 16.dp,
+                    "bento gap" to 8.dp,
+                    "large stack" to 16.dp,
+                    "medium stack" to 12.dp,
+                    "small stack" to 8.dp
+                )
+                val actualGaps = sample.gaps()
+                assertEquals("spacing token count", expectedGaps.size, actualGaps.size)
+                expectedGaps.zip(actualGaps).forEach { (spec, actual) ->
+                    near("latest ${spec.first}", with(base) { spec.second.toPx() } * size.scale,
+                        sample.dp(actual))
+                }
                 near("latest body size", with(base) { 14.sp.toPx() } * size.scale,
                     sample.sp(sample.typography.bodyMd.fontSize))
             }

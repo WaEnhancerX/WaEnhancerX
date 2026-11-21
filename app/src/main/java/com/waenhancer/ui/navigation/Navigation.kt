@@ -49,6 +49,19 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.NavigationDrawerItemDefaults
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.drawable.toBitmap
+import com.waenhancer.app.BuildConfig
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -62,6 +75,23 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.waenhancer.utils.WhatsAppPackageDetector
+import com.waenhancer.utils.LsposedScopeReader
+import com.waenhancer.utils.SystemDiagnosticsReader
+import com.waenhancer.utils.TargetAppManager
+import com.waenhancer.ui.screens.dashboard.ReportIssueScreen
+import com.waenhancer.ui.screens.dashboard.ReportedIssuesScreen
+import com.waenhancer.licensing.report.ReportLogin
+import com.waenhancer.ui.screens.dashboard.TelegramLoginSheet
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.BugReport
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
@@ -69,15 +99,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.waenhancer.ui.components.ReleaseKindChip
 import com.waenhancer.ui.components.LicenseActivationModal
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.screens.audio.AudioTranscriptionScreen
 import com.waenhancer.ui.screens.automation.AutomationTaskerScreen
 import com.waenhancer.ui.screens.conversation.ConversationEnhancementsScreen
+import com.waenhancer.ui.screens.conversation.CustomEmojisScreen
 import com.waenhancer.ui.screens.dashboard.MainDashboardScreen
 import com.waenhancer.ui.screens.dashboard.InjectedHooksScreen
 import com.waenhancer.ui.screens.license.LicenseActivationScreen
@@ -92,7 +125,10 @@ import com.waenhancer.ui.screens.settings.ReleaseDetailsScreen
 import com.waenhancer.ui.screens.settings.AboutScreen
 import com.waenhancer.ui.screens.settings.StargazersScreen
 import com.waenhancer.ui.screens.settings.ModuleSettingsScreen
+import com.waenhancer.ui.screens.settings.HookingModeHelpScreen
 import com.waenhancer.ui.screens.settings.UpdateSettingsScreen
+import com.waenhancer.ui.screens.settings.GetVersionScreen
+import com.waenhancer.ui.screens.settings.InstallFromStorageScreen
 import com.waenhancer.ui.screens.settings.SupportedVersionsScreen
 import com.waenhancer.ui.screens.settings.BootloaderSpooferScreen
 import android.app.Activity
@@ -104,6 +140,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.waenhancer.app.R
 import com.waenhancer.core.preferences.WaexPreferenceManager
+import com.waenhancer.licensing.customprops.CustomAbPropEditorScreen
+import com.waenhancer.licensing.customprops.CustomAbPropsScreen
 import com.waenhancer.notices.NoticeItem
 import com.waenhancer.notices.NoticeRepository
 import com.waenhancer.ui.components.NoticeBottomSheet
@@ -116,9 +154,11 @@ import com.waenhancer.ui.screens.search.SearchScreen
 import com.waenhancer.ui.screens.settings.CallRecordingSettingsScreen
 import com.waenhancer.ui.screens.settings.FilterItemsScreen
 import com.waenhancer.ui.screens.settings.FloatingBottomBarCustomizerScreen
+import com.waenhancer.ui.screens.settings.NativeFloatingNavigationScreen
 import com.waenhancer.ui.screens.settings.StylesSettingsScreen
 import com.waenhancer.update.UpdateCheckCoordinator
 import com.waenhancer.utils.ContactNameResolver
+import org.json.JSONObject
 
 class WaexNavController(initialScreen: Screen = Screen.MainDashboard) {
 
@@ -139,6 +179,10 @@ class WaexNavController(initialScreen: Screen = Screen.MainDashboard) {
     var highlightTargetKey by mutableStateOf<String?>(null)
 
     fun navigateToPreference(tabIndex: Int, subTabId: String?, preferenceKey: String) {
+        if (preferenceKey == "app_interface_size") {
+            navigateTo(Screen.ModuleSettings)
+            return
+        }
         if (preferenceKey == "show_hook_toast" || preferenceKey == "show_restart_sheet") {
             navigateTo(Screen.SystemHealth)
             return
@@ -159,6 +203,14 @@ class WaexNavController(initialScreen: Screen = Screen.MainDashboard) {
             navigateTo(Screen.FilterItems)
             return
         }
+        if (preferenceKey == "custom_ab_props") {
+            navigateTo(Screen.CustomAbProps)
+            return
+        }
+        if (preferenceKey == "custom_emojis" || preferenceKey == "custom_emoji_enabled" || preferenceKey == "disable_defemojis") {
+            navigateTo(Screen.CustomEmojis)
+            return
+        }
         val rootScreen = when (tabIndex) {
             0 -> Screen.MainDashboard
             1 -> Screen.GlobalPrivacySettings
@@ -172,6 +224,13 @@ class WaexNavController(initialScreen: Screen = Screen.MainDashboard) {
         scrollToTargetKey = preferenceKey
         highlightTargetKey = preferenceKey
         navigateTo(rootScreen, clearStack = true)
+    }
+
+    /** Home → Automation tab → Audio & AI sub-tab. */
+    fun navigateToAudioAi() {
+        targetPageIndex = 3
+        targetSubTabId = "ai"
+        navigateTo(Screen.AutomationTasker, clearStack = true)
     }
 
     fun navigateTo(screen: Screen, clearStack: Boolean = false) {
@@ -235,6 +294,7 @@ fun MainContainerScreen() {
     val preferenceManager = LocalWaexPreferenceManager.current
     var licenseState by remember { mutableStateOf(if ("ACTIVE".equals(LicenseManager.getProStatus(context), ignoreCase = true)) "pro" else "free") }
     val isPro = licenseState == "pro"
+    var showReportLoginSheet by remember { mutableStateOf(false) }
     var activeModal by remember { mutableStateOf<String?>(null) } // "license" | "file-spoofer" | "message-bomber" | "status-splitter" | null
     var activeNotice by remember { mutableStateOf<NoticeItem?>(null) }
 
@@ -279,6 +339,7 @@ fun MainContainerScreen() {
 
     val pagerState = rememberPagerState { 5 }
     val coroutineScope = rememberCoroutineScope()
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     // PagerState is saveable, so Android can restore the previously selected tab after an
     // Activity recreation. The in-memory controller starts at Home, though. Do not let the
     // restored pager page overwrite that controller before it has performed its first sync.
@@ -287,7 +348,9 @@ fun MainContainerScreen() {
     var lastBackPressTime by remember { mutableStateOf(0L) }
 
     BackHandler(enabled = true) {
-        if (activeModal != null) {
+        if (drawerState.isOpen) {
+            coroutineScope.launch { drawerState.close() }
+        } else if (activeModal != null) {
             activeModal = null
         } else if (!isRoot) {
             navController.popBack()
@@ -301,7 +364,7 @@ fun MainContainerScreen() {
                 (context as? Activity)?.finish()
             } else {
                 lastBackPressTime = currentTime
-                Toast.makeText(context, UiText.get(R.string.waex_ui_press_back_again_to_exit_c151b888, "Press back again to exit"), Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, UiText.get(R.string.waex_ui_press_back_again_to_exit, "Press back again to exit"), Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -350,7 +413,7 @@ fun MainContainerScreen() {
     }
 
     val title = when (currentScreen) {
-        Screen.MainDashboard -> "WaEnhancerX"
+        Screen.MainDashboard -> "WAEX"
         Screen.SystemHealth -> stringResource(R.string.title_system_health)
         Screen.BootloaderSpoofer -> stringResource(R.string.title_bootloader_spoofer)
         Screen.GlobalPrivacySettings -> stringResource(R.string.nav_controls)
@@ -358,16 +421,271 @@ fun MainContainerScreen() {
         Screen.AutomationTasker -> stringResource(R.string.nav_automation)
         Screen.StylesSettings -> stringResource(R.string.nav_styles)
         Screen.PerContactPrivacyList -> stringResource(R.string.title_per_contact_privacy)
-        else -> "WaEnhancerX"
+        else -> "WAEX"
     }
 
+    // Config Mode & Target App Selection
+    val configMode = preferenceManager.getString("module_config_mode", "Universal")
+    val isPerTargetApp = configMode == "Per Target App"
+
+    data class TargetAppInfo(
+        val packageName: String,
+        val label: String,
+        val icon: androidx.compose.ui.graphics.ImageBitmap?
+    )
+
+    // Targets are read on demand with root while the home screen is visible; nothing runs when it is not.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> TargetAppManager.attach(context)
+                Lifecycle.Event.ON_PAUSE -> TargetAppManager.detach(context)
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            TargetAppManager.detach(context)
+        }
+    }
+
+    val scopedPackages by TargetAppManager.scopedPackages.collectAsState()
+
+    val visibleTargetApps = remember(scopedPackages) {
+        val pm = context.packageManager
+        scopedPackages.map { pkg ->
+            // Priority 1: Exact launcher activity label (the title appearing on the user's home screen)
+            val launcherLabel = runCatching {
+                val launchIntent = pm.getLaunchIntentForPackage(pkg)
+                if (launchIntent != null) {
+                    val resolveInfo = pm.resolveActivity(launchIntent, 0)
+                    resolveInfo?.loadLabel(pm)?.toString()?.takeIf { it.isNotBlank() }
+                } else null
+            }.getOrNull()
+
+            // Priority 2: General application label from ApplicationInfo
+            val appLabel = runCatching {
+                val appInfo = pm.getApplicationInfo(pkg, 0)
+                pm.getApplicationLabel(appInfo).toString().takeIf { it.isNotBlank() }
+            }.getOrNull()
+
+            // Priority 3: Built-in localized fallback name
+            val label = launcherLabel ?: appLabel ?: pkg
+
+            val icon = runCatching {
+                pm.getApplicationIcon(pkg).toBitmap(64, 64).asImageBitmap()
+            }.getOrNull()
+
+            TargetAppInfo(packageName = pkg, label = label, icon = icon)
+        }
+    }
+
+    var chosenPackage by remember { mutableStateOf<String?>(null) }
+    // Always a package that is currently an active target, or null when there is none.
+    val selectedPackage = chosenPackage?.takeIf { pkg -> visibleTargetApps.any { it.packageName == pkg } }
+        ?: visibleTargetApps.firstOrNull()?.packageName
+    // Update synchronously before any preference-backed screen is composed.
+    preferenceManager.setTargetPackage(selectedPackage)
+    var showTargetMenu by remember { mutableStateOf(false) }
+
     Box(modifier = Modifier.fillMaxSize()) {
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            gesturesEnabled = isRoot,
+            drawerContent = {
+                ModalDrawerSheet(
+                    drawerContainerColor = colors.surface,
+                    drawerContentColor = colors.onSurface,
+                    modifier = Modifier.width(260.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        // Header
+                        Surface(
+                            color = colors.surfaceContainer,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .statusBarsPadding()
+                                    .padding(horizontal = 18.dp, vertical = 18.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Image(
+                                        painter = painterResource(R.drawable.ic_app_logo),
+                                        contentDescription = "WaEnhancerX Logo",
+                                        modifier = Modifier
+                                            .size(42.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                    )
+                                    Column {
+                                        Text(
+                                            text = "WaEnhancerX",
+                                            style = typography.titleMd,
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.onSurface
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Text(
+                                                text = "v${BuildConfig.VERSION_NAME}",
+                                                style = typography.bodySm,
+                                                color = colors.onSurfaceVariant
+                                            )
+                                            ReleaseKindChip(versionName = BuildConfig.VERSION_NAME)
+
+                                            // License Plan Chip inside Drawer Header
+                                            val chipBg = when (licenseState) {
+                                                "pro" -> colors.primaryContainer
+                                                "trial" -> colors.warningContainer
+                                                else -> colors.surfaceDim
+                                            }
+                                            val chipText = when (licenseState) {
+                                                "pro" -> colors.primary
+                                                "trial" -> colors.onWarningContainer
+                                                else -> colors.onSurfaceVariant
+                                            }
+                                            val chipLabel = when (licenseState) {
+                                                "pro" -> UiText.get(R.string.pro_feature_tag, "Pro")
+                                                "trial" -> UiText.get(R.string.waex_ui_trial, "Trial")
+                                                else -> UiText.get(R.string.waex_ui_free, "Free")
+                                            }
+
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(CircleShape)
+                                                    .background(chipBg)
+                                                    .border(1.dp, chipText.copy(alpha = 0.2f), CircleShape)
+                                                    .clickable {
+                                                        coroutineScope.launch { drawerState.close() }
+                                                        navController.navigateTo(Screen.LicenseActivation)
+                                                    }
+                                                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = chipLabel,
+                                                    style = typography.labelSm,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = chipText,
+                                                    fontSize = 10.sp
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Navigation Items moved from 3-dot menu
+                        NavigationDrawerItem(
+                            label = { Text(text = stringResource(R.string.stargazers_title), style = typography.bodyMd) },
+                            icon = { Icon(WaexIcons.Premium, contentDescription = null, tint = colors.primary, modifier = Modifier.size(20.dp)) },
+                            selected = currentScreen == Screen.Stargazers,
+                            onClick = {
+                                coroutineScope.launch { drawerState.close() }
+                                navController.navigateTo(Screen.Stargazers)
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+
+                        NavigationDrawerItem(
+                            label = { Text(text = stringResource(R.string.module_settings_title), style = typography.bodyMd) },
+                            icon = { Icon(WaexIcons.Settings, contentDescription = null, tint = colors.primary, modifier = Modifier.size(20.dp)) },
+                            selected = currentScreen == Screen.ModuleSettings,
+                            onClick = {
+                                coroutineScope.launch { drawerState.close() }
+                                navController.navigateTo(Screen.ModuleSettings)
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+
+                        NavigationDrawerItem(
+                            label = { Text(text = stringResource(R.string.title_supported_versions), style = typography.bodyMd) },
+                            icon = { Icon(WaexIcons.Layers, contentDescription = null, tint = colors.primary, modifier = Modifier.size(20.dp)) },
+                            selected = currentScreen == Screen.SupportedVersions,
+                            onClick = {
+                                coroutineScope.launch { drawerState.close() }
+                                navController.navigateTo(Screen.SupportedVersions)
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+
+                        NavigationDrawerItem(
+                            label = { Text(text = stringResource(R.string.title_bootloader_spoofer), style = typography.bodyMd) },
+                            icon = { Icon(WaexIcons.Security, contentDescription = null, tint = colors.primary, modifier = Modifier.size(20.dp)) },
+                            selected = currentScreen == Screen.BootloaderSpoofer,
+                            onClick = {
+                                coroutineScope.launch { drawerState.close() }
+                                navController.navigateTo(Screen.BootloaderSpoofer)
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+
+                        NavigationDrawerItem(
+                            label = { Text(text = stringResource(R.string.report_issue_title), style = typography.bodyMd) },
+                            icon = { Icon(Icons.Rounded.BugReport, contentDescription = null, tint = colors.primary, modifier = Modifier.size(20.dp)) },
+                            selected = false,
+                            onClick = {
+                                coroutineScope.launch { drawerState.close() }
+                                // Issues are tied to the Telegram account, so a real login comes first.
+                                if (ReportLogin.isLoggedIn(context)) {
+                                    navController.navigateTo(Screen.ReportedIssues)
+                                } else {
+                                    showReportLoginSheet = true
+                                }
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp),
+                            color = colors.outlineVariant.copy(alpha = 0.5f)
+                        )
+
+                        NavigationDrawerItem(
+                            label = { Text(text = stringResource(R.string.about_title), style = typography.bodyMd) },
+                            icon = { Icon(WaexIcons.Info, contentDescription = null, tint = colors.primary, modifier = Modifier.size(20.dp)) },
+                            selected = currentScreen == Screen.About,
+                            onClick = {
+                                coroutineScope.launch { drawerState.close() }
+                                navController.navigateTo(Screen.About)
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+                    }
+                }
+            }
+        ) {
+        if (showReportLoginSheet) {
+            TelegramLoginSheet(
+                onLoggedIn = {
+                    showReportLoginSheet = false
+                    navController.navigateTo(Screen.ReportedIssues)
+                },
+                onDismiss = { showReportLoginSheet = false }
+            )
+        }
         Scaffold(
             topBar = {
                 if (showParentTopBar) {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        color = colors.surface
+                        color = colors.background,
+                        tonalElevation = 2.dp
                     ) {
                         Column(
                             modifier = Modifier.statusBarsPadding()
@@ -396,58 +714,175 @@ fun MainContainerScreen() {
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(12.dp))
-                            }
-
-                            // Title + License Chip grouped together
-                            Row(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .align(Alignment.CenterVertically),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = title,
-                                    style = typography.headlineMd,
-                                    fontWeight = FontWeight.Bold,
-                                    color = colors.onBackground
-                                )
-
-                                Spacer(modifier = Modifier.width(8.dp))
-
-                                // License Chip directly attached to title
-                                val chipBg = when (licenseState) {
-                                    "pro" -> colors.primaryContainer
-                                    "trial" -> Color(0xFFFFF8E1)
-                                    else -> colors.surfaceDim
-                                }
-                                val chipText = when (licenseState) {
-                                    "pro" -> colors.primary
-                                    "trial" -> Color(0xFFFFB300)
-                                    else -> colors.onSurfaceVariant
-                                }
-                                val chipLabel = when (licenseState) {
-                                    "pro" -> UiText.get(R.string.pro_feature_tag, "Pro")
-                                    "trial" -> UiText.get(R.string.waex_ui_trial_98a66e97, "Trial")
-                                    else -> UiText.get(R.string.waex_ui_free_f411a1fb, "Free")
-                                }
-
-                                Box(
+                            } else {
+                                IconButton(
+                                    onClick = {
+                                        coroutineScope.launch { drawerState.open() }
+                                    },
                                     modifier = Modifier
+                                        .size(36.dp)
                                         .clip(CircleShape)
-                                        .background(chipBg)
-                                        .border(1.dp, chipText.copy(alpha = 0.2f), CircleShape)
-                                        .clickable { navController.navigateTo(Screen.LicenseActivation) }
-                                        .padding(horizontal = 8.dp, vertical = 3.dp),
-                                    contentAlignment = Alignment.Center
+                                        .align(Alignment.CenterVertically)
                                 ) {
-                                    Text(
-                                        text = chipLabel,
-                                        style = typography.labelSm,
-                                        fontWeight = FontWeight.Medium,
-                                        color = chipText,
-                                        fontSize = 11.sp
+                                    Icon(
+                                        imageVector = WaexIcons.Menu,
+                                        contentDescription = stringResource(R.string.navigation_drawer_open),
+                                        tint = colors.onBackground,
+                                        modifier = Modifier.size(22.dp)
                                     )
                                 }
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+
+                            // Screen Title
+                            Text(
+                                text = title,
+                                style = typography.headlineMd,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.onBackground,
+                                modifier = Modifier.align(Alignment.CenterVertically)
+                            )
+
+                            Spacer(modifier = Modifier.weight(1f))
+
+                            // Target App Indicator / Dropdown Switcher based on Config Mode
+                            if (isRoot) {
+                                if (!isPerTargetApp) {
+                                    // Universal Mode: simply says "Universal", non-dropdown
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = colors.surfaceContainer,
+                                        modifier = Modifier.align(Alignment.CenterVertically)
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.config_mode_universal),
+                                            style = typography.labelSm,
+                                            fontWeight = FontWeight.Medium,
+                                            color = colors.primary,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                        )
+                                    }
+                                } else {
+                                    // Per Target App Mode: Dropdown of target apps only (scoped only)
+                                    val currentTarget = visibleTargetApps.find { it.packageName == selectedPackage }
+                                        ?: visibleTargetApps.firstOrNull()
+
+                                    if (visibleTargetApps.isEmpty() || currentTarget == null) {
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = colors.surfaceContainer,
+                                            modifier = Modifier.align(Alignment.CenterVertically)
+                                        ) {
+                                            Text(
+                                                text = "No Active Target",
+                                                style = typography.labelSm,
+                                                color = colors.onSurfaceVariant,
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                                            )
+                                        }
+                                    } else {
+                                        val currentLabel = currentTarget.label
+                                        val currentIcon = currentTarget.icon
+
+                                        Box(modifier = Modifier.align(Alignment.CenterVertically)) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(colors.surfaceContainer)
+                                                    .clickable { showTargetMenu = true }
+                                                    .padding(horizontal = 8.dp, vertical = 5.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                if (currentIcon != null) {
+                                                    Image(
+                                                        bitmap = currentIcon,
+                                                        contentDescription = null,
+                                                        modifier = Modifier
+                                                            .size(18.dp)
+                                                            .clip(RoundedCornerShape(4.dp))
+                                                    )
+                                                }
+                                                Text(
+                                                    text = currentLabel,
+                                                    style = typography.labelSm,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = colors.primary,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Icon(
+                                                    imageVector = WaexIcons.ArrowDropDown,
+                                                    contentDescription = null,
+                                                    tint = colors.primary,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+
+                                            DropdownMenu(
+                                                expanded = showTargetMenu,
+                                                onDismissRequest = { showTargetMenu = false },
+                                                modifier = Modifier.background(colors.surface)
+                                            ) {
+                                                visibleTargetApps.forEach { target ->
+                                                    val isSelected = selectedPackage == target.packageName
+                                                    DropdownMenuItem(
+                                                        leadingIcon = {
+                                                            if (target.icon != null) {
+                                                                Image(
+                                                                    bitmap = target.icon,
+                                                                    contentDescription = null,
+                                                                    modifier = Modifier
+                                                                        .size(24.dp)
+                                                                        .clip(RoundedCornerShape(6.dp))
+                                                                )
+                                                            } else {
+                                                                Icon(
+                                                                    imageVector = WaexIcons.Layers,
+                                                                    contentDescription = null,
+                                                                    tint = if (isSelected) colors.primary else colors.onSurfaceVariant,
+                                                                    modifier = Modifier.size(24.dp)
+                                                                )
+                                                            }
+                                                        },
+                                                        text = {
+                                                            Column {
+                                                                Text(
+                                                                    text = target.label,
+                                                                    style = typography.bodyMd,
+                                                                    color = if (isSelected) colors.primary else colors.onSurface,
+                                                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                                                                )
+                                                                Text(
+                                                                    text = target.packageName,
+                                                                    style = typography.labelSm,
+                                                                    color = colors.onSurfaceVariant,
+                                                                    fontSize = 11.sp
+                                                                )
+                                                            }
+                                                        },
+                                                        trailingIcon = {
+                                                            if (isSelected) {
+                                                                Icon(
+                                                                    imageVector = WaexIcons.Check,
+                                                                    contentDescription = null,
+                                                                    tint = colors.primary,
+                                                                    modifier = Modifier.size(18.dp)
+                                                                )
+                                                            }
+                                                        },
+                                                        onClick = {
+                                                            chosenPackage = target.packageName
+                                                            showTargetMenu = false
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.width(8.dp))
                             }
 
                             IconButton(
@@ -463,132 +898,7 @@ fun MainContainerScreen() {
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
-
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            var showMoreMenu by remember { mutableStateOf(false) }
-                            Box(
-                                modifier = Modifier.align(Alignment.CenterVertically)
-                            ) {
-                                IconButton(
-                                    onClick = { showMoreMenu = true },
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = WaexIcons.MoreVert,
-                                        contentDescription = UiText.get(R.string.waex_ui_more_options_6285ce5d, "More Options"),
-                                        tint = colors.onBackground,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-
-                                }
-
-                                DropdownMenu(
-                                    expanded = showMoreMenu,
-                                    onDismissRequest = { showMoreMenu = false },
-                                    modifier = Modifier.background(colors.surface)
-                                ) {
-                                    DropdownMenuItem(
-                                        text = {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = WaexIcons.Premium,
-                                                    contentDescription = null,
-                                                    tint = colors.primary,
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                                Text(text = stringResource(R.string.stargazers_title), style = typography.bodyMd, color = colors.onSurface)
-                                            }
-                                        },
-                                        onClick = {
-                                            showMoreMenu = false
-                                            navController.navigateTo(Screen.Stargazers)
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = WaexIcons.Settings,
-                                                    contentDescription = null,
-                                                    tint = colors.primary,
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                                Text(text = stringResource(R.string.module_settings_title), style = typography.bodyMd, color = colors.onSurface)
-                                            }
-                                        },
-                                        onClick = {
-                                            showMoreMenu = false
-                                            navController.navigateTo(Screen.ModuleSettings)
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = WaexIcons.Layers,
-                                                    contentDescription = null,
-                                                    tint = colors.primary,
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                                Text(text = stringResource(R.string.title_supported_versions), style = typography.bodyMd, color = colors.onSurface)
-                                            }
-                                        },
-                                        onClick = {
-                                            showMoreMenu = false
-                                            navController.navigateTo(Screen.SupportedVersions)
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = {
-                                            Row(verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                Icon(WaexIcons.Security, contentDescription = null,
-                                                    tint = colors.primary, modifier = Modifier.size(16.dp))
-                                                Text(text = stringResource(R.string.title_bootloader_spoofer), style = typography.bodyMd, color = colors.onSurface)
-                                            }
-                                        },
-                                        onClick = {
-                                            showMoreMenu = false
-                                            navController.navigateTo(Screen.BootloaderSpoofer)
-                                        }
-                                    )
-                                    HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant.copy(alpha = 0.5f))
-                                    DropdownMenuItem(
-                                        text = {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = WaexIcons.Info,
-                                                    contentDescription = null,
-                                                    tint = colors.primary,
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                                Text(text = stringResource(R.string.about_title), style = typography.bodyMd, color = colors.onSurface)
-                                            }
-                                        },
-                                        onClick = {
-                                            showMoreMenu = false
-                                            navController.navigateTo(Screen.About)
-                                        }
-                                    )
-                                }
-                            }
-
                         }
-                        HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
                     }
                 }
             }
@@ -598,32 +908,25 @@ fun MainContainerScreen() {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.Transparent)
+                        .background(colors.surface)
                         .navigationBarsPadding()
-                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 6.dp)
                 ) {
                     Surface(
-                        shape = CircleShape,
+                        shape = RoundedCornerShape(0.dp),
                         color = colors.surface,
-                        border = BorderStroke(1.dp, colors.outlineVariant),
-                        shadowElevation = 6.dp,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 54.dp)
+                            .heightIn(min = 72.dp)
                     ) {
                         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                             val totalWidth = maxWidth
                             val columnWidth = totalWidth / 5
-                            val pillWidth = 36.dp
+                            // Match the indicator to the 40.dp icon slot rather than the
+                            // icon glyph. This keeps the selected icon visually centered
+                            // inside the thumb across icons with different intrinsic bounds.
+                            val pillWidth = 64.dp
 
-                            val activeIndex = when (currentScreen) {
-                                Screen.MainDashboard -> 0
-                                Screen.GlobalPrivacySettings -> 1
-                                Screen.MediaStatusHub -> 2
-                                Screen.AutomationTasker -> 3
-                                Screen.StylesSettings -> 4
-                                else -> 0
-                            }
+                            val activeIndex = pagerState.currentPage.coerceIn(0, BottomTab.entries.lastIndex)
 
                             val targetOffset = (columnWidth * activeIndex) + (columnWidth - pillWidth) / 2
                             val animatedOffset by animateDpAsState(
@@ -635,12 +938,11 @@ fun MainContainerScreen() {
                                 label = "tab_highlighter_offset"
                             )
 
-                            // Sliding highlighter pill
                             Box(
                                 modifier = Modifier
-                                    .padding(top = 8.dp)
+                                    .padding(top = 12.dp)
                                     .offset(x = animatedOffset)
-                                    .size(width = pillWidth, height = 20.dp)
+                                    .size(width = pillWidth, height = 32.dp)
                                     .clip(CircleShape)
                                     .background(colors.primaryContainer)
                             )
@@ -648,23 +950,16 @@ fun MainContainerScreen() {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .heightIn(min = 54.dp)
+                                    .heightIn(min = 72.dp)
                                     .height(IntrinsicSize.Min),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceAround
                             ) {
-                                BottomTab.values().forEach { tab ->
-                                    val active = when (currentScreen) {
-                                        Screen.MainDashboard -> tab == BottomTab.HOME
-                                        Screen.GlobalPrivacySettings -> tab == BottomTab.PRIVACY
-                                        Screen.MediaStatusHub -> tab == BottomTab.MEDIA
-                                        Screen.AutomationTasker -> tab == BottomTab.AUTOMATION
-                                        Screen.StylesSettings -> tab == BottomTab.STYLES
-                                        else -> tab == BottomTab.HOME
-                                    }
+                                BottomTab.entries.forEachIndexed { tabIndex, tab ->
+                                    val active = tabIndex == activeIndex
 
                                     val contentColor by animateColorAsState(
-                                        targetValue = if (active) colors.primary else colors.onSurfaceVariant,
+                                        targetValue = if (active) colors.onSurface else colors.onSurfaceVariant,
                                         animationSpec = tween(durationMillis = 200),
                                         label = "tab_content_color"
                                     )
@@ -690,8 +985,7 @@ fun MainContainerScreen() {
                                             .padding(horizontal = 4.dp, vertical = 6.dp)
                                     ) {
                                         Box(
-                                            modifier = Modifier
-                                                .size(width = 40.dp, height = 24.dp),
+                                            modifier = Modifier.size(width = 64.dp, height = 32.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
@@ -708,9 +1002,13 @@ fun MainContainerScreen() {
                                             fontWeight = FontWeight.Medium,
                                             color = contentColor,
                                             fontSize = 10.sp,
-                                            maxLines = 1,
-                                            softWrap = false,
-                                            overflow = TextOverflow.Ellipsis
+                                            lineHeight = 10.sp,
+                                            textAlign = TextAlign.Center,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 2.dp)
                                         )
                                     }
                                 }
@@ -727,7 +1025,7 @@ fun MainContainerScreen() {
                     .fillMaxSize()
                     .padding(
                         top = if (isRoot) paddingValues.calculateTopPadding() else 0.dp,
-                        bottom = if (isRoot) 0.dp else 0.dp
+                        bottom = 0.dp
                     )
             ) {
 
@@ -782,6 +1080,7 @@ fun MainContainerScreen() {
                             Box(modifier = Modifier.fillMaxSize()) {
                                 WaexAppNavigation(
                                     currentScreen = pageScreen,
+                                    targetEpoch = preferenceManager.targetEpoch,
                                     licenseState = licenseState,
                                     onOpenModal = { activeModal = it },
                                     onActivatePro = {
@@ -806,7 +1105,7 @@ fun MainContainerScreen() {
                                         val idx = contactPrivacyList.indexOfFirst { it.id == updated.id }
                                         if (idx >= 0) contactPrivacyList[idx] = updated
                                         try {
-                                            val json = org.json.JSONObject().apply {
+                                            val json = JSONObject().apply {
                                                 put("name", updated.name)
                                                 put("HideSeen", updated.hideSeen)
                                                 put("HideTyping", updated.hideTyping)
@@ -828,6 +1127,7 @@ fun MainContainerScreen() {
                     } else {
                         WaexAppNavigation(
                             currentScreen = screenToShow,
+                            targetEpoch = preferenceManager.targetEpoch,
                             licenseState = licenseState,
                             onOpenModal = { activeModal = it },
                             onActivatePro = {
@@ -852,7 +1152,7 @@ fun MainContainerScreen() {
                                 val idx = contactPrivacyList.indexOfFirst { it.id == updated.id }
                                 if (idx >= 0) contactPrivacyList[idx] = updated
                                 try {
-                                    val json = org.json.JSONObject().apply {
+                                    val json = JSONObject().apply {
                                         put("name", updated.name)
                                         put("HideSeen", updated.hideSeen)
                                         put("HideTyping", updated.hideTyping)
@@ -872,6 +1172,7 @@ fun MainContainerScreen() {
                     }
                 }
             }
+        }
         }
 
         // Animated Overlay Modals
@@ -974,13 +1275,11 @@ fun MainContainerScreen() {
 
         downloadingUrl?.let { url ->
             val version = downloadingVersion ?: "latest"
-            val useRoot = preferenceManager.getBoolean("root_auto_install", false)
             UpdateDownloadSheet(
                 url = url,
                 version = version,
                 expectedSha256 = downloadingSha256,
                 expectedSize = downloadingSize,
-                useRoot = useRoot,
                 onDismiss = {
                     downloadingUrl = null
                     downloadingVersion = null
@@ -996,6 +1295,7 @@ fun MainContainerScreen() {
 @Composable
 fun WaexAppNavigation(
     currentScreen: Screen,
+    targetEpoch: Int,
     licenseState: String,
     onOpenModal: (String) -> Unit,
     onActivatePro: () -> Unit,
@@ -1004,27 +1304,35 @@ fun WaexAppNavigation(
     onClearAllContacts: () -> Unit = {},
     onUpdateContact: (ContactPrivacy) -> Unit = {}
 ) {
+    // Keep this composable subscribed to target changes without keying/recreating
+    // the screen tree (scroll and tab state must remain shared).
+    targetEpoch
+    val navController = LocalWaexNavController.current
+    val preferenceManager = LocalWaexPreferenceManager.current
     when (currentScreen) {
         Screen.MainDashboard -> MainDashboardScreen(
+            targetEpoch = targetEpoch,
             licenseState = licenseState,
             onOpenModal = onOpenModal
         )
         Screen.DashboardBento -> MainDashboardScreen(
+            targetEpoch = targetEpoch,
             licenseState = licenseState,
             onOpenModal = onOpenModal
         )
         Screen.SystemHealth -> SystemHealthScreen()
         Screen.BootloaderSpoofer -> BootloaderSpooferScreen()
         Screen.GlobalPrivacySettings -> GlobalPrivacySettingsScreen(
-            onOpenModal = onOpenModal
+            onOpenModal = onOpenModal,
+            targetEpoch = targetEpoch
         )
-        Screen.ConversationEnhancements -> ConversationEnhancementsScreen()
-        Screen.MediaStatusHub -> MediaStatusHubScreen()
-        Screen.AutomationTasker -> AutomationTaskerScreen()
+        Screen.ConversationEnhancements -> ConversationEnhancementsScreen(targetEpoch = targetEpoch)
+        Screen.MediaStatusHub -> MediaStatusHubScreen(targetEpoch = targetEpoch)
+        Screen.AutomationTasker -> AutomationTaskerScreen(targetEpoch = targetEpoch)
         Screen.AudioTranscription -> AudioTranscriptionScreen()
         Screen.LicenseActivation -> LicenseActivationScreen()
         Screen.Search -> SearchScreen()
-        Screen.StylesSettings -> StylesSettingsScreen()
+        Screen.StylesSettings -> StylesSettingsScreen(targetEpoch = targetEpoch)
         Screen.PerContactPrivacyList -> PerContactPrivacyListScreen(
             contacts = contactPrivacyList,
             onClearContact = onClearContact,
@@ -1035,16 +1343,33 @@ fun WaexAppNavigation(
         is Screen.ReleaseDetails -> ReleaseDetailsScreen(currentScreen.tagName)
         Screen.About -> AboutScreen()
         Screen.Stargazers -> StargazersScreen()
+        Screen.ReportedIssues -> ReportedIssuesScreen()
+        Screen.ReportIssue -> ReportIssueScreen()
         Screen.ModuleSettings -> ModuleSettingsScreen()
+        Screen.HookingModeHelp -> HookingModeHelpScreen()
         Screen.UpdateSettings -> UpdateSettingsScreen()
         Screen.SupportedVersions -> SupportedVersionsScreen()
+        is Screen.InstallFromStorage -> InstallFromStorageScreen(packageName = currentScreen.packageName, filePath = currentScreen.filePath)
+        is Screen.GetVersion -> GetVersionScreen(packageName = currentScreen.packageName)
         Screen.DeletedMessages -> DeletedMessagesVaultScreen()
         Screen.CallRecordingSettings -> CallRecordingSettingsScreen()
         Screen.TaskerGuide -> TaskerGuideScreen()
         Screen.TaskerHistory -> TaskerHistoryScreen()
         Screen.ManageDevices -> ManageDevicesScreen()
         Screen.FloatingBottomBarCustomizer -> FloatingBottomBarCustomizerScreen()
+        Screen.NativeFloatingNavigation -> NativeFloatingNavigationScreen()
         Screen.FilterItems -> FilterItemsScreen()
+        Screen.CustomAbProps -> CustomAbPropsScreen(
+            prefs = preferenceManager,
+            onBack = navController::popBack,
+            onEdit = { index -> navController.navigateTo(Screen.CustomAbPropEditor(index)) }
+        )
+        Screen.CustomEmojis -> CustomEmojisScreen()
+        is Screen.CustomAbPropEditor -> CustomAbPropEditorScreen(
+            index = currentScreen.index,
+            prefs = preferenceManager,
+            onBack = navController::popBack
+        )
         is Screen.InjectedHooks -> InjectedHooksScreen(packageName = currentScreen.packageName, appName = currentScreen.appName)
     }
 }
@@ -1077,7 +1402,7 @@ fun loadContactPrivacyList(context: Context, preferenceManager: WaexPreferenceMa
             if (number.isEmpty() || number == "custom" || number == "call" || number == "global" || !seen.add(number)) continue
 
             try {
-                val json = org.json.JSONObject(value)
+                val json = JSONObject(value)
                 val isGroup = raw.contains("@g.us") || number.contains("-")
                 val isLid = number.length >= 14 && !isGroup
                 val jid = if (raw.contains("@")) raw else if (isGroup) "$number@g.us" else if (isLid) "$number@lid" else "$number@s.whatsapp.net"

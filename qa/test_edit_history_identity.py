@@ -7,6 +7,8 @@ key-selector validation. --source permits compiled baseline/negative controls.
 from pathlib import Path
 import argparse
 import subprocess
+import os
+import shutil
 import tempfile
 
 root = Path(__file__).resolve().parents[1]
@@ -169,8 +171,8 @@ with tempfile.TemporaryDirectory() as folder:
     classes = temp / "classes"
     classes.mkdir()
     subprocess.run(["javac", "--release", "17", "-d", str(classes), *java_sources], check=True)
-    subprocess.run(["kotlinc", "-classpath", str(classes), *sources, str(args.source),
+    subprocess.run([shutil.which("kotlinc.bat") or shutil.which("kotlinc") or "kotlinc", "-classpath", str(classes), *sources, str(args.source),
                     str(root / "qa/fixtures/EditHistoryStoreChecks.kt"), "-jvm-target", "17",
                     "-include-runtime", "-d", str(temp / "checks.jar")], check=True)
-    subprocess.run(["java", "-cp", str(temp / "checks.jar") + ":" + str(classes),
+    subprocess.run(["java", "-cp", str(temp / "checks.jar") + os.pathsep + str(classes),
                     "test.EditHistoryStoreChecksKt", args.scenario], check=True)

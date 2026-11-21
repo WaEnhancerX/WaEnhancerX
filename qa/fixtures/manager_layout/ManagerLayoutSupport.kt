@@ -41,10 +41,26 @@ internal class FixtureNavigation {
 
 internal class FixturePager {
     var page: Int? = null
+    val currentPage: Int get() = page ?: 0
     suspend fun animateScrollToPage(target: Int) { page = target }
 }
 
 internal class FixtureApp {
     val packageName = "com.whatsapp"
     val appName = "WhatsApp"
+    val isHooked = true
+}
+
+internal object UiText {
+    @Composable
+    fun get(id: Int, fallback: String, vararg arguments: Any): String =
+        stringResource(id, *arguments)
+}
+
+internal object TargetAppManager {
+    val requests = mutableListOf<List<String>>()
+    fun syncHooks(context: android.content.Context, packages: List<String>) {
+        check(packages == listOf("com.whatsapp")) { "Unexpected target in layout fixture" }
+        requests += packages.toList()
+    }
 }
