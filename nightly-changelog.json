@@ -2,7 +2,8 @@
   "schema": 1,
   "channel": "nightly",
   "fragments": [
-    "preserved-delete-for-me-nested.txt"
+    "preserved-delete-for-me-nested.txt",
+    "profile-scoped-restarts-and-installs.txt"
   ],
-  "notes": "[Fixes]\n- Keep Delete for Me message preservation active until the outer deletion finishes when another hooked deletion runs inside it.\n"
+  "notes": "[Fixes]\n- Keep Delete for Me message preservation active until the outer deletion finishes when another hooked deletion runs inside it.\n- Scope WhatsApp restarts and root APK installation to the manager's current Android profile.\n- Verify launch targets and root launch acknowledgements before treating a restart as complete; retain normal launch fallback when needed.\n- Retain the current delegated restart flow and reject contradictory launch output that includes an error alongside a success acknowledgement.\n"
 }
