@@ -11,7 +11,19 @@ import argparse, hashlib, json, os, subprocess, tempfile
 ROOT = Path(__file__).resolve().parents[1]
 STUBS = {
     'androidx/annotation/NonNull.java': 'package androidx.annotation; public @interface NonNull {}',
-    'android/net/Uri.java': 'package android.net; public class Uri {public static Uri parse(String value){return new Uri();}}',
+    'androidx/annotation/VisibleForTesting.java': 'package androidx.annotation; public @interface VisibleForTesting {}',
+    'android/net/Uri.java': 'package android.net; public class Uri {private String value; public static Uri parse(String value){Uri uri=new Uri();uri.value=value;return uri;} public String toString(){return value;}}',
+    'android/os/RemoteException.java': 'package android.os; public class RemoteException extends Exception {}',
+    'android/content/ContentProviderClient.java': '''package android.content;
+    public final class ContentProviderClient implements AutoCloseable {
+      private final Context.ContentResolver owner;private boolean closed;
+      ContentProviderClient(Context.ContentResolver owner){this.owner=owner;}
+      public android.os.Bundle call(String method,String arg,android.os.Bundle extras) throws android.os.RemoteException {
+        if(closed)throw new AssertionError("Use after provider close");
+        return owner.call(null,method,arg,extras);
+      }
+      public void close(){if(closed)throw new AssertionError("Duplicate provider close");closed=true;owner.clientsClosed++;}
+    }''',
     'android/os/Build.java': '''package android.os; public final class Build {
       public static class VERSION {public static int SDK_INT=34;}
       public static class VERSION_CODES {public static final int Q=29,S=31;}
@@ -19,6 +31,7 @@ STUBS = {
     'android/os/Bundle.java': '''package android.os; import java.util.*; public class Bundle {
       public final Map<String,Object> values=new HashMap<>();
       public void putString(String k,String v){values.put(k,v);} public String getString(String k){return (String)values.get(k);}
+      public void putLong(String k,long v){values.put(k,v);} public void putBoolean(String k,boolean v){values.put(k,v);}
       @SuppressWarnings("unchecked") public <T>T getParcelable(String k){return (T)values.get(k);}
       public <T>T getParcelable(String k,Class<T> type){return type.cast(values.get(k));}
     }''',
@@ -35,8 +48,14 @@ STUBS = {
     'android/content/Context.java': '''package android.content; import android.os.*; import android.net.Uri; import java.util.*;
     public class Context {public final ContentResolver resolver=new ContentResolver();
       public ContentResolver getContentResolver(){return resolver;} public Context getApplicationContext(){return this;}
-      public static class ContentResolver {public final List<ParcelFileDescriptor> files=new ArrayList<>(); public int deletes,creates; public boolean fail;
+      public String getPackageName(){return "com.whatsapp";}
+      public static class ContentResolver {public final List<ParcelFileDescriptor> files=new ArrayList<>(); public int deletes,creates,clientsOpened,clientsClosed; public boolean fail;
+        public ContentProviderClient acquireUnstableContentProviderClient(Uri uri){
+          if(!"content://com.waenhancer.hookprovider".equals(uri.toString()))throw new AssertionError("Wrong provider authority");
+          clientsOpened++;return new ContentProviderClient(this);
+        }
         public Bundle call(Uri uri,String method,String argument,Bundle request){
+          if(uri!=null)throw new AssertionError("Stable resolver call must not run in recorder fixture");
           if(method.equals("create_call_recording")){creates++;if(fail)return null;
             Bundle result=new Bundle(); ParcelFileDescriptor fd=new ParcelFileDescriptor();files.add(fd);
             result.values.put("descriptor",fd);result.putString("path","private/"+request.getString("name"));return result;}
@@ -71,6 +90,12 @@ STUBS = {
       public abstract void hook() throws Throwable;public abstract String getName();}
     ''',
     'com/waenhancer/xposed/bridge/HookProvider.java': 'package com.waenhancer.xposed.bridge; public class HookProvider {public static final String AUTHORITY="com.waenhancer.hook";}',
+    'com/waenhancer/utils/ContactNameResolver.java': '''package com.waenhancer.utils; import android.content.Context;
+    public final class ContactNameResolver {public static final ContactNameResolver INSTANCE=new ContactNameResolver();
+      public String resolveName(Context context,String jid,Object caller,Object group){
+        if(jid==null || jid.isEmpty())throw new AssertionError("Invalid fixture contact identity");
+        return "Fixture contact";
+      }}''',
     'com/waenhancer/xposed/core/devkit/DexSearchEngine.java': '''package com.waenhancer.xposed.core.devkit; import android.content.Context; import org.luckypray.dexkit.DexKitBridge;
     public final class DexSearchEngine {public interface Resolver {Class<?> find(DexKitBridge b,ClassLoader l) throws ReflectiveOperationException;}
       public static DexSearchEngine getInstance(){return new DexSearchEngine();}
@@ -175,11 +200,15 @@ def main():
         target=directory/'stubs'/path;target.parent.mkdir(parents=True,exist_ok=True);target.write_text(content)
         sources.append(str(target))
     media=args.root/'app/src/main/java/com/waenhancer/xposed/features/media'
-    production=[media/'CallRecordingHook.java']
+    production=[media/'CallRecordingHook.java',
+                args.root/'app/src/main/java/com/waenhancer/xposed/utils/HookErrors.java',
+                args.root/'app/src/main/java/com/waenhancer/xposed/bridge/client/HookProviderIpc.java']
     contract=media/'CallRecordingEventContract.java'
     if contract.exists():production.append(contract)
+    recording_files=args.root/'app/src/main/java/com/waenhancer/calls/RecordingOutputFiles.java'
+    if recording_files.exists():production.append(recording_files)
     sources += [str(s) for s in production]
-    sources.append(str(ROOT/'qa/fixtures/CallRecordingLifecycleChecks.java'))
+    sources.append(str(args.root/'qa/fixtures/CallRecordingLifecycleChecks.java'))
     classpath=str(directory/'classes')
     compile_cmd=['javac','--release','17','-d',classpath]
     if args.dexkit_jar:compile_cmd += ['-cp',os.pathsep.join(map(str,[args.dexkit_jar,args.kotlin_stdlib]))]

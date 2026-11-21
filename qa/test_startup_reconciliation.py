@@ -32,7 +32,7 @@ C={
  'runtime health READY': '"READY_WITH_ERRORS" : "READY"' in main,
  'runtime health unsupported': 'VersionGuard.runtimeStatus()' in main and '"UNSUPPORTED_VERSION"' in guard and '"COMPATIBILITY_UNAVAILABLE"' in guard,
  'runtime health failed': '"INITIALIZATION_FAILED"' in main,
- 'runtime heartbeat': 'HEARTBEAT_STARTED.compareAndSet(false, true)' in main and 'HEARTBEAT_INTERVAL_MS' in main,
+ 'deferred runtime reporting replaces retired heartbeat': 'queueDeferred(() -> WhatsAppPackageDetector.reportRuntimeHealth(' in main and 'REPORT_EXECUTOR.execute(task);' in main and 'HEARTBEAT_' not in main,
  'runtime report kept': 'WhatsAppPackageDetector.reportRuntimeHealth(' in main and 'fun reportRuntimeHealth(' in detector,
  'active framework recorder': 'active_xposed_framework' in main and 'detectActiveFramework()' in main,
  'signed restart': 'appContext.registerReceiver(receiver, filter, RESTART_PERMISSION' in main,

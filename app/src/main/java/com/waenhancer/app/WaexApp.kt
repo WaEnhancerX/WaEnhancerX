@@ -13,6 +13,7 @@ import com.waenhancer.licensing.features.BootloaderSpooferFeature
 import com.waenhancer.utils.LocaleHelper
 import com.waenhancer.utils.WhatsAppPackageDetector
 import com.waenhancer.utils.UiText
+import com.waenhancer.utils.DiagnosticsRecorder
 import com.waenhancer.calls.CallRecordingStore
 import java.io.File
 
@@ -31,6 +32,7 @@ class WaexApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         UiText.initialize(this, PreferenceStores.publicStore(this))
         FeatureCatalog.initialize(this)
         val lang = LocaleHelper.getSelectedLanguageCode(this)
@@ -42,6 +44,8 @@ class WaexApp : Application() {
             val installedVersion = packageManager.getPackageInfo(packageName, 0).versionName ?: "0"
             edit().putString("wae_version_name", installedVersion).apply()
         }
+        DiagnosticsRecorder.installManagerCrashCapture(this)
+        DiagnosticsRecorder.recordManagerStarted(this)
         BootloaderSpooferFeature.syncDefaultKeyboxAsync(this)
         Thread({
             getExternalFilesDir(null)?.let { base ->
@@ -68,8 +72,13 @@ class WaexApp : Application() {
         }
     }
 
-    private companion object {
-        val PREFERENCES_URI: Uri = Uri.parse("content://com.waenhancer.hookprovider/preferences")
-        const val PREFERENCES_CHANGED_ACTION = "com.waenhancer.action.PREFERENCES_CHANGED"
+    companion object {
+        /** Set on [onCreate]; used by call sites with no Context of their own, e.g. [com.waenhancer.core.transcription.local.WhisperNative]. */
+        @Volatile
+        lateinit var instance: WaexApp
+            private set
+
+        private val PREFERENCES_URI: Uri = Uri.parse("content://com.waenhancer.hookprovider/preferences")
+        private const val PREFERENCES_CHANGED_ACTION = "com.waenhancer.action.PREFERENCES_CHANGED"
     }
 }

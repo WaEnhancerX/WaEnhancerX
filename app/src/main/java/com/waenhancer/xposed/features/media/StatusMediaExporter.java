@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Locale;
 import java.util.UUID;
+import com.waenhancer.xposed.utils.HookErrors;
 
 /** Storage for the status file already selected by the host hook. */
 final class StatusMediaExporter {
@@ -105,7 +106,7 @@ final class StatusMediaExporter {
         try {
             MediaScannerConnection.scanFile(context, new String[]{destination.getAbsolutePath()},
                     new String[]{format.mimeType}, null);
-        } catch (RuntimeException ignored) {}
+        } catch (RuntimeException ignored) { HookErrors.swallowed("StatusMediaExporter", ignored); }
     }
 
     static Format inspect(File file) throws IOException {

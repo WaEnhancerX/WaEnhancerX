@@ -4,8 +4,6 @@ import com.waenhancer.app.R;
 import com.waenhancer.utils.UiText;
 
 import android.app.Activity;
-import android.app.AlarmManager;
-import android.app.PendingIntent;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.Intent;
@@ -39,6 +37,8 @@ import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.enums.StringMatchType;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
 import org.luckypray.dexkit.result.ClassData;
+import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.HostResourceIds;
 import com.waenhancer.xposed.utils.WhatsAppProcessRestarter;
 import java.util.Locale;
 import java.lang.reflect.Method;
@@ -185,7 +185,6 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
             try {
                 Method method = current.getDeclaredMethod(name, parameters);
                 XposedBridge.hookMethod(method, callback);
-                XposedBridge.log(TAG + " Hooked " + name + " on " + current.getName());
                 return;
             } catch (NoSuchMethodException ignored) {
                 current = current.getSuperclass();
@@ -367,7 +366,7 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
         try {
             appLabel = activity.getApplicationInfo().loadLabel(activity.getPackageManager())
                     .toString().trim();
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("HomeScreenHeaderActionsHook", ignored); }
         boolean expectedText = actual.equals(activityTitle) || actual.equals(appLabel)
                 || actual.equalsIgnoreCase("WhatsApp")
                 || actual.equalsIgnoreCase("WhatsApp Business");
@@ -382,7 +381,7 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
         int id = view.getId();
         if (id == View.NO_ID) return "no-id";
         try {
-            return view.getResources().getResourceEntryName(id)
+            return HostResourceIds.entryName(view, id)
                     .toLowerCase(Locale.ROOT);
         } catch (Throwable ignored) {
             return "unknown";
@@ -408,7 +407,7 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
                     }
             );
             if (cls != null) return cls;
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("HomeScreenHeaderActionsHook", ignored); }
         Class<?> currentHome = XposedHelpers.findClassIfExists(
                 "com.whatsapp.home.ui.HomeActivity", classLoader);
         if (currentHome != null) return currentHome;
@@ -676,7 +675,7 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
                             Intent intent =
                                     activity.getPackageManager().getLaunchIntentForPackage("com.waenhancer");
                             if (intent != null) activity.startActivity(intent);
-                        } catch (Throwable ignored) {}
+                        } catch (Throwable ignored) { HookErrors.swallowed("HomeScreenHeaderActionsHook", ignored); }
                     },
                     /* onInvalidate */ activity::invalidateOptionsMenu
             );
@@ -719,34 +718,12 @@ public class HomeScreenHeaderActionsHook extends BaseFeature {
                     Intent intent =
                             activity.getPackageManager().getLaunchIntentForPackage("com.waenhancer");
                     if (intent != null) activity.startActivity(intent);
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("HomeScreenHeaderActionsHook", ignored); }
             }
             return true;
         }
 
         return false;
-    }
-
-    /**
-     * Dispatches an action by raw menu item ID.
-     * Used by the Separate mode bottom sheet which doesn't have a real MenuItem object.
-     */
-    private void handleWaexItemById(int itemId, Activity activity) {
-        if (itemId == MENU_ID_GHOST_MODE) {
-            promptGhostModeSheet(activity);
-        } else if (itemId == MENU_ID_FREEZE_LS) {
-            promptFreezeLastSeenSheet(activity);
-        } else if (itemId == MENU_ID_DND) {
-            promptDndModeSheet(activity);
-        } else if (itemId == MENU_ID_RESTART) {
-            forceRestartWhatsApp(activity);
-        } else if (itemId == MENU_ID_SETTINGS) {
-            try {
-                Intent intent =
-                        activity.getPackageManager().getLaunchIntentForPackage("com.waenhancer");
-                if (intent != null) activity.startActivity(intent);
-            } catch (Throwable ignored) {}
-        }
     }
 
     /** Launch only the verified in-package WhatsApp archive Activity. */

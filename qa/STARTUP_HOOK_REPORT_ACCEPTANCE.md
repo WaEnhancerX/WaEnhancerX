@@ -15,15 +15,22 @@ Java 17+ and Python are required. Output directories must be new. The first runn
 
 ## Verification boundaries
 
-The runner extracts eight exact production blocks. IPC, JSON serialization, feature implementations, Dex leases and lifecycle events are explicit counting doubles. It is not a complete registry build, native Xposed run or Binder latency benchmark.
+The current runner extracts eleven exact production blocks, including the reporting executor and current startup count/profiling declarations. IPC, JSON serialization, feature implementations, Dex leases and lifecycle events are explicit counting doubles. It is not a complete registry build, native Xposed run or Binder latency benchmark.
 
 The source guard ignores comments and string/character literals; two negative guard cases reject a commented or quoted terminal sequence. The real MainHook source SHA256 is recorded. This is still a structural call-site guard, not execution of MainHook's entire startup path.
 
 The fixture separates publication attempts from accepted snapshots. Provider failure must leave no accepted snapshot. It also covers Activity-present early lazy installation rather than forcing ActivityTracker to return null in every case.
 
+The 2026-11-21 reconciliation retains nightly's deferred MainHook queue and
+background FeatureRegistry executor. Assertions await that actual executor
+before checking delivery, while transport rejects calls on the test caller or
+a non-daemon thread. Each serialized snapshot has a distinct fixture token and
+immutable captured rows; later serialization cannot overwrite an earlier queued
+payload. Cold-start progress UI remains outside this transport fixture.
+
 ## Results
 
-13 scenarios / 241 reached checks pass on the reviewed candidate. The unchanged main completes 13 scenarios with eight failed cases. Six compiled mutations are rejected: redundant startup publication, missing lazy publication, failed hooks marked active, all states marked active, stale retry errors and missing lazy opt-out publication.
+13 scenarios / 241 reached checks pass on the reconciled nightly candidate using Temurin JDK 21.0.13.1+2 and Python 3.13.5. Six compiled mutations are rejected: redundant startup publication, missing lazy publication, failed hooks marked active, all states marked active, stale retry errors and missing lazy opt-out publication (6, 3, 3, 4, 1 and 1 failing scenarios respectively). The earlier unchanged-main comparison with eight failures is historical; current nightly already has the batching and deferred-reporting implementation.
 
 For an all-STARTUP catalogue of N enabled entries, attempts fall from N+1 to one. An early lazy installation can add its own report before the terminal report; do not claim exactly one IPC for every possible configuration.
 

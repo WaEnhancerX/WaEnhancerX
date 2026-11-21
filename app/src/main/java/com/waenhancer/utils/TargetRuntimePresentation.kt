@@ -6,21 +6,11 @@ object TargetRuntimePresentation {
     data class Status(val text: String, val severity: Severity)
     data class Summary(val text: String, val healthy: Boolean?)
 
-    /** Expire positive evidence without another root process or PackageManager scan. */
-    fun asOf(app: HookedAppInfo, nowWall: Long, nowElapsed: Long): HookedAppInfo {
-        if (!app.isHooked) return app
-        val evidence = when {
-            !isRecentTimestamp(app.lastActiveTime, nowWall) -> InjectionEvidence.REPORT_EXPIRED
-            !isRecentTimestamp(app.processObservedAtElapsed, nowElapsed) -> InjectionEvidence.PROCESS_OBSERVATION_UNAVAILABLE
-            else -> app.injectionEvidence
-        }
-        return if (evidence == InjectionEvidence.CURRENT) app else
-            app.copy(isHooked = false, injectionEvidence = evidence, injectedHooks = emptyList())
-    }
-
     fun card(app: HookedAppInfo, moduleActive: Boolean, decision: UniversalVersionValidator.Decision): Status = when {
         !app.isInstalled -> Status("Not installed", Severity.UNKNOWN)
         !moduleActive -> Status("Module inactive", Severity.REVIEW)
+        !app.isHooked && app.scopeState == TargetScopeState.UNVERIFIED ->
+            Status("Scope unverified • ${app.injectionEvidence.label}", Severity.UNKNOWN)
         !app.isHooked -> Status(app.injectionEvidence.label, Severity.UNKNOWN)
         app.runtimeStatus == "COMPATIBILITY_UNAVAILABLE" -> Status("Injected • Compatibility check unavailable", Severity.REVIEW)
         app.runtimeStatus == "UNSUPPORTED_VERSION" -> Status("Injected • Paused by target version guard", Severity.REVIEW)
@@ -33,7 +23,7 @@ object TargetRuntimePresentation {
         app.runtimeStatus != "READY" -> Status("Injected • Feature readiness unconfirmed", Severity.UNKNOWN)
         app.bridgeStatus != "PROVIDER" -> Status("Injected • Settings connection unconfirmed", Severity.UNKNOWN)
         decision == UniversalVersionValidator.Decision.EXPLICIT_BYPASS -> Status("Injected • Version bypass active", Severity.REVIEW)
-        decision == UniversalVersionValidator.Decision.CUSTOM_RULE -> Status("Injected • Custom version allowance; unverified", Severity.REVIEW)
+        decision == UniversalVersionValidator.Decision.CUSTOM_RULE -> Status("Injected • Initialization reported complete", Severity.OK)
         else -> Status("Injected • Initialization reported complete", Severity.OK)
     }
 
@@ -58,18 +48,33 @@ object TargetRuntimePresentation {
     private fun lastReport(app: HookedAppInfo, value: String): String =
         if (app.isHooked || value == "Not reported") value else "Last report (not current): $value"
 
+    /**
+     * Overall target health. Runtime readiness is judged only for targets that are actually running
+     * with the module injected; an installed target that is simply not open must not turn the
+     * summary into "unconfirmed". Per-target rows use [card], so the summary, the dashboard cards
+     * and the compatibility sheet always agree.
+     */
     fun summarize(apps: List<HookedAppInfo>, decisions: Map<String, UniversalVersionValidator.Decision>): Summary {
         val installed = apps.filter { it.isInstalled }
         if (installed.isEmpty()) return Summary("No installed target detected", null)
         if (installed.any { !decisions.getOrDefault(it.packageName, UniversalVersionValidator.Decision.RULES_UNAVAILABLE).allowed })
             return Summary("Version rules require review", false)
-        if (installed.any { it.isHooked && it.runtimeStatus in setOf("UNSUPPORTED_VERSION", "COMPATIBILITY_UNAVAILABLE", "INITIALIZATION_FAILED", "READY_WITH_ERRORS") })
+        val running = installed.filter { it.isHooked }
+        if (running.any { it.runtimeStatus in setOf("UNSUPPORTED_VERSION", "COMPATIBILITY_UNAVAILABLE", "INITIALIZATION_FAILED", "READY_WITH_ERRORS") })
             return Summary("Target runtime requires review", false)
         if (installed.any { decisions[it.packageName] == UniversalVersionValidator.Decision.EXPLICIT_BYPASS })
             return Summary("Version bypass active; compatibility unverified", false)
-        if (installed.any { decisions[it.packageName] == UniversalVersionValidator.Decision.CUSTOM_RULE })
-            return Summary("Custom version allowance; compatibility unverified", null)
-        if (installed.any { !it.isHooked || it.runtimeStatus != "READY" || it.bridgeStatus != "PROVIDER" })
+        if (running.isEmpty()) {
+            // Distinguish "we could not check" from "nothing is open".
+            val blocked = installed.firstOrNull {
+                it.injectionEvidence == InjectionEvidence.PROCESS_OBSERVATION_UNAVAILABLE ||
+                    it.injectionEvidence == InjectionEvidence.BOOT_UNKNOWN ||
+                    it.injectionEvidence == InjectionEvidence.MODULE_INACTIVE
+            }
+            return if (blocked != null) Summary(blocked.injectionEvidence.label, null)
+            else Summary("Rules accepted; open a target app to confirm injection", null)
+        }
+        if (running.any { it.runtimeStatus != "READY" || it.bridgeStatus != "PROVIDER" })
             return Summary("Version rules accepted; runtime unconfirmed", null)
         // Even current READY reports are not acceptance tests of all individual features.
         return Summary("Rules accepted; initialization reported", true)

@@ -21,7 +21,7 @@ documentation explicitly says it disables the mechanism that also cleans up
 processes depending on a dead provider. Consequently, hook-side calls to the
 WAEX manager must not keep **stable** provider dependencies on WhatsApp.
 
-All 14 source call sites now use `HookProviderIpc.call`. Each call:
+All 16 current source call sites now use `HookProviderIpc.call`. Each call:
 
 1. Acquires a fresh **unstable** provider client for the same WAEX authority.
 2. Sends the original method, argument and Bundle without altering identity,
@@ -54,7 +54,7 @@ Android API stubs. If the `javac` binary is missing but a full JDK `java`
 module exists, it uses `java com.sun.tools.javac.Main`. It verifies single
 unstable acquisition, no stable/legacy calls, exact arguments/reply, closure
 on all paths, Binder death handling without replay, security exceptions, URI
-and null contracts, separate calling contexts, all 14 migrated sites. Five
+and null contracts, separate calling contexts, all 16 migrated sites. Five
 negative mutations must be rejected by the unchanged oracle.
 
 The stubs only exercise client code; they do not simulate Android's real
@@ -65,3 +65,48 @@ observed frozen, with `dumpsys activity providers` stable/unstable counts and
 ActivityManager process exit causes. Do not send messages/calls/receipts.
 Confirm that retries do not duplicate provider writes and that runtime health
 still reaches the manager when unfrozen. Use isolated data and recovery.
+
+## Current nightly reconciliation (2026-11-21)
+
+Base: `9972e49fac9bfb650c25ee31fde0da9425b67175`. The original 14 operations
+remain, with the same unstable-client helper. The newer `theme_asset` and
+consent-gated `report_target_exit_history` operations also use the helper.
+Their payloads, calling Context, validation and opt-in checks are unchanged.
+MainHook's deferred queue and FeatureRegistry's reporting executor are retained;
+switching provider reference type must not move IPC back to the calling thread.
+Current HookErrors diagnostics are retained in all reconciled catches.
+
+Linux, Python 3.13.5, Temurin JDK 21.0.13.1+2:
+
+- PASS: 46 helper assertions, 16 callsite guards, five compiled negative
+  mutations. Normal and Python `-O` runs both reject all five mutants.
+- PASS: 13 current startup-report scenarios and 241 internal checks, using
+  the exact deferred executor and immutable per-request JSON transport doubles.
+  Six compiled startup mutations complete all scenarios and fail as intended.
+- PASS: complete PreferenceBridgeClient contract with real PreferenceSchema
+  and HookErrors dependencies; the existing unchecked Set cast warning remains.
+- PASS: actual TargetExitReporter and HookProviderIpc compile together against
+  Android 14's API-shaped `android-all-14-robolectric-10818077.jar`.
+- PASS: 39 current startup source invariants, including absence of the retired
+  periodic runtime clock. Source invariants are not runtime acceptance.
+- PASS: 99 preserved-message sender/provider/store Robolectric executions across
+  API 24/28/34 with the real helper and the unchanged existing 99-case fixture
+  (SHA-256 b1b4f3cf32fde43c65f1d3153f7475be4083761ccb6f101e8880de0bcc4fc1e1).
+  Kotlin 2.0.20; all four compilation stages and JUnit passed in 20.936 seconds.
+  These are 33 parameterized cases on three SDKs, not 99 distinct behaviors.
+- PASS: all 78 existing recorder lifecycle checks compile and execute with the
+  real helper and HookErrors. The IPC boundary rejects stable resolver calls,
+  wrong authority, duplicate close and use after close; each fixture checks
+  acquired clients equal closed clients. Audio/Xposed/storage remain doubles.
+
+The preserved-dispatch and runtime-framework production staging lists include
+the new helper, so the independent probes do not omit their required source.
+The full Gradle runtime-framework suite was not rerun in this reconciliation;
+its staging change alone is not a PASS. No standalone VoiceNoteTranscription or
+CSS full-class compiler was present in the audited public QA entry points.
+
+The public source-QA entry point now runs both the IPC helper suite and the
+deferred startup-report suite/mutations. Full APK, actual CSS asset rendering,
+Android provider death, integrated WhatsApp survival and device compatibility
+remain NOT_VERIFIED on this reconciled revision. The earlier Android experiment
+is historical platform-mechanism evidence, not a new run of this candidate.

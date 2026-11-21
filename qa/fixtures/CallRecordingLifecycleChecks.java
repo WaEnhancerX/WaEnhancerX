@@ -111,7 +111,11 @@ public class CallRecordingLifecycleChecks {
         void ending() throws Throwable {
             XposedBridge.fire(host,"callEnding",new Class<?>[]{CallLogInfo.class,int.class,String.class,String.class},new CallLogInfo(),0,"private time-series path","private log path");
         }
-        public void close() { scheduler.shutdownNow();MediaRecorder.prepareRelease=null;MediaRecorder.prepareEntered=null; }
+        public void close() {
+            scheduler.shutdownNow();MediaRecorder.prepareRelease=null;MediaRecorder.prepareEntered=null;
+            if(context.resolver.clientsOpened!=context.resolver.clientsClosed)
+                throw new AssertionError("Recorder leaked an unstable provider client");
+        }
     }
 
     private static void installation() throws Throwable {

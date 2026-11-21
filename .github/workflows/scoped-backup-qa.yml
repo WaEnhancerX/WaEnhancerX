@@ -1,0 +1,55 @@
+name: Target-scoped settings backup contracts
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/src/main/java/com/waenhancer/core/preferences/SettingsBackupCodec.kt'
+      - 'app/src/main/java/com/waenhancer/config/PreferenceSchema.java'
+      - 'app/src/main/java/com/waenhancer/config/PreferenceStores.java'
+      - 'qa/*scoped_settings_backup.py'
+      - 'qa/test_settings_backup_*.py'
+      - 'qa/kotlin/Test*SettingsBackup*.kt'
+      - '.github/workflows/scoped-backup-qa.yml'
+  push:
+    branches: ['fix/per-target-settings-backup-*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scoped-backup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify exact scoped settings and existing JSON contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v kotlinc
+          python3 qa/test_scoped_settings_backup.py --out "$RUNNER_TEMP/scoped-backup"
+          python3 qa/mutate_scoped_settings_backup.py --out "$RUNNER_TEMP/scoped-backup-mutants"
+      - name: Preserve input identities, commands and positive/negative evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: target-scoped-backup-evidence
+          path: |
+            ${{ runner.temp }}/scoped-backup/**/*.json
+            ${{ runner.temp }}/scoped-backup/**/*.log
+            ${{ runner.temp }}/scoped-backup-mutants/**/*.json
+            ${{ runner.temp }}/scoped-backup-mutants/**/*.log
+          if-no-files-found: error
+          retention-days: 14

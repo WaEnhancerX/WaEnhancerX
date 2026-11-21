@@ -33,6 +33,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,6 +44,7 @@ import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.WavyProgressIndicatorDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,6 +52,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,8 +66,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.waenhancer.core.transcription.local.LocalModelStore
 import com.waenhancer.core.transcription.local.LocalModels
+import com.waenhancer.core.transcription.local.NativeLibsProvisioner
 import com.waenhancer.core.transcription.local.WhisperNative
 import com.waenhancer.ui.components.WaexConfirmationBottomSheet
+import com.waenhancer.ui.components.WaexModalBottomSheet
+import com.waenhancer.ui.components.WaexSheetHorizontalMargin
+import com.waenhancer.ui.components.WaexSheetPrimaryButton
+import com.waenhancer.ui.components.WaexSheetTextButton
+import com.waenhancer.ui.components.WaexSheetTitle
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
 import kotlinx.coroutines.Dispatchers
@@ -122,15 +131,29 @@ fun LocalModelsSection(language: String = "") {
     }
 
     LaunchedEffect(Unit) {
-        supported = withContext(Dispatchers.IO) { WhisperNative.isSupported() }
-    }
-    LaunchedEffect(Unit) {
         while (true) {
             delay(500)
             tick++
         }
     }
     @Suppress("UNUSED_VARIABLE") val refresh = tick
+
+    // Transcription's native libraries (whisper.cpp/ggml) are not bundled in the APK; they are
+    // downloaded on demand. Nothing below unlocks until NativeLibsProvisioner confirms they're
+    // in place, re-checked every tick so the layout unlocks right after a download finishes.
+    val nativeProvisioned = remember(tick) { NativeLibsProvisioner.isProvisioned(context) }
+    val nativeProgress = remember(tick) { NativeLibsProvisioner.progress() }
+    var showDownloadSheet by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        if (!NativeLibsProvisioner.isProvisioned(context)) showDownloadSheet = true
+    }
+    LaunchedEffect(nativeProvisioned) {
+        if (nativeProvisioned) {
+            showDownloadSheet = false
+            supported = withContext(Dispatchers.IO) { WhisperNative.isSupported() }
+        }
+    }
 
     var modelToDelete by remember { mutableStateOf<LocalModels.Model?>(null) }
 
@@ -177,7 +200,14 @@ fun LocalModelsSection(language: String = "") {
             }
         }
 
-        if (supported == false) {
+        if (!nativeProvisioned) {
+            NativeLibsLockedCard(
+                progress = nativeProgress,
+                onDownloadClick = { showDownloadSheet = true }
+            )
+        }
+
+        if (nativeProvisioned && supported == false) {
             Surface(
                 shape = RoundedCornerShape(12.dp),
                 color = colors.error.copy(alpha = 0.1f),
@@ -195,6 +225,7 @@ fun LocalModelsSection(language: String = "") {
             }
         }
 
+        if (nativeProvisioned) {
         // Section header for models
         Row(
             modifier = Modifier
@@ -430,6 +461,7 @@ fun LocalModelsSection(language: String = "") {
                 }
             }
         }
+        }
     }
 
     // Delete Confirmation Dialog
@@ -450,6 +482,159 @@ fun LocalModelsSection(language: String = "") {
                 }
             }
         )
+    }
+
+    // Persistent native-libraries download sheet: cannot be swiped/backed away while a
+    // download is actually running, so it cannot be left half-done by accident. Dismissible
+    // otherwise (idle, or after a failure) so the user isn't trapped; the locked card above
+    // stays in its place to reopen it.
+    if (showDownloadSheet) {
+        val running = nativeProgress?.running == true
+        NativeLibsDownloadSheet(
+            progress = nativeProgress,
+            onDownload = { NativeLibsProvisioner.startProvisioning(context) },
+            onDismissRequest = { if (!running) showDownloadSheet = false }
+        )
+    }
+}
+
+/** Shown in place of the model list until [NativeLibsProvisioner.isProvisioned] is true. */
+@Composable
+private fun NativeLibsLockedCard(
+    progress: NativeLibsProvisioner.Progress?,
+    onDownloadClick: () -> Unit
+) {
+    val colors = WaexTheme.colors
+    val typography = WaexTheme.typography
+    val running = progress?.running == true
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = colors.surfaceContainerLow,
+        border = androidx.compose.foundation.BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.4f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Transcription libraries not downloaded",
+                style = typography.bodyMd,
+                fontWeight = FontWeight.Bold,
+                color = colors.onSurface
+            )
+            Text(
+                text = "Models can't be selected until whisper.cpp/ggml (~3.2 MB) are downloaded and installed.",
+                style = typography.bodySm,
+                color = colors.onSurfaceVariant
+            )
+            progress?.error?.let {
+                Text(text = it, style = typography.labelSm, color = colors.error)
+            }
+            if (!running) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = colors.primaryContainer,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { onDownloadClick() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.FileDownload,
+                            contentDescription = null,
+                            tint = colors.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = if (progress?.error != null) "Retry download" else "Download",
+                            style = typography.bodySm,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.primary
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Blocking (while running) download sheet for [NativeLibsLockedCard]'s "Download" action. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NativeLibsDownloadSheet(
+    progress: NativeLibsProvisioner.Progress?,
+    onDownload: () -> Unit,
+    onDismissRequest: () -> Unit
+) {
+    val colors = WaexTheme.colors
+    val typography = WaexTheme.typography
+    val running = progress?.running == true
+    // rememberModalBottomSheetState only builds its SheetState once, so confirmValueChange
+    // must read a holder that's updated every recomposition, not close over `running` itself
+    // (which would keep whatever its value was on that first build forever).
+    val runningState = rememberUpdatedState(running)
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { !runningState.value }
+    )
+
+    WaexModalBottomSheet(onDismissRequest = onDismissRequest, sheetState = sheetState) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = WaexSheetHorizontalMargin)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            WaexSheetTitle(text = "On-device transcription")
+            Text(
+                text = "Transcribing voice notes on this device needs whisper.cpp/ggml " +
+                    "(~3.2 MB), downloaded once and installed with root. This can't be undone " +
+                    "mid-way: the download is verified before anything is installed.",
+                style = typography.bodySm,
+                color = colors.onSurfaceVariant
+            )
+
+            if (running && progress != null) {
+                val stageLabel = when (progress.stage) {
+                    NativeLibsProvisioner.Stage.CHECKING -> "Checking..."
+                    NativeLibsProvisioner.Stage.DOWNLOADING -> "Downloading..."
+                    NativeLibsProvisioner.Stage.VERIFYING -> "Verifying..."
+                    NativeLibsProvisioner.Stage.INSTALLING -> "Installing..."
+                }
+                val fraction = if (progress.totalBytes > 0)
+                    (progress.downloadedBytes.toFloat() / progress.totalBytes).coerceIn(0f, 1f) else 0f
+                val animatedFraction by animateFloatAsState(
+                    targetValue = fraction,
+                    animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
+                    label = "native_libs_download_progress"
+                )
+                Text(text = stageLabel, style = typography.bodySm, color = colors.onSurface)
+                LinearWavyProgressIndicator(
+                    progress = { animatedFraction },
+                    color = colors.primary,
+                    trackColor = colors.surfaceContainerHighest,
+                    wavelength = 24.dp,
+                    waveSpeed = 32.dp,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                )
+            } else {
+                progress?.error?.let {
+                    Text(text = it, style = typography.bodySm, color = colors.error)
+                }
+                WaexSheetPrimaryButton(
+                    text = if (progress?.error != null) "Retry download" else "Download",
+                    onClick = onDownload
+                )
+                WaexSheetTextButton(text = "Not now", onClick = onDismissRequest)
+            }
+        }
     }
 }
 

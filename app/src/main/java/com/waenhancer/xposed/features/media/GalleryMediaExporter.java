@@ -18,6 +18,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
+import com.waenhancer.xposed.utils.HookErrors;
 
 /** Exports an already resolved local photo/video, without modifying or transcoding it.
  * Host message/file selection is intentionally outside this storage contract. */
@@ -142,7 +143,7 @@ public final class GalleryMediaExporter {
         }
         // Storage succeeded; media indexing is asynchronous and must not delete the saved file.
         try { MediaScannerConnection.scanFile(context, new String[]{destination.getAbsolutePath()},
-                new String[]{format.mime}, null); } catch (RuntimeException ignored) { }
+                new String[]{format.mime}, null); } catch (RuntimeException ignored) { HookErrors.swallowed("GalleryMediaExporter", ignored); }
     }
 
     static void copy(InputStream in, OutputStream out, long expected) throws IOException {

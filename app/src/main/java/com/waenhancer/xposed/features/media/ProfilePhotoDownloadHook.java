@@ -19,8 +19,6 @@ import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
-import android.os.Handler;
-import android.os.Looper;
 import android.provider.MediaStore;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -33,6 +31,8 @@ import androidx.annotation.NonNull;
 
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.UiThread;
 
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.FindMethod;
@@ -44,10 +44,8 @@ import org.luckypray.dexkit.result.MethodData;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.ref.WeakReference;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -111,6 +109,8 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
                         || !(param.thisObject instanceof Activity)
                         || param.args.length == 0
                         || !(param.args[0] instanceof Menu)) return;
+                // Hooks may sit on shared base classes; only act on the profile photo viewer itself.
+                if (!viewer.isInstance(param.thisObject)) return;
                 installMenuAction((Activity) param.thisObject, (Menu) param.args[0]);
             }
         };
@@ -322,11 +322,12 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
             if (rawJid != null && !rawJid.isEmpty()) {
                 File cacheDir = activity.getCacheDir();
                 if (cacheDir != null) {
+                    // Only JID-qualified cache files can identify the viewed contact.
+                    // files/me.jpg belongs to this account and cannot identify another viewer.
                     File[] candidates = {
                             new File(cacheDir, "Profile Pictures/" + rawJid + ".j"),
                             new File(cacheDir, "Profile Pictures/" + rawJid + ".jpg"),
-                            new File(cacheDir, "Profile Pictures/" + rawJid),
-                            new File(activity.getFilesDir(), "me.jpg")
+                            new File(cacheDir, "Profile Pictures/" + rawJid)
                     };
                     for (File c : candidates) {
                         if (c.isFile() && c.length() > 0) return c;
@@ -386,7 +387,7 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
                             }
                         }
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("ProfilePhotoDownloadHook", ignored); }
             }
         }
         return null;
@@ -404,7 +405,7 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
                     if (b != null && !b.isRecycled()) {
                         return b.copy(Bitmap.Config.ARGB_8888, false);
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("ProfilePhotoDownloadHook", ignored); }
 
                 // Check getImageViewBitmapDrawable()
                 try {
@@ -413,7 +414,7 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
                     if (bd != null && bd.getBitmap() != null && !bd.getBitmap().isRecycled()) {
                         return bd.getBitmap().copy(Bitmap.Config.ARGB_8888, false);
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("ProfilePhotoDownloadHook", ignored); }
 
                 // Check declared fields for BitmapDrawable or Bitmap (such as A0D)
                 for (Class<?> c = photoView.getClass(); c != null && c != View.class; c = c.getSuperclass()) {
@@ -543,7 +544,7 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
         } catch (Throwable failure) {
             logFailure("saveStreamToGallery", failure);
             if (!success && output != null) {
-                try { ctx.getContentResolver().delete(output, null, null); } catch (Throwable ignored) {}
+                try { ctx.getContentResolver().delete(output, null, null); } catch (Throwable ignored) { HookErrors.swallowed("ProfilePhotoDownloadHook", ignored); }
             }
             return false;
         }
@@ -586,7 +587,7 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
         } catch (Throwable failure) {
             logFailure("saveBitmapToGallery", failure);
             if (!success && output != null) {
-                try { ctx.getContentResolver().delete(output, null, null); } catch (Throwable ignored) {}
+                try { ctx.getContentResolver().delete(output, null, null); } catch (Throwable ignored) { HookErrors.swallowed("ProfilePhotoDownloadHook", ignored); }
             }
             return false;
         }
@@ -599,12 +600,12 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
 
     private void showToast(Activity activity, String msg) {
         if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
-        new Handler(Looper.getMainLooper()).post(() -> {
+        UiThread.post(() -> {
             try {
                 if (!activity.isFinishing() && !activity.isDestroyed()) {
                     Toast.makeText(activity, msg, Toast.LENGTH_SHORT).show();
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("ProfilePhotoDownloadHook", ignored); }
         });
     }
 

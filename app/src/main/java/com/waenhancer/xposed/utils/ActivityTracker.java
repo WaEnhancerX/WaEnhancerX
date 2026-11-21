@@ -37,11 +37,8 @@ public final class ActivityTracker implements Application.ActivityLifecycleCallb
     @Nullable
     public static Activity getCurrentConversation() {
         Activity act = sCurrentActivity.get();
-        if (act != null) {
-            String name = act.getClass().getSimpleName();
-            if (name.equals("Conversation") || name.contains("Conversation")) {
-                return act;
-            }
+        if (act != null && HostClassNames.simpleNameContains(act.getClass(), "Conversation")) {
+            return act;
         }
         return null;
     }
@@ -52,7 +49,7 @@ public final class ActivityTracker implements Application.ActivityLifecycleCallb
         for (ActivityListener listener : sListeners) {
             try {
                 listener.onActivityCreated(activity);
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("ActivityTracker", ignored); }
         }
     }
 
@@ -88,17 +85,17 @@ public final class ActivityTracker implements Application.ActivityLifecycleCallb
         sCurrentActivity = new WeakReference<>(activity);
         try {
             VersionGuard.onTargetActivityResumed(activity);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("ActivityTracker", ignored); }
         try {
             WhatsAppUpdateSheet.onTargetActivityResumed(activity);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("ActivityTracker", ignored); }
         try {
             RestartPromptController.onTargetActivityResumed(activity);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("ActivityTracker", ignored); }
         for (ActivityListener listener : sListeners) {
             try {
                 listener.onActivityResumed(activity);
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("ActivityTracker", ignored); }
         }
     }
 
@@ -106,7 +103,7 @@ public final class ActivityTracker implements Application.ActivityLifecycleCallb
     public void onActivityPaused(@NonNull Activity activity) {
         try {
             RestartPromptController.onTargetActivityPaused(activity);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("ActivityTracker", ignored); }
     }
 
     @Override
@@ -114,7 +111,7 @@ public final class ActivityTracker implements Application.ActivityLifecycleCallb
         for (ActivityListener listener : sListeners) {
             try {
                 listener.onActivityStopped(activity);
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("ActivityTracker", ignored); }
         }
     }
 
@@ -129,7 +126,7 @@ public final class ActivityTracker implements Application.ActivityLifecycleCallb
         for (ActivityListener listener : sListeners) {
             try {
                 listener.onActivityDestroyed(activity);
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("ActivityTracker", ignored); }
         }
     }
 }

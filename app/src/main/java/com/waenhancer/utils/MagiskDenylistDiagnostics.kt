@@ -17,7 +17,6 @@ import java.util.regex.Pattern
 object MagiskDenylistDiagnostics {
 
     private val DENYLIST_LOG_PATTERN = Pattern.compile("\\[([^\\]]+)] is on the denylist")
-    private const val LSP_LOG_GLOB = "/data/adb/lspd/log/*.log"
 
     private val cachedResult = AtomicReference<DenylistReport?>(null)
 
@@ -63,6 +62,9 @@ object MagiskDenylistDiagnostics {
         scopeSnapshot: LsposedScopeSnapshot? = null,
         forceRefresh: Boolean = false
     ): DenylistReport = withContext(Dispatchers.IO) {
+        if (!NativeDiagPaths.available) {
+            return@withContext DenylistReport(state = DenylistState.NOT_ACTIVE)
+        }
         val liveScope = (scopeSnapshot ?: LsposedScopeReader.read(context)).packages
         val requestedPackages = packagesToCheck(targetPackages, liveScope)
         if (!forceRefresh) {
@@ -77,12 +79,12 @@ object MagiskDenylistDiagnostics {
     }
 
     private fun isMagiskInstalled(): Boolean {
-        val out = AppRestartHelper.runRootCommand("magisk -v 2>/dev/null")
+        val out = AppRestartHelper.runRootCommand(NativeDiagPaths.magiskVersionCommand())
         return !out.isNullOrBlank() && out.contains("MAGISK", ignoreCase = true)
     }
 
     private fun isDenylistEnforced(): Boolean {
-        val out = AppRestartHelper.runRootCommand("magisk --denylist status 2>/dev/null; echo exit:$?")
+        val out = AppRestartHelper.runRootCommand(NativeDiagPaths.magiskDenylistStatusCommand())
         return out?.contains("exit:0") == true
     }
 
@@ -90,7 +92,7 @@ object MagiskDenylistDiagnostics {
      * Reads all "package|process" entries from Magisk DenyList via root shell.
      */
     private fun getDenylistedPackages(): Map<String, List<String>> {
-        val out = AppRestartHelper.runRootCommand("magisk --denylist ls 2>/dev/null") ?: return emptyMap()
+        val out = AppRestartHelper.runRootCommand(NativeDiagPaths.magiskDenylistListCommand()) ?: return emptyMap()
         val result = mutableMapOf<String, MutableList<String>>()
         out.lines().forEach { line ->
             val trimmed = line.trim()
@@ -111,7 +113,7 @@ object MagiskDenylistDiagnostics {
      * Checks LSPosed module logs as fallback if Magisk DenyList command cannot be queried directly.
      */
     private fun getDenylistFromLspLogs(installedTargets: Set<String>): Set<String> {
-        val logOut = AppRestartHelper.runRootCommand("cat $LSP_LOG_GLOB 2>/dev/null") ?: return emptySet()
+        val logOut = AppRestartHelper.runRootCommand("cat ${NativeDiagPaths.lspLogGlob()} 2>/dev/null") ?: return emptySet()
         val found = mutableSetOf<String>()
         logOut.lines().forEach { line ->
             val matcher = DENYLIST_LOG_PATTERN.matcher(line)
@@ -127,7 +129,7 @@ object MagiskDenylistDiagnostics {
 
     private fun packagesToCheck(targetPackages: Collection<String>, liveScope: Set<String>): Set<String> =
         targetPackages.filterTo(linkedSetOf()) {
-            DeclaredWhatsAppTargets.contains(it) && it in liveScope && PACKAGE_NAME_PATTERN.matcher(it).matches()
+            it in liveScope && PACKAGE_NAME_PATTERN.matcher(it).matches()
         }
 
     private fun runCheck(context: Context, packagesToCheck: Set<String>): DenylistReport {
@@ -209,13 +211,15 @@ object MagiskDenylistDiagnostics {
      * zygote unmount is reverted on subsequent launch.
      */
     suspend fun fixPackage(context: Context, packageName: String): Boolean = withContext(Dispatchers.IO) {
-        if (!DeclaredWhatsAppTargets.contains(packageName) ||
-            !LsposedScopeReader.read(context).contains(packageName) ||
+        if (!NativeDiagPaths.available) return@withContext false
+        if (!LsposedScopeReader.read(context).contains(packageName) ||
             !PACKAGE_NAME_PATTERN.matcher(packageName).matches()) {
             return@withContext false
         }
 
-        val rmResult = AppRestartHelper.runRootCommand("magisk --denylist rm $packageName 2>/dev/null; echo exit:$?")
+        val rmResult = AppRestartHelper.runRootCommand(
+            NativeDiagPaths.magiskDenylistRemovePrefix() + packageName + NativeDiagPaths.magiskDenylistRemoveSuffix()
+        )
         val success = rmResult?.contains("exit:0") == true
 
         // Force stop package so next process startup is clean
@@ -246,11 +250,7 @@ object MagiskDenylistDiagnostics {
             val ai = pm.getApplicationInfo(packageName, 0)
             pm.getApplicationLabel(ai).toString()
         } catch (_: Exception) {
-            when (packageName) {
-                "com.whatsapp" -> "WhatsApp"
-                "com.whatsapp.w4b" -> "WhatsApp Business"
-                else -> packageName.substringAfterLast('.').replaceFirstChar { it.uppercase() }
-            }
+            packageName
         }
     }
 

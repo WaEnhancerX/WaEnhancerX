@@ -43,6 +43,40 @@ fun WaexLinearProgressIndicator(
     )
 }
 
+/** Native Material 3 Expressive determinate circular progress with progress tracking. */
+@Composable
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+fun WaexCircularProgressIndicator(
+    progress: () -> Float,
+    modifier: Modifier = Modifier,
+    color: Color = WaexTheme.colors.primary,
+    trackColor: Color = WaexTheme.colors.surfaceContainerHighest,
+    strokeWidth: Dp = 3.dp
+) {
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress().coerceIn(0f, 1f),
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "waex_circular_progress"
+    )
+
+    val density = LocalDensity.current
+    val indicatorStroke = Stroke(
+        width = with(density) { strokeWidth.toPx() },
+        cap = StrokeCap.Round
+    )
+    CircularWavyProgressIndicator(
+        progress = { animatedProgress },
+        modifier = modifier,
+        color = color,
+        trackColor = trackColor,
+        stroke = indicatorStroke,
+        trackStroke = indicatorStroke
+    )
+}
+
 /** Native Material 3 Expressive indeterminate circular progress. */
 @Composable
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)

@@ -1,9 +1,11 @@
 package com.waenhancer.ui.screens.settings
 
+import com.waenhancer.ui.components.ReleaseKindChip
+import com.waenhancer.ui.components.WaexSheetTitle
+
 import android.app.Activity
 import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -13,7 +15,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -22,7 +23,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -30,7 +30,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -63,7 +62,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.waenhancer.app.BuildConfig
@@ -159,7 +157,6 @@ fun ModuleSettingsScreen() {
                     SettingsRowItem(
                         icon = WaexIcons.AutoMode,
                         iconTint = colors.onSurfaceVariant,
-                        iconBackground = colors.primary.copy(alpha = 0.12f),
                         title = "Hooking mode",
                         subtitle = "Controls when safe visual hooks are loaded into WhatsApp",
                         badge = hookingModeLabel(hookingMode),
@@ -173,7 +170,6 @@ fun ModuleSettingsScreen() {
                     SettingsRowItem(
                         icon = WaexIcons.Layers,
                         iconTint = colors.onSurfaceVariant,
-                        iconBackground = colors.primary.copy(alpha = 0.12f),
                         title = stringResource(R.string.config_mode_title),
                         subtitle = stringResource(R.string.config_mode_desc),
                         badge = configMode,
@@ -191,7 +187,6 @@ fun ModuleSettingsScreen() {
                     SettingsRowItem(
                         icon = themeIcon(themeMode),
                         iconTint = colors.onSurfaceVariant,
-                        iconBackground = colors.surfaceContainerHighest,
                         title = stringResource(R.string.app_theme_title),
                         subtitle = stringResource(R.string.app_theme_desc),
                         value = themeLabel(themeMode),
@@ -214,7 +209,6 @@ fun ModuleSettingsScreen() {
                     SettingsRowItem(
                         icon = WaexIcons.SystemUpdate,
                         iconTint = colors.onSurfaceVariant,
-                        iconBackground = colors.surfaceContainerHighest,
                         title = stringResource(R.string.update_settings_title),
                         subtitle = stringResource(R.string.update_settings_desc),
                         showDivider = true,
@@ -224,7 +218,6 @@ fun ModuleSettingsScreen() {
                     SettingsRowItem(
                         icon = Icons.Rounded.Language,
                         iconTint = colors.onSurfaceVariant,
-                        iconBackground = colors.surfaceContainerHighest,
                         title = stringResource(R.string.app_language_title),
                         subtitle = stringResource(R.string.app_language_desc),
                         value = LocaleHelper.getLanguageDisplayName(currentLangCode),
@@ -235,7 +228,7 @@ fun ModuleSettingsScreen() {
             }
 
             // ─── SECTION 4: DEVELOPER OPTIONS (Debug only) ───────────────────
-            if (BuildConfig.DEBUG) {
+            if (BuildConfig.IS_DEBUG_VARIANT) {
                 var forceTargetDebuggable by remember {
                     mutableStateOf(preferences.getBoolean(PreferenceSchema.KEY_FORCE_TARGET_DEBUGGABLE, false))
                 }
@@ -247,7 +240,6 @@ fun ModuleSettingsScreen() {
                         SettingsSwitchRow(
                             icon = Icons.Rounded.BugReport,
                             iconTint = colors.onSurfaceVariant,
-                            iconBackground = colors.surfaceContainerHighest,
                             title = "Make target apps debuggable",
                             subtitle = "Forces JDWP debugger and debug flags on target WhatsApp applications",
                             checked = forceTargetDebuggable,
@@ -290,10 +282,7 @@ fun ModuleSettingsScreen() {
 
         WaexModalBottomSheet(
             onDismissRequest = { showThemeSheet = false },
-            sheetState = sheetState,
-            containerColor = colors.surface,
-            shape = WaexTheme.radius.bottomSheetShape,
-            dragHandle = { BottomSheetHandle() }
+            sheetState = sheetState
         ) {
             val sheetDensity = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides sheetDensity) {
@@ -305,11 +294,8 @@ fun ModuleSettingsScreen() {
                         .padding(bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
+                    WaexSheetTitle(
                         text = stringResource(R.string.choose_app_theme),
-                        style = typography.titleLg,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.onSurface,
                         modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
                     )
                     modes.forEach { mode ->
@@ -334,10 +320,7 @@ fun ModuleSettingsScreen() {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         WaexModalBottomSheet(
             onDismissRequest = { showHookingModeSheet = false },
-            sheetState = sheetState,
-            containerColor = colors.surface,
-            shape = WaexTheme.radius.bottomSheetShape,
-            dragHandle = { BottomSheetHandle() }
+            sheetState = sheetState
         ) {
             Column(
                 modifier = Modifier
@@ -347,11 +330,8 @@ fun ModuleSettingsScreen() {
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(
+                WaexSheetTitle(
                     text = "Hooking mode",
-                    style = typography.titleLg,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurface,
                     modifier = Modifier.padding(top = 4.dp)
                 )
                 Text(
@@ -409,10 +389,7 @@ fun ModuleSettingsScreen() {
 
         WaexModalBottomSheet(
             onDismissRequest = { showConfigModeSheet = false },
-            sheetState = sheetState,
-            containerColor = colors.surface,
-            shape = WaexTheme.radius.bottomSheetShape,
-            dragHandle = { BottomSheetHandle() }
+            sheetState = sheetState
         ) {
             Column(
                 modifier = Modifier
@@ -422,11 +399,8 @@ fun ModuleSettingsScreen() {
                     .padding(bottom = 28.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(
+                WaexSheetTitle(
                     text = stringResource(R.string.config_mode_title),
-                    style = typography.titleLg,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.onSurface,
                     modifier = Modifier.padding(top = 4.dp, bottom = 4.dp)
                 )
                 configModes.forEach { mode ->
@@ -452,10 +426,7 @@ fun ModuleSettingsScreen() {
 
         WaexModalBottomSheet(
             onDismissRequest = { showLanguageSheet = false },
-            sheetState = sheetState,
-            containerColor = colors.surface,
-            shape = WaexTheme.radius.bottomSheetShape,
-            dragHandle = { BottomSheetHandle() }
+            sheetState = sheetState
         ) {
             val sheetDensity = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides sheetDensity) {
@@ -468,11 +439,8 @@ fun ModuleSettingsScreen() {
                     contentPadding = PaddingValues(bottom = 24.dp)
                 ) {
                     item {
-                        Text(
+                        WaexSheetTitle(
                             text = stringResource(R.string.choose_app_language),
-                            style = typography.titleLg,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.onSurface,
                             modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
                         )
                     }
@@ -559,12 +527,7 @@ private fun HeroEngineCard(
                 Spacer(Modifier.width(14.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "WA Enhancer X",
-                        style = typography.titleMd,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.onSurface
-                    )
+                    WaexSheetTitle("WA Enhancer X")
                     Text(
                         text = "Styles, Hooking & Config Mode",
                         style = typography.bodySm,
@@ -585,6 +548,7 @@ private fun HeroEngineCard(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                     )
                 }
+                ReleaseKindChip(versionName = version, modifier = Modifier.padding(start = 6.dp))
             }
 
         }
@@ -627,7 +591,6 @@ private fun SettingsGroupCard(
 private fun SettingsRowItem(
     icon: ImageVector,
     iconTint: Color,
-    iconBackground: Color,
     title: String,
     subtitle: String,
     badge: String? = null,
@@ -647,21 +610,14 @@ private fun SettingsRowItem(
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .background(iconBackground, WaexTheme.radius.mdShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconTint,
+                modifier = Modifier.size(28.dp)
+            )
 
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(18.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -733,7 +689,7 @@ private fun SettingsRowItem(
             HorizontalDivider(
                 color = colors.outlineVariant.copy(alpha = 0.5f),
                 thickness = 0.7.dp,
-                modifier = Modifier.padding(start = 68.dp, end = 16.dp)
+                modifier = Modifier.padding(start = 62.dp, end = 16.dp)
             )
         }
     }
@@ -743,7 +699,6 @@ private fun SettingsRowItem(
 private fun SettingsSwitchRow(
     icon: ImageVector,
     iconTint: Color,
-    iconBackground: Color,
     title: String,
     subtitle: String,
     checked: Boolean,
@@ -759,21 +714,14 @@ private fun SettingsSwitchRow(
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(38.dp)
-                .background(iconBackground, WaexTheme.radius.mdShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(20.dp)
-            )
-        }
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = iconTint,
+            modifier = Modifier.size(28.dp)
+        )
 
-        Spacer(Modifier.width(14.dp))
+        Spacer(Modifier.width(18.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -815,21 +763,14 @@ private fun InlineInterfaceSizeRow(
             .padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .background(Color(0xFF3B82F6).copy(alpha = 0.12f), WaexTheme.radius.mdShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = WaexIcons.Smartphone,
-                    contentDescription = null,
-                    tint = Color(0xFF3B82F6),
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            Icon(
+                imageVector = WaexIcons.Smartphone,
+                contentDescription = null,
+                tint = colors.onSurfaceVariant,
+                modifier = Modifier.size(28.dp)
+            )
 
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(18.dp))
 
             Column(Modifier.weight(1f)) {
                 Text(
@@ -900,17 +841,6 @@ private fun InlineInterfaceSizeRow(
             }
         }
     }
-}
-
-@Composable
-private fun BottomSheetHandle() {
-    val colors = WaexTheme.colors
-    Box(
-        Modifier
-            .padding(top = 10.dp, bottom = 6.dp)
-            .size(width = 36.dp, height = 4.dp)
-            .background(colors.outlineVariant, RoundedCornerShape(2.dp))
-    )
 }
 
 @Composable

@@ -93,23 +93,12 @@ fun NoticeBottomSheet(
                 onDismiss()
             }
         },
-        sheetState = sheetState,
-        containerColor = colors.surface,
-        shape = radius.bottomSheetShape,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(top = 10.dp, bottom = 6.dp)
-                    .size(width = 36.dp, height = 4.dp)
-                    .clip(CircleShape)
-                    .background(colors.outlineVariant.copy(alpha = 0.6f))
-            )
-        }
+        sheetState = sheetState
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = WaexSheetHorizontalMargin)
                 .padding(bottom = 28.dp)
                 .verticalScroll(rememberScrollState())
         ) {
@@ -218,70 +207,28 @@ fun NoticeBottomSheet(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (hasPrimary) {
-                    Button(
+                    WaexSheetPrimaryButton(
+                        text = primaryAction!!.label,
                         onClick = {
                             onDismiss()
-                            handleAction(context, primaryAction!!)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(46.dp),
-                        shape = radius.fullShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colors.primary,
-                            contentColor = colors.onPrimary
-                        )
-                    ) {
-                        Text(
-                            text = primaryAction!!.label,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-                    }
+                            handleAction(context, primaryAction)
+                        }
+                    )
                 }
 
                 if (hasSecondary) {
-                    OutlinedButton(
+                    WaexSheetTextButton(
+                        text = secondaryAction!!.label,
                         onClick = {
                             onDismiss()
-                            handleAction(context, secondaryAction!!)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp),
-                        shape = radius.fullShape,
-                        border = BorderStroke(1.dp, colors.outlineVariant),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = colors.onSurface
-                        )
-                    ) {
-                        Text(
-                            text = secondaryAction!!.label,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 13.5.sp
-                        )
-                    }
+                            handleAction(context, secondaryAction)
+                        }
+                    )
                 }
 
                 if (!hasPrimary && !hasSecondary && notice.dismissible) {
                     val dismissLabel = dismissAction?.label?.takeIf { it.isNotBlank() } ?: UiText.get(R.string.waex_ui_dismiss, "Dismiss")
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp),
-                        shape = radius.fullShape,
-                        border = BorderStroke(1.dp, colors.outlineVariant),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = colors.onSurfaceVariant
-                        )
-                    ) {
-                        Text(
-                            text = dismissLabel,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 13.5.sp
-                        )
-                    }
+                    WaexSheetPrimaryButton(text = dismissLabel, onClick = onDismiss)
                 }
             }
         }
