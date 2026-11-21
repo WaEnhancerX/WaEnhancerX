@@ -1,7 +1,7 @@
 name: Media preview ownership and bounded UI lifecycle
 on:
   pull_request:
-    branches: [main]
+    branches: [main, nightly]
   workflow_dispatch:
 permissions:
   contents: read

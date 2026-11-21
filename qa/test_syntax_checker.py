@@ -27,7 +27,9 @@ class SyntaxCheckerTests(unittest.TestCase):
     def write(self, path: str, content: str) -> None:
         target = self.root / path
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content, encoding='utf-8')
+        # Preserve fixture line endings exactly; Windows text mode would turn
+        # intentional CRLF into CR-CR-LF and shift parser error locations.
+        target.write_bytes(content.encode('utf-8'))
 
     def run_checker(self, *options: str, env_overrides: dict | None = None):
         env = os.environ.copy()
@@ -53,6 +55,26 @@ class SyntaxCheckerTests(unittest.TestCase):
         self.assertEqual(obj['syntax_errors'], [])
         self.assertFalse(obj['kotlin_skipped'])
 
+    def test_java_utf8_is_independent_of_legacy_windows_default_charset(self):
+        self.write('src/International.java',
+                   'class International { String text = "日本語 — 💁 🦍"; }\n')
+        code, obj = self.run_checker(
+            '--java-only',
+            env_overrides={'JAVA_TOOL_OPTIONS': '-Dfile.encoding=windows-1252'})
+        self.assertEqual(code, 0, obj)
+        self.assertEqual(obj['status'], 'passed')
+        self.assertEqual((obj['java_files'], obj['kotlin_files']), (1, 0))
+        self.assertFalse(obj['syntax_errors'])
+
+    def test_invalid_utf8_java_bytes_are_rejected(self):
+        self.root.joinpath('Invalid.java').write_bytes(
+            b'class Invalid { String text = "\xff"; }\n')
+        code, obj = self.run_checker('--java-only')
+        self.assertEqual(code, 1, obj)
+        self.assertEqual(obj['status'], 'syntax_error')
+        self.assertTrue(any(error['language'] == 'java'
+                            for error in obj['syntax_errors']))
+
     def test_invalid_java_and_kotlin_are_reported(self):
         self.write('src/Broken.java', 'public class Broken { void broken( { }\n')
         self.write('src/Broken.kt', 'fun broken( {\n')
@@ -63,6 +85,25 @@ class SyntaxCheckerTests(unittest.TestCase):
         self.assertIn('kotlin', {e['language'] for e in obj['syntax_errors']})
         self.assertTrue(all(e['line'] >= 1 for e in obj['syntax_errors']))
         self.assertTrue(all(not e['file'].startswith(str(self.root)) for e in obj['syntax_errors']))
+
+    def test_windows_crlf_and_legacy_cr_are_normalized_for_kotlin_psi(self):
+        self.write('src/Good.java', 'class Good {}\r\n')
+        self.write('src/Windows.kt', 'fun windows() = 1\r\nfun windowsAgain() = 2\r\n')
+        self.write('src/Legacy.kt', 'fun old() = 1\rval oldAgain = 2\r')
+        code, obj = self.run_checker()
+        self.assertEqual(code, 0, obj)
+        self.assertEqual(obj['status'], 'passed')
+        self.assertEqual((obj['java_files'], obj['kotlin_files']), (1, 2))
+        self.assertFalse(obj['syntax_errors'])
+
+    def test_crlf_kotlin_syntax_errors_still_fail_at_original_line(self):
+        self.write('src/Good.java', 'class Good {}\r\n')
+        self.write('src/Broken.kt', 'val valid = 1\r\nfun broken( {\r\n')
+        code, obj = self.run_checker()
+        self.assertEqual(code, 1, obj)
+        self.assertEqual(obj['status'], 'syntax_error')
+        self.assertTrue(any(e['language'] == 'kotlin' and e['line'] == 2
+                            for e in obj['syntax_errors']))
 
     def test_missing_kotlin_compiler_fails_closed(self):
         self.write('Good.java', 'class Good {}\n')

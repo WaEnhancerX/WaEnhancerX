@@ -7,6 +7,7 @@ import de.robv.android.xposed.XposedBridge
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import com.waenhancer.xposed.utils.HookErrors
 
 /**
  * MessageStore helper for querying WhatsApp's internal msgstore.db database.
@@ -23,7 +24,7 @@ class MessageStore private constructor(private val context: Context) {
         val dbFile = findMsgstoreDbFile(context) ?: return
         try {
             if (sqLiteDatabase?.isOpen == true) {
-                try { sqLiteDatabase?.close() } catch (_: Throwable) {}
+                try { sqLiteDatabase?.close() } catch (ignored: Throwable) { HookErrors.swallowed("MessageStore", ignored) }
             }
             sqLiteDatabase = SQLiteDatabase.openDatabase(
                 dbFile.absolutePath,

@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.xposed.utils.HookErrors;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XC_MethodReplacement;
 import de.robv.android.xposed.XposedBridge;
@@ -92,7 +93,7 @@ public class AutoNextStatusHook extends BaseFeature {
                                     return;
                                 }
                             }
-                        } catch (Throwable ignored) {}
+                        } catch (Throwable ignored) { HookErrors.swallowed("AutoNextStatusHook", ignored); }
                     }
                 }
             });

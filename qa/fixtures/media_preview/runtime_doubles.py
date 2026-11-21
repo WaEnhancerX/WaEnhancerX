@@ -1,5 +1,14 @@
 """Explicit Android-external transport/host/Xposed boundaries; real BaseFeature/HookRegistrar/ViewHookDispatcher are compiled."""
-STUBS = {'com/waenhancer/utils/UiText.java': 'package com.waenhancer.utils;\n'
+STUBS = {'androidx/annotation/NonNull.java': 'package androidx.annotation; public @interface NonNull {}',
+ 'androidx/annotation/VisibleForTesting.java': 'package androidx.annotation; public @interface VisibleForTesting {}',
+ 'com/waenhancer/xposed/utils/ActivityTracker.java': '''package com.waenhancer.xposed.utils;
+ public final class ActivityTracker {
+  public static int calls;
+  public static android.app.Activity getCurrentActivity() {
+   calls++; throw new AssertionError("Host activity discovery is outside this lifecycle fixture");
+  }
+ }''',
+ 'com/waenhancer/utils/UiText.java': 'package com.waenhancer.utils;\n'
                                      'public final class UiText {\n'
                                      ' public static String get(int id,String fallback,Object...args) {\n'
                                      '  return args.length==0 ? fallback : '

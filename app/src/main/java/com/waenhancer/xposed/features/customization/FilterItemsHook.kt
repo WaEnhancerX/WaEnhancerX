@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -14,6 +15,8 @@ import com.waenhancer.model.FilterItem
 import com.waenhancer.xposed.core.BaseFeature
 import com.waenhancer.xposed.core.ViewHookDispatcher
 import com.waenhancer.xposed.utils.ActivityTracker
+import com.waenhancer.xposed.utils.HookErrors
+import com.waenhancer.xposed.utils.HostResourceIds
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
@@ -48,6 +51,7 @@ class FilterItemsHook(
         }
     }
     private val visibilityMask = 0x0000000C
+    private val FULL_PASS_INTERVAL_MS = 250L
 
     override fun hook() {
         val filterItemsRaw = prefs.getString("filter_items", null) ?: ""
@@ -200,7 +204,7 @@ class FilterItemsHook(
     private fun getResourceId(name: String): Int {
         if (name.isEmpty()) return -1
         return try {
-            val id = context.resources.getIdentifier(name, "id", context.packageName)
+            val id = HostResourceIds.id(context, name)
             if (id == 0) -1 else id
         } catch (_: Throwable) {
             -1
@@ -224,9 +228,20 @@ class FilterItemsHook(
         applyFiltersRecursively(root)
 
         if (XposedHelpers.getAdditionalInstanceField(root, "waex_filter_layout_listener") == null) {
+            // Layout passes can fire many times a second and each one walks the whole tree. The
+            // attach/inflate/visibility hooks already filter views as they change, so this is only
+            // a safety net: run it at most once per interval, plus one trailing run.
+            val throttle = LayoutPassThrottle(FULL_PASS_INTERVAL_MS)
             val listener = ViewTreeObserver.OnGlobalLayoutListener {
                 if (!activity.isFinishing && !activity.isDestroyed) {
-                    applyFiltersRecursively(root)
+                    when (throttle.onLayout(SystemClock.uptimeMillis())) {
+                        LayoutPassThrottle.Decision.RUN_NOW -> applyFiltersRecursively(root)
+                        LayoutPassThrottle.Decision.SCHEDULE_TRAILING -> root.postDelayed({
+                            throttle.onTrailingRun(SystemClock.uptimeMillis())
+                            if (!activity.isFinishing && !activity.isDestroyed) applyFiltersRecursively(root)
+                        }, FULL_PASS_INTERVAL_MS)
+                        LayoutPassThrottle.Decision.ALREADY_SCHEDULED -> Unit
+                    }
                 }
             }
             root.viewTreeObserver.addOnGlobalLayoutListener(listener)
@@ -283,7 +298,7 @@ class FilterItemsHook(
             if (parent is ViewGroup) {
                 try {
                     parent.removeView(target)
-                } catch (_: Throwable) {}
+                } catch (ignored: Throwable) { HookErrors.swallowed("FilterItemsHook", ignored) }
             }
         }
     }

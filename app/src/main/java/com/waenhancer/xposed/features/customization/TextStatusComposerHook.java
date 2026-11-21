@@ -12,6 +12,7 @@ import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.components.NativeColorPickerDialog;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.xposed.utils.HookErrors;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedHelpers;
 import java.lang.reflect.Constructor;
@@ -246,7 +247,7 @@ public final class TextStatusComposerHook extends BaseFeature {
             Field field = target.getClass().getDeclaredField(name);
             field.setAccessible(true);
             field.set(target, value);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("TextStatusComposerHook", ignored); }
     }
 
     private static void setBackground(View root, String resourceName, int color) {

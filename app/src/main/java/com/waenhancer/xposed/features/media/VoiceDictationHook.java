@@ -22,6 +22,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.utils.ActivityTracker;
+import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.HostClassNames;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
@@ -97,7 +99,7 @@ public final class VoiceDictationHook extends BaseFeature {
     }
 
     private static boolean isConversation(Activity activity) {
-        return activity.getClass().getSimpleName().contains("Conversation");
+        return HostClassNames.simpleNameContains(activity.getClass(), "Conversation");
     }
 
     // ─── Attaching the button ───────────────────────────────────────────
@@ -177,16 +179,16 @@ public final class VoiceDictationHook extends BaseFeature {
             Method onTouchEvent = null;
             try {
                 onTouchEvent = fieldClass.getMethod("onTouchEvent", MotionEvent.class);
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("VoiceDictationHook", ignored); }
             if (onTouchEvent == null) {
                 try {
                     onTouchEvent = XposedHelpers.findMethodExactIfExists(fieldClass, "onTouchEvent", MotionEvent.class);
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("VoiceDictationHook", ignored); }
             }
             if (onTouchEvent == null) {
                 try {
                     onTouchEvent = XposedHelpers.findMethodBestMatch(fieldClass, "onTouchEvent", MotionEvent.class);
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("VoiceDictationHook", ignored); }
             }
             if (onTouchEvent != null) {
                 XposedBridge.hookMethod(onTouchEvent, new XC_MethodHook() {

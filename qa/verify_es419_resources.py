@@ -66,7 +66,7 @@ def main():
     identities={}
     stage_string_resources(ROOT, res, identities)
     manifest=out/'AndroidManifest.xml'
-    manifest.write_text('<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.waenhancer"><application /></manifest>\n')
+    manifest.write_text('<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.waenhancer"><application /></manifest>\n', encoding="utf-8")
     run([aapt2,'compile','--dir',res,'-o',out/'compiled.zip'],'compile-fixture.log')
     run([aapt2,'link','-o',out/'resources-only.apk','--manifest',manifest,
          '--java',out/'generated','--custom-package','com.waenhancer.app',out/'compiled.zip'],'link-fixture.log')
@@ -82,7 +82,7 @@ def main():
         else: raise AssertionError('Bad compiled-table fixture accepted')
     (out/'result.json').write_text(json.dumps({'string_names':count,'configurations':['default','es','es-419'],
         'exact_compiled_spanish_values':2*count,'plural_resources':1,'plural_forms_per_configuration':2,'negative_parser_controls':len(controls),
-        'identities':identities,'commands':commands,'scope':'AAPT2 actual compile/link of resource table only; not app build or runtime selection'},indent=2))
+        'identities':identities,'commands':commands,'scope':'AAPT2 actual compile/link of resource table only; not app build or runtime selection'},indent=2), encoding="utf-8")
     print(f'PASS: {count} compiled string names, all three locale configurations, {2*count} exact Spanish values, plural forms, {len(controls)} table-parser controls; NOT a full app build')
 
 if __name__=='__main__':

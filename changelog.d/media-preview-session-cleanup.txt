@@ -6,3 +6,5 @@
 
 [Improvements]
 - Coalesce download progress updates within the active preview session.
+- Retain the current conversation-adapter entry point and button placement while
+  preventing closed previews from retaining work or updating their replacements.

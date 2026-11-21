@@ -9,9 +9,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Scaffold
@@ -37,10 +39,16 @@ import com.waenhancer.ui.navigation.LocalIsPro
 import com.waenhancer.ui.navigation.LocalOnActivatePro
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
+import com.waenhancer.ui.navigation.Screen
 import kotlinx.coroutines.delay
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
 import com.waenhancer.ui.components.WaexEmojiPickerDialog
 import com.waenhancer.ui.components.WaexPreferenceItem
 
@@ -80,9 +88,9 @@ fun ConversationEnhancementsScreen(targetEpoch: Int = 0) {
     val convKeys = remember {
         listOf(
             "message_bomber", "anti_edit_messages", "message_device_source", "preserve_own_revoke", "revokeallmessages", "hide_forwarded_tag",
-            "removeforwardlimit", "sticker_confirm_alert", "removeseemore", "stamp_copied_message", "doubletap2like",
+            "removeforwardlimit", "sticker_confirm_alert", "remove_sticker_white_outline", "removeseemore", "stamp_copied_message", "doubletap2like",
             "jump_to_first_message", "unlimited_pinned_chats", "broadcast_tag", "direct_chat_dialer",
-            "inline_translation", "copy_status_text", "animation_emojis", "disable_defemojis"
+            "inline_translation", "copy_status_text", "animation_emojis", "disable_defemojis", "custom_emojis", "custom_emoji_enabled"
         )
     }
 
@@ -94,6 +102,18 @@ fun ConversationEnhancementsScreen(targetEpoch: Int = 0) {
         }
     }
 
+    var customEmojiFont by remember(targetEpoch) {
+        mutableStateOf(preferenceManager.getString("custom_emoji_font", "") ?: "")
+    }
+
+    LaunchedEffect(navController.currentScreen) {
+        if (navController.currentScreen == Screen.ConversationEnhancements) {
+            convKeys.forEach { key ->
+                stateMap[key] = preferenceManager.getBoolean(key, false)
+            }
+            customEmojiFont = preferenceManager.getString("custom_emoji_font", "") ?: ""
+        }
+    }
 
     val onToggle: (String, Boolean) -> Unit = { key, value ->
         stateMap[key] = value
@@ -231,6 +251,14 @@ fun ConversationEnhancementsScreen(targetEpoch: Int = 0) {
                         showDivider = true
                     )
                     WaexSwitchPreference(
+                        title = UiText.get(R.string.feat_remove_sticker_white_outline_title, "Remove Sticker White Outline"),
+                        description = UiText.get(R.string.feat_remove_sticker_white_outline_desc, "Remove the white border WhatsApp adds when you create a sticker"),
+                        checked = stateMap["remove_sticker_white_outline"] ?: false,
+                        onCheckedChange = { onToggle("remove_sticker_white_outline", it) },
+                        icon = WaexIcons.Settings,
+                        showDivider = true
+                    )
+                    WaexSwitchPreference(
                         title = UiText.get(R.string.feat_removeseemore_title, "Remove \"See More\" Button"),
                         description = UiText.get(R.string.waex_ui_disable_see_more_button_and_show_all_l, "Disable \"See More\" button and show all long message"),
                         checked = stateMap["removeseemore"] ?: false,
@@ -295,13 +323,45 @@ fun ConversationEnhancementsScreen(targetEpoch: Int = 0) {
                         }
                     }
 
-                    WaexSwitchPreference(
-                        title = UiText.get(R.string.feat_disable_defemojis_title, "Use Device Default Emojis"),
-                        description = UiText.get(R.string.feat_disable_defemojis_desc, "Use system emojis (iOS, Samsung, Google) instead of WhatsApp's built-in emojis"),
-                        checked = stateMap["disable_defemojis"] ?: false,
-                        onCheckedChange = { onToggle("disable_defemojis", it) },
+                    val deviceEmojisEnabled = stateMap["disable_defemojis"] ?: false
+                    val customEmojiEnabled = (stateMap["custom_emojis"] ?: false) || (stateMap["custom_emoji_enabled"] ?: false)
+                    val activeEmojiStyle = when {
+                        deviceEmojisEnabled -> UiText.get(R.string.custom_emojis_device_title, "Device System Emojis")
+                        customEmojiEnabled && customEmojiFont.isNotEmpty() -> customEmojiFont.removeSuffix(".ttf")
+                        else -> UiText.get(R.string.custom_emojis_default_title, "WhatsApp Default")
+                    }
+
+                    WaexPreferenceItem(
+                        title = UiText.get(R.string.custom_emojis_screen_title, "Emoji Style"),
+                        description = UiText.get(R.string.feat_custom_emojis_active_desc, "Active: %1\$s", activeEmojiStyle),
                         icon = WaexIcons.Mood,
-                        showDivider = false
+                        onClick = { navController.navigateTo(Screen.CustomEmojis) },
+                        showDivider = false,
+                        trailing = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Surface(
+                                    shape = WaexTheme.radius.fullShape,
+                                    color = colors.primary.copy(alpha = 0.12f)
+                                ) {
+                                    Text(
+                                        text = activeEmojiStyle,
+                                        style = typography.labelSm,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = colors.primary,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    )
+                                }
+                                Icon(
+                                    imageVector = WaexIcons.ChevronRight,
+                                    contentDescription = null,
+                                    tint = colors.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
                     )
                 }
             }

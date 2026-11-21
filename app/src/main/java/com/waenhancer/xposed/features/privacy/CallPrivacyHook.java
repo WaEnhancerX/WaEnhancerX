@@ -19,6 +19,7 @@ import androidx.core.app.NotificationManagerCompat;
 import com.waenhancer.utils.ContactNameResolver;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.xposed.utils.HookErrors;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
@@ -188,7 +189,7 @@ public class CallPrivacyHook extends BaseFeature {
                             try {
                                 Object isCaller = XposedHelpers.callMethod(callInfo, "isCaller");
                                 if (Boolean.TRUE.equals(isCaller)) return;
-                            } catch (Throwable ignored) {}
+                            } catch (Throwable ignored) { HookErrors.swallowed("CallPrivacyHook", ignored); }
 
                             String callerJid = extractCallerJid(callInfo);
                             if (callerJid == null || !shouldBlockCall(callerJid)) {
@@ -199,7 +200,7 @@ public class CallPrivacyHook extends BaseFeature {
                             Object callId = null;
                             try {
                                 callId = XposedHelpers.callMethod(callInfo, "getCallId");
-                            } catch (Throwable ignored) {}
+                            } catch (Throwable ignored) { HookErrors.swallowed("CallPrivacyHook", ignored); }
 
                             showBlockedCallNotification(callerJid, getFriendlyBlockType(rejectType));
 
@@ -384,11 +385,11 @@ public class CallPrivacyHook extends BaseFeature {
         String resolvedPhone = null;
         try {
             contactName = ContactNameResolver.INSTANCE.resolveName(context, rawJid, null, null);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("CallPrivacyHook", ignored); }
 
         try {
             resolvedPhone = ContactNameResolver.INSTANCE.resolveLidToPhone(context, rawJid);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("CallPrivacyHook", ignored); }
 
         if (resolvedPhone == null) {
             String userPart = ContactNameResolver.INSTANCE.cleanUserPart(rawJid);
@@ -479,7 +480,7 @@ public class CallPrivacyHook extends BaseFeature {
                 }
 
                 showNotification(title, body);
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("CallPrivacyHook", ignored); }
         });
     }
 
@@ -533,7 +534,7 @@ public class CallPrivacyHook extends BaseFeature {
         try {
             Object raw = XposedHelpers.callMethod(peerJid, "getRawString");
             if (raw != null) return raw.toString();
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("CallPrivacyHook", ignored); }
         return peerJid != null ? peerJid.toString() : null;
     }
 
@@ -641,7 +642,7 @@ public class CallPrivacyHook extends BaseFeature {
             if (ContactNameResolver.INSTANCE.isValidDisplayName(name)) {
                 return false; // Known contact name resolved!
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("CallPrivacyHook", ignored); }
         return true; // Unknown contact
     }
 
@@ -664,7 +665,7 @@ public class CallPrivacyHook extends BaseFeature {
             if (peerJid != null) {
                 return extractRawJid(peerJid);
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("CallPrivacyHook", ignored); }
         return null;
     }
 

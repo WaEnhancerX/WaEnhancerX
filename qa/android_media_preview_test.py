@@ -25,7 +25,9 @@ EXPECTED_TESTS = 60
 JAVA = Path('app/src/main/java/com/waenhancer')
 SOURCES = [JAVA/'xposed/features/media/MediaPreviewHook.kt',
            JAVA/'xposed/core/BaseFeature.kt', JAVA/'xposed/utils/HKDFv3.kt',
-           JAVA/'xposed/core/HookRegistrar.java', JAVA/'xposed/core/ViewHookDispatcher.java']
+           JAVA/'xposed/core/HookRegistrar.java', JAVA/'xposed/core/ViewHookDispatcher.java',
+           JAVA/'xposed/utils/HookErrors.java', JAVA/'xposed/utils/HostClassNames.java',
+           JAVA/'xposed/utils/HostResourceIds.java']
 MAVEN_CENTRAL = 'https://repo.maven.apache.org/maven2'
 DEXKIT_URL = MAVEN_CENTRAL + '/org/luckypray/dexkit/2.2.0/dexkit-2.2.0.aar'
 DEXKIT_AAR_SHA256 = 'cf4488da9f721750ce5ff4311e88356cbfcb1d4444c2b519b12d8bdb5f33f2c6'

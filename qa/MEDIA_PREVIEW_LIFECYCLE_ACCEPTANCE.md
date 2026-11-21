@@ -2,7 +2,11 @@
 
 ## Source and integration
 
-PR #90 is reconciled with upstream 4750124e36223dd21d8535c14f2fb658025d8480. Retain upstream's waex cache/resource names, shared ViewHookDispatcher, fallback only when both primary containers are missing, and detach cleanup for the global-layout listener. Do not replace those current paths with the historical preview file.
+The 2026-11-21 reconciliation merges original PR head `f053f19bbd0c043b9779603ac9ff8dc638317df0` with nightly `9972e49fac9bfb650c25ee31fde0da9425b67175`. It retains the current ListView/setAdapter/getView host entry points, current host class/resource helpers, side-button layout, message lookup and concurrent getView-registration set. The older integration described below used upstream `4750124e36223dd21d8535c14f2fb658025d8480`; those historical results are not relabeled as tests of the current source.
+
+On Linux x86-64, Temurin 21.0.13.1+2 and Kotlin 2.0.20, the current candidate passed all 60 framework cases on Robolectric 4.17 API 24/28/34 in 32.9 seconds. Compilation also passed against the real pinned OkHttp 4.12.0 and DexKit 2.2.0 APIs. A fresh mutation run completed in 202.6 seconds: its healthy repeat passed, then all five compiled regressions were detected by the intended behavioral assertions (3, 3, 3, 6 and 3 failures, respectively). These repeats do not increase unique coverage. Tested index tree: `4398183b88dfa03c1c714feff5635bd0adc850c2`; later edits are this acceptance record and the changelog fragment only.
+
+The first compile exposed fixture drift: the current hook imports ActivityTracker for host discovery. That dependency is now an explicit throwing/counting boundary and every scenario asserts it was not called; host discovery is not silently represented as successful. Current HookErrors, HostClassNames and HostResourceIds are actual staged production code. Preserve general CI; this focused result is not full-project, APK, real-network, device or host-discovery acceptance.
 
 Each preview owns its task, HTTP call, dialog, video and created temporary file. Only a file created by that preview is eligible for cleanup. Cache location, filename or a mediapreview_ prefix never transfer ownership of host media. The one-worker executor retains at most one pending preview; closing a session cancels its registered work/call and removes its queued task.
 
