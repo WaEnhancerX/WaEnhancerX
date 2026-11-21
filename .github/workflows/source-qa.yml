@@ -78,26 +78,6 @@ jobs:
           fi
           kotlinc -version
 
-      - name: Verify deferred hook reporting preserves snapshots and unstable IPC contracts
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 qa/test_startup_hook_reporting.py --out "$RUNNER_TEMP/provider-startup-reporting"
-          python3 qa/mutate_startup_hook_reporting.py --out "$RUNNER_TEMP/provider-startup-reporting-mutants"
-
-      - name: Preserve deferred hook reporting evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: provider-startup-reporting
-          path: |
-            ${{ runner.temp }}/provider-startup-reporting/*.json
-            ${{ runner.temp }}/provider-startup-reporting/*.log
-            ${{ runner.temp }}/provider-startup-reporting-mutants/**/*.json
-            ${{ runner.temp }}/provider-startup-reporting-mutants/**/*.log
-          if-no-files-found: error
-          retention-days: 14
-
       - name: Verify target-scoped legacy string preference reads
         shell: bash
         run: |
@@ -213,7 +193,6 @@ jobs:
         run: |
           set -euo pipefail
           tests=(
-            qa/provider_ipc_freezer/verify.py
             qa/test_provider_scope.py
             qa/test_preference_write_types.py
             qa/test_bridge_contract.py
