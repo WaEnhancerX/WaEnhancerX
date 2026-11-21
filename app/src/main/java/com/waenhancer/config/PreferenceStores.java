@@ -47,9 +47,18 @@ public final class PreferenceStores {
         return context.getSharedPreferences(storeName, Context.MODE_PRIVATE);
     }
 
+    private static String stripTargetPrefix(String key) {
+        if (key == null) return null;
+        int colon = key.indexOf(':');
+        if (colon != -1 && colon < key.length() - 1) {
+            return key.substring(colon + 1);
+        }
+        return key;
+    }
+
     /** Which store a key belongs to according to the schema; public when the key is unknown. */
     public static SharedPreferences storeFor(Context context, String key) {
-        PreferenceSchema.Entry entry = PreferenceSchema.entry(key);
+        PreferenceSchema.Entry entry = PreferenceSchema.entry(stripTargetPrefix(key));
         if (entry != null && entry.store == PreferenceSchema.Store.PRIVATE) {
             return privateStore(context);
         }
@@ -60,11 +69,28 @@ public final class PreferenceStores {
      * Reads a key from the store the schema assigns it, falling back to the other store.
      */
     public static Object read(Context context, String key) {
-        PreferenceSchema.Entry entry = PreferenceSchema.entry(key);
+        PreferenceSchema.Entry entry = PreferenceSchema.entry(stripTargetPrefix(key));
         boolean privateFirst = entry != null && entry.store == PreferenceSchema.Store.PRIVATE;
         SharedPreferences first = privateFirst ? privateStore(context) : publicStore(context);
         SharedPreferences second = privateFirst ? publicStore(context) : privateStore(context);
         Object value = first.getAll().get(key);
         return value != null ? value : second.getAll().get(key);
+    }
+
+    /**
+     * Ensures the public preference XML file is readable across process boundaries,
+     * such as by system_server or target WhatsApp hooks via XSharedPreferences.
+     */
+    public static void makePublicStoreReadable(Context context) {
+        if (context == null) return;
+        try {
+            java.io.File dataDir = context.getApplicationInfo().dataDir != null
+                    ? new java.io.File(context.getApplicationInfo().dataDir)
+                    : context.getFilesDir().getParentFile();
+            java.io.File prefsFile = new java.io.File(dataDir, "shared_prefs/" + PUBLIC_NAME + ".xml");
+            if (prefsFile.exists()) {
+                prefsFile.setReadable(true, false);
+            }
+        } catch (Throwable ignored) {}
     }
 }

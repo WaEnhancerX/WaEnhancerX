@@ -2,10 +2,42 @@
 
 The public-source runner compiles the complete `HmaDiagnostics`, `HmaConfigPolicy`,
 `HmaConfigFile`, `AndroidUserScope` and `RootCommandRunner`, together with the actual
-declared-target set. It runs 64 diagnostics/repair scenarios and 15 policy/snapshot
-scenarios on each of Android API 24, 28 and 34 using Robolectric 4.17: **237 framework
-test executions**. These are 79 scenarios repeated on three framework versions,
-not 237 devices. A separate runner executes **20 process/output checks**.
+declared-target set and current `HookErrors`. It runs 70 diagnostics/repair
+scenarios and 15 policy/snapshot scenarios on each of Android API 24, 28 and 34
+using Robolectric 4.17: **255 framework test executions**. These are 85 scenarios
+repeated on three framework versions, not 255 devices. A separate runner executes
+**20 process/output checks**.
+
+## Current nightly reconciliation (2026-11-21)
+
+Original PR head `4f0bfa7b3d30d2b99f6a3944d650685b11c0ab1d` was reconciled with
+nightly `9972e49fac9bfb650c25ee31fde0da9425b67175`. On Linux with Temurin
+21.0.13.1+2, Kotlin 2.0.20 and verified Robolectric SDK JARs, staged input tree
+`3b43726b7be22564e94bcd0c6248834de5ae89db` passed 255/255 framework cases and
+20/20 bounded-process checks in 76.63 seconds including compilation. Production
+and framework-fixture inputs did not change afterward; subsequent edits adapted
+separate JDK/display fixtures and this documentation. The 13 startup-deadline
+scenarios, 12 shell-transaction cases and 33 current dashboard-state checks also
+passed. The 12 transaction cases were executed again by the upstream-hardening
+entry point; that is repetition, not 12 additional unique cases.
+
+Current native path/package facts and the `NativeDiagPaths.available` guard are
+retained. The existing live-scope snapshot API remains; an empty scope never
+expands to every declared target, scope changes invalidate a cached target set,
+and only a freshly read live scope can authorize a repair. Any discovered config
+that cannot be read/parsed makes the diagnostic unavailable instead of clean.
+Six new flow scenarios cover those boundaries and all 23 current native paths.
+
+The fixture extracts native constants from the actual C source and copies the
+exact public `LsposedScopeSnapshot` declaration. JNI execution and LSPosed DB
+access are explicit controlled endpoints, not reimplemented private services.
+Hashes identify those source and generated boundaries. The display fixture also
+retains current module-active and DenyList critical-error precedence. Its initial
+missing-current-model compile failure was retained before adapting the boundary.
+The unrelated receipt guard had drifted from a one-line veto to nightly's
+manual-grant/retry-preserving branch; the structural check now checks that real
+branch and the existing 65-check compiled receipt installer suite passed unchanged.
+No receipt implementation was reverted or altered.
 
 ```bash
 python3 qa/android_hma_test.py \
@@ -31,7 +63,8 @@ not become successful baseline evidence.
   pre/post repair manager passes, and final Boolean result.
 - Calling-user identity checks before root access, explicit package-list and
   force-stop user arguments, profile-specific private file candidates, and cache
-  keys covering the application UID, module package and normalized target set.
+  keys covering the application UID, module package, normalized scoped target set
+  and live-versus-cached scope provenance.
   Invalid or mismatched Context/UID requests return unavailable and never issue a
   root command. Checks and repairs share a lock so an old check cannot overwrite
   repair's cache invalidation.
@@ -95,16 +128,26 @@ public root endpoint.
 | Inspected legacy migration source | `/data/system/hide_my_applist*/config.json` |
 | Exact known manager's own file, owner-user alias only | `/data/data/<manager>/files/config.json` |
 | Private manager candidate for the calling user's verified UID | `/data/user/<userId>/<manager>/files/config.json` |
+| Current native manager candidates, same verified user | `/data/user_de/<userId>/<manager>/files/config.json` and manager `files/temp_config.json` |
+| Current native per-user service candidate | `/data/system/users/<userId>/hide_my_applist*/config.json` |
+| Current native global module candidates | `/data/adb/hma/config.json`, `/data/adb/hma_oss/config.json`, and `config.json` immediately under `/data/adb/modules/{hma_oss_zygisk,hma_oss,hide_my_applist}` |
 
 `<manager>` must be exactly `com.tsng.hidemyapplist`, `org.frknkrc44.hma_oss`, or
 `com.google.android.hmal`. Descendants of another app/service, additional nested
 directories, another user's private files, noncanonical user numbers, unsupported
 roots, traversal components, controls and oversized components are rejected.
-Discovery checks direct service paths and three exact private manager candidates,
+Discovery checks the current native direct candidates mapped to the initiating
+user, plus the current native service-directory glob,
 without a recursive scan of unrelated application directories. It canonicalizes
 paths and rechecks their user ownership; read/write
 commands recheck canonical identity and reject a symlinked file. Additional forks
 or storage layouts require their own confirmed contracts before being accepted.
+
+The additional module/private paths above are facts from current nightly's
+`app/src/main/cpp/waex_diag.c`, not evidence that every HMA fork uses them. The
+path policy admits those exact roots while still rejecting similarly named
+foreign module directories, nested paths and global `temp_config.json` files.
+Per-user system and device-encrypted candidates cannot cross the caller's user.
 
 The global service configurations remain shared by package name across Android
 users. Selecting a target repairs that package's rules in those global stores; it
@@ -145,23 +188,28 @@ health and loading expressions against the production state enum. It checks all
 states, including an unavailable result that remains unconfirmed and raises the
 overall warning indication. This is a display-policy check, not Compose rendering.
 
-## Paired profile regression evidence
+## Historical paired profile regression evidence
 
-The profile candidate passes **237/237** framework executions and **20/20** bounded
+The earlier profile candidate passed **237/237** framework executions and **20/20** bounded
 process checks. The same 237 fixtures compiled against the immutable integration
 baseline `5cd69d8e7fbad0379f417134cbb2ce289dfa3baa` produce **39 assertion failures**,
 with no setup or compilation failures, while retaining 20/20 bounded checks. The
 failures expose unscoped manager stops, owner-user package discovery, rejection
 of the caller's work-profile candidate, invalid-context access and stale cache
 reuse. They are intentional baseline failures, not a passing baseline run.
+That historical baseline comparison was not rerun against the current native and
+live-scope contracts. It must not be attributed to the reconciled input tree or
+added to its 255 executions.
 
 ## Device acceptance still required
 
-`UNAVAILABLE` currently covers an invalid or mismatched caller identity. Other
-diagnostic failures retain the existing classification: inaccessible root
-discovery can still yield `NOT_ACTIVE`, and an empty or unreadable config set can
-yield `NOT_CONFIGURED`. This change does not make permission denial distinguishable
-from absence throughout the HMA diagnostic pipeline.
+`UNAVAILABLE` covers an invalid/mismatched caller identity and a discovered
+configuration set that cannot be read completely. Other diagnostic failures retain
+the current classification: inaccessible root discovery can still yield
+`NOT_ACTIVE`, and no discovered config with a detected manager can yield
+`NOT_CONFIGURED`. Native-library unavailability retains nightly's `NOT_ACTIVE`
+report with an explicit unavailable-architecture message. This does not make
+permission denial distinguishable from absence throughout the pipeline.
 
 Successful replacement means that the script returned the exact acknowledgement
 and a subsequent bounded snapshot matched the intended document. It does not

@@ -25,6 +25,7 @@ PRODUCTION = [
     'app/src/main/java/com/waenhancer/xposed/utils/RootCommandRunner.java',
     'app/src/main/java/com/waenhancer/utils/DeclaredWhatsAppTargets.java',
     'app/src/main/java/com/waenhancer/utils/AndroidUserScope.java',
+    'app/src/main/java/com/waenhancer/xposed/utils/HookErrors.java',
 ]
 POM = '''<project xmlns="http://maven.apache.org/POM/4.0.0">
 <modelVersion>4.0.0</modelVersion><groupId>org.waex.qa</groupId>
@@ -45,6 +46,58 @@ public final class AppRestartHelper {
 
 def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def stage_boundaries(root, stage, identities):
+    """Real current path values and snapshot declaration; explicit JNI/scope endpoints."""
+    native = root / 'app/src/main/cpp/waex_diag.c'
+    scope = root / 'app/src/main/java/com/waenhancer/utils/LsposedScopeReader.kt'
+    for source in (native, scope, root / 'app/src/main/java/com/waenhancer/utils/NativeDiagPaths.kt'):
+        identities[str(source.relative_to(root))] = sha(source)
+    c_source = native.read_text()
+    declarations = ['object NativeDiagPaths { var available = true',
+                    'private fun ready() { check(available) { "Unavailable JNI boundary was accessed" } }']
+    for name in ('knownHmaPackages', 'knownHmaConfigPaths', 'hmaActiveCheckCommand',
+                 'lspHmaCheckCommand', 'hmaConfigGlobCommand'):
+        match = re.search(r'Java_com_waenhancer_utils_NativeDiagPaths_' + name + r'\(.*?\n}', c_source, re.S)
+        if not match: raise RuntimeError('Missing reviewed native declaration: ' + name)
+        values = [json.loads(value) for value in re.findall(r'"(?:\\.|[^"\\])*"', match.group(0))]
+        if not values or any('$' in value for value in values):
+            raise RuntimeError('Review changed native fixture values: ' + name)
+        if name.startswith('known'):
+            result = 'arrayOf(' + ','.join(json.dumps(value) for value in values) + ')'
+            returns = 'Array<String>'
+        else:
+            result = json.dumps(''.join(values)); returns = 'String'
+        declarations.append('fun ' + name + '(): ' + returns + ' { ready(); return ' + result + ' }')
+    declarations.append('}')
+    scope_source = scope.read_text()
+    start = scope_source.index('data class LsposedScopeSnapshot(')
+    end = scope_source.index('\n/**', start)
+    declarations.append(scope_source[start:end])
+    declarations.append('''object LsposedScopeReader {
+ var packages: Set<String> = DeclaredWhatsAppTargets.packages().toSet()
+ var live = true
+ fun read(context: android.content.Context) = LsposedScopeSnapshot(context.packageName, packages,
+   live, if(live) LsposedScopeSnapshot.Source.DATABASE else LsposedScopeSnapshot.Source.CACHE,
+   moduleEnabled = true)
+}''')
+    destination = stage / 'external-service/com/waenhancer/utils/HmaRuntimeBoundaries.kt'
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text('package com.waenhancer.utils\n' + '\n'.join(declarations) + '\n')
+    identities['generated/HmaRuntimeBoundaries.kt'] = sha(destination)
+    sources = [destination]
+    adapters = {
+        'androidx/annotation/NonNull.java': 'package androidx.annotation; public @interface NonNull {}',
+        'androidx/annotation/VisibleForTesting.java': 'package androidx.annotation; public @interface VisibleForTesting {}',
+        'de/robv/android/xposed/XposedBridge.java': '''package de.robv.android.xposed;
+ public final class XposedBridge { public static void log(String message) { System.err.println(message); } }''',
+    }
+    for name, content in adapters.items():
+        path = stage / 'external-service' / name
+        path.parent.mkdir(parents=True, exist_ok=True); path.write_text(content); sources.append(path)
+        identities['generated/' + name] = sha(path)
+    return sources
 
 
 def execute(command, log, env=None, tolerate=False, timeout=600):
@@ -115,6 +168,7 @@ def main():
     service.parent.mkdir(parents=True)
     service.write_text(SERVICE)
     sources.append(service)
+    sources.extend(stage_boundaries(root, stage, identities))
     test_classes = []
     test_files = []
     if args.suite in ('all', 'flow'):
@@ -147,6 +201,8 @@ def main():
                 'executor_uid': os.geteuid(),
                 'expected_framework_tests': expected,
                 'boundaries': ['enumerated command service; no real su or Android data',
+                    'native path values extracted from current C; no JNI execution',
+                    'exact snapshot declaration with controlled live/cached LSPosed scope endpoint',
                     'logical Android paths map to disposable local files',
                     'complete generated shell logic; local tools and filesystem',
                     'no HMA in-memory reload, SELinux, LSPosed or host injection proof']}

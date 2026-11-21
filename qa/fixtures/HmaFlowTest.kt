@@ -34,6 +34,9 @@ class HmaFlowTest {
     private val logical = "/data/misc/hide_my_applist_qa/config.json"
 
     @Before fun setup() {
+        NativeDiagPaths.available = true
+        LsposedScopeReader.live = true
+        LsposedScopeReader.packages = DeclaredWhatsAppTargets.packages().toSet()
         context = RuntimeEnvironment.getApplication()
         ShadowProcess.setUid(context.applicationInfo.uid)
         module = context.packageName
@@ -77,7 +80,7 @@ class HmaFlowTest {
     }
     private fun writes() = events().filter { it.getString("kind") == "write" }
     private fun repair(pkg: String = target) = runBlocking { HmaDiagnostics.fixTargetIsolation(context, pkg) }
-    private fun report() = runBlocking { HmaDiagnostics.checkHmaStatus(context, listOf(target), true) }
+    private fun report() = runBlocking { HmaDiagnostics.checkHmaStatus(context, listOf(target), forceRefresh = true) }
     private fun blocked(expected: Boolean) {
         val report = report()
         assertEquals("diagnostic state", if (expected) HmaDiagnostics.HmaState.BLOCKING_TARGETS
@@ -381,7 +384,7 @@ class HmaFlowTest {
     @Test fun mismatchedContextAndProcessUserNeverReachesRoot() {
         val workContext = scopedContext(10)
         add(document())
-        val result = runBlocking { HmaDiagnostics.checkHmaStatus(workContext, listOf(target), true) }
+        val result = runBlocking { HmaDiagnostics.checkHmaStatus(workContext, listOf(target), forceRefresh = true) }
         assertEquals("UNAVAILABLE", result.state.name)
         assertFalse(runBlocking { HmaDiagnostics.fixTargetIsolation(workContext, target) })
         HmaDiagnostics.forceStopHmaApps(workContext)
@@ -392,13 +395,13 @@ class HmaFlowTest {
         val foreignContext = scopedContext(0, uidOffset = 1)
         ShadowProcess.setUid(10_000)
         assertEquals("UNAVAILABLE", runBlocking {
-            HmaDiagnostics.checkHmaStatus(foreignContext, listOf(target), true)
+            HmaDiagnostics.checkHmaStatus(foreignContext, listOf(target), forceRefresh = true)
         }.state.name)
         assertFalse(runBlocking { HmaDiagnostics.fixTargetIsolation(foreignContext, target) })
         HmaDiagnostics.forceStopHmaApps(foreignContext)
         ShadowProcess.setUid(-1)
         val invalid = scopedContext(0, uidOffset = -10_001)
-        assertEquals("UNAVAILABLE", runBlocking { HmaDiagnostics.checkHmaStatus(invalid, listOf(target), true) }.state.name)
+        assertEquals("UNAVAILABLE", runBlocking { HmaDiagnostics.checkHmaStatus(invalid, listOf(target), forceRefresh = true) }.state.name)
         assertTrue(events().isEmpty())
     }
 
@@ -493,7 +496,7 @@ class HmaFlowTest {
 
     @Test fun equivalentTargetSetsReuseTheSameCachedSnapshot() {
         add(document())
-        runBlocking { HmaDiagnostics.checkHmaStatus(context, listOf(other, target, target), true) }
+        runBlocking { HmaDiagnostics.checkHmaStatus(context, listOf(other, target, target), forceRefresh = true) }
         val before = events().size
         val next = runBlocking { HmaDiagnostics.checkHmaStatus(context, listOf(target, other)) }
         assertEquals(setOf(target, other), next.targetDetails.map { it.packageName }.toSet())
@@ -745,5 +748,57 @@ class HmaFlowTest {
         assertTrue(repair())
         assertEquals(original, readBackup(file))
         assertNoTemporaryFiles()
+    }
+
+    @Test fun emptyLiveScopeNeverExpandsToEveryDeclaredTarget() {
+        add(document())
+        LsposedScopeReader.packages = emptySet()
+        assertTrue(report().targetDetails.isEmpty())
+        assertFalse(repair())
+        assertTrue(events().isEmpty())
+    }
+
+    @Test fun cachedScopeCannotAuthorizeAConfigRepair() {
+        add(document())
+        LsposedScopeReader.live = false
+        assertFalse(repair())
+        assertTrue(events().isEmpty())
+    }
+
+    @Test fun nativeUnavailableDoesNotReadStopOrRepair() {
+        add(document())
+        NativeDiagPaths.available = false
+        assertEquals(HmaDiagnostics.HmaState.NOT_ACTIVE, report().state)
+        assertNull(HmaDiagnostics.cached())
+        assertFalse(repair())
+        HmaDiagnostics.forceStopHmaApps(context)
+        assertTrue(events().isEmpty())
+    }
+
+    @Test fun scopeChangeCannotReuseTheOldBlockingTarget() {
+        add(document())
+        assertEquals(HmaDiagnostics.HmaState.BLOCKING_TARGETS, report().state)
+        LsposedScopeReader.packages = emptySet()
+        val next = runBlocking { HmaDiagnostics.checkHmaStatus(context, listOf(target)) }
+        assertTrue(next.targetDetails.isEmpty())
+        assertTrue(next.blockedTargets.isEmpty())
+    }
+
+    @Test fun partialUnreadableConfigurationIsNotReportedAsClean() {
+        add(document(scope()))
+        add("not JSON", "/data/system/hide_my_applist_old/config.json")
+        assertEquals(HmaDiagnostics.HmaState.UNAVAILABLE, report().state)
+    }
+
+    @Test fun currentNativeCandidatesRetainTheirPreciseProfileBoundary() {
+        val paths = NativeDiagPaths.knownHmaConfigPaths()
+        assertEquals(23, paths.size)
+        paths.forEach { path -> assertTrue(path, HmaConfigFile.isConfigPathForUser(path, 0)) }
+        for (path in paths.filter { it.startsWith("/data/user/") || it.startsWith("/data/user_de/") ||
+                it.startsWith("/data/data/") || it.startsWith("/data/system/users/") }) {
+            assertFalse(path, HmaConfigFile.isConfigPathForUser(path, 10))
+        }
+        assertTrue(HmaConfigFile.isConfigPathForUser("/data/user_de/10/org.frknkrc44.hma_oss/files/temp_config.json", 10))
+        assertFalse(HmaConfigFile.isConfigPathForUser("/data/system/users/11/hide_my_applist/config.json", 10))
     }
 }

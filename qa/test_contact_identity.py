@@ -30,7 +30,14 @@ class SQLiteDatabase(val path:String):java.io.Closeable {
  fun query(t:String,cols:Array<String>,s:String?,a:Array<String>?,g:String?,h:String?,o:String?):Cursor=Cursor(emptyList())
  override fun close(){} }
 abstract class SQLiteOpenHelper(c:Context,n:String,f:Any?,v:Int){val readableDatabase=SQLiteDatabase("preserved");val writableDatabase=readableDatabase
- abstract fun onCreate(db:SQLiteDatabase);abstract fun onUpgrade(db:SQLiteDatabase,oldVersion:Int,newVersion:Int)}
+ abstract fun onCreate(db:SQLiteDatabase);abstract fun onUpgrade(db:SQLiteDatabase,oldVersion:Int,newVersion:Int)
+ open fun onDowngrade(db:SQLiteDatabase,oldVersion:Int,newVersion:Int){throw IllegalStateException("Unsupported database downgrade")}}
+''',
+'Log.kt':'''package android.util
+object Log {
+ @JvmStatic fun e(tag:String,message:String):Int=0
+ @JvmStatic fun e(tag:String,message:String,error:Throwable):Int=0
+}
 ''',
 'Context.kt':'''package android.content
 import android.database.Cursor

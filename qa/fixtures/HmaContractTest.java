@@ -50,7 +50,15 @@ public class HmaContractTest {
             "/data/user/0/com.tsng.hidemyapplist/files/config.json",
             "/data/user/0/org.frknkrc44.hma_oss/files/config.json",
             "/data/user/0/com.google.android.hmal/files/config.json",
-            "/data/user/10/org.frknkrc44.hma_oss/files/config.json"
+            "/data/user/10/org.frknkrc44.hma_oss/files/config.json",
+            "/data/adb/hma/config.json",
+            "/data/adb/hma_oss/config.json",
+            "/data/adb/modules/hma_oss_zygisk/config.json",
+            "/data/adb/modules/hma_oss/config.json",
+            "/data/adb/modules/hide_my_applist/config.json",
+            "/data/system/users/10/hide_my_applist/config.json",
+            "/data/user_de/10/org.frknkrc44.hma_oss/files/config.json",
+            "/data/user/10/org.frknkrc44.hma_oss/files/temp_config.json"
         };
         for (String value : accepted) assertTrue(value, HmaConfigFile.isConfigPath(value));
     }
@@ -62,7 +70,9 @@ public class HmaContractTest {
             "/data/data/example.foreign/com.tsng.hidemyapplist/config.json",
             "/data/misc/example-service/hide_my_applist/config.json",
             "/data/system/example/hma/config.json",
-            "/data/adb/hma/config.json",
+            "/data/adb/hma_other/config.json",
+            "/data/adb/modules/other_hma/config.json",
+            "/data/adb/hma/temp_config.json",
             "/data/adb/hide_my_applist/config.json",
             "/data/user/010/org.frknkrc44.hma_oss/files/config.json",
             "/data/user/-1/org.frknkrc44.hma_oss/files/config.json",
@@ -125,7 +135,7 @@ public class HmaContractTest {
 
     @Test public void writeAndReadRejectUnsupportedPathOrOversizedReplacement() throws Exception {
         HmaConfigFile.Snapshot snapshot = HmaConfigFile.parseSnapshot(PATH, envelope("{}".getBytes(StandardCharsets.UTF_8)));
-        assertThrows(IllegalArgumentException.class, () -> HmaConfigFile.readCommand("/data/adb/hma/config.json"));
+        assertThrows(IllegalArgumentException.class, () -> HmaConfigFile.readCommand("/data/adb/hma_other/config.json"));
         assertThrows(IllegalArgumentException.class, () -> HmaConfigFile.writeCommand(null, "{}"));
         assertThrows(IllegalArgumentException.class, () -> HmaConfigFile.writeCommand(snapshot, null));
         assertThrows(IllegalArgumentException.class, () -> HmaConfigFile.writeCommand(snapshot, "x".repeat(65537)));

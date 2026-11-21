@@ -84,15 +84,19 @@ if command.startswith('find /data/misc /data/system /data/adb /data/user/0 /data
     event('discover', user=0)
     print('\n'.join(control['paths']))
     raise SystemExit(0)
-if command.startswith('for waex_path in /data/misc/hide_my_applist*/config.json /data/system/hide_my_applist*/config.json '):
+if command.startswith('for waex_path in '):
     candidates = re.findall(r'/data/user/([0-9]+)/([^/]+)/files/config.json', command)
     managers = {'com.tsng.hidemyapplist', 'org.frknkrc44.hma_oss', 'com.google.android.hmal'}
     if len(candidates) != 3 or {pkg for _, pkg in candidates} != managers or len({uid for uid, _ in candidates}) != 1:
+        raise SystemExit(96)
+    if '/data/data/' in command or 'find /data/' in command or 'readlink -f "$waex_path"' not in command:
         raise SystemExit(96)
     event('discover', user=int(candidates[0][0]))
     # Return every fixture path, including foreign users. Production must filter
     # canonical output itself before reading or repairing a private configuration.
     print('\n'.join(control['paths']))
+    raise SystemExit(0)
+if command.startswith('[ -f /data/adb/lspd/config/modules_config.db ] && (grep -E '):
     raise SystemExit(0)
 
 logical = next((p for p in sorted(control['files'], key=len, reverse=True) if p in command), None)

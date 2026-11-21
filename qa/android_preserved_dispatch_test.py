@@ -1,0 +1,431 @@
+#!/usr/bin/env python3
+"""Full preserved-message sender/provider/store contracts on Robolectric API 24/28/34.
+
+No private licensing sources, actual WhatsApp, native DexKit scan or LSPosed are
+used. The Xposed dispatcher, host message graph and unrelated service boundaries
+are explicit fixtures. Cached dependencies can be supplied for offline checks.
+"""
+from pathlib import Path
+import argparse,hashlib,json,os,re,shutil,subprocess,zipfile,urllib.request,io
+
+ROOT=Path(__file__).resolve().parents[1]
+EXPECTED_TESTS=99
+PKG=Path('app/src/main/java/com/waenhancer')
+PRODUCTION=[
+ PKG/'xposed/features/conversation/PreserveDeleteForMeHook.kt',
+ PKG/'xposed/core/BaseFeature.kt',
+ PKG/'calls/CallRecordingStore.kt',
+ PKG/'calls/RecordingOutputFiles.java',
+ PKG/'xposed/core/HookRegistrar.java',
+ PKG/'xposed/core/ViewHookDispatcher.java',
+ PKG/'xposed/core/db/PreservedMessageStore.kt',
+ PKG/'utils/ContactIdentityPolicy.java',
+ PKG/'utils/DeclaredWhatsAppTargets.java',
+ PKG/'config/PreferenceSchema.java',
+ PKG/'xposed/bridge/HookProvider.java',
+ PKG/'xposed/bridge/CallerScopePolicy.java',
+ PKG/'xposed/bridge/ProviderDerivedKeyPolicy.java',
+ PKG/'xposed/bridge/PreferenceWriteTypePolicy.java',
+ PKG/'xposed/core/devkit/DexSearchEngine.java',
+ PKG/'xposed/core/devkit/DexCacheManager.java',
+ PKG/'xposed/core/devkit/DexNegativeLookupCache.java',
+ PKG/'xposed/utils/HookErrors.java',
+ PKG/'xposed/utils/HostFields.java',
+]
+XPOSED='''package de.robv.android.xposed;
+import java.lang.reflect.*; import java.util.*;
+public class XposedBridge {
+ public static final Map<Member,List<XC_MethodHook>> hooks=new LinkedHashMap<>();
+ public static final List<String> logs=new ArrayList<>();
+ public static void log(String text){logs.add(text);}
+ public static void log(Throwable error){java.io.StringWriter text=new java.io.StringWriter();error.printStackTrace(new java.io.PrintWriter(text));logs.add(text.toString());}
+ public static XC_MethodHook.Unhook hookMethod(Member method,XC_MethodHook callback){
+  if(method==null||callback==null)throw new IllegalArgumentException("Null hook registration");
+  if(!(method instanceof Method)&&!(method instanceof Constructor))throw new IllegalArgumentException("Not a method/constructor");
+  hooks.computeIfAbsent(method,k->new ArrayList<>()).add(callback);
+  return callback.new Unhook(method);
+ }
+ public static Set<XC_MethodHook.Unhook> hookAllMethods(Class<?> type,String name,XC_MethodHook callback){
+  Set<XC_MethodHook.Unhook> registrations=new LinkedHashSet<>();
+  for(Method m:type.getDeclaredMethods())if(m.getName().equals(name))registrations.add(hookMethod(m,callback));
+  return registrations;
+ }
+ public static Set<XC_MethodHook.Unhook> hookAllConstructors(Class<?> type,XC_MethodHook callback){
+  Set<XC_MethodHook.Unhook> registrations=new LinkedHashSet<>();
+  for(Constructor<?> c:type.getDeclaredConstructors())registrations.add(hookMethod(c,callback));
+  return registrations;
+ }
+ public static void unhookMethod(Member method,XC_MethodHook callback){
+  List<XC_MethodHook> callbacks=hooks.get(method);
+  if(callbacks==null)return;
+  callbacks.remove(callback);
+  if(callbacks.isEmpty())hooks.remove(method);
+ }
+ public static XC_MethodHook.MethodHookParam fireBefore(Member method,Object owner,Object[] args)throws Throwable {
+  List<XC_MethodHook> callbacks=hooks.get(method);if(callbacks==null||callbacks.isEmpty())throw new AssertionError("Production callback missing");
+  XC_MethodHook.MethodHookParam param=new XC_MethodHook.MethodHookParam();param.method=method;param.thisObject=owner;param.args=args;
+  param.invocationCallbacks=new ArrayList<>(callbacks);
+  for(XC_MethodHook callback:param.invocationCallbacks){param.beforeCount++;callback.beforeHookedMethod(param);if(param.resultWasSet)break;}return param;
+ }
+ public static void fireAfter(XC_MethodHook.MethodHookParam param)throws Throwable {
+  if(param.invocationCallbacks==null)throw new AssertionError("No invocation snapshot");
+  for(int i=param.beforeCount-1;i>=0;i--)param.invocationCallbacks.get(i).afterHookedMethod(param);
+ }
+ public static void reset(){hooks.clear();logs.clear();}
+}'''
+METHOD_HOOK='''package de.robv.android.xposed;
+import java.lang.reflect.Member;
+public abstract class XC_MethodHook {
+ protected void beforeHookedMethod(MethodHookParam param)throws Throwable{}
+ protected void afterHookedMethod(MethodHookParam param)throws Throwable{}
+ public final class Unhook {
+  private final Member method;
+  public Unhook(Member method){this.method=method;}
+  public Member getHookedMethod(){return method;}
+  public XC_MethodHook getCallback(){return XC_MethodHook.this;}
+  public void unhook(){XposedBridge.unhookMethod(method,XC_MethodHook.this);}
+ }
+ public static final class MethodHookParam {
+  public Object thisObject;public Object[] args;public java.lang.reflect.Member method;
+  public boolean resultWasSet;private Object result;private Throwable throwable;
+  java.util.List<XC_MethodHook> invocationCallbacks;int beforeCount;
+  public Object getResult(){return result;}public void setResult(Object value){result=value;throwable=null;resultWasSet=true;}
+  public Throwable getThrowable(){return throwable;}public boolean hasThrowable(){return throwable!=null;}
+  public void setThrowable(Throwable value){throwable=value;result=null;resultWasSet=true;}
+ }
+}'''
+
+XPOSED_HELPERS='''package de.robv.android.xposed;
+import java.lang.reflect.*;
+public final class XposedHelpers {
+ private XposedHelpers(){}
+ public static Class<?> findClass(String name,ClassLoader loader){
+  try{return Class.forName(name,false,loader);}
+  catch(ClassNotFoundException failure){throw new IllegalArgumentException(failure);}
+ }
+ public static Class<?> findClassIfExists(String name,ClassLoader loader){
+  if(name.contains("StatusPlaybackActivity")||name.contains("ComposerActivity"))
+   throw new AssertionError("Host navigation is outside this fixture");
+  try{return Class.forName(name,false,loader);}catch(ClassNotFoundException absent){return null;}
+ }
+ public static Field findField(Class<?> type,String name){
+  for(Class<?> current=type;current!=null;current=current.getSuperclass()){
+   try{Field field=current.getDeclaredField(name);field.setAccessible(true);return field;}
+   catch(NoSuchFieldException absent){}
+  }
+  throw new IllegalArgumentException("Missing field: "+name);
+ }
+ public static Field findFieldIfExists(Class<?> type,String name){
+  try{return findField(type,name);}catch(IllegalArgumentException absent){return null;}
+ }
+ private static Class<?>[] parameterTypes(Object[] values){
+  Class<?>[] types=new Class<?>[values.length];
+  for(int i=0;i<values.length;i++){
+   if(!(values[i] instanceof Class))throw new IllegalArgumentException("Only explicit parameter types supported");
+   types[i]=(Class<?>)values[i];
+  }
+  return types;
+ }
+ public static Method findMethodExact(Class<?> type,String name,Object... types){
+  try{Method m=type.getDeclaredMethod(name,parameterTypes(types));m.setAccessible(true);return m;}
+  catch(ReflectiveOperationException failure){throw new IllegalArgumentException(failure);}
+ }
+ public static Method findMethodExactIfExists(Class<?> type,String name,Object... types){
+  try{return findMethodExact(type,name,types);}catch(IllegalArgumentException missing){return null;}
+ }
+ public static Method findMethodBestMatch(Class<?> type,String name,Object... types){
+  return findMethodExact(type,name,types);
+ }
+ public static XC_MethodHook.Unhook findAndHookMethod(Class<?> type,String name,Object... args){
+  if(args.length<1||!(args[args.length-1] instanceof XC_MethodHook))
+   throw new IllegalArgumentException("Required explicit Xposed callback");
+  Object[] params=java.util.Arrays.copyOf(args,args.length-1);
+  return XposedBridge.hookMethod(findMethodExact(type,name,params),(XC_MethodHook)args[args.length-1]);
+ }
+ public static XC_MethodHook.Unhook findAndHookMethod(String name,ClassLoader loader,String method,Object... args){
+  return findAndHookMethod(findClass(name,loader),method,args);
+ }
+ public static Object callMethod(Object owner,String name,Object... args){
+  throw new AssertionError("Dynamic method dispatch outside preserved-message fixture");
+ }
+ public static Object getObjectField(Object owner,String name){
+  try{return findField(owner.getClass(),name).get(owner);}
+  catch(IllegalAccessException failure){throw new IllegalArgumentException(failure);}
+ }
+ public static Object getAdditionalInstanceField(Object owner,String key){
+  throw new AssertionError("Additional instance fields outside fixture");
+ }
+ public static Object setAdditionalInstanceField(Object owner,String key,Object value){
+  throw new AssertionError("Additional instance fields outside fixture");
+ }
+ public static Object removeAdditionalInstanceField(Object owner,String key){
+  throw new AssertionError("Additional instance fields outside fixture");
+ }
+}'''
+
+POM='''<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion>
+<groupId>org.waex.qa</groupId><artifactId>preserved-dispatch-contract-only</artifactId><version>1</version>
+<repositories><repository><id>google</id><url>https://dl.google.com/dl/android/maven2/</url></repository></repositories>
+<dependencies>
+<dependency><groupId>org.robolectric</groupId><artifactId>robolectric</artifactId><version>4.17</version></dependency>
+<dependency><groupId>org.robolectric</groupId><artifactId>android-all</artifactId><version>14-robolectric-10818077</version></dependency>
+<dependency><groupId>junit</groupId><artifactId>junit</artifactId><version>4.13.2</version></dependency>
+</dependencies></project>'''
+
+
+def execute(command,log,allow=False):
+    with log.open('w') as handle:
+        result=subprocess.run(list(map(str,command)),stdout=handle,stderr=subprocess.STDOUT,timeout=600)
+    print(log.name,'exit='+str(result.returncode),flush=True)
+    if result.returncode and not allow:
+        raise RuntimeError(log.read_text()[-16000:])
+    return result.returncode
+
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--source-root',type=Path,default=ROOT)
+    parser.add_argument('--out',type=Path,required=True)
+    parser.add_argument('--deps',type=Path)
+    parser.add_argument('--sdk-jars',type=Path)
+    parser.add_argument('--dexkit',type=Path)
+    parser.add_argument('--maven',default='mvn')
+    parser.add_argument('--maven-repo',type=Path)
+    parser.add_argument('--expect-assertion-failures',type=int,default=0)
+    args=parser.parse_args()
+    root=args.source_root.resolve();out=args.out.resolve();out.mkdir(parents=True,exist_ok=False)
+    deps=args.deps.resolve() if args.deps else out/'deps'
+    if args.deps:
+        if not deps.is_dir(): raise RuntimeError('Dependency directory missing')
+    else:
+        deps.mkdir();(out/'pom.xml').write_text(POM)
+        command=[args.maven,'-B','-f',str(out/'pom.xml'),'org.apache.maven.plugins:maven-dependency-plugin:3.8.1:copy-dependencies','-DoutputDirectory='+str(deps)]
+        if args.maven_repo: command.append('-Dmaven.repo.local='+str(args.maven_repo.resolve()))
+        from maven_dependencies import resolve_dependencies
+        resolve_dependencies(command,out/'dependencies.log',timeout=600)
+        for archive in deps.glob('*.aar'):
+            with zipfile.ZipFile(archive) as bundle:
+                for name in bundle.namelist():
+                    if name=='classes.jar' or (name.startswith('libs/') and name.endswith('.jar')):
+                        (deps/(archive.stem+'-'+name.replace('/','_'))).write_bytes(bundle.read(name))
+    compiler=shutil.which('kotlinc')
+    if not compiler:raise RuntimeError('Kotlin compiler required for full production sources')
+    kotlin=Path(compiler);kotlin_lib=kotlin.resolve().parents[1]/'lib';stdlib=kotlin_lib/'kotlin-stdlib.jar'
+    # Windows batch wrappers may split the semicolon-separated compiler classpath.
+    # Launch the same pinned Kotlin compiler directly via Java on Windows.
+    compiler_command=[str(kotlin)]
+    if os.name=='nt':
+        compiler_jars=sorted(kotlin_lib.glob('*.jar'))
+        if not compiler_jars:raise RuntimeError('Kotlin compiler distribution JARs missing')
+        compiler_command=['java','-Dkotlin.home='+str(kotlin_lib.parent),'-cp',os.pathsep.join(map(str,compiler_jars)),
+                          'org.jetbrains.kotlin.cli.jvm.K2JVMCompiler','-kotlin-home',str(kotlin_lib.parent)]
+    dexkit=args.dexkit.resolve() if args.dexkit else out/'dexkit-2.2.0.jar'
+    if not args.dexkit:
+        url='https://repo.maven.apache.org/maven2/org/luckypray/dexkit/2.2.0/dexkit-2.2.0.aar'
+        with urllib.request.urlopen(url,timeout=30) as response:body=response.read(8*1024*1024+1)
+        if len(body)>8*1024*1024 or hashlib.sha256(body).hexdigest()!='cf4488da9f721750ce5ff4311e88356cbfcb1d4444c2b519b12d8bdb5f33f2c6':
+            raise RuntimeError('DexKit public AAR identity mismatch')
+        with zipfile.ZipFile(io.BytesIO(body)) as archive:dexkit.write_bytes(archive.read('classes.jar'))
+    if hashlib.sha256(dexkit.read_bytes()).hexdigest()!='195979d9576ba6d68a1c60bdd3e38cd3aed068d4e0c5c6c99caa50bc25fcb9f1':
+        raise RuntimeError('DexKit classes JAR identity mismatch')
+    stage=out/'sources';classes=out/'classes';classes.mkdir();identities={};sources=[]
+    for relative in PRODUCTION:
+        source=root/relative;dest=stage/relative;dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(source,dest);sources.append(dest)
+        identities[str(relative)]=hashlib.sha256(source.read_bytes()).hexdigest()
+    main_hook_source=(root/PKG/'xposed/MainHook.java').read_text()
+    if not re.search(r'public\s+static\s+volatile\s+String\s+sModulePath\s*;',main_hook_source):
+        raise RuntimeError('Production MainHook.sModulePath contract changed; review fixture before executing')
+    # Out-of-scope provider services are represented by fail-closed compile contracts.
+    # Require their real source declarations before compiling a standalone fixture;
+    # missing/changed methods must fail here rather than silently changing semantics.
+    contracts = {
+        PKG/'config/PreferenceRestartTracker.java': (
+            r'NEED_RESTART\s*=\s*"need_restart"',
+            r'PENDING_CHANGES\s*=\s*"pending_restart_changes"'),
+        PKG/'core/transcription/TranscriptionRequestHandler.java': (
+            r'METHOD\s*=\s*"transcribe_audio"',
+            r'METHOD_READY\s*=\s*"transcription_ready"',
+            r'METHOD_LOG\s*=\s*"transcription_log"',
+            r'Bundle\s+ready\s*\([^)]*String\s+target\s*\)',
+            r'Bundle\s+handle\s*\([^)]*String\s+target\s*\)',
+            r'Bundle\s+log\s*\('),
+        PKG/'xposed/utils/AppRestartHelper.java': (
+            r'void\s+restartPackage\s*\(\s*Context\s+context\s*,\s*String\s+packageName\s*,\s*String\s+appName\s*,\s*boolean\s+showProgressToast\s*\)',),
+        PKG/'utils/WhatsAppPackageDetector.kt': (
+            r'fun\s+isWhatsAppPackageName\s*\(packageName:\s*String\?\)',
+            r'DeclaredWhatsAppTargets\.contains\(packageName\)'),
+        # Out-of-scope services are compile boundaries. Verify their current
+        # declarations so a signature drift does not silently bless a fixture.
+        PKG/'utils/DiagnosticsRecorder.java': (
+            r'boolean\s+isAdvancedEnabled\s*\(\s*Context\s+context',
+            r'void\s+recordHookHealth\s*\(',
+            r'int\s+recordTargetExitHistory\s*\(',
+            r'void\s+recordHookSummary\s*\('),
+        PKG/'theme/ThemeRepository.kt': (
+            r'companion\s+object\s*\{',
+            r'fun\s+assetFile\s*\(context:\s*Context,\s*themeId:\s*String\?,\s*name:\s*String\?\)',
+            r'ThemeIds\.isValidId\(themeId\)',
+            r'ThemeIds\.isValidAssetName\(name\)'),
+        PKG/'core/preferences/WaexPreferenceManager.java': (
+            r'TARGET_SEEDED_KEY\s*=\s*"target_seeded"',),
+        PKG/'xposed/bridge/HookProvider.java': (
+            r'ThemeRepository\.Companion\.assetFile\s*\(',
+            r'DiagnosticsRecorder\.recordHookHealth\s*\(',
+            r'DiagnosticsRecorder\.recordHookSummary\s*\(',
+            r'DiagnosticsRecorder\.isAdvancedEnabled\s*\(',
+            r'DiagnosticsRecorder\.recordTargetExitHistory\s*\(',
+            r'TranscriptionRequestHandler\.handle\(context,\s*extras,\s*callerTarget\(context,\s*callerUid\)\)',
+            r'TranscriptionRequestHandler\.ready\(context,\s*callerTarget\(context,\s*callerUid\)\)',
+            r'WaexPreferenceManager\.TARGET_SEEDED_KEY'),
+    }
+    contract_hashes={}
+    for relative,required in contracts.items():
+        content=(root/relative).read_text(encoding='utf-8')
+        contract_hashes[str(relative)]=hashlib.sha256(content.encode()).hexdigest()
+        for pattern in required:
+            if re.search(pattern,content) is None:
+                raise RuntimeError(f'Contract changed in {relative}: {pattern}')
+    fixtures={
+        'androidx/annotation/NonNull.java':'package androidx.annotation;public @interface NonNull{}',
+        'androidx/annotation/Nullable.java':'package androidx.annotation;public @interface Nullable{}',
+        'androidx/annotation/VisibleForTesting.java':'package androidx.annotation;public @interface VisibleForTesting{}',
+        'de/robv/android/xposed/XposedBridge.java':XPOSED,
+        'de/robv/android/xposed/XC_MethodHook.java':METHOD_HOOK,
+        'de/robv/android/xposed/XposedHelpers.java':XPOSED_HELPERS,
+        # Compile-only field descriptor from the real MainHook; Xposed startup is outside this fixture.
+        'com/waenhancer/xposed/MainHook.java':'package com.waenhancer.xposed;public class MainHook { public static volatile String sModulePath; }',
+        # Generated Android build metadata is a compile boundary, not an installed
+        # APK identity or a substitute for signing/licensing. Sentinel values keep
+        # the fixture cache generation explicitly distinct from any application.
+        'com/waenhancer/app/BuildConfig.java':'''package com.waenhancer.app;
+public final class BuildConfig {
+ public static final int VERSION_CODE=-1;
+ public static final String VERSION_NAME="preserved-dispatch-compile-fixture";
+ private BuildConfig(){}
+}''',
+        'com/waenhancer/utils/WhatsAppPackageDetector.java':'''package com.waenhancer.utils;
+public final class WhatsAppPackageDetector {
+ public static java.util.Set<String> getSupportedPackages(android.content.Context c){
+  return DeclaredWhatsAppTargets.packages();
+ }
+ public static boolean isWhatsAppPackageName(String name){return DeclaredWhatsAppTargets.contains(name);}
+ public static boolean isWhatsAppPackageName(android.content.Context c,String name){return isWhatsAppPackageName(name);}
+}''',
+        'com/waenhancer/config/PreferenceRestartTracker.java':'''package com.waenhancer.config;
+public final class PreferenceRestartTracker {
+ public static final String NEED_RESTART="need_restart";
+ public static final String PENDING_CHANGES="pending_restart_changes";
+ private PreferenceRestartTracker(){}
+}''',
+        'com/waenhancer/xposed/utils/AppRestartHelper.java':'''package com.waenhancer.xposed.utils;
+public final class AppRestartHelper {
+ public static void restartPackage(android.content.Context context,String packageName,
+                                   String appName,boolean showProgressToast){
+  throw new AssertionError("Restarting apps is outside preserved-message fixture");
+ }
+}''',
+        'com/waenhancer/core/transcription/TranscriptionRequestHandler.java':'''package com.waenhancer.core.transcription;
+public final class TranscriptionRequestHandler {
+ public static final String METHOD="transcribe_audio";
+ public static final String METHOD_READY="transcription_ready";
+ public static final String METHOD_LOG="transcription_log";
+ public static android.os.Bundle handle(android.content.Context c,android.os.Bundle b){
+  throw new AssertionError("Transcription outside preserved-message fixture");
+ }
+ public static android.os.Bundle handle(android.content.Context c,android.os.Bundle b,String target){
+  throw new AssertionError("Transcription outside preserved-message fixture");
+ }
+ public static android.os.Bundle ready(android.content.Context c){
+  throw new AssertionError("Transcription outside preserved-message fixture");
+ }
+ public static android.os.Bundle ready(android.content.Context c,String target){
+  throw new AssertionError("Transcription outside preserved-message fixture");
+ }
+ public static android.os.Bundle log(android.content.Context c,android.os.Bundle b){
+  throw new AssertionError("Transcription outside preserved-message fixture");
+ }
+}''',
+        # These services are not covered by preserved-message cases. Fail
+        # loudly if a future test unexpectedly crosses their boundaries.
+        'com/waenhancer/utils/DiagnosticsRecorder.java':'''package com.waenhancer.utils;
+public final class DiagnosticsRecorder {
+ public static boolean isAdvancedEnabled(android.content.Context c){throw new AssertionError("Diagnostics outside fixture");}
+ public static void recordHookHealth(android.content.Context c,String target,String runtime,
+                                     String bridge,boolean errorPresent,int targetPid){
+  throw new AssertionError("Diagnostics outside fixture");
+ }
+ public static void recordHookSummary(android.content.Context c,String target,String hooks){
+  throw new AssertionError("Diagnostics outside fixture");
+ }
+ public static synchronized int recordTargetExitHistory(android.content.Context c,String target,
+    long[] times,int[] pids,int[] reasons,int[] statuses,long[] pss,long[] rss){
+  throw new AssertionError("Diagnostics outside fixture");
+ }
+}''',
+        'com/waenhancer/theme/ThemeRepository.java':'''package com.waenhancer.theme;
+public final class ThemeRepository {
+ public static final Companion Companion=new Companion();
+ public static final class Companion {
+  public java.io.File assetFile(android.content.Context c,String id,String name){
+   throw new AssertionError("Theme assets outside fixture");
+  }
+ }
+}''',
+        'com/waenhancer/core/preferences/WaexPreferenceManager.java':'''package com.waenhancer.core.preferences;
+public final class WaexPreferenceManager {
+ public static final String TARGET_SEEDED_KEY="target_seeded";
+ private WaexPreferenceManager(){}
+}''',
+        'com/waenhancer/licensing/LicenseManager.java':'package com.waenhancer.licensing;public class LicenseManager{public static String getProStatus(android.content.Context c){throw new AssertionError("License endpoint is outside fixture");}}',
+        'com/waenhancer/update/UpdateCheckCoordinator.java':'package com.waenhancer.update;public class UpdateCheckCoordinator{public static final String TRIGGER_WHATSAPP="unused";public static void request(android.content.Context c,String s,boolean b){throw new AssertionError("Update endpoint is outside fixture");}}',
+    }
+    provider=(root/PKG/'xposed/bridge/HookProvider.java').read_text()
+    for type_,package in [('ProFeatureGate','com.waenhancer.licensing'),('BootloaderSpooferFeature','com.waenhancer.licensing.features')]:
+        names=sorted(set(re.findall(type_+r'\.([A-Z][A-Z_]+)',provider)))
+        fields=''.join('public static final String '+name+'="'+name+'";' for name in names)
+        extra='public static boolean isEntitled(android.content.Context c,String key){throw new AssertionError("License endpoint is outside fixture");}' if type_=='ProFeatureGate' else ''
+        fixtures[package.replace('.','/')+'/'+type_+'.java']='package '+package+';public class '+type_+'{'+fields+extra+'}'
+    fixture_paths=[];fixture_identities={}
+    for relative,text in fixtures.items():
+        dest=stage/'explicit-service-fixtures'/relative;dest.parent.mkdir(parents=True,exist_ok=True);dest.write_text(text);fixture_paths.append(dest);fixture_identities[relative]=hashlib.sha256(dest.read_bytes()).hexdigest()
+    android=deps/'android-all-14-robolectric-10818077.jar'
+    if not android.is_file():raise RuntimeError('Pinned Android compilation API missing')
+    cp=os.pathsep.join(map(str,[classes,*sorted(deps.glob('*.jar')),dexkit,stdlib]))
+    prod_cp=os.pathsep.join(map(str,[classes,android,dexkit,stdlib]))
+    lifecycle_names={'HookRegistrar.java','ViewHookDispatcher.java'}
+    first=[source for source in sources if source.suffix=='.java' and source.name not in lifecycle_names|{'HookProvider.java'}]+fixture_paths
+    execute(['javac','--release','17','-cp',cp,'-d',classes,*first],out/'javac-production-support.log')
+    execute([*compiler_command,'-jvm-target','17','-classpath',prod_cp,'-d',classes,
+             *[s for s in sources if s.suffix=='.kt'],
+             *[s for s in sources if s.name in lifecycle_names]],out/'kotlinc-production.log')
+    execute(['javac','--release','17','-cp',cp,'-d',classes,
+             *[s for s in sources if s.name in lifecycle_names]],out/'javac-hook-lifecycle.log')
+    test=stage/'PreservedDispatchContractTest.java';shutil.copyfile(ROOT/'qa/fixtures'/test.name,test)
+    identities['qa/fixtures/'+test.name]=hashlib.sha256(test.read_bytes()).hexdigest()
+    execute(['javac','--release','17','-cp',cp,'-d',classes,stage/PKG/'xposed/bridge/HookProvider.java',test],out/'javac-provider-tests.log')
+    opens=['java.base/java.lang','java.base/java.util','java.base/java.io','java.base/java.net','java.base/java.security','java.base/java.text','java.base/jdk.internal.access','java.desktop/java.awt.font','jdk.compiler/com.sun.tools.javac.api']
+    command=['java',*['--add-opens='+part+'=ALL-UNNAMED' for part in opens],'-Drobolectric.dependency.repo.url=https://repo.maven.apache.org/maven2','-cp',cp,'org.junit.runner.JUnitCore','com.waenhancer.audit.PreservedDispatchContractTest']
+    if args.sdk_jars:command[1:1]=['-Drobolectric.offline=true','-Drobolectric.dependency.dir='+str(args.sdk_jars.resolve())]
+    elif args.maven_repo:command.insert(1,'-Dmaven.repo.local='+str(args.maven_repo.resolve()))
+    result=execute(command,out/'junit.log',allow=True)
+    log=(out/'junit.log').read_text();passed=re.search(r'OK \((\d+) tests?\)',log);failed=re.search(r'Tests run: (\d+),\s+Failures: (\d+)',log)
+    count=int(passed.group(1)) if passed else int(failed.group(1)) if failed else 0
+    failures=int(failed.group(2)) if failed else 0
+    assertions=len(re.findall(r'^java\.lang\.AssertionError(?::|$)',log,re.MULTILINE))
+    expected=args.expect_assertion_failures
+    accepted=count==EXPECTED_TESTS and failures==expected and (result==0 and passed is not None if expected==0 else result!=0 and assertions==expected)
+    report={'source_root':str(root),'tests':count,'failures':failures,'assertion_failures':assertions,'expected_tests':EXPECTED_TESTS,'expected_assertion_failures':expected,'junit_exit':result,'accepted_result':accepted,'source_sha256':identities,'external_service_fixture_sha256':fixture_identities,
+            'compile_only_source_contract_sha256':contract_hashes,'limits':'Complete production sender/provider/store and support policies/cache classes; Robolectric Android ContentResolver, ContentProvider, SQLite files and Binder/UID/package shadows on API24/28/34. Explicit Xposed dispatch and synthetic host Runnable/message graph/SQL schema. Package detector facade delegates to real DeclaredWhatsAppTargets; unrelated private license and update entry points throw if called. No native DexKit discovery, actual WhatsApp/LSPosed, device disk fault or kernel cross-process Binder test.'}
+    (out/'result.json').write_text(json.dumps(report,indent=2)+'\n')
+    dependency_paths=[*sorted(deps.glob('*.jar')),dexkit]
+    (out/'dependency-sha256.json').write_text(json.dumps({path.name:hashlib.sha256(path.read_bytes()).hexdigest() for path in dependency_paths},indent=2)+'\n')
+    if args.sdk_jars:sdk_paths=sorted(args.sdk_jars.resolve().glob('*.jar'))
+    else:
+        maven_repo=args.maven_repo.resolve() if args.maven_repo else Path.home()/'.m2/repository'
+        sdk_paths=sorted((maven_repo/'org/robolectric/android-all-instrumented').glob('*/*.jar'))
+    (out/'sdk-sha256.json').write_text(json.dumps({path.name:hashlib.sha256(path.read_bytes()).hexdigest() for path in sdk_paths},indent=2)+'\n')
+    if not accepted:raise RuntimeError('Unexpected complete-suite result:\n'+log[-18000:])
+    print(json.dumps({key:report[key] for key in ['tests','failures','assertion_failures','accepted_result']},indent=2))
+
+
+if __name__=='__main__':main()

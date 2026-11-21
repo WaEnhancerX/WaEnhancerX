@@ -16,10 +16,18 @@ def main():
         out=a.out.resolve() if a.out else Path(temporary)
         out.mkdir(parents=True,exist_ok=True)
         production=a.source_root.resolve()/'app/src/main/java/com/waenhancer/xposed/utils/RootCommandRunner.java'
+        diagnostics=a.source_root.resolve()/'app/src/main/java/com/waenhancer/xposed/utils/HookErrors.java'
         fixture=ROOT/'qa/TestRootCommandDeadline.java'
         stage=out/'sources';stage.mkdir(exist_ok=True)
-        for src in (production,fixture): shutil.copyfile(src,stage/src.name)
-        commands=[['javac','--release','17','-d',str(out/'classes'),str(stage/production.name),str(stage/fixture.name)],
+        for src in (production,diagnostics,fixture): shutil.copyfile(src,stage/src.name)
+        boundaries={
+            'NonNull.java':'package androidx.annotation; public @interface NonNull {}',
+            'VisibleForTesting.java':'package androidx.annotation; public @interface VisibleForTesting {}',
+            'XposedBridge.java':'''package de.robv.android.xposed;
+public final class XposedBridge { public static void log(String value) { System.err.println(value); } }''',
+        }
+        for name,content in boundaries.items(): (stage/name).write_text(content)
+        commands=[['javac','--release','17','-d',str(out/'classes'),*map(str,sorted(stage.glob('*.java')))],
                   ['java','-cp',str(out/'classes'),'com.waenhancer.xposed.utils.TestRootCommandDeadline']]
         compiled=subprocess.run(commands[0],capture_output=True,text=True,timeout=60)
         (out/'compile.log').write_text(compiled.stdout+compiled.stderr)
@@ -31,8 +39,10 @@ def main():
         accepted=tests==13 and failures==a.expect_failures and run.returncode==(1 if failures else 0)
         result={'tests':tests,'failures':failures,'accepted':accepted,'compile_exit':compiled.returncode,'run_exit':run.returncode,
                 'source_sha256':hashlib.sha256(production.read_bytes()).hexdigest(),
+                'diagnostics_sha256':hashlib.sha256(diagnostics.read_bytes()).hexdigest(),
+                'boundary_sha256':{name:hashlib.sha256(content.encode()).hexdigest() for name,content in boundaries.items()},
                 'fixture_sha256':hashlib.sha256(fixture.read_bytes()).hexdigest(),'commands':commands,
-                'scope':'Complete RootCommandRunner, real unprivileged sh child and controlled startup/stream faults. No su, Android service, app restart or privileged side effect. Timeout cannot undo a command already executed.'}
+                'scope':'Complete RootCommandRunner and HookErrors, annotation-only adapters and visible Xposed log boundary; real unprivileged sh child and controlled startup/stream faults. No su, Android service, app restart or privileged side effect. Timeout cannot undo a command already executed.'}
         (out/'result.json').write_text(json.dumps(result,indent=2)+'\n')
         print(run.stdout,end='');print(json.dumps(result))
         if not accepted: raise SystemExit(1)

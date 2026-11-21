@@ -10,7 +10,7 @@ data class WaexElevation(
     val none: Dp = 0.dp,
     val card: Dp = 0.dp,
     val button: Dp = 0.dp,
-    val modal: Dp = 0.dp
+    val modal: Dp = 2.dp
 )
 
 val LocalWaexElevation = staticCompositionLocalOf { WaexElevation() }

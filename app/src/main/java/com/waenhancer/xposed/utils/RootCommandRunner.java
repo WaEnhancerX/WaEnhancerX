@@ -188,7 +188,7 @@ public final class RootCommandRunner {
     }
 
     private static void terminate(Process process) {
-        try { process.destroy(); } catch (RuntimeException ignored) {}
+        try { process.destroy(); } catch (RuntimeException ignored) { HookErrors.swallowed("RootCommandRunner", ignored); }
         // Reflection preserves Android API 24 support where destroyForcibly()
         // may not be linked, while using it on runtimes that provide it.
         try {

@@ -30,7 +30,8 @@ public final class HmaConfigFile {
     }
 
     public static boolean isConfigPath(String path) {
-        if (path == null || path.length() > 4096 || !path.endsWith("/config.json")
+        if (path == null || path.length() > 4096
+                || (!path.endsWith("/config.json") && !path.endsWith("/temp_config.json"))
                 || path.contains("/../") || path.contains("/./") || path.contains("//")) return false;
         for (int i = 0; i < path.length(); i++) if (Character.isISOControl(path.charAt(i))) return false;
         String[] parts = path.split("/", -1);
@@ -40,7 +41,19 @@ public final class HmaConfigFile {
         // /data/misc/hide_my_applist*, migrating the same directory from /data/system.
         // An HMA-looking descendant of another service's directory is not a config owner.
         if (("misc".equals(parts[2]) || "system".equals(parts[2])) && parts.length == 5) {
-            return parts[3].startsWith("hide_my_applist");
+            return parts[3].startsWith("hide_my_applist") && "config.json".equals(parts[4]);
+        }
+        // Exact additional roots declared by the current NativeDiagPaths table.
+        if ("adb".equals(parts[2]) && parts.length == 5) {
+            return ("hma".equals(parts[3]) || "hma_oss".equals(parts[3])) && "config.json".equals(parts[4]);
+        }
+        if ("adb".equals(parts[2]) && parts.length == 6 && "modules".equals(parts[3])) {
+            return ("hma_oss_zygisk".equals(parts[4]) || "hma_oss".equals(parts[4])
+                    || "hide_my_applist".equals(parts[4])) && "config.json".equals(parts[5]);
+        }
+        if ("system".equals(parts[2]) && parts.length == 7 && "users".equals(parts[3])) {
+            return isCanonicalUserId(parts[4]) && parts[5].startsWith("hide_my_applist")
+                    && "config.json".equals(parts[6]);
         }
         // A known manager's private file is a configuration candidate, not proof
         // that the HMA service imported it. Callers must also check the user scope.
@@ -48,7 +61,7 @@ public final class HmaConfigFile {
         if ("data".equals(parts[2]) && parts.length == 6) {
             return HmaConfigPolicy.isManagerPackage(parts[3]) && "files".equals(parts[4]);
         }
-        return parts.length == 7 && "user".equals(parts[2]) && isCanonicalUserId(parts[3])
+        return parts.length == 7 && ("user".equals(parts[2]) || "user_de".equals(parts[2])) && isCanonicalUserId(parts[3])
                 && HmaConfigPolicy.isManagerPackage(parts[4]) && "files".equals(parts[5]);
     }
 
@@ -58,6 +71,8 @@ public final class HmaConfigFile {
         if (path.startsWith("/data/user/")) {
             return path.startsWith("/data/user/" + userId + "/");
         }
+        if (path.startsWith("/data/user_de/")) return path.startsWith("/data/user_de/" + userId + "/");
+        if (path.startsWith("/data/system/users/")) return path.startsWith("/data/system/users/" + userId + "/");
         if (path.startsWith("/data/data/")) return userId == 0;
         return true;
     }

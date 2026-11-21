@@ -117,14 +117,14 @@ fun PerContactPrivacyModal(
         ) {
             Column {
                 Text(
-                    text = UiText.get(R.string.waex_ui_custom_privacy_rules_17ba2822, "Custom Privacy Rules"),
+                    text = UiText.get(R.string.waex_ui_custom_privacy_rules, "Custom Privacy Rules"),
                     style = typography.bodyLg,
                     fontWeight = FontWeight.Bold,
                     color = colors.onSurface,
                     fontSize = 18.sp
                 )
                 Text(
-                    text = UiText.get(R.string.waex_ui_configure_rules_for_this_specific_cont_13ad1641, "Configure rules for this specific contact"),
+                    text = UiText.get(R.string.waex_ui_configure_rules_for_this_specific_cont, "Configure rules for this specific contact"),
                     style = typography.bodyMd,
                     color = colors.onSurfaceVariant,
                     fontSize = 13.sp
@@ -139,7 +139,7 @@ fun PerContactPrivacyModal(
             ) {
                 Icon(
                     imageVector = WaexIcons.Clear,
-                    contentDescription = UiText.get(R.string.waex_ui_close_7d9eb7ac, "Close"),
+                    contentDescription = UiText.get(R.string.waex_ui_close, "Close"),
                     tint = colors.onSurfaceVariant,
                     modifier = Modifier.size(14.dp)
                 )
@@ -175,7 +175,7 @@ fun PerContactPrivacyModal(
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    text = contact?.name ?: UiText.get(R.string.waex_ui_unknown_contact_52b001c8, "Unknown Contact"),
+                    text = contact?.name ?: UiText.get(R.string.waex_ui_unknown_contact, "Unknown Contact"),
                     style = typography.bodyLg.copy(fontWeight = FontWeight.SemiBold),
                     color = colors.onSurface
                 )
@@ -203,7 +203,7 @@ fun PerContactPrivacyModal(
         ) {
             // Section: Privacy Rules
             Text(
-                text = UiText.get(R.string.waex_ui_privacy_rules_42135437, "PRIVACY RULES"),
+                text = UiText.get(R.string.waex_ui_privacy_rules, "PRIVACY RULES"),
                 style = typography.labelSm,
                 fontWeight = FontWeight.Bold,
                 color = colors.onSurfaceVariant
@@ -216,11 +216,11 @@ fun PerContactPrivacyModal(
             ) {
                 Column {
                     val ruleItems = listOf(
-                        Triple("hide_seen", UiText.get(R.string.waex_ui_hide_seen_tick_8eba5af5, "Hide Seen Tick"), UiText.get(R.string.waex_ui_hide_read_confirmation_2ae39653, "Hide read confirmation")),
-                        Triple("hide_typing", UiText.get(R.string.waex_ui_hide_typing_status_afddc69c, "Hide Typing Status"), UiText.get(R.string.waex_ui_hide_typing_indicator_153c8ac4, "Hide typing indicator")),
-                        Triple("hide_recording", UiText.get(R.string.waex_ui_hide_recording_status_ccd978cf, "Hide Recording Status"), UiText.get(R.string.waex_ui_hide_audio_recording_state_dca180a4, "Hide audio recording state")),
-                        Triple("anti_revoke", UiText.get(R.string.feat_anti_revoke_title, "Anti-Revoke Messages"), UiText.get(R.string.waex_ui_keep_deleted_messages_visible_7d6b1de5, "Keep deleted messages visible")),
-                        Triple("freeze_lastseen", UiText.get(R.string.feat_freezelastseen_title, "Freeze Last Seen"), UiText.get(R.string.waex_ui_lock_your_online_timestamp_03f3f564, "Lock your online timestamp"))
+                        Triple("hide_seen", UiText.get(R.string.waex_ui_hide_seen_tick, "Hide Seen Tick"), UiText.get(R.string.waex_ui_hide_read_confirmation, "Hide read confirmation")),
+                        Triple("hide_typing", UiText.get(R.string.waex_ui_hide_typing_status, "Hide Typing Status"), UiText.get(R.string.waex_ui_hide_typing_indicator_label, "Hide typing indicator")),
+                        Triple("hide_recording", UiText.get(R.string.waex_ui_hide_recording_status, "Hide Recording Status"), UiText.get(R.string.waex_ui_hide_audio_recording_state, "Hide audio recording state")),
+                        Triple("anti_revoke", UiText.get(R.string.feat_anti_revoke_title, "Anti-Revoke Messages"), UiText.get(R.string.waex_ui_keep_deleted_messages_visible, "Keep deleted messages visible")),
+                        Triple("freeze_lastseen", UiText.get(R.string.feat_freezelastseen_title, "Freeze Last Seen"), UiText.get(R.string.waex_ui_lock_your_online_timestamp, "Lock your online timestamp"))
                     )
 
                     ruleItems.forEachIndexed { index, (key, label, desc) ->
@@ -238,7 +238,7 @@ fun PerContactPrivacyModal(
 
             // Section: Rule Scope
             Text(
-                text = UiText.get(R.string.waex_ui_rule_scope_010c9afb, "RULE SCOPE"),
+                text = UiText.get(R.string.waex_ui_rule_scope, "RULE SCOPE"),
                 style = typography.labelSm,
                 fontWeight = FontWeight.Bold,
                 color = colors.onSurfaceVariant
@@ -251,9 +251,9 @@ fun PerContactPrivacyModal(
             ) {
                 Column {
                     val scopes = listOf(
-                        "always" to UiText.get(R.string.waex_ui_always_active_cbdb4cc2, "Always Active"),
-                        "scheduled" to UiText.get(R.string.waex_ui_scheduled_rules_59260020, "Scheduled Rules"),
-                        "temporary" to UiText.get(R.string.waex_ui_temporary_lockout_fa623835, "Temporary Lockout")
+                        "always" to UiText.get(R.string.waex_ui_always_active, "Always Active"),
+                        "scheduled" to UiText.get(R.string.waex_ui_scheduled_rules, "Scheduled Rules"),
+                        "temporary" to UiText.get(R.string.waex_ui_temporary_lockout, "Temporary Lockout")
                     )
                     scopes.forEachIndexed { idx, (scopeId, label) ->
                         val isSelected = selectedScope == scopeId
@@ -273,9 +273,9 @@ fun PerContactPrivacyModal(
                                         color = colors.onSurface
                                     )
                                     val desc = when (scopeId) {
-                                        "always" -> UiText.get(R.string.waex_ui_rules_apply_at_all_times_5fbfcc41, "Rules apply at all times")
-                                        "scheduled" -> UiText.get(R.string.waex_ui_apply_during_set_hours_3b459f48, "Apply during set hours")
-                                        else -> UiText.get(R.string.waex_ui_reset_automatically_after_24_hours_4ea91231, "Reset automatically after 24 hours")
+                                        "always" -> UiText.get(R.string.waex_ui_rules_apply_at_all_times, "Rules apply at all times")
+                                        "scheduled" -> UiText.get(R.string.waex_ui_apply_during_set_hours, "Apply during set hours")
+                                        else -> UiText.get(R.string.waex_ui_reset_automatically_after_24_hours, "Reset automatically after 24 hours")
                                     }
                                     Text(
                                         text = desc,
@@ -319,7 +319,7 @@ fun PerContactPrivacyModal(
                                     ) {
                                         HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant.copy(alpha = 0.4f))
                                         Text(
-                                            text = UiText.get(R.string.waex_ui_active_hours_range_b86fa4fd, "Active Hours Range"),
+                                            text = UiText.get(R.string.waex_ui_active_hours_range, "Active Hours Range"),
                                             style = typography.labelSm,
                                             fontWeight = FontWeight.Bold,
                                             color = colors.primary
@@ -331,7 +331,7 @@ fun PerContactPrivacyModal(
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Text(text = UiText.get(R.string.waex_ui_start_hour_ab66a6d4, "Start Hour"), style = typography.bodyMd, color = colors.onSurface)
+                                            Text(text = UiText.get(R.string.waex_ui_start_hour, "Start Hour"), style = typography.bodyMd, color = colors.onSurface)
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 TextButton(
                                                     onClick = {
@@ -367,7 +367,7 @@ fun PerContactPrivacyModal(
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Text(text = UiText.get(R.string.waex_ui_end_hour_37f91306, "End Hour"), style = typography.bodyMd, color = colors.onSurface)
+                                            Text(text = UiText.get(R.string.waex_ui_end_hour, "End Hour"), style = typography.bodyMd, color = colors.onSurface)
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 TextButton(
                                                     onClick = {
@@ -442,7 +442,7 @@ fun PerContactPrivacyModal(
                     .fillMaxWidth()
                     .height(48.dp)
             ) {
-                Text(text = UiText.get(R.string.waex_ui_save_rules_fb164cd9, "Save Rules"), style = typography.bodyLg, fontWeight = FontWeight.Bold)
+                Text(text = UiText.get(R.string.waex_ui_save_rules, "Save Rules"), style = typography.bodyLg, fontWeight = FontWeight.Bold)
             }
         }
     }

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="interface_size_title">Oberflächengröße</string>
+    <string name="interface_size_desc">Text, Steuerelemente, Abstände und Navigation in der gesamten App anpassen</string>
+    <string name="interface_size_compact">Kompakt</string>
+    <string name="interface_size_standard">Standard</string>
+    <string name="interface_size_comfortable">Komfortabel</string>
+    <string name="interface_size_large">Groß</string>
+    <string name="build_variant_debug">Debug</string>
+    <string name="build_variant_release">Release</string>
+</resources>

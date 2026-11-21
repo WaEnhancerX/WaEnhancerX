@@ -32,8 +32,10 @@ def braces(source, marker):
 def main():
     dashboard = JAVA / 'ui/screens/dashboard/MainDashboardScreen.kt'
     diagnostics = JAVA / 'utils/HmaDiagnostics.kt'
+    denylist = JAVA / 'utils/MagiskDenylistDiagnostics.kt'
     ui = dashboard.read_text()
     enum = braces(diagnostics.read_text(), 'enum class HmaState')
+    denylist_enum = braces(denylist.read_text(), 'enum class DenylistState')
     value = braces(ui, 'value = when (hmaReport?.state)').removeprefix('value = ')
     healthy = braces(ui, 'healthy = when (hmaReport?.state)').removeprefix('healthy = ')
     loading = re.search(r'(?m)^\s*isLoading = (hmaReport == null[^\n]+),$', ui).group(1)
@@ -47,6 +49,10 @@ object HmaDiagnostics {
 ENUM
 data class HmaReport(val state: HmaState)
 }
+object MagiskDenylistDiagnostics {
+DENYLIST_ENUM
+data class DenylistReport(val state: DenylistState)
+}
 object R { object string { RESOURCES } }
 fun stringResource(value: String) = value
 data class Framework(val name: String)
@@ -55,9 +61,13 @@ data class Summary(val healthy: Boolean?)
 fun label(hmaReport: HmaDiagnostics.HmaReport?): String = VALUE
 fun healthy(hmaReport: HmaDiagnostics.HmaReport?): Boolean? = HEALTHY
 fun loading(hmaReport: HmaDiagnostics.HmaReport?): Boolean = LOADING
-fun warning(hmaReport: HmaDiagnostics.HmaReport?): Boolean {
+fun warning(hmaReport: HmaDiagnostics.HmaReport?, isModuleActive: Boolean = true,
+            denylistBlocked: Boolean = false): Boolean {
 val diagnostics: Diagnostics? = Diagnostics(true, Framework("Detected"))
 val targetSummary = Summary(true)
+val denylistReport = MagiskDenylistDiagnostics.DenylistReport(
+    if (denylistBlocked) MagiskDenylistDiagnostics.DenylistState.BLOCKING_TARGETS
+    else MagiskDenylistDiagnostics.DenylistState.NOT_ACTIVE)
 CONDITIONS
 return isWarning
 }
@@ -74,16 +84,18 @@ else -> null
 verify(healthy(report) == expected)
 verify(loading(report) == (state.name == "CHECKING"))
 verify(warning(report) == (state.name == "UNAVAILABLE"))
+verify(!warning(report, isModuleActive = false))
+verify(!warning(report, denylistBlocked = true))
 }
 val unavailable = HmaDiagnostics.HmaReport(HmaDiagnostics.HmaState.valueOf("UNAVAILABLE"))
-verify(label(unavailable) == "waex_ui_unavailable_ca184496")
+verify(label(unavailable) == "waex_ui_unavailable")
 verify(healthy(null) == null)
 verify(loading(null))
 println("HMA_DASHBOARD_CHECKS=$checks")
 }
 '''
     replacements = {
-        'ENUM': enum,
+        'DENYLIST_ENUM': denylist_enum, 'ENUM': enum,
         'RESOURCES': '\n'.join('const val ' + key + ' = "' + key + '"' for key in resources),
         'VALUE': value, 'HEALTHY': healthy, 'LOADING': loading, 'CONDITIONS': conditions,
     }
@@ -97,7 +109,7 @@ println("HMA_DASHBOARD_CHECKS=$checks")
                        check=True, timeout=90)
         subprocess.run(['java', '-jar', str(out / 'checks.jar')], check=True, timeout=30)
     print('SOURCE_SHA256=' + json.dumps({str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
-                                       for p in (dashboard, diagnostics)}, sort_keys=True))
+                                       for p in (dashboard, diagnostics, denylist)}, sort_keys=True))
 
 
 if __name__ == '__main__':
