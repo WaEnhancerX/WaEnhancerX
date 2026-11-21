@@ -1,5 +1,3 @@
 [Fixes]
-- Prevent repeated profile-photo save requests from queuing extra
-  full-resolution bitmap copies.
-- Check photo encoding and publication before reporting success, release owned
-  bitmaps, and avoid callbacks to closed viewers.
+- Confirm profile-photo exports only after MediaStore acknowledges publication,
+  and remove the newly created row when publication fails.

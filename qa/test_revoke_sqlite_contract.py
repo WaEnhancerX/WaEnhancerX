@@ -28,6 +28,18 @@ def method(source: str, name: str, optional: bool = False) -> str:
     return source[match.start():cursor]
 
 
+def pattern_constant(source: str, name: str) -> str:
+    """Compile the exact one-line regex field used by the production predicate."""
+    matches = re.findall(
+        r"^    private static final Pattern " + re.escape(name)
+        + r" = Pattern\.compile\([^\n;]+\);$",
+        source, flags=re.MULTILINE,
+    )
+    if len(matches) != 1:
+        raise AssertionError(f"expected exactly one production pattern {name}")
+    return matches[0]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, default=PRIVACY / "AntiRevokeHook.java")
@@ -35,6 +47,7 @@ def main() -> None:
     args = parser.parse_args()
     source = args.source.read_text(encoding="utf-8")
     methods = "\n\n".join([
+        pattern_constant(source, "ROW_ID_WHERE"),
         method(source, "hookDatabaseRevocation"),
         method(source, "sanitizePreservedOwnRowId"),
         method(source, "readRemoteStatusKeys", optional=True),

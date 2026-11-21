@@ -7,6 +7,7 @@ import android.database.sqlite.SQLiteDatabase
 import com.waenhancer.xposed.core.BaseFeature
 import com.waenhancer.xposed.core.devkit.DexCacheManager
 import com.waenhancer.xposed.core.devkit.DexSearchEngine
+import com.waenhancer.xposed.utils.HookErrors
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
@@ -71,7 +72,7 @@ class HideForwardedTagHook(
                         if (match.isNotEmpty()) match[0].getInstance(classLoader) else null
                     }
                     if (fc != null) forwardClasses.add(fc)
-                } catch (ignored: Throwable) {}
+                } catch (ignored: Throwable) { HookErrors.swallowed("HideForwardedTagHook", ignored) }
             }
 
             // Resolve setForwardScore method
@@ -95,7 +96,7 @@ class HideForwardedTagHook(
                         ) {
                             return@getMethod method
                         }
-                    } catch (ignored: Throwable) {}
+                    } catch (ignored: Throwable) { HookErrors.swallowed("HideForwardedTagHook", ignored) }
                 }
                 null
             }

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="status_style_default">По умолчанию</string>
+    <string name="status_style_vertical_rows">Вертикальные строки</string>
+    <string name="status_style_facebook_grid">Карточки Facebook (сетка)</string>
+    <string name="status_style_vertical_compact">Вертикальный список (компактный)</string>
+    <string name="status_style_vertical_circle">Вертикальный список (круглые аватары)</string>
+    <string name="status_style_vertical_square">Вертикальный список (квадратные карточки)</string>
+</resources>

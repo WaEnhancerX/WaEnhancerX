@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="status_style_default">Par défaut</string>
+    <string name="status_style_vertical_rows">Lignes verticales</string>
+    <string name="status_style_facebook_grid">Cartes Facebook (grille)</string>
+    <string name="status_style_vertical_compact">Liste verticale (compacte)</string>
+    <string name="status_style_vertical_circle">Liste verticale (avatars circulaires)</string>
+    <string name="status_style_vertical_square">Liste verticale (cartes carrées)</string>
+</resources>

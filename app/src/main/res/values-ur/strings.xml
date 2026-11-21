@@ -12,6 +12,7 @@
     <string name="go_to_telegram">ٹیلیگرام چینل</string>
     <string name="go_to_github">گٹ ہب کے مسائل</string>
     <string name="contributors">شراکت دار</string>
+    <string name="contributor">شراکت دار</string>
     <string name="stargazers_title">ہمارے حامی</string>
     <string name="stargazers_thank_you">WaEnhancerX کی حمایت کرنے کا شکریہ</string>
     <string name="stargazers_message">ہر ستارہ اس منصوبے کو دریافت کرنے میں زیادہ سے زیادہ لوگوں کی مدد کرتا ہے۔ یہ دیوار ہر اس شخص کے لیے ہے جس نے اپنی حمایت ظاہر کی ہے۔</string>
@@ -95,8 +96,8 @@
     <string name="title_deleted_messages">حذف شدہ پیغامات والٹ</string>
     <string name="feat_always_online_title">ہمیشہ آن لائن</string>
     <string name="feat_always_online_desc">آپ کو آن لائن دکھائیں چاہے آپ WhatsApp کو چھوٹا کر دیں (اگر آپ اسے حالیہ سے ہٹا دیں تو کام نہیں کرے گا)</string>
-    <string name="feat_freezelastseen_title">منجمد آخری بار دیکھا</string>
-    <string name="feat_freezelastseen_desc">آپ کا آخری بار دیکھا جانے والا وقت منجمد ہو جائے گا۔</string>
+    <string name="feat_freezelastseen_title">آخری بار دیکھا گیا وقت منجمد کریں</string>
+    <string name="feat_freezelastseen_desc">آپ کا آخری بار آن لائن آنے کا وقت منجمد رہے گا</string>
     <string name="feat_ghostmode_t_title">ٹائپنگ چھپائیں۔</string>
     <string name="feat_ghostmode_t_desc">صارفین یہ نہیں دیکھ سکتے کہ آپ ٹائپ کر رہے ہیں۔</string>
     <string name="feat_ghostmode_r_title">ریکارڈنگ آڈیو چھپائیں۔</string>
@@ -109,18 +110,16 @@
     <string name="feat_hideread_group_desc">گروپ اسکرین میں پیغامات کو صارفین کے علم میں لائے بغیر دیکھیں</string>
     <string name="feat_blueonreply_title">جواب دینے پر بلیو ٹِکس بھیجیں۔</string>
     <string name="feat_blueonreply_desc">پیغام کا جواب دینے کے بعد بلیو ٹِکس بھیجتا ہے۔</string>
-    <string name="feat_seentick_title">بلیو ٹک بھیجنے کے لیے بٹن دکھائیں۔</string>
-    <string name="feat_seentick_desc">بلیو ٹک بھیجنے کے لیے بٹن دکھائیں (پڑھے/دیکھے ہوئے کے بطور نشان زد کریں)</string>
+    <string name="feat_seentick_title">بلیو ٹک بھیجنے کا بٹن دکھائیں</string>
+    <string name="feat_seentick_desc">پیغامات کو دستی طور پر پڑھا گیا/دیکھا گیا نشان زد کرنے کے لیے بٹن دکھائیں</string>
     <string name="feat_hide_delivery_receipts_title">چھپائیں ڈیلیور</string>
     <string name="feat_hide_delivery_receipts_desc">صارفین کو معلوم نہیں ہوگا کہ ان کے پیغامات آپ تک پہنچ چکے ہیں۔</string>
-    <string name="feat_hide_seen_receipts_title">آڈیو کو چھپائیں۔</string>
-    <string name="feat_hide_seen_receipts_desc">سننے پر آڈیو ریڈنگ بھیجنے کو چھپاتا ہے۔</string>
-    <string name="feat_hideonceseen_title">ایک بار دیکھا جانے والا منظر چھپائیں۔</string>
-    <string name="feat_hideonceseen_desc">اس منظر کو چھپائیں ایک میڈیا نے دیکھا ہے۔</string>
+    <string name="feat_hide_seen_receipts_title">وائس میسج سننے کی تصدیق چھپائیں</string>
+    <string name="feat_hide_seen_receipts_desc">وائس میسج سنتے وقت سننے کی تصدیق بھیجنے کو چھپاتا ہے</string>
+    <string name="feat_hideonceseen_title">ایک بار دیکھے جانے والے میڈیا کا کھلنا چھپائیں</string>
+    <string name="feat_hideonceseen_desc">ایک بار دیکھے جانے والے فوٹو یا ویڈیو کو کھولنے پر بھیجنے والے کو معلوم ہونے سے روکتا ہے</string>
     <string name="feat_anti_revoke_title">منسوخی مخالف پیغامات</string>
     <string name="feat_anti_revoke_desc">آپ کے پیغامات کو حذف نہیں کیا جائے گا۔</string>
-    <string name="feat_hide_anti_revoke_title">چیٹ مینو میں Hide Anti-Revoke شامل کریں۔</string>
-    <string name="feat_hide_anti_revoke_desc">اس چیٹ کے لیے حذف شدہ پیغامات کو چھپانے کے لیے گفتگو کے مینو میں آپشن شامل کریں۔</string>
     <string name="feat_preserve_own_revoke_title">میرے منسوخ شدہ پیغامات رکھیں</string>
     <string name="feat_preserve_own_revoke_desc">وصول کنندگان کے لیے حذف کرتے وقت اپنی مقامی کاپی ڈیلیٹ فار ایورین کے بعد اپنے پاس رکھیں</string>
     <string name="feat_antirevokestatus_title">اینٹی ڈیلیٹ اسٹیٹس</string>
@@ -201,8 +200,8 @@
     <string name="feat_status_text_composer_desc">اپنی مرضی کے مطابق کرنے کے لیے اسٹیٹس میں کلر سلیکٹر کو دبائیں اور پکڑیں۔</string>
     <string name="feat_status_downloader_title">اسٹیٹس ڈاؤن لوڈ اور شیئر کریں۔</string>
     <string name="feat_status_downloader_desc">اسٹیٹس کو شیئر کرنے اور ڈاؤن لوڈ کرنے کے لیے دو بٹن دکھاتا ہے۔</string>
-    <string name="feat_media_upload_quality_title">ایچ ڈی کوالٹی کی تصاویر اور ویڈیوز</string>
-    <string name="feat_media_upload_quality_desc">ڈیفالٹ کے ذریعے ایچ ڈی کوالٹی میں تصاویر اور ویڈیوز بھیجیں۔</string>
+    <string name="feat_media_upload_quality_title">اصل معیار کی تصاویر اور ویڈیوز</string>
+    <string name="feat_media_upload_quality_desc">اصل معیار میں تصاویر اور ویڈیوز بھیجیں</string>
     <string name="feat_send_audio_as_voice_status_title">آڈیو ٹو وائس اسٹیٹس</string>
     <string name="feat_send_audio_as_voice_status_desc">ایک مقامی آڈیو فائل چنیں اور اسے آواز کی حیثیت کے طور پر شائع کریں۔</string>
     <string name="feat_status_video_splitter_title">اسٹیٹس ویڈیو سپلٹر</string>
@@ -245,14 +244,14 @@
     <string name="feat_custom_filters_desc">مخصوص IDs سے مماثل واٹس ایپ ویوز کو ہٹائیں یا اپنی مرضی کے مطابق بنائیں (گون، رنگ تبدیل کریں، دھندلاپن، سائز تبدیل کریں)</string>
     <string name="feat_dotonline_title">گفتگو کی فہرست میں آن لائن ڈاٹ دکھائیں۔</string>
     <string name="feat_dotonline_desc">ہوم اسکرین پر سبز آن لائن ڈاٹ دکھائیں۔</string>
-    <string name="feat_showonlinetext_title">آن لائن دکھائیں/گفتگو کی فہرست میں آخری بار دیکھا گیا۔</string>
-    <string name="feat_showonlinetext_desc">آن لائن یا آخری بار ہوم اسکرین پر دیکھا گیا متن دکھائیں۔</string>
+    <string name="feat_showonlinetext_title">چیٹس کی فہرست میں آن لائن/آخری بار دیکھا گیا دکھائیں</string>
+    <string name="feat_showonlinetext_desc">ہوم اسکرین پر آن لائن یا آخری بار دیکھا گیا وقت دکھاتا ہے</string>
     <string name="feat_typing_online_toasts_title">آن لائن رابطے پر ٹوسٹ دکھائیں۔</string>
     <string name="feat_typing_online_toasts_desc">جب کوئی رابطہ آن لائن ہو تو ٹوسٹ دکھائیں۔</string>
     <string name="feat_channels_enhancements_title">چینل کی سفارشات کو ہٹا دیں۔</string>
     <string name="feat_channels_enhancements_desc">ٹیب اسٹیٹس سے چینل کی سفارشات کو ہٹا دیں۔</string>
     <string name="feat_chat_filters_title">قسم کے لیے فلٹر چیٹس کو فعال کریں۔</string>
-    <string name="feat_chat_filters_desc">گروپس، رابطوں اور ان دیکھے پیغامات کے لیے چیٹس کو فلٹر کرنے کے اختیارات دکھائیں۔</string>
+    <string name="feat_chat_filters_desc">گروپس، رابطوں اور نہ پڑھے گئے پیغامات کے لیے چیٹس کو فلٹر کرنے کے اختیارات دکھائیں</string>
     <string name="feat_hide_ui_tabs_title">ہوم پر ٹیبز چھپائیں۔</string>
     <string name="feat_hide_ui_tabs_desc">ہوم اسکرین پر ٹیبز کو چھپائیں جیسے اپ ڈیٹس، کمیونٹیز اور کالز</string>
     <string name="feat_instagram_status_layout_title">ہوم اسکرین پر آئی جی اسٹیٹس کو فعال کریں۔</string>
@@ -324,9 +323,7 @@
     <string name="diag_hma_checking">چیک کیا جا رہا ہے…</string>
     <string name="diag_hma_sheet_title">ایپ آئسولیشن تشخیص</string>
     <string name="diag_hma_sheet_desc">ہائیڈ مائی ایپ لسٹ کے آئسولیشن قواعد کا جائزہ جو ہدف پیکیجز اور ماڈیول کی نمائش پر اثر انداز ہوتے ہیں۔</string>
-    <string name="diag_hma_active_targets">کنفیگرڈ اہداف</string>
-    <string name="diag_hma_inactive_targets">دیگر اہداف</string>
-    <string name="diag_hma_btn_fix">درست کریں</string>
+    <string name="diag_btn_fix">درست کریں</string>
     <string name="diag_hma_fix_title">ایپ آئسولیشن درست کریں</string>
     <string name="diag_hma_fix_message">یہ %1$s سے ماڈیول بلاکنگ کے قواعد اور پری سیٹس کو ہٹانے کے لیے Hide My Applist کی ترتیبات کو اپ ڈیٹ کرے گا۔</string>
     <string name="diag_hma_fix_success">ایپ آئسولیشن کے قواعد کامیابی سے اپ ڈیٹ ہو گئے</string>
@@ -367,4 +364,83 @@
     <string name="diag_target_sheet_injected_badge">انجیکٹ شدہ</string>
     <string name="diag_target_sheet_section_targets">انسٹال شدہ اہداف</string>
     <string name="waex_l10n_builtin_match">"تائید شدہ"</string>
+    <string name="manual_status_seen_section">اسٹیٹس دیکھنا</string>
+    <string name="manual_status_seen_title">دستی طور پر اسٹیٹس دیکھا گیا بھیجیں</string>
+    <string name="manual_status_seen_desc">منتخب کریں کہ موجودہ اسٹیٹس کو دیکھا گیا کے طور پر کیسے نشان زد کیا جائے</string>
+    <string name="manual_status_seen_placement_title">کارروائی اس طرح دکھائیں</string>
+    <string name="manual_status_seen_menu">مینو آپشن</string>
+    <string name="manual_status_seen_icon">دیکھا گیا بٹن</string>
+    <string name="profile_photo_already_saved">پروفائل تصویر پہلے سے محفوظ ہے</string>
+    <string name="profile_photo_saving">پروفائل تصویر محفوظ کرنا</string>
+    <string name="save_profile_duplicates">ڈپلیکیٹس محفوظ کریں</string>
+    <string name="save_profile_duplicates_desc">ہر بار ایک نئی فائل محفوظ کریں</string>
+    <string name="status_already_saved">اسٹیٹس پہلے سے محفوظ ہے</string>
+    <string name="status_download_saving">ڈاؤن لوڈ کردہ اسٹیٹس محفوظ کرنا</string>
+    <string name="save_status_duplicates">ڈپلیکیٹس محفوظ کریں</string>
+    <string name="save_status_duplicates_desc">ہر بار ایک نئی فائل محفوظ کریں</string>
+    <string name="feat_app_interface_size_title">@string/interface_size_title</string>
+    <string name="feat_app_interface_size_desc">@string/interface_size_desc</string>
+    <string name="feat_status_style_title">اسٹیٹس اور اسٹوریز کا انداز</string>
+    <string name="feat_status_style_desc">واٹس ایپ اسٹوریز اور اسٹیٹس لے آؤٹ کو مقامی انٹرفیس انداز کے ساتھ اپنی مرضی کے مطابق بنائیں</string>
+    <string name="sending_read_blue_tick">پڑھنے کا بلیو ٹک بھیجا جا رہا ہے…</string>
+    <string name="diag_target_sheet_custom_rule_warning">تمام ایپس انجیکٹ اور فعال ہیں۔ ایک حسب ضرورت ورژن قانون نافذ ہے؛ اس ورژن کے ساتھ مطابقت سرکاری طور پر تصدیق نہیں کی گئی۔</string>
+    <string name="feat_bypass_screenshot_restriction_title">اسکرین شاٹ کی اجازت دیں</string>
+    <string name="feat_bypass_screenshot_restriction_desc">پورے واٹس ایپ میں اسکرین شاٹ اور اسکرین ریکارڈنگ کی اجازت دیں</string>
+    <string name="waex_ui_selected_icon_color">منتخب آئیکن کا رنگ</string>
+    <string name="waex_ui_unselected_icon_color">غیر منتخب آئیکن کا رنگ</string>
+    <string name="waex_ui_using_app_default_color">ایپ کا ڈیفالٹ رنگ استعمال ہو رہا ہے</string>
+
+    <!-- WaEnhancerX 2.0.6 strings -->
+    <string name="config_mode_desc">ترجیحات کو عالمی سطح پر یا ہر ہدف ایپ کے لیے الگ سے ترتیب دیں</string>
+    <string name="config_mode_per_target_app">فی ہدف ایپ</string>
+    <string name="config_mode_per_target_app_desc">ہر ہدف ایپ کے لیے خصوصیات اور ترجیحات کو الگ الگ حسب ضرورت بنائیں۔</string>
+    <string name="config_mode_title">کنفیگ موڈ</string>
+    <string name="config_mode_universal">عالمگیر (Universal)</string>
+    <string name="config_mode_universal_desc">تمام شامل واٹس ایپ ایپس پر یکساں ترجیحات لاگو کریں۔</string>
+    <string name="diag_denylist_blocked">واٹس ایپ بلاک ہو رہا ہے</string>
+    <string name="diag_denylist_btn_fix_all">سب درست کریں</string>
+    <string name="diag_denylist_checking">چیک کیا جا رہا ہے…</string>
+    <string name="diag_denylist_clean">کوئی ہدف ایپ بلاک نہیں ہے</string>
+    <string name="diag_denylist_fix_all_message">یہ تمام واٹس ایپ پیکجز کو Magisk DenyList سے ہٹا دے گا اور انہیں فورس اسٹاپ کر دے گا تاکہ Zygisk/LSPosed اگلی بار ہک کر سکے۔</string>
+    <string name="diag_denylist_fix_failed">Magisk DenyList سے ہٹانے میں ناکامی</string>
+    <string name="diag_denylist_fix_message">یہ %1$s کو Magisk DenyList سے ہٹا دے گا اور اسے فورس اسٹاپ کر دے گا تاکہ Zygisk/LSPosed اگلی بار ہک کر سکے۔</string>
+    <string name="diag_denylist_fix_success">Magisk DenyList سے کامیابی کے ساتھ ہٹا دیا گیا</string>
+    <string name="diag_denylist_fix_title">Magisk DenyList درست کریں</string>
+    <string name="diag_denylist_not_active">غیر فعال</string>
+    <string name="diag_denylist_sheet_desc">Magisk DenyList کے قواعد کا جائزہ جو ہدف ایپس اور ماڈیول انجیکشن کو متاثر کرتے ہیں۔</string>
+    <string name="diag_denylist_sheet_title">Magisk DenyList کی تشخیص</string>
+    <string name="diag_denylist_target_blocked">DenyList کے ذریعے بلاک ہے</string>
+    <string name="diag_denylist_target_clean">DenyList میں موجود نہیں ہے</string>
+    <string name="diag_denylist_target_magisk_inactive">Magisk فعال نہیں ہے</string>
+    <string name="diag_denylist_target_not_enforced">DenyList کا نفاذ غیر فعال ہے</string>
+    <string name="diag_label_denylist">Magisk DenyList</string>
+    <string name="feat_custom_ab_props_desc">اسٹارٹ اپ پر پراپرٹی ID کے ذریعے واٹس ایپ AB پراپرٹیز کو اوور رائیڈ کریں</string>
+    <string name="feat_custom_ab_props_title">حسب ضرورت AB پراپرٹیز</string>
+    <string name="feat_disable_defemojis_desc">واٹس ایپ کے بلٹ ان ایموجیز کے بجائے سسٹم ایموجیز (iOS، Samsung، Google) استعمال کریں</string>
+    <string name="feat_disable_defemojis_title">ڈیوائس کے پہلے سے طے شدہ ایموجیز استعمال کریں</string>
+    <string name="feat_parallel_downloading_desc">بڑی میڈیا اور فائلوں کو ایک ساتھ متعدد کنکشنز پر تیزی سے ڈاؤن لوڈ کریں</string>
+    <string name="feat_parallel_downloading_title">متوازی ڈاؤن لوڈنگ (Parallel Downloading)</string>
+    <string name="navigation_drawer_open">نیویگیشن ڈراور کھولیں</string>
+    <string name="parallel_downloading_2">2 کنکشنز</string>
+    <string name="parallel_downloading_4">4 کنکشنز (تجویز کردہ)</string>
+    <string name="parallel_downloading_8">8 کنکشنز</string>
+    <string name="parallel_downloading_connections_desc">فی ڈاؤن لوڈ استعمال ہونے والے متوازی کنکشنز کی تعداد منتخب کریں</string>
+    <string name="parallel_downloading_connections_title">متوازی کنکشنز</string>
+    <string name="requires_setting_enabled">%1$s کو فعال کرنا ضروری ہے</string>
+    <string name="target_whatsapp">WhatsApp</string>
+    <string name="target_whatsapp_business">WhatsApp Business</string>
+    <string name="timestamp_custom_pattern_hint">مثلاً HH:mm a, dd/MM HH:mm:ss</string>
+    <string name="timestamp_custom_pattern_label">حسب ضرورت پیٹرن</string>
+    <string name="timestamp_format_title">وقت کا فارمیٹ</string>
+    <string name="timestamp_invalid_pattern">غلط تاریخ/وقت کا پیٹرن</string>
+    <string name="timestamp_modify_text_instructions">منتخب کردہ فارمیٹ کے مطابق وقت کے متغیر کے طور پر ${t} استعمال کریں۔ آپ ${t} سے پہلے اور بعد میں کوئی بھی متن شامل کر سکتے ہیں۔</string>
+    <string name="timestamp_modify_text_preview">پیش نظارہ (Preview)</string>
+    <string name="timestamp_modify_text_title">متن میں ترمیم کریں</string>
+    <string name="waex_ui_github_rate_limited" formatted="false">GitHub کی درخواست کی حد ختم ہو گئی</string>
+    <string name="waex_ui_github_rate_limited_desc" formatted="false">GitHub API کی حد پوری ہو گئی۔ تازہ دم کرنے کے لیے نیچے کھینچیں یا چند منٹ بعد کوشش کریں۔</string>
+    <string name="waex_ui_native_igstatus" formatted="false">Native IGStatus</string>
+    <string name="waex_ui_network_timeout_message" formatted="false">درخواست میں بہت زیادہ وقت لگا۔ اپنا انٹرنیٹ کنکشن چیک کریں اور دوبارہ کوشش کریں۔</string>
+    <string name="waex_ui_network_unreachable_message" formatted="false">WAEX سروس تک رسائی حاصل نہیں کر سکا۔ اپنا انٹرنیٹ کنکشن چیک کریں اور دوبارہ کوشش کریں۔</string>
+    <string name="waex_ui_show_as_deleted" formatted="false">حذف شدہ پیغام کے طور پر دکھائیں</string>
+    <string name="waex_ui_show_as_deleted_desc" formatted="false">حذف شدہ پیغامات کو واٹس ایپ کے مقامی ڈیلیٹڈ میسج لے آؤٹ کے ساتھ دکھائیں</string>
 </resources>

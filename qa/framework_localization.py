@@ -33,7 +33,10 @@ def stage_localization(root, probe, identities):
 def build_localization_table(root, out):
     """Use a real SDK AAPT2 and the existing exact-value verifier."""
     sdk = os.environ.get('ANDROID_SDK_ROOT') or os.environ.get('ANDROID_HOME')
-    tools = list((Path(sdk) / 'build-tools').glob('*/aapt2')) if sdk else []
+    # Linux/macOS ship aapt2; the Android SDK build-tools use aapt2.exe on
+    # Windows. Do not treat the absent extensionless name as a missing SDK.
+    tools = [p for p in (Path(sdk) / 'build-tools').glob('*/aapt2*')
+             if p.is_file() and p.name in ('aapt2', 'aapt2.exe')] if sdk else []
     if not tools:
         raise RuntimeError('Android SDK AAPT2 required for real locale resource tests')
     def version(path):

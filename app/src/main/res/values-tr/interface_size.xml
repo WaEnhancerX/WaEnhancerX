@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="interface_size_title">Arayüz boyutu</string>
+    <string name="interface_size_desc">Uygulama genelinde metni, kontrolleri, boşlukları ve gezinmeyi ayarlayın</string>
+    <string name="interface_size_compact">Kompakt</string>
+    <string name="interface_size_standard">Standart</string>
+    <string name="interface_size_comfortable">Rahat</string>
+    <string name="interface_size_large">Büyük</string>
+    <string name="build_variant_debug">Hata Ayıklama (Debug)</string>
+    <string name="build_variant_release">Sürüm (Release)</string>
+</resources>

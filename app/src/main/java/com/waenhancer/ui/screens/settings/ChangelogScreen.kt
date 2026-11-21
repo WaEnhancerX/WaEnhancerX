@@ -5,9 +5,16 @@ import com.waenhancer.utils.UiText
 
 import android.content.Intent
 import android.net.Uri
+import android.util.TypedValue
 import android.widget.TextView
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -29,8 +36,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.HorizontalDivider
@@ -48,12 +55,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.text.util.LinkifyCompat
 import androidx.core.util.PatternsCompat
@@ -71,14 +81,32 @@ import com.waenhancer.update.ChangelogParser
 import com.waenhancer.update.ChangelogSection
 import com.waenhancer.update.WaexAsset
 import com.waenhancer.update.WaexRelease
+import com.waenhancer.update.InstalledBuild
+import com.waenhancer.update.UpdateChannel
+import com.waenhancer.ui.components.RiskConfirmDialog
+import com.waenhancer.ui.components.ReleaseKindChip
+import com.waenhancer.ui.components.WaexSegmentedTabs
+import com.waenhancer.ui.components.channelLabel
+import com.waenhancer.ui.components.installRiskMessage
 import io.noties.markwon.Markwon
 import io.noties.markwon.html.HtmlPlugin
 import java.text.SimpleDateFormat
 import java.util.Locale
 import android.content.Context
-import androidx.compose.foundation.BorderStroke
 import com.waenhancer.update.normalizeVersion
+import com.waenhancer.utils.InternalLabels
+import java.text.DateFormat
 
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
+import com.waenhancer.ui.components.WaexEmptyState
+import com.waenhancer.ui.components.NetworkErrorCenter
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChangelogScreen() {
     val navController = LocalWaexNavController.current
@@ -88,65 +116,249 @@ fun ChangelogScreen() {
     val spacing = WaexTheme.spacing
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
-    var releases by remember { mutableStateOf<List<WaexRelease>>(emptyList()) }
-    var loading by remember { mutableStateOf(true) }
+    val pullToRefreshState = rememberPullToRefreshState()
+    val installed = remember { InstalledBuild.read(context) }
+    val selectedChannel = remember { UpdateChannel.selected(context, installed) }
+    var tab by remember { mutableStateOf(selectedChannel) }
+    // The selected channel (for update checks), the viewed tab, and stable (for "Switch to stable").
+    val wantedChannels = remember(tab) { setOf(selectedChannel, tab, UpdateChannel.STABLE) }
+    var allReleases by remember { mutableStateOf(ReleaseRepository.getCachedReleases(context, wantedChannels)) }
+    val releases = allReleases.filter { it.channel == tab }
+    var loading by remember { mutableStateOf(releases.isEmpty()) }
+    var pendingRisk by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
+    var isRefreshing by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var reloadKey by remember { mutableStateOf(0) }
     var buildSelectionRelease by remember { mutableStateOf<WaexRelease?>(null) }
     var activeDownload by remember { mutableStateOf<Pair<WaexRelease, WaexAsset>?>(null) }
-    val installedVersion = remember {
-        @Suppress("DEPRECATION")
-        context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
-    }
+    val installedVersion = installed.versionName
 
-    LaunchedEffect(reloadKey) {
-        loading = true
+    LaunchedEffect(reloadKey, tab) {
+        allReleases = ReleaseRepository.getCachedReleases(context, wantedChannels)
+        if (releases.isEmpty()) {
+            loading = true
+        } else {
+            isRefreshing = true
+        }
         error = null
-        runCatching { ReleaseRepository.fetchReleases() }
-            .onSuccess { releases = it }
-            .onFailure { error = it.message ?: UiText.get(R.string.waex_ui_unable_to_load_releases_4dd4eff4, "Unable to load releases.") }
+        runCatching {
+            ReleaseRepository.fetchReleases(context, forceRefresh = reloadKey > 0, channels = wantedChannels)
+        }.onSuccess { fetched ->
+            allReleases = fetched
+        }.onFailure { err ->
+            val cached = ReleaseRepository.getCachedReleases(context, wantedChannels)
+            if (cached.isNotEmpty()) {
+                allReleases = cached
+            } else if (NetworkErrorCenter.isNetworkError(err)) {
+                NetworkErrorCenter.show(err) { reloadKey++ }
+            } else {
+                error = err.message ?: UiText.get(R.string.waex_ui_unable_to_load_releases, "Unable to load releases.")
+            }
+        }
         loading = false
+        isRefreshing = false
     }
 
     val availableUpdate = ReleaseRepository.findUpdate(
-        releases,
-        installedVersion
+        allReleases,
+        installed.versionName,
+        installed.versionCode,
+        selectedChannel
     )
+    val stableRelease = allReleases.filter { it.channel == UpdateChannel.STABLE }.maxByOrNull { it.versionCode }
+    val allowDowngradeSetting = preferences.getBoolean("downgrades_enabled", false)
+
+    fun launchInstall(release: WaexRelease, preferred: WaexAsset?) {
+        if (preferred != null) {
+            activeDownload = release to preferred
+        } else if (release.assets.size > 1) {
+            buildSelectionRelease = release
+        } else {
+            val asset = release.assets.firstOrNull() ?: release.defaultAsset
+            if (asset != null) {
+                activeDownload = release to asset
+            } else if (release.downloadUrl != null) {
+                activeDownload = release to WaexAsset(
+                    name = "WaEnhancerX-${release.tagName}.apk",
+                    downloadUrl = release.downloadUrl!!,
+                    size = release.downloadSize
+                )
+            }
+        }
+    }
+
+    // Warn before a downgrade or a move to a less stable build; a debug/release mode switch is exempt.
+    fun requestInstall(release: WaexRelease, preferred: WaexAsset? = null) {
+        val risk = if (preferred != null) null else
+            installRiskMessage(release.versionCode < installed.versionCode, release.channel, installed.channel)
+        if (risk != null) pendingRisk = risk to { launchInstall(release, null) } else launchInstall(release, preferred)
+    }
     Scaffold(
         topBar = {
             WaexTopBar(
-                UiText.get(R.string.waex_ui_changelog_releases_f404e373, "Changelog & Releases"),
+                UiText.get(R.string.waex_ui_changelog_releases, "Changelog & Releases"),
                 onBackClick = { navController.popBack() },
                 actions = {
                     IconButton(onClick = { navController.navigateTo(Screen.UpdateSettings) }) {
-                        Icon(WaexIcons.Settings, contentDescription = UiText.get(R.string.waex_ui_update_settings_46ed6957, "Update settings"), tint = colors.onSurface)
+                        Icon(WaexIcons.Settings, contentDescription = UiText.get(R.string.waex_ui_update_settings, "Update settings"), tint = colors.onSurface)
                     }
                 }
             )
         },
         containerColor = colors.background
     ) { insets ->
-        when {
-            loading -> Box(Modifier.fillMaxSize().padding(insets), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = colors.primary) }
-            error != null -> Column(Modifier.fillMaxSize().padding(insets).padding(spacing.pageMargin), Arrangement.Center, Alignment.CenterHorizontally) {
-                Text(error!!, color = colors.onSurfaceVariant, style = typography.bodyMd)
-                Spacer(Modifier.height(16.dp))
-                Button(onClick = { reloadKey++ }) { Text(UiText.get(R.string.waex_ui_try_again_d8b8392e, "Try again")) }
-            }
-            else -> LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(insets),
-                contentPadding = PaddingValues(horizontal = spacing.pageMargin, vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                if (releases.isEmpty()) item { Text(UiText.get(R.string.waex_ui_no_releases_found_d8feb500, "No releases found."), color = colors.onSurfaceVariant) }
-                items(releases, key = { it.tagName }) { release ->
-                    val installed = release.version.equals(normalizeVersion(installedVersion), true)
-                    val comparison = ReleaseRepository.versionCode(release.version).compareTo(ReleaseRepository.versionCode(installedVersion))
-                    val allowDowngrade = preferences.getBoolean("downgrades_enabled", false)
+        Column(Modifier.fillMaxSize().padding(insets)) {
+        val channelTabs = listOf(UpdateChannel.STABLE, UpdateChannel.BETA, UpdateChannel.NIGHTLY)
+        WaexSegmentedTabs(
+            labels = channelTabs.map { channelLabel(it) },
+            selectedIndex = channelTabs.indexOf(tab),
+            onSelect = { tab = channelTabs[it] },
+            modifier = Modifier.padding(horizontal = spacing.pageMargin, vertical = 8.dp)
+        )
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { reloadKey++ },
+            state = pullToRefreshState,
+            indicator = {
+                if (isRefreshing || pullToRefreshState.distanceFraction > 0f) {
                     Surface(
-                        shape = radius.bentoCardShape,
-                        color = colors.surfaceContainerLow,
-                        border = BorderStroke(1.dp, colors.outlineVariant),
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = 12.dp)
+                            .size(52.dp)
+                            .shadow(6.dp, RoundedCornerShape(18.dp)),
+                        shape = RoundedCornerShape(18.dp),
+                        color = colors.primaryContainer,
+                        contentColor = colors.primary
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            if (isRefreshing) {
+                                LoadingIndicator(
+                                    modifier = Modifier.size(30.dp),
+                                    color = colors.primary
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = WaexIcons.Refresh,
+                                    contentDescription = UiText.get(R.string.waex_ui_refresh, "Refresh"),
+                                    modifier = Modifier
+                                        .size(22.dp)
+                                        .graphicsLayer {
+                                            rotationZ = 180f * pullToRefreshState.distanceFraction.coerceIn(0f, 1f)
+                                        }
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+        ) {
+            when {
+                loading -> ChangelogSkeleton(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = spacing.pageMargin, vertical = 16.dp)
+                )
+                error != null && releases.isEmpty() -> {
+                    val isRateLimit = error?.contains("rate limit", ignoreCase = true) == true
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = spacing.pageMargin, vertical = 32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        WaexEmptyState(
+                            title = if (isRateLimit) {
+                                UiText.get(R.string.waex_ui_github_rate_limited, "GitHub Rate Limit Exceeded")
+                            } else {
+                                UiText.get(R.string.waex_ui_unable_to_load_releases, "Unable to load releases.")
+                            },
+                            description = if (isRateLimit) {
+                                UiText.get(R.string.waex_ui_github_rate_limited_desc, "GitHub API limit reached. Pull to refresh or try again in a few minutes.")
+                            } else {
+                                error.orEmpty()
+                            },
+                            icon = if (isRateLimit) WaexIcons.Warning else WaexIcons.Info,
+                            actionText = UiText.get(R.string.waex_ui_try_again, "Try again"),
+                            onActionClick = { reloadKey++ }
+                        )
+                    }
+                }
+                else -> LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = spacing.pageMargin, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                if (installed.channel != UpdateChannel.STABLE && stableRelease != null &&
+                    !stableRelease.version.equals(normalizeVersion(installedVersion), true) &&
+                    (stableRelease.versionCode > installed.versionCode || allowDowngradeSetting)) {
+                    item {
+                        Button(
+                            onClick = { requestInstall(stableRelease) },
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = radius.buttonShape
+                        ) { Text("${UiText.get(R.string.waex_ui_switch_to_stable, "Switch to stable")} (${stableRelease.version})") }
+                    }
+                }
+                if (releases.isEmpty()) item { Text(UiText.get(R.string.waex_ui_no_releases_found, "No releases found."), color = colors.onSurfaceVariant) }
+                if (allReleases.isNotEmpty()) {
+                    item {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp),
+                            color = if (availableUpdate != null) colors.primaryContainer else colors.surfaceContainerHigh
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = if (availableUpdate != null) WaexIcons.SystemUpdate else WaexIcons.Success,
+                                    contentDescription = null,
+                                    tint = if (availableUpdate != null) colors.primary else colors.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = if (availableUpdate != null) {
+                                            "${UiText.get(R.string.waex_ui_update, "Update")}: ${availableUpdate.version}"
+                                        } else {
+                                            UiText.get(R.string.waex_ui_installed, "Installed")
+                                        },
+                                        style = typography.bodySm,
+                                        color = colors.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = installedVersion,
+                                        style = typography.titleMd,
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.onSurface
+                                    )
+                                }
+                                ReleaseKindChip(installedVersion)
+                                Badge(
+                                    if (BuildConfig.IS_DEBUG_VARIANT) UiText.get(R.string.waex_ui_build_debug, "Debug")
+                                    else UiText.get(R.string.waex_ui_build_release, "Release"),
+                                    colors.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+                items(releases, key = { it.tagName }) { release ->
+                    val isInstalled = release.version.equals(normalizeVersion(installedVersion), true)
+                    val comparison = release.versionCode.compareTo(installed.versionCode)
+                    val allowDowngrade = allowDowngradeSetting
+                    Surface(
+                        shape = RoundedCornerShape(if (isInstalled || release.tagName == availableUpdate?.tagName) 28.dp else 20.dp),
+                        color = when {
+                            release.tagName == availableUpdate?.tagName -> colors.primaryContainer
+                            isInstalled -> colors.surfaceContainerHigh
+                            else -> colors.surfaceContainerLow
+                        },
                         modifier = Modifier.fillMaxWidth().clickable { navController.navigateTo(Screen.ReleaseDetails(release.tagName)) }
                     ) {
                         Column(Modifier.padding(20.dp)) {
@@ -162,32 +374,28 @@ fun ChangelogScreen() {
                                     Text(
                                         formatReleaseDate(release.publishedAt),
                                         style = typography.bodyMd,
-                                        color = colors.onSurfaceVariant,
-                                        fontSize = 12.sp
+                                        color = colors.onSurfaceVariant
                                     )
                                 }
                                 IconButton(onClick = { navController.navigateTo(Screen.ReleaseDetails(release.tagName)) }) {
                                     Icon(
                                         WaexIcons.ChevronRight,
-                                        contentDescription = UiText.get(R.string.waex_ui_view_release_details_12e6eae8, "View release details"),
+                                        contentDescription = UiText.get(R.string.waex_ui_view_release_details, "View release details"),
                                         tint = colors.onSurfaceVariant
                                     )
                                 }
                             }
-                            if (installed || release.tagName == availableUpdate?.tagName) {
+                            run {
                                 Row(Modifier.padding(top = 8.dp)) {
-                                    if (installed) Badge(UiText.get(R.string.waex_ui_installed_f8b32f4e, "Installed"), Color(0xFF10B981))
-                                    if (release.tagName == availableUpdate?.tagName) Badge(UiText.get(R.string.waex_ui_update_c1c1009d, "Update"), colors.primary)
+                                    ReleaseKindChip(release.version)
+                                    if (isInstalled) Badge(UiText.get(R.string.waex_ui_installed, "Installed"), colors.success)
+                                    if (release.tagName == availableUpdate?.tagName) Badge(UiText.get(R.string.waex_ui_update, "Update"), colors.primary)
                                 }
                             }
                             Spacer(Modifier.height(14.dp))
                             Surface(
-                                shape = radius.bentoCardShape,
-                                color = colors.surfaceDim,
-                                border = BorderStroke(
-                                    1.dp,
-                                    colors.outlineVariant.copy(alpha = 0.5f)
-                                ),
+                                shape = RoundedCornerShape(16.dp),
+                                color = colors.surface.copy(alpha = 0.72f),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 ChangelogBodyView(
@@ -198,9 +406,9 @@ fun ChangelogScreen() {
                             val debugAsset = release.assets.firstOrNull { it.isDebug }
                             val releaseAsset = release.assets.firstOrNull { !it.isDebug }
                             val hasBothModes = debugAsset != null && releaseAsset != null
-                            val canSwitchMode = installed && hasBothModes
-                            val otherModeAsset = if (installed) {
-                                if (BuildConfig.DEBUG) releaseAsset else debugAsset
+                            val canSwitchMode = isInstalled && hasBothModes
+                            val otherModeAsset = if (isInstalled) {
+                                if (BuildConfig.IS_DEBUG_VARIANT) releaseAsset else debugAsset
                             } else null
 
                             val showActionButton = (canSwitchMode && otherModeAsset != null) ||
@@ -209,32 +417,18 @@ fun ChangelogScreen() {
                             if (showActionButton) {
                                 Spacer(Modifier.height(14.dp))
                                 Button(
-                                    onClick = {
-                                        if (canSwitchMode && otherModeAsset != null) {
-                                            activeDownload = release to otherModeAsset
-                                        } else if (release.assets.size > 1) {
-                                            buildSelectionRelease = release
-                                        } else {
-                                            val asset = release.assets.firstOrNull() ?: release.defaultAsset
-                                            if (asset != null) {
-                                                activeDownload = release to asset
-                                            } else if (release.downloadUrl != null) {
-                                                activeDownload = release to WaexAsset(
-                                                    name = "WaEnhancerX-${release.tagName}.apk",
-                                                    downloadUrl = release.downloadUrl!!,
-                                                    size = release.downloadSize
-                                                )
-                                            }
-                                        }
-                                    },
-                                    modifier = Modifier.fillMaxWidth()
+                                    onClick = { requestInstall(release, if (canSwitchMode) otherModeAsset else null) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp),
+                                    shape = radius.buttonShape
                                 ) {
                                     val buttonText = when {
-                                        canSwitchMode -> if (BuildConfig.DEBUG) UiText.get(R.string.waex_l10n_switch_release, "Switch to Release") else UiText.get(R.string.waex_l10n_switch_debug, "Switch to Debug")
-                                        comparison > 0 -> UiText.get(R.string.waex_ui_upgrade_7ec0261b, "Upgrade")
-                                        else -> UiText.get(R.string.waex_ui_downgrade_d955b7e8, "Downgrade")
+                                        canSwitchMode -> if (BuildConfig.IS_DEBUG_VARIANT) UiText.get(R.string.waex_l10n_switch_release, "Switch to Release") else UiText.get(R.string.waex_l10n_switch_debug, "Switch to Debug")
+                                        comparison > 0 -> UiText.get(R.string.waex_ui_upgrade, "Upgrade")
+                                        else -> UiText.get(R.string.waex_ui_downgrade, "Downgrade")
                                     }
-                                    Text(buttonText)
+                                Text(buttonText)
                                 }
                             }
                         }
@@ -242,7 +436,9 @@ fun ChangelogScreen() {
                 }
             }
         }
+        }
     }
+}
 
     buildSelectionRelease?.let { rel ->
         BuildTypeSelectionSheet(
@@ -255,14 +451,22 @@ fun ChangelogScreen() {
         )
     }
 
+    pendingRisk?.let { (message, proceed) ->
+        RiskConfirmDialog(
+            title = UiText.get(R.string.waex_ui_install_risk_title, "Install this build?"),
+            message = message,
+            confirmLabel = UiText.get(R.string.waex_ui_install_risk_confirm, "Install anyway"),
+            onConfirm = { pendingRisk = null; proceed() },
+            onDismiss = { pendingRisk = null }
+        )
+    }
+
     activeDownload?.let { (rel, asset) ->
-        val isDowngrade = ReleaseRepository.versionCode(rel.version) < ReleaseRepository.versionCode(installedVersion)
         UpdateDownloadSheet(
             url = asset.downloadUrl,
             expectedSha256 = asset.sha256,
             expectedSize = asset.size,
             version = rel.version,
-            useRoot = isDowngrade || preferences.getBoolean("root_auto_install", false),
             onDismiss = { activeDownload = null }
         )
     }
@@ -293,7 +497,7 @@ fun ChangelogBodyView(
 
     if (sections.isEmpty()) {
         MarkdownText(
-            body.ifBlank { UiText.get(R.string.waex_ui_no_changelog_available_d334743e, "No changelog available.") },
+            body.ifBlank { UiText.get(R.string.waex_ui_no_changelog_available, "No changelog available.") },
             colors.onSurfaceVariant.toArgb(),
             maxLines = 8,
             modifier = modifier.padding(vertical = 8.dp)
@@ -310,7 +514,10 @@ fun ChangelogBodyView(
                 }
                 val expanded = expandedStates[section.title] ?: initiallyExpanded
                 ChangelogSectionRow(
-                    section = section.copy(items = section.items.take(maxItemsPerCategory)),
+                    section = section.copy(
+                        items = section.items.take(maxItemsPerCategory),
+                        itemLevels = section.itemLevels.take(maxItemsPerCategory)
+                    ),
                     expanded = expanded,
                     onToggle = { expandedStates[section.title] = !expanded }
                 )
@@ -334,7 +541,7 @@ private fun ChangelogSectionRow(
             modifier = Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(com.waenhancer.utils.InternalLabels.text(section.title), style = typography.titleMd, fontWeight = FontWeight.Bold, color = colors.onSurface)
+            Text(InternalLabels.text(section.title), style = typography.titleMd, fontWeight = FontWeight.Bold, color = colors.onSurface)
             Spacer(Modifier.width(6.dp))
             Text(
                 "(${section.items.size})",
@@ -345,7 +552,7 @@ private fun ChangelogSectionRow(
             )
             Icon(
                 WaexIcons.ChevronRight,
-                contentDescription = if (expanded) UiText.get(R.string.waex_ui_collapse_1_s_a0b382ed, "Collapse %1\$s", com.waenhancer.utils.InternalLabels.text(section.title)) else UiText.get(R.string.waex_ui_expand_1_s_e144bd52, "Expand %1\$s", com.waenhancer.utils.InternalLabels.text(section.title)),
+                contentDescription = if (expanded) UiText.get(R.string.waex_ui_collapse_1_s, "Collapse %1\$s", InternalLabels.text(section.title)) else UiText.get(R.string.waex_ui_expand_1_s, "Expand %1\$s", InternalLabels.text(section.title)),
                 tint = colors.onSurfaceVariant,
                 modifier = Modifier.rotate(rotation)
             )
@@ -359,10 +566,16 @@ private fun ChangelogSectionRow(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                section.items.forEach { item ->
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                section.items.forEachIndexed { itemIndex, item ->
+                    val level = section.itemLevels.getOrElse(itemIndex) { 0 }
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(start = (level * 18).dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
                         Box(
-                            Modifier.padding(top = 7.dp).size(4.dp).background(
+                            Modifier.padding(top = 7.dp).size(if (level == 0) 4.dp else 3.dp).background(
                                 colors.onSurfaceVariant,
                                 CircleShape
                             )
@@ -377,17 +590,181 @@ private fun ChangelogSectionRow(
 }
 
 @Composable
+fun changelogShimmerBrush(targetValue: Float = 1000f): Brush {
+    val shimmerColors = listOf(
+        WaexTheme.colors.surfaceContainerLow.copy(alpha = 0.6f),
+        WaexTheme.colors.surfaceContainerHighest.copy(alpha = 0.9f),
+        WaexTheme.colors.surfaceContainerLow.copy(alpha = 0.6f)
+    )
+    val transition = rememberInfiniteTransition(label = "changelogShimmerTransition")
+    val translateAnimation = transition.animateFloat(
+        initialValue = 0f,
+        targetValue = targetValue,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1100, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "changelogShimmerTranslate"
+    )
+    return Brush.linearGradient(
+        colors = shimmerColors,
+        start = Offset.Zero,
+        end = Offset(x = translateAnimation.value, y = translateAnimation.value)
+    )
+}
+
+@Composable
+fun ChangelogSkeleton(
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(16.dp)
+) {
+    val brush = changelogShimmerBrush()
+    val colors = WaexTheme.colors
+
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = contentPadding,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        items(3) { index ->
+            Surface(
+                shape = RoundedCornerShape(if (index == 0) 28.dp else 20.dp),
+                color = colors.surfaceContainerLow,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(20.dp)) {
+                    // Header row: version name, date, chevron
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Box(
+                                modifier = Modifier
+                                    .width(if (index == 0) 180.dp else 140.dp)
+                                    .height(22.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(brush)
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .width(90.dp)
+                                    .height(13.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(brush)
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(brush)
+                        )
+                    }
+
+                    // Optional badge skeleton on first card (e.g. Installed / Update)
+                    if (index == 0) {
+                        Spacer(Modifier.height(12.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Box(
+                                modifier = Modifier
+                                    .width(68.dp)
+                                    .height(22.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(brush)
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    // Nested container for changelog body
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = colors.surface.copy(alpha = 0.72f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            // Section header
+                            Box(
+                                modifier = Modifier
+                                    .width(110.dp)
+                                    .height(15.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(brush)
+                            )
+                            // Bullet items
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(brush)
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.85f)
+                                        .height(13.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(brush)
+                                )
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(brush)
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.65f)
+                                        .height(13.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(brush)
+                                )
+                            }
+                        }
+                    }
+
+                    // Action button skeleton (Upgrade / Downgrade / Switch)
+                    if (index == 0) {
+                        Spacer(Modifier.height(16.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(40.dp)
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(brush)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 internal fun MarkdownText(
     markdown: String,
     textColor: Int,
     maxLines: Int = Int.MAX_VALUE,
     modifier: Modifier = Modifier
 ) {
+    val density = LocalDensity.current
+    val typography = WaexTheme.typography
+    val textSizePx = with(density) { typography.bodyMd.fontSize.toPx() }
     AndroidView(
         factory = { context ->
             TextView(context).apply {
                 setTextColor(textColor)
-                textSize = 14f
+                setTextSize(TypedValue.COMPLEX_UNIT_PX, textSizePx)
                 setLineSpacing(0f, 1.18f)
                 this.maxLines = maxLines
                 tag = Markwon.builder(context).usePlugin(HtmlPlugin.create()).build()
@@ -395,6 +772,7 @@ internal fun MarkdownText(
         },
         update = { view ->
             view.setTextColor(textColor)
+            view.setTextSize(TypedValue.COMPLEX_UNIT_PX, textSizePx)
             view.maxLines = maxLines
             (view.tag as Markwon).setMarkdown(view, markdown.trim())
             LinkifyCompat.addLinks(view, PatternsCompat.WEB_URL, null)
@@ -405,7 +783,7 @@ internal fun MarkdownText(
 
 internal fun formatReleaseDate(value: String): String = try {
     val input = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
-    java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM, UiText.displayLocale()).format(input.parse(value)!!)
+    DateFormat.getDateInstance(DateFormat.MEDIUM, UiText.displayLocale()).format(input.parse(value)!!)
 } catch (_: Exception) { value.substringBefore('T') }
 
 internal fun openUrl(context: Context, url: String) {

@@ -8,6 +8,7 @@ import android.database.sqlite.SQLiteOpenHelper
 import de.robv.android.xposed.XposedBridge
 import java.util.LinkedHashMap
 import java.util.concurrent.Executors
+import com.waenhancer.xposed.utils.HookErrors
 
 /**
  * Message history store for recording and querying all versions of edited messages.
@@ -183,6 +184,40 @@ class EditMessageStore private constructor(private val context: Context) : SQLit
         committed?.let { history -> cacheKey(rowId, validKeyId)?.let { cacheHistory(it, history) } }
     }
 
+    private val originalKeyCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    /**
+     * An edited message's row carries the edit's own key; WhatsApp keeps the key of the
+     * original in message_edit_info. History is stored under the original key, so map to it.
+     * Returns [keyId] unchanged when the message was never edited or cannot be resolved.
+     */
+    fun resolveOriginalKey(keyId: String): String {
+        originalKeyCache[keyId]?.let { return it.ifEmpty { keyId } }
+        var resolved = ""
+        var definitive = false
+        try {
+            val dbFile = MessageStore.findMsgstoreDbFile(context)
+            if (dbFile != null) {
+                SQLiteDatabase.openDatabase(dbFile.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { db ->
+                    db.rawQuery(
+                        "SELECT e.original_key_id FROM message m JOIN message_edit_info e " +
+                            "ON e.message_row_id = m._id WHERE m.key_id = ? LIMIT 1",
+                        arrayOf(keyId)
+                    ).use { c ->
+                        if (c.moveToFirst()) resolved = c.getString(0).orEmpty()
+                    }
+                    definitive = true
+                }
+            }
+        } catch (t: Throwable) {
+            XposedBridge.log("$TAG Resolve original key error: ${t.javaClass.simpleName}")
+        }
+        // An edit gives the row a new key, so a definitive miss for this key stays a miss.
+        // Never cache a miss caused by a failed read.
+        if (definitive) originalKeyCache[keyId] = resolved
+        return resolved.ifEmpty { keyId }
+    }
+
     fun getCurrentMessageFromWhatsApp(rowId: Long, keyId: String?): String {
         return getOriginalMessageFromDb(rowId, keyId.orEmpty())
     }
@@ -351,7 +386,7 @@ class EditMessageStore private constructor(private val context: Context) : SQLit
                                 if (!text.isNullOrBlank()) return text
                             }
                         }
-                    } catch (ignored: Throwable) {}
+                    } catch (ignored: Throwable) { HookErrors.swallowed("EditMessageStore", ignored) }
                 }
 
                 // FTS fallback for builds where message.text_data is unavailable.
@@ -370,10 +405,10 @@ class EditMessageStore private constructor(private val context: Context) : SQLit
                                 if (!content.isNullOrBlank()) return content
                             }
                         }
-                    } catch (ignored: Throwable) {}
+                    } catch (ignored: Throwable) { HookErrors.swallowed("EditMessageStore", ignored) }
                 }
             }
-        } catch (ignored: Throwable) {}
+        } catch (ignored: Throwable) { HookErrors.swallowed("EditMessageStore", ignored) }
         return ""
     }
 }

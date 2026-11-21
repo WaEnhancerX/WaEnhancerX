@@ -80,7 +80,7 @@ class TaskerIntegrationHook(
             val receiptMethod = DexSearchEngine.getInstance().findMethodWithCache(
                 context,
                 classLoader,
-                "wpp_receipt_incoming_msg_method"
+                "waex_receipt_incoming_msg_method"
             ) { bridge, loader ->
                 val results = bridge.findMethod(
                     FindMethod.create().matcher {
@@ -94,9 +94,11 @@ class TaskerIntegrationHook(
                 XposedBridge.hookMethod(receiptMethod, object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam) {
                         try {
+                            // Hooks remain installed until the host process exits. Respect
+                            // the live preference before reading any incoming identifiers.
+                            if (!isEnabled("tasker_integration", false)) return
                             if (param.args.size < 4) return
                             val keyObj = param.args[3] ?: return
-                            val keyClass = keyObj.javaClass
 
                             // Extract remoteJid and message id
                             val rawJid = XposedHelpers.getObjectField(keyObj, "A00") ?: return
@@ -109,6 +111,9 @@ class TaskerIntegrationHook(
                                 putExtra("jid", jidStr)
                                 putExtra("message_id", messageId)
                             }
+                            // The setting can change while host fields are being resolved.
+                            // A disabled or unreadable preference must not publish an event.
+                            if (!isEnabled("tasker_integration", false)) return
                             context.sendBroadcast(broadcastIntent)
                         } catch (t: Throwable) {
                             // Suppress per-message hook exceptions
