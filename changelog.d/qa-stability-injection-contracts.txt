@@ -1,3 +1,6 @@
 [Improvements]
 - Align stability regression fixtures with WAEX colors and PID/boot injection
-  classification, replacing the retired observation-clock tests.
+  classification, replacing the retired observation-clock tests while retaining
+  the current update-channel and release-index regression cases.
+- Preserve both evidence suites under one canonical mode, keep the clock alias
+  without duplicate execution, and select the current classifier in CI.

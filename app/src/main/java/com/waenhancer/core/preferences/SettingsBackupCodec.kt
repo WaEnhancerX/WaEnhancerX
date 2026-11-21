@@ -1,6 +1,7 @@
 package com.waenhancer.core.preferences
 
 import android.content.Context
+import com.waenhancer.config.ExclusivePreferences
 import com.waenhancer.config.PreferenceSchema
 import com.waenhancer.config.PreferenceStores
 import org.json.JSONArray
@@ -237,11 +238,12 @@ object SettingsBackupCodec {
         // during the import cannot silently mutate our rollback snapshots.
         val publicBefore = snapshotForRollback(publicStore.all)
         val privateBefore = snapshotForRollback(privateStore.all)
+        val writes = resolveExclusiveImportConflicts(records, publicBefore)
         val publicKeys = LinkedHashSet<String>()
         val privateKeys = LinkedHashSet<String>()
         val publicEditor = publicStore.edit()
         val privateEditor = privateStore.edit()
-        records.forEach { record ->
+        writes.forEach { record ->
             val schema = backupEntry(record.key)!!
             val isPrivate = schema.store == PreferenceSchema.Store.PRIVATE
             val editor = if (isPrivate) privateEditor else publicEditor
@@ -282,6 +284,65 @@ object SettingsBackupCodec {
             throw IllegalStateException("Backup restore failed; previous preferences restored", failure)
         }
         return records.size
+    }
+
+    /**
+     * Normalize the resulting imported settings before either store commits. Use the declared
+     * restore priority (not the last-write-wins policy used by interactive toggles), independent
+     * of the manager's selected UI target. Only imported scopes and targets inheriting a changed
+     * universal member are affected; unrelated pre-existing conflicts remain untouched.
+     *
+     * Additional partner writes participate in the same public commit and touched-key rollback.
+     * The caller still reports the number of accepted input records, not these auxiliary writes.
+     */
+    private fun resolveExclusiveImportConflicts(
+        records: List<Record>,
+        publicBefore: Map<String, Any?>
+    ): List<Record> {
+        val writes = records.associateByTo(LinkedHashMap()) { it.key }
+        val merged = publicBefore.toMutableMap()
+        records.filter { backupEntry(it.key)?.store == PreferenceSchema.Store.PUBLIC }
+            .forEach { merged[it.key] = it.value }
+
+        for ((keep, clear) in ExclusivePreferences.clearedOnConflict()) {
+            val scopes = LinkedHashSet<String>()
+            val changedUniversal = LinkedHashSet<String>()
+            for (record in records) {
+                val canonical = backupEntry(record.key)?.key
+                if (canonical != keep && canonical != clear) continue
+                val prefix = record.key.removeSuffix(canonical)
+                scopes.add(prefix)
+                if (prefix.isEmpty()) changedUniversal.add(canonical)
+            }
+            if (scopes.isEmpty()) continue
+            fun enabled(prefix: String, key: String): Boolean {
+                val qualified = prefix + key
+                val value = if (merged.containsKey(qualified)) merged[qualified] else merged[key]
+                return value != null && normalize(PreferenceSchema.Type.BOOLEAN, value) == true
+            }
+            fun normalizeScope(prefix: String) {
+                if (enabled(prefix, keep) && enabled(prefix, clear)) {
+                    val key = prefix + clear
+                    writes[key] = Record(key, PreferenceSchema.Type.BOOLEAN, false)
+                    merged[key] = false
+                    if (prefix.isEmpty()) changedUniversal.add(clear)
+                }
+            }
+
+            // Resolve universal first: its corrected value is the fallback seen by targets.
+            val universalChanged = changedUniversal.isNotEmpty()
+            if (universalChanged) normalizeScope("")
+            if (universalChanged) {
+                for (key in merged.keys) {
+                    val canonical = backupEntry(key)?.key
+                    if ((canonical != keep && canonical != clear) || key == canonical) continue
+                    val prefix = key.removeSuffix(canonical)
+                    if (changedUniversal.any { !merged.containsKey(prefix + it) }) scopes.add(prefix)
+                }
+            }
+            scopes.filter { it.isNotEmpty() }.sorted().forEach(::normalizeScope)
+        }
+        return writes.values.toList()
     }
 
     private fun snapshotForRollback(values: Map<String, *>): Map<String, Any?> =

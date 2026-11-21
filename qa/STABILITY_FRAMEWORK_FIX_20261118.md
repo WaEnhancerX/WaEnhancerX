@@ -1,5 +1,79 @@
 # Stability framework fixture after the WAEX runtime redesign
 
+## Current Nightly reconciliation — 2026-11-21
+
+The runner is reconciled with `nightly@9972e49fac9bfb650c25ee31fde0da9425b67175`.
+Keep the current release-index and channel sources and all twelve updater tests;
+the earlier five-updater result below predates those additions. The current
+acceptance inventory is **30 methods: twelve update, three filter and fifteen
+PID/boot injection methods**, requiring zero failures, errors or skips. Fifteen
+counts JUnit methods, not fifteen independent behaviors: overlapping assertions
+from the two original fixtures are deliberately preserved.
+
+The real WAEX color model, filter dependencies, shared `HookErrors` implementation
+and strict out-of-scope fixtures are retained. The removed observation clock is
+not staged. The canonical `evidence` suite contains the ten original evidence
+methods plus all five clock-fixture methods, including timestamp extremes,
+multiple live PIDs, module/boot precedence and restart/re-report checks. These
+are plain JVM/JUnit tests of the real classifier; they do not need Android APIs.
+The legacy `clock` CLI spelling selects this same suite exactly once. CI selects
+it from the existing `InjectionEvidence.kt`, not the removed clock source, and a
+selection regression rejects missing fixtures and checks the actual shell step.
+The shared runner, fixture and selection regression are identical in PRs #166
+and #182 to avoid incompatible duplicate suites. This requires fresh exact-head
+QA and maintainer review of the workflow-path changes under rule R5.
+
+Static source-presence and independent JUnit-method inventory checks do not
+constitute execution of the thirty methods. Historical
+results below remain tied to their original inputs and are not reused as a
+passing result for this merge.
+
+Fresh Linux verification with Python 3.12.14, Temurin 21.0.13.1+2, Kotlin 2.0.20
+and JUnit 4.13.2 compiled the unchanged production classifier and shared evidence
+fixture: all fifteen methods passed. A separate source mutant incorrectly
+accepting an unrelated live PID compiled, then failed exactly three process-
+change/restart assertions. The candidate/reference compile times were 4.039s
+and 4.488s; JUnit times were 0.017s and 0.020s. These are not app performance
+measurements. The identical shared fixture/production inputs in PR #166 justify
+reusing only this focused JVM result. Seven actual CI-selection regressions also
+passed normally and under optimized Python in each branch. Full Android/Compose
+acceptance still requires the thirty-method suite; no physical-device result is
+claimed.
+
+A full `--mode all` attempt used verified Gradle 9.1.0, Android SDK 36 revision 2
+and build-tools 36.0.0, but stopped after 27.730s before source compilation:
+Gradle could not resolve the pinned `com.android.library:9.0.1` plugin marker
+from its configured repositories. Zero tests ran. This is a dependency-resolution
+block, not an Android test failure or evidence of success. No plugin/dependency
+pin or acceptance count was changed to make the attempt pass; full acceptance
+remains unverified pending dependency resolution and exact-head execution.
+
+### Fresh full-framework result after isolated transport correction
+
+The dependency-resolution block above was reproduced with one info-level
+diagnostic: inherited `GRADLE_OPTS` proxy endpoint flags overrode the isolated
+launcher's current platform proxy settings, producing network-unreachable errors
+before repository responses. The launcher now replaces only those endpoint flags
+with the platform's current `HTTPS_PROXY`; the same CA, dependency pins and test
+expectations remain intact. No repository source/configuration was changed for
+this transport correction, and the initial failed attempt is retained.
+
+The subsequent full suite completed **30 methods: 12 updater, 3 filter and 15
+evidence**, with **zero failures, errors or skips**, in **297.286s** on 21 November
+2026. Real Android/Compose production sources and tests compiled through Gradle
+9.1.0/AGP 9.0.1 and SDK 36. Updater/filter use Robolectric; the evidence classifier
+methods remain plain JVM tests. All three JUnit XML reports and build logs were
+retained. The source manifest's 53 entries, shared runner/fixture/helpers/wrapper
+and entire stability workflow job match the reconciled PR #166 inputs, so this
+result applies to both by exact input identity, not by shared version labels.
+The later documentation-only commits do not change those executed inputs.
+
+This closes the local full-stability-suite block only. It does not establish
+full APK, physical Android/WhatsApp, real Xposed/LSPosed injection or remote review
+acceptance. R5 maintainer handling and fresh exact-head CI still apply.
+
+## Historical preparation and results
+
 ## Failures reproduced on the exact public base
 
 Base: `WaEnhancerX/WaEnhancerX@0aaffab0270a3d0832bef2895f6457f3792fd74a`.

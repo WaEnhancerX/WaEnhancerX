@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Isolated real Android/Compose compilation and regressions, not a full WAEX APK.
 Modes allow standalone updater/filter/runtime-evidence branches without borrowing
-production code from another PR. The legacy 'clock' CLI name is retained for CI;
+production code from another PR. The legacy 'clock' CLI name aliases evidence;
 there is no longer a runtime observation clock in WAEX. Xposed, private Pro behavior
 and the theme provider are fixtures; the custom color model is real source.
 """
@@ -12,10 +12,21 @@ from framework_localization import stage_localization
 
 ROOT = Path(__file__).resolve().parents[1]
 
+
+def select_modes(mode):
+    """Select canonical suites once; clock is a backwards-compatible alias."""
+    if mode == 'all':
+        return ['update', 'filter', 'evidence']
+    if mode == 'clock':
+        return ['evidence']
+    if mode in ('update', 'filter', 'evidence'):
+        return [mode]
+    raise ValueError('Unknown stability mode: ' + str(mode))
+
 def main():
     ap=argparse.ArgumentParser();ap.add_argument('--root',type=Path,default=ROOT)
     ap.add_argument('--out',type=Path,required=True)
-    ap.add_argument('--mode',choices=['all','update','filter','clock'],default='all')
+    ap.add_argument('--mode',choices=['all','update','filter','evidence','clock'],default='all')
     a=ap.parse_args();root=a.root.resolve();out=a.out.resolve()
     out.mkdir(parents=True,exist_ok=False);e=out/'evidence';e.mkdir()
     p=out/'fixture';p.mkdir();v=tomllib.loads((root/'gradle/libs.versions.toml').read_text())['versions']
@@ -63,15 +74,15 @@ dependencies {
     write('build.gradle.kts',build)
     write('src/main/AndroidManifest.xml','<manifest xmlns:android="http://schemas.android.com/apk/res/android"/>')
     identity={p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in ('app/build.gradle.kts','gradle/libs.versions.toml')}
-    modes=['update','filter','clock'] if a.mode=='all' else [a.mode]
-    sources={'update':['update/UpdateDownloader.kt','update/UpdateTransferPolicy.kt','update/UpdateDownloadSession.kt','update/ReleaseRepository.kt','ui/components/UpdateDownloadSheet.kt','xposed/utils/RootCommandRunner.java',
+    modes=select_modes(a.mode)
+    sources={'update':['update/UpdateDownloader.kt','update/UpdateTransferPolicy.kt','update/UpdateDownloadSession.kt','update/ReleaseRepository.kt','update/UpdateChannel.kt','update/ReleaseIndex.kt','ui/components/UpdateDownloadSheet.kt','xposed/utils/RootCommandRunner.java',
                        'config/PreferenceStores.java','config/PreferenceSchema.java','ui/components/NetworkErrorSheet.kt','ui/components/WaexModalBottomSheet.kt','ui/components/WaexProgressIndicator.kt',
                        'ui/designsystem/WaexIcons.kt','ui/designsystem/WaexRadius.kt','ui/designsystem/WaexElevation.kt',
                        'ui/designsystem/WaexColors.kt'],
              'filter':['xposed/features/customization/FilterItemsHook.kt','xposed/features/customization/LayoutPassThrottle.kt',
                        'model/FilterItem.kt','xposed/core/ViewHookDispatcher.java','xposed/utils/HostResourceIds.java'],
-             'clock':['utils/InjectionEvidence.kt']}
-    expected={'update':5,'filter':3,'clock':5}
+             'evidence':['utils/InjectionEvidence.kt']}
+    expected={'update':12,'filter':3,'evidence':15}
     for mode in modes:
         for rel in sources[mode]:
             source=root/'app/src/main/java/com/waenhancer'/rel
@@ -164,7 +175,7 @@ public class XposedBridge {
     for f in reports:
         t=ET.parse(f).getroot()
         for i,k in enumerate(['tests','failures','errors','skipped']):counts[i]+=int(t.get(k,0))
-    summary={'modes':modes,'tests':counts[0],'failures':counts[1],'errors':counts[2],'skipped':counts[3],'build_returncode':result.returncode,'limits':'Update/filter exercise real Android/Compose sources; the legacy clock mode is plain JVM/JUnit on actual PID/boot injection classification. Theme provider, BaseFeature, Xposed and private Pro service are controlled fixtures, not full WAEX or LSPosed.'}
+    summary={'requested_mode':a.mode,'modes':modes,'tests':counts[0],'failures':counts[1],'errors':counts[2],'skipped':counts[3],'build_returncode':result.returncode,'limits':'Update/filter exercise real Android/Compose sources; evidence and its legacy clock alias run the same plain JVM/JUnit PID/boot classifier suite once. Theme provider, BaseFeature, Xposed and private Pro service are controlled fixtures, not full WAEX or LSPosed.'}
     (e/'result.json').write_text(json.dumps(summary,indent=2))
     if result.returncode or counts != [sum(expected[m] for m in modes),0,0,0]:
         print((e/'framework-build.log').read_text()[-22000:]);raise RuntimeError('Stability framework failed: '+str(summary))

@@ -85,7 +85,8 @@ public final class ApplicationInfo { public String dataDir; }'''
                 raise ValueError('Mutation target is missing or ambiguous')
             codec = output / 'SettingsBackupCodec-mutant.kt'
             codec.write_text(text.replace(old, new), encoding='utf-8')
-        production = [source / 'config/PreferenceSchema.java', source / 'config/PreferenceStores.java']
+        production = [source / 'config/PreferenceSchema.java', source / 'config/PreferenceStores.java',
+                      source / 'config/ExclusivePreferences.java']
         fixtures = [ROOT / 'qa/kotlin/TestScopedSettingsBackup.kt', ROOT / 'qa/kotlin/TestSettingsBackupJson.kt']
         for path in [codec, *production, *fixtures, *aosp, stdlib]:
             result['inputs'][str(path)] = hashlib.sha256(path.read_bytes()).hexdigest()
