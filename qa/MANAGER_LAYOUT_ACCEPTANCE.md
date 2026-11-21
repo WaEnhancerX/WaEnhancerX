@@ -26,7 +26,7 @@ python qa/android_manager_layout_test.py --out /tmp/waex-layout-qa
 ```
 
 The layout runner uses the checked-in Gradle wrapper only to resolve dependencies.
-`qa/fixtures/manager_layout/dependencies.gradle` selects Android variants and uses
+`qa/fixtures/manager_layout/dependencies.txt` selects Android variants and uses
 the exact versions from `gradle/libs.versions.toml`, including Compose BOM
 2026.03.01. It rejects desktop dependencies and records resolved coordinates and
 SHA-256 values. The optional `--deps` input must have the generated

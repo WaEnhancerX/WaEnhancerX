@@ -46,7 +46,7 @@ def resolve_dependencies(args, out, versions):
         return args.deps.resolve()
     project = out/'dependency-project'
     project.mkdir()
-    template = (FIXTURE/'dependencies.gradle').read_text()
+    template = (FIXTURE/'dependencies.txt').read_text()
     for token, value in {'BOM': versions['androidxComposeBom'], 'ACTIVITY': versions['androidxActivity'],
             'LIFECYCLE': versions['androidxLifecycle'], 'CORE': versions['androidxCore'],
             'COROUTINES': versions['coroutines']}.items():
@@ -245,7 +245,7 @@ import kotlinx.coroutines.launch
         'exit_code': status, 'accepted': valid, 'source_sha256': identities,
         'layout_ranges': {str(NAV): nav_range, str(DASH): counter_range}, 'scope': __doc__}
     result['qa_sha256'] = {str(p.relative_to(ROOT)): sha(p) for p in
-        [Path(__file__), FIXTURE/'dependencies.gradle', ROOT/'qa/android_media_preview_test.py',
+        [Path(__file__), FIXTURE/'dependencies.txt', ROOT/'qa/android_media_preview_test.py',
          ROOT/'qa/maven_dependencies.py']}
     (out/'result.json').write_text(json.dumps(result, indent=2)+'\n')
     if not valid:
