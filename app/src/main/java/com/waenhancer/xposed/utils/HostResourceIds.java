@@ -19,7 +19,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class HostResourceIds {
 
     /** Resource type to (name to id). Two levels avoid building a "type/name" key on every lookup. */
-    private static final Map<String, Map<String, Integer>> CACHE = new ConcurrentHashMap<>();
+    // Identical resource names may have different IDs (or be absent) in the
+    // WAEX manager and the injected WhatsApp process. Cache by package first.
+    private static final Map<String, Map<String, Map<String, Integer>>> CACHE =
+            new ConcurrentHashMap<>();
 
     private HostResourceIds() {}
 
@@ -29,8 +32,10 @@ public final class HostResourceIds {
     }
 
     public static int resolve(@NonNull Context context, @NonNull String name, @NonNull String type) {
-        Map<String, Integer> byName = CACHE.get(type);
-        if (byName == null) byName = CACHE.computeIfAbsent(type, ignored -> new ConcurrentHashMap<>());
+        Map<String, Map<String, Integer>> byType = CACHE.computeIfAbsent(
+                context.getPackageName(), ignored -> new ConcurrentHashMap<>());
+        Map<String, Integer> byName = byType.computeIfAbsent(
+                type, ignored -> new ConcurrentHashMap<>());
         Integer cached = byName.get(name);
         if (cached != null) return cached;
         int resolved = context.getResources().getIdentifier(name, type, context.getPackageName());
