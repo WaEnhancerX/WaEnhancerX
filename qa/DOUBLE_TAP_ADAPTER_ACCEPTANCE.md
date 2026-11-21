@@ -12,10 +12,20 @@ The hook now reserves each resolved getView Method once, removes that reservatio
 if registration fails, and reads the ListAdapter in the callback's thisObject.
 Before each binding it clears the row's old message and pending tap state,
 including while the preference is disabled or getItem fails. Unsupported items
-remain without a reaction target. The original touch listener still receives
-each event and determines the returned handled value.
+remain without a reaction target. Normal first-tap events keep the original
+touch listener's return value. Current nightly deliberately consumes the
+second tap of a recognized reaction gesture to avoid opening the host tray;
+unbound recycled rows must not consume those events.
 
-The host message/action selectors and reaction sender contract are unchanged.
+## Nightly reconciliation (2026-11-21)
+
+The original production fix is already present in nightly
+`9972e49fac9bfb650c25ee31fde0da9425b67175`, through `fadc1b00` and later
+`879843e0`. This reconciliation leaves `DoubleTapReactionHook.java` byte-for-byte
+identical to that nightly revision. Its newer tag-based state, resolver,
+diagnostic, reaction and gesture behavior are retained. The remaining change
+repairs the focused regression fixture, which no longer compiled against the
+current production APIs; it is not a new runtime fix for those original bugs.
 
 ## Executable regression
 
@@ -33,24 +43,39 @@ and after handlers, delivers synthetic touch events through the installed
 wrapper and records the exact message object passed to a synthetic reaction
 sender. The after-callback double unwinds registrations at equal priority.
 
-Eleven scenarios cover a first adapter, two distinct instances of the same
+Fifteen scenarios cover a first adapter, two distinct instances of the same
 adapter class, duplicate registration, a second chat after two installations,
 null/failed/unsupported recycled items, recycling while disabled, the original
 touch return value, retry after a registration failure and a gesture interrupted
-by row recycling.
+by row recycling. Four current-nightly scenarios additionally cover activity
+context before tracker readiness, listener replacement during recycling,
+non-accumulating touch wrappers, and host event delivery after clearing a target.
+The current suite compiles production `EmojiInputPolicy` and `HostClassNames`
+as well as the hook. Host resolution, reaction lookup, resources and diagnostics
+remain explicit constrained doubles; they are not integrated host acceptance.
 
 ## Negative controls
 
     python3 qa/test_double_tap_adapter_binding.py --source /path/to/v38/app/src/main/java/com/waenhancer/xposed/features/conversation/DoubleTapReactionHook.java --out /tmp/waex-double-tap-v38 --allow-test-failure
 
 Normal CI must omit --allow-test-failure. Both production compilation and
-completion of all 11 scenarios are required for a negative control.
+completion of all current scenarios are required for a negative control.
 
-The candidate passed 11/11 scenarios. V38 compiled and finished the same fixture
+Historical V39 evidence: the candidate passed 11/11 scenarios. V38 compiled and finished that fixture
 with seven failures. Four compiling mutations were detected: removing Method
 deduplication (one failure), retaining the recycled message target (four),
 retaining a failed registration reservation (one), and restoring the captured
 installer adapter (two).
+
+Current nightly reconciliation with Temurin JDK 21.0.13.1+2 and Python 3.13.5
+passes all 15 scenarios. Run current compiling mutations with:
+
+    python3 qa/test_double_tap_adapter_binding.py --mutation-control --out /tmp/waex-double-tap-current
+
+All four mutations complete 15 scenarios and fail as intended: duplicate method
+hooks (one failure), stale recycled tag (five), failed reservation retained
+(one), and captured installer (two). A compiler failure is not accepted as a
+successful negative control. No remote CI result is implied by this local run.
 
 ## Limits and device acceptance
 

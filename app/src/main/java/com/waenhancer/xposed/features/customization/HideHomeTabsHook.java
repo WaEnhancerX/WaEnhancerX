@@ -15,6 +15,9 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
+import android.app.Activity;
+import com.waenhancer.xposed.utils.ActivityTracker;
+import java.util.Locale;
 
 /** Removes configured WhatsApp home tabs from both its model and visible menu. */
 public final class HideHomeTabsHook extends BaseFeature {
@@ -76,6 +79,19 @@ public final class HideHomeTabsHook extends BaseFeature {
         } catch (Throwable error) {
             XposedBridge.log(TAG + " Menu-item visibility hook unavailable: " + error);
         }
+
+        refreshCurrentHomeActivity();
     }
 
+    private void refreshCurrentHomeActivity() {
+        Activity activity = ActivityTracker.getCurrentActivity();
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
+        String name = activity.getClass().getName().toLowerCase(Locale.ROOT);
+        if (!name.contains("home") && !name.contains("main")) return;
+        activity.runOnUiThread(() -> {
+            if (!activity.isFinishing() && !activity.isDestroyed()) {
+                activity.recreate();
+            }
+        });
+    }
 }

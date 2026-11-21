@@ -62,31 +62,31 @@ fun AudioTranscriptionScreen() {
             verticalArrangement = Arrangement.spacedBy(spacing.stackLg)
         ) {
             WaexSectionHeader(
-                title = UiText.get(R.string.waex_ui_voice_note_ai_rules_a5996bf0, "Voice Note AI Rules"),
-                subtitle = UiText.get(R.string.waex_ui_transcribe_voice_notes_automatically_u_0d57d8de, "Transcribe voice notes automatically using local model")
+                title = UiText.get(R.string.waex_ui_voice_note_ai_rules, "Voice Note AI Rules"),
+                subtitle = UiText.get(R.string.waex_ui_transcribe_voice_notes_automatically_u, "Transcribe voice notes automatically using local model")
             )
 
             WaexCard(modifier = Modifier.fillMaxWidth()) {
                 Column {
                     WaexSwitchPreference(
-                        title = UiText.get(R.string.waex_ui_voice_transcription_677b2813, "Voice Transcription"),
-                        description = UiText.get(R.string.waex_ui_convert_received_voice_notes_to_readab_47e047f7, "Convert received voice notes to readable chat text bubbles."),
+                        title = UiText.get(R.string.waex_ui_voice_transcription, "Voice Transcription"),
+                        description = UiText.get(R.string.waex_ui_convert_received_voice_notes_to_readab, "Convert received voice notes to readable chat text bubbles."),
                         checked = enableTranscriptionChecked,
                         onCheckedChange = { enableTranscriptionChecked = it },
                         icon = WaexIcons.Mic,
                         showDivider = true
                     )
                     WaexSwitchPreference(
-                        title = UiText.get(R.string.waex_ui_summarize_long_audios_107bd840, "Summarize Long Audios"),
-                        description = UiText.get(R.string.waex_ui_use_gemini_nano_to_write_bulleted_abst_ab74bf14, "Use Gemini nano to write bulleted abstracts for long notes."),
+                        title = UiText.get(R.string.waex_ui_summarize_long_audios, "Summarize Long Audios"),
+                        description = UiText.get(R.string.waex_ui_use_gemini_nano_to_write_bulleted_abst, "Use Gemini nano to write bulleted abstracts for long notes."),
                         checked = enableSummaryChecked,
                         onCheckedChange = { enableSummaryChecked = it },
                         icon = WaexIcons.Settings,
                         showDivider = true
                     )
                     WaexSwitchPreference(
-                        title = UiText.get(R.string.waex_ui_auto_download_models_6789ddb3, "Auto Download Models"),
-                        description = UiText.get(R.string.waex_ui_get_whisper_models_over_wi_fi_automati_445a151d, "Get Whisper models over Wi-Fi automatically."),
+                        title = UiText.get(R.string.waex_ui_auto_download_models, "Auto Download Models"),
+                        description = UiText.get(R.string.waex_ui_get_whisper_models_over_wi_fi_automati, "Get Whisper models over Wi-Fi automatically."),
                         checked = autoDownloadChecked,
                         onCheckedChange = { autoDownloadChecked = it },
                         icon = WaexIcons.Folder,
@@ -96,15 +96,15 @@ fun AudioTranscriptionScreen() {
             }
 
             WaexSectionHeader(
-                title = UiText.get(R.string.waex_ui_language_downloads_2c65f45e, "Language & Downloads"),
-                subtitle = UiText.get(R.string.waex_ui_set_speech_interpretation_locale_92437d43, "Set speech interpretation locale")
+                title = UiText.get(R.string.waex_ui_language_downloads, "Language & Downloads"),
+                subtitle = UiText.get(R.string.waex_ui_set_speech_interpretation_locale, "Set speech interpretation locale")
             )
 
             WaexCard(modifier = Modifier.fillMaxWidth()) {
                 Column {
                     WaexPreferenceItem(
-                        title = UiText.get(R.string.waex_ui_default_language_28bee244, "Default Language"),
-                        description = UiText.get(R.string.waex_ui_selected_speech_locale_english_us_90b823a7, "Selected speech locale: English (US)"),
+                        title = UiText.get(R.string.waex_ui_default_language, "Default Language"),
+                        description = UiText.get(R.string.waex_ui_selected_speech_locale_english_us, "Selected speech locale: English (US)"),
                         icon = WaexIcons.Info,
                         onClick = {},
                         showDivider = true,
@@ -113,13 +113,13 @@ fun AudioTranscriptionScreen() {
                         }
                     )
                     WaexPreferenceItem(
-                        title = UiText.get(R.string.waex_ui_model_download_status_ff625765, "Model Download Status"),
-                        description = UiText.get(R.string.waex_ui_base_translation_dictionary_42_mb_41e8799d, "Base translation dictionary: 42 MB"),
+                        title = UiText.get(R.string.waex_ui_model_download_status, "Model Download Status"),
+                        description = UiText.get(R.string.waex_ui_base_translation_dictionary_42_mb, "Base translation dictionary: 42 MB"),
                         icon = WaexIcons.Success,
                         onClick = {},
                         showDivider = false,
                         trailing = {
-                            WaexStatusChip(text = UiText.get(R.string.waex_ui_ready_5fa7aac5, "Ready"), color = colors.primaryContainer)
+                            WaexStatusChip(text = UiText.get(R.string.waex_ui_ready, "Ready"), color = colors.primaryContainer)
                         }
                     )
                 }

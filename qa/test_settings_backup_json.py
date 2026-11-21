@@ -4,7 +4,9 @@
 This is a host JVM test, not an Android device or disk-persistence test. Android
 Context/SharedPreferences and annotation types are doubles; org.json is the real
 Android 14 implementation. A missing compiler, unavailable source or hash mismatch
-fails closed. For offline use, set WAEX_AOSP_JSON_SOURCE_DIR to the verified six
+fails closed. Transient HTTP responses receive at most three fetch attempts;
+source validation errors are never retried. For offline use, set
+WAEX_AOSP_JSON_SOURCE_DIR to the verified six
 .java files (or pass --json-source-dir). No private APK, licensing or SDK is used.
 """
 from __future__ import annotations
@@ -19,6 +21,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
+import urllib.error
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,6 +36,36 @@ SHA256 = {
     'JSONStringer.java': '8772ac80610cd62e906330152b09864c471a0921f199f4b9d670d98050e3d86c',
     'JSONTokener.java': '744c9ffb50c2472d7269c8d64a7d8331ea1a1691fb6536619ac9590e9ebbbd4b',
 }
+TRANSIENT_HTTP_STATUS = frozenset((429, 502, 503, 504))
+MAX_DOWNLOAD_ATTEMPTS = 3
+
+
+def download_json_source(name: str, expected: str) -> bytes:
+    request = urllib.request.Request(f'{ORIGIN}/{name}?format=TEXT',
+                                     headers={'User-Agent': 'WAEX-JSON-regression'})
+    for attempt in range(1, MAX_DOWNLOAD_ATTEMPTS + 1):
+        try:
+            with urllib.request.urlopen(request, timeout=45) as response:
+                if not response.url.startswith('https://android.googlesource.com/'):
+                    raise ValueError('Unexpected AOSP source redirect')
+                encoded = response.read(512 * 1024 + 1)
+            break
+        except urllib.error.HTTPError as error:
+            status = error.code
+            error.close()
+            if status not in TRANSIENT_HTTP_STATUS or attempt == MAX_DOWNLOAD_ATTEMPTS:
+                raise
+            # Only transient HTTP failures are retried. Invalid sources, local
+            # cache corruption, redirects and other network errors still fail.
+            print(f'AOSP source {name}: HTTP {status}; retry {attempt + 1}/'
+                  f'{MAX_DOWNLOAD_ATTEMPTS} in {attempt}s', file=sys.stderr, flush=True)
+            time.sleep(attempt)
+    if len(encoded) > 512 * 1024:
+        raise ValueError('AOSP source response exceeded bound')
+    source = base64.b64decode(b''.join(encoded.split()), validate=True)
+    if hashlib.sha256(source).hexdigest() != expected:
+        raise ValueError(f'AOSP source digest mismatch: {name}')
+    return source
 
 
 def json_sources(directory: Path, allow_download: bool) -> list[Path]:
@@ -42,17 +76,7 @@ def json_sources(directory: Path, allow_download: bool) -> list[Path]:
         if not path.exists():
             if not allow_download:
                 raise FileNotFoundError(f'Missing pinned AOSP source: {path}')
-            request = urllib.request.Request(f'{ORIGIN}/{name}?format=TEXT',
-                                             headers={'User-Agent': 'WAEX-JSON-regression'})
-            with urllib.request.urlopen(request, timeout=45) as response:
-                if not response.url.startswith('https://android.googlesource.com/'):
-                    raise ValueError('Unexpected AOSP source redirect')
-                encoded = response.read(512 * 1024 + 1)
-            if len(encoded) > 512 * 1024:
-                raise ValueError('AOSP source response exceeded bound')
-            source = base64.b64decode(b''.join(encoded.split()), validate=True)
-            if hashlib.sha256(source).hexdigest() != expected:
-                raise ValueError(f'AOSP source digest mismatch: {name}')
+            source = download_json_source(name, expected)
             # Atomic replacement avoids a half-written shared cache entry.
             with tempfile.NamedTemporaryFile(dir=directory, delete=False) as output:
                 temporary = Path(output.name)
@@ -75,7 +99,9 @@ def android_doubles(root: Path) -> dict[str, str]:
     if len(assignments) != 1:
         raise ValueError('Expected exactly one Android fixture definition')
     source = ast.literal_eval(assignments[0].value)
-    doubles = {p: s for p, s in source.items() if p.startswith('android/content/')}
+    # Keep android.content.pm symbols used by the real PreferenceStores; all
+    # unexpected filesystem access still throws in the Context double.
+    doubles = {p: s for p, s in source.items() if p.startswith(('android/content/', 'androidx/annotation/'))}
     doubles['android/compat/annotation/UnsupportedAppUsage.java'] = (
         'package android.compat.annotation; public @interface UnsupportedAppUsage {}')
     doubles['android/annotation/SystemApi.java'] = (
@@ -96,9 +122,13 @@ def main() -> int:
     parser.add_argument('--json-source-dir', type=Path,
                         default=os.environ.get('WAEX_AOSP_JSON_SOURCE_DIR'))
     args = parser.parse_args()
-    for tool in ('javac', 'kotlinc', 'kotlin'):
-        if not shutil.which(tool):
+    resolved = {tool: shutil.which(tool) for tool in ('javac', 'kotlinc', 'java')}
+    for tool, executable in resolved.items():
+        if not executable:
             raise FileNotFoundError(f'Required JVM tool unavailable: {tool}')
+    kotlin_stdlib = Path(resolved['kotlinc']).parent.parent / 'lib/kotlin-stdlib.jar'
+    if not kotlin_stdlib.is_file():
+        raise FileNotFoundError(f'Compiler-matched Kotlin runtime unavailable: {kotlin_stdlib}')
     root = args.root.resolve()
     source = root / 'app/src/main/java/com/waenhancer'
     codec = (args.codec or source / 'core/preferences/SettingsBackupCodec.kt').resolve()
@@ -116,13 +146,13 @@ def main() -> int:
             java_files.append(path)
         out_java, out_kotlin = work / 'java', work / 'kotlin'
         commands = [
-            ['javac', '--release', '17', '-d', str(out_java),
+            [resolved['javac'], '--release', '17', '-d', str(out_java),
              *map(str, java_files + aosp), str(source / 'config/PreferenceSchema.java'),
-             str(source / 'config/PreferenceStores.java')],
-            ['kotlinc', '-jvm-target', '17', '-cp', str(out_java), '-d', str(out_kotlin),
+             str(source / 'config/PreferenceStores.java'), str(source / 'config/ExclusivePreferences.java')],
+            [resolved['kotlinc'], '-jvm-target', '17', '-cp', str(out_java), '-d', str(out_kotlin),
              str(codec), str(ROOT / 'qa/kotlin/TestSettingsBackupJson.kt')],
-            ['kotlin', '-J-Xmx128m', '-J-Xss1m', '-cp',
-             os.pathsep.join(map(str, (out_java, out_kotlin))),
+            [resolved['java'], '-Xmx128m', '-Xss1m', '-cp',
+             os.pathsep.join(map(str, (out_java, out_kotlin, kotlin_stdlib))),
              'com.waenhancer.core.preferences.TestSettingsBackupJsonKt'],
         ]
         for index, command in enumerate(commands):

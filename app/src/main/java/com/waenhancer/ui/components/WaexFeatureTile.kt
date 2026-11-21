@@ -1,6 +1,7 @@
 package com.waenhancer.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -55,15 +56,18 @@ fun WaexFeatureTile(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
-                            .clip(radius.mdShape)
-                            .background(colors.primaryContainer.copy(alpha = 0.1f)),
+                            .size(width = 64.dp, height = 32.dp)
+                            .border(
+                                width = 1.dp,
+                                color = if (colors.isLight) Color(0xFFD4D6D8) else Color(0xFF3E474D),
+                                shape = radius.fullShape
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = colors.primaryContainer,
+                            tint = colors.primary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -90,15 +94,18 @@ fun WaexFeatureTile(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
-                            .clip(radius.mdShape)
-                            .background(colors.primaryContainer.copy(alpha = 0.1f)),
+                            .size(width = 64.dp, height = 32.dp)
+                            .border(
+                                width = 1.dp,
+                                color = if (colors.isLight) Color(0xFFD4D6D8) else Color(0xFF3E474D),
+                                shape = radius.fullShape
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = colors.primaryContainer,
+                            tint = colors.primary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -140,13 +147,13 @@ fun WaexFeatureTile(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(radius.mdShape)
-                                .background(colors.primaryContainer.copy(alpha = 0.1f)),
+                                .background(colors.primaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = icon,
                                 contentDescription = null,
-                                tint = colors.primaryContainer,
+                                tint = colors.primary,
                                 modifier = Modifier.size(20.dp)
                             )
                         }

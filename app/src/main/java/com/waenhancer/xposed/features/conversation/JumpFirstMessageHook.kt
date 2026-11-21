@@ -16,6 +16,7 @@ import android.view.MenuItem
 import android.widget.Toast
 import com.waenhancer.xposed.core.BaseFeature
 import com.waenhancer.xposed.utils.ActivityTracker
+import com.waenhancer.xposed.utils.HookErrors
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
@@ -102,7 +103,7 @@ class JumpFirstMessageHook(
                         }
                     })
                     hooked = true
-                } catch (ignored: Throwable) {}
+                } catch (ignored: Throwable) { HookErrors.swallowed("JumpFirstMessageHook", ignored) }
             }
         }
 
@@ -132,7 +133,7 @@ class JumpFirstMessageHook(
         menuItem.setOnMenuItemClickListener {
             val chatJid = extractChatJidFromActivity(activity)
             if (chatJid.isNullOrEmpty()) {
-                Toast.makeText(activity, UiText.get(R.string.waex_ui_unable_to_determine_chat_jid_fb5fdb1b, "Unable to determine chat JID"), Toast.LENGTH_SHORT).show()
+                Toast.makeText(activity, UiText.get(R.string.waex_ui_unable_to_determine_chat_jid, "Unable to determine chat JID"), Toast.LENGTH_SHORT).show()
                 return@setOnMenuItemClickListener true
             }
 
@@ -140,7 +141,7 @@ class JumpFirstMessageHook(
                 val firstMsg = queryFirstMessage(activity, chatJid)
                 if (firstMsg == null) {
                     activity.runOnUiThread {
-                        Toast.makeText(activity, UiText.get(R.string.waex_ui_no_message_history_found_d6380f22, "No message history found"), Toast.LENGTH_SHORT).show()
+                        Toast.makeText(activity, UiText.get(R.string.waex_ui_no_message_history_found, "No message history found"), Toast.LENGTH_SHORT).show()
                     }
                     return@execute
                 }
@@ -285,7 +286,7 @@ class JumpFirstMessageHook(
                 }
                 curr = curr.superclass
             }
-        } catch (ignored: Throwable) {}
+        } catch (ignored: Throwable) { HookErrors.swallowed("JumpFirstMessageHook", ignored) }
 
         return null
     }
@@ -294,4 +295,5 @@ class JumpFirstMessageHook(
         val name = activity.javaClass.name
         return name.contains("Conversation") || name.contains("ChatActivity")
     }
+
 }

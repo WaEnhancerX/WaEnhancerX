@@ -13,19 +13,28 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import com.waenhancer.config.PreferenceRestartTracker;
 import com.waenhancer.config.PreferenceSchema;
+import com.waenhancer.calls.CallRecordingRecord;
+import com.waenhancer.calls.CallRecordingStore;
+import com.waenhancer.calls.RecordingOutputFiles;
+import com.waenhancer.core.transcription.TranscriptionRequestHandler;
 import com.waenhancer.licensing.LicenseManager;
 import com.waenhancer.licensing.ProFeatureGate;
 import com.waenhancer.licensing.features.BootloaderSpooferFeature;
 import com.waenhancer.xposed.core.db.PreservedMessageStore;
 import com.waenhancer.update.UpdateCheckCoordinator;
 import com.waenhancer.utils.WhatsAppPackageDetector;
+import com.waenhancer.utils.DiagnosticsRecorder;
+import com.waenhancer.xposed.utils.AppRestartHelper;
+import com.waenhancer.xposed.utils.HookErrors;
 
 /**
  * HookProvider provides preference IPC bridge between WaEnhancerX UI and target processes (WhatsApp / WA Business).
@@ -45,6 +54,19 @@ public class HookProvider extends ContentProvider {
         Context context = getContext();
         if (context == null) return null;
         return context.getSharedPreferences("waex_prefs", Context.MODE_PRIVATE);
+    }
+
+    /** The WhatsApp variant the caller is, so per-target settings resolve to its own values. */
+    @Nullable
+    private static String callerTarget(Context context, int uid) {
+        try {
+            String[] packages = context.getPackageManager().getPackagesForUid(uid);
+            if (packages == null) return null;
+            for (String pkg : packages) {
+                if ("com.whatsapp".equals(pkg) || "com.whatsapp.w4b".equals(pkg)) return pkg;
+            }
+        } catch (Throwable ignored) { HookErrors.swallowed("HookProvider", ignored); }
+        return null;
     }
 
     @Nullable
@@ -69,42 +91,137 @@ public class HookProvider extends ContentProvider {
                 return result;
             }
 
-            if ("create_call_recording".equals(method)) {
-                if (extras == null) return null;
-                String requestedName = extras.getString("name", "Call.m4a");
-                String safeName = requestedName.replaceAll("[^A-Za-z0-9._-]", "_");
-                if (safeName.isEmpty()) safeName = "Call.m4a";
-                File base = context.getExternalFilesDir(null);
-                if (base == null) base = context.getFilesDir();
-                File directory = new File(base, "CallRecordings");
-                if (!directory.exists() && !directory.mkdirs()) return null;
-                File output = new File(directory, safeName);
+            if ("restart_target".equals(method)) {
+                String pkg = arg != null ? arg : (extras != null
+                        ? extras.getString("package") : null);
+                if (pkg == null || !callerOwnsPackage(context, callerUid, pkg)) {
+                    return writeResult(false);
+                }
+                // The injected menu already displayed "Restarting WhatsApp…".
+                AppRestartHelper.restartPackage(context, pkg, null, false);
+                Bundle result = writeResult(true);
+                result.putBoolean("accepted", true);
+                return result;
+            }
+
+            if ("get_custom_emoji_font".equals(method)) {
+                String filename = arg != null ? arg : (extras != null ? extras.getString("filename") : null);
+                if (filename == null || filename.isEmpty()) return null;
+                String safeName = new File(filename).getName();
+                File emojiDir = new File(context.getFilesDir(), "custom_emojis");
+                File fontFile = new File(emojiDir, safeName);
+                if (!fontFile.exists() || !fontFile.isFile()) {
+                    File extDir = context.getExternalFilesDir("custom_emojis");
+                    if (extDir != null) {
+                        File extFile = new File(extDir, safeName);
+                        if (extFile.exists() && extFile.isFile()) {
+                            fontFile = extFile;
+                        }
+                    }
+                }
+                if (!fontFile.exists() || !fontFile.isFile()) return null;
                 try {
-                    ParcelFileDescriptor descriptor = ParcelFileDescriptor.open(
-                            output,
-                            ParcelFileDescriptor.MODE_CREATE
-                                    | ParcelFileDescriptor.MODE_TRUNCATE
-                                    | ParcelFileDescriptor.MODE_READ_WRITE);
+                    ParcelFileDescriptor pfd = ParcelFileDescriptor.open(fontFile, ParcelFileDescriptor.MODE_READ_ONLY);
                     Bundle result = new Bundle();
-                    result.putParcelable("descriptor", descriptor);
-                    result.putString("path", output.getAbsolutePath());
+                    result.putParcelable("descriptor", pfd);
+                    result.putLong("file_size", fontFile.length());
+                    result.putLong("last_modified", fontFile.lastModified());
                     return result;
                 } catch (FileNotFoundException ignored) {
                     return null;
                 }
             }
 
+            if ("create_call_recording".equals(method)) {
+                if (extras == null) return null;
+                String requestedName = extras.getString("name", "Call.m4a");
+                String safeName = RecordingOutputFiles.safeName(requestedName);
+                if (safeName == null) return null;
+                File base = context.getExternalFilesDir(null);
+                if (base == null) base = context.getFilesDir();
+                File directory = new File(base, "CallRecordings");
+                final File output;
+                try {
+                    output = RecordingOutputFiles.reserve(directory, safeName);
+                } catch (IOException ignored) {
+                    return null;
+                }
+                if (output == null) return null;
+                ParcelFileDescriptor descriptor = null;
+                try {
+                    // Only open the file exclusively created above; never truncate it.
+                    descriptor = ParcelFileDescriptor.open(output, ParcelFileDescriptor.MODE_READ_WRITE);
+                    Bundle result = new Bundle();
+                    result.putParcelable("descriptor", descriptor);
+                    result.putString("path", output.getAbsolutePath());
+                    String callId = extras.getString("call_id");
+                    if (callId != null && !callId.isEmpty()) {
+                        CallRecordingStore.get(context).begin(new CallRecordingRecord(
+                                callId,
+                                extras.getString("contact_jid"),
+                                extras.getString("contact_name", "Unknown contact"),
+                                extras.getString("direction", "unknown"),
+                                extras.getString("target_package", "unknown"),
+                                extras.getLong("started_at", System.currentTimeMillis()),
+                                null,
+                                output.getAbsolutePath(),
+                                "recording"));
+                    }
+                    return result;
+                } catch (IOException | RuntimeException ignored) {
+                    // Do not leave an orphaned empty file if opening or indexing fails.
+                    if (descriptor != null) {
+                        try { descriptor.close(); } catch (IOException closeFailure) { /* best effort */ }
+                    }
+                    output.delete();
+                    return null;
+                }
+            }
+
+            if ("finish_call_recording".equals(method)) {
+                if (extras == null) return writeResult(false);
+                String callId = extras.getString("call_id");
+                if (callId == null || callId.isEmpty()) return writeResult(false);
+                CallRecordingStore.get(context).finish(
+                        callId,
+                        extras.getLong("ended_at", System.currentTimeMillis()),
+                        extras.getBoolean("successful", false));
+                return writeResult(true);
+            }
+
             if ("delete_call_recording".equals(method)) {
                 if (extras == null) return null;
                 String requestedName = extras.getString("name", "");
-                String safeName = requestedName.replaceAll("[^A-Za-z0-9._-]", "_");
+                String safeName = RecordingOutputFiles.safeName(requestedName);
+                if (safeName == null) {
+                    Bundle result = new Bundle();
+                    result.putBoolean("deleted", false);
+                    return result;
+                }
                 File base = context.getExternalFilesDir(null);
                 if (base == null) base = context.getFilesDir();
-                boolean deleted = !safeName.isEmpty()
-                        && new File(new File(base, "CallRecordings"), safeName).delete();
+                boolean deleted = new File(new File(base, "CallRecordings"), safeName).delete();
+                String path = new File(new File(base, "CallRecordings"), safeName).getAbsolutePath();
+                CallRecordingStore.get(context).deleteByPath(path);
                 Bundle result = new Bundle();
                 result.putBoolean("deleted", deleted);
                 return result;
+            }
+
+            if ("theme_asset".equals(method)) {
+                // Serves a bundled theme image/font to the hooked process; names are validated flat files.
+                File asset = com.waenhancer.theme.ThemeRepository.Companion.assetFile(
+                        context, arg, extras != null ? extras.getString("name") : null);
+                if (asset == null) return null;
+                try {
+                    Bundle result = new Bundle();
+                    result.putParcelable("descriptor",
+                            ParcelFileDescriptor.open(asset, ParcelFileDescriptor.MODE_READ_ONLY));
+                    result.putLong("length", asset.length());
+                    return result;
+                } catch (IOException ignored) {
+                    return null;
+                }
             }
 
             if ("register_hooked_package".equals(method)) {
@@ -149,6 +266,8 @@ public class HookProvider extends ContentProvider {
                     else editor.putString("runtime_error_" + pkg, error);
                     boolean committed = editor.commit();
                     if (committed) {
+                        DiagnosticsRecorder.recordHookHealth(context, pkg, runtimeStatus,
+                                bridgeStatus, error != null, callerPid);
                         context.getContentResolver().notifyChange(
                                 Uri.parse("content://" + AUTHORITY + "/runtime_health"), null);
                         context.getContentResolver().notifyChange(
@@ -173,17 +292,58 @@ public class HookProvider extends ContentProvider {
                     editor.putLong("injected_hooks_time_" + pkg, timestamp);
                     editor.putLong("last_active_" + pkg, timestamp);
                     editor.putInt("runtime_pid_" + pkg, callerPid);
-                    editor.commit();
-                    context.getContentResolver().notifyChange(Uri.parse("content://" + AUTHORITY + "/injected_hooks"), null);
-                    context.getContentResolver().notifyChange(Uri.parse("content://" + AUTHORITY + "/preferences"), null);
+                    boolean committed = editor.commit();
+                    if (committed) {
+                        DiagnosticsRecorder.recordHookSummary(context, pkg, hooksJson);
+                        context.getContentResolver().notifyChange(Uri.parse("content://" + AUTHORITY + "/injected_hooks"), null);
+                        context.getContentResolver().notifyChange(Uri.parse("content://" + AUTHORITY + "/preferences"), null);
+                    }
                     Bundle result = new Bundle();
-                    result.putBoolean("success", true);
+                    result.putBoolean("success", committed);
                     return result;
                 }
             }
 
+            if ("report_target_exit_history".equals(method) && extras != null) {
+                String pkg = extras.getString("package", arg);
+                if (pkg == null || !callerOwnsPackage(context, callerUid, pkg)
+                        || !DiagnosticsRecorder.isAdvancedEnabled(context)) return writeResult(false);
+                // Only primitive OS fields are accepted; never a Bundle of arbitrary strings.
+                long[] times = extras.getLongArray("exit_times");
+                int[] pids = extras.getIntArray("exit_pids");
+                int[] reasons = extras.getIntArray("exit_reasons");
+                int[] statuses = extras.getIntArray("exit_statuses");
+                long[] pss = extras.getLongArray("exit_pss_kib");
+                long[] rss = extras.getLongArray("exit_rss_kib");
+                int recorded = DiagnosticsRecorder.recordTargetExitHistory(
+                        context, pkg, times, pids, reasons, statuses, pss, rss);
+                Bundle result = writeResult(recorded >= 0);
+                result.putInt("recorded", Math.max(0, recorded));
+                return result;
+            }
+
             if ("get_all_preferences".equals(method)) {
                 var all = new HashMap<String, Object>(prefs.getAll());
+                String targetPackage = targetPackageForCaller(context, callerUid);
+                if (targetPackage != null && "Per Target App".equals(prefs.getString("module_config_mode", "Universal"))) {
+                    initializeTarget(prefs, targetPackage);
+                    String prefix = targetPackage + ":";
+                    for (Map.Entry<String, ?> entry : prefs.getAll().entrySet()) {
+                        String key = entry.getKey();
+                        if (key != null && key.startsWith(prefix) && key.length() > prefix.length()
+                    && !PreferenceSchema.isGlobalOnly(key.substring(prefix.length()))) {
+                            all.put(key.substring(prefix.length()), entry.getValue());
+                        }
+                    }
+                    all.put(PreferenceRestartTracker.NEED_RESTART,
+                            Boolean.TRUE.equals(prefs.getAll().get(prefix + PreferenceRestartTracker.NEED_RESTART)));
+                    Object pendingChanges = prefs.getAll().get(prefix + PreferenceRestartTracker.PENDING_CHANGES);
+                    if (pendingChanges instanceof Set<?>) {
+                        all.put(PreferenceRestartTracker.PENDING_CHANGES, pendingChanges);
+                    } else {
+                        all.remove(PreferenceRestartTracker.PENDING_CHANGES);
+                    }
+                }
                 all.put("waex_pro_active", "ACTIVE".equalsIgnoreCase(
                         LicenseManager.getProStatus(context)));
                 // Keybox material is private at rest and is exposed only in this in-memory IPC
@@ -233,6 +393,13 @@ public class HookProvider extends ContentProvider {
                 Bundle result = new Bundle();
                 if (key != null) {
                     Object value = prefs.getAll().get(key);
+                    String callerPackage = targetPackageForCaller(context, callerUid);
+                    if (callerPackage != null && !"module_config_mode".equals(key)
+                            && "Per Target App".equals(prefs.getString("module_config_mode", "Universal"))) {
+                        // A target only ever sees its own override, never another target's value.
+                        Object scopedValue = prefs.getAll().get(callerPackage + ":" + key);
+                        if (scopedValue != null) value = scopedValue;
+                    }
                     if (value instanceof Boolean) result.putBoolean("value", (Boolean) value);
                     else if (value instanceof String) result.putString("value", (String) value);
                     else if (value instanceof Integer) result.putInt("value", (Integer) value);
@@ -254,6 +421,18 @@ public class HookProvider extends ContentProvider {
                         extras.getBoolean("clear", false), operations);
             }
 
+            if (TranscriptionRequestHandler.METHOD.equals(method) && extras != null) {
+                return TranscriptionRequestHandler.handle(context, extras, callerTarget(context, callerUid));
+            }
+
+            if (TranscriptionRequestHandler.METHOD_READY.equals(method)) {
+                return TranscriptionRequestHandler.ready(context, callerTarget(context, callerUid));
+            }
+
+            if (TranscriptionRequestHandler.METHOD_LOG.equals(method) && extras != null) {
+                return TranscriptionRequestHandler.log(context, extras);
+            }
+
             if ("record_preserved_message".equals(method) && extras != null) {
                 String jid = extras.getString("jid", "");
                 String contactName = extras.getString("name", "");
@@ -264,9 +443,9 @@ public class HookProvider extends ContentProvider {
                 boolean fromMe = extras.getBoolean("fromMe", false);
                 boolean isGroup = extras.getBoolean("isGroup", false);
 
-                PreservedMessageStore.getInstance(context)
-                        .insertPreservedMessage(jid, contactName, senderName, msgId, text, timestamp, fromMe, isGroup);
-                return Bundle.EMPTY;
+                boolean saved = PreservedMessageStore.getInstance(context)
+                        .tryInsertPreservedMessage(jid, contactName, senderName, msgId, text, timestamp, fromMe, isGroup);
+                return writeResult(saved);
             }
 
             return null;
@@ -364,10 +543,15 @@ public class HookProvider extends ContentProvider {
                     && !isEntitledBoolean(context, key)) return writeResult(false);
         }
 
+        String targetPackage = targetPackageForCaller(context, callerUid);
+        boolean scoped = targetPackage != null
+                && "Per Target App".equals(prefs.getString("module_config_mode", "Universal"));
+
         SharedPreferences.Editor editor = prefs.edit();
         if (clear) editor.clear();
         for (Bundle op : operations) {
             String key = op.getString("key");
+            if (scoped && !"module_config_mode".equals(key)) key = targetPackage + ":" + key;
             switch (op.getString("type")) {
                 case "remove": editor.remove(key); break;
                 case "string": editor.putString(key, op.getString("value")); break;
@@ -387,6 +571,38 @@ public class HookProvider extends ContentProvider {
                     Uri.parse("content://" + AUTHORITY + "/preferences"), null);
         }
         return writeResult(committed);
+    }
+
+    private String targetPackageForCaller(Context context, int uid) {
+        String[] packages = context.getPackageManager().getPackagesForUid(uid);
+        if (packages == null) return null;
+        for (String pkg : packages) if (WhatsAppPackageDetector.isWhatsAppPackageName(pkg)) return pkg;
+        return null;
+    }
+
+    private void initializeTarget(SharedPreferences prefs, String packageName) {
+        // Seed only once; see WaexPreferenceManager.TARGET_SEEDED_KEY.
+        String seededKey = packageName + ":" + com.waenhancer.core.preferences.WaexPreferenceManager.TARGET_SEEDED_KEY;
+        if (prefs.getBoolean(seededKey, false)) return;
+        SharedPreferences.Editor editor = prefs.edit();
+        boolean changed = true;
+        editor.putBoolean(seededKey, true);
+        for (PreferenceSchema.Entry entry : PreferenceSchema.all().values()) {
+            if (entry.store != PreferenceSchema.Store.PUBLIC || entry.sensitivity == PreferenceSchema.Sensitivity.RUNTIME
+                    || PreferenceSchema.isGlobalOnly(entry.key)) continue;
+            String scoped = packageName + ":" + entry.key;
+            if (!prefs.contains(scoped) && prefs.contains(entry.key)) {
+                Object value = prefs.getAll().get(entry.key);
+                if (value instanceof Boolean) editor.putBoolean(scoped, (Boolean) value);
+                else if (value instanceof String) editor.putString(scoped, (String) value);
+                else if (value instanceof Integer) editor.putInt(scoped, (Integer) value);
+                else if (value instanceof Long) editor.putLong(scoped, (Long) value);
+                else if (value instanceof Float) editor.putFloat(scoped, (Float) value);
+                else if (value instanceof Set<?>) editor.putStringSet(scoped, new HashSet<>((Set<String>) value));
+                changed = true;
+            }
+        }
+        if (changed) editor.commit();
     }
 
     private boolean isEntitledBoolean(Context context, String key) {

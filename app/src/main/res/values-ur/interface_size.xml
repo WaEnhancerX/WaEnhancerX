@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="interface_size_title">انٹرفیس کا سائز</string>
+    <string name="interface_size_desc">پوری ایپ میں متن، کنٹرولز، فاصلہ اور نیویگیشن کو ایڈجسٹ کریں</string>
+    <string name="interface_size_compact">مختصر</string>
+    <string name="interface_size_standard">معیاری</string>
+    <string name="interface_size_comfortable">آرام دہ</string>
+    <string name="interface_size_large">بڑا</string>
+    <string name="build_variant_debug">ڈیبگ</string>
+    <string name="build_variant_release">ریلیز</string>
+</resources>

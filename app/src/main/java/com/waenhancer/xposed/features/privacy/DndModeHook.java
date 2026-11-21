@@ -54,7 +54,7 @@ public class DndModeHook extends BaseFeature {
         Method dndMethod = engine.findMethodWithCache(
                 context,
                 classLoader,
-                "wpp_dnd_message_handler_start",
+                "waex_dnd_message_handler_start",
                 (bridge, loader) -> {
                     MethodData md = bridge.findMethod(FindMethod.create()
                             .matcher(MethodMatcher.create()

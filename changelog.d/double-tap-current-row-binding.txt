@@ -1,5 +1,0 @@
-[Fixes]
-- Bind double-tap reactions to the adapter that actually produced the current
-  message row.
-- Clear stale row targets and touch state before rebinding, and avoid duplicate
-  adapter hook registration.

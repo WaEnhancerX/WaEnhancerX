@@ -1,5 +1,9 @@
 package com.waenhancer.utils
 
+import android.content.pm.PackageManager
+import android.app.Activity
+import de.robv.android.xposed.XposedBridge
+
 import android.content.*
 import android.content.res.Resources
 import android.os.SystemClock
@@ -39,25 +43,27 @@ fun main(args:Array<String>){
     ck("module context requested by exact package",host.contextRequests.isNotEmpty() && host.contextRequests.all{it.first=="com.waenhancer"},true)
     ck("resource access never requests application code",host.contextRequests.all{it.second and Context.CONTEXT_INCLUDE_CODE==0},true)
     val hidden=Context("com.whatsapp",Resources("com.whatsapp",emptyMap(),mapOf(R.array.universal_supported_versions to arrayOf("9.99.1"))))
-    ck("unavailable not unsupported",UniversalVersionValidator.evaluate(hidden,"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
+    ck("hidden module has no version rules",UniversalVersionValidator.evaluate(hidden,"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
     ck("reject foreign matching numeric table",UniversalVersionValidator.isSupported(hidden,"9.99.1",prefs),false)
     ck("never read foreign resource ID",hidden.resources.reads.size,0)
-    ck("null context cannot resolve builtins",UniversalVersionValidator.evaluate(null,"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
-    ck("no-context bool remains fail closed",UniversalVersionValidator.isSupported("2.26.40.76",prefs),false)
-    ck("wrong context returned",UniversalVersionValidator.evaluate(Context("com.whatsapp",hidden.resources,hidden),"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
+    ck("null context has no built-in rules",UniversalVersionValidator.evaluate(null,"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
+    ck("no-context bool cannot infer support",UniversalVersionValidator.isSupported("2.26.40.76",prefs),false)
+    ck("no-context built-in list is empty",UniversalVersionValidator.getBuiltinSupportedVersions(null),emptyList<String>())
+    ck("no-context rejects unknown versions",UniversalVersionValidator.isSupported(null,"9.99.1",prefs),false)
+    ck("wrong context has no module rules",UniversalVersionValidator.evaluate(Context("com.whatsapp",hidden.resources,hidden),"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
     val foreignMatching=Context("com.whatsapp",Resources("com.whatsapp",names,mapOf(R.array.universal_supported_versions to rules)))
-    ck("matching rules in wrong context rejected",UniversalVersionValidator.evaluate(Context("com.whatsapp",hidden.resources,foreignMatching),"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
+    ck("wrong context cannot supply module rules",UniversalVersionValidator.evaluate(Context("com.whatsapp",hidden.resources,foreignMatching),"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
     ck("wrong context rejected before its array read",foreignMatching.resources.reads.size,0)
     val misplacedModuleResources=Resources("com.waenhancer",names,mapOf(R.array.universal_supported_versions to rules))
     val wrongPackageContext=Context("com.whatsapp",misplacedModuleResources)
-    ck("requested module must not return a host context",UniversalVersionValidator.evaluate(Context("com.whatsapp",hidden.resources,wrongPackageContext),"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
+    ck("wrong package cannot supply module rules",UniversalVersionValidator.evaluate(Context("com.whatsapp",hidden.resources,wrongPackageContext),"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
     ck("unexpected context is rejected before reading even matching arrays",misplacedModuleResources.reads.size,0)
-    ck("wrong owner at same number",UniversalVersionValidator.evaluate(module(rules,"com.whatsapp:array/universal_supported_versions"),"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
-    ck("wrong name at same number",UniversalVersionValidator.evaluate(module(rules,"com.waenhancer:array/another_array"),"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
+    ck("foreign owner is unavailable",UniversalVersionValidator.evaluate(module(rules,"com.whatsapp:array/universal_supported_versions"),"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
+    ck("foreign array name is unavailable",UniversalVersionValidator.evaluate(module(rules,"com.waenhancer:array/another_array"),"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
     ck("own numeric fallback verified by full name",UniversalVersionValidator.evaluate(module(rules,"com.waenhancer:array/universal_supported_versions",emptyMap()),"2.26.40.76",prefs),D.BUILTIN_RULE)
-    for(failure in listOf(SecurityException("blocked"),android.content.pm.PackageManager.NameNotFoundException(),NoClassDefFoundError("unavailable"))){
+    for(failure in listOf(SecurityException("blocked"),PackageManager.NameNotFoundException(),NoClassDefFoundError("unavailable"))){
         val inaccessible=Context("com.whatsapp",hidden.resources,mod).apply{contextFailure=failure}
-        ck("resource access failure remains unavailable ${failure.javaClass.simpleName}",UniversalVersionValidator.evaluate(inaccessible,"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
+        ck("resource access failure has no rules ${failure.javaClass.simpleName}",UniversalVersionValidator.evaluate(inaccessible,"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
     }
     for(failure in listOf(AssertionError("controlled assertion"),OutOfMemoryError("controlled VM failure"),ThreadDeath())){
         val broken=Context("com.whatsapp",hidden.resources,mod).apply{contextFailure=failure}
@@ -66,31 +72,34 @@ fun main(args:Array<String>){
         ck("fatal or assertion error is not a rules result ${failure.javaClass.simpleName}",caught===failure,true)
     }
     for(list in listOf(emptyArray<String>(),arrayOf("bad"),arrayOf(""),arrayOf("2.26.40.xx",""),arrayOf("*.xx"))){
-        ck("invalid builtin contents not usable",UniversalVersionValidator.evaluate(module(list),"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
+        ck("invalid array is unavailable",UniversalVersionValidator.evaluate(module(list),"2.26.40.76",prefs),D.RULES_UNAVAILABLE)
     }
     // A future 2.26.x branch can become supported as arrays.xml changes. Keep the
     // synthetic major-zero version outside that range and test 2.26.42 above.
     for(v in listOf("2.26.35.90","0.0.0.0","9.99.1"))ck("true rejected version $v",UniversalVersionValidator.evaluate(mod,v,prefs),D.UNSUPPORTED)
     for(v in listOf(null,""," ","v"))ck("version unavailable",UniversalVersionValidator.evaluate(mod,v,prefs),D.VERSION_UNAVAILABLE)
-    val custom=Prefs().apply{values["customize_supported_versions"]=true;values["custom_supported_versions"]=setOf("2.26.40.76")}
-    ck("intentional custom permission preserved",UniversalVersionValidator.evaluate(hidden,"2.26.40.76",custom),D.CUSTOM_RULE)
-    ck("custom does not admit other versions",UniversalVersionValidator.evaluate(hidden,"2.26.40.75",custom),D.RULES_UNAVAILABLE)
+    val custom=Prefs().apply{values["customize_supported_versions"]=true;values["custom_supported_versions"]=setOf("9.99.1")}
+    ck("intentional custom permission preserved",UniversalVersionValidator.evaluate(hidden,"9.99.1",custom),D.CUSTOM_RULE)
+    ck("custom does not invent unavailable built-ins",UniversalVersionValidator.evaluate(hidden,"9.99.2",custom),D.RULES_UNAVAILABLE)
+    ck("built-in rule retains precedence",UniversalVersionValidator.evaluate(host,"2.26.40.76",custom),D.BUILTIN_RULE)
     custom.values["customize_supported_versions"]=false
-    ck("disabled custom not auto-enabled",UniversalVersionValidator.evaluate(hidden,"2.26.40.76",custom),D.RULES_UNAVAILABLE)
+    ck("disabled custom does not replace missing rules",UniversalVersionValidator.evaluate(hidden,"9.99.1",custom),D.RULES_UNAVAILABLE)
     val bypass=Prefs().apply{values["bypass_version_check"]=true}
     ck("explicit existing bypass preserved",UniversalVersionValidator.evaluate(hidden,"99.8.7",bypass),D.EXPLICIT_BYPASS)
     ck("even bypass needs version",UniversalVersionValidator.evaluate(hidden,"",bypass),D.VERSION_UNAVAILABLE)
     ck("unreadable preferences named honestly",UniversalVersionValidator.evaluate(mod,"2.26.40.76",Prefs().apply{fail=true}),D.PREFERENCES_UNAVAILABLE)
     ck("evaluating did not change preferences",prefs.values.size,0)
     val loader=VersionGuard.javaClass.classLoader
-    ck("guard rejects hidden module",VersionGuard.verifyAndGuard(hidden,loader,prefs),false)
+    ck("guard accepts only array-declared rules",VersionGuard.verifyAndGuard(host,loader,prefs),true)
+    val unavailablePrefs=Prefs().apply{fail=true}
+    ck("guard pauses on unreadable settings",VersionGuard.verifyAndGuard(hidden,loader,unavailablePrefs),false)
     ck("guard forwards unavailable decision",VersionGuard.runtimeStatus(),"COMPATIBILITY_UNAVAILABLE")
-    VersionGuard.onTargetActivityResumed(android.app.Activity())
-    ck("access error notice",WaexBottomSheet.lastMessage.contains("could not read its version rules"),true)
+    VersionGuard.onTargetActivityResumed(Activity())
+    ck("settings access error notice",WaexBottomSheet.lastMessage.contains("compatibility settings"),true)
     ck("dialog shown once",WaexBottomSheet.shows,1)
-    VersionGuard.onTargetActivityResumed(android.app.Activity());ck("no duplicate dialog",WaexBottomSheet.shows,1)
+    VersionGuard.onTargetActivityResumed(Activity());ck("no duplicate dialog",WaexBottomSheet.shows,1)
     ck("guard recovery after fresh verification",VersionGuard.verifyAndGuard(host,loader,prefs),true)
-    VersionGuard.onTargetActivityResumed(android.app.Activity());ck("successful guard clears pending warning",WaexBottomSheet.shows,1)
+    VersionGuard.onTargetActivityResumed(Activity());ck("successful guard clears pending warning",WaexBottomSheet.shows,1)
     host.packageManager.version="9.99.1"
     ck("guard truly unsupported",VersionGuard.verifyAndGuard(host,loader,prefs),false)
     ck("precise unsupported status",VersionGuard.runtimeStatus(),"UNSUPPORTED_VERSION")
@@ -101,10 +110,10 @@ fun main(args:Array<String>){
     ck("settings failure pauses",VersionGuard.verifyAndGuard(host,loader,Prefs().apply{fail=true}),false)
     ck("failure notice reason",VersionGuard.noticeMessage("v",D.PREFERENCES_UNAVAILABLE).contains("compatibility settings"),true)
     ck("no missing-resource mislabel",VersionGuard.noticeMessage("2.26.40.76",D.RULES_UNAVAILABLE).contains("not match"),false)
-    ck("guard logs exclude raw preferences",de.robv.android.xposed.XposedBridge.logs.any{it.contains("private value")},false)
-    VersionGuard.verifyAndGuard(hidden,loader,prefs)
-    WaexBottomSheet.fail=true;VersionGuard.onTargetActivityResumed(android.app.Activity())
-    WaexBottomSheet.fail=false;VersionGuard.onTargetActivityResumed(android.app.Activity())
+    ck("guard logs exclude raw preferences",XposedBridge.logs.any{it.contains("private value")},false)
+    VersionGuard.verifyAndGuard(hidden,loader,unavailablePrefs)
+    WaexBottomSheet.fail=true;VersionGuard.onTargetActivityResumed(Activity())
+    WaexBottomSheet.fail=false;VersionGuard.onTargetActivityResumed(Activity())
     ck("warning can recover after failed show",WaexBottomSheet.shows,2)
     fun evidence(pids:Set<Int>?=setOf(123),t:Long=10000,now:Long=20000,boot:Int=7,recorded:Int=7,pid:Int=123,active:Boolean=true)=classifyInjection(active,recorded,boot,pid,pids,t,now)
     ck("current",evidence(),InjectionEvidence.CURRENT)
@@ -206,9 +215,9 @@ fun main(args:Array<String>){
     ck("probe expiring during collection rejected",XposedRuntimeInspector.inspect(listOf("com.whatsapp")),null)
     SystemClock.time=1000;Root.advance=0
     ck("custom allowance card is not verified",TargetRuntimePresentation.card(app,true,D.CUSTOM_RULE).severity,S.REVIEW)
-    ck("custom allowance summary not verified",sum(listOf(app),D.CUSTOM_RULE).healthy,false)
+    ck("custom allowance summary not verified",sum(listOf(app),D.CUSTOM_RULE).healthy,null)
     ck("other negative boot value is unknown",classifyInjection(true,-2,-2,42,setOf(42),1000,1001),InjectionEvidence.BOOT_UNKNOWN)
-    val delayed=android.app.Activity();delayed.defer=true
+    val delayed=Activity();delayed.defer=true
     prefs.values.clear();prefs.fail=false;host.packageManager.fail=false;host.packageManager.version="99.99.99.99"
     ck("queue scenario paused",VersionGuard.verifyAndGuard(host,host.javaClass.classLoader,prefs),false)
     VersionGuard.onTargetActivityResumed(delayed)

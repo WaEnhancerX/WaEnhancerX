@@ -7,6 +7,7 @@ import android.os.LocaleList
 import java.util.Locale
 import android.content.res.Resources
 import com.waenhancer.config.PreferenceStores
+import com.waenhancer.app.R
 
 object LocaleHelper {
 
@@ -36,7 +37,7 @@ object LocaleHelper {
 
     fun getLanguageDisplayName(code: String): String {
         val canonical = DisplayLocalePolicy.canonicalCode(code)
-        if (canonical == "system") return UiText.get(com.waenhancer.app.R.string.language_default, "System Default")
+        if (canonical == "system") return UiText.get(R.string.language_default, "System Default")
         if (canonical == "es-419") return "Español (Latinoamérica)"
         return SUPPORTED_LANGUAGES.find { it.code == canonical }?.nativeName ?: canonical
     }
@@ -44,7 +45,7 @@ object LocaleHelper {
     /** Localized language names, without changing the persisted BCP-47 values. */
     fun getLanguageExplanation(code: String): String {
         if (code == "system") return getLanguageDisplayName(code)
-        return DisplayLocalePolicy.resolve(code, java.util.Locale.ENGLISH)
+        return DisplayLocalePolicy.resolve(code, Locale.ENGLISH)
             .getDisplayName(UiText.displayLocale())
     }
 
