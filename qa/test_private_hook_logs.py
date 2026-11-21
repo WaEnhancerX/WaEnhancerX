@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Privacy regression for user-facing message-history/receipt diagnostic logs.
 
-Static checks only: no Android SDK or private APK is needed. This test prevents
-known accidental JID/message-id/text leaks in selected hook log statements,
-and verifies that exception messages are not interpolated into those logs.
+Static checks plus a compiled BlueOnReply payload contract: a real JDK is
+required, but no Android SDK or private APK. This test prevents known accidental
+JID/message-id/text leaks and exception messages in selected diagnostic logs.
 It does not establish comprehensive privacy of every log across WAEX.
 """
 from pathlib import Path
@@ -15,11 +15,11 @@ if not __debug__:
 ROOT = Path(__file__).resolve().parents[1]
 FILES = {
     "app/src/main/java/com/waenhancer/xposed/features/privacy/BlueOnReplyHook.java": 13,
-    "app/src/main/java/com/waenhancer/xposed/features/privacy/AntiRevokeHook.java": 26,
+    "app/src/main/java/com/waenhancer/xposed/features/privacy/AntiRevokeHook.java": 31,
     "app/src/main/java/com/waenhancer/xposed/features/conversation/PreserveDeleteForMeHook.kt": 9,
-    "app/src/main/java/com/waenhancer/xposed/features/conversation/AntiEditMessagesHook.kt": 6,
-    "app/src/main/java/com/waenhancer/xposed/core/db/EditMessageStore.kt": 4,
-    "app/src/main/java/com/waenhancer/xposed/features/customization/OnlinePresenceIndicatorsHook.kt": 3,
+    "app/src/main/java/com/waenhancer/xposed/features/conversation/AntiEditMessagesHook.kt": 7,
+    "app/src/main/java/com/waenhancer/xposed/core/db/EditMessageStore.kt": 5,
+    "app/src/main/java/com/waenhancer/xposed/features/customization/OnlinePresenceIndicatorsHook.kt": 2,
 }
 
 # Each source is scanned as an expression, including Java multi-line logs
@@ -144,7 +144,7 @@ assert 'XposedBridge.log(TAG + " Cannot dispatch: WaJobManager or enqueueJobMeth
 assert 'Preserved Delete-For-Me: chat=' not in preserve
 online_presence = (ROOT / "app/src/main/java/com/waenhancer/xposed/features/customization/OnlinePresenceIndicatorsHook.kt").read_text()
 assert 'contactIdResolved=$hasContactId' not in online_presence
-assert 'Presence request failed: ${t.javaClass.simpleName}' in online_presence
+assert 'Presence request error: ${t.javaClass.simpleName}' in online_presence
 assert 'Setup failed: ${t.javaClass.simpleName}' in online_presence
 assert 'Setup failed: $t' not in online_presence
 # No private-object reflection is performed solely to populate discarded debug strings.
@@ -161,7 +161,9 @@ assert 'Presence request failed for $key' not in online_presence
 # The older store remains a valid *log regression fixture* on its original PR;
 # the integrated variant must not reintroduce its JID-wide bypass.
 if 'PendingReadReceiptStore<ReadJobRecipe>' in blue:
-    assert 'PENDING_JOBS.drain(key)' in blue
+    assert 'PENDING_JOBS.snapshot(key)' in blue
+    assert 'PENDING_JOBS.remove(recipient, original)' in blue
+    assert 'if (vetoed) restoreRecipe();' in blue
     assert 'HideReceiptsHook.allowExplicitReceiptIds(key, recipe.arguments)' in blue
     assert 'HideReceiptsHook.revokeExplicitReceiptIds(key, recipe.arguments)' in blue
     assert 'HideReceiptsHook.allowBlueReplyReceipt(key)' not in blue
@@ -177,7 +179,7 @@ else:
 if 'Cannot dispatch: outgoing recipient is unavailable' in blue:
     dispatch = blue.split('private static int sendPendingReadJobs(String jid)', 1)[1].split('private String extractRemoteJid(', 1)[0]
     assert 'if (key == null)' in dispatch and 'return 0;' in dispatch
-    assert 'PENDING_JOBS.remove(key)' in dispatch or 'PENDING_JOBS.drain(key)' in dispatch
+    assert 'attempt.acknowledgeEnqueue();' in dispatch
     for unsafe_fallback in ('getUserPart(', 'lastHiddenConversationJid', 'PENDING_JOBS.size() == 1'):
         assert unsafe_fallback not in dispatch, 'Recipient fallback restored: ' + unsafe_fallback
 assert 'getOrFindJobManager()' in blue
@@ -191,9 +193,6 @@ if "editStore.recordTransitionAsync(" in edit:
     assert "fun recordTransitionAsync(" in store, "Async transition storage unavailable"
 assert "getMessages(" in store
 
-print(f"PASS: {total} sensitive-feature log callsites checked across "
-      f"{len(FILES)} production files; unsafe and safe fixtures verified")
-
 # PR #25 now includes three other independently fixture-tested log sources.
 # Keep this historical entrypoint comprehensive even if PR #27's optional
 # workflow has not yet merged. The scripts fail closed on missing source files.
@@ -202,5 +201,11 @@ for regression in (
     "qa/test_exception_message_privacy.py",
     "qa/test_call_privacy_logs.py",
     "qa/test_database_dialog_status_log_privacy.py",
+    # This historical entrypoint is invoked by source-qa; do not leave the
+    # compiled expression/mutation contract as an unexecuted standalone file.
+    "qa/test_blue_on_reply_log_contract.py",
 ):
     runpy.run_path(str(ROOT / regression), run_name="__main__")
+
+print(f"PASS: {total} sensitive-feature log callsites checked across "
+      f"{len(FILES)} production files; static and compiled payload contracts verified")

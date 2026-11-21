@@ -101,6 +101,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.waenhancer.ui.components.ReleaseKindChip
 import com.waenhancer.ui.components.LicenseActivationModal
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
@@ -540,6 +541,7 @@ fun MainContainerScreen() {
                                                 style = typography.bodySm,
                                                 color = colors.onSurfaceVariant
                                             )
+                                            ReleaseKindChip(versionName = BuildConfig.VERSION_NAME)
 
                                             // License Plan Chip inside Drawer Header
                                             val chipBg = when (licenseState) {
@@ -1267,13 +1269,11 @@ fun MainContainerScreen() {
 
         downloadingUrl?.let { url ->
             val version = downloadingVersion ?: "latest"
-            val useRoot = preferenceManager.getBoolean("root_auto_install", false)
             UpdateDownloadSheet(
                 url = url,
                 version = version,
                 expectedSha256 = downloadingSha256,
                 expectedSize = downloadingSize,
-                useRoot = useRoot,
                 onDismiss = {
                     downloadingUrl = null
                     downloadingVersion = null

@@ -1034,8 +1034,8 @@ public class AntiRevokeHook extends BaseFeature {
                                             nativeRevokedRow = HideAntiRevokeProFeature.renderDeletedMessageRow(
                                                     row, item, keyId, deletedTs, classLoader);
                                         } catch (Throwable renderFailure) {
-                                            XposedBridge.log(TAG + " native show-as-deleted failed key="
-                                                    + keyId + " error=" + renderFailure.getClass().getSimpleName());
+                                            XposedBridge.log(TAG + " native show-as-deleted failed: "
+                                                    + renderFailure.getClass().getSimpleName());
                                         }
                                         if (nativeRevokedRow != null) {
                                             nativeRevokedRow.setTag(TAG_DECORATED, Boolean.TRUE);

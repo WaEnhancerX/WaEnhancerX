@@ -42,17 +42,17 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UpdateDownloadSheet(
-    url: String, version: String, useRoot: Boolean, onDismiss: () -> Unit,
+    url: String, version: String, onDismiss: () -> Unit,
     expectedSha256: String? = null, expectedSize: Long = 0L
 ) {
     val context = LocalContext.current
     val colors = WaexTheme.colors
     val typography = WaexTheme.typography
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var downloadProgress by remember(context, url, version, useRoot, expectedSha256, expectedSize) { mutableIntStateOf(0) }
-    var downloadedBytes by remember(context, url, version, useRoot, expectedSha256, expectedSize) { mutableLongStateOf(0L) }
-    var downloadTotalBytes by remember(context, url, version, useRoot, expectedSha256, expectedSize) { mutableLongStateOf(0L) }
-    val session = remember(context, url, version, useRoot, expectedSha256, expectedSize) { UpdateDownloadSession() }
+    var downloadProgress by remember(context, url, version, expectedSha256, expectedSize) { mutableIntStateOf(0) }
+    var downloadedBytes by remember(context, url, version, expectedSha256, expectedSize) { mutableLongStateOf(0L) }
+    var downloadTotalBytes by remember(context, url, version, expectedSha256, expectedSize) { mutableLongStateOf(0L) }
+    val session = remember(context, url, version, expectedSha256, expectedSize) { UpdateDownloadSession() }
     val dismiss by rememberUpdatedState(onDismiss)
     val mainHandler = remember { Handler(Looper.getMainLooper()) }
 
@@ -87,8 +87,7 @@ fun UpdateDownloadSheet(
                     }
                     mainHandler.removeCallbacks(progressTask)
                     try {
-                        if (useRoot) UpdateDownloader.installApkWithRoot(context, apkFile, version)
-                        else UpdateDownloader.installApk(context, apkFile, version)
+                        UpdateDownloader.installApkWithRoot(context, apkFile, version)
                     } finally { dismiss() }
                 }) {
                     session.cancel()
