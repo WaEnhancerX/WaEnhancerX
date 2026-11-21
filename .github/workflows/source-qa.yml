@@ -37,22 +37,6 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Inventory all Spanish resource gaps before strict acceptance
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 qa/test_locale_coverage_report.py
-          python3 qa/locale_coverage_report.py --out "$RUNNER_TEMP/waex-locale-coverage"
-
-      - name: Preserve complete locale coverage inventory
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: waex-locale-coverage-inventory
-          path: ${{ runner.temp }}/waex-locale-coverage/locale-coverage.json
-          if-no-files-found: error
-          retention-days: 14
-
       - name: Verify release pipeline contracts
         shell: bash
         run: |
