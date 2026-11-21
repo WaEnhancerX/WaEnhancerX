@@ -66,6 +66,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -79,7 +80,6 @@ import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
-import com.waenhancer.utils.UiText
 import com.waenhancer.xposed.utils.AppRestartHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -222,7 +222,7 @@ fun CustomEmojisScreen() {
 
     fun downloadAndApply(pack: CustomEmojiPack) {
         if (pack.downloadUrl.isBlank()) {
-            Toast.makeText(context, "Download unavailable offline", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.emoji_style_ui_offline_download), Toast.LENGTH_SHORT).show()
             return
         }
         isDownloading[pack.filename] = true
@@ -236,7 +236,7 @@ fun CustomEmojisScreen() {
                 localFilesRevision++
                 applyCustomEmoji(pack.filename)
             }.onFailure {
-                Toast.makeText(context, UiText.get(R.string.custom_emojis_download_error, "Download failed. Try again."), Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.custom_emojis_download_error), Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -259,7 +259,7 @@ fun CustomEmojisScreen() {
                 if (localFiles.isNotEmpty()) {
                     emojiPacks = localFiles.map { f -> CustomEmojiPack(f.name, f.length(), "") }
                 }
-                errorMessage = err.localizedMessage ?: UiText.get(R.string.custom_emojis_fetch_error, "Failed to load. Check connection.")
+                errorMessage = err.localizedMessage ?: context.getString(R.string.custom_emojis_fetch_error)
                 isLoading = false
                 isRefreshing = false
             }
@@ -281,14 +281,14 @@ fun CustomEmojisScreen() {
     Scaffold(
         topBar = {
             WaexTopBar(
-                title = UiText.get(R.string.custom_emojis_screen_title, "Emoji Style"),
+                title = stringResource(R.string.custom_emojis_screen_title),
                 onBackClick = { navController.popBack() },
                 actions = {
                     if (totalDownloadedBytes > 0) {
                         IconButton(onClick = { showClearAllDialog = true }) {
                             Icon(
                                 imageVector = WaexIcons.Delete,
-                                contentDescription = "Clear All",
+                                contentDescription = stringResource(R.string.custom_emojis_clear_all),
                                 tint = colors.onSurfaceVariant
                             )
                         }
@@ -323,7 +323,7 @@ fun CustomEmojisScreen() {
                             } else {
                                 Icon(
                                     imageVector = WaexIcons.Refresh,
-                                    contentDescription = UiText.get(R.string.waex_ui_refresh, "Refresh"),
+                                    contentDescription = stringResource(R.string.waex_ui_refresh),
                                     modifier = Modifier
                                         .size(22.dp)
                                         .graphicsLayer {
@@ -364,7 +364,7 @@ fun CustomEmojisScreen() {
                     }
                     if (totalDownloadedBytes > 0) {
                         Text(
-                            text = CustomEmojiManager.formatFileSize(totalDownloadedBytes) + " downloaded",
+                            text = stringResource(R.string.emoji_style_ui_downloaded_size, CustomEmojiManager.formatFileSize(totalDownloadedBytes)),
                             style = typography.labelSm,
                             color = colors.onSurfaceVariant
                         )
@@ -372,7 +372,7 @@ fun CustomEmojisScreen() {
                 }
 
                 // ─── SECTION: BUILT-IN ────────────────────────────────────────
-                EmojiSection(title = "BUILT-IN") {
+                EmojiSection(title = stringResource(R.string.emoji_style_ui_builtin)) {
                     Surface(
                         shape = radius.cardShape,
                         color = colors.surfaceContainerLow,
@@ -384,8 +384,8 @@ fun CustomEmojisScreen() {
                             val isDefaultActive = activeMode is ActiveEmojiMode.WhatsAppDefault
                             EmojiBuiltinRow(
                                 icon = WaexIcons.Mood,
-                                title = UiText.get(R.string.custom_emojis_default_title, "WhatsApp Default"),
-                                subtitle = "Original built-in emojis",
+                                title = stringResource(R.string.custom_emojis_default_title),
+                                subtitle = stringResource(R.string.emoji_style_ui_default_desc),
                                 isSelected = isDefaultActive,
                                 onClick = { applyWhatsAppDefault() }
                             )
@@ -396,8 +396,8 @@ fun CustomEmojisScreen() {
                             val isDeviceActive = activeMode is ActiveEmojiMode.DeviceDefault
                             EmojiBuiltinRow(
                                 icon = WaexIcons.Smartphone,
-                                title = UiText.get(R.string.custom_emojis_device_title, "Device Emojis"),
-                                subtitle = "Use your phone's system emoji font",
+                                title = stringResource(R.string.custom_emojis_device_title),
+                                subtitle = stringResource(R.string.emoji_style_ui_device_desc),
                                 isSelected = isDeviceActive,
                                 onClick = { applyDeviceDefault() }
                             )
@@ -406,12 +406,12 @@ fun CustomEmojisScreen() {
                 }
 
                 // ─── SECTION: CLOUD STYLES ────────────────────────────────────
-                EmojiSection(title = "CLOUD STYLES") {
+                EmojiSection(title = stringResource(R.string.emoji_style_ui_cloud)) {
                     when {
                         isLoading -> CloudSkeletonList()
 
                         errorMessage != null && emojiPacks.isEmpty() -> CloudErrorCard(
-                            message = errorMessage ?: "Failed to load styles.",
+                            message = errorMessage ?: stringResource(R.string.emoji_style_ui_load_error),
                             onRetry = { refreshList(fromPull = false) }
                         )
 
@@ -473,9 +473,9 @@ fun CustomEmojisScreen() {
     // ─── Confirmation Bottom Sheets ──────────────────────────────────────────
     packToDelete?.let { pack ->
         WaexConfirmationBottomSheet(
-            title = "Remove ${pack.displayName}?",
-            message = "Delete the downloaded emoji font (${pack.formattedSize})?",
-            confirmLabel = "Remove",
+            title = stringResource(R.string.emoji_style_ui_remove_title, pack.displayName),
+            message = stringResource(R.string.emoji_style_ui_remove_message, pack.formattedSize),
+            confirmLabel = stringResource(R.string.custom_emojis_delete),
             destructive = true,
             onConfirm = {
                 val isCurrent = selectedEmojiFont == pack.filename
@@ -490,9 +490,9 @@ fun CustomEmojisScreen() {
 
     if (showClearAllDialog) {
         WaexConfirmationBottomSheet(
-            title = "Clear All Downloads?",
-            message = "Remove all saved emoji fonts (${CustomEmojiManager.formatFileSize(totalDownloadedBytes)})?",
-            confirmLabel = "Clear All",
+            title = stringResource(R.string.emoji_style_ui_clear_title),
+            message = stringResource(R.string.emoji_style_ui_clear_message, CustomEmojiManager.formatFileSize(totalDownloadedBytes)),
+            confirmLabel = stringResource(R.string.custom_emojis_clear_all),
             destructive = true,
             onConfirm = {
                 CustomEmojiManager.clearAllDownloaded(context)
@@ -587,7 +587,7 @@ private fun EmojiBuiltinRow(
             Spacer(Modifier.width(8.dp))
             Icon(
                 imageVector = WaexIcons.Check,
-                contentDescription = "Active",
+                contentDescription = stringResource(R.string.waex_ui_theme_active),
                 tint = colors.primary,
                 modifier = Modifier.size(20.dp)
             )
@@ -681,9 +681,9 @@ private fun EmojiCloudRow(
                 )
                 Spacer(Modifier.height(1.dp))
                 val statusText = when {
-                    downloading   -> "Downloading $progress%"
-                    isSelected    -> "Active · ${pack.formattedSize}"
-                    isDownloaded  -> "Ready · ${pack.formattedSize}"
+                    downloading   -> stringResource(R.string.custom_emojis_downloading, progress)
+                    isSelected    -> stringResource(R.string.emoji_style_ui_active_size, pack.formattedSize)
+                    isDownloaded  -> stringResource(R.string.emoji_style_ui_ready_size, pack.formattedSize)
                     else          -> pack.formattedSize
                 }
                 Text(
@@ -710,7 +710,7 @@ private fun EmojiCloudRow(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = WaexIcons.Check,
-                            contentDescription = "Active",
+                            contentDescription = stringResource(R.string.waex_ui_theme_active),
                             tint = colors.primary,
                             modifier = Modifier.size(20.dp)
                         )
@@ -718,7 +718,7 @@ private fun EmojiCloudRow(
                         IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
                             Icon(
                                 imageVector = WaexIcons.Delete,
-                                contentDescription = "Remove",
+                                contentDescription = stringResource(R.string.custom_emojis_delete),
                                 tint = colors.onSurfaceVariant.copy(alpha = 0.5f),
                                 modifier = Modifier.size(16.dp)
                             )
@@ -734,7 +734,7 @@ private fun EmojiCloudRow(
                             modifier = Modifier.clickable(onClick = onApply)
                         ) {
                             Text(
-                                text = "Apply",
+                                text = stringResource(R.string.emoji_style_ui_apply),
                                 style = typography.labelSm,
                                 fontWeight = FontWeight.SemiBold,
                                 color = colors.primary,
@@ -745,7 +745,7 @@ private fun EmojiCloudRow(
                         IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
                             Icon(
                                 imageVector = WaexIcons.Delete,
-                                contentDescription = "Remove",
+                                contentDescription = stringResource(R.string.custom_emojis_delete),
                                 tint = colors.onSurfaceVariant.copy(alpha = 0.5f),
                                 modifier = Modifier.size(16.dp)
                             )
@@ -757,7 +757,7 @@ private fun EmojiCloudRow(
                     IconButton(onClick = onApply, modifier = Modifier.size(32.dp)) {
                         Icon(
                             imageVector = WaexIcons.Download,
-                            contentDescription = "Download",
+                            contentDescription = stringResource(R.string.custom_emojis_download),
                             tint = colors.primary,
                             modifier = Modifier.size(18.dp)
                         )
@@ -779,7 +779,7 @@ private fun EmojiCloudRow(
             ) {
                 Image(
                     bitmap = bmp.asImageBitmap(),
-                    contentDescription = "${pack.displayName} preview",
+                    contentDescription = stringResource(R.string.emoji_style_ui_preview, pack.displayName),
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -915,7 +915,7 @@ private fun CloudErrorCard(message: String, onRetry: () -> Unit) {
                 color = colors.error
             )
             OutlinedButton(onClick = onRetry, shape = radius.buttonShape) {
-                Text("Retry")
+                Text(stringResource(R.string.custom_emojis_retry))
             }
         }
     }
@@ -944,14 +944,14 @@ private fun RestartBanner(appName: String, targetPackage: String) {
         ) {
             Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                 Text(
-                    text = "Restart to apply",
+                    text = stringResource(R.string.emoji_style_ui_restart_to_apply),
                     style = typography.bodyMd,
                     fontWeight = FontWeight.SemiBold,
                     color = colors.onSurface
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    text = "Force-stop $appName to load your new emoji style.",
+                    text = stringResource(R.string.emoji_style_ui_force_stop, appName),
                     style = typography.bodySm,
                     color = colors.onSurfaceVariant
                 )
@@ -960,7 +960,7 @@ private fun RestartBanner(appName: String, targetPackage: String) {
                 onClick = { AppRestartHelper.restartPackage(context, targetPackage, appName, true) },
                 shape = radius.buttonShape
             ) {
-                Text("Restart")
+                Text(stringResource(R.string.emoji_style_ui_restart))
             }
         }
     }

@@ -145,7 +145,7 @@ android {
     // the default (English) strings, which is what already happens for those languages.
     androidResources {
         localeFilters += setOf(
-            "ar", "b+es+419", "de", "es", "fr", "hi", "in", "pt", "ru", "sl", "tr", "ur", "zh-rCN"
+            "ar", "b+es+419", "de", "es", "fr", "hi", "in", "pt", "ru", "sl", "tr", "ur", "zh-rCN", "zh-rHK", "zh-rTW"
         )
     }
 

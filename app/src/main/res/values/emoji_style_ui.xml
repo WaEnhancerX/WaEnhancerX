@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="emoji_style_ui_apply" formatted="false">"Apply"</string>
+    <string name="emoji_style_ui_offline_download" formatted="false">"Download unavailable offline"</string>
+    <string name="emoji_style_ui_downloaded_size">"%1$s downloaded"</string>
+    <string name="emoji_style_ui_builtin" formatted="false">"BUILT-IN"</string>
+    <string name="emoji_style_ui_default_desc" formatted="false">"Original built-in emojis"</string>
+    <string name="emoji_style_ui_device_desc" formatted="false">"Use your phone\'s system emoji font"</string>
+    <string name="emoji_style_ui_cloud" formatted="false">"CLOUD STYLES"</string>
+    <string name="emoji_style_ui_load_error" formatted="false">"Failed to load styles."</string>
+    <string name="emoji_style_ui_remove_title">"Remove %1$s?"</string>
+    <string name="emoji_style_ui_remove_message">"Delete the downloaded emoji font (%1$s)?"</string>
+    <string name="emoji_style_ui_clear_title" formatted="false">"Clear All Downloads?"</string>
+    <string name="emoji_style_ui_clear_message">"Remove all saved emoji fonts (%1$s)?"</string>
+    <string name="emoji_style_ui_active_size">"Active · %1$s"</string>
+    <string name="emoji_style_ui_ready_size">"Ready · %1$s"</string>
+    <string name="emoji_style_ui_preview">"%1$s preview"</string>
+    <string name="emoji_style_ui_restart_to_apply" formatted="false">"Restart to apply"</string>
+    <string name="emoji_style_ui_force_stop">"Force-stop %1$s to load your new emoji style."</string>
+    <string name="emoji_style_ui_restart" formatted="false">"Restart"</string>
+</resources>

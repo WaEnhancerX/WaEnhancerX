@@ -267,6 +267,13 @@ Thanks go to these wonderful people ([emoji key](https://allcontributors.org/doc
       </a><br />
       <a href="https://github.com/WaEnhancerX/WaEnhancerX/commits?author=Tttim0o" title="Code">💻</a>
     </td>
+    <td align="center" valign="top" width="180">
+      <a href="https://github.com/Walter498">
+        <img src="https://avatars.githubusercontent.com/u/203746158?v=4" width="100px" alt="Walter498" /><br />
+        <sub><b>Walter498</b></sub>
+      </a><br />
+      <a href="https://github.com/WaEnhancerX/WaEnhancerX/commits?author=Walter498" title="Translation: Simplified Chinese updates and Traditional Chinese (Hong Kong and Taiwan)">🌍</a>
+    </td>
   </tr>
 </table>
 
