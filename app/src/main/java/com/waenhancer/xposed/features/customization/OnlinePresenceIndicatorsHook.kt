@@ -139,7 +139,7 @@ class OnlinePresenceIndicatorsHook(
             // through a compiler-generated bridge or a static trampoline, so only the shape matters.
             fun usable(method: Method) = !Modifier.isAbstract(method.modifiers) &&
                 !Modifier.isNative(method.modifiers) &&
-                method.returnType == Void.TYPE && method.parameterCount >= 2
+                method.returnType == Void.TYPE && method.parameterTypes.size >= 2
             fun query(prefix: String) = bridge.findMethod(
                 FindMethod.create().matcher(
                     MethodMatcher.create().addUsingString(prefix, StringMatchType.StartsWith)
@@ -525,7 +525,7 @@ class OnlinePresenceIndicatorsHook(
         val methods = stringMembers.getOrPut(type) {
             try {
                 type.methods.filter {
-                    it.parameterCount == 0 && it.returnType == String::class.java &&
+                    it.parameterTypes.size == 0 && it.returnType == String::class.java &&
                         !Modifier.isStatic(it.modifiers) && it.declaringClass != Any::class.java
                 }
             } catch (_: Throwable) { emptyList() }
@@ -578,7 +578,7 @@ class OnlinePresenceIndicatorsHook(
         val accessors = accessorCache.getOrPut(type) {
             try {
                 type.methods.filter {
-                    it.parameterCount == 0 && !Modifier.isStatic(it.modifiers) &&
+                    it.parameterTypes.size == 0 && !Modifier.isStatic(it.modifiers) &&
                         jidType.isAssignableFrom(it.returnType)
                 }
             } catch (_: Throwable) { emptyList() }
@@ -607,7 +607,7 @@ class OnlinePresenceIndicatorsHook(
         val accessors = accessorCache.getOrPut(value.javaClass) {
             try {
                 value.javaClass.methods.filter {
-                    it.parameterCount == 0 && !Modifier.isStatic(it.modifiers) &&
+                    it.parameterTypes.size == 0 && !Modifier.isStatic(it.modifiers) &&
                         jidType.isAssignableFrom(it.returnType)
                 }
             } catch (_: Throwable) { emptyList() }
