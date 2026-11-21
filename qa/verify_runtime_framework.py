@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compile runtime utilities and evidence models with pinned real Android APIs.
+"""Compile current runtime utilities and PID/boot evidence with pinned Android APIs.
 Execute version decisions using public, hash-pinned module APK resource tables on API 34.
 Isolated test library only: no private licensing, signing, host APK or LSPosed execution.
 """
@@ -247,7 +247,7 @@ class WaexBottomSheet(a:Activity){fun setTitle(s:String)=this;fun setMessage(s:S
   t=ET.parse(p).getroot();tests+=int(t.get('tests',0));failures+=int(t.get('failures',0));errors+=int(t.get('errors',0));skipped+=int(t.get('skipped',0))
  if (tests,failures,errors,skipped)!=((12 if localized else 5),0,0,0):
   raise RuntimeError(f'Android resource JUnit acceptance failed: {(tests,failures,errors,skipped)}')
- (e/'result.json').write_text(json.dumps({'tests':tests,'contexts':22,'locale_resource_tests':7 if localized else 0,'failures':failures,'errors':errors,'skipped':skipped,'limits':'Compiled public runtime utilities and PID/boot evidence with test service doubles. No full WAEX APK, Compose screen rendering, HMA or LSPosed.'},indent=2))
+ (e/'result.json').write_text(json.dumps({'tests':tests,'contexts':22,'locale_resource_tests':7 if localized else 0,'failures':failures,'errors':errors,'skipped':skipped,'limits':'Compiled current public runtime utilities and PID/boot evidence with test service doubles. No full WAEX APK, Compose screen rendering, HMA or LSPosed.'},indent=2))
  print(f'PASS: real Android/Compose API compilation; {tests} Android 14 JUnit methods, 22 compiled-resource contexts; localized tests={localized}; no full app/LSPosed')
 
 if __name__=='__main__':main()

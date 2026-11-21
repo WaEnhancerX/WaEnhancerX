@@ -1,3 +1,5 @@
 [Improvements]
 - Align injection, runtime-diagnostics and stability regression fixtures with
   the current PID and boot evidence model.
+- Preserve updater coverage and both evidence suites in one canonical runner;
+  select current evidence in CI and retain the clock spelling as a single alias.

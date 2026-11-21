@@ -13,6 +13,9 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 
+if not __debug__:
+    raise SystemExit('BLOCKED: source guards require Python assertions; do not run with -O')
+
 CHECKS = r'''package com.waenhancer.utils
 private fun checkEvidence(
     wanted: InjectionEvidence, active: Boolean = true, recordedBoot: Int = 7,

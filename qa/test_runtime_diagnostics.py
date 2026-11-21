@@ -16,6 +16,9 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[1]
 JAVA = ROOT / 'app/src/main/java/com/waenhancer'
 
+if not __debug__:
+    raise SystemExit('BLOCKED: source guards require Python assertions; do not run with -O')
+
 def main():
     for tool in ('kotlinc', 'java', 'sh'):
         if not shutil.which(tool):

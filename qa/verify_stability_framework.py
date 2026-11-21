@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Isolated real Android/Compose compilation and regressions, not a full WAEX APK.
-Modes allow standalone updater/filter/runtime-evidence branches without borrowing production
-code from another PR. Xposed, private Pro behavior and design theme are fixtures.
+Modes allow standalone updater/filter/runtime-evidence branches without borrowing
+production code from another PR. The legacy 'clock' CLI name aliases evidence;
+there is no longer a runtime observation clock in WAEX. Xposed, private Pro behavior
+and the theme provider are fixtures; the custom color model is real source.
 """
 from pathlib import Path
 import argparse, hashlib, json, re, shutil, subprocess, tomllib
@@ -10,10 +12,21 @@ from framework_localization import stage_localization
 
 ROOT = Path(__file__).resolve().parents[1]
 
+
+def select_modes(mode):
+    """Select canonical suites once; clock is a backwards-compatible alias."""
+    if mode == 'all':
+        return ['update', 'filter', 'evidence']
+    if mode == 'clock':
+        return ['evidence']
+    if mode in ('update', 'filter', 'evidence'):
+        return [mode]
+    raise ValueError('Unknown stability mode: ' + str(mode))
+
 def main():
     ap=argparse.ArgumentParser();ap.add_argument('--root',type=Path,default=ROOT)
     ap.add_argument('--out',type=Path,required=True)
-    ap.add_argument('--mode',choices=['all','update','filter','evidence'],default='all')
+    ap.add_argument('--mode',choices=['all','update','filter','evidence','clock'],default='all')
     a=ap.parse_args();root=a.root.resolve();out=a.out.resolve()
     out.mkdir(parents=True,exist_ok=False);e=out/'evidence';e.mkdir()
     p=out/'fixture';p.mkdir();v=tomllib.loads((root/'gradle/libs.versions.toml').read_text())['versions']
@@ -61,13 +74,15 @@ dependencies {
     write('build.gradle.kts',build)
     write('src/main/AndroidManifest.xml','<manifest xmlns:android="http://schemas.android.com/apk/res/android"/>')
     identity={p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in ('app/build.gradle.kts','gradle/libs.versions.toml')}
-    modes=['update','filter','evidence'] if a.mode=='all' else [a.mode]
-    sources={'update':['update/UpdateDownloader.kt','update/UpdateTransferPolicy.kt','update/UpdateDownloadSession.kt','update/ReleaseRepository.kt','ui/components/UpdateDownloadSheet.kt','xposed/utils/RootCommandRunner.java','xposed/utils/HookErrors.java',
+    modes=select_modes(a.mode)
+    sources={'update':['update/UpdateDownloader.kt','update/UpdateTransferPolicy.kt','update/UpdateDownloadSession.kt','update/ReleaseRepository.kt','update/UpdateChannel.kt','update/ReleaseIndex.kt','ui/components/UpdateDownloadSheet.kt','xposed/utils/RootCommandRunner.java',
                        'config/PreferenceStores.java','config/PreferenceSchema.java','ui/components/NetworkErrorSheet.kt','ui/components/WaexModalBottomSheet.kt','ui/components/WaexProgressIndicator.kt',
-                       'ui/designsystem/WaexIcons.kt','ui/designsystem/WaexRadius.kt','ui/designsystem/WaexElevation.kt'],
-             'filter':['xposed/features/customization/FilterItemsHook.kt','model/FilterItem.kt','xposed/core/ViewHookDispatcher.java'],
+                       'ui/designsystem/WaexIcons.kt','ui/designsystem/WaexRadius.kt','ui/designsystem/WaexElevation.kt',
+                       'ui/designsystem/WaexColors.kt'],
+             'filter':['xposed/features/customization/FilterItemsHook.kt','xposed/features/customization/LayoutPassThrottle.kt',
+                       'model/FilterItem.kt','xposed/core/ViewHookDispatcher.java','xposed/utils/HostResourceIds.java'],
              'evidence':['utils/InjectionEvidence.kt']}
-    expected={'update':5,'filter':3,'evidence':10}
+    expected={'update':12,'filter':3,'evidence':15}
     for mode in modes:
         for rel in sources[mode]:
             source=root/'app/src/main/java/com/waenhancer'/rel
@@ -86,28 +101,36 @@ dependencies {
         identity[str(source.relative_to(root))]=digest
         if any(hashlib.sha256(path.read_bytes()).hexdigest()!=digest for path in (target,e/source.name)):
             raise ValueError('Changed bytes while staging JUnit source or evidence: '+source.name)
-    # The fixture uses the actual public color palette instead of a Material3
-    # ColorScheme lookalike: WAEX's isLight property is a production contract.
-    # The updater compiles real radius/elevation tokens; other standalone modes
-    # must not require a dependency they do not stage.
+    # Both updater and filter depend on the same real failure counter/logger.
+    # Keep one byte-identical copy even in the combined suite.
+    if 'update' in modes or 'filter' in modes:
+        rel='xposed/utils/HookErrors.java'
+        source=root/'app/src/main/java/com/waenhancer'/rel
+        target=probe/'src/main/java/com/waenhancer'/rel
+        target.parent.mkdir(parents=True,exist_ok=True)
+        shutil.copyfile(source,target)
+        identity[str(source.relative_to(root))]=hashlib.sha256(source.read_bytes()).hexdigest()
+        if hashlib.sha256(target.read_bytes()).hexdigest()!=identity[str(source.relative_to(root))]:
+            raise ValueError('Changed bytes while staging production source: '+rel)
+    # Only a theme adapter for compilation; no fonts or licensing implementation copied.
+    # The updater compiles real color/radius/elevation tokens, including isLight;
+    # other standalone modes must not require a dependency they do not stage.
     update_theme=(' val radius @Composable get()=WaexRadius()\n val elevation @Composable get()=WaexElevation()' if 'update' in modes else '')
+    # Only the updater compiles WaexColors. The filter-only fixture has no
+    # production theme consumer and must stay independent of updater sources.
+    color_expr='LocalWaexColors.current' if 'update' in modes else 'MaterialTheme.colorScheme'
     theme='''package com.waenhancer.ui.designsystem
 import androidx.compose.runtime.Composable
 import androidx.compose.material3.MaterialTheme
 object WaexTheme {
- val colors @Composable get()=lightColors
+ val colors @Composable get()=FIXTURE_COLORS
  val typography @Composable get()=FixtureTypography(MaterialTheme.typography)
 EXTRA_UPDATE_TOKENS
 }
 class FixtureTypography(val t:androidx.compose.material3.Typography){val headlineMd get()=t.headlineMedium;val bodyMd get()=t.bodyMedium}
 '''
-    write('src/main/java/com/waenhancer/ui/designsystem/WaexTheme.kt',theme.replace('EXTRA_UPDATE_TOKENS',update_theme))
-    palette=root/'app/src/main/java/com/waenhancer/ui/designsystem/WaexColors.kt'
-    palette_target=probe/'src/main/java/com/waenhancer/ui/designsystem/WaexColors.kt'
-    shutil.copyfile(palette,palette_target)
-    identity[str(palette.relative_to(root))]=hashlib.sha256(palette.read_bytes()).hexdigest()
-    if hashlib.sha256(palette_target.read_bytes()).hexdigest()!=identity[str(palette.relative_to(root))]:
-        raise ValueError('Changed bytes while staging production colors')
+    write('src/main/java/com/waenhancer/ui/designsystem/WaexTheme.kt',
+          theme.replace('EXTRA_UPDATE_TOKENS',update_theme).replace('FIXTURE_COLORS',color_expr))
     if 'filter' in modes:
         write('src/main/res/values/ids.xml','<resources><item name="fixture_target" type="id"/><item name="fixture_other" type="id"/></resources>')
         write('src/main/java/com/waenhancer/xposed/core/BaseFeature.kt','''package com.waenhancer.xposed.core
@@ -120,26 +143,23 @@ object FilterItemsProFeature {fun applyProFilter(view:android.view.View,behavior
         write('src/main/java/com/waenhancer/xposed/utils/ActivityTracker.kt','''package com.waenhancer.xposed.utils
 object ActivityTracker {interface ActivityListener {fun onActivityResumed(a:android.app.Activity)};fun getCurrentActivity():android.app.Activity?=null;fun addListener(l:ActivityListener){error("No hook installation in fixture")}}
 ''')
+        write('src/main/java/de/robv/android/xposed/XposedHelpers.java','''package de.robv.android.xposed;
+public class XposedHelpers {public static void findAndHookMethod(Object... args){throw new AssertionError("No actual hooks in this fixture");} public static Object callMethod(Object o,String n,Object... a){throw new AssertionError("Unexpected reflective hook");}public static Object getAdditionalInstanceField(Object o,String n){return null;}public static void setAdditionalInstanceField(Object o,String n,Object v){}}
+''')
+    # The diagnostic class references XposedBridge.log even in updater-only
+    # runs. This bridge preserves logging and refuses real hook installation.
+    if 'update' in modes or 'filter' in modes:
         write('src/main/java/de/robv/android/xposed/XC_MethodHook.java','''package de.robv.android.xposed;
 public class XC_MethodHook {public static class MethodHookParam {public Object thisObject,result;public Object[] args;}protected void beforeHookedMethod(MethodHookParam p){}protected void afterHookedMethod(MethodHookParam p){}}
 ''')
         write('src/main/java/de/robv/android/xposed/XposedBridge.java','''package de.robv.android.xposed;
 import java.util.Set;
 public class XposedBridge {
- public static void log(String s) {}
+ public static void log(String s) { System.err.println(s); }
  public static Set<Object> hookAllMethods(Class<?> cls,String method,XC_MethodHook hook) {
   throw new AssertionError("Unexpected actual Xposed method installation in test fixture");
  }
 }''')
-        write('src/main/java/de/robv/android/xposed/XposedHelpers.java','''package de.robv.android.xposed;
-public class XposedHelpers {public static void findAndHookMethod(Object... args){throw new AssertionError("No actual hooks in this fixture");} public static Object callMethod(Object o,String n,Object... a){throw new AssertionError("Unexpected reflective hook");}public static Object getAdditionalInstanceField(Object o,String n){return null;}public static void setAdditionalInstanceField(Object o,String n,Object v){}}
-''')
-    if 'update' in modes and 'filter' not in modes:
-        # RootCommandRunner uses the real HookErrors diagnostics on cleanup failure.
-        # Its only Xposed dependency is a log sink; do not replace the recorder.
-        write('src/main/java/de/robv/android/xposed/XposedBridge.java','''package de.robv.android.xposed;
-public class XposedBridge {public static void log(String line) {}}
-''')
     if not stage_localization(root, probe, identity):
         raise RuntimeError('Real localization helpers are required by this framework fixture')
     (e/'source-sha256.json').write_text(json.dumps(identity,indent=2));(e/'build.gradle.kts').write_text(build)
@@ -155,7 +175,7 @@ public class XposedBridge {public static void log(String line) {}}
     for f in reports:
         t=ET.parse(f).getroot()
         for i,k in enumerate(['tests','failures','errors','skipped']):counts[i]+=int(t.get(k,0))
-    summary={'modes':modes,'tests':counts[0],'failures':counts[1],'errors':counts[2],'skipped':counts[3],'build_returncode':result.returncode,'limits':'Real Android Resources/Views/Handler and real Compose Composition/Recomposer; design theme, BaseFeature, Xposed and private Pro service are controlled fixtures, not full WAEX or LSPosed.'}
+    summary={'requested_mode':a.mode,'modes':modes,'tests':counts[0],'failures':counts[1],'errors':counts[2],'skipped':counts[3],'build_returncode':result.returncode,'limits':'Update/filter exercise real Android/Compose sources; evidence and its legacy clock alias run the same plain JVM/JUnit PID/boot classifier suite once. Theme provider, BaseFeature, Xposed and private Pro service are controlled fixtures, not full WAEX or LSPosed.'}
     (e/'result.json').write_text(json.dumps(summary,indent=2))
     if result.returncode or counts != [sum(expected[m] for m in modes),0,0,0]:
         print((e/'framework-build.log').read_text()[-22000:]);raise RuntimeError('Stability framework failed: '+str(summary))

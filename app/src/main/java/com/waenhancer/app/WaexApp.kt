@@ -32,6 +32,7 @@ class WaexApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         UiText.initialize(this, PreferenceStores.publicStore(this))
         FeatureCatalog.initialize(this)
         val lang = LocaleHelper.getSelectedLanguageCode(this)
@@ -71,8 +72,13 @@ class WaexApp : Application() {
         }
     }
 
-    private companion object {
-        val PREFERENCES_URI: Uri = Uri.parse("content://com.waenhancer.hookprovider/preferences")
-        const val PREFERENCES_CHANGED_ACTION = "com.waenhancer.action.PREFERENCES_CHANGED"
+    companion object {
+        /** Set on [onCreate]; used by call sites with no Context of their own, e.g. [com.waenhancer.core.transcription.local.WhisperNative]. */
+        @Volatile
+        lateinit var instance: WaexApp
+            private set
+
+        private val PREFERENCES_URI: Uri = Uri.parse("content://com.waenhancer.hookprovider/preferences")
+        private const val PREFERENCES_CHANGED_ACTION = "com.waenhancer.action.PREFERENCES_CHANGED"
     }
 }
