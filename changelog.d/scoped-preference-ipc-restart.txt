@@ -1,5 +1,0 @@
-[Fixes]
-- Keep target-specific preference namespaces out of other targets' IPC snapshots
-  and reject target writes to manager-only settings.
-- Resolve raw disk preferences once so resolved IPC values and restart state are
-  not overwritten when rebuilding the preference cache.
