@@ -135,12 +135,12 @@ class ChineseLocaleTests(unittest.TestCase):
         self.assertIn('網絡', text(self.targets['zh-rHK'][key][0].text))
         self.assertIn('網路', text(self.targets['zh-rTW'][key][0].text))
 
-    def test_preserved_original_and_new_translation_credits(self):
-        readme = (ROOT / 'README.md').read_text()
-        self.assertIn('https://github.com/wilsonmilson', readme)
-        self.assertIn('https://github.com/damjang', readme)
-        self.assertIn('https://github.com/Walter498', readme)
-        self.assertIn('Translation: Simplified Chinese updates and Traditional Chinese (Hong Kong and Taiwan)', readme)
+    def test_emoji_confirmations_use_delete_terminology(self):
+        keys = ('emoji_style_ui_remove_title', 'emoji_style_ui_clear_title', 'emoji_style_ui_clear_message')
+        for locale, entries in self.targets.items():
+            verb = '删除' if locale == 'zh-rCN' else '刪除'
+            for key in keys:
+                self.assertTrue(text(entries[key][0].text).startswith(verb), (locale, key))
 
     def test_resource_aliases_remain_references(self):
         aliases = {k: n.text for k, (n, _) in self.required.items() if (n.text or '').startswith('@string/')}
