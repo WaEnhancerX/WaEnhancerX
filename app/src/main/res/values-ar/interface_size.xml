@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="interface_size_title">حجم الواجهة</string>
+    <string name="interface_size_desc">ضبط النصوص وعناصر التحكم والتباعد والتنقل في التطبيق</string>
+    <string name="interface_size_compact">مضغوط</string>
+    <string name="interface_size_standard">قياسي</string>
+    <string name="interface_size_comfortable">مريح</string>
+    <string name="interface_size_large">كبير</string>
+    <string name="build_variant_debug">تصحيح (Debug)</string>
+    <string name="build_variant_release">إصدار رسمي (Release)</string>
+</resources>

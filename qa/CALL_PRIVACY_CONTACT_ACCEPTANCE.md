@@ -10,7 +10,9 @@ system address-book fallback after a database error, or accept a push/business
 display name as evidence that a number was saved.
 
 CallPrivacyHook now considers the enabled custom-privacy option in its existing
-call gate. In global mode "0" with call_privacy_enabled false, it additionally
+call gate. An explicitly stored call_privacy_enabled=false remains the global
+opt-out in every mode, including confirmed contact rules. In global mode "0"
+with the enable key absent, it additionally
 requires the boolean BlockCallConfirmed marker on a BlockCall rule. The existing
 Custom Privacy dialog in WhatsApp writes this marker only when the user saves
 its visible choices, including Block Incoming Calls. Reading or cancelling the
@@ -63,7 +65,11 @@ switch inputs are explicit adapters; the complete dialog is not compiled or
 rendered by this fixture. JSON uses the hash-pinned AOSP Android 14 sources from
 the existing bootstrap. Use --json-source-dir or WAEX_AOSP_JSON_SOURCE_DIR for an
 offline source directory; absent default-cache entries use bounded, hash-checked
-source downloads.
+source downloads. An explicit --android-json-jar also supports the pinned
+android-all-14-robolectric-10818077.jar (SHA-256
+6be2218c6a53fe3c57bc22ebdc723edcb7270a8a6f187545708aa5c0ed813977).
+This uses real Android JSON classes, not a permissive JSON double; the report
+identifies whether the six-source or archive input was used.
 
 The incoming-call test installs the production
 callback, passes synthetic CallInfo, and observes the intercepted result.
@@ -74,7 +80,7 @@ executor remains unchanged, and the block-all decision still must perform zero
 contact or database lookups. No arbitrary sleep or ignored assertion is used.
 Production SQL is executed read-only against real file-backed Python SQLite.
 
-The 40 scenarios cover explicit Save versus Cancel/read, ambiguous historical
+The 44 current scenarios cover explicit Save versus Cancel/read, ambiguous historical
 BlockCall/FreezeLastSeen data, missing/false/non-boolean confirmation markers,
 legacy enable/mode behavior, explicit allow, custom-privacy disable, outgoing
 calls, block-all without lookups, invalid JIDs,
@@ -87,7 +93,39 @@ The existing identity suite separately compiles the complete production Kotlin
 resolver/store and Java identity policy. It includes actual SQLite predicate
 checks as well as controlled Android/provider boundaries.
 
-## Negative controls
+## Current nightly reconciliation (2026-11-21)
+
+Base: 9972e49fac9bfb650c25ee31fde0da9425b67175. The current global opt-out and
+blocklist/allowlist modes 3/4 are retained. Four added scenarios cover explicit
+false across every mode (one scenario with five variants), both current contact
+list modes, and a verified LID mapping into a phone-number blocklist.
+
+On Linux x86-64, Temurin 21.0.13.1+2, Kotlin 2.0.20 and Python 3.13.5, the full
+hook/SQLite fixture passed 44 scenarios. Three compiled mutations all completed
+44 scenarios and failed the intended behavioral assertions: ignoring explicit
+opt-out (1 failing scenario), activating ambiguous legacy rules (7), and dropping
+the mapped phone namespace (2). Run --mutation-control to reproduce these controls;
+the public source-QA workflow runs them and retains JSON/compile/scenario logs.
+Baseline plus mutations took 28.368 seconds; this is test duration, not a product
+performance measurement.
+
+The exact two manager save callbacks/model/loader passed 150 checks. The unchanged
+current CallsHub opt-out/target-switch suite passed 36 scenarios and 130 checks;
+these are separate UI-fragment expectations, not extra call-hook scenarios.
+The diagnostic source guard passed 9 checks. The broader contact-identity runner
+passed its 12 real SQLite predicate checks but could not compile its Kotlin store:
+its pre-existing doubles omit HookErrors and the new query limit overload.
+That shared fixture failure remains visible; it is not evidence against the
+tested full CallPrivacyHook or a passing full resolver integration.
+The unrelated historical selected-upstream source guard also fails on its
+obsolete delivery-receipt literal (line 29). Its assertion was not weakened.
+
+The six-source AOSP fetch was blocked by a cancelled network approval and was
+not retried. These current executions explicitly used the cached pinned Android
+14 archive above. They do not reuse historical source-input results as current
+acceptance.
+
+## Historical V38 negative controls (not rerun on current nightly)
 
 Run the same fixture against an immutable V38 checkout:
 
@@ -127,12 +165,15 @@ signed APK.
 
 On a supported WhatsApp build and an authorized test account, verify:
 
-1. With global call privacy at Default and custom privacy enabled, save Block
+1. With global call privacy at Default, no explicitly stored global opt-out,
+   and custom privacy enabled, save Block
    Incoming Calls from the existing Custom Privacy menu/tile in WhatsApp. The
    explicitly confirmed contact is blocked; an unconfigured contact and outgoing
    call retain their normal behavior. Historical unconfirmed rules stay dormant
    in this default mode until the user saves that explicit choice. Verify that
    a manager presence edit preserves both call fields and does not confirm them.
+   Then explicitly disable call privacy and verify that this global opt-out also
+   overrides the confirmed contact rule and the retained non-default modes.
 2. In Block unknown mode, a saved phone contact and its verified LID mapping are
    accepted. An unsaved contact with a visible business/push name stays unknown.
 3. Exercise the observed legacy and new contact schemas separately. Simulate

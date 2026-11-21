@@ -31,6 +31,7 @@ def hook_logs(text):
                 if escaped: escaped=False
                 elif c == '\\': escaped=True
                 elif c == quote: quote=None
+            elif c in ('"', "'"): quote=c
             elif c == '(': depth += 1
             elif c == ')':
                 depth -= 1
@@ -46,6 +47,56 @@ def hook_logs(text):
 UNSAFE = re.compile(r'\b(?:t|e|ex|dbError|error)\s*\.\s*getMessage\s*\('
                     r'|\$\{\s*(?:t|e|ex|dbError|error)\s*\.\s*message\s*\}'
                     r'|\$message\b')
+
+
+def check_log_parser(parser=hook_logs):
+    """A delimiter inside quoted text must never hide a later unsafe payload."""
+    cases = [
+        ('ordinary safe log', 'TAG + "Failed: " + t.getClass().getSimpleName()', False),
+        ('closing parenthesis before unsafe payload', 'TAG + "synthetic close ) " + error.getMessage()', True),
+        ('opening parenthesis before unsafe payload', 'TAG + "synthetic open ( " + error.getMessage()', True),
+        ('multiple literal parentheses', 'TAG + "literal (( )))" + t.getClass().getSimpleName()', False),
+        ('escaped double quote', r'TAG + "escaped \" ) still quoted" + t.getMessage()', True),
+        ('escaped backslash before closing quote', r'TAG + "backslash \\" + t.getMessage()', True),
+        ('escaped quote after escaped backslash', r'TAG + "slash and quote \\\" ) still quoted" + t.getMessage()', True),
+        ('closing character literal', "TAG + ')' + error.getMessage()", True),
+        ('opening character literal', "TAG + '(' + t.getClass().getSimpleName()", False),
+        ('escaped character quote', r"TAG + '\'' + error.getMessage()", True),
+        ('nested calls with quoted delimiter', 'String.valueOf(format(")", error.getMessage()))', True),
+        ('multiline expression', '\n    TAG + "multiline )" +\n    t.getMessage()\n', True),
+        ('Kotlin interpolation payload', '"$TAG failed ) ${t.message}"', True),
+        ('Kotlin category interpolation', '"$TAG failed ( ${t.javaClass.simpleName}"', False),
+        ('quoted nested marker', 'TAG + "literal XposedBridge.log(" + error.getMessage()', True),
+    ]
+    checks = 0
+    for label, expression, unsafe in cases:
+        calls = list(parser('XposedBridge.log(' + expression + ');'))
+        assert calls == [expression], f'Log parser changed/truncated expression: {label}'
+        assert bool(UNSAFE.search(calls[0])) == unsafe, f'Log payload detector changed: {label}'
+        checks += 1
+
+    expressions = [cases[1][1], cases[0][1], cases[6][1]]
+    adjacent = '\n'.join('XposedBridge.log(' + expression + ');' for expression in expressions)
+    assert list(parser(adjacent)) == expressions, 'Log parser skipped or merged adjacent calls'
+    checks += 1
+    for incomplete in (
+        'XposedBridge.log("quoted closing delimiters )))"',
+        'XposedBridge.log("unterminated );',
+        "XposedBridge.log(TAG + ');",
+        r'XposedBridge.log("escaped end \");',
+        'XposedBridge.log(TAG + error.getMessage();',
+    ):
+        try:
+            list(parser(incomplete))
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError('Malformed log expression accepted: ' + incomplete)
+        checks += 1
+    return checks
+
+
+parser_checks = check_log_parser()
 for key,source in src.items():
     calls = list(hook_logs(source))
     assert len(calls) >= (2 if key == 'proximity' else 3), f'Logging removed unexpectedly in {key}'
@@ -67,3 +118,4 @@ assert src['ipc'].count('t.getClass().getSimpleName()') >= 5
 assert 'error.getMessage()' not in src['ipc'], 'Persistent runtime health leaks exception text'
 assert 'String detail = error.getClass().getSimpleName();' in src['ipc']
 print('PASS: exception text redacted from selected custom-privacy, media, view-once, proximity and IPC logs/status')
+print(f'PASS: {parser_checks} log parser/payload controls; quotes, escapes, literal parentheses and malformed calls')

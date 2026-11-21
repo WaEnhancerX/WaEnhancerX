@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,12 +13,16 @@ import android.view.ViewTreeObserver
 import com.waenhancer.licensing.features.FilterItemsProFeature
 import com.waenhancer.model.FilterItem
 import com.waenhancer.xposed.core.BaseFeature
+import com.waenhancer.xposed.core.ViewHookDispatcher
 import com.waenhancer.xposed.utils.ActivityTracker
+import com.waenhancer.xposed.utils.HookErrors
+import com.waenhancer.xposed.utils.HostResourceIds
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import org.json.JSONArray
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.Collections
 
 /**
  * Filter Items By ID Hook:
@@ -46,8 +51,13 @@ class FilterItemsHook(
         }
     }
     private val visibilityMask = 0x0000000C
+    private val FULL_PASS_INTERVAL_MS = 250L
 
     override fun hook() {
+        val filterItemsRaw = prefs.getString("filter_items", null) ?: ""
+        if (filterItemsRaw.isBlank() || filterItemsRaw.trim() == "[]" || !isEnabled("custom_filters", true)) {
+            return
+        }
         try {
             XposedHelpers.findAndHookMethod(
                 View::class.java,
@@ -64,24 +74,12 @@ class FilterItemsHook(
                 }
             )
 
-            XposedHelpers.findAndHookMethod(
-                View::class.java,
-                "setFlags",
-                Int::class.javaPrimitiveType,
-                Int::class.javaPrimitiveType,
-                object : XC_MethodHook() {
-                    override fun beforeHookedMethod(param: MethodHookParam) {
-                        val flags = param.args[0] as Int
-                        val mask = param.args[1] as Int
-                        if ((mask and visibilityMask) == 0) return
-                        val view = param.thisObject as? View ?: return
-                        val item = targetMap[view.id]
-                        if (item != null && FilterItem.BEHAVIOR_GONE == item.behavior) {
-                            param.args[0] = (flags and visibilityMask.inv()) or View.GONE
-                        }
-                    }
-                }
-            )
+            ViewHookDispatcher.onSetFlags(this) { view, flags, mask ->
+                if ((mask and visibilityMask) == 0) flags
+                else if (targetMap[view.id]?.behavior == FilterItem.BEHAVIOR_GONE)
+                    (flags and visibilityMask.inv()) or View.GONE
+                else flags
+            }
 
             XposedHelpers.findAndHookMethod(
                 View::class.java,
@@ -165,7 +163,7 @@ class FilterItemsHook(
                 if (id > 0) next[id] = item
             }
         }
-        targetMap = java.util.Collections.unmodifiableMap(next)
+        targetMap = Collections.unmodifiableMap(next)
         mainHandler.post {
             ActivityTracker.getCurrentActivity()?.let(::applyFiltersToActivity)
         }
@@ -206,7 +204,7 @@ class FilterItemsHook(
     private fun getResourceId(name: String): Int {
         if (name.isEmpty()) return -1
         return try {
-            val id = context.resources.getIdentifier(name, "id", context.packageName)
+            val id = HostResourceIds.id(context, name)
             if (id == 0) -1 else id
         } catch (_: Throwable) {
             -1
@@ -230,9 +228,20 @@ class FilterItemsHook(
         applyFiltersRecursively(root)
 
         if (XposedHelpers.getAdditionalInstanceField(root, "waex_filter_layout_listener") == null) {
+            // Layout passes can fire many times a second and each one walks the whole tree. The
+            // attach/inflate/visibility hooks already filter views as they change, so this is only
+            // a safety net: run it at most once per interval, plus one trailing run.
+            val throttle = LayoutPassThrottle(FULL_PASS_INTERVAL_MS)
             val listener = ViewTreeObserver.OnGlobalLayoutListener {
                 if (!activity.isFinishing && !activity.isDestroyed) {
-                    applyFiltersRecursively(root)
+                    when (throttle.onLayout(SystemClock.uptimeMillis())) {
+                        LayoutPassThrottle.Decision.RUN_NOW -> applyFiltersRecursively(root)
+                        LayoutPassThrottle.Decision.SCHEDULE_TRAILING -> root.postDelayed({
+                            throttle.onTrailingRun(SystemClock.uptimeMillis())
+                            if (!activity.isFinishing && !activity.isDestroyed) applyFiltersRecursively(root)
+                        }, FULL_PASS_INTERVAL_MS)
+                        LayoutPassThrottle.Decision.ALREADY_SCHEDULED -> Unit
+                    }
                 }
             }
             root.viewTreeObserver.addOnGlobalLayoutListener(listener)
@@ -289,7 +298,7 @@ class FilterItemsHook(
             if (parent is ViewGroup) {
                 try {
                     parent.removeView(target)
-                } catch (_: Throwable) {}
+                } catch (ignored: Throwable) { HookErrors.swallowed("FilterItemsHook", ignored) }
             }
         }
     }

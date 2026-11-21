@@ -30,6 +30,7 @@ import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
 import com.waenhancer.ui.navigation.MainContainerScreen
 import com.waenhancer.ui.navigation.WaexNavController
+import com.waenhancer.ui.components.GlobalNetworkErrorHost
 import com.waenhancer.update.UpdateCheckCoordinator
 import com.waenhancer.update.UpdateDownloader
 import dagger.hilt.android.AndroidEntryPoint
@@ -39,6 +40,7 @@ import javax.inject.Inject
 import android.content.Context
 import com.waenhancer.ui.navigation.Screen
 import com.waenhancer.utils.LocaleHelper
+import com.waenhancer.utils.DiagnosticsRecorder
 
 internal object StartupRootAccess {
     @Volatile private var pendingResult: Boolean? = null
@@ -72,8 +74,8 @@ class MainActivity : ComponentActivity() {
         val releaseTag = releaseTagFrom(intent)
         if (releaseTag != null) {
             currentNavController?.navigateTo(Screen.ReleaseDetails(releaseTag))
-        } else if (intent.getStringExtra("target_screen") == "supported_versions") {
-            currentNavController?.navigateTo(Screen.SupportedVersions)
+        } else {
+            openTargetScreen(intent, currentNavController)
         }
     }
 
@@ -139,10 +141,17 @@ class MainActivity : ComponentActivity() {
                             val releaseTag = releaseTagFrom(intent)
                             if (releaseTag != null) {
                                 controller.navigateTo(Screen.ReleaseDetails(releaseTag))
-                            } else if (intent?.getStringExtra("target_screen") == "supported_versions") {
-                                controller.navigateTo(Screen.SupportedVersions)
+                            } else {
+                                openTargetScreen(intent, controller)
                             }
                             controller
+                        }
+                        // Only the static Screen subclass name: never dynamic route arguments.
+                        val diagnosticScreenType = navController.currentScreen.javaClass.simpleName
+                        LaunchedEffect(diagnosticScreenType) {
+                            withContext(Dispatchers.IO) {
+                                DiagnosticsRecorder.recordScreen(this@MainActivity, diagnosticScreenType)
+                            }
                         }
 
                         LaunchedEffect(rootCheckAttempt) {
@@ -184,10 +193,18 @@ class MainActivity : ComponentActivity() {
                                     onExit = { finishAndRemoveTask() }
                                 )
                             }
+                            GlobalNetworkErrorHost()
                         }
                     }
                 }
             }
+        }
+    }
+
+    private fun openTargetScreen(intent: Intent?, controller: WaexNavController?) {
+        when (intent?.getStringExtra("target_screen")) {
+            "supported_versions" -> controller?.navigateTo(Screen.SupportedVersions)
+            "audio_transcription" -> controller?.navigateToAudioAi()
         }
     }
 

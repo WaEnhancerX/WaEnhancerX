@@ -51,17 +51,14 @@ public final class StatusStyleHook extends BaseFeature {
 
     @Override
     public void hook() throws Throwable {
-        String styleStr = prefs.getString("status_style", "1");
-        int style = 1;
+        String styleStr;
         try {
-            if (styleStr != null) {
-                style = Integer.parseInt(styleStr.trim());
-            }
-        } catch (NumberFormatException ignored) {
-            style = 1;
+            styleStr = prefs.getString("status_style", "1");
+        } catch (ClassCastException ignored) {
+            // A stale or imported value must not prevent the feature from loading.
+            styleStr = null;
         }
-
-        final int targetStyle = style;
+        final int targetStyle = parseStyle(styleStr);
 
         // Register overrides in central PropsOverrideHook
         PropsOverrideHook.INTEGERS.put(PROP_STATUS_STYLE_A, targetStyle);
@@ -76,6 +73,7 @@ public final class StatusStyleHook extends BaseFeature {
                 XposedBridge.hookMethod(statusStyleMethod, new XC_MethodHook() {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) {
+                        if (param.hasThrowable() || !(param.getResult() instanceof Integer)) return;
                         param.setResult(targetStyle);
                     }
                 });
@@ -85,10 +83,30 @@ public final class StatusStyleHook extends BaseFeature {
         }
     }
 
+    private static int parseStyle(String value) {
+        if (value == null) return 1;
+        try {
+            int style = Integer.parseInt(value.trim());
+            // Only values verified against current WhatsApp builds are published.
+            // Obsolete restored values fail closed to the host default.
+            switch (style) {
+                case 0:
+                case 1:
+                case 3:
+                case 9:
+                    return style;
+                default:
+                    return 1;
+            }
+        } catch (NumberFormatException ignored) {
+            return 1;
+        }
+    }
+
     private Method resolveStatusStyleMethod() {
         try {
             return DexSearchEngine.getInstance().findMethodWithCache(
-                    context, classLoader, "wpp_status_style_method", (bridge, loader) -> {
+                    context, classLoader, "waex_status_style_method", (bridge, loader) -> {
                         MethodData methodData = bridge.findMethod(FindMethod.create()
                                 .matcher(MethodMatcher.create()
                                         .addUsingNumber(PROP_STATUS_STYLE_A)

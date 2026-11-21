@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feat_metaai_title">Meta AI entfernen</string>
+    <string name="feat_metaai_desc">Wähle aus, welche Meta AI-Oberflächen und Zugriffspunkte entfernt werden.</string>
+    <string name="meta_ai_remove_home_fab">"Startseite FAB entfernen"</string>
+    <string name="meta_ai_remove_entry_points">"Entfernen Sie Meta AI-Einstiegspunkte"</string>
+    <string name="meta_ai_block_chat">"Meta AI-Chat blockieren"</string>
+</resources>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="feat_metaai_title">Meta AI ہٹائیں</string>
+    <string name="feat_metaai_desc">منتخب کریں کہ Meta AI کے کون سے حصے اور رسائی کے راستے ہٹانے ہیں۔</string>
+    <string name="meta_ai_remove_home_fab">"ہوم FAB ہٹائیں"</string>
+    <string name="meta_ai_remove_entry_points">"Meta AI کے اندراج پوائنٹس ہٹائیں"</string>
+    <string name="meta_ai_block_chat">"Meta AI چیٹ کو بلاک کریں"</string>
+</resources>

@@ -2,9 +2,9 @@ name: Source and JVM regression checks
 
 on:
   push:
-    branches: [main, 'integration/preview-current-main-*', 'fix/qa-localized-catalog-*']
+    branches: [main, nightly, 'integration/preview-current-main-*', 'fix/qa-localized-catalog-*']
   pull_request:
-    branches: [main]
+    branches: [main, nightly]
   workflow_dispatch:
 
 permissions:
@@ -37,6 +37,35 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Verify release pipeline contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for test in qa/test_version_scheme.py qa/test_next_version.py qa/test_changelog_assembly.py \
+                      qa/test_pr_gate.py qa/test_ai_review.py qa/test_merge_pr.py \
+                      qa/test_manual_merge.py qa/test_publish_review.py \
+                      qa/test_nightly_release_state.py qa/test_pending_changelog.py; do
+            python3 "$test"
+          done
+
+      - name: Verify screenshot and default image-quality MobileConfig contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_media_quality_screenshot_props.py \
+            --source-root . --out "$RUNNER_TEMP/waex-media-screenshot-props"
+
+      - name: Preserve image-quality property contract evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: media-screenshot-props-evidence
+          path: |
+            ${{ runner.temp }}/waex-media-screenshot-props/*.json
+            ${{ runner.temp }}/waex-media-screenshot-props/*.log
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Require complete source parsing tools
         shell: bash
         run: |
@@ -48,6 +77,83 @@ jobs:
             exit 1
           fi
           kotlinc -version
+
+      - name: Verify target-scoped legacy string preference reads
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_preference_manager_string_scope.py
+          python3 qa/mutate_preference_manager_string_scope.py --out "$RUNNER_TEMP/preference-string-scope-mutants"
+
+      - name: Preserve scoped string preference mutation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preference-string-scope-mutants
+          path: |
+            ${{ runner.temp }}/preference-string-scope-mutants/results.json
+            ${{ runner.temp }}/preference-string-scope-mutants/*/run.log
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Verify per-contact call privacy and negative controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_call_privacy_contacts.py --mutation-control \
+            --out "$RUNNER_TEMP/call-privacy-contacts"
+
+      - name: Preserve per-contact call privacy evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: call-privacy-contacts-evidence
+          path: |
+            ${{ runner.temp }}/call-privacy-contacts/**/*.json
+            ${{ runner.temp }}/call-privacy-contacts/**/*.log
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Verify call-blocking opt-out and target-switch contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_call_privacy_optout.py --out "$RUNNER_TEMP/call-privacy-optout"
+          python3 qa/mutate_call_privacy_optout.py --out "$RUNNER_TEMP/call-privacy-optout-mutants"
+
+      - name: Preserve call-blocking opt-out evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: call-privacy-optout-evidence
+          path: |
+            ${{ runner.temp }}/call-privacy-optout/*.json
+            ${{ runner.temp }}/call-privacy-optout/*.log
+            ${{ runner.temp }}/call-privacy-optout/*.kt
+            ${{ runner.temp }}/call-privacy-optout-mutants/**/*.json
+            ${{ runner.temp }}/call-privacy-optout-mutants/**/*.log
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Verify bounded Maven dependency recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_maven_dependencies.py --out "$RUNNER_TEMP/waex-maven-recovery"
+
+      - name: Upload Maven dependency recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maven-dependency-recovery-evidence
+          path: |
+            ${{ runner.temp }}/waex-maven-recovery/result.json
+            ${{ runner.temp }}/waex-maven-recovery/test_*/*.log
+            ${{ runner.temp }}/waex-maven-recovery/test_*/*retry.json
+            ${{ runner.temp }}/waex-maven-recovery/test_*/calls.jsonl
+            ${{ runner.temp }}/waex-maven-recovery/test_*/config.json
+          retention-days: 14
+          if-no-files-found: error
 
       - name: Parse all production Java and Kotlin files (no Android SDK)
         shell: bash
@@ -61,6 +167,45 @@ jobs:
           set -euo pipefail
           python3 qa/test_syntax_checker.py
 
+      - name: Verify media constructor hook with cold and persisted DexKit caches
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_media_warm_cache.py \
+            --source-root . \
+            --out "$RUNNER_TEMP/media-warm-cache-contract"
+
+      - name: Preserve media cache and callback contract evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: media-warm-cache-contract-evidence
+          path: |
+            ${{ runner.temp }}/media-warm-cache-contract/RESULTS.json
+            ${{ runner.temp }}/media-warm-cache-contract/*.stdout.txt
+            ${{ runner.temp }}/media-warm-cache-contract/*.stderr.txt
+            ${{ runner.temp }}/media-warm-cache-contract/*/cache-input.properties
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Validate complete status style and property hook contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_status_style_hook_contract.py --out "$RUNNER_TEMP/status-style-hook-contract"
+
+      - name: Preserve status style hook contract evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: status-style-hook-contract-evidence
+          path: |
+            ${{ runner.temp }}/status-style-hook-contract/*.json
+            ${{ runner.temp }}/status-style-hook-contract/*.log
+            ${{ runner.temp }}/status-style-hook-contract/sources
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Run required public-source JVM regression suites
         shell: bash
         run: |
@@ -71,22 +216,41 @@ jobs:
             qa/test_bridge_contract.py
             qa/test_bridge_ordering.py
             qa/test_media_preference_sync.py
+            qa/mutate_media_preference_sync.py
+            qa/test_parallel_download_stream_contract.py
             qa/test_dnd_preference_policy.py
             qa/test_dex_negative_cache.py
+            qa/test_android24_compatibility.py
             qa/test_restart_safety.py
-            qa/test_call_privacy_contacts.py
             qa/test_contact_privacy_editor.py
+            qa/test_tasker_runtime_gate.py
+            qa/test_double_tap_adapter_binding.py
+            qa/test_profile_photo_save.py
+            qa/test_status_media_export.py
             qa/test_hook_return_types.py
             qa/test_monet_wiring.py
             qa/test_catalog_source.py
             qa/test_catalog_apk.py
             qa/test_catalog_resource_keep.py
+            qa/test_edit_history_identity.py
+            qa/test_edit_history_adapter_binding.py
+            qa/test_edit_history_diff_budget.py
           )
           for test_script in "${tests[@]}"; do
             echo "::group::$test_script"
             python3 "$test_script"
             echo '::endgroup::'
           done
+
+      - name: Verify public Spanish Latin America resources and runtime lookup
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f qa/localization_support.py
+          test -f qa/test_es419_localization.py
+          test -f qa/test_es419_runtime.py
+          python3 qa/test_es419_localization.py
+          python3 qa/test_es419_runtime.py
 
       - name: Require tests for merged runtime and resource contracts
         shell: bash
@@ -104,6 +268,10 @@ jobs:
           if grep -q 'updateAndGetTransition(' "$store"; then
             test -f qa/test_presence_invalidation.py
             test -f qa/test_presence_state_invalidation.py
+          fi
+          if [[ -f app/src/main/java/com/waenhancer/xposed/features/automation/PresenceToastsHook.java ]]; then
+            test -f qa/test_receipt_observation.py
+            test -f qa/fixtures/receipt_observation/ReceiptObservationFixture.java.in
           fi
           if grep -q 'putPublicString("seentick", nextPlacement)' "$ui"; then
             test -f qa/test_manual_seen_tick_persistence.py
@@ -138,6 +306,14 @@ jobs:
           if grep -q 'release failed:' app/src/main/java/com/waenhancer/xposed/features/media/CallRecordingHook.java; then
             test -f qa/test_recorder_cleanup.py
           fi
+          if [[ -f app/src/main/java/com/waenhancer/calls/RecordingOutputFiles.java ]]; then
+            test -f qa/test_call_recording_output_safety.py
+            test -f qa/fixtures/RecordingOutputFilesProbe.java
+          fi
+          if [[ -f app/src/main/java/com/waenhancer/xposed/features/media/CallRecordingEventContract.java ]]; then
+            test -f qa/test_call_recording_lifecycle.py
+            test -f qa/fixtures/CallRecordingLifecycleChecks.java
+          fi
 
       - name: Require regression tests for scoped export and identity changes
         shell: bash
@@ -170,8 +346,10 @@ jobs:
             qa/test_backup_alias_policy.py \
             qa/test_settings_backup_binary_roundtrip.py \
             qa/test_settings_backup_json.py \
+            qa/test_aosp_json_source_fetch.py \
             qa/test_feature_preference_schema_coverage.py \
             qa/test_catalog_schema_alias_contract.py \
+            qa/test_slovenian_locale.py \
             qa/test_style_boolean_alias_wiring.py \
             qa/test_style_non_boolean_guard.py \
             qa/test_private_hook_logs.py \
@@ -182,12 +360,15 @@ jobs:
             qa/test_manual_blue_tick_ui.py \
             qa/test_manual_seen_tick_persistence.py \
             qa/test_receipt_job_execution_contract.py \
+            qa/test_selected_upstream_hardening.py \
             qa/test_played_receipt_dispatch_contract.py \
+            qa/test_receipt_observation.py \
             qa/test_presence_event_contract.py \
             qa/test_presence_state_replay.py \
             qa/test_presence_invalidation.py \
             qa/test_presence_state_invalidation.py \
             qa/test_archived_chats_entry.py \
+            qa/test_deleted_indicator_bridge.py \
             qa/test_deleted_indicator_preference_types.py \
             qa/test_proximity_event_isolation.py \
             qa/test_proximity_ui_wiring.py \
@@ -206,6 +387,8 @@ jobs:
             qa/test_runtime_observation_clock.py \
             qa/test_filter_work.py \
             qa/test_recorder_cleanup.py \
+            qa/test_call_recording_output_safety.py \
+            qa/test_call_recording_lifecycle.py \
             qa/test_gallery_export.py \
             qa/test_contact_identity.py \
             qa/test_db_migrations.py; do
@@ -249,10 +432,12 @@ jobs:
             test -f qa/android_presence_row_test.py
             test -f qa/fixtures/PresenceRowRenderingTest.kt
             test -f qa/test_presence_state_replay.py
+            test -f qa/test_presence_runner_controls.py
+            test -f qa/mutate_presence_rows.py
             echo 'present=true' >> "$GITHUB_OUTPUT"
           else
             echo 'present=false' >> "$GITHUB_OUTPUT"
-            echo '::notice::V17 renderer not in this tree; Android presence rendering was NOT tested by this job.'
+            echo '::notice::Presence renderer not in this tree; Android presence rendering was NOT tested by this job.'
           fi
       - uses: actions/setup-java@v4
         if: steps.presence.outputs.present == 'true'
@@ -264,7 +449,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 qa/android_presence_row_test.py --out "$RUNNER_TEMP/waex-android-rows"
+          python3 qa/test_presence_runner_controls.py
+          python3 qa/android_presence_row_test.py --out "$RUNNER_TEMP/waex-android-rows" --mutations
+          python3 qa/mutate_presence_rows.py \
+            "$RUNNER_TEMP/waex-android-row-mutations" "$RUNNER_TEMP/waex-android-rows/deps"
           echo 'Extracted production renderer passed Android framework/Skia tests. NOT an APK build, WhatsApp binder or LSPosed test.'
       - name: Preserve source identities and text-only rendering evidence
         if: always() && steps.presence.outputs.present == 'true'
@@ -276,6 +464,12 @@ jobs:
             ${{ runner.temp }}/waex-android-rows/*.log
             ${{ runner.temp }}/waex-android-rows/*/*.log
             ${{ runner.temp }}/waex-android-rows/*/*.kt
+            ${{ runner.temp }}/waex-android-rows/*/*.json
+            ${{ runner.temp }}/waex-android-rows/*/*.args
+            ${{ runner.temp }}/waex-android-row-mutations/*.json
+            ${{ runner.temp }}/waex-android-row-mutations/*/*.log
+            ${{ runner.temp }}/waex-android-row-mutations/*/*.json
+            ${{ runner.temp }}/waex-android-row-mutations/*/*.kt
           retention-days: 14
           if-no-files-found: warn
 
@@ -311,6 +505,37 @@ jobs:
         with:
           name: runtime-framework-evidence
           path: ${{ runner.temp }}/waex-runtime-framework/evidence
+          retention-days: 14
+          if-no-files-found: error
+
+  interface-scale-framework:
+    name: Interface size / complete theme / Android density and font scale
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Require whole-theme scaling and accessibility regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f qa/fixtures/InterfaceScaleThemeTest.kt
+          python3 qa/verify_interface_scale_framework.py --out "$RUNNER_TEMP/waex-interface-scale"
+      - name: Preserve source identities, dependency hashes and framework results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: interface-scale-framework-evidence
+          path: ${{ runner.temp }}/waex-interface-scale/evidence
           retention-days: 14
           if-no-files-found: error
 
@@ -365,5 +590,74 @@ jobs:
         with:
           name: stability-framework-evidence
           path: ${{ runner.temp }}/waex-stability/*/evidence
+          retention-days: 14
+          if-no-files-found: error
+
+  preserved-vault-framework:
+    name: Preserved vault / row identity and Android SQLite compatibility
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Require Kotlin and Maven for the complete production store
+        run: |
+          set -euo pipefail
+          kotlinc -version
+          mvn -version
+          test -f qa/fixtures/PreservedStoreCompatibilityTest.java
+      - name: Exercise 33 row identity and schema lifecycle cases
+        run: python3 qa/android_preserved_store_test.py --out "$RUNNER_TEMP/waex-preserved-vault"
+      - name: Preserve source identities and Android SQLite results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preserved-vault-framework-evidence
+          path: |
+            ${{ runner.temp }}/waex-preserved-vault/*.json
+            ${{ runner.temp }}/waex-preserved-vault/*.log
+          retention-days: 14
+          if-no-files-found: error
+
+  preserved-dispatch-framework:
+    name: Preserved messages / provider acknowledgements and original delete scope
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Require the complete sender, provider and store fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          kotlinc -version
+          mvn -version
+          test -f qa/maven_dependencies.py
+          test -f qa/fixtures/PreservedDispatchContractTest.java
+      - name: Exercise 84 persistence and callback cases on Android API 24, 28 and 34
+        run: python3 qa/android_preserved_dispatch_test.py --out "$RUNNER_TEMP/waex-preserved-dispatch"
+      - name: Preserve source identities and acknowledgement results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preserved-dispatch-framework-evidence
+          path: |
+            ${{ runner.temp }}/waex-preserved-dispatch/*.json
+            ${{ runner.temp }}/waex-preserved-dispatch/*.log
           retention-days: 14
           if-no-files-found: error

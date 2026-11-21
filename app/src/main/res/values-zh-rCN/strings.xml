@@ -12,6 +12,7 @@
     <string name="go_to_telegram">Telegram 频道</string>
     <string name="go_to_github">GitHub 问题反馈</string>
     <string name="contributors">贡献者</string>
+    <string name="contributor">贡献者</string>
     <string name="stargazers_title">支持者</string>
     <string name="stargazers_thank_you">感谢你支持 WaEnhancerX</string>
     <string name="stargazers_message">每一颗星标都能帮助更多人发现这个项目。这里展示所有给予支持的人。</string>
@@ -119,8 +120,6 @@
     <string name="feat_hideonceseen_desc">查看一次性媒体后，不让发送者知道你已查看</string>
     <string name="feat_anti_revoke_title">保留他人删除的消息</string>
     <string name="feat_anti_revoke_desc">他人选择“对所有人删除”后，仍在本机保留消息</string>
-    <string name="feat_hide_anti_revoke_title">显示隐藏已删除消息的菜单项</string>
-    <string name="feat_hide_anti_revoke_desc">在聊天菜单中添加选项，用于隐藏当前聊天中保留的已删除消息</string>
     <string name="feat_preserve_own_revoke_title">保留自己对所有人删除的消息</string>
     <string name="feat_preserve_own_revoke_desc">选择“对所有人删除”后，仍在本机保留该消息</string>
     <string name="feat_antirevokestatus_title">动态防删除</string>
@@ -201,8 +200,8 @@
     <string name="feat_status_text_composer_desc">长按动态中的颜色选择器即可自定义颜色</string>
     <string name="feat_status_downloader_title">下载和分享动态</string>
     <string name="feat_status_downloader_desc">显示分享和下载动态的两个按钮</string>
-    <string name="feat_media_upload_quality_title">高清图片和视频</string>
-    <string name="feat_media_upload_quality_desc">默认以高清画质发送图片和视频</string>
+    <string name="feat_media_upload_quality_title">原画质图片和视频</string>
+    <string name="feat_media_upload_quality_desc">以原始画质发送图片和视频</string>
     <string name="feat_send_audio_as_voice_status_title">将音频发布为语音动态</string>
     <string name="feat_send_audio_as_voice_status_desc">选择本地音频文件并发布为语音动态</string>
     <string name="feat_status_video_splitter_title">动态视频分段</string>
@@ -324,9 +323,7 @@
     <string name="diag_hma_checking">正在检查…</string>
     <string name="diag_hma_sheet_title">应用隔离诊断</string>
     <string name="diag_hma_sheet_desc">影响目标软件包和模块可见性的 Hide My Applist 隔离规则概览。</string>
-    <string name="diag_hma_active_targets">已配置目标</string>
-    <string name="diag_hma_inactive_targets">其他目标</string>
-    <string name="diag_hma_btn_fix">修复</string>
+    <string name="diag_btn_fix">修复</string>
     <string name="diag_hma_fix_title">修复应用隔离</string>
     <string name="diag_hma_fix_message">这将更新 Hide My Applist 配置，从 %1$s 中移除模块阻止规则和预设，确保 WaEnhancerX 正常运行。</string>
     <string name="diag_hma_fix_success">应用隔离规则更新成功</string>
@@ -367,4 +364,83 @@
     <string name="diag_target_sheet_injected_badge">已注入</string>
     <string name="diag_target_sheet_section_targets">已安装的目标应用</string>
     <string name="waex_l10n_builtin_match">"受支持"</string>
+    <string name="manual_status_seen_section">状态查看控制</string>
+    <string name="manual_status_seen_title">手动向对方发送状态已查看</string>
+    <string name="manual_status_seen_desc">选择如何将当前状态标记为已查看</string>
+    <string name="manual_status_seen_placement_title">操作展示方式</string>
+    <string name="manual_status_seen_menu">菜单选项</string>
+    <string name="manual_status_seen_icon">已查看按钮</string>
+    <string name="profile_photo_already_saved">个人资料照片已保存</string>
+    <string name="profile_photo_saving">个人资料照片保存</string>
+    <string name="save_profile_duplicates">保存重复副本</string>
+    <string name="save_profile_duplicates_desc">每次都保存为新文件</string>
+    <string name="status_already_saved">状态媒体已保存</string>
+    <string name="status_download_saving">状态下载保存</string>
+    <string name="save_status_duplicates">保存重复副本</string>
+    <string name="save_status_duplicates_desc">每次都保存为新文件</string>
+    <string name="feat_app_interface_size_title">@string/interface_size_title</string>
+    <string name="feat_app_interface_size_desc">@string/interface_size_desc</string>
+    <string name="feat_status_style_title">动态与状态样式</string>
+    <string name="feat_status_style_desc">使用 WhatsApp 原生界面样式自定义动态与状态布局</string>
+    <string name="sending_read_blue_tick">正在向对方发送已读蓝勾…</string>
+    <string name="diag_target_sheet_custom_rule_warning">所有应用均已注入并处于活动状态。自定义版本规则生效中；此版本的兼容性尚未经过官方验证。</string>
+    <string name="feat_bypass_screenshot_restriction_title">允许截图</string>
+    <string name="feat_bypass_screenshot_restriction_desc">允许在整个 WhatsApp 中截图和录制屏幕</string>
+    <string name="waex_ui_selected_icon_color">已选图标颜色</string>
+    <string name="waex_ui_unselected_icon_color">未选图标颜色</string>
+    <string name="waex_ui_using_app_default_color">使用应用默认颜色</string>
+
+    <!-- WaEnhancerX 2.0.6 strings -->
+    <string name="config_mode_desc">全局或为每个目标应用单独配置偏好设置</string>
+    <string name="config_mode_per_target_app">按目标应用</string>
+    <string name="config_mode_per_target_app_desc">独立为每个目标应用自定义功能和偏好设置。</string>
+    <string name="config_mode_title">配置模式</string>
+    <string name="config_mode_universal">通用模式</string>
+    <string name="config_mode_universal_desc">将相同的偏好设置应用于范围内所有 WhatsApp 应用。</string>
+    <string name="diag_denylist_blocked">正在拦截 WhatsApp</string>
+    <string name="diag_denylist_btn_fix_all">全部修复</string>
+    <string name="diag_denylist_checking">正在检查…</string>
+    <string name="diag_denylist_clean">没有被拦截的目标</string>
+    <string name="diag_denylist_fix_all_message">这将从 Magisk DenyList 中移除所有检测到的 WhatsApp 软件包并强制停止它们，以便 Zygisk/LSPosed 在下次启动时注入 Hook。</string>
+    <string name="diag_denylist_fix_failed">从 Magisk DenyList 移除失败</string>
+    <string name="diag_denylist_fix_message">这将从 Magisk DenyList 中移除 %1$s 并强制停止它，以便 Zygisk/LSPosed 在下次启动时注入 Hook。</string>
+    <string name="diag_denylist_fix_success">已成功从 Magisk DenyList 中移除</string>
+    <string name="diag_denylist_fix_title">修复 Magisk DenyList</string>
+    <string name="diag_denylist_not_active">未激活</string>
+    <string name="diag_denylist_sheet_desc">影响目标软件包和 Zygisk 模块注入的 Magisk DenyList 规则概览。</string>
+    <string name="diag_denylist_sheet_title">Magisk DenyList 诊断</string>
+    <string name="diag_denylist_target_blocked">已被强制执行的 DenyList 拦截</string>
+    <string name="diag_denylist_target_clean">未出现在强制执行的 DenyList 中</string>
+    <string name="diag_denylist_target_magisk_inactive">Magisk 未激活</string>
+    <string name="diag_denylist_target_not_enforced">DenyList 强制执行已禁用</string>
+    <string name="diag_label_denylist">Magisk DenyList</string>
+    <string name="feat_custom_ab_props_desc">在启动时按属性 ID 覆盖 WhatsApp AB 属性</string>
+    <string name="feat_custom_ab_props_title">自定义 AB 属性</string>
+    <string name="feat_disable_defemojis_desc">使用系统表情符号（iOS、三星、Google）替代 WhatsApp 内置表情符号</string>
+    <string name="feat_disable_defemojis_title">使用设备默认表情符号</string>
+    <string name="feat_parallel_downloading_desc">通过多个并发连接同时快速下载大型媒体和文件</string>
+    <string name="feat_parallel_downloading_title">并行下载</string>
+    <string name="navigation_drawer_open">打开导航抽屉</string>
+    <string name="parallel_downloading_2">2 个连接</string>
+    <string name="parallel_downloading_4">4 个连接（推荐）</string>
+    <string name="parallel_downloading_8">8 个连接</string>
+    <string name="parallel_downloading_connections_desc">选择每次下载使用的并发连接数</string>
+    <string name="parallel_downloading_connections_title">并行连接</string>
+    <string name="requires_setting_enabled">需要启用 %1$s</string>
+    <string name="target_whatsapp">WhatsApp</string>
+    <string name="target_whatsapp_business">WhatsApp Business</string>
+    <string name="timestamp_custom_pattern_hint">例如：HH:mm a, dd/MM HH:mm:ss</string>
+    <string name="timestamp_custom_pattern_label">自定义格式</string>
+    <string name="timestamp_format_title">时间戳格式</string>
+    <string name="timestamp_invalid_pattern">无效的日期/时间格式</string>
+    <string name="timestamp_modify_text_instructions">根据所选格式使用 ${t} 作为时间变量。您可以在 ${t} 前后添加任何文本，或输入自定义文本。</string>
+    <string name="timestamp_modify_text_preview">预览</string>
+    <string name="timestamp_modify_text_title">修改文本</string>
+    <string name="waex_ui_github_rate_limited" formatted="false">超出 GitHub 请求速率限制</string>
+    <string name="waex_ui_github_rate_limited_desc" formatted="false">已达到 GitHub API 限制。下拉刷新或几分钟后重试。</string>
+    <string name="waex_ui_native_igstatus" formatted="false">原生 IGStatus</string>
+    <string name="waex_ui_network_timeout_message" formatted="false">请求超时。请检查网络连接后重试。</string>
+    <string name="waex_ui_network_unreachable_message" formatted="false">WAEX 无法连接到服务。请检查网络连接后重试。</string>
+    <string name="waex_ui_show_as_deleted" formatted="false">显示为已删除消息</string>
+    <string name="waex_ui_show_as_deleted_desc" formatted="false">使用 WhatsApp 原生已删除消息样式显示已删除的消息</string>
 </resources>

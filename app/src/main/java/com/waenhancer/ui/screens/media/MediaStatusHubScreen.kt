@@ -6,6 +6,14 @@ import com.waenhancer.app.R
 import androidx.compose.ui.res.stringResource
 import com.waenhancer.ui.components.WaexProChip
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,11 +29,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.PaddingValues
+import com.waenhancer.ui.components.WaexCategoryHeader
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import kotlin.math.roundToInt
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -71,23 +84,54 @@ import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
 import com.waenhancer.ui.navigation.Screen
 
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun MediaStatusHubScreen() {
+fun MediaStatusHubScreen(targetEpoch: Int = 0) {
     val colors = WaexTheme.colors
     val spacing = WaexTheme.spacing
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
 
     val navController = LocalWaexNavController.current
-    val scrollState = rememberScrollState()
-    val itemCoordinates = remember { mutableStateMapOf<String, Float>() }
-    var containerY by remember { mutableStateOf(0f) }
+    val listState = rememberLazyListState()
 
-    LaunchedEffect(navController.scrollToTargetKey, itemCoordinates.keys.toList()) {
+    val preferenceManager = LocalWaexPreferenceManager.current
+    val mediaKeys = remember {
+        listOf(
+            "statusdowload", "status_downloader", "videoquality", "imagequality",
+            "media_upload_quality", "send_audio_as_voice_status", "status_video_splitter", "file_size_spoofer",
+            "download_profile", "download_video_note",
+            "downloadviewonce", "download_view_once", "media_preview", "enable_media_preview",
+            "parallel_downloading"
+        )
+    }
+
+    val isPro = LocalIsPro.current
+    val onActivatePro = LocalOnActivatePro.current
+    val expandedSections = remember { mutableStateMapOf<String, Boolean>() }
+
+    val mediaGroups = remember {
+        FeatureCatalog.groupsFor(2, null).map { group ->
+            MediaGroup(group.id, if (group.id == "media_quality_status") WaexIcons.Image else WaexIcons.Folder, group.items())
+        }
+    }
+
+    val density = LocalDensity.current
+
+    LaunchedEffect(navController.scrollToTargetKey) {
         val target = navController.scrollToTargetKey
-        if (target != null && itemCoordinates.containsKey(target)) {
-            val yOffset = itemCoordinates[target] ?: 0f
-            scrollState.animateScrollTo(yOffset.toInt())
+        if (target != null) {
+            delay(100)
+            val groupIdx = mediaGroups.indexOfFirst { grp -> grp.items.any { it.key == target } }
+            if (groupIdx != -1) {
+                val group = mediaGroups[groupIdx]
+                expandedSections[group.title] = true
+                val itemIdx = group.items.indexOfFirst { it.key == target }.coerceAtLeast(0)
+                val cardIndex = 2 + (groupIdx * 2)
+                val estimatedRowHeight = with(density) { 72.dp.roundToPx() }
+                val offsetPx = itemIdx * estimatedRowHeight
+                listState.animateScrollToItem(cardIndex, offsetPx)
+            }
             navController.scrollToTargetKey = null
         }
     }
@@ -102,21 +146,11 @@ fun MediaStatusHubScreen() {
         }
     }
 
-    val preferenceManager = LocalWaexPreferenceManager.current
-    val mediaKeys = remember {
-        listOf(
-            "statusdowload", "status_downloader", "videoquality", "imagequality",
-            "media_upload_quality", "send_audio_as_voice_status", "status_video_splitter", "file_size_spoofer",
-            "call_recording", "download_profile", "download_video_note",
-            "downloadviewonce", "download_view_once", "media_preview", "enable_media_preview"
-        )
-    }
-
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     fun readMediaKey(key: String): Boolean {
         // The UI must reflect the settings consumed by hooks, not stale legacy aliases.
-        if (key == "call_recording" || key == "media_upload_quality"
+        if (key == "media_upload_quality"
             || key == "downloadviewonce" || key == "download_view_once") {
             return MediaQuickSettingPolicy.isEnabled(key) { storedKey ->
                 preferenceManager.getBoolean(storedKey, false)
@@ -128,10 +162,19 @@ fun MediaStatusHubScreen() {
         return preferenceManager.getBoolean(key, fallback)
     }
 
-    val settingsState = remember(preferenceManager) {
+    val settingsState = remember(preferenceManager, targetEpoch) {
         mutableStateMapOf<String, Boolean>().apply {
             mediaKeys.forEach { key -> put(key, readMediaKey(key)) }
         }
+    }
+    var saveProfileDuplicates by remember(preferenceManager, targetEpoch) {
+        mutableStateOf(preferenceManager.getBoolean("download_profile_save_duplicates", true))
+    }
+    var saveStatusDuplicates by remember(preferenceManager, targetEpoch) {
+        mutableStateOf(preferenceManager.getBoolean("status_download_save_duplicates", true))
+    }
+    var parallelConnections by remember(preferenceManager, targetEpoch) {
+        mutableStateOf(preferenceManager.getInt("parallel_downloading_connections", 4))
     }
 
     // Refresh after returning from another settings screen (e.g. the Calls hub).
@@ -141,6 +184,9 @@ fun MediaStatusHubScreen() {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 mediaKeys.forEach { key -> settingsState[key] = readMediaKey(key) }
+                saveProfileDuplicates = preferenceManager.getBoolean("download_profile_save_duplicates", true)
+                saveStatusDuplicates = preferenceManager.getBoolean("status_download_save_duplicates", true)
+                parallelConnections = preferenceManager.getInt("parallel_downloading_connections", 4)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -154,122 +200,111 @@ fun MediaStatusHubScreen() {
             // handlers use settingsState, so never show a failed save as successful.
             mediaKeys.forEach { mediaKey -> settingsState[mediaKey] = readMediaKey(mediaKey) }
         } else {
-            Toast.makeText(context, UiText.get(R.string.waex_ui_unable_to_save_setting_d9dcb19d, "Unable to save setting"), Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, UiText.get(R.string.waex_ui_unable_to_save_setting, "Unable to save setting"), Toast.LENGTH_SHORT).show()
         }
     }
 
-    val isPro = LocalIsPro.current
-    val onActivatePro = LocalOnActivatePro.current
-
-    val mediaGroups = remember {
-        FeatureCatalog.groupsFor(2, null).map { group ->
-            MediaGroup(group.id, if (group.id == "media_quality_status") WaexIcons.Image else WaexIcons.Folder, group.items())
-        }
-    }
-
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .onGloballyPositioned { containerCoordinates ->
-                containerY = containerCoordinates.positionInRoot().y
-            }
-            .padding(vertical = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         // Quick Card for Advanced Call Recording
-        Surface(
-            shape = radius.bentoCardShape,
-            color = colors.surfaceDim,
-            border = BorderStroke(1.dp, colors.outlineVariant),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = spacing.pageMargin)
-                .clickable { navController.navigateTo(Screen.CallRecordingSettings) }
-        ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(colors.primary.copy(alpha = 0.1f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = WaexIcons.Mic,
-                        contentDescription = null,
-                        tint = colors.primary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.call_recording_config_title),
-                        style = typography.bodyLg,
-                        fontWeight = FontWeight.SemiBold,
-                        color = colors.onSurface
-                    )
-                    Text(
-                        text = stringResource(R.string.call_recording_config_desc),
-                        style = typography.bodyMd,
-                        color = colors.onSurfaceVariant
-                    )
-                }
-                Icon(
-                    imageVector = WaexIcons.ChevronRight,
-                    contentDescription = null,
-                    tint = colors.onSurfaceVariant,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-        }
-
-
-
-        // Media setting cards
-        mediaGroups.forEach { group ->
-            Column(
+        item(key = "card_call_recording") {
+            Surface(
+                shape = radius.cardShape,
+                color = colors.surfaceDim,
+                border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.5f)),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = spacing.pageMargin)
+                    .clickable { navController.navigateTo(Screen.CallRecordingSettings) }
             ) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(radius.defaultShape)
+                            .background(colors.primary.copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = WaexIcons.Mic,
+                            contentDescription = null,
+                            tint = colors.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.call_recording_config_title),
+                            style = typography.bodyLg,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.onSurface
+                        )
+                        Text(
+                            text = stringResource(R.string.call_recording_config_desc),
+                            style = typography.bodyMd,
+                            color = colors.onSurfaceVariant
+                        )
+                    }
                     Icon(
-                        imageVector = group.icon,
+                        imageVector = WaexIcons.ChevronRight,
                         contentDescription = null,
-                        tint = colors.primary,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Text(
-                        text = LocalizationHelper.getLocalizedSectionTitle(context, group.title),
-                        style = typography.labelSm,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.onSurfaceVariant
+                        tint = colors.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp)
                     )
                 }
+            }
+        }
 
-                Surface(
-                    shape = radius.bentoCardShape,
-                    color = colors.surfaceDim,
-                    border = BorderStroke(1.dp, colors.outlineVariant),
-                    modifier = Modifier.fillMaxWidth()
+        // Media setting cards with sticky headers
+        mediaGroups.forEach { group ->
+            val isExpanded = expandedSections[group.title] ?: true
+            stickyHeader(key = "header_${group.title}") {
+                WaexCategoryHeader(
+                    title = LocalizationHelper.getLocalizedSectionTitle(context, group.title),
+                    icon = group.icon,
+                    isExpanded = isExpanded,
+                    onToggleExpand = {
+                        expandedSections[group.title] = !isExpanded
+                    }
+                )
+            }
+
+            item(key = "card_${group.title}") {
+                AnimatedVisibility(
+                    visible = isExpanded,
+                    enter = expandVertically(tween(250)) + fadeIn(tween(250)),
+                    exit = shrinkVertically(tween(250)) + fadeOut(tween(200))
                 ) {
+                    Surface(
+                        shape = radius.cardShape,
+                        color = colors.surfaceDim,
+                        border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.5f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = spacing.pageMargin)
+                    ) {
                     Column {
                         group.items.forEachIndexed { index, item ->
                             val isLocked = item.isPro && !isPro
                             val isHighlighted = navController.highlightTargetKey == item.key
+                            val bringIntoViewRequester = remember { BringIntoViewRequester() }
+                            if (isHighlighted) {
+                                LaunchedEffect(Unit) {
+                                    delay(200)
+                                    bringIntoViewRequester.bringIntoView()
+                                }
+                            }
                             val highlightBgColor by animateColorAsState(
                                 targetValue = if (isHighlighted) colors.primary.copy(alpha = 0.15f) else Color.Transparent,
                                 animationSpec = tween(durationMillis = 300),
@@ -280,11 +315,8 @@ fun MediaStatusHubScreen() {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .bringIntoViewRequester(bringIntoViewRequester)
                                     .background(highlightBgColor)
-                                    .onGloballyPositioned { coordinates ->
-                                        val y = coordinates.positionInRoot().y - containerY + scrollState.value
-                                        itemCoordinates[item.key] = y
-                                    }
                                     .clickable {
                                         if (isLocked) {
                                             onActivatePro()
@@ -332,15 +364,198 @@ fun MediaStatusHubScreen() {
                                     )
                                 }
                             }
+                            if (item.key == "download_profile" && (settingsState[item.key] ?: false)) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                                        .background(colors.surfaceContainerLow.copy(alpha = 0.6f), radius.defaultShape)
+                                        .padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = UiText.get(R.string.profile_photo_saving, "PROFILE PHOTO SAVING"),
+                                        style = typography.labelSm,
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.primary
+                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .padding(end = 8.dp),
+                                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.save_profile_duplicates),
+                                                style = typography.bodyMd,
+                                                fontWeight = FontWeight.Medium,
+                                                color = colors.onSurface
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.save_profile_duplicates_desc),
+                                                style = typography.labelSm,
+                                                color = colors.onSurfaceVariant
+                                            )
+                                        }
+                                        StitchSwitch(
+                                            checked = saveProfileDuplicates,
+                                            onCheckedChange = { checked ->
+                                                preferenceManager.putBoolean("download_profile_save_duplicates", checked)
+                                                saveProfileDuplicates = preferenceManager.getBoolean(
+                                                    "download_profile_save_duplicates", true
+                                                )
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                            if (item.key == "status_downloader" && (settingsState[item.key] ?: false)) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                                        .background(colors.surfaceContainerLow.copy(alpha = 0.6f), radius.defaultShape)
+                                        .padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = UiText.get(R.string.status_download_saving, "STATUS DOWNLOAD SAVING"),
+                                        style = typography.labelSm,
+                                        fontWeight = FontWeight.Bold,
+                                        color = colors.primary
+                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .padding(end = 8.dp),
+                                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.save_status_duplicates),
+                                                style = typography.bodyMd,
+                                                fontWeight = FontWeight.Medium,
+                                                color = colors.onSurface
+                                            )
+                                            Text(
+                                                text = stringResource(R.string.save_status_duplicates_desc),
+                                                style = typography.labelSm,
+                                                color = colors.onSurfaceVariant
+                                            )
+                                        }
+                                        StitchSwitch(
+                                            checked = saveStatusDuplicates,
+                                            onCheckedChange = { checked ->
+                                                preferenceManager.putBoolean("status_download_save_duplicates", checked)
+                                                saveStatusDuplicates = preferenceManager.getBoolean(
+                                                    "status_download_save_duplicates", true
+                                                )
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                            if (item.key == "parallel_downloading" && (settingsState[item.key] ?: false)) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                                        .background(colors.surfaceContainerLow.copy(alpha = 0.6f), radius.defaultShape)
+                                        .padding(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.parallel_downloading_connections_title),
+                                            style = typography.labelSm,
+                                            fontWeight = FontWeight.Bold,
+                                            color = colors.primary
+                                        )
+                                        Text(
+                                            text = if (parallelConnections == 4) {
+                                                "$parallelConnections connections (Recommended)"
+                                            } else {
+                                                "$parallelConnections connections"
+                                            },
+                                            style = typography.labelSm,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = colors.primary
+                                        )
+                                    }
+                                    Text(
+                                        text = stringResource(R.string.parallel_downloading_connections_desc),
+                                        style = typography.labelSm,
+                                        color = colors.onSurfaceVariant
+                                    )
+
+                                    var sliderValue by remember(parallelConnections) {
+                                        mutableStateOf(parallelConnections.toFloat())
+                                    }
+
+                                    Slider(
+                                        value = sliderValue,
+                                        onValueChange = { sliderValue = it },
+                                        onValueChangeFinished = {
+                                            val count = sliderValue.roundToInt().coerceIn(2, 8)
+                                            sliderValue = count.toFloat()
+                                            preferenceManager.putInt("parallel_downloading_connections", count)
+                                            parallelConnections = count
+                                        },
+                                        valueRange = 2f..8f,
+                                        steps = 5,
+                                        colors = SliderDefaults.colors(
+                                            thumbColor = colors.primary,
+                                            activeTrackColor = colors.primary,
+                                            inactiveTrackColor = colors.outlineVariant
+                                        ),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = "2 (Min)",
+                                            style = typography.labelSm,
+                                            color = colors.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = "4 (Recommended)",
+                                            style = typography.labelSm,
+                                            color = if (parallelConnections == 4) colors.primary else colors.onSurfaceVariant,
+                                            fontWeight = if (parallelConnections == 4) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                        Text(
+                                            text = "8 (Max)",
+                                            style = typography.labelSm,
+                                            color = colors.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
                             if (index < group.items.lastIndex) {
-                                HorizontalDivider(thickness = 1.dp, color = colors.outlineVariant)
+                                HorizontalDivider(thickness = 0.8.dp, color = colors.outlineVariant.copy(alpha = 0.4f), modifier = Modifier.padding(horizontal = 16.dp))
                             }
                         }
                     }
                 }
+                }
             }
         }
-        Spacer(modifier = Modifier.height(100.dp))
     }
 }
 

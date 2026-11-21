@@ -8,6 +8,8 @@ notification and HTTP boundaries are explicit doubles. The production SQL execut
 against file-backed Python SQLite. No Android Binder, native hook injection, live
 VoIP or external message runs. The AOSP source bootstrap may fetch missing pinned
 sources; --json-source-dir or WAEX_AOSP_JSON_SOURCE_DIR supports offline execution.
+Alternatively, --android-json-jar accepts the hash-pinned Android 14 Robolectric
+framework archive, using its real org.json implementation (not framework shadows).
 """
 import argparse
 import hashlib
@@ -15,6 +17,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -26,6 +29,7 @@ ROOT = Path(__file__).resolve().parents[1]
 HOOK = Path("app/src/main/java/com/waenhancer/xposed/features/privacy/CallPrivacyHook.java")
 IDENTITY = Path("app/src/main/java/com/waenhancer/utils/ContactIdentityPolicy.java")
 CUSTOM = Path("app/src/main/java/com/waenhancer/xposed/features/privacy/CustomPrivacyHook.kt")
+ANDROID_14_JAR_SHA256 = '6be2218c6a53fe3c57bc22ebdc723edcb7270a8a6f187545708aa5c0ed813977'
 STUBS = {}
 
 
@@ -35,6 +39,7 @@ def stub(path, source):
 
 stub('android/annotation/SuppressLint.java', '''package android.annotation; public @interface SuppressLint { String[] value(); }''')
 stub('androidx/annotation/NonNull.java', '''package androidx.annotation; public @interface NonNull {}''')
+stub('androidx/annotation/VisibleForTesting.java', '''package androidx.annotation; public @interface VisibleForTesting {}''')
 stub('android/content/Context.java', '''package android.content;
 import java.io.File;
 public class Context {
@@ -47,7 +52,7 @@ public class Context {
 }
 ''')
 stub('android/content/SharedPreferences.java', '''package android.content;
-public interface SharedPreferences {String getString(String key,String fallback); boolean getBoolean(String key,boolean fallback);
+public interface SharedPreferences {String getString(String key,String fallback); boolean getBoolean(String key,boolean fallback);boolean contains(String key);
  Editor edit();interface Editor {Editor putString(String key,String value);void apply();}}
 ''')
 stub('android/content/DialogInterface.java', '''package android.content;
@@ -167,7 +172,7 @@ stub('com/waenhancer/xposed/core/devkit/DexSearchEngine.java', '''package com.wa
 import android.content.Context;import java.lang.reflect.Method;import org.luckypray.dexkit.result.*;
 public class DexSearchEngine {public static Method incoming;public static DexSearchEngine getInstance(){return new DexSearchEngine();}
  public interface Finder<T>{T find(Bridge b,ClassLoader l)throws Throwable;}
- public Method findMethodWithCache(Context c,ClassLoader l,String key,Finder<Method> f){return key.equals("wpp_voip_on_call_state_changed")?incoming:null;}
+ public Method findMethodWithCache(Context c,ClassLoader l,String key,Finder<Method> f){if(!key.equals("wpp_voip_on_call_state_changed")&&!key.equals("waex_voip_on_call_state_changed"))throw new AssertionError("unexpected incoming selector cache");return incoming;}
  public Class<?> findClassWithCache(Context c,ClassLoader l,String key,Finder<Class<?>> f){return null;}
  public static class Results<T> extends java.util.ArrayList<T>{public T firstOrNull(){return isEmpty()?null:get(0);}}
  public static class Bridge {public Results<ClassData> findClass(Object o){return new Results<>();}public Results<MethodData> findMethod(Object o){return new Results<>();}}
@@ -255,6 +260,7 @@ public class CallPrivacyContactsTest {
  static File root;static Context context;static Prefs prefs;static CallPrivacyHook hook;static int checks,failures;
  interface Check {void run()throws Throwable;}
  static class Prefs implements SharedPreferences {final Map<String,Object> values=new HashMap<>();
+  public boolean contains(String key){return values.containsKey(key);}
   public String getString(String key,String fallback){return values.containsKey(key)?(String)values.get(key):fallback;}
   public boolean getBoolean(String key,boolean fallback){return values.containsKey(key)?(Boolean)values.get(key):fallback;}
   public Editor edit(){return new Editor(){final Map<String,String> pending=new HashMap<>();
@@ -327,6 +333,10 @@ public class CallPrivacyContactsTest {
   test("legacy-block-all-ignores-confirmation-marker",()->{reset("saved_phone");mode("1");ruleMarker(PN,false,Boolean.FALSE);
    check(incoming(PN,false),"Confirmation weakened block-all mode");});
   test("disabled-custom-privacy-ignores-contact-rule",()->{reset("empty");prefs.values.put("custom_privacy",false);rule(PN,true);check(!incoming(PN,false),"Disabled contact rules still block");});
+  test("explicit-global-opt-out-overrides-confirmed-rules-and-all-policy-modes",()->{for(String policy:new String[]{"0","1","2","3","4"}){reset("empty");mode(policy);prefs.values.put("call_privacy_enabled",false);rule(PN,true);check(!incoming(PN,false),"Explicit global opt-out ignored for mode "+policy);check(names.mappingCalls==0&&names.systemCalls==0&&SQLiteDatabase.paths.isEmpty(),"Disabled filtering queried contact data");}});
+  test("current-blocklist-mode-preserves-selected-contacts",()->{reset("empty");mode("3");prefs.values.put("call_block_contacts",PN);check(incoming(PN,false),"Selected blocklist contact allowed");reset("empty");mode("3");prefs.values.put("call_block_contacts","99912345678@s.whatsapp.net");check(!incoming(PN,false),"Unselected blocklist contact blocked");});
+  test("current-allowlist-mode-preserves-selected-contacts",()->{reset("empty");mode("4");prefs.values.put("call_white_contacts",PN);check(!incoming(PN,false),"Selected allowlist contact blocked");reset("empty");mode("4");prefs.values.put("call_white_contacts","99912345678@s.whatsapp.net");check(incoming(PN,false),"Unselected allowlist contact allowed");});
+  test("mapped-LID-respects-current-phone-blocklist",()->{reset("empty");mode("3");names.mappings.put(LID,PHONE);prefs.values.put("call_block_contacts",PN);check(incoming(LID,false),"Mapped LID ignored configured phone blocklist");});
   test("outgoing-call-preserves-original-path",()->{reset("empty");mode("1");check(!incoming(PN,true),"Outgoing call intercepted");});
   test("global-block-all-skips-contact-lookups",()->{reset("empty");mode("1");check(block(PN),"Block All ignored");check(names.mappingCalls==0&&names.systemCalls==0&&SQLiteDatabase.paths.isEmpty(),"Block All performed unnecessary contact work");});
   test("legacy-enable-alone-does-not-block-everyone",()->{reset("empty");prefs.values.put("call_privacy_enabled",true);check(!incoming(PN,false),"Enable flag changed policy mode");});
@@ -399,17 +409,30 @@ def prepare_databases(out):
     return root
 
 
-def run(root, out, allow_failure=False, json_source_dir=None):
+def run(root, out, allow_failure=False, json_source_dir=None, android_json_jar=None):
     out.mkdir(parents=True, exist_ok=True)
     source = (root / HOOK).read_text()
     custom_source = (root / CUSTOM).read_text()
     sources = out / 'sources'
     classes = out / 'classes'
     classes.mkdir(exist_ok=True)
-    cache = Path(json_source_dir or os.environ.get('WAEX_AOSP_JSON_SOURCE_DIR')
-                 or Path.home() / '.cache/waex-qa/android-json-14').resolve()
-    aosp_sources = json_sources(cache, allow_download=json_source_dir is None
-                               and not os.environ.get('WAEX_AOSP_JSON_SOURCE_DIR'))
+    json_archives = []
+    if android_json_jar is not None:
+        if json_source_dir is not None or os.environ.get('WAEX_AOSP_JSON_SOURCE_DIR'):
+            raise ValueError('Choose either pinned JSON sources or the Android JSON archive')
+        archive = Path(android_json_jar).resolve()
+        digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+        if digest != ANDROID_14_JAR_SHA256:
+            raise ValueError('Expected hash-pinned android-all-14-robolectric-10818077.jar')
+        json_archives = [archive]
+        aosp_sources = []
+        json_identity = {'android_all_14_archive_sha256': digest}
+    else:
+        cache = Path(json_source_dir or os.environ.get('WAEX_AOSP_JSON_SOURCE_DIR')
+                     or Path.home() / '.cache/waex-qa/android-json-14').resolve()
+        aosp_sources = json_sources(cache, allow_download=json_source_dir is None
+                                   and not os.environ.get('WAEX_AOSP_JSON_SOURCE_DIR'))
+        json_identity = {'aosp_json_android_14_source_sha256': SHA256}
     for relative, annotation in android_doubles(ROOT).items():
         if not relative.startswith('android/content/'):
             stub(relative, annotation)
@@ -440,14 +463,16 @@ except sqlite3.Error:
 ''')
     commands = [
         ['javac', '--release', '17', '-d', str(classes),
+         *(['-classpath', os.pathsep.join(map(str, json_archives))] if json_archives else []),
          *map(str, sorted(p for p in sources.rglob('*.java') if p != test_source)),
-         *map(str, aosp_sources), str(root / IDENTITY)],
-        ['kotlinc', '-jvm-target', '17', '-classpath', str(classes),
+         *map(str, aosp_sources), str(root / IDENTITY),
+         str(root / 'app/src/main/java/com/waenhancer/xposed/utils/HookErrors.java')],
+        ['kotlinc', '-jvm-target', '17', '-classpath', os.pathsep.join(map(str, (classes, *json_archives))),
          str(kotlin), '-include-runtime', '-d', str(custom_jar)],
-        ['javac', '--release', '17', '-classpath', os.pathsep.join(map(str, (classes, custom_jar))),
+        ['javac', '--release', '17', '-classpath', os.pathsep.join(map(str, (classes, custom_jar, *json_archives))),
          '-d', str(classes), str(root / HOOK), str(test_source)],
         ['java', '-Dfixture.python='+sys.executable, '-Dfixture.sql='+str(sql_runner),
-         '-cp', os.pathsep.join(map(str, (classes, custom_jar))),
+         '-cp', os.pathsep.join(map(str, (classes, custom_jar, *json_archives))),
          'com.waenhancer.xposed.features.privacy.CallPrivacyContactsTest', str(database_root)],
     ]
     outcomes = []
@@ -475,7 +500,7 @@ except sqlite3.Error:
         'source_sha256': {str(p): hashlib.sha256((root / p).read_bytes()).hexdigest() for p in (HOOK, IDENTITY, CUSTOM)},
         'compiled_custom_privacy_fragments': callback_hashes,
         'async_isolation': 'Every intercepted incoming callback awaits its own Context notification endpoint with a bounded latch before another case can reset contact counters; the production executor and callback remain unchanged.',
-        'aosp_json_android_14_source_sha256': SHA256,
+        'json_identity': json_identity,
         'fixture_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         'limits': ('Complete production CallPrivacyHook and ContactIdentityPolicy compiled and executed. '
                    'Exact CustomPrivacyHook reader and Save/Cancel callbacks compiled in Kotlin; '
@@ -492,18 +517,63 @@ except sqlite3.Error:
     return report
 
 
+def mutation_controls(root, out, json_source_dir=None, android_json_jar=None):
+    mutations = (
+        ('ignore-explicit-opt-out', 'if (prefs.contains("call_privacy_enabled")) {',
+         'if (false && prefs.contains("call_privacy_enabled")) {'),
+        ('confirm-ambiguous-legacy-rule',
+         'Boolean.TRUE.equals(contactPrivacy.opt("BlockCallConfirmed"))', 'true'),
+        ('drop-mapped-phone-namespace',
+         'String phoneJid = phone != null ? phone + "@s.whatsapp.net" : null;',
+         'String phoneJid = phone;'),
+    )
+    original = (root / HOOK).read_text()
+    results = []
+    for name, before, after in mutations:
+        if original.count(before) != 1:
+            raise ValueError('Mutation anchor changed: ' + name)
+        with tempfile.TemporaryDirectory(prefix='waex-call-contact-mutant-') as temporary:
+            target = Path(temporary)
+            for path in (HOOK, IDENTITY, CUSTOM,
+                         Path('app/src/main/java/com/waenhancer/xposed/utils/HookErrors.java')):
+                (target / path).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(root / path, target / path)
+            (target / HOOK).write_text(original.replace(before, after, 1))
+            result = run(target, out / name, True, json_source_dir, android_json_jar)
+            detected = result['failed'] > 0 and result['exit_codes'][:3] == [0, 0, 0]
+            results.append({'name': name, 'compiled': True,
+                            'completed_scenarios': result['checks'],
+                            'failed_scenarios': result['failed'],
+                            'behaviorally_detected': detected})
+            (out / 'mutation-results.json').write_text(json.dumps(results, indent=2) + '\n')
+            if not detected:
+                raise RuntimeError('Behavioral mutation survived: ' + name)
+    return results
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source-root', type=Path, default=ROOT)
     parser.add_argument('--out', type=Path)
     parser.add_argument('--json-source-dir', type=Path)
+    parser.add_argument('--android-json-jar', type=Path,
+                        help='Offline, hash-pinned android-all-14-robolectric-10818077.jar')
     parser.add_argument('--allow-test-failure', action='store_true')
+    parser.add_argument('--mutation-control', action='store_true')
     args = parser.parse_args()
     if args.out:
-        run(args.source_root.resolve(), args.out.resolve(), args.allow_test_failure, args.json_source_dir)
+        run(args.source_root.resolve(), args.out.resolve(), args.allow_test_failure,
+            args.json_source_dir, args.android_json_jar)
+        if args.mutation_control:
+            mutation_controls(args.source_root.resolve(), args.out.resolve(),
+                              args.json_source_dir, args.android_json_jar)
     else:
         with tempfile.TemporaryDirectory(prefix='waex-call-contacts-') as directory:
-            run(args.source_root.resolve(), Path(directory), args.allow_test_failure, args.json_source_dir)
+            run(args.source_root.resolve(), Path(directory), args.allow_test_failure,
+                args.json_source_dir, args.android_json_jar)
+            if args.mutation_control:
+                mutation_controls(args.source_root.resolve(), Path(directory),
+                                  args.json_source_dir, args.android_json_jar)
 
 
 if __name__ == '__main__':

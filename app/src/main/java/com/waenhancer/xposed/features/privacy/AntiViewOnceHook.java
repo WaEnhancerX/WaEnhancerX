@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.xposed.utils.HookErrors;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import org.luckypray.dexkit.query.FindClass;
@@ -77,7 +78,7 @@ public class AntiViewOnceHook extends BaseFeature {
                                     }
                                 }
                             }
-                        } catch (Throwable ignored) {}
+                        } catch (Throwable ignored) { HookErrors.swallowed("AntiViewOnceHook", ignored); }
                     }
                 }
             } catch (Throwable t) {
@@ -97,7 +98,7 @@ public class AntiViewOnceHook extends BaseFeature {
                         try {
                             Method m = md.getMethodInstance(classLoader);
                             if (m != null) targets.add(m);
-                        } catch (Throwable ignored) {}
+                        } catch (Throwable ignored) { HookErrors.swallowed("AntiViewOnceHook", ignored); }
                     }
                 } catch (Throwable t) {
                     XposedBridge.log(TAG + " Strategy 2 search failed: " + t.getMessage());
