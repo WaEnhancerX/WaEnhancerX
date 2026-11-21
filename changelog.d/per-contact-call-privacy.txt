@@ -1,0 +1,5 @@
+[Fixes]
+- Apply explicitly confirmed per-contact call blocks when global call privacy
+  uses its default mode, while respecting an explicit global opt-out.
+- Resolve saved callers within the active app and profile without treating
+  unmapped LIDs or display names as saved contacts.
