@@ -101,7 +101,7 @@ def android_doubles(root: Path) -> dict[str, str]:
     source = ast.literal_eval(assignments[0].value)
     # Keep android.content.pm symbols used by the real PreferenceStores; all
     # unexpected filesystem access still throws in the Context double.
-    doubles = {p: s for p, s in source.items() if p.startswith('android/content/')}
+    doubles = {p: s for p, s in source.items() if p.startswith(('android/content/', 'androidx/annotation/'))}
     doubles['android/compat/annotation/UnsupportedAppUsage.java'] = (
         'package android.compat.annotation; public @interface UnsupportedAppUsage {}')
     doubles['android/annotation/SystemApi.java'] = (
@@ -148,7 +148,7 @@ def main() -> int:
         commands = [
             [resolved['javac'], '--release', '17', '-d', str(out_java),
              *map(str, java_files + aosp), str(source / 'config/PreferenceSchema.java'),
-             str(source / 'config/PreferenceStores.java')],
+             str(source / 'config/PreferenceStores.java'), str(source / 'config/ExclusivePreferences.java')],
             [resolved['kotlinc'], '-jvm-target', '17', '-cp', str(out_java), '-d', str(out_kotlin),
              str(codec), str(ROOT / 'qa/kotlin/TestSettingsBackupJson.kt')],
             [resolved['java'], '-Xmx128m', '-Xss1m', '-cp',

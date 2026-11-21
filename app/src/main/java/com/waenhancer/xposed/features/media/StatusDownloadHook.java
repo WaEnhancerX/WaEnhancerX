@@ -277,11 +277,13 @@ public class StatusDownloadHook extends BaseFeature {
                 isTextStatus ? "ic_waex_copy" : "ic_waex_download");
         if (icon != null) item.setIcon(icon);
         item.setOnMenuItemClickListener(menuItem -> {
-            // Decide again at tap time: the user may swipe while the menu remains alive.
-            if (isCurrentMediaStatus(sourceObject)) {
+            // The menu is reused across swipes. Capture the selected file at tap time:
+            // the playback fragment can point to a different status by worker time.
+            final File selectedMediaFile = extractMediaFile(resolveCurrentStatusItem(sourceObject));
+            if (selectedMediaFile != null) {
                 CompletableFuture.runAsync(() -> {
                     try {
-                        downloadCurrentStatus(sourceObject);
+                        downloadStatusFile(selectedMediaFile);
                     } catch (Throwable t) {
                         XposedBridge.log(TAG + " Download error: " + t.getClass().getSimpleName());
                         UiThread.toast(context, UiText.get(R.string.waex_ui_failed_to_download_status,
@@ -717,10 +719,7 @@ public class StatusDownloadHook extends BaseFeature {
         return activity != null && activity.getWindow() != null ? activity.getWindow().getDecorView() : null;
     }
 
-    private void downloadCurrentStatus(Object sourceObject) {
-        Object currentStatusItem = resolveCurrentStatusItem(sourceObject);
-        File mediaFile = extractMediaFile(currentStatusItem);
-
+    private void downloadStatusFile(File mediaFile) {
         if (isMediaFileReady(mediaFile)) {
             saveMediaFile(context, mediaFile);
         } else {

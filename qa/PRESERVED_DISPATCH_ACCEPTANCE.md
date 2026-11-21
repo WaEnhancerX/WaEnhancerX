@@ -1,5 +1,45 @@
 # Preserved messages: asynchronous acknowledgement acceptance
 
+## Current Nightly reconciliation — 2026-11-21
+
+The nested-scope candidate is reconciled with
+`nightly@9972e49fac9bfb650c25ee31fde0da9425b67175`, including the fixture repairs
+merged through PR #185. Its eight service-contract groups retain current
+provider calls, target-scoped transcription signatures, theme-asset guards and
+strict diagnostic boundaries. Every fixture and service-contract key has a
+single owner; BuildConfig uses only the checked Gradle-derived typed fields.
+Combining both previous BuildConfig entries would silently overwrite one and is
+not a valid conflict resolution.
+
+The required matrix remains **35 methods on API 24/28/34, 105 executions**,
+including both nested-invocation regressions. Static checks matched all thirty
+source declaration/callsite patterns and found seventeen unique literal fixture
+entries (nineteen generated service boundaries after the two Xposed additions);
+deliberate duplicate contract and BuildConfig keys were rejected. These checks
+validate merge structure only.
+
+Fresh Linux verification used Python 3.12.14, Temurin 21.0.13.1+2, Kotlin 2.0.20,
+Robolectric 4.17, the pinned DexKit 2.2.0 public classes JAR and verified offline
+API 24/28/34 SDK JARs. All four production/support/provider compilation stages
+completed. The reconciled candidate completed **105 executions with zero
+failures** in 20.416s. The same candidate runner and test fixture against exact
+nightly production completed **105 executions with six assertion failures** in
+20.293s: the two nested-scope regressions failed on each API. This validates the
+negative control; it does not make the defective reference a passing build.
+
+Source, service-fixture, dependency and SDK hashes and complete compiler/JUnit
+outputs were retained with each run. Public fixture APIs remain explicit
+boundaries. These results are Robolectric regressions, not proof of real host
+method discovery, Xposed injection, physical Android, or WhatsApp account effects.
+The following older results are historical and are not substituted for this
+fresh exact-input comparison. Remote QA/review must still run on the new head.
+An independent identity comparison confirmed all twenty source inputs against
+the committed candidate/reference roots, ten compile-contract source identities,
+and identical service fixtures/dependencies/SDKs. The only changed production
+input was `PreserveDeleteForMeHook.kt`; both runs used the same test fixture.
+
+## Historical acceptance and execution evidence
+
 This document replaces the old synchronous sender acceptance contract for PR #87. Current production already queues manager persistence; success returned from dispatch means enqueue acceptance, not a committed vault row.
 
 ## Scope

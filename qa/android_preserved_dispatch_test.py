@@ -249,20 +249,34 @@ def main():
             r'Bundle\s+ready\s*\(', r'Bundle\s+handle\s*\(', r'Bundle\s+log\s*\(',
             r'Bundle\s+ready\s*\(\s*@NonNull\s+Context\s+context\s*,\s*@Nullable\s+String\s+target\s*\)',
             r'Bundle\s+handle\s*\(\s*@NonNull\s+Context\s+context\s*,\s*@NonNull\s+Bundle\s+extras\s*,\s*@Nullable\s+String\s+target\s*\)'),
+        PKG/'xposed/utils/AppRestartHelper.java': (
+            r'void\s+restartPackage\s*\(\s*Context\s+context\s*,\s*String\s+packageName\s*,\s*String\s+appName\s*,\s*boolean\s+showProgressToast\s*\)',),
+        PKG/'utils/WhatsAppPackageDetector.kt': (
+            r'fun\s+isWhatsAppPackageName\s*\(packageName:\s*String\?\)',
+            r'DeclaredWhatsAppTargets\.contains\(packageName\)'),
+        # Out-of-scope services are compile boundaries. Verify their current
+        # declarations so a signature drift does not silently bless a fixture.
         PKG/'utils/DiagnosticsRecorder.java': (
             r'boolean\s+isAdvancedEnabled\s*\(\s*Context\s+context\s*\)',
             r'void\s+recordHookHealth\s*\(\s*Context\s+context\s*,\s*String\s+target\s*,\s*String\s+runtime',
             r'void\s+recordHookSummary\s*\(\s*Context\s+context\s*,\s*String\s+target\s*,\s*String\s+hooksJson\s*\)',
             r'int\s+recordTargetExitHistory\s*\(\s*Context\s+context\s*,\s*String\s+target\s*,\s*long\[\]\s+times'),
         PKG/'theme/ThemeRepository.kt': (
-            r'fun\s+assetFile\s*\(\s*context:\s*Context,\s*themeId:\s*String\?,\s*name:\s*String\?\s*\):\s*File\?',),
+            r'companion\s+object\s*\{',
+            r'fun\s+assetFile\s*\(\s*context:\s*Context,\s*themeId:\s*String\?,\s*name:\s*String\?\s*\):\s*File\?',
+            r'ThemeIds\.isValidId\(themeId\)',
+            r'ThemeIds\.isValidAssetName\(name\)'),
         PKG/'core/preferences/WaexPreferenceManager.java': (
             r'public\s+static\s+final\s+String\s+TARGET_SEEDED_KEY\s*=\s*"target_seeded"\s*;',),
-        PKG/'xposed/utils/AppRestartHelper.java': (
-            r'void\s+restartPackage\s*\(\s*Context\s+context\s*,\s*String\s+packageName\s*,\s*String\s+appName\s*,\s*boolean\s+showProgressToast\s*\)',),
-        PKG/'utils/WhatsAppPackageDetector.kt': (
-            r'fun\s+isWhatsAppPackageName\s*\(packageName:\s*String\?\)',
-            r'DeclaredWhatsAppTargets\.contains\(packageName\)'),
+        PKG/'xposed/bridge/HookProvider.java': (
+            r'ThemeRepository\.Companion\.assetFile\s*\(',
+            r'DiagnosticsRecorder\.recordHookHealth\s*\(',
+            r'DiagnosticsRecorder\.recordHookSummary\s*\(',
+            r'DiagnosticsRecorder\.isAdvancedEnabled\s*\(',
+            r'DiagnosticsRecorder\.recordTargetExitHistory\s*\(',
+            r'TranscriptionRequestHandler\.handle\(context,\s*extras,\s*callerTarget\(context,\s*callerUid\)\)',
+            r'TranscriptionRequestHandler\.ready\(context,\s*callerTarget\(context,\s*callerUid\)\)',
+            r'WaexPreferenceManager\.TARGET_SEEDED_KEY'),
     }
     contract_hashes={}
     for relative,required in contracts.items():
@@ -348,33 +362,36 @@ public final class TranscriptionRequestHandler {
   throw new AssertionError("Transcription outside preserved-message fixture");
  }
 }''',
+        # These services are not covered by preserved-message cases. Fail
+        # loudly if a future test unexpectedly crosses their boundaries.
         'com/waenhancer/utils/DiagnosticsRecorder.java':'''package com.waenhancer.utils;
 public final class DiagnosticsRecorder {
- public static boolean isAdvancedEnabled(android.content.Context c){
-  throw new AssertionError("Diagnostics outside preserved-message fixture");
- }
- public static void recordHookHealth(android.content.Context c,String target,String runtime,String bridge,boolean error,int pid){
-  throw new AssertionError("Diagnostics outside preserved-message fixture");
+ public static boolean isAdvancedEnabled(android.content.Context c){throw new AssertionError("Diagnostics outside fixture");}
+ public static void recordHookHealth(android.content.Context c,String target,String runtime,
+                                     String bridge,boolean errorPresent,int targetPid){
+  throw new AssertionError("Diagnostics outside fixture");
  }
  public static void recordHookSummary(android.content.Context c,String target,String hooks){
-  throw new AssertionError("Diagnostics outside preserved-message fixture");
+  throw new AssertionError("Diagnostics outside fixture");
  }
- public static int recordTargetExitHistory(android.content.Context c,String target,long[] times,int[] pids,int[] reasons,int[] statuses,long[] pss,long[] rss){
-  throw new AssertionError("Diagnostics outside preserved-message fixture");
+ public static synchronized int recordTargetExitHistory(android.content.Context c,String target,
+    long[] times,int[] pids,int[] reasons,int[] statuses,long[] pss,long[] rss){
+  throw new AssertionError("Diagnostics outside fixture");
  }
 }''',
         'com/waenhancer/theme/ThemeRepository.java':'''package com.waenhancer.theme;
 public final class ThemeRepository {
  public static final Companion Companion=new Companion();
  public static final class Companion {
-  public java.io.File assetFile(android.content.Context c,String themeId,String name){
-   throw new AssertionError("Theme assets outside preserved-message fixture");
+  public java.io.File assetFile(android.content.Context c,String id,String name){
+   throw new AssertionError("Theme assets outside fixture");
   }
  }
 }''',
         'com/waenhancer/core/preferences/WaexPreferenceManager.java':'''package com.waenhancer.core.preferences;
 public final class WaexPreferenceManager {
  public static final String TARGET_SEEDED_KEY="target_seeded";
+ private WaexPreferenceManager(){}
 }''',
         'com/waenhancer/licensing/LicenseManager.java':'package com.waenhancer.licensing;public class LicenseManager{public static String getProStatus(android.content.Context c){throw new AssertionError("License endpoint is outside fixture");}}',
         'com/waenhancer/update/UpdateCheckCoordinator.java':'package com.waenhancer.update;public class UpdateCheckCoordinator{public static final String TRIGGER_WHATSAPP="unused";public static void request(android.content.Context c,String s,boolean b){throw new AssertionError("Update endpoint is outside fixture");}}',

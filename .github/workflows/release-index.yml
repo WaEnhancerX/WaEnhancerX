@@ -6,6 +6,11 @@ name: Update release index
 on:
   release:
     types: [published, edited, deleted, released, prereleased]
+  # A pull request merged into nightly brings a changelog fragment, and a Nightly release clears them;
+  # either way the pending nightly changelog on the index branch has to follow.
+  push:
+    branches: [nightly]
+    paths: ['changelog.d/**']
   schedule:
     - cron: '*/30 * * * *'
   workflow_dispatch:
@@ -27,9 +32,13 @@ jobs:
       - name: Check out the generator from the default branch
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.repository.default_branch }}
           path: src
           persist-credentials: false
-          sparse-checkout: scripts/release/build_release_index.py
+          sparse-checkout: |
+            scripts/release/build_release_index.py
+            scripts/release/build_pending_changelog.py
+            scripts/release/assemble-notes.py
           sparse-checkout-cone-mode: false
 
       - name: Check out the release-index branch
@@ -42,6 +51,21 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 src/scripts/release/build_release_index.py index
+
+      # The changelog the next Nightly will have: every fragment merged into nightly since the last
+      # release, merged section by section. A problem here must not stop the release channels above.
+      - name: Check out the nightly changelog fragments
+        uses: actions/checkout@v4
+        with:
+          ref: nightly
+          path: nightly-src
+          persist-credentials: false
+          sparse-checkout: changelog.d
+          sparse-checkout-cone-mode: false
+
+      - name: Build the pending nightly changelog
+        continue-on-error: true
+        run: python3 src/scripts/release/build_pending_changelog.py nightly-src/changelog.d index
 
       - name: Commit and push when changed
         working-directory: index
