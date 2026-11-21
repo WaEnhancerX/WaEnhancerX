@@ -85,6 +85,9 @@
 # On-device transcription: libwaexwhisper.so binds to these JNI names.
 -keep class com.waenhancer.core.transcription.local.WhisperNative { native <methods>; }
 
+# :licensing root path/command constants: libwaexlic.so binds to these JNI names.
+-keep class com.waenhancer.licensing.root.NativeRootPaths { native <methods>; }
+
 # 11. Cross-Module Reflection Bridge (:licensing -> :app)
 # :licensing is merged into :app and obfuscated in the same R8 pass, so a normal
 # compile-time call between the two modules is renamed consistently on both ends
