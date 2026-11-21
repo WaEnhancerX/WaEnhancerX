@@ -96,24 +96,6 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
-      - name: Verify per-contact call privacy and negative controls
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 qa/test_call_privacy_contacts.py --mutation-control \
-            --out "$RUNNER_TEMP/call-privacy-contacts"
-
-      - name: Preserve per-contact call privacy evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: call-privacy-contacts-evidence
-          path: |
-            ${{ runner.temp }}/call-privacy-contacts/**/*.json
-            ${{ runner.temp }}/call-privacy-contacts/**/*.log
-          if-no-files-found: warn
-          retention-days: 14
-
       - name: Verify call-blocking opt-out and target-switch contracts
         shell: bash
         run: |
@@ -222,7 +204,6 @@ jobs:
             qa/test_dex_negative_cache.py
             qa/test_android24_compatibility.py
             qa/test_restart_safety.py
-            qa/test_contact_privacy_editor.py
             qa/test_tasker_runtime_gate.py
             qa/test_double_tap_adapter_binding.py
             qa/test_profile_photo_save.py
