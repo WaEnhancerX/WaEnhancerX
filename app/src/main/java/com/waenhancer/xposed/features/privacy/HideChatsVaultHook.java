@@ -9,6 +9,8 @@ import android.widget.LinearLayout;
 import androidx.annotation.NonNull;
 
 import com.waenhancer.xposed.core.BaseFeature;
+import com.waenhancer.xposed.core.ViewHookDispatcher;
+import com.waenhancer.xposed.utils.HostResourceIds;
 
 import java.util.Collections;
 import java.util.Set;
@@ -69,13 +71,9 @@ public class HideChatsVaultHook extends BaseFeature {
                 context.getPackageName()
         );
 
-        XposedBridge.hookAllMethods(View.class, "onAttachedToWindow", new XC_MethodHook() {
-            @Override
-            protected void afterHookedMethod(MethodHookParam param) {
-                if (isHideChatsEnabled() && param.thisObject instanceof View) {
-                    hideIfLockedHeader((View) param.thisObject);
-                }
-            }
+        // Test the view first: this runs for every attached view, and only one matches.
+        ViewHookDispatcher.onAttached(this, view -> {
+            if (isLockedHeader(view) && isHideChatsEnabled()) hideIfLockedHeader(view);
         });
 
         // RecyclerView binding may restore the header after it has been attached. Force only this
@@ -83,9 +81,10 @@ public class HideChatsVaultHook extends BaseFeature {
         XposedBridge.hookAllMethods(View.class, "setVisibility", new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
-                if (isHideChatsEnabled()
-                        && param.thisObject instanceof View
-                        && isLockedHeader((View) param.thisObject)) {
+                // setVisibility is among the hottest View methods: cheap id test before the pref.
+                if (param.thisObject instanceof View
+                        && isLockedHeader((View) param.thisObject)
+                        && isHideChatsEnabled()) {
                     param.args[0] = View.GONE;
                 }
             }
@@ -94,10 +93,11 @@ public class HideChatsVaultHook extends BaseFeature {
         XposedBridge.hookAllMethods(LinearLayout.class, "onMeasure", new XC_MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
-                if (!isHideChatsEnabled() || !(param.thisObject instanceof LinearLayout)) return;
+                if (!(param.thisObject instanceof LinearLayout)) return;
 
                 LinearLayout layout = (LinearLayout) param.thisObject;
-                if (!hasResourceName(layout, HEADER_COMBO_ID)) return;
+                // onMeasure runs on every layout pass: id test first, preference only on a match.
+                if (!hasResourceName(layout, HEADER_COMBO_ID) || !isHideChatsEnabled()) return;
 
                 int remainingHeight = 0;
                 for (int i = 0; i < layout.getChildCount(); i++) {
@@ -137,7 +137,7 @@ public class HideChatsVaultHook extends BaseFeature {
 
         // Resource IDs vary between WhatsApp and WhatsApp Business builds.
         try {
-            return LOCKED_HEADER_ID.equals(view.getResources().getResourceEntryName(viewId));
+            return LOCKED_HEADER_ID.equals(HostResourceIds.entryName(view, viewId));
         } catch (Throwable ignored) {
             return false;
         }
@@ -150,7 +150,7 @@ public class HideChatsVaultHook extends BaseFeature {
             return viewId == headerComboViewId;
         }
         try {
-            return expectedName.equals(view.getResources().getResourceEntryName(viewId));
+            return expectedName.equals(HostResourceIds.entryName(view, viewId));
         } catch (Throwable ignored) {
             return false;
         }

@@ -4,10 +4,8 @@ import com.waenhancer.app.R;
 import com.waenhancer.utils.UiText;
 
 import android.animation.Animator;
-import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
-import android.animation.StateListAnimator;
 import android.app.Activity;
 import android.content.Context;
 import android.content.ContextWrapper;
@@ -50,9 +48,12 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.waenhancer.xposed.core.BaseFeature;
+import com.waenhancer.xposed.core.ViewHookDispatcher;
 import com.waenhancer.hooking.ScreenScopedFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.xposed.utils.ActivityTracker;
+import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.HostResourceIds;
 
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.enums.StringMatchType;
@@ -63,13 +64,15 @@ import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Floating Bottom Bar Hook:
@@ -98,6 +101,12 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
     private static final WeakHashMap<View, Boolean> mainScrollableCache = new WeakHashMap<>();
     private static final WeakHashMap<View, ContentPadding> contentPaddingCache = new WeakHashMap<>();
     private static final WeakHashMap<Activity, Float> scrollGestureY = new WeakHashMap<>();
+    /** Label groups hidden by icons-only mode, so they can be restored when it is turned off. */
+    private static final WeakHashMap<View, Boolean> labelsHiddenByWaex = new WeakHashMap<>();
+    /** The located bar per Home activity, so touch moves do not re-search the whole view tree. */
+    private static final WeakHashMap<Activity, WeakReference<View>> gestureBottomNav = new WeakHashMap<>();
+    /** {@link #isScrollableClass} depends only on the class; it runs for every attached view. */
+    private static final Map<Class<?>, Boolean> scrollableClassCache = new ConcurrentHashMap<>();
     private static final WeakHashMap<ViewGroup, ViewTreeObserver.OnPreDrawListener> indicatorGuards = new WeakHashMap<>();
     private static final WeakHashMap<ViewGroup, ViewTreeObserver.OnPreDrawListener> ovalGeometryGuards = new WeakHashMap<>();
     private static final WeakHashMap<ViewGroup, ViewTreeObserver.OnPreDrawListener> selectorColorGuards = new WeakHashMap<>();
@@ -196,63 +205,48 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
 
         final Class<?> homeClass = resolveHomeActivityClass();
 
-        XposedHelpers.findAndHookMethod(
-                View.class,
-                "onAttachedToWindow",
-                new XC_MethodHook() {
-                    @Override
-                    protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                        View view = (View) param.thisObject;
-                        int id = view.getId();
-                        boolean isBottomBar = id > 0 && (id == bottomNavId || id == navigationBarId || id == tabLayoutId);
-                        boolean isFab = id > 0 && fabIds.contains(id);
-                        boolean isScrollable = isScrollableClass(view.getClass());
-                        if (!isBottomBar && !isFab && !isScrollable) return;
+        // Shared hooks: one View.onAttachedToWindow / onDetachedFromWindow hook for all features.
+        ViewHookDispatcher.onAttached(this, view -> {
+            int id = view.getId();
+            boolean isBottomBar = id > 0 && (id == bottomNavId || id == navigationBarId || id == tabLayoutId);
+            boolean isFab = id > 0 && fabIds.contains(id);
+            boolean isScrollable = isScrollableClass(view.getClass());
+            if (!isBottomBar && !isFab && !isScrollable) return;
 
-                        Activity activity = getActivityFromView(view);
-                        if (homeClass == null || activity == null || !homeClass.isInstance(activity)) return;
+            Activity activity = getActivityFromView(view);
+            if (homeClass == null || activity == null || !homeClass.isInstance(activity)) return;
 
-                        if (isScrollable) {
-                            // At attach time the pager/list may not have its final dimensions yet.
-                            // Run once after layout and once after the tab transition settles.
-                            view.post(() -> applyContentBottomSpacing(view));
-                            view.postDelayed(() -> applyContentBottomSpacing(view), 250L);
-                            return;
-                        }
+            if (isScrollable) {
+                // At attach time the pager/list may not have its final dimensions yet.
+                // Run once after layout and once after the tab transition settles.
+                view.post(() -> applyContentBottomSpacing(view));
+                view.postDelayed(() -> applyContentBottomSpacing(view), 250L);
+                return;
+            }
 
-                        if (isBottomBar) {
-                            if (view instanceof ViewGroup && isEnabled("floating_bottom_bar", false)) {
-                                scheduleSetup((ViewGroup) view);
-                            }
-                            return;
-                        }
-                        if (isEnabled("floating_bottom_bar", false)) {
-                            view.post(() -> positionFabAboveCurrentBar(view));
-                        }
-                    }
+            if (isBottomBar) {
+                if (view instanceof ViewGroup && isEnabled("floating_bottom_bar", false)) {
+                    scheduleSetup((ViewGroup) view);
                 }
-        );
+                return;
+            }
+            if (isEnabled("floating_bottom_bar", false)) {
+                view.post(() -> positionFabAboveCurrentBar(view));
+            }
+        });
 
-        XposedHelpers.findAndHookMethod(
-                View.class,
-                "onDetachedFromWindow",
-                new XC_MethodHook() {
-                    @Override
-                    protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                        View view = (View) param.thisObject;
-                        int id = view.getId();
-                        if (id <= 0 || (id != bottomNavId && id != navigationBarId && id != tabLayoutId)) return;
-                        if (view instanceof ViewGroup) {
-                            ViewGroup bar = (ViewGroup) view;
-                            setupAttempts.remove(bar);
-                            processedBars.remove(bar);
-                            styledBottomBars.remove(bar);
-                            scrollableBottomBarCache.clear();
-                            mainScrollableCache.clear();
-                        }
-                    }
-                }
-        );
+        ViewHookDispatcher.onDetached(this, view -> {
+            int id = view.getId();
+            if (id <= 0 || (id != bottomNavId && id != navigationBarId && id != tabLayoutId)) return;
+            if (view instanceof ViewGroup) {
+                ViewGroup bar = (ViewGroup) view;
+                setupAttempts.remove(bar);
+                processedBars.remove(bar);
+                styledBottomBars.remove(bar);
+                scrollableBottomBarCache.clear();
+                mainScrollableCache.clear();
+            }
+        });
 
         Class<?> tabFrameClass = resolveTabFrameClass();
         if (tabFrameClass != null) {
@@ -302,6 +296,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
     @Override
     public void onScreenDisposed(@NonNull Activity activity) {
         scrollGestureY.remove(activity);
+        gestureBottomNav.remove(activity);
         View decor = activity.getWindow().getDecorView();
         if (!(decor instanceof ViewGroup)) return;
         clearViewState((ViewGroup) decor);
@@ -334,13 +329,33 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
      * cannot be resolved by name. Observing touch movement is a non-consuming fallback that keeps
      * hide/show behavior working for every current home tab without replacing its listeners.
      */
+    /** The nearest declaration of {@code name} from {@code leaf} up through its superclasses. */
+    private static Method findDeclaredInHierarchy(Class<?> leaf, String name, Class<?>... parameters) {
+        for (Class<?> current = leaf; current != null; current = current.getSuperclass()) {
+            try {
+                return current.getDeclaredMethod(name, parameters);
+            } catch (NoSuchMethodException ignored) {
+                // Not declared here; keep walking up.
+            }
+        }
+        return null;
+    }
+
     private void hookTouchScrollGestures(Class<?> homeClass) {
         if (homeClass == null) return;
         try {
-            XposedHelpers.findAndHookMethod(homeClass, "dispatchTouchEvent", MotionEvent.class,
+            // HomeActivity usually inherits dispatchTouchEvent, and findAndHookMethod only looks at
+            // the exact class, so hook the class in the hierarchy that actually declares it.
+            Method dispatchTouch = findDeclaredInHierarchy(homeClass, "dispatchTouchEvent", MotionEvent.class);
+            if (dispatchTouch == null) {
+                XposedBridge.log(TAG + " dispatchTouchEvent not found for Home; scroll-hide gesture disabled");
+                return;
+            }
+            XposedBridge.hookMethod(dispatchTouch,
                     new XC_MethodHook() {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam param) {
+                            if (!homeClass.isInstance(param.thisObject)) return;
                             if (!(param.thisObject instanceof Activity)) return;
                             Activity activity = (Activity) param.thisObject;
                             MotionEvent event = (MotionEvent) param.args[0];
@@ -368,9 +383,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                             float threshold = 8f * activity.getResources().getDisplayMetrics().density;
                             if (Math.abs(delta) < threshold) return;
 
-                            View decor = activity.getWindow().getDecorView();
-                            View bottomNav = decor instanceof ViewGroup
-                                    ? findBottomNavInRoot((ViewGroup) decor) : null;
+                            View bottomNav = findGestureBottomNav(activity);
                             if (bottomNav != null) onViewScrolled(bottomNav, delta > 0 ? 10 : -10);
                             scrollGestureY.put(activity, currentY);
                         }
@@ -378,6 +391,19 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Failed to hook touch scroll fallback: " + t);
         }
+    }
+
+    /** Returns the activity's bottom bar, searching the view tree only when the cached one is gone. */
+    private static View findGestureBottomNav(Activity activity) {
+        WeakReference<View> cachedRef = gestureBottomNav.get(activity);
+        View cached = cachedRef != null ? cachedRef.get() : null;
+        if (cached != null && cached.isAttachedToWindow()) return cached;
+
+        View decor = activity.getWindow().getDecorView();
+        View found = decor instanceof ViewGroup ? findBottomNavInRoot((ViewGroup) decor) : null;
+        if (found != null) gestureBottomNav.put(activity, new WeakReference<>(found));
+        else gestureBottomNav.remove(activity);
+        return found;
     }
 
     private Class<?> resolveHomeActivityClass() {
@@ -399,7 +425,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                     }
             );
             if (cls != null) return cls;
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
         Class<?> currentHome = XposedHelpers.findClassIfExists(
                 "com.whatsapp.home.ui.HomeActivity", classLoader);
         if (currentHome != null) return currentHome;
@@ -419,13 +445,13 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                     }
             );
             if (cls != null) return cls;
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
         return null;
     }
 
     private int getResourceId(String name, String type) {
         try {
-            return context.getResources().getIdentifier(name, type, context.getPackageName());
+            return HostResourceIds.resolve(context, name, type);
         } catch (Throwable ignored) {
             return -1;
         }
@@ -441,38 +467,6 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
             ctx = ((ContextWrapper) ctx).getBaseContext();
         }
         return null;
-    }
-
-    private void hookRecyclerViewScrollListeners() {
-        try {
-            Class<?> recyclerViewClass = XposedHelpers.findClassIfExists("androidx.recyclerview.widget.RecyclerView", classLoader);
-            if (recyclerViewClass == null) return;
-
-            Method scrollDispatcher = null;
-            for (Method method : recyclerViewClass.getDeclaredMethods()) {
-                Class<?>[] params = method.getParameterTypes();
-                if (Modifier.isStatic(method.getModifiers()) || method.getReturnType() != void.class
-                        || params.length != 2 || params[0] != int.class || params[1] != int.class) {
-                    continue;
-                }
-                if ("dispatchOnScrolled".equals(method.getName())) {
-                    scrollDispatcher = method;
-                    break;
-                }
-            }
-
-            if (scrollDispatcher != null) {
-                XposedBridge.hookMethod(scrollDispatcher, new XC_MethodHook() {
-                    @Override
-                    protected void afterHookedMethod(MethodHookParam param) {
-                        if (param.args == null || param.args.length < 2) return;
-                        handleRecyclerViewScrolled((View) param.thisObject, (int) param.args[1]);
-                    }
-                });
-            }
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + " Failed to hook RecyclerView scroll listeners: " + t);
-        }
     }
 
     private static void handleRecyclerViewScrolled(View rv, int dy) {
@@ -498,7 +492,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
             }
             if (bottomNav == null) return;
             onViewScrolled(bottomNav, dy);
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
     }
 
     private static void onViewScrolled(View bottomNav, int dy) {
@@ -590,7 +584,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
         float targetOffset = hide ? 0f : baseOffset;
 
         for (String name : FAB_RESOURCE_NAMES) {
-            int id = rootView.getContext().getResources().getIdentifier(name, "id", rootView.getContext().getPackageName());
+            int id = HostResourceIds.id(rootView.getContext(), name);
             if (id <= 0) continue;
             View fab = rootView.findViewById(id);
             if (fab != null) {
@@ -655,6 +649,32 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
         }
     }
 
+    /** Material NavigationBarView label modes (public, stable API values). */
+    private static final int LABEL_VISIBILITY_LABELED = 1;
+    private static final int LABEL_VISIBILITY_UNLABELED = 2;
+
+    /**
+     * Recent WhatsApp builds (seen on 2.26.46) put the bottom navigation in Material's "unlabeled"
+     * mode, which hides both label views of every tab. The floating bar sizes its tabs for icon plus
+     * label, so unless the user chose icons-only, switch the bar back to "labeled".
+     */
+    private static void ensureLabelsShown(ViewGroup bar) {
+        if (userIconsOnly) return;
+        try {
+            Method getMode = bar.getClass().getMethod("getLabelVisibilityMode");
+            Object mode = getMode.invoke(bar);
+            HookErrors.note("FloatingBottomBarHook", "label-visibility-mode", () -> "mode=" + mode);
+            if (mode instanceof Integer && (Integer) mode == LABEL_VISIBILITY_UNLABELED) {
+                bar.getClass().getMethod("setLabelVisibilityMode", int.class)
+                        .invoke(bar, LABEL_VISIBILITY_LABELED);
+                HookErrors.note("FloatingBottomBarHook", "labels-restored",
+                        () -> "switched navigation from unlabeled to labeled");
+            }
+        } catch (ReflectiveOperationException | RuntimeException failure) {
+            HookErrors.swallowed("FloatingBottomBarHook", failure);
+        }
+    }
+
     private boolean setupFloatingBar(ViewGroup bar) {
         try {
             ViewParent parent = bar.getParent();
@@ -663,6 +683,8 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
 
             FrameLayout rootView = findRootView(bar);
             if (rootView == null) return false;
+
+            ensureLabelsShown(bar);
 
             if (container.getParent() == rootView) {
                 updateOverlayLayout(rootView, container, bar);
@@ -867,6 +889,57 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
         }
     }
 
+    /**
+     * Reports a tab whose labels are missing, hidden, transparent, off-screen or empty, plus a
+     * snapshot of the first tabs, so a "labels not visible" report comes with the actual view state.
+     * Rate-limited by {@link HookErrors#note}; the descriptions are only built while under the limit.
+     */
+    private static void diagnoseTabLabels(ViewGroup tabItem, View labelsGroup, int itemHeight) {
+        if (userIconsOnly) return;
+        if (labelsGroup == null) {
+            HookErrors.note("FloatingBottomBarHook", "no-label-group", () -> "tab=" + describeView(tabItem, 2));
+            return;
+        }
+        boolean hidden = labelsGroup.getVisibility() != View.VISIBLE || labelsGroup.getAlpha() < 0.05f;
+        boolean offscreen = itemHeight > 0 && Math.abs(labelsGroup.getTranslationY()) > itemHeight;
+        boolean empty = tabItem.getHeight() > 0
+                && (labelsGroup.getWidth() == 0 || labelsGroup.getHeight() == 0);
+        if (hidden || offscreen || empty) {
+            HookErrors.note("FloatingBottomBarHook", "label-group-not-visible", () -> "hidden=" + hidden
+                    + " offscreen=" + offscreen + " empty=" + empty + " tab=" + describeView(tabItem, 2));
+        }
+        HookErrors.note("FloatingBottomBarHook", "tab-snapshot", () -> "tab=" + describeView(tabItem, 2));
+    }
+
+    private static String describeView(View view, int depth) {
+        StringBuilder out = new StringBuilder();
+        String entry = "-";
+        try {
+            if (view.getId() != View.NO_ID) entry = HostResourceIds.entryName(view, view.getId());
+        } catch (Throwable ignored) { /* generated ids have no entry name */ }
+        out.append(view.getClass().getSimpleName()).append('#').append(entry)
+                .append("{vis=").append(view.getVisibility())
+                .append(" a=").append(view.getAlpha())
+                .append(" ty=").append(view.getTranslationY())
+                .append(' ').append(view.getWidth()).append('x').append(view.getHeight());
+        if (view instanceof TextView) {
+            TextView text = (TextView) view;
+            out.append(" text=\"").append(text.getText()).append("\" color=#")
+                    .append(Integer.toHexString(text.getCurrentTextColor()))
+                    .append(" size=").append(text.getTextSize());
+        }
+        if (view instanceof ViewGroup && depth > 0) {
+            ViewGroup group = (ViewGroup) view;
+            out.append(" children=[");
+            for (int i = 0; i < group.getChildCount(); i++) {
+                if (i > 0) out.append(", ");
+                out.append(describeView(group.getChildAt(i), depth - 1));
+            }
+            out.append(']');
+        }
+        return out.append('}').toString();
+    }
+
     private static void styleAndLayoutTabItem(ViewGroup tabItem, int padV) {
         if (tabItem == null) return;
         float density = tabItem.getContext().getResources().getDisplayMetrics().density;
@@ -879,7 +952,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
             if (child == null) continue;
             if (child.getId() != View.NO_ID) {
                 try {
-                    String entryName = child.getResources().getResourceEntryName(child.getId());
+                    String entryName = HostResourceIds.entryName(child, child.getId());
                     if (entryName != null) {
                         if (entryName.contains("icon_container") || entryName.contains("icon")) {
                             iconContainer = child;
@@ -887,7 +960,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                             labelsGroup = child;
                         }
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
             }
             if (iconContainer == null && child instanceof FrameLayout) {
                 iconContainer = child;
@@ -904,9 +977,14 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
             labelsGroup = tabItem.getChildAt(1);
         }
 
-        if (userIconsOnly) {
-            if (labelsGroup != null) {
+        if (labelsGroup != null) {
+            if (userIconsOnly) {
                 labelsGroup.setVisibility(View.GONE);
+                labelsHiddenByWaex.put(labelsGroup, Boolean.TRUE);
+            } else if (labelsHiddenByWaex.remove(labelsGroup) != null) {
+                // Icons-only was turned off while this bar stayed alive: bring back only the
+                // labels this hook hid, never a group WhatsApp itself keeps GONE.
+                labelsGroup.setVisibility(View.VISIBLE);
             }
         }
 
@@ -948,6 +1026,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
         }
 
         alignNativeStatusBadge(tabItem, iconContainer);
+        diagnoseTabLabels(tabItem, labelsGroup, itemHeight);
 
         // Keep WhatsApp's native badge/indicator implementation intact.  In particular, the
         // status tab's unseen indicator is not an ordinary unread badge: recursively finding
@@ -991,10 +1070,10 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
         if (view == null) return null;
         if (view.getId() != View.NO_ID) {
             try {
-                if (resourceName.equals(view.getResources().getResourceEntryName(view.getId()))) {
+                if (resourceName.equals(HostResourceIds.entryName(view, view.getId()))) {
                     return view;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
         }
         if (view instanceof ViewGroup) {
             ViewGroup group = (ViewGroup) view;
@@ -1004,67 +1083,6 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
             }
         }
         return null;
-    }
-
-    private static void formatBadgeViews(ViewGroup tabItem, View iconContainer, float density) {
-        if (tabItem == null) return;
-        final View badgeIconContainer = iconContainer;
-        List<View> badgeViews = new ArrayList<>();
-        findBadgeViewsRecursive(tabItem, badgeViews);
-
-        if (badgeViews.isEmpty()) return;
-
-        int dotBadgeSizePx = (int) (10 * density);
-
-        for (View badge : badgeViews) {
-            if (badge == null || badge.getVisibility() != View.VISIBLE) continue;
-
-            boolean hasTextNumber = false;
-            if (badge instanceof TextView) {
-                TextView tv = (TextView) badge;
-                CharSequence text = tv.getText();
-                if (text != null && text.length() > 0) {
-                    hasTextNumber = true;
-                }
-            }
-
-            if (hasTextNumber) {
-                if (badgeIconContainer != null) {
-                    alignBadgeToIconTopRight(badge, badgeIconContainer, density, false);
-                    // WhatsApp lays out this badge after the tab item. Re-apply on the next
-                    // frame so a freshly visible badge is positioned from its final bounds.
-                    badge.post(() -> alignBadgeToIconTopRight(badge, badgeIconContainer, density, false));
-                }
-                continue;
-            }
-
-            ViewGroup.LayoutParams lp = badge.getLayoutParams();
-            if (lp != null) {
-                if (lp.width != dotBadgeSizePx || lp.height != dotBadgeSizePx) {
-                    lp.width = dotBadgeSizePx;
-                    lp.height = dotBadgeSizePx;
-                    badge.setLayoutParams(lp);
-                }
-            }
-
-            GradientDrawable dotDrawable = new GradientDrawable();
-            dotDrawable.setShape(GradientDrawable.OVAL);
-            dotDrawable.setColor(0xFF00A884); // WhatsApp green accent
-            badge.setBackground(dotDrawable);
-
-            if (badge instanceof ImageView) {
-                ImageView iv = (ImageView) badge;
-                iv.setImageDrawable(null);
-                iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            }
-
-            if (badgeIconContainer != null) {
-                alignBadgeToIconTopRight(badge, badgeIconContainer, density, true);
-                // The unseen-status indicator is added lazily and its initial bounds are 0,0.
-                // In floating mode that left it at the top of the pill instead of on the icon.
-                badge.post(() -> alignBadgeToIconTopRight(badge, badgeIconContainer, density, true));
-            }
-        }
     }
 
     private static void alignBadgeToIconTopRight(View badge, View iconContainer, float density, boolean isDot) {
@@ -1123,11 +1141,11 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                 if (child instanceof ImageView) {
                     if (child.getId() != View.NO_ID) {
                         try {
-                            String entryName = child.getResources().getResourceEntryName(child.getId());
+                            String entryName = HostResourceIds.entryName(child, child.getId());
                             if (entryName != null && (entryName.contains("icon") || entryName.contains("image"))) {
                                 return child;
                             }
-                        } catch (Throwable ignored) {}
+                        } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
                     }
                 }
             }
@@ -1149,7 +1167,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
         if (view == null) return;
         if (view.getId() != View.NO_ID) {
             try {
-                String entryName = view.getResources().getResourceEntryName(view.getId());
+                String entryName = HostResourceIds.entryName(view, view.getId());
                 if (entryName != null) {
                     if (entryName.contains("active_indicator")) {
                         return;
@@ -1159,7 +1177,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                         return;
                     }
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
         }
         String className = view.getClass().getName();
         if ((className.contains("Badge") || className.endsWith("BadgeView")) && !className.contains("ActiveIndicator")) {
@@ -1209,7 +1227,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
             if (insets != null) {
                 return insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom;
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
         return 0;
     }
 
@@ -1322,7 +1340,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
         bar.setClipChildren(false);
         bar.setClipToPadding(false);
 
-        int dividerId = bar.getContext().getResources().getIdentifier("bottom_nav_divider", "id", bar.getContext().getPackageName());
+        int dividerId = HostResourceIds.id(bar.getContext(), "bottom_nav_divider");
         if (dividerId > 0) {
             View divider = container.findViewById(dividerId);
             if (divider != null) {
@@ -1542,7 +1560,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
     private static void customizeNativeOvalIndicator(View view, float density) {
         if (view.getId() != View.NO_ID) {
             try {
-                String name = view.getResources().getResourceEntryName(view.getId());
+                String name = HostResourceIds.entryName(view, view.getId());
                 if (name != null && name.contains("active_indicator")) {
                     ViewGroup.LayoutParams lp = view.getLayoutParams();
                     if (lp != null) {
@@ -1570,7 +1588,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                     }
                     return;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
         }
         if (view instanceof ViewGroup) {
             ViewGroup group = (ViewGroup) view;
@@ -1583,7 +1601,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
     private static void applyNativeSelectorColor(View view, int color) {
         if (view.getId() != View.NO_ID) {
             try {
-                String name = view.getResources().getResourceEntryName(view.getId());
+                String name = HostResourceIds.entryName(view, view.getId());
                 if (name != null && name.contains("active_indicator")) {
                     Drawable background = view.getBackground();
                     if (background != null) background.mutate().setTint(color);
@@ -1593,7 +1611,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                     view.invalidate();
                     return;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
         }
         if (view instanceof ViewGroup) {
             ViewGroup group = (ViewGroup) view;
@@ -1688,15 +1706,6 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
             }, 32L);
             return false;
         });
-    }
-
-    private static StateListAnimator createSelectionAnimator(View tab) {
-        StateListAnimator animator = new StateListAnimator();
-        animator.addState(new int[]{android.R.attr.state_checked}, scaleAnimator(tab, 1f, 220L));
-        animator.addState(new int[]{android.R.attr.state_selected}, scaleAnimator(tab, 1f, 220L));
-        animator.addState(new int[]{android.R.attr.state_activated}, scaleAnimator(tab, 1f, 220L));
-        animator.addState(new int[0], scaleAnimator(tab, 0.92f, 170L));
-        return animator;
     }
 
     private static Animator scaleAnimator(View tab, float scale, long duration) {
@@ -1841,7 +1850,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
     private static void hideNativeActiveIndicator(View view) {
         if (view.getId() != View.NO_ID) {
             try {
-                String name = view.getResources().getResourceEntryName(view.getId());
+                String name = HostResourceIds.entryName(view, view.getId());
                 if (name != null && name.contains("active_indicator")) {
                     view.setBackground(null);
                     view.setBackgroundColor(Color.TRANSPARENT);
@@ -1849,7 +1858,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                     view.setVisibility(View.INVISIBLE);
                     return;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
         }
         if (view instanceof ViewGroup) {
             ViewGroup group = (ViewGroup) view;
@@ -1890,9 +1899,9 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                 boolean activeIndicator = false;
                 if (child.getId() != View.NO_ID) {
                     try {
-                        String name = child.getResources().getResourceEntryName(child.getId());
+                        String name = HostResourceIds.entryName(child, child.getId());
                         activeIndicator = name != null && name.contains("active_indicator");
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
                 }
                 if (!activeIndicator) {
                     child.setBackground(null);
@@ -2038,9 +2047,9 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
     private static void positionFabsAboveBar(ViewGroup rootView, ViewGroup barContainer) {
         ViewGroup container = barContainer;
         if (container == null) {
-            int navId = rootView.getContext().getResources().getIdentifier("bottom_nav", "id", rootView.getContext().getPackageName());
+            int navId = HostResourceIds.id(rootView.getContext(), "bottom_nav");
             if (navId <= 0) {
-                navId = rootView.getContext().getResources().getIdentifier("navigation_bar", "id", rootView.getContext().getPackageName());
+                navId = HostResourceIds.id(rootView.getContext(), "navigation_bar");
             }
             if (navId > 0) {
                 View navView = rootView.findViewById(navId);
@@ -2069,7 +2078,7 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
         float totalOffset = -(barHeight + bottomMargin + (FAB_GAP_DP * density));
 
         for (String name : FAB_RESOURCE_NAMES) {
-            int id = container.getContext().getResources().getIdentifier(name, "id", container.getContext().getPackageName());
+            int id = HostResourceIds.id(container.getContext(), name);
             if (id <= 0) continue;
             View fab = rootView.findViewById(id);
             if (fab != null) {
@@ -2156,18 +2165,27 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
 
         try {
             if (view.getId() != View.NO_ID) {
-                String entryName = view.getResources().getResourceEntryName(view.getId());
+                String entryName = HostResourceIds.entryName(view, view.getId());
                 if ("list".equalsIgnoreCase(entryName) && isLarge) {
                     return true;
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
 
         String className = view.getClass().getName();
         return (className.contains("WDSList") || className.contains("ObservableRecyclerView") || className.contains("CallsHistory")) && isLarge;
     }
 
     private static boolean isScrollableClass(Class<?> clazz) {
+        if (clazz == null) return false;
+        Boolean cached = scrollableClassCache.get(clazz);
+        if (cached != null) return cached;
+        boolean scrollable = computeScrollableClass(clazz);
+        scrollableClassCache.put(clazz, scrollable);
+        return scrollable;
+    }
+
+    private static boolean computeScrollableClass(Class<?> clazz) {
         while (clazz != null && clazz != Object.class) {
             String name = clazz.getName();
             if (name.equals("androidx.recyclerview.widget.RecyclerView") ||
@@ -2190,11 +2208,11 @@ public class FloatingBottomBarHook extends BaseFeature implements ScreenScopedFe
                 View v = (View) parent;
                 if (v.getId() != View.NO_ID) {
                     try {
-                        String entryName = v.getResources().getResourceEntryName(v.getId());
+                        String entryName = HostResourceIds.entryName(v, v.getId());
                         if ("conversation_view_host".equals(entryName)) {
                             return true;
                         }
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable ignored) { HookErrors.swallowed("FloatingBottomBarHook", ignored); }
                 }
             }
             if (parent instanceof View) {

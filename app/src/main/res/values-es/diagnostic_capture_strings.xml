@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="diag_capture_title">Ayúdanos a corregir problemas</string>
+    <string name="diag_capture_description">Actívalo, usa WAEX con normalidad y, cuando algo falle, comparte un informe pequeño con los desarrolladores. Está desactivado por defecto y permanece en tu teléfono hasta que lo compartas.\n\nSe guarda hasta 7 días: las pantallas de WAEX que abres, qué ajustes cambias (nunca sus valores), fallos de WAEX y si los hooks de WAEX arrancaron bien en WhatsApp.\n\nNunca se guarda: chats, contactos, multimedia, contraseñas ni registros de otras aplicaciones.</string>
+    <string name="diag_capture_enable">Guardar informes de problemas</string>
+    <string name="diag_capture_target_exit_enable">Incluir historial de cierres de WhatsApp</string>
+    <string name="diag_capture_target_exit_description">Añade los motivos por los que Android cerró WhatsApp recientemente (fallo, bloqueo, poca memoria). Reinicia WhatsApp una vez tras activarlo. Requiere Android 11 o superior.</string>
+    <string name="diag_capture_share">Compartir informe</string>
+    <string name="diag_capture_clear">Eliminar datos guardados</string>
+    <string name="diag_capture_consent">Al compartir, el informe incluye también el modelo del teléfono, las versiones de Android y de las apps, y qué funciones de WAEX están activas. No se envía nada automáticamente. Tú eliges la app y el destinatario.</string>
+    <string name="diag_capture_no_events">Todavía no hay nada que compartir. Usa WAEX un tiempo y vuelve a intentarlo cuando ocurra el problema.</string>
+    <string name="diag_capture_export_failed">No se pudo crear el informe. Comprueba el espacio libre e inténtalo de nuevo.</string>
+    <string name="diag_capture_share_failed">Ninguna aplicación pudo recibir el informe. Prueba con otra app del menú de compartir.</string>
+    <string name="diag_capture_pref_failed">No se pudo guardar este ajuste. Inténtalo de nuevo.</string>
+    <string name="diag_capture_confirm_clear_title">¿Eliminar los datos guardados?</string>
+    <string name="diag_capture_confirm_clear_body">Se borrarán los datos de problemas guardados en tu teléfono. Los informes que ya compartiste no se ven afectados.</string>
+    <string name="diag_capture_cancel">Cancelar</string>
+    <string name="diag_capture_confirm">Eliminar</string>
+    <string name="diag_capture_cleared">Datos guardados eliminados.</string>
+    <string name="diag_capture_share_chooser">Compartir informe de WAEX</string>
+</resources>

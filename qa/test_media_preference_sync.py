@@ -3,8 +3,10 @@
 
 Does not require proprietary APKs, Gradle or an Android SDK; does not verify LSPosed runtime.
 """
+import argparse
 from pathlib import Path
 from xml.etree import ElementTree as ET
+import re
 import subprocess
 import tempfile
 
@@ -12,6 +14,12 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "app/src/main/java/com/waenhancer"
 POLICY = SRC / "ui/screens/media/MediaQuickSettingPolicy.java"
 HARNESS = ROOT / "qa/TestMediaQuickSettingPolicy.java"
+parser = argparse.ArgumentParser()
+parser.add_argument("--manager-source", type=Path,
+                    default=SRC / "core/preferences/WaexPreferenceManager.java",
+                    help="Exact manager source to compile (allows executable negative controls)")
+args = parser.parse_args()
+manager_source = args.manager_source.resolve(strict=True)
 
 with tempfile.TemporaryDirectory(prefix="waex_media_policy_") as output:
     subprocess.run(["javac", "--release", "17", "-d", output,
@@ -23,7 +31,12 @@ with tempfile.TemporaryDirectory(prefix="waex_media_policy_") as output:
 # then exercise commit atomicity, schema validation and failure/notification behavior.
 STUBS = {
     "android/net/Uri.java": """package android.net;
-public class Uri { public static Uri parse(String s) { return new Uri(); } }
+public final class Uri {
+ private final String value;
+ private Uri(String value) { this.value = value; }
+ public static Uri parse(String value) { if (value == null) throw new NullPointerException(); return new Uri(value); }
+ @Override public String toString() { return value; }
+}
 """,
     "android/content/pm/ApplicationInfo.java": """package android.content.pm;
 public class ApplicationInfo { public String dataDir; }
@@ -31,9 +44,9 @@ public class ApplicationInfo { public String dataDir; }
     "android/content/ContentResolver.java": """package android.content;
 import android.net.Uri; import java.io.InputStream; import java.io.OutputStream;
 public abstract class ContentResolver {
- public void notifyChange(Uri uri, Object observer) {}
- public InputStream openInputStream(Uri uri) { return null; }
- public OutputStream openOutputStream(Uri uri, String mode) { return null; }
+ public abstract void notifyChange(Uri uri, Object observer);
+ public InputStream openInputStream(Uri uri) { throw new AssertionError("Unexpected backup read"); }
+ public OutputStream openOutputStream(Uri uri, String mode) { throw new AssertionError("Unexpected backup write"); }
 }
 """,
     "android/content/SharedPreferences.java": """package android.content;
@@ -44,6 +57,7 @@ public interface SharedPreferences {
  java.util.Set<String> getStringSet(String key, java.util.Set<String> fallback);
  int getInt(String key, int fallback);
  float getFloat(String key, float fallback);
+ boolean contains(String key);
  Map<String, ?> getAll();
  Editor edit();
  interface Editor {
@@ -51,19 +65,23 @@ public interface SharedPreferences {
   Editor putString(String key, String value);
   Editor putStringSet(String key, java.util.Set<String> value);
   Editor putInt(String key, int value);
+  Editor putLong(String key, long value);
   Editor putFloat(String key, float value);
   Editor remove(String key);
   boolean commit();
+  void apply();
  }
 }
 """,
     "android/content/Context.java": """package android.content;
 import android.content.pm.ApplicationInfo;
+import java.io.File;
 public abstract class Context {
  public static final int MODE_PRIVATE = 0;
  public abstract SharedPreferences getSharedPreferences(String name, int mode);
  public abstract ContentResolver getContentResolver();
  public abstract ApplicationInfo getApplicationInfo();
+ public abstract File getFilesDir();
 }
 """,
     "dagger/hilt/android/qualifiers/ApplicationContext.java": """package dagger.hilt.android.qualifiers;
@@ -79,8 +97,32 @@ public @interface Singleton {}
 import android.content.Context; import java.io.InputStream; import java.io.OutputStream;
 public class SettingsBackupCodec {
  public static final SettingsBackupCodec INSTANCE = new SettingsBackupCodec();
- public int encode(Context c, OutputStream o) { return 0; }
- public int decode(Context c, InputStream i) { return 0; }
+ public int encode(Context c, OutputStream o) { throw new AssertionError("Unexpected backup encode"); }
+ public int decode(Context c, InputStream i) { throw new AssertionError("Unexpected backup decode"); }
+}
+""",
+    # The private :licensing dependency is not distributed with the public source.
+    # Match the four actual @Override signatures without permissive defaults.
+    "com/waenhancer/licensing/customprops/CustomAbPropsStore.java": """package com.waenhancer.licensing.customprops;
+public interface CustomAbPropsStore {
+ boolean getBoolean(String key, boolean fallback);
+ void putBoolean(String key, boolean value);
+ String getString(String key, String fallback);
+ void putString(String key, String value);
+}
+""",
+    # Restart-sheet behavior has separate tests. Make this boundary observable and
+    # fail on unexpected arguments rather than concealing manager notifications.
+    "com/waenhancer/config/PreferenceRestartTracker.java": """package com.waenhancer.config;
+import android.content.SharedPreferences;
+import java.util.ArrayList;
+import java.util.List;
+public final class PreferenceRestartTracker {
+ public static final List<String> changes = new ArrayList<>();
+ public static void onPreferenceChanged(SharedPreferences prefs, String key) {
+  if (prefs == null || key == null || key.isEmpty()) throw new AssertionError("Invalid restart input");
+  changes.add(key);
+ }
 }
 """,
 }
@@ -94,7 +136,7 @@ with tempfile.TemporaryDirectory(prefix="waex_media_manager_") as output:
     sources = stub_paths + [
         str(SRC / "config/PreferenceSchema.java"),
         str(SRC / "config/PreferenceStores.java"),
-        str(SRC / "core/preferences/WaexPreferenceManager.java"),
+        str(manager_source),
         str(POLICY),
         str(ROOT / "qa/TestMediaPreferenceBatch.java"),
     ]
@@ -105,7 +147,7 @@ with tempfile.TemporaryDirectory(prefix="waex_media_manager_") as output:
 ui = (SRC / "ui/screens/media/MediaStatusHubScreen.kt").read_text()
 privacy_ui = (SRC / "ui/screens/privacy/GlobalPrivacySettingsScreen.kt").read_text()
 privacy_keys = privacy_ui.split("val privacyKeys = remember {", 1)[1].split("var waexMenuStyle", 1)[0]
-manager = (SRC / "core/preferences/WaexPreferenceManager.java").read_text()
+manager = manager_source.read_text()
 recorder = (SRC / "xposed/features/media/CallRecordingHook.java").read_text()
 media = (SRC / "xposed/features/media/MediaQualityBypassHook.java").read_text()
 schema = (SRC / "config/PreferenceSchema.java").read_text()
@@ -138,7 +180,8 @@ checks = {
     "saved status identities are non-exported cache": '"status_download_saved_identities", Type.STRING_SET, Sensitivity.CACHE, Store.PUBLIC' in schema,
     "Privacy uses localized failure feedback": 'context.getString(R.string.view_once_setting_save_failed)' in privacy_ui,
     "no automatic old alias migration": 'putBoolean("call_recording_enabled", true)' not in ui,
-    "batch method defined": 'public boolean putBooleans(java.util.Map<String, Boolean> values)' in manager,
+    "batch method defined": bool(re.search(
+        r'public boolean putBooleans\((?:java\.util\.)?Map<String, Boolean> values\)', manager)),
     "batch editor used": 'PreferenceStores.publicStore(context).edit()' in manager,
     "single commit": 'if (!editor.commit()) return false;' in manager,
     "reject non-Boolean or private schema": 'definition.type != PreferenceSchema.Type.BOOLEAN' in manager and

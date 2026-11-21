@@ -9,7 +9,10 @@ public final class ReceiptJobExecutionPolicy {
     private ReceiptJobExecutionPolicy() {}
 
     public static boolean isExecutionMethod(Class<?> jobClass, Method method) {
-        if (jobClass == null || method == null || method.getDeclaringClass() != jobClass) return false;
+        if (jobClass == null || method == null) return false;
+        Class<?> owner = method.getDeclaringClass();
+        // Current hosts can inherit execution from the direct job superclass.
+        if (owner != jobClass && owner != jobClass.getSuperclass()) return false;
         int flags = method.getModifiers();
         return Modifier.isPublic(flags) && !Modifier.isStatic(flags)
                 && !Modifier.isAbstract(flags) && !Modifier.isNative(flags)

@@ -5,7 +5,9 @@ import com.waenhancer.utils.UiText
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.content.res.Configuration
 import android.graphics.Color
+import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.os.SystemClock
 import android.os.Handler
@@ -15,10 +17,14 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.LinearLayout
 import android.widget.TextView
 import com.waenhancer.xposed.core.BaseFeature
 import com.waenhancer.xposed.core.devkit.DexSearchEngine
 import com.waenhancer.xposed.features.automation.PresenceStateStore
+import com.waenhancer.xposed.utils.HookErrors
+import com.waenhancer.xposed.utils.HostFields
+import com.waenhancer.xposed.utils.HostResourceIds
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
@@ -49,28 +55,19 @@ class OnlinePresenceIndicatorsHook(
     private val showText = isEnabled("showonlinetext", false)
     @Volatile private var subscriptionReceiver: Any? = null
     private var subscriptionMethod: Method? = null
+    private val hostJidType: Class<*>? = try {
+        classLoader.loadClass("com.whatsapp.infra.core.jid.Jid")
+    } catch (_: Throwable) { null }
+    private val stringMembers = Collections.synchronizedMap(WeakHashMap<Class<*>, List<Method>>())
+    private val accessorCache = Collections.synchronizedMap(WeakHashMap<Class<*>, List<Method>>())
 
     override val name: String get() = "Online Presence Indicators"
 
     override fun hook() {
         if (!showDot && !showText) return
         try {
-            val bindMethod = DexSearchEngine.getInstance().findMethodWithCache(
-                context, classLoader, "waex_conversation_row_bind_presence_v3"
-            ) { bridge, loader ->
-                bridge.findMethod(
-                    FindMethod.create().matcher(
-                        MethodMatcher.create().addUsingString(
-                            "ConversationViewFiller/setParentGroupProfilePhoto",
-                            StringMatchType.Contains
-                        )
-                    )
-                ).firstOrNull()?.getMethodInstance(loader)
-            }
-            if (bindMethod == null) {
-                XposedBridge.log("[WAEX][OnlinePresence] Conversation row binder not found")
-                return
-            }
+            val bindMethods = resolveRowFillers()
+            if (bindMethods.isEmpty()) return
 
             subscriptionMethod = DexSearchEngine.getInstance().findMethodWithCache(
                 context, classLoader, "waex_presence_subscription_sender_v4"
@@ -90,34 +87,73 @@ class OnlinePresenceIndicatorsHook(
                 })
             }
 
-            XposedBridge.hookMethod(bindMethod, object : XC_MethodHook() {
+            val rowHook = object : XC_MethodHook() {
                 override fun afterHookedMethod(param: MethodHookParam) {
-                    val row = findConversationRow(param.thisObject)
+                    val sources = ArrayList<Any?>(param.args?.asList().orEmpty())
+                    param.thisObject?.let { sources.add(it) }
+                    val row = findConversationRow(sources) ?: return
                     val jid = findJid(param.args, 3)
-                    if (row == null) return
                     if (param.hasThrowable() || jid == null || jid.contains("@g.us")) {
                         queueBindRow(row, null)
                         return
                     }
-                    val contact = param.args?.firstOrNull()
                     subscriptionMethod?.let { method ->
-                        if (contact != null) {
-                            findObjectOfType(contact, method.parameterTypes.firstOrNull() ?: Any::class.java, 4, HashSet())?.let {
-                                recordIdentityAlias(
-                                    PresenceStateStore.normalize(it.toString()),
-                                    PresenceStateStore.normalize(jid)
-                                )
-                            }
+                        findObjectOfType(sources, method.parameterTypes.firstOrNull() ?: Any::class.java)?.let {
+                            recordIdentityAlias(
+                                PresenceStateStore.normalize(identityOf(it) ?: it.toString()),
+                                PresenceStateStore.normalize(jid)
+                            )
                         }
                     }
-                    requestPresence(contact, jid)
-                    queueBindRow(row, PresenceStateStore.normalize(jid))
+                    val canonical = PresenceStateStore.normalize(jid)
+                    val identities = collectJidIdentities(sources)
+                    identities.forEach { identity ->
+                        if (identity != canonical && !identity.contains("@g.us")) {
+                            recordIdentityAlias(identity, canonical)
+                        }
+                    }
+                    requestPresence(sources, jid)
+                    queueBindRow(row, canonical)
                 }
-            })
+            }
+            bindMethods.forEach { XposedBridge.hookMethod(it, rowHook) }
             PresenceStateStore.addListener { _, _ -> queuePresenceRefresh() }
         } catch (t: Throwable) {
             XposedBridge.log("[WAEX][OnlinePresence] Setup failed: ${t.javaClass.simpleName}")
         }
+    }
+
+    /**
+     * Resolves the methods that populate a conversation-list row, without any signature or
+     * obfuscated-name assumption. The host's row filler logs under the "ConversationViewFiller/"
+     * prefix; the per-row fill paths ("fillView", "buildCachedDataBundle") run for every row, while
+     * other members of that family (for example the parent-group photo setter) only run for a
+     * subset of rows. Prefer the former and fall back to the whole family; the hook itself validates
+     * every call structurally (row views + JID) so a wrong candidate is harmless.
+     */
+    private fun resolveRowFillers(): List<Method> {
+        val resolved = DexSearchEngine.getInstance().findMethodsWithCache(
+            context, classLoader, "waex_conversation_row_fillers_v6"
+        ) { bridge, loader ->
+            // Bridge/synthetic and static members are valid: the host's fill path is often reached
+            // through a compiler-generated bridge or a static trampoline, so only the shape matters.
+            fun usable(method: Method) = !Modifier.isAbstract(method.modifiers) &&
+                !Modifier.isNative(method.modifiers) &&
+                method.returnType == Void.TYPE && method.parameterCount >= 2
+            fun query(prefix: String) = bridge.findMethod(
+                FindMethod.create().matcher(
+                    MethodMatcher.create().addUsingString(prefix, StringMatchType.StartsWith)
+                )
+            ).filter { it.isMethod }.mapNotNull {
+                try { it.getMethodInstance(loader) } catch (_: Throwable) { null }
+            }.filter(::usable)
+
+            val perRow = (query("ConversationViewFiller/fillView") +
+                query("ConversationViewFiller/buildCachedDataBundle")).distinct()
+            val chosen = perRow.ifEmpty { query("ConversationViewFiller/").distinct() }
+            chosen.toTypedArray()
+        }
+        return resolved?.toList().orEmpty()
     }
 
     private fun queuePresenceRefresh() {
@@ -174,7 +210,7 @@ class OnlinePresenceIndicatorsHook(
         render(row, stateForRow(jid))
     }
 
-    private fun requestPresence(contact: Any?, jid: String?) {
+    private fun requestPresence(sources: List<Any?>, jid: String?) {
         val method = subscriptionMethod ?: return
         val receiver = subscriptionReceiver
         val key = jid ?: return
@@ -185,10 +221,7 @@ class OnlinePresenceIndicatorsHook(
 
         try {
             val params = method.parameterTypes
-            val jidArg = if (params.isNotEmpty()) {
-                if (params[0].isInstance(contact)) contact
-                else findObjectOfType(contact, params[0], 4, HashSet())
-            } else null
+            val jidArg = if (params.isNotEmpty()) findObjectOfType(sources, params[0]) else null
 
             if (jidArg != null) {
                 method.isAccessible = true
@@ -231,17 +264,23 @@ class OnlinePresenceIndicatorsHook(
         }
     }
 
+    private fun findObjectOfType(sources: List<Any?>, wanted: Class<*>): Any? {
+        val seen = Collections.newSetFromMap(WeakHashMap<Any, Boolean>())
+        sources.forEach { findObjectOfType(it, wanted, 4, seen)?.let { found -> return found } }
+        return null
+    }
+
     private fun findObjectOfType(value: Any?, wanted: Class<*>, depth: Int, seen: MutableSet<Any>): Any? {
         if (value == null || depth < 0 || !seen.add(value)) return null
         if (wanted.isInstance(value)) return value
         var type: Class<*>? = value.javaClass
         while (type != null && !type.name.startsWith("java.") && !type.name.startsWith("android.")) {
-            for (field in type.declaredFields) {
+            for (field in HostFields.declared(type)) {
                 if (Modifier.isStatic(field.modifiers)) continue
                 try {
                     field.isAccessible = true
                     findObjectOfType(field.get(value), wanted, depth - 1, seen)?.let { return it }
-                } catch (_: Throwable) {}
+                } catch (ignored: Throwable) { HookErrors.swallowed("OnlinePresenceIndicatorsHook", ignored) }
             }
             type = type.superclass
         }
@@ -254,20 +293,21 @@ class OnlinePresenceIndicatorsHook(
      */
     private fun ensureDotView(row: View): View? {
         if (!showDot) return null
-        val resources = row.resources
-        val packageName = row.context.packageName
-        val contactSelectorId = resources.getIdentifier("contact_selector", "id", packageName)
+        val contactSelectorId = HostResourceIds.id(row.context, "contact_selector")
         val container = if (contactSelectorId != 0) row.findViewById<ViewGroup>(contactSelectorId) else null
         val targetGroup = container ?: (row as? ViewGroup) ?: return null
 
         var dot = targetGroup.findViewById<View>(ID_DOT)
         if (dot == null) {
+            val night = (row.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                Configuration.UI_MODE_NIGHT_YES
             dot = View(row.context).apply {
                 id = ID_DOT
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
                     setColor(Color.rgb(37, 211, 102)) // WhatsApp online green #25D366
-                    setStroke(dp(2), Color.rgb(18, 27, 31)) // Dark boundary ring
+                    // Ring matches the row surface so the dot reads as cut out of the avatar.
+                    setStroke(dp(2), if (night) Color.rgb(11, 20, 26) else Color.WHITE)
                 }
                 visibility = View.GONE
                 isClickable = false
@@ -275,11 +315,14 @@ class OnlinePresenceIndicatorsHook(
             }
             val size = dp(14)
             if (targetGroup is FrameLayout) {
-                val params = FrameLayout.LayoutParams(size, size, Gravity.BOTTOM or Gravity.END).apply {
-                    marginEnd = dp(4)
-                    bottomMargin = dp(4)
+                targetGroup.addView(
+                    dot,
+                    FrameLayout.LayoutParams(size, size, Gravity.TOP or Gravity.LEFT)
+                )
+                targetGroup.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+                    targetGroup.findViewById<View>(ID_DOT)?.let { placeDotOnAvatarRim(targetGroup, it) }
                 }
-                targetGroup.addView(dot, params)
+                placeDotOnAvatarRim(targetGroup, dot)
             } else {
                 targetGroup.addView(dot, ViewGroup.LayoutParams(size, size))
             }
@@ -287,29 +330,78 @@ class OnlinePresenceIndicatorsHook(
         return dot
     }
 
+    /**
+     * Centers the dot on the avatar circle's bottom-right rim (45 degrees), measured from the real
+     * photo view, so it sits on the avatar corner at any avatar size, story ring or density.
+     * Coordinates are absolute (not start-relative), so absolute LEFT gravity keeps it correct in RTL.
+     */
+    private fun placeDotOnAvatarRim(group: ViewGroup, dot: View) {
+        val photoId = HostResourceIds.id(group.context, "contact_photo")
+        val photo = if (photoId != 0) group.findViewById<View>(photoId) else null
+        val params = dot.layoutParams as? FrameLayout.LayoutParams ?: return
+        if (photo == null || photo.width <= 0 || photo.height <= 0) return
+        val bounds = Rect(0, 0, photo.width, photo.height)
+        try {
+            group.offsetDescendantRectToMyCoords(photo, bounds)
+        } catch (_: IllegalArgumentException) {
+            return
+        }
+        val radius = minOf(photo.width, photo.height) / 2f
+        val size = maxOf(dp(10), (radius * 2f * 0.27f).toInt())
+        val rim = radius * 0.7071f
+        val left = (bounds.exactCenterX() + rim - size / 2f).toInt()
+        val top = (bounds.exactCenterY() + rim - size / 2f).toInt()
+        if (params.width == size && params.height == size &&
+            params.leftMargin == left && params.topMargin == top) return
+        params.width = size
+        params.height = size
+        params.leftMargin = left
+        params.topMargin = top
+        params.gravity = Gravity.TOP or Gravity.LEFT
+        dot.layoutParams = params
+    }
+
     private fun ensureTextView(row: View): TextView? {
         if (!showText) return null
         val group = row as? ViewGroup ?: return null
-        var text = group.findViewById<TextView>(ID_TEXT)
-        if (text == null) {
-            text = TextView(row.context).apply {
-                id = ID_TEXT
-                textSize = 11.5f
-                setTextColor(Color.rgb(37, 211, 102))
-                visibility = View.GONE
-                isClickable = false
-            }
-            if (group is FrameLayout) {
-                val params = FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(20), Gravity.END or Gravity.TOP).apply {
+        group.findViewById<TextView>(ID_TEXT)?.let { return it }
+        val text = TextView(row.context).apply {
+            id = ID_TEXT
+            textSize = 11.5f
+            setTextColor(Color.rgb(37, 211, 102))
+            maxLines = 1
+            visibility = View.GONE
+            isClickable = false
+        }
+        // The row container is a horizontal LinearLayout: appending to it would place the text past
+        // the end of the message column. Insert it into the vertical content column, right under the
+        // name/date header, so it takes real layout space only while visible.
+        val contentId = HostResourceIds.id(row.context, "conversations_row_content")
+            .takeIf { it != 0 } ?: HostResourceIds.id(row.context, "row_content")
+        val content = if (contentId != 0) group.findViewById<View>(contentId) as? ViewGroup else null
+        if (content is LinearLayout && content.orientation == LinearLayout.VERTICAL) {
+            content.addView(
+                text,
+                minOf(1, content.childCount),
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            )
+            return text
+        }
+        if (group is FrameLayout) {
+            group.addView(
+                text,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, dp(20), Gravity.END or Gravity.TOP
+                ).apply {
                     marginEnd = dp(14)
                     topMargin = dp(32)
                 }
-                group.addView(text, params)
-            } else {
-                group.addView(text)
-            }
+            )
+            return text
         }
-        return text
+        return null
     }
 
     private fun render(row: View, state: PresenceStateStore.State?) {
@@ -338,15 +430,16 @@ class OnlinePresenceIndicatorsHook(
         }
     }
 
-    private fun findConversationRow(value: Any?): View? {
+    private fun findConversationRow(sources: List<Any?>): View? {
         val candidates = ArrayList<View>()
-        collectViews(value, 4, Collections.newSetFromMap(WeakHashMap()), candidates)
+        val seen = Collections.newSetFromMap(WeakHashMap<Any, Boolean>())
+        sources.forEach { collectViews(it, 4, seen, candidates) }
         val sample = candidates.firstOrNull() ?: return null
         val resources = sample.resources
         val packageName = sample.context.packageName
-        val contactSelectorId = resources.getIdentifier("contact_selector", "id", packageName)
-        val conversationContentId = resources.getIdentifier("conversations_row_content", "id", packageName)
-        val rowContentId = resources.getIdentifier("row_content", "id", packageName)
+        val contactSelectorId = HostResourceIds.id(sample.context, "contact_selector")
+        val conversationContentId = HostResourceIds.id(sample.context, "conversations_row_content")
+        val rowContentId = HostResourceIds.id(sample.context, "row_content")
         if (contactSelectorId == 0 || (conversationContentId == 0 && rowContentId == 0)) return null
         return candidates.asSequence()
             .filterIsInstance<ViewGroup>()
@@ -371,12 +464,12 @@ class OnlinePresenceIndicatorsHook(
         }
         var type: Class<*>? = value.javaClass
         while (type != null && !type.name.startsWith("java.") && !type.name.startsWith("android.")) {
-            for (field in type.declaredFields) {
+            for (field in HostFields.declared(type)) {
                 if (Modifier.isStatic(field.modifiers)) continue
                 try {
                     field.isAccessible = true
                     collectViews(field.get(value), depth - 1, seen, output)
-                } catch (_: Throwable) {}
+                } catch (ignored: Throwable) { HookErrors.swallowed("OnlinePresenceIndicatorsHook", ignored) }
             }
             type = type.superclass
         }
@@ -384,24 +477,130 @@ class OnlinePresenceIndicatorsHook(
 
     private fun findJid(values: Array<out Any?>?, depth: Int): String? {
         if (values == null) return null
+        values.forEach { jidFromTypedAccessor(it)?.let { jid -> return jid } }
         val seen = Collections.newSetFromMap(WeakHashMap<Any, Boolean>())
         values.forEach { findJid(it, depth, seen)?.let { jid -> return jid } }
         return null
     }
 
+    /**
+     * The host's Jid.toString() is masked for logging (last digits only), while presence events carry
+     * the full identifier. Resolve the full form without relying on any member name: probe the
+     * class's public no-arg String members and keep the longest well-formed identity, so a masked
+     * variant can never win over the complete one.
+     */
+    private fun fullJidString(jid: Any?): String? {
+        if (jid == null) return null
+        val type = jid.javaClass
+        val methods = stringMembers.getOrPut(type) {
+            try {
+                type.methods.filter {
+                    it.parameterCount == 0 && it.returnType == String::class.java &&
+                        !Modifier.isStatic(it.modifiers) && it.declaringClass != Any::class.java
+                }
+            } catch (_: Throwable) { emptyList() }
+        }
+        var best: String? = null
+        for (method in methods) {
+            try {
+                val rendered = method.invoke(jid) as? String ?: continue
+                val match = JID_REGEX.find(rendered)?.value ?: continue
+                if (best == null || match.length > best.length) best = match
+            } catch (ignored: Throwable) { HookErrors.swallowed("OnlinePresenceIndicatorsHook", ignored) }
+        }
+        return best ?: try { JID_REGEX.find(jid.toString())?.value } catch (_: Throwable) { null }
+    }
+
+    /** Full identity of a Jid instance, or of any object's string form when it is not a Jid. */
+    private fun identityOf(value: Any?): String? {
+        if (value == null) return null
+        val jidType = hostJidType
+        return if (jidType != null && jidType.isInstance(value)) fullJidString(value)
+        else try { JID_REGEX.find(value.toString())?.value } catch (_: Throwable) { null }
+    }
+
+    /**
+     * Every identity (PN and LID forms) the host hands this row, found by type: any value that is an
+     * instance of the host Jid type, reached directly, through no-arg Jid-returning accessors, or
+     * through fields of the bound objects. Presence events may use a different identity form than the
+     * row's primary key, so all of them are registered as aliases of the row.
+     */
+    private fun collectJidIdentities(sources: List<Any?>): Set<String> {
+        val out = LinkedHashSet<String>()
+        val seen = Collections.newSetFromMap(WeakHashMap<Any, Boolean>())
+        sources.forEach { gatherJidIdentities(it, 3, seen, out) }
+        return out
+    }
+
+    private fun gatherJidIdentities(value: Any?, depth: Int, seen: MutableSet<Any>, out: MutableSet<String>) {
+        val jidType = hostJidType ?: return
+        if (value == null || depth < 0) return
+        if (value is View || value is Context || value is CharSequence || value is Number) return
+        if (jidType.isInstance(value)) {
+            try {
+                fullJidString(value)?.let { out.add(PresenceStateStore.normalize(it)) }
+            } catch (ignored: Throwable) { HookErrors.swallowed("OnlinePresenceIndicatorsHook", ignored) }
+            return
+        }
+        if (!seen.add(value)) return
+        val type = value.javaClass
+        if (type.name.startsWith("java.") || type.name.startsWith("android.")) return
+        val accessors = accessorCache.getOrPut(type) {
+            try {
+                type.methods.filter {
+                    it.parameterCount == 0 && !Modifier.isStatic(it.modifiers) &&
+                        jidType.isAssignableFrom(it.returnType)
+                }
+            } catch (_: Throwable) { emptyList() }
+        }
+        for (accessor in accessors) {
+            try { gatherJidIdentities(accessor.invoke(value), depth - 1, seen, out) }
+            catch (ignored: Throwable) { HookErrors.swallowed("OnlinePresenceIndicatorsHook", ignored) }
+        }
+        var cursor: Class<*>? = type
+        while (cursor != null && !cursor.name.startsWith("java.") && !cursor.name.startsWith("android.")) {
+            for (field in HostFields.declared(cursor)) {
+                if (Modifier.isStatic(field.modifiers) || field.type.isPrimitive) continue
+                try {
+                    field.isAccessible = true
+                    gatherJidIdentities(field.get(value), depth - 1, seen, out)
+                } catch (ignored: Throwable) { HookErrors.swallowed("OnlinePresenceIndicatorsHook", ignored) }
+            }
+            cursor = cursor.superclass
+        }
+    }
+
+    /** Name-independent: any public no-arg method whose declared return type is the host Jid type. */
+    private fun jidFromTypedAccessor(value: Any?): String? {
+        val jidType = hostJidType ?: return null
+        if (value == null) return null
+        val accessors = accessorCache.getOrPut(value.javaClass) {
+            try {
+                value.javaClass.methods.filter {
+                    it.parameterCount == 0 && !Modifier.isStatic(it.modifiers) &&
+                        jidType.isAssignableFrom(it.returnType)
+                }
+            } catch (_: Throwable) { emptyList() }
+        }
+        for (accessor in accessors) {
+            try {
+                identityOf(accessor.invoke(value))?.let { return it }
+            } catch (ignored: Throwable) { HookErrors.swallowed("OnlinePresenceIndicatorsHook", ignored) }
+        }
+        return null
+    }
+
     private fun findJid(value: Any?, depth: Int, seen: MutableSet<Any>): String? {
         if (value == null || depth < 0 || !seen.add(value)) return null
-        val rendered = try { value.toString() } catch (_: Throwable) { "" }
-        Regex("[+0-9A-Za-z._:-]+@lid|[+0-9A-Za-z._:-]+@(s\\.)?whatsapp\\.net|[+0-9A-Za-z._:-]+@g\\.us")
-            .find(rendered)?.value?.let { return it }
+        identityOf(value)?.let { return it }
         var type: Class<*>? = value.javaClass
         while (type != null && !type.name.startsWith("java.") && !type.name.startsWith("android.")) {
-            for (field in type.declaredFields) {
+            for (field in HostFields.declared(type)) {
                 if (Modifier.isStatic(field.modifiers)) continue
                 try {
                     field.isAccessible = true
                     findJid(field.get(value), depth - 1, seen)?.let { return it }
-                } catch (_: Throwable) {}
+                } catch (ignored: Throwable) { HookErrors.swallowed("OnlinePresenceIndicatorsHook", ignored) }
             }
             type = type.superclass
         }
@@ -430,10 +629,11 @@ class OnlinePresenceIndicatorsHook(
 
     companion object {
         private const val MAX_TRACKED_IDENTITIES = 2048
+        private val JID_REGEX =
+            Regex("[+0-9A-Za-z._:-]+@lid|[+0-9A-Za-z._:-]+@(s\\.)?whatsapp\\.net|[+0-9A-Za-z._:-]+@g\\.us")
         private const val ID_DOT = 0x7f0f7a11
         private const val ID_TEXT = 0x7f0f7a12
         private const val TAG_BOUND_JID = 0x7f0f7a13
-        private val bindDiagnostics = AtomicInteger()
         private val subscriptionDiagnostics = AtomicInteger()
         private val subscriptions = ConcurrentHashMap<String, Long>()
         private val identityAliases = ConcurrentHashMap<String, String>()

@@ -2,7 +2,7 @@ name: Verified call-ending selection and recorder lifecycle
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, nightly]
   push:
     branches: ['fix/call-ending-contract-v38-2026-10-19']
   workflow_dispatch:

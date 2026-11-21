@@ -33,6 +33,49 @@ expected event rather than learning its choice from the implementation under tes
 source handling of that declaration shape; it does not identify another supported
 WhatsApp release. Run the on-device acceptance below for every actual host version.
 
+## Isolated Android provider acceptance (real Binder, PFD, SQLite)
+
+`qa/android_call_recording_device_test.py` builds a **test-only** APK under a
+different package (`io.github.tkmbrain.waex.callrecordingprobe`) and provider
+authority. It compiles the production `HookProvider`, `RecordingOutputFiles`,
+`CallRecordingStore` and their necessary support classes without changing the
+manager or WhatsApp installations. Unused private licensing/service contracts
+are explicit fail-closed doubles; this is **not** a production WAEX build or a
+replacement for the private hooking engine.
+
+From a checked-out source revision with an installed Android SDK, JDK 17 and
+Kotlin compiler:
+
+```sh
+python3 qa/android_call_recording_device_test.py --validate-sources
+python3 qa/android_call_recording_device_test.py \
+  --out /absolute/empty/output-directory \
+  --sdk /absolute/android/sdk --jdk-home /absolute/jdk17 \
+  --kotlin-home /absolute/kotlin --keystore /absolute/private/probe-key.jks
+```
+
+For an **explicitly selected test device and Android user**, add
+`--execute-device --serial SERIAL --user USER_ID`. An existing probe install
+requires `--replace-probe` with its original signing key. The runner does not
+uninstall or clear apps, and does not send WhatsApp messages or calls. Output
+includes production source hashes, tool commands/exit codes, signed APK hash,
+the installed-package hash before/after, the run UID/user and synthetic case
+results. Preserve `result.json` and `device-result.json` as revision-specific
+evidence; do not infer the runtime behavior from `--validate-sources` alone.
+
+The real-device cases include normal create/write/finish, same-name refusal
+without truncation, distinct names at the same timestamp, invalid names,
+concurrent reservations, injected SQLite failure/cleanup, metadata reopen,
+targeted deletion and descriptor conservation. They execute *Android provider*
+contracts—not LSPosed injection, call events, audio capture, live WhatsApp
+data, or the official WAEX binary. Repeat on each Android user/profile that
+matters; a personal-profile pass does not prove work-profile routing.
+
+The `android_preserved_dispatch_test.py` Robolectric source-compilation gate
+must also compile `RecordingOutputFiles.java` whenever it compiles the current
+production `HookProvider`. These Robolectric checks are not a substitute for
+Android Binder/UID acceptance on real devices.
+
 ## Run on each supported device/build combination
 
 Record the module commit, Debug/Release build identity, WhatsApp version,
@@ -66,6 +109,14 @@ consenting participants and the normal module permissions/settings.
    microphone, wired/Bluetooth routes and speakerphone separately. Confirm
    what is actually audible in the file; successful `MediaRecorder.start()`
    does not establish that both participants were captured.
+10. With authorized test accounts and a legitimate candidate APK, exercise two
+    recording sessions whose requested timestamps fall in the same second (or
+    use an isolated, authenticated provider harness to force the collision).
+    Verify distinct saved paths, intact audio/metadata for both sessions and
+    correct playback. Re-requesting the *same* filename must fail without
+    truncating or deleting its existing bytes. Check this in personal and work
+    profiles where the manager/provider bridge is available. A successful
+    standalone file-allocation test does not replace this provider acceptance.
 
 ## Audio-source limitation
 
@@ -100,3 +151,23 @@ The complete recorder hook executes 109 lifecycle checks with each of the exact 
 Storage, contact-name resolution, Android audio, Xposed and scheduler remain explicit seams. Contact resolution fails loudly if exercised outside this fixture. A successful simulated finish_call_recording call does not establish persisted provider metadata. Native audio, remote-participant audibility, hardware routes and candidate APK behavior remain NOT_VERIFIED.
 
 The focused call-ending workflow runs independently of unrelated failing source-QA steps, retains failures and does not replace the existing source-QA gate. The merge preserves both the earlier call-ending checks and current upstream localization checks.
+
+## Nightly reconciliation — 2026-11-21
+
+The candidate reconciles original PR head `997b23f8268c25d0d92f799d19ae44b66fc42591`
+with nightly `9972e49fac9bfb650c25ee31fde0da9425b67175`. On Linux x86_64 with
+Temurin 21.0.13.1+2 and Python 3.12.14, the reconciled sources pass the 46 reflection
+cases, reject all three compiling selector mutants at their intended assertions,
+and pass 109 complete-hook checks for each exact and typed-ending host shape.
+Five incompatible host shapes each pass the three fail-closed assertions. The
+two 109-check executions reuse the same scenarios; they are not distinct coverage.
+
+The lifecycle fixture now compiles the actual current `HookErrors` dependency.
+A duplicate `ContactNameResolver` dictionary entry was removed, retaining the
+strict throw-and-count boundary rather than a silently overriding permissive stub.
+The focused workflow also runs for pull requests targeting `nightly`. The current
+provider acceptance section and metadata behavior remain intact.
+
+These are fresh JVM/source results, not the historical integration result above.
+Actual audio capture, a full APK build, real DexKit discovery and Android-device
+execution remain NOT_VERIFIED in this reconciliation environment.

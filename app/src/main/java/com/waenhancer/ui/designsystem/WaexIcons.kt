@@ -31,6 +31,7 @@ import androidx.compose.material.icons.rounded.BrightnessAuto
 import androidx.compose.material.icons.rounded.Contacts
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.BatteryChargingFull
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.InstallMobile
 import androidx.compose.material.icons.rounded.Check
@@ -59,6 +60,7 @@ object WaexIcons {
     val Premium = Icons.Rounded.Star
     val Search = Icons.Rounded.Search
     val Clear = Icons.Rounded.Clear
+    val Delete = Icons.Rounded.Delete
     val Share = Icons.Rounded.Share
     val Refresh = Icons.Rounded.Refresh
     val Download = Icons.Rounded.SystemUpdate

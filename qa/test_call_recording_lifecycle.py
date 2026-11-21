@@ -11,6 +11,7 @@ import argparse, hashlib, json, os, subprocess, tempfile
 ROOT = Path(__file__).resolve().parents[1]
 STUBS = {
     'androidx/annotation/NonNull.java': 'package androidx.annotation; public @interface NonNull {}',
+    'androidx/annotation/VisibleForTesting.java': 'package androidx.annotation; public @interface VisibleForTesting {}',
     'android/net/Uri.java': 'package android.net; public class Uri {public static Uri parse(String value){return new Uri();}}',
     'android/os/Build.java': '''package android.os; public final class Build {
       public static class VERSION {public static int SDK_INT=34;}
@@ -18,7 +19,8 @@ STUBS = {
     }''',
     'android/os/Bundle.java': '''package android.os; import java.util.*; public class Bundle {
       public final Map<String,Object> values=new HashMap<>();
-      public void putLong(String k,long v){values.put(k,v);} public void putBoolean(String k,boolean v){values.put(k,v);} public void putString(String k,String v){values.put(k,v);} public String getString(String k){return (String)values.get(k);}
+      public void putString(String k,String v){values.put(k,v);} public String getString(String k){return (String)values.get(k);}
+      public void putLong(String k,long v){values.put(k,v);} public void putBoolean(String k,boolean v){values.put(k,v);}
       @SuppressWarnings("unchecked") public <T>T getParcelable(String k){return (T)values.get(k);}
       public <T>T getParcelable(String k,Class<T> type){return type.cast(values.get(k));}
     }''',
@@ -183,8 +185,11 @@ def main():
     production=[media/'CallRecordingHook.java']
     contract=media/'CallRecordingEventContract.java'
     if contract.exists():production.append(contract)
+    recording_files=args.root/'app/src/main/java/com/waenhancer/calls/RecordingOutputFiles.java'
+    if recording_files.exists():production.append(recording_files)
+    production.append(args.root/'app/src/main/java/com/waenhancer/xposed/utils/HookErrors.java')
     sources += [str(s) for s in production]
-    sources.append(str(ROOT/'qa/fixtures/CallRecordingLifecycleChecks.java'))
+    sources.append(str(args.root/'qa/fixtures/CallRecordingLifecycleChecks.java'))
     classpath=str(directory/'classes')
     compile_cmd=['javac','--release','17','-d',classpath]
     if args.dexkit_jar:compile_cmd += ['-cp',os.pathsep.join(map(str,[args.dexkit_jar,args.kotlin_stdlib]))]

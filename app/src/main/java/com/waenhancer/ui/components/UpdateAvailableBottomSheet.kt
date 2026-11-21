@@ -83,17 +83,7 @@ fun UpdateAvailableBottomSheet(
 
     WaexModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.surface,
-        shape = radius.bottomSheetShape,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(top = 10.dp, bottom = 6.dp)
-                    .size(width = 36.dp, height = 4.dp)
-                    .background(colors.outlineVariant, RoundedCornerShape(2.dp))
-            )
-        }
+        sheetState = sheetState
     ) {
         Column(
             modifier = Modifier
@@ -124,12 +114,7 @@ fun UpdateAvailableBottomSheet(
                 }
                 Spacer(modifier = Modifier.size(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = UiText.get(R.string.waex_ui_update_available, "Update Available"),
-                        style = typography.titleLg,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.onSurface
-                    )
+                    WaexSheetTitle(UiText.get(R.string.waex_ui_update_available, "Update Available"))
                     Text(
                         text = UiText.get(R.string.waex_ui_version_1_s, "Version %1\$s", release.version),
                         style = typography.bodyMd,
@@ -187,38 +172,18 @@ fun UpdateAvailableBottomSheet(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Button(
-                    onClick = onUpdateNow,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.primary)
-                ) {
-                    Text(
-                        text = UiText.get(R.string.waex_ui_update_now, "Update Now"),
-                        fontWeight = FontWeight.Bold,
-                        color = colors.onPrimary
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onViewDetails,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Text(UiText.get(R.string.waex_ui_view_details, "View Details"))
-                    }
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Text(UiText.get(R.string.waex_ui_later, "Later"))
-                    }
-                }
+                WaexSheetPrimaryButton(
+                    text = UiText.get(R.string.waex_ui_update_now, "Update Now"),
+                    onClick = onUpdateNow
+                )
+                WaexSheetTextButton(
+                    text = UiText.get(R.string.waex_ui_view_details, "View Details"),
+                    onClick = onViewDetails
+                )
+                WaexSheetTextButton(
+                    text = UiText.get(R.string.waex_ui_later, "Later"),
+                    onClick = onDismiss
+                )
             }
         }
     }

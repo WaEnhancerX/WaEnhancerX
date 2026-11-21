@@ -190,9 +190,10 @@ fun GlobalPrivacySettingsScreen(
             "anti_view_once", "downloadviewonce", "download_view_once",
             "bypass_screenshot_restriction",
             "anti_revoke", "show_as_deleted", "preserve_own_revoke", "antirevokestatus", "antidisappearing", "toastdeleted", "toast_viewed_message",
-            "locked_chats_enhancer", "typearchive", "dnd_mode", "hide_chats", "custom_privacy",
+            "locked_chats_enhancer", "typearchive", "dnd_mode", "hide_chats", "locked_chats_message_notifications", "custom_privacy",
             "message_bomber", "anti_edit_messages", "message_device_source", "revokeallmessages", "hide_forwarded_tag", "removeforwardlimit",
-            "sticker_confirm_alert", "removeseemore", "stamp_copied_message", "doubletap2like",
+            "sticker_confirm_alert", "remove_sticker_white_outline", "removeseemore", "stamp_copied_message", "doubletap2like",
+            "disable_defemojis", "custom_emojis", "custom_emoji_enabled",
             "jump_to_first_message", "unlimited_pinned_chats", "broadcast_tag", "direct_chat_dialer", "inline_translation", "copy_status_text",
             "call_type_controller", "custom_filter_groups", "group_admin_tools", "status_text_composer",
             "show_dndmode", "restartbutton", "open_wae"
@@ -255,7 +256,7 @@ fun GlobalPrivacySettingsScreen(
             privacyKeys.forEach { key ->
                 var boolVal = if (key == "downloadviewonce" || key == "download_view_once") {
                     readViewOnceDownload()
-                } else preferenceManager.getBoolean(key, false)
+                } else preferenceManager.getBoolean(key, key in DEFAULT_ON_PRIVACY_KEYS)
                 if (!boolVal && key == "typearchive") {
                     val strVal = preferenceManager.getString("typearchive", "0")
                     boolVal = (strVal != null && strVal != "0" && !strVal.equals("false", ignoreCase = true))
@@ -297,6 +298,10 @@ fun GlobalPrivacySettingsScreen(
             } else {
                 Toast.makeText(context, context.getString(R.string.view_once_setting_save_failed), Toast.LENGTH_SHORT).show()
             }
+            return@update
+        }
+        if (key == "disable_defemojis" || key == "custom_emojis" || key == "custom_emoji_enabled") {
+            navController.navigateTo(Screen.CustomEmojis)
             return@update
         }
         settingsState[key] = value
@@ -602,6 +607,7 @@ fun GlobalPrivacySettingsScreen(
                                     item.key == "hideonceseen"
                                 )
                             val isHideReadEnabled = settingsState["hide_read_receipts"] ?: false
+                            val isCustomEmojiKey = item.key == "custom_emojis" || item.key == "custom_emoji_enabled" || item.key == "disable_defemojis"
                             val isDependencyDisabled = isBlueTickDependent && !isHideReadEnabled
 
                             val isLocked = item.isPro && !isPro
@@ -625,6 +631,8 @@ fun GlobalPrivacySettingsScreen(
                                     .clickable {
                                         if (isLocked) {
                                             onActivatePro()
+                                        } else if (isCustomEmojiKey) {
+                                            navController.navigateTo(Screen.CustomEmojis)
                                         } else if (!isDependencyDisabled) {
                                             val currentVal = settingsState[item.key] ?: false
                                             updatePreference(item.key, !currentVal)
@@ -649,13 +657,17 @@ fun GlobalPrivacySettingsScreen(
                                             color = colors.onSurface
                                         )
                                         val reqPro = stringResource(R.string.requires_pro_label)
+                                        val descText = when {
+                                            isLocked -> "$locDesc • $reqPro"
+                                            else -> locDesc
+                                        }
                                         Text(
-                                            text = if (isLocked) "$locDesc • $reqPro" else locDesc,
+                                            text = descText,
                                             style = typography.bodyMd,
                                             color = colors.onSurfaceVariant,
                                             fontSize = 12.sp
                                         )
-                                        if (isDependencyDisabled) {
+                                        if (isBlueTickDependent && !isHideReadEnabled) {
                                             val dependencyTitle = LocalizationHelper.getLocalizedFeatureTitle(
                                                 context,
                                                 "hide_read_receipts"
@@ -671,11 +683,20 @@ fun GlobalPrivacySettingsScreen(
                                             )
                                         }
                                     }
-                                    StitchSwitch(
-                                        checked = if (isItemDisabled && isLocked) false else (settingsState[item.key] ?: false),
-                                        onCheckedChange = if (isItemDisabled) null else { isChecked -> updatePreference(item.key, isChecked) },
-                                        enabled = !isItemDisabled
-                                    )
+                                    if (isCustomEmojiKey) {
+                                        Icon(
+                                            imageVector = WaexIcons.ChevronRight,
+                                            contentDescription = null,
+                                            tint = colors.onSurfaceVariant,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    } else {
+                                        StitchSwitch(
+                                            checked = if (isItemDisabled && isLocked) false else (settingsState[item.key] ?: false),
+                                            onCheckedChange = if (isItemDisabled) null else { isChecked -> updatePreference(item.key, isChecked) },
+                                            enabled = !isItemDisabled
+                                        )
+                                    }
                                 }
                                 if (item.isPro) {
                                     WaexProChip(
@@ -1356,3 +1377,6 @@ fun GlobalPrivacySettingsScreenPreview() {
         GlobalPrivacySettingsScreen(onOpenModal = {})
     }
 }
+
+/** Switches whose stored default is on, so an unset preference must not render as off. */
+private val DEFAULT_ON_PRIVACY_KEYS = setOf("locked_chats_message_notifications")
