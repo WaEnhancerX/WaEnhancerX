@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Regression contracts for selected receipt, props, HMA and LID hardening."""
 from pathlib import Path
+import os
 
 ROOT = Path(__file__).resolve().parents[1]
 JAVA = ROOT / "app/src/main/java/com/waenhancer"
@@ -26,7 +27,14 @@ job_hook = declaration(receipts, "    private void hookSendReadReceiptJob()")
 assert "msg.arg1 == 419" in dispatch
 assert "msg.arg1 == 89" not in dispatch
 assert "msg.arg1 == 419 || msg.arg1 == 89" not in receipts
-assert "if (shouldHideDeliveryReceipt(target)) param.setResult(null)" in job_hook
+# Current nightly computes the delivery veto before its immutable manual-grant
+# check and preserves a retry recipe when the veto cancels an explicit job.
+# Inspect that complete branch rather than requiring the superseded one-liner.
+assert "boolean hideDelivery = shouldHideDeliveryReceipt(target);" in job_hook
+delivery_veto = declaration(job_hook, "                        if (hideDelivery)")
+assert "param.setResult(null);" in delivery_veto
+assert "BlueOnReplyHook.isManualChatReceipt(job)" in delivery_veto
+assert "BlueOnReplyHook.recordSuppressedReadJob(job);" in delivery_veto
 
 props = (JAVA / "xposed/features/customization/PropsOverrideHook.java").read_text()
 assert "findCentralResolver(booleanGetter)" in props
@@ -40,13 +48,11 @@ assert "PropsOverrideHook.BOOLEANS.put" in settings
 assert "PropsOverrideHook.INTEGERS.put" in settings
 assert "Unknown BooleanField" not in settings
 
-hma = (JAVA / "utils/HmaDiagnostics.kt").read_text()
-assert 'val backupConfig = "$configPath.waex.bak"' in hma
-assert "WAEX_HMA_BACKUP_OK" in hma
-assert "WAEX_HMA_WRITE_OK" in hma
-assert "checkScopeBlockReason(" in hma
-assert 'cp -p $quotedBackup $quotedConfig' in hma
-assert "private fun shellQuote" in hma
+# HMA backup behavior is tested through the compiled production command builder
+# and real filesystem operations, so equivalent implementations are accepted.
+# The complete diagnostics/policy/root-runner gate also runs on Android 24/28/34.
+from test_hma_backup_commands import run_contracts
+run_contracts(out=os.environ.get("HMA_QA_COMMAND_OUT"))
 
 calls = (JAVA / "xposed/features/privacy/CallPrivacyHook.java").read_text()
 block = declaration(calls, "    private boolean shouldBlockCall(String callerJid)")

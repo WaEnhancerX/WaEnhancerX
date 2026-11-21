@@ -179,7 +179,7 @@ fun MainDashboardScreen(
     }
     var hmaRefreshTrigger by remember { mutableIntStateOf(0) }
     var hmaStatus by remember {
-        mutableStateOf<HmaDiagnostics.HmaReport?>(HmaDiagnostics.cached())
+        mutableStateOf<HmaDiagnostics.HmaReport?>(null)
     }
     var denylistRefreshTrigger by remember { mutableIntStateOf(0) }
     var denylistStatus by remember {
@@ -1663,7 +1663,9 @@ private fun DashboardDiagnosticsCard(
                     (denylistReport?.state == MagiskDenylistDiagnostics.DenylistState.BLOCKING_TARGETS) ||
                     (targetSummary.healthy == false)
 
-            val isWarning = !isCriticalError && (targetSummary.healthy == null || (diagnostics != null && diagnostics.framework.name == "Not detected"))
+            val isWarning = !isCriticalError && (targetSummary.healthy == null ||
+                    hmaReport?.state == HmaDiagnostics.HmaState.UNAVAILABLE ||
+                    (diagnostics != null && diagnostics.framework.name == "Not detected"))
 
             val healthColor = when {
                 isCriticalError -> colors.error
@@ -1759,13 +1761,14 @@ private fun DashboardDiagnosticsCard(
                 value = when (hmaReport?.state) {
                     HmaDiagnostics.HmaState.BLOCKING_TARGETS -> stringResource(R.string.diag_hma_blocked)
                     HmaDiagnostics.HmaState.CLEAN -> stringResource(R.string.diag_hma_clean)
+                    HmaDiagnostics.HmaState.UNAVAILABLE -> stringResource(R.string.waex_ui_unavailable)
                     HmaDiagnostics.HmaState.NOT_ACTIVE, HmaDiagnostics.HmaState.NOT_CONFIGURED -> stringResource(R.string.diag_hma_not_active)
                     HmaDiagnostics.HmaState.CHECKING, null -> stringResource(R.string.diag_hma_checking)
                 },
                 healthy = when (hmaReport?.state) {
                     HmaDiagnostics.HmaState.BLOCKING_TARGETS -> false
                     HmaDiagnostics.HmaState.CLEAN, HmaDiagnostics.HmaState.NOT_ACTIVE, HmaDiagnostics.HmaState.NOT_CONFIGURED -> true
-                    HmaDiagnostics.HmaState.CHECKING, null -> null
+                    HmaDiagnostics.HmaState.CHECKING, HmaDiagnostics.HmaState.UNAVAILABLE, null -> null
                 },
                 isLoading = hmaReport == null || hmaReport.state == HmaDiagnostics.HmaState.CHECKING,
                 onClick = if (hmaReport != null) onOpenHmaDetails else null

@@ -1,0 +1,9 @@
+[Fixes]
+- Repair the selected WhatsApp target's HMA visibility rules without modifying
+  existing shared templates.
+- Restrict HMA manager stops and private configuration discovery to known
+  packages in the current Android profile.
+- Verify backup and file digests before checked configuration replacement and
+  recovery.
+- Require fresh live target scope for repairs, preserve current native path
+  discovery, and report unreadable configuration sets as unavailable.
