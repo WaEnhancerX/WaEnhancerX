@@ -133,3 +133,51 @@ network acknowledgement, process restart, or notification rendering. The
 existing key-only marker identity and separate message insert completion
 contracts are not certified by this change. It must not be advertised as a
 complete fix for status recovery or pending message sending.
+
+
+## 18 November 2026: current nightly fixture dependency restoration
+
+On `WaEnhancerX:nightly@0aaffab0270a3d0832bef2895f6457f3792fd74a`,
+the standalone runner did **not** reach the 317 behavioral checks: it
+extracted the real `isSingleRowIdDelete` method but omitted its production
+`ROW_ID_WHERE` regex field, causing a `javac` missing-symbol error.
+This is a QA harness defect and does not itself demonstrate a WhatsApp fault.
+
+The follow-up:
+
+- Extracts the **unique, exact production pattern definition** into the compiled
+  fixture; if the definition is absent or no longer a supported single-line
+  expression, the runner reports this rather than inventing a fixture policy.
+- Adds only the `java.util.regex.Pattern` import required by that definition.
+- Adds `qa/mutate_revoke_sqlite_predicate.py`: a permissive compiled
+  pattern must fail a Java behavioral assertion; removal of the production
+  pattern must fail the runner's source-identity check. Compile errors do not
+  count as a successfully rejected behavioral mutant.
+- Does not change `AntiRevokeHook`, WhatsApp data, native modules, or
+  production hook behavior.
+
+Windows 11 / Python 3.12.14 / JDK 17.0.20.1, from the isolated
+`test/revoke-sqlite-pattern-dependency-20261118` worktree:
+
+```sh
+python qa/test_revoke_sqlite_contract.py --scenario all
+python qa/mutate_revoke_sqlite_predicate.py
+```
+
+Current nightly before correction: **FAIL during compilation** (missing
+`ROW_ID_WHERE`). Candidate: **PASS 317/317 internal checks**; both
+negative controls correctly rejected (one by compiled behavior, one by
+missing-source diagnostic). These are QA checks, not Android SQLite, incoming
+delete, expiry/admin-delete or message-reception acceptance. In particular,
+[issue #164](https://github.com/WaEnhancerX/WaEnhancerX/issues/164)
+remains a live, unproven-in-lab report about erroneous delete popups:
+the current SQL callback cannot distinguish all delete causes from ownership
+and row ID alone. Keep that product investigation separate from this fixture fix.
+
+Additional regression execution on the same Windows/JDK17/Python3.12 setup:
+`qa/test_preserved_own_revoke.py` **PASS** (reservation/placeholder policy);
+`qa/test_hook_return_types.py` **PASS** (12 checks).
+`qa/test_private_hook_logs.py` **FAIL on both unchanged upstream base and
+candidate**, at `BlueOnReplyHook.java` (expected 8 diagnostic callsites,
+observed 13). This existing unrelated QA failure was neither hidden nor
+modified by the fixture change. Do not describe the combined suite as green.

@@ -4,6 +4,27 @@ This is a two-repository deployment contract. It does **not** grant public Actio
 jobs access to official signing keys, the private `:licensing` module, or release
 credentials. The public repository must not host the protected build runner.
 
+## Integration with the current release pipeline
+
+Nightly `9972e49fac9bfb650c25ee31fde0da9425b67175` already contains the
+maintainer's scheduled/manual `.github/workflows/release.yml`, release-index,
+review and merge gates. This proposal does not replace or disable those files.
+The separate private-builder route below remains an optional deployment design;
+the maintainer must explicitly choose and configure it before enabling dispatch,
+including deciding which route owns publication to avoid duplicate releases.
+The conflict reconciliation preserves the current nightly push trigger and all
+release-pipeline regression commands in `source-qa.yml`, while retaining the
+reusable QA entrypoint and hash-pinned parser required by this proposal.
+
+Local validation of the reconciled source passed YAML/shell parsing, 20 simulated
+boundary scenarios, six rejected security mutations, the missing-parser control,
+and the existing release gate/version/changelog/index contract scripts. The
+simulation made zero network calls and did not execute the protected builder,
+produce an APK or publish a release. Whole-source CI and configured end-to-end
+private-builder acceptance remain separate requirements; resolving a merge
+conflict does not satisfy either of them. Protected workflow paths still require
+maintainer review under R5.
+
 ## Review and automation sequence
 
 1. Contributors propose small, reviewable PRs **against `nightly`**. Public
