@@ -378,19 +378,9 @@ public final class WaexPreferenceManager implements CustomAbPropsStore {
         InputStream input = context.getContentResolver().openInputStream(source);
         if (input == null) throw new IOException("Could not open backup file");
         int count = SettingsBackupCodec.INSTANCE.decode(context, input);
-        resolveExclusiveConflicts();
         DiagnosticsRecorder.recordSettingsTransfer(context, "IMPORT", count);
         notifyChange();
         return count;
-    }
-
-    /** A restored backup may hold two mutually exclusive settings as on; keep only one. */
-    private void resolveExclusiveConflicts() {
-        for (Map.Entry<String, String> pair : ExclusivePreferences.clearedOnConflict().entrySet()) {
-            if (getBoolean(pair.getKey(), false) && getBoolean(pair.getValue(), false)) {
-                putBooleans(Collections.singletonMap(pair.getKey(), true));
-            }
-        }
     }
 
     private void recordChanged(String key, String operation) {
