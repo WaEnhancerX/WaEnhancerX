@@ -9,9 +9,9 @@ reviewed, merged and released as a Nightly pre-release without waiting for a mai
 
 1. You open a PR against `nightly`.
 2. A gate checks the rules that can be checked mechanically (R1, R2, R4, R5).
-3. An AI reviewer reads only the changed files and their diff and checks the remaining rules.
+3. An AI reviewer reads only the changed files and their diff and checks the remaining rules. It posts a pull-request review that says why it approved, or which rule was broken with the file, line, code, problem and fix, together with a confidence score. An approval with low confidence waits for a maintainer. The verdict is tied to the reviewed commit and a maintainer can ask for a new review at any time.
 4. The public QA check must pass on the exact commit that was reviewed (R13).
-5. If everything passes, that exact commit is merged and a Nightly pre-release is built.
+5. If everything passes, that exact commit is merged. A merge does not release anything by itself: a Nightly pre-release is built from the merged work every twelve hours when something new was merged, or when a maintainer starts one.
 
 The review runs **once**, when the PR is opened. Commits pushed afterwards are never
 reviewed or merged automatically, and the PR then waits for a maintainer.
@@ -84,3 +84,7 @@ reviewed; a failing or missing check holds the PR.
 A change users can see or feel adds one file `changelog.d/<short-topic>.txt` using the
 `[Added]`, `[Fixes]` or `[Improvements]` sections (see `changelog.d/README.md`). Tests-only
 and internal changes do not need one.
+
+The fragments of all merged pull requests are merged section by section into the notes of the next
+Nightly (and shown early on the release index branch), and a Nightly release clears the fragments it
+used. Your entries therefore appear in the first Nightly built after your pull request is merged.

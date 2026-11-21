@@ -14,6 +14,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / 'app/src/main/java/com/waenhancer'
 STUBS = {
+    'androidx/annotation/NonNull.java': 'package androidx.annotation; public @interface NonNull {}',
+    'androidx/annotation/Nullable.java': 'package androidx.annotation; public @interface Nullable {}',
     'android/content/Context.java': '''package android.content;
 public abstract class Context {
  public static final int MODE_PRIVATE = 0;
@@ -378,7 +380,8 @@ with tempfile.TemporaryDirectory(prefix='waex_backup_binary_') as workspace:
     out_java, out_kotlin = root / 'java', root / 'kotlin'
     subprocess.run([commands['javac'],'--release','17','-d',str(out_java),*files,
                     str(SRC/'config/PreferenceSchema.java'),
-                    str(SRC/'config/PreferenceStores.java')],check=True)
+                    str(SRC/'config/PreferenceStores.java'),
+                    str(SRC/'config/ExclusivePreferences.java')],check=True)
     test_kotlin=root/'TestBinaryRoundTrip.kt'
     test_kotlin.write_text(KOTLIN_TEST,encoding='utf-8')
     subprocess.run([commands['kotlinc'],'-jvm-target','17','-cp',str(out_java),'-d',str(out_kotlin),

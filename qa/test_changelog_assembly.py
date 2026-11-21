@@ -58,8 +58,35 @@ with tempfile.TemporaryDirectory() as tmp:
         (d / name).unlink()
     check(run(d).returncode == 2, "no fragments fails closed")
 
+# Lenient mode (used by the nightly release): bad fragments are skipped and reported, nothing is an error,
+# and the used files are listed so exactly those can be cleared after the release.
+with tempfile.TemporaryDirectory() as tmp:
+    d = Path(tmp)
+    (d / "good.txt").write_text("[Fixes]\n- Fix one\n", encoding="utf-8")
+    (d / "alsogood.txt").write_text("[Fixes]\n- Fix two\n\n[Added]\n- Add one\n", encoding="utf-8")
+    (d / "bad.txt").write_text("garbage without a section\n", encoding="utf-8")
+    (d / "_template.txt").write_text("[Added]\n- ignored\n", encoding="utf-8")
+    used = d / "used.txt"
+    lenient = run(d, "--lenient", "--files-out", str(used))
+    check(lenient.returncode == 0, "lenient exits 0 with a bad fragment")
+    check(lenient.stdout == "[Added]\n- Add one\n\n[Fixes]\n- Fix two\n- Fix one\n", f"lenient merges the good fragments section by section: {lenient.stdout!r}")
+    check("skipped bad.txt" in lenient.stderr, "lenient reports the skipped fragment")
+    check(used.read_text().split() == ["alsogood.txt", "good.txt"], f"files-out lists only the fragments that were used: {used.read_text()!r}")
+    check(run(d).returncode == 2, "strict mode still fails on a bad fragment")
+
+with tempfile.TemporaryDirectory() as tmp:
+    d = Path(tmp)
+    (d / "_template.txt").write_text("[Added]\n- ignored\n", encoding="utf-8")
+    used = d / "used.txt"
+    empty = run(d, "--lenient", "--files-out", str(used))
+    check(empty.returncode == 0 and empty.stdout == "" and used.read_text() == "", "lenient with no fragments is empty and fine")
+    check(run(d).returncode == 2, "strict mode with no fragments still fails")
+    check(run(d / "missing", "--lenient").returncode == 0, "lenient with a missing directory is fine")
+
+# The real directory changes with every PR that adds a fragment (rule R14), so only require that
+# it is handled cleanly: notes (exit 0) or "no fragments" (exit 2), never a crash.
 real = run(ROOT / "changelog.d")
-check(real.returncode == 2, "repo changelog.d has only README/template, so no notes yet")
+check(real.returncode in (0, 2) and "Traceback" not in real.stderr, "repo changelog.d is processed without a crash")
 
 if failures:
     raise SystemExit("Changelog assembly violations:\n- " + "\n- ".join(failures))

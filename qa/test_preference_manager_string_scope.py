@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run actual manager/store/schema classes against strict in-memory Android doubles.
+"""Run actual manager/store/schema/exclusivity classes against strict Android doubles.
 
 No Android runtime, disk persistence, proprietary licensing behavior or UI is
 claimed. Unused platform/backup/restart operations throw instead of returning
@@ -23,10 +23,7 @@ values = [n.value for n in tree.body if isinstance(n, ast.Assign)
 if len(values) != 1:
     raise SystemExit('Expected one literal platform fixture')
 reference = ast.literal_eval(values[0])
-stubs = {name: reference[name] for name in ('androidx/annotation/NonNull.java',
-                                             'androidx/annotation/Nullable.java',
-                                             'android/content/SharedPreferences.java',
-                                             'android/net/Uri.java')}
+stubs = {name: reference[name] for name in ('android/content/SharedPreferences.java', 'android/net/Uri.java')}
 stubs.update({
     'android/content/Context.java': '''package android.content;
 public abstract class Context {
@@ -46,6 +43,8 @@ public abstract class ContentResolver {
     'dagger/hilt/android/qualifiers/ApplicationContext.java': 'package dagger.hilt.android.qualifiers; public @interface ApplicationContext {}',
     'javax/inject/Inject.java': 'package javax.inject; public @interface Inject {}',
     'javax/inject/Singleton.java': 'package javax.inject; public @interface Singleton {}',
+    'androidx/annotation/NonNull.java': 'package androidx.annotation; public @interface NonNull {}',
+    'androidx/annotation/Nullable.java': 'package androidx.annotation; public @interface Nullable {}',
     'com/waenhancer/licensing/customprops/CustomAbPropsStore.java': '''package com.waenhancer.licensing.customprops;
 public interface CustomAbPropsStore {
     boolean getBoolean(String key, boolean fallback);
@@ -61,12 +60,12 @@ public final class PreferenceRestartTracker {
 }''',
     'com/waenhancer/utils/DiagnosticsRecorder.java': '''package com.waenhancer.utils;
 public final class DiagnosticsRecorder {
-    public static void recordPreferenceChange(android.content.Context c, String k,
+    public static void recordPreferenceChange(android.content.Context context, String key,
                                               boolean targetScoped, String operation) {
-        throw new AssertionError("Getter test unexpectedly recorded a preference change");
+        throw new AssertionError("String getter tests must not record preference writes");
     }
-    public static void recordSettingsTransfer(android.content.Context c, String operation, int count) {
-        throw new AssertionError("Getter test unexpectedly imported/exported settings");
+    public static void recordSettingsTransfer(android.content.Context context, String kind, int count) {
+        throw new AssertionError("String getter tests must not record settings transfers");
     }
 }''',
     'com/waenhancer/core/preferences/SettingsBackupCodec.java': '''package com.waenhancer.core.preferences;

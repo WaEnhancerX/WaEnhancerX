@@ -1,3 +1,5 @@
 [Improvements]
-- Restore strict preference and receipt-retry fixture dependencies and support
-  resuming manual-retry mutation checks from a named case.
+- Resume manual-retry mutation checks from a named case, reject unknown cases
+  before creating output, and distinguish resumed runs from the full matrix.
+- Run selection regressions before the mutation matrix without weakening its
+  compilation, completion or behavioral-failure requirements.
