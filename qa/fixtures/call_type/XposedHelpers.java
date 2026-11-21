@@ -19,4 +19,40 @@ public final class XposedHelpers {
         try { Method method = owner.getDeclaredMethod(name, arguments); method.setAccessible(true); return method; }
         catch (ReflectiveOperationException failure) { throw new IllegalStateException(failure); }
     }
+    public static Class<?> findClassIfExists(String name, ClassLoader loader) {
+        try { return Class.forName(name, false, loader); }
+        catch (ClassNotFoundException missing) { return null; }
+    }
+    public static Field findFieldIfExists(Class<?> owner, String name) {
+        try { return findField(owner, name); }
+        catch (IllegalStateException missing) { return null; }
+    }
+    public static Method findMethodExactIfExists(Class<?> owner, String name, Object... types) {
+        try { return findMethodExact(owner, name, types); }
+        catch (IllegalStateException missing) { return null; }
+    }
+    public static Method findMethodBestMatch(Class<?> owner, String name, Object... types) {
+        throw new AssertionError("Best-match resolution is outside this fixture");
+    }
+    public static XC_MethodHook.Unhook findAndHookMethod(Class<?> owner, String name, Object... args) {
+        throw new AssertionError("Name-based hook installation is outside this fixture");
+    }
+    public static XC_MethodHook.Unhook findAndHookMethod(String owner, ClassLoader loader, String name, Object... args) {
+        throw new AssertionError("Name-based hook installation is outside this fixture");
+    }
+    public static Object callMethod(Object owner, String name, Object... args) {
+        throw new AssertionError("Reflected invocation is outside this fixture");
+    }
+    public static Object getObjectField(Object owner, String name) {
+        throw new AssertionError("Instance field reads are outside this fixture");
+    }
+    public static Object getAdditionalInstanceField(Object owner, String name) {
+        throw new AssertionError("Additional fields are outside this fixture");
+    }
+    public static Object setAdditionalInstanceField(Object owner, String name, Object value) {
+        throw new AssertionError("Additional fields are outside this fixture");
+    }
+    public static Object removeAdditionalInstanceField(Object owner, String name) {
+        throw new AssertionError("Additional fields are outside this fixture");
+    }
 }

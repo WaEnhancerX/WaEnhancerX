@@ -4,6 +4,33 @@ The public `call_type_controller` Boolean option means **phone or WhatsApp**.
 Its existing description is “Show an option to select whether you want a call
 via phone or WhatsApp”. Voice/video selection remains the host's own choice.
 
+## 2026-11-21 nightly reconciliation
+
+This reconciliation merges original PR head
+`8949ad6103e9b3afb4aa622574d557bf67d0d155` with nightly
+`9972e49fac9bfb650c25ee31fde0da9425b67175`. The selector uses the current
+central `registerFeature` mechanism and remains conditionally constructed only
+when enabled. It does not restore the old feature-registry implementation.
+Invoking an already selected original operation explicitly names Xposed's
+static API: current BaseFeature deliberately shadows the simple name with a
+registration-only tracking facade, which has no original-invocation method.
+
+The merged candidate passed 87/87 Robolectric 4.17 executions on API 24/28/34
+in 26.9 seconds, using Linux x86-64, Temurin 21.0.13.1+2 and Kotlin 2.0.20.
+Tested index tree: `a0485f1998e8a71c5bbae94ebde40ac2033fc15f`. Later edits are
+this acceptance record and its changelog fragment only. The original argument,
+recipient, lifecycle, rollback and fail-closed assertions remain in place.
+
+The runner stages current production HookErrors and tracked registration/view
+dispatch. DexSearchEngine's newly required MainHook module-path field is an
+explicit compile-only uninitialized field, checked against the actual volatile
+declaration and source hash; native module startup is not implemented by the
+fixture. The unavailable-native-discovery case still fails closed. The earlier
+static APK preflight and mutant results described below are historical; the APK
+and those mutants were not re-executed as part of this merged-revision run.
+Full resource/package build, device injection and real call behavior remain
+NOT_VERIFIED; a framework pass is not that acceptance.
+
 ## Installed behavior
 
 Enable the existing free option and restart WhatsApp. The existing preference

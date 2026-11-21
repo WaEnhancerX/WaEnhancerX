@@ -1,3 +1,5 @@
+import com.whatsapp.voipcalling.VoipActivityV2;
+
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.media.MediaRecorder;
@@ -189,7 +191,7 @@ public class CallRecordingLifecycleChecks {
             f.state(CallState.NONE,CallState.ACTIVE,"A");f.scheduler.drain();
             check(f.recording(),"Used old NONE argument instead of new ACTIVE state");
             MediaRecorder first=MediaRecorder.instances.get(0);
-            XposedBridge.fire(new com.whatsapp.voipcalling.VoipActivityV2(),"onDestroy",new Class<?>[]{});
+            XposedBridge.fire(new VoipActivityV2(),"onDestroy",new Class<?>[]{});
             f.scheduler.drain();check(f.recording(),"Activity destruction was treated as the end of a call");
             f.state(CallState.CALLING,CallState.ACTIVE,"B");f.scheduler.drain();
             check(f.recording() && MediaRecorder.instances.size()==2,"A replacement active call did not get its own recording");

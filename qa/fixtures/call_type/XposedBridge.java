@@ -47,4 +47,17 @@ public final class XposedBridge {
         return param.early ? param.getResult() : invokeOriginalMethod(method, owner, args);
     }
     public static void log(String text) { logs.add(text); }
+    public static void log(Throwable error) {
+        java.io.StringWriter text = new java.io.StringWriter();
+        error.printStackTrace(new java.io.PrintWriter(text));
+        logs.add(text.toString());
+    }
+    public static java.util.Set<XC_MethodHook.Unhook> hookAllMethods(
+            Class<?> owner, String name, XC_MethodHook callback) {
+        throw new AssertionError("Bulk hook discovery is outside this fixture");
+    }
+    public static java.util.Set<XC_MethodHook.Unhook> hookAllConstructors(
+            Class<?> owner, XC_MethodHook callback) {
+        throw new AssertionError("Constructor hooks are outside this fixture");
+    }
 }

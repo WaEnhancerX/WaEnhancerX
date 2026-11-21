@@ -5,6 +5,10 @@
         android:name="com.waenhancer.permission.RESTART_TARGET"
         android:protectionLevel="signature" />
     <uses-permission android:name="com.waenhancer.permission.RESTART_TARGET" />
+    <permission
+        android:name="com.waenhancer.permission.MODULE_STATUS"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="com.waenhancer.permission.MODULE_STATUS" />
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
@@ -13,7 +17,6 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
@@ -36,6 +39,9 @@
         <package android:name="org.lsposed.manager" />
         <package android:name="io.github.lsposed.manager" />
         <package android:name="de.robv.android.xposed.installer" />
+        <package android:name="com.tsng.hidemyapplist" />
+        <package android:name="org.frknkrc44.hma_oss" />
+        <package android:name="com.google.android.hmal" />
     </queries>
 
     <application

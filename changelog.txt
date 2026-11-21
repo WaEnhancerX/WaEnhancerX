@@ -1,29 +1,16 @@
 [Added]
-- Added support upto version 2.26.42.xx
-- Added support for switching between debug and release
-- Added HMA detection in diagnosis
-- Added interface size options in module settings to update the controls size
-- Added Status/Stories Style
+- Added VirusTotal scan on every Stable Release for all APKs, this makes sure all APKs are safe to use. This will attach a VirusTotal badge/link on every release page for users to verify.
+- Revived Update Channels back into the project
+
 
 [Fixes]
-- Fixed missing texts or resources from category titles or descriptions
-- Fixed some menu icons were not visible in release mode
-- Fixed showing unreleated apps in home list
-- Fixed Hide Forwarded
-- Fixed Filter Item by ID
-- Fixed chat screen ui lags
-- Fixed version compatibility bug
-- Fixed Delete for me messages not saving + improvements
-- Fixed Disable Pinned chat limit
+- Fixed Harmful App Error by play protect
+
 
 [Improvements]
-- Improved Call recorder
-- Improved System Diagnosis
+- Migrate on-device transcription native libraries to on-demand download and provisioning
 
-[New Languages]
-- Chinese (Thanks to @wilsonmilson)
-- Turkish
-- Slovenian (Thanks to @damjang)
 
-[Community contribution]
-- Thanks to @TheKillerMax for valuable contributions in this update.
+[Update Channels]
+Now you can install stable or nightly build of WAEX on top of each other without any issues.
+Contributors are always welcome to contribute to nightly branch of this project. 

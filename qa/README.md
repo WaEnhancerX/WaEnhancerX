@@ -21,7 +21,10 @@ These checks are **diagnostics**, not evidence that WhatsApp hooks are working. 
 | `test_monet_wiring.py` | Python 3 | Source-level dynamic-theme wiring, not UI instrumentation |
 | `android_call_type_test.py` | JDK, Kotlin, Python 3 and Maven; public dependencies bootstrap automatically | Complete phone/WhatsApp selector and installer on Android 24/28/34 with explicit host/Xposed fixtures; see `CALL_TYPE_ACCEPTANCE.md` |
 
-Other tests introduced by still-open PRs are not part of upstream `main` until merged. Do not assume that unmerged scripts are available from this branch.
+This table is a starting point, not a complete list of the current QA gates.
+Use the scripts and workflow present in the checked-out revision to determine
+which checks are available and required. Historical PR states do not establish
+whether a script is present in that revision.
 
 ## Run the APK audit
 
@@ -72,15 +75,16 @@ literal references in a hook do not prove the hook installed successfully.
 python3 qa/preference_type_audit.py
 python3 qa/preference_type_audit.py --json
 python3 qa/test_preference_type_audit.py
-# Once current UI fixes are merged, opt in to a failing check:
+# Fail on mismatched writes in the checked-out source:
 python3 qa/preference_type_audit.py --fail-on-writes
 ```
 
-The version-2.0.2 main snapshot currently contains two direct schema-mismatched
-writes to `anti_revoke_indicator` and `deleted_message_color`; their matching
-UI fix is proposed separately on the Archive/Anti-Revoke branch. After applying
-that fix, the audit reports zero mismatched literal writes. Guarded legacy
-reads in AntiRevokeHook are reported for manual classification.
+The earlier version-2.0.2 snapshot, reviewed before the Archive/Anti-Revoke UI
+correction, contained two direct schema-mismatched writes to
+`anti_revoke_indicator` and `deleted_message_color`. Those counts describe that
+historical source, not the current checkout. Run the audit against the intended
+revision to obtain its current mismatched-write count. Guarded legacy reads in
+AntiRevokeHook are reported for manual classification.
 
 This is a literal-source review only: dynamic keys, indirect write helpers,
 private licensing code and legacy fallback semantics cannot be proven by

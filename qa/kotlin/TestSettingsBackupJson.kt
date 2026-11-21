@@ -1,5 +1,10 @@
 package com.waenhancer.core.preferences
 
+import java.io.IOException
+import java.nio.charset.CharacterCodingException
+import java.util.Random
+import org.json.JSONArray
+
 import android.content.TestContext
 import com.waenhancer.config.PreferenceSchema
 import java.io.ByteArrayInputStream
@@ -32,7 +37,7 @@ private fun value(key: String, jsonValue: String, expected: Any) {
 private fun rejects(bytes: ByteArray) {
     val context = target()
     val error = runCatching { SettingsBackupCodec.decode(context, ByteArrayInputStream(bytes)) }.exceptionOrNull()
-    check(error is IllegalArgumentException || error is IllegalStateException || error is java.io.IOException) { "Must fail with a controlled validation error" }
+    check(error is IllegalArgumentException || error is IllegalStateException || error is IOException) { "Must fail with a controlled validation error" }
     check(context.get("waex_prefs", "hide_read_receipts") == true)
     check(context.get("waex_prefs", "always_online") == true)
     check(context.get("waex_prefs", "css_theme") == "original")
@@ -125,6 +130,22 @@ fun main() {
         val dest=TestContext();check(SettingsBackupCodec.decode(dest,ByteArrayInputStream(bytes.toByteArray()))==count)
         check(dest.get("waex_prefs","hidetabs")==setOf("300"))
     }
+    test("parallel media downloader choices survive a typed binary backup") {
+        val source=TestContext()
+        source.seed("waex_prefs","parallel_downloading",true)
+        source.seed("waex_prefs","parallel_downloading_connections",6)
+        val bytes=ByteArrayOutputStream()
+        check(SettingsBackupCodec.encode(source,bytes)==2)
+        val restored=TestContext()
+        check(SettingsBackupCodec.decode(restored,ByteArrayInputStream(bytes.toByteArray()))==2)
+        check(restored.get("waex_prefs","parallel_downloading")==true)
+        check(restored.get("waex_prefs","parallel_downloading_connections")==6)
+    }
+    test("parallel media downloader choices restore from legacy JSON with correct types") {
+        val restored=decode("{\"parallel_downloading\":true,\"parallel_downloading_connections\":8}")
+        check(restored.get("waex_prefs","parallel_downloading")==true)
+        check(restored.get("waex_prefs","parallel_downloading_connections")==8)
+    }
     test("binary trailing byte rejected") { rejects(binary("hide_read_receipts",PreferenceSchema.Type.BOOLEAN.ordinal){writeBoolean(false)}+byteArrayOf(0)) }
     test("binary noncanonical Boolean rejected") { rejects(binary("hide_read_receipts",PreferenceSchema.Type.BOOLEAN.ordinal){writeByte(2)}) }
     test("binary invalid UTF8 rejected") { rejects(binary("css_theme",PreferenceSchema.Type.STRING.ordinal){writeInt(2);write(byteArrayOf(0xc3.toByte(),0x28))}) }
@@ -159,7 +180,7 @@ fun main() {
     }
     test("export rejects malformed UTF16 instead of replacing it") {
         val c=TestContext();c.seed("waex_prefs","css_theme",String(charArrayOf(0xd800.toChar())))
-        val bytes=ByteArrayOutputStream();check(runCatching{SettingsBackupCodec.encode(c,bytes)}.exceptionOrNull() is java.nio.charset.CharacterCodingException);check(bytes.size()==0)
+        val bytes=ByteArrayOutputStream();check(runCatching{SettingsBackupCodec.encode(c,bytes)}.exceptionOrNull() is CharacterCodingException);check(bytes.size()==0)
     }
     test("export-import exact 8 MiB boundary") {
         val text="x".repeat(8*1024*1024-42)
@@ -177,7 +198,7 @@ fun main() {
         val dest=TestContext();check(SettingsBackupCodec.decode(dest,ByteArrayInputStream(out.toByteArray()))==1);check(dest.get("waex_prefs","hidetabs")==value)
     }
     test("seeded exact integer normalization boundaries: 2000 cases") {
-        val random=java.util.Random(0x14baL)
+        val random=Random(0x14baL)
         repeat(1000) {
             val number=random.nextInt()
             check(normalize.invoke(SettingsBackupCodec,PreferenceSchema.Type.INT,number.toString())==number)
@@ -197,7 +218,7 @@ fun main() {
                 PreferenceSchema.Type.FLOAT -> i+0.25f
             }
             expected[key]=v
-            settings.put(key,if(v is Set<*>) org.json.JSONArray(v) else v)
+            settings.put(key,if(v is Set<*>) JSONArray(v) else v)
         }
         val root=JSONObject().put("schemaVersion",1).put("settings",settings)
         val c=TestContext();check(SettingsBackupCodec.decode(c,root.toString().byteInputStream())==expected.size)

@@ -1,0 +1,45 @@
+name: Startup hook-report contract
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/src/main/java/com/waenhancer/xposed/MainHook.java'
+      - 'app/src/main/java/com/waenhancer/xposed/core/FeatureRegistry.java'
+      - 'qa/*startup_hook_reporting.py'
+      - '.github/workflows/startup-report-contract.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  startup-report-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check reporting, failure isolation and lazy updates
+        run: |
+          python3 qa/test_startup_hook_reporting.py --out "$RUNNER_TEMP/startup-report"
+          python3 qa/mutate_startup_hook_reporting.py --out "$RUNNER_TEMP/startup-report-mutants"
+      - name: Preserve complete evidence, including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: startup-report-contract
+          path: |
+            ${{ runner.temp }}/startup-report/*.json
+            ${{ runner.temp }}/startup-report/*.log
+            ${{ runner.temp }}/startup-report/*.java
+            ${{ runner.temp }}/startup-report-mutants/**/*.json
+            ${{ runner.temp }}/startup-report-mutants/**/*.log
+          retention-days: 14
+          if-no-files-found: error

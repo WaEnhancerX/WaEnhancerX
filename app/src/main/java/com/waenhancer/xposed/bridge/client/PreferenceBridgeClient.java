@@ -1,6 +1,7 @@
 package com.waenhancer.xposed.bridge.client;
 
 import android.content.Context;
+import com.waenhancer.config.PreferenceSchema;
 import android.content.SharedPreferences;
 import android.database.ContentObserver;
 import android.net.Uri;
@@ -9,6 +10,8 @@ import android.os.Handler;
 import android.os.Looper;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import com.waenhancer.config.PreferenceRestartTracker;
+import com.waenhancer.xposed.utils.HookErrors;
 import de.robv.android.xposed.XSharedPreferences;
 import de.robv.android.xposed.XposedBridge;
 import java.util.ArrayList;
@@ -248,6 +251,7 @@ public final class PreferenceBridgeClient implements SharedPreferences {
         for (PendingEdit edit : pendingEdits.values()) {
             if (edit.optimistic) view = applyEdits(view, edit);
         }
+        view = applyTargetConfiguration(view);
         Map<String, Object> next = Collections.unmodifiableMap(copyValues(view));
         Map<String, Object> previous = memoryCache;
         memoryCache = next;
@@ -255,6 +259,37 @@ public final class PreferenceBridgeClient implements SharedPreferences {
         modified.addAll(next.keySet());
         modified.removeIf(key -> Objects.equals(previous.get(key), next.get(key)));
         return modified;
+    }
+
+    /**
+     * Resolves the snapshot for the injected target process. The settings UI stores universal
+     * values as {@code key} and per-target overrides as {@code package:key}. Keeping this
+     * resolution here makes provider reads and disk fallback behave identically.
+     */
+    private Map<String, Object> applyTargetConfiguration(Map<String, Object> source) {
+        Object mode = source.get("module_config_mode");
+        if (!"Per Target App".equals(String.valueOf(mode))) return source;
+        String packageName = context.getPackageName();
+        if (packageName == null || packageName.isEmpty()) return source;
+
+        Map<String, Object> resolved = new HashMap<>(source);
+        String prefix = packageName + ":";
+        for (Map.Entry<String, Object> entry : source.entrySet()) {
+            String key = entry.getKey();
+            if (key != null && key.startsWith(prefix) && key.length() > prefix.length()
+                    && !PreferenceSchema.isGlobalOnly(key.substring(prefix.length()))) {
+                resolved.put(key.substring(prefix.length()), entry.getValue());
+            }
+        }
+        resolved.put(PreferenceRestartTracker.NEED_RESTART,
+                Boolean.TRUE.equals(source.get(prefix + PreferenceRestartTracker.NEED_RESTART)));
+        Object pending = source.get(prefix + PreferenceRestartTracker.PENDING_CHANGES);
+        if (pending instanceof Set<?>) {
+            resolved.put(PreferenceRestartTracker.PENDING_CHANGES, pending);
+        } else {
+            resolved.remove(PreferenceRestartTracker.PENDING_CHANGES);
+        }
+        return resolved;
     }
 
     private void dispatchChanges(Set<String> modified) {
@@ -345,7 +380,7 @@ public final class PreferenceBridgeClient implements SharedPreferences {
 
     @Override
     public Map<String, ?> getAll() {
-        return copyValues(memoryCache);
+        return memoryCache;
     }
 
     @Nullable
@@ -367,7 +402,7 @@ public final class PreferenceBridgeClient implements SharedPreferences {
         Object val = memoryCache.get(key);
         if (val instanceof Integer) return (Integer) val;
         if (val instanceof String) {
-            try { return Integer.parseInt((String) val); } catch (Throwable ignored) {}
+            try { return Integer.parseInt((String) val); } catch (Throwable ignored) { HookErrors.swallowed("PreferenceBridgeClient", ignored); }
         }
         return defValue;
     }
@@ -377,7 +412,7 @@ public final class PreferenceBridgeClient implements SharedPreferences {
         Object val = memoryCache.get(key);
         if (val instanceof Long) return (Long) val;
         if (val instanceof String) {
-            try { return Long.parseLong((String) val); } catch (Throwable ignored) {}
+            try { return Long.parseLong((String) val); } catch (Throwable ignored) { HookErrors.swallowed("PreferenceBridgeClient", ignored); }
         }
         return defValue;
     }
@@ -387,7 +422,7 @@ public final class PreferenceBridgeClient implements SharedPreferences {
         Object val = memoryCache.get(key);
         if (val instanceof Float) return (Float) val;
         if (val instanceof String) {
-            try { return Float.parseFloat((String) val); } catch (Throwable ignored) {}
+            try { return Float.parseFloat((String) val); } catch (Throwable ignored) { HookErrors.swallowed("PreferenceBridgeClient", ignored); }
         }
         return defValue;
     }

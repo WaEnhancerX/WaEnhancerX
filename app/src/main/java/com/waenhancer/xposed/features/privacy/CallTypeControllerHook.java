@@ -245,7 +245,9 @@ public final class CallTypeControllerHook extends BaseFeature {
         Object owner = request.owner.get();
         finish(request);
         try {
-            XposedBridge.invokeOriginalMethod(request.site.operation, owner, request.arguments);
+            // BaseFeature's tracked registration facade does not expose original invocation.
+            de.robv.android.xposed.XposedBridge.invokeOriginalMethod(
+                    request.site.operation, owner, request.arguments);
         } catch (Throwable failure) {
             // The original operation is attempted exactly once, even when it throws.
             log("original call failed", failure);

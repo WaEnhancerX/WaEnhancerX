@@ -48,5 +48,7 @@ google-services.json
 # Private implementation module, supplied outside the public repository
 /licensing/
 
-*/__pycache__
+**/__pycache__
 .pytest_cache
+analysis
+scripts

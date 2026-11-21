@@ -32,6 +32,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -50,9 +51,11 @@ import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
 import com.waenhancer.utils.InjectedHookItem
+import com.waenhancer.utils.TargetAppManager
 import com.waenhancer.utils.WhatsAppPackageDetector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.waenhancer.utils.InternalLabels
 
 @Composable
 fun InjectedHooksScreen(
@@ -71,7 +74,10 @@ fun InjectedHooksScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("All") }
 
-    LaunchedEffect(packageName, refreshTrigger) {
+    // Reload whenever the manager finishes a sync/refresh for any target.
+    val refreshEpoch by TargetAppManager.refreshEpoch.collectAsState()
+
+    LaunchedEffect(packageName, refreshTrigger, refreshEpoch) {
         withContext(Dispatchers.IO) {
             val list = WhatsAppPackageDetector.getInjectedHooks(context, packageName)
             withContext(Dispatchers.Main) {
@@ -89,8 +95,8 @@ fun InjectedHooksScreen(
             val matchesCategory = (selectedCategory == "All" || hook.category.equals(selectedCategory, ignoreCase = true))
             val matchesSearch = searchQuery.isBlank() ||
                     hook.name.contains(searchQuery, ignoreCase = true) ||
-                    com.waenhancer.utils.InternalLabels.text(hook.name).contains(searchQuery, ignoreCase = true) ||
-                    com.waenhancer.utils.InternalLabels.text(hook.category).contains(searchQuery, ignoreCase = true) ||
+                    InternalLabels.text(hook.name).contains(searchQuery, ignoreCase = true) ||
+                    InternalLabels.text(hook.category).contains(searchQuery, ignoreCase = true) ||
                     hook.className.contains(searchQuery, ignoreCase = true) ||
                     hook.category.contains(searchQuery, ignoreCase = true)
             matchesCategory && matchesSearch
@@ -107,7 +113,7 @@ fun InjectedHooksScreen(
     ) {
         // Top App Bar
         WaexTopBar(
-            title = UiText.get(R.string.waex_ui_injected_hooks_ec0c619c, "Injected Hooks"),
+            title = UiText.get(R.string.waex_ui_injected_hooks, "Injected Hooks"),
             onBackClick = { navController.popBack() },
             actions = {
                 Row(
@@ -121,7 +127,7 @@ fun InjectedHooksScreen(
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = UiText.get(R.string.waex_ui_1_s_active_0c79364e, "%1\$s Active", activeCount),
+                            text = UiText.get(R.string.waex_ui_1_s_active, "%1\$s Active", activeCount),
                             style = typography.labelSm,
                             color = colors.primary,
                             fontWeight = FontWeight.Bold,
@@ -136,7 +142,7 @@ fun InjectedHooksScreen(
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = UiText.get(R.string.waex_ui_1_s_failed_af74ff71, "%1\$s Failed", failedCount),
+                                text = UiText.get(R.string.waex_ui_1_s_failed, "%1\$s Failed", failedCount),
                                 style = typography.labelSm,
                                 color = colors.error,
                                 fontWeight = FontWeight.Bold,
@@ -191,12 +197,15 @@ fun InjectedHooksScreen(
                                 .clip(CircleShape)
                                 .background(colors.surfaceDim)
                                 .border(1.dp, colors.outlineVariant, CircleShape)
-                                .clickable { refreshTrigger++ },
+                                .clickable {
+                                    TargetAppManager.syncHooks(context, listOf(packageName))
+                                    refreshTrigger++
+                                },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = WaexIcons.Refresh,
-                                contentDescription = UiText.get(R.string.waex_ui_refresh_hooks_5fbeb9a0, "Refresh hooks"),
+                                contentDescription = UiText.get(R.string.waex_ui_refresh_hooks, "Refresh hooks"),
                                 tint = colors.onSurfaceVariant,
                                 modifier = Modifier.size(15.dp)
                             )
@@ -213,7 +222,7 @@ fun InjectedHooksScreen(
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = {
                         Text(
-                            text = UiText.get(R.string.waex_ui_search_injected_hooks_classes_6ad2a50f, "Search injected hooks & classes..."),
+                            text = UiText.get(R.string.waex_ui_search_injected_hooks_classes, "Search injected hooks & classes..."),
                             style = typography.bodyMd,
                             color = colors.onSurfaceVariant
                         )
@@ -230,7 +239,7 @@ fun InjectedHooksScreen(
                         if (searchQuery.isNotEmpty()) {
                             Icon(
                                 imageVector = WaexIcons.Clear,
-                                contentDescription = UiText.get(R.string.waex_ui_clear_search_3b7ea517, "Clear search"),
+                                contentDescription = UiText.get(R.string.waex_ui_clear_search, "Clear search"),
                                 tint = colors.onSurfaceVariant,
                                 modifier = Modifier
                                     .size(18.dp)
@@ -271,7 +280,7 @@ fun InjectedHooksScreen(
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
                             Text(
-                                text = com.waenhancer.utils.InternalLabels.text(category),
+                                text = InternalLabels.text(category),
                                 style = typography.labelSm,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 color = if (isSelected) colors.onPrimary else colors.onSurface,
@@ -296,7 +305,7 @@ fun InjectedHooksScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = if (hooksList.isEmpty()) UiText.get(R.string.waex_ui_no_active_hooks_reported_by_whatsapp_p_50b24a7f, "No active hooks reported by WhatsApp process.\nEnsure WhatsApp is running.") else UiText.get(R.string.waex_ui_no_injected_hooks_matching_filter_fe90503b, "No injected hooks matching filter"),
+                            text = if (hooksList.isEmpty()) UiText.get(R.string.waex_ui_no_active_hooks_reported_by_whatsapp_p, "No active hooks reported by WhatsApp process.\nEnsure WhatsApp is running.") else UiText.get(R.string.waex_ui_no_injected_hooks_matching_filter, "No injected hooks matching filter"),
                             style = typography.bodyMd,
                             color = colors.onSurfaceVariant
                         )

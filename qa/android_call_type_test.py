@@ -24,11 +24,14 @@ ROOT = Path(__file__).resolve().parents[1]
 BASE = Path('app/src/main/java/com/waenhancer')
 JAVA_FIRST = [BASE / path for path in (
     'utils/ContactIdentityPolicy.java', 'utils/DisplayLocalePolicy.java', 'utils/UiText.java',
+    'xposed/utils/HookErrors.java',
     'xposed/core/devkit/DexNegativeLookupCache.java', 'xposed/core/devkit/DexCacheManager.java',
     'xposed/core/devkit/DexSearchEngine.java')]
 KOTLIN = [BASE / path for path in (
     'xposed/core/BaseFeature.kt', 'xposed/core/db/PreservedMessageStore.kt',
     'utils/ContactNameResolver.kt')]
+JAVA_LIFECYCLE = [BASE / path for path in (
+    'xposed/core/HookRegistrar.java', 'xposed/core/ViewHookDispatcher.java')]
 JAVA_HOOK = [BASE / 'xposed/features/privacy' / name for name in (
     'CallTypeHostContract.java', 'CallTypeControllerHook.java')]
 FIXTURES = [Path('qa/fixtures/call_type') / name for name in (
@@ -136,7 +139,7 @@ def main():
     stage, classes = out / 'sources', out / 'classes'
     classes.mkdir()
     identities, staged = {}, {}
-    for relative in JAVA_FIRST + KOTLIN + JAVA_HOOK + FIXTURES:
+    for relative in JAVA_FIRST + KOTLIN + JAVA_LIFECYCLE + JAVA_HOOK + FIXTURES:
         source = (root if relative not in FIXTURES else ROOT) / relative
         dest = stage / relative
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -155,9 +158,19 @@ def main():
                             'public static final int VERSION_CODE=20100; '
                             'public static final String VERSION_NAME="fixture"; }\n')
     identities['generated/BuildConfig.java'] = digest(build_config)
+    # Native module bootstrap is outside this selector fixture. Represent its
+    # uninitialized path field only; do not substitute a successful native loader.
+    main_hook_source = root / 'app/src/main/java/com/waenhancer/xposed/MainHook.java'
+    if not re.search(r'public\s+static\s+volatile\s+String\s+sModulePath\s*;', main_hook_source.read_text()):
+        raise RuntimeError('Review the current native module-path field contract')
+    identities['app/src/main/java/com/waenhancer/xposed/MainHook.java'] = digest(main_hook_source)
+    module_path = stage / 'generated/com/waenhancer/xposed/MainHook.java'
+    module_path.parent.mkdir(parents=True, exist_ok=True)
+    module_path.write_text('package com.waenhancer.xposed; public final class MainHook { public static volatile String sModulePath; }\n')
+    identities['generated/MainHook.java'] = digest(module_path)
     # Compile-only annotation types; no behavior or framework API is substituted.
     annotations = []
-    for name in ('NonNull', 'Nullable'):
+    for name in ('NonNull', 'Nullable', 'VisibleForTesting'):
         path = stage / 'generated/androidx/annotation' / (name + '.java')
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text('package androidx.annotation;\n'
@@ -175,10 +188,12 @@ def main():
         raise RuntimeError('Pinned Android compilation API is missing')
     production_cp = os.pathsep.join(map(str, (classes, android, kotlin_runtime, dexkit)))
     run(['javac', '--release', '17', '-cp', production_cp, '-d', str(classes),
-         *map(str, annotations), str(r_source), str(build_config), *[str(staged[p]) for p in FIXTURES[:-1] + JAVA_FIRST]],
+         *map(str, annotations), str(r_source), str(build_config), str(module_path), *[str(staged[p]) for p in FIXTURES[:-1] + JAVA_FIRST]],
         out / 'javac-production-dependencies.log')
     run([compiler, '-jvm-target', '17', '-classpath', production_cp, '-d', str(classes),
-         *[str(staged[p]) for p in KOTLIN]], out / 'kotlinc-production.log')
+         *[str(staged[p]) for p in KOTLIN + JAVA_LIFECYCLE]], out / 'kotlinc-production.log')
+    run(['javac', '--release', '17', '-cp', production_cp, '-d', str(classes),
+         *[str(staged[p]) for p in JAVA_LIFECYCLE]], out / 'javac-lifecycle.log')
     run(['javac', '--release', '17', '-cp', production_cp, '-d', str(classes),
          *[str(staged[p]) for p in JAVA_HOOK]], out / 'javac-production-selector.log')
     run(['javac', '--release', '17', '-cp', classpath, '-d', str(classes), str(staged[FIXTURES[-1]])],
