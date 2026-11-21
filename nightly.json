@@ -1,8 +1,30 @@
 {
   "schema": 1,
   "channel": "nightly",
-  "updated_at": "2026-11-20T12:36:55Z",
+  "updated_at": "2026-11-21T18:57:58Z",
   "releases": [
+    {
+      "tag": "2.1.0-nightly.5",
+      "version_name": "2.1.0-nightly.5",
+      "version_code": 20100005,
+      "published_at": "2026-11-21T18:57:47Z",
+      "html_url": "https://github.com/WaEnhancerX/WaEnhancerX/releases/tag/2.1.0-nightly.5",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v2.1.0-nightly.5_debug.apk",
+          "url": "https://github.com/WaEnhancerX/WaEnhancerX/releases/download/2.1.0-nightly.5/WaEnhancerX-v2.1.0-nightly.5_debug.apk",
+          "size": 7978634,
+          "sha256": "6c0f43ce1a53434c9eea3e33a4158e4720253b39d6571f5dfca6f367c122be61"
+        },
+        {
+          "name": "WaEnhancerX-v2.1.0-nightly.5_release.apk",
+          "url": "https://github.com/WaEnhancerX/WaEnhancerX/releases/download/2.1.0-nightly.5/WaEnhancerX-v2.1.0-nightly.5_release.apk",
+          "size": 8074546,
+          "sha256": "3c09e2de61a4278e80da7f77dd3370c3232e48b62cbe8884d82cd7be569bd94a"
+        }
+      ],
+      "notes": "[Fixes]\n- Wait for Ghost Mode, Freeze Last Seen and DND setting writes to succeed before restarting WhatsApp.\n- Cancel restart callbacks owned by closed screens and report failed or already-pending setting changes.\n- Preserve the current header and quick-action entry points while waiting for each selected setting change to be acknowledged.\n- Apply explicitly confirmed per-contact call blocks when global call privacy uses its default mode, while respecting an explicit global opt-out.\n- Resolve saved callers within the active app and profile without treating unmapped LIDs or display names as saved contacts.\n- Keep Delete for Me message preservation active until the outer deletion finishes when another hooked deletion runs inside it.\n- Scope WhatsApp restarts and root APK installation to the manager's current Android profile.\n- Verify launch targets and root launch acknowledgements before treating a restart as complete; retain normal launch fallback when needed.\n- Retain the current delegated restart flow and reject contradictory launch output that includes an error alongside a success acknowledgement.\n- Use one-shot unstable provider clients for WAEX calls from WhatsApp, closing them after each attempt without retrying ambiguous failures.\n- Keep target-specific preference namespaces out of other targets' IPC snapshots and reject target writes to manager-only settings.\n- Resolve raw disk preferences once so resolved IPC values and restart state are not overwritten when rebuilding the preference cache.\n\nBuilt from commit 34314396d8c0379f355b82af57b7020f781fea64"
+    },
     {
       "tag": "2.1.0-nightly.4",
       "version_name": "2.1.0-nightly.4",
