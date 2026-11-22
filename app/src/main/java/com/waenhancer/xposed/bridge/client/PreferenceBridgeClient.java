@@ -37,7 +37,6 @@ public final class PreferenceBridgeClient implements SharedPreferences {
 
     public static final String AUTHORITY = "com.waenhancer.hookprovider";
     public static final Uri PREFS_URI = Uri.parse("content://" + AUTHORITY + "/preferences");
-    private static final Uri PROVIDER_URI = Uri.parse("content://" + AUTHORITY);
     private static final Object REMOVED = new Object();
 
     private final Context context;
@@ -116,7 +115,7 @@ public final class PreferenceBridgeClient implements SharedPreferences {
         Map<String, Object> loaded = null;
         String providerError = null;
         try {
-            Bundle bundle = context.getContentResolver().call(PROVIDER_URI,
+            Bundle bundle = HookProviderIpc.call(context,
                     "get_all_preferences", null, null);
             if (bundle != null) {
                 loaded = decodePreferences(bundle);
@@ -174,7 +173,9 @@ public final class PreferenceBridgeClient implements SharedPreferences {
                 ((XSharedPreferences) diskPrefs).reload();
             }
             Map<String, ?> all = diskPrefs.getAll();
-            return all == null ? null : copyValues(all);
+            // Disk stores raw package:key values. Resolve those before they join the
+            // same cache as the provider's already caller-specific IPC snapshot.
+            return all == null ? null : applyTargetConfiguration(copyValues(all));
         } catch (Throwable ignored) {
             return null;
         }
@@ -251,7 +252,9 @@ public final class PreferenceBridgeClient implements SharedPreferences {
         for (PendingEdit edit : pendingEdits.values()) {
             if (edit.optimistic) view = applyEdits(view, edit);
         }
-        view = applyTargetConfiguration(view);
+        // Every confirmed snapshot is already resolved for this target.
+        // Resolving again would discard restart state from namespace-filtered IPC
+        // and let stale raw disk keys overwrite accepted optimistic edits.
         Map<String, Object> next = Collections.unmodifiableMap(copyValues(view));
         Map<String, Object> previous = memoryCache;
         memoryCache = next;
@@ -262,9 +265,9 @@ public final class PreferenceBridgeClient implements SharedPreferences {
     }
 
     /**
-     * Resolves the snapshot for the injected target process. The settings UI stores universal
-     * values as {@code key} and per-target overrides as {@code package:key}. Keeping this
-     * resolution here makes provider reads and disk fallback behave identically.
+     * Resolves a raw disk snapshot for the injected target process. The settings UI stores
+     * universal values as {@code key} and per-target overrides as {@code package:key}.
+     * HookProvider already performs this resolution before filtering its IPC response.
      */
     private Map<String, Object> applyTargetConfiguration(Map<String, Object> source) {
         Object mode = source.get("module_config_mode");
@@ -535,8 +538,8 @@ public final class PreferenceBridgeClient implements SharedPreferences {
                 operations.add(operation);
             }
             request.putParcelableArrayList("operations", operations);
-            Bundle response = context.getContentResolver().call(
-                    PROVIDER_URI, "apply_preferences", null, request);
+            Bundle response = HookProviderIpc.call(context,
+                    "apply_preferences", null, request);
             return response != null && response.getBoolean("success", false);
         } catch (Throwable t) {
             XposedBridge.log("[WAEX] Preference batch write failed: " + t.getClass().getSimpleName());
