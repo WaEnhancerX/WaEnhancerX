@@ -1,3 +1,0 @@
-[Fixes]
-- Handle proximity wake locks when Disable Proximity is enabled so voice-note
-  playback does not request proximity-based screen-off.

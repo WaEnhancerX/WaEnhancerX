@@ -1,6 +1,0 @@
-[Fixes]
-- Confirm profile-photo exports only after MediaStore acknowledges publication,
-  and remove the newly created row when publication fails.
-- Release owned bitmaps when rendering fails and restore admission when worker
-  submission is rejected.
-- Distinguish unavailable photos from gallery save errors.

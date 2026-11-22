@@ -1,3 +1,0 @@
-[Fixes]
-- Restrict LSPosed scope evidence to the current Android user and discard stale
-  cached scope information when live scope reads are unavailable.

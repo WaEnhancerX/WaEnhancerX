@@ -1,6 +1,0 @@
-[Added]
-- Add Spanish and Latin American Spanish resource inventories with missing-key,
-  extra-key and translation-divergence diagnostics, plus strict-mode controls.
-[Fixes]
-- Reject empty default string inventories and optimized Python runs that disable
-  duplicate-resource or regression assertions.

@@ -1,6 +1,0 @@
-[Fixes]
-- Keep online-presence dots positioned on the measured avatar rim, including
-  right-to-left layouts and rows without a separate photo view.
-- Isolate host resource identifier caches by app package to prevent a manager
-  lookup from hiding the corresponding WhatsApp avatar view.
-- Use API 24-compatible reflection parameter inspections in presence resolvers.

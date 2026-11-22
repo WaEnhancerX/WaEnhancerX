@@ -1,6 +1,0 @@
-[Fixes]
-- Let bottom navigation grow beyond its 72 dp minimum for larger text while
-  retaining the current two-line, ellipsized labels.
-- Constrain dashboard hook-status labels and values so they do not compete for
-  the same row space.
-- Preserve live hook-status hints and refresh actions in the current dashboard.

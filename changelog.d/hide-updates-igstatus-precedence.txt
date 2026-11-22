@@ -1,3 +1,0 @@
-[Fixes]
-- Honor explicitly hidden Updates navigation when Instagram-style status is
-  enabled.
