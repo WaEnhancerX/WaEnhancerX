@@ -385,16 +385,21 @@ public class HookProvider extends ContentProvider {
                         context, ProFeatureGate.UNLOCK_WA_PLUS);
                 all.put(ProFeatureGate.UNLOCK_WA_PLUS_ENTITLEMENT, unlockWaPlusEntitled);
                 if (!unlockWaPlusEntitled) all.put(ProFeatureGate.UNLOCK_WA_PLUS_PREF, false);
+                if (callerUid != context.getApplicationInfo().uid) {
+                    all = ProviderPreferenceScopePolicy.filterTargetNamespaces(
+                            all, WhatsAppPackageDetector.getSupportedPackages(context));
+                }
                 return encodePreferences(all);
             }
 
             if ("get_preference".equals(method) && extras != null) {
                 String key = extras.getString("key");
                 Bundle result = new Bundle();
-                if (key != null) {
+                if (ProviderPreferenceScopePolicy.mayReadKey(
+                        key, callerUid == context.getApplicationInfo().uid)) {
                     Object value = prefs.getAll().get(key);
                     String callerPackage = targetPackageForCaller(context, callerUid);
-                    if (callerPackage != null && !"module_config_mode".equals(key)
+                    if (callerPackage != null && !PreferenceSchema.isGlobalOnly(key)
                             && "Per Target App".equals(prefs.getString("module_config_mode", "Universal"))) {
                         // A target only ever sees its own override, never another target's value.
                         Object scopedValue = prefs.getAll().get(callerPackage + ":" + key);
@@ -529,6 +534,8 @@ public class HookProvider extends ContentProvider {
             String key = op.getString("key");
             String type = op.getString("type");
             if (key == null || key.isEmpty() || key.length() > 200 || type == null) return writeResult(false);
+            if (!ProviderPreferenceScopePolicy.mayWriteKey(
+                    key, callerUid == context.getApplicationInfo().uid)) return writeResult(false);
             if (!ProviderDerivedKeyPolicy.allowsGenericWrite(key)) return writeResult(false);
             PreferenceSchema.Entry entry = PreferenceSchema.entry(key);
             if (entry != null && entry.store == PreferenceSchema.Store.PRIVATE) return writeResult(false);
@@ -551,7 +558,7 @@ public class HookProvider extends ContentProvider {
         if (clear) editor.clear();
         for (Bundle op : operations) {
             String key = op.getString("key");
-            if (scoped && !"module_config_mode".equals(key)) key = targetPackage + ":" + key;
+            if (scoped && !PreferenceSchema.isGlobalOnly(key)) key = targetPackage + ":" + key;
             switch (op.getString("type")) {
                 case "remove": editor.remove(key); break;
                 case "string": editor.putString(key, op.getString("value")); break;
