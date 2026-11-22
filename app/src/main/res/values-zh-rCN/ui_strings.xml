@@ -11,7 +11,7 @@
     <string name="waex_ui_followers_count">"%1$s 粉丝"</string>
     <string name="waex_ui_followers_count_compact">"• %1$s 粉丝"</string>
     <string name="waex_ui_1_s_hidden">"%1$s 隐藏"</string>
-    <string name="waex_ui_1_s_hooks">"%1$s 钩子"</string>
+    <string name="waex_ui_1_s_hooks">"%1$s Hook"</string>
     <string name="waex_ui_1_s_initialization">"%1$s 初始化"</string>
     <string name="waex_ui_1_s_last_error">"%1$s 最近错误"</string>
     <string name="waex_ui_1_s_of_2_s_devices_in_use">"%1$s 个 %2$s 设备正在使用中"</string>
@@ -59,7 +59,7 @@
     <string name="waex_ui_all_settings_reset_to_default" formatted="false">"所有设置已重置为默认值"</string>
     <string name="waex_ui_allow_all_whatsapp_incoming_voice_vide" formatted="false">"允许所有 WhatsApp 的来电和视频通话"</string>
     <string name="waex_ui_allow_granular_privacy_overrides_for_s" formatted="false">"允许对特定联系人或群组进行细粒度的隐私覆盖"</string>
-    <string name="waex_ui_allow_user_defined_versions_and_wildca" formatted="false">"允许用户定义版本和通配符规则来加载钩子"</string>
+    <string name="waex_ui_allow_user_defined_versions_and_wildca" formatted="false">"允许在用户指定的版本或符合通配符规则的版本上加载 Hook"</string>
     <string name="waex_ui_allow_version_downgrades" formatted="false">"允许版本降级"</string>
     <string name="waex_ui_always_active" formatted="false">"始终激活"</string>
     <string name="waex_ui_always_typing" formatted="false">"始终输入状态"</string>
@@ -77,7 +77,7 @@
     <string name="waex_ui_appearance" formatted="false">"外观"</string>
     <string name="waex_ui_apply_custom_color_to_deleted_message" formatted="false">"将自定义颜色应用于已删除的消息/状态和时间"</string>
     <string name="waex_ui_apply_during_set_hours" formatted="false">"在设定时间内应用"</string>
-    <string name="waex_ui_approve_the_superuser_request_if_your" formatted="false">"如果您的根管理器请求许可，请批准超级用户请求。"</string>
+    <string name="waex_ui_approve_the_superuser_request_if_your" formatted="false">"如果 Root 管理器弹出权限请求，请点击“允许”以授予 Root 权限。"</string>
     <string name="waex_ui_archived_chats_unavailable_in_this_wha" formatted="false">"存档聊天在此 WhatsApp 版本中不可用"</string>
     <string name="waex_ui_are_you_sure_you_want_to_delete_filter">"您确定要删除过滤器\"%1$s\"吗？"</string>
     <string name="waex_ui_are_you_sure_you_want_to_remove_all_cu" formatted="false">"您确定要删除所有自定义隐私规则吗？此操作将恢复所有联系人默认的隐私规则，且无法撤销。"</string>
@@ -123,7 +123,7 @@
     <string name="waex_ui_blue_on_reply_label" formatted="false">"回复时显示蓝色"</string>
     <string name="waex_ui_blue_tick_sent" formatted="false">"蓝色对勾已发送"</string>
     <string name="waex_ui_bootloader_spoofing_integrity" formatted="false">"引导加载程序伪装与完整性"</string>
-    <string name="waex_ui_both_info_screen_3_dot_menu" formatted="false">"两者（信息屏幕和三点菜单）"</string>
+    <string name="waex_ui_both_info_screen_3_dot_menu" formatted="false">"两处均显示（联系人和群组详情页、聊天三点菜单）"</string>
     <string name="waex_ui_bottom_margin" formatted="false">"底部边距"</string>
     <string name="waex_ui_brightness" formatted="false">"亮度"</string>
     <string name="waex_ui_broadcast_intent_to_send_a_message_wit" formatted="false">"广播意图以发送消息而无需打开 WhatsApp 界面。"</string>
@@ -155,7 +155,7 @@
     <string name="waex_ui_check_that_every_selector_has_a_matchi" formatted="false">"检查每个选择器是否有匹配的 { } 块"</string>
     <string name="waex_ui_check_when_module_opens" formatted="false">"检查模块打开时"</string>
     <string name="waex_ui_check_when_whatsapp_opens" formatted="false">"检查 WhatsApp 打开时"</string>
-    <string name="waex_ui_checking_root_access" formatted="false">"检查根访问权限"</string>
+    <string name="waex_ui_checking_root_access" formatted="false">"正在检查 Root 权限"</string>
     <string name="waex_ui_choose_color" formatted="false">"选择颜色"</string>
     <string name="waex_ui_choose_where_to_show_the_waex_settings" formatted="false">"选择显示 WAEX 设置入口的位置"</string>
     <string name="waex_ui_classic_regular" formatted="false">"经典（常规）"</string>
@@ -170,7 +170,7 @@
     <string name="waex_ui_communities" formatted="false">"社区"</string>
     <string name="waex_ui_compatibility_verified" formatted="false">"兼容性已验证"</string>
     <string name="waex_ui_completed" formatted="false">"已完成"</string>
-    <string name="waex_ui_completed_with_hook_failures" formatted="false">"已完成，但钩子失败"</string>
+    <string name="waex_ui_completed_with_hook_failures" formatted="false">"已完成，但部分 Hook 失败"</string>
     <string name="waex_ui_configuration" formatted="false">"配置"</string>
     <string name="waex_ui_configure_1_s">"配置 %1$s"</string>
     <string name="waex_ui_configure" formatted="false">"配置"</string>
@@ -195,7 +195,7 @@
     <string name="waex_ui_copied_status_text_to_clipboard" formatted="false">"已将状态文本复制到剪贴板"</string>
     <string name="waex_ui_copy_error" formatted="false">"复制错误"</string>
     <string name="waex_ui_copy_text" formatted="false">"复制文本"</string>
-    <string name="waex_ui_copy_the_error_details_when_reporting" formatted="false">"在报告此问题时复制错误详情。"</string>
+    <string name="waex_ui_copy_the_error_details_when_reporting" formatted="false">"\n\n反馈此问题时请复制错误详情。"</string>
     <string name="waex_ui_corner_radius" formatted="false">"圆角"</string>
     <string name="waex_ui_could_not_load_this_github_profile" formatted="false">"无法加载此 GitHub 资料。"</string>
     <string name="waex_ui_could_not_open_archived_chats" formatted="false">"无法打开已归档的聊天"</string>
@@ -222,7 +222,7 @@
     <string name="waex_ui_custom_status_view" formatted="false">"自定义状态查看"</string>
     <string name="waex_ui_custom_time_format" formatted="false">"自定义时间格式"</string>
     <string name="waex_ui_custom_toolbar" formatted="false">"自定义工具栏"</string>
-    <string name="waex_ui_customize_floating_bottom_bar" formatted="false">"自定义浮动底部栏"</string>
+    <string name="waex_ui_customize_floating_bottom_bar" formatted="false">"自定义悬浮底部导航栏"</string>
     <string name="waex_ui_dashboard" formatted="false">"仪表板"</string>
     <string name="waex_ui_date_unavailable" formatted="false">"日期不可用"</string>
     <string name="waex_ui_deactivate_ghost_mode" formatted="false">"停用幽灵模式？"</string>
@@ -274,7 +274,7 @@
     <string name="waex_ui_enable" formatted="false">"启用"</string>
     <string name="waex_ui_enable_bootloader_spoofer" formatted="false">"启用引导程序欺骗器"</string>
     <string name="waex_ui_enable_custom_versions" formatted="false">"启用自定义版本"</string>
-    <string name="waex_ui_enable_floating_bottom_bar" formatted="false">"启用浮动底部栏"</string>
+    <string name="waex_ui_enable_floating_bottom_bar" formatted="false">"启用悬浮底部导航栏"</string>
     <string name="waex_ui_enable_per_contact_privacy" formatted="false">"启用按联系人隐私"</string>
     <string name="waex_ui_enable_the_feature_when_your_source_is" formatted="false">"当资源准备好时启用该功能"</string>
     <string name="waex_ui_encoding_format" formatted="false">"编码格式"</string>
@@ -302,8 +302,7 @@
     <string name="waex_ui_expand" formatted="false">"展开"</string>
     <string name="waex_ui_expand_1_s">"展开 %1$s"</string>
     <string name="waex_ui_expires" formatted="false">"过期"</string>
-    <string name="waex_ui_extra_number_1234567890_extra_message" formatted="false">"额外：号码：1234567890
-额外：消息：您的自动回复在此"</string>
+    <string name="waex_ui_extra_number_1234567890_extra_message" formatted="false">"Extra: number:1234567890\nExtra: message:您的自动回复内容"</string>
     <string name="waex_ui_fade_out" formatted="false">"淡出"</string>
     <string name="waex_ui_failed_uppercase" formatted="false">"失败"</string>
     <string name="waex_ui_failed_label" formatted="false">"失败"</string>
@@ -317,7 +316,7 @@
     <string name="waex_ui_features" formatted="false">"功能"</string>
     <string name="waex_ui_filter_items" formatted="false">"筛选项目"</string>
     <string name="waex_ui_filter_view_id" formatted="false">"筛选视图ID"</string>
-    <string name="waex_ui_force_waex_hooks_to_run_on_any_version" formatted="false">"强制 WAEX 钩子在任何版本上运行而不检查（高级）"</string>
+    <string name="waex_ui_force_waex_hooks_to_run_on_any_version" formatted="false">"跳过版本检查，强制在任意版本上运行 WAEX Hook（高级）"</string>
     <string name="waex_ui_framework_package" formatted="false">"框架包"</string>
     <string name="waex_ui_framework_version" formatted="false">"框架版本"</string>
     <string name="waex_ui_free" formatted="false">"免费"</string>
@@ -378,9 +377,9 @@
     <string name="waex_ui_home_feed" formatted="false">"首页与动态"</string>
     <string name="waex_ui_home_header_actions" formatted="false">"首页头部操作"</string>
     <string name="waex_ui_home_menu" formatted="false">"首页菜单"</string>
-    <string name="waex_ui_hook_runtime" formatted="false">"钩子运行时"</string>
-    <string name="waex_ui_hook_success" formatted="false">"钩子成功"</string>
-    <string name="waex_ui_hooks" formatted="false">"钩子"</string>
+    <string name="waex_ui_hook_runtime" formatted="false">"Hook 运行时"</string>
+    <string name="waex_ui_hook_success" formatted="false">"Hook 成功"</string>
+    <string name="waex_ui_hooks" formatted="false">"Hook"</string>
     <string name="waex_ui_horizontal_margin" formatted="false">"水平边距"</string>
     <string name="waex_ui_horizontal_inner_padding" formatted="false">"水平内边距"</string>
     <string name="waex_ui_how_to_configure_rules" formatted="false">"如何配置规则"</string>
@@ -409,7 +408,7 @@
     <string name="waex_ui_indicator_text_color" formatted="false">"指示器和文本颜色"</string>
     <string name="waex_ui_individuals" formatted="false">"个人"</string>
     <string name="waex_ui_injected" formatted="false">"注入的"</string>
-    <string name="waex_ui_injected_hooks" formatted="false">"注入的钩子"</string>
+    <string name="waex_ui_injected_hooks" formatted="false">"已注入的 Hook"</string>
     <string name="waex_ui_injected_initialization_failed" formatted="false">"注入 • 初始化失败"</string>
     <string name="waex_ui_injected_settings_connection_unavailab" formatted="false">"注入 • 设置连接不可用"</string>
     <string name="waex_ui_injected_some_features_failed" formatted="false">"注入 • 某些功能失败"</string>
@@ -457,12 +456,10 @@
     <string name="waex_ui_linked_devices" formatted="false">"关联设备"</string>
     <string name="waex_ui_live_preview" formatted="false">"实时预览"</string>
     <string name="waex_ui_location_ip" formatted="false">"位置 / IP"</string>
-    <string name="waex_ui_lock_your_online_timestamp" formatted="false">"锁定您的在线时间戳"</string>
+    <string name="waex_ui_lock_your_online_timestamp" formatted="false">"冻结您的最后上线时间"</string>
     <string name="waex_ui_locked_chats_unavailable_in_this_whats" formatted="false">"在此 WhatsApp 版本中锁定的聊天不可用"</string>
     <string name="waex_ui_locked_pro_feature" formatted="false">"锁定的专业功能"</string>
-    <string name="waex_ui_locks_your_last_seen_timestamp_so_cont" formatted="false">"锁定您的最后上线时间，以便联系人看不到您的活跃状态。
-
-重启 WhatsApp 以应用更改？"</string>
+    <string name="waex_ui_locks_your_last_seen_timestamp_so_cont" formatted="false">"冻结您的最后上线时间，让联系人无法通过这个时间判断您何时在线。\n\n是否重启 WhatsApp 以应用更改？"</string>
     <string name="waex_ui_long_press_whatsapp_title" formatted="false">"长按 WhatsApp 标题"</string>
     <string name="waex_ui_maintainer" formatted="false">"维护者"</string>
     <string name="waex_ui_manage_1_s">"管理 %1$s"</string>
@@ -473,7 +470,7 @@
     <string name="waex_ui_managed_keybox_ready" formatted="false">"托管密钥箱已准备好"</string>
     <string name="waex_ui_managed_keybox_unavailable" formatted="false">"托管密钥箱不可用"</string>
     <string name="waex_ui_managed_keybox_updated" formatted="false">"托管密钥箱已更新"</string>
-    <string name="waex_ui_manager_process_hooked" formatted="false">"管理进程已挂钩"</string>
+    <string name="waex_ui_manager_process_hooked" formatted="false">"管理器进程已 Hook"</string>
     <string name="waex_ui_media_not_available_yet" formatted="false">"媒体尚不可用"</string>
     <string name="waex_ui_media_not_cached_or_available_yet" formatted="false">"媒体尚未缓存或不可用"</string>
     <string name="waex_ui_media_preview" formatted="false">"媒体预览"</string>
@@ -501,8 +498,7 @@
 %message（文字内容）"</string>
     <string name="waex_ui_needs_attention" formatted="false">"需要注意"</string>
     <string name="waex_ui_no" formatted="false">"否"</string>
-    <string name="waex_ui_no_active_hooks_reported_by_whatsapp_p" formatted="false">"WhatsApp 进程没有报告活动钩子。
-确保 WhatsApp 正在运行。"</string>
+    <string name="waex_ui_no_active_hooks_reported_by_whatsapp_p" formatted="false">"WhatsApp 进程未上报任何正在运行的 Hook。\n请确认 WhatsApp 正在运行。"</string>
     <string name="waex_ui_no_active_rules" formatted="false">"没有活动规则"</string>
     <string name="waex_ui_no_call_recordings_yet" formatted="false">"尚无通话记录"</string>
     <string name="waex_ui_no_changelog_available" formatted="false">"暂无变更日志可用。"</string>
@@ -512,7 +508,7 @@
 点击“添加规则”以选择不受支持的应用并自动注册其版本分支。"</string>
     <string name="waex_ui_no_filters_added" formatted="false">"未添加筛选器"</string>
     <string name="waex_ui_no_hidden_read_receipt_to_send" formatted="false">"没有要发送的隐藏已读回执"</string>
-    <string name="waex_ui_no_injected_hooks_matching_filter" formatted="false">"没有匹配过滤器的注入钩子"</string>
+    <string name="waex_ui_no_injected_hooks_matching_filter" formatted="false">"没有符合筛选条件的已注入 Hook"</string>
     <string name="waex_ui_no_internet_connection" formatted="false">"无互联网连接"</string>
     <string name="waex_ui_no_linked_devices_found_for_this_licen" formatted="false">"此许可证未找到已关联设备。"</string>
     <string name="waex_ui_no_message_history_found" formatted="false">"未找到消息历史记录"</string>
@@ -568,7 +564,7 @@
     <string name="waex_ui_please_wait_until_the_status_finishes" formatted="false">"请等待状态下载完成，然后重试"</string>
     <string name="waex_ui_popular_reactions" formatted="false">"热门反应"</string>
     <string name="waex_ui_post_notifications" formatted="false">"帖子通知"</string>
-    <string name="waex_ui_preferences_refresh_immediately_restar" formatted="false">"首选项立即刷新；重新启动 WhatsApp 会重新注入仅在启动时加载的钩子"</string>
+    <string name="waex_ui_preferences_refresh_immediately_restar" formatted="false">"设置会立即刷新；重启 WhatsApp 会重新注入仅在启动时加载的 Hook"</string>
     <string name="waex_ui_presence_toasts" formatted="false">"在线提示"</string>
     <string name="waex_ui_preserve_deleted_messages" formatted="false">"保留已删除消息"</string>
     <string name="waex_ui_preserve_edits_prevent_limits_and_safe" formatted="false">"保留编辑、防止限制，并保护消息"</string>
@@ -577,7 +573,7 @@
     <string name="waex_ui_presets" formatted="false">"预设"</string>
     <string name="waex_ui_press_back_again_to_exit" formatted="false">"再次按返回键退出"</string>
     <string name="waex_ui_prevent_revoke" formatted="false">"防止撤回"</string>
-    <string name="waex_ui_prevents_system_throttling_for_backgro" formatted="false">"防止系统对后台 Tasker 自动化和持久隐形钩子进行限速。"</string>
+    <string name="waex_ui_prevents_system_throttling_for_backgro" formatted="false">"防止系统限制后台 Tasker 自动化与常驻隐身 Hook 的运行。"</string>
     <string name="waex_ui_privacy_rules" formatted="false">"隐私规则"</string>
     <string name="waex_ui_private_key_matches" formatted="false">"私钥匹配"</string>
     <string name="waex_ui_pro_license_activated" formatted="false">"专业许可证已激活！"</string>
@@ -598,7 +594,7 @@
     <string name="waex_ui_refined_pro" formatted="false">"精炼（专业版）"</string>
     <string name="waex_ui_refresh_diagnostics" formatted="false">"刷新诊断信息"</string>
     <string name="waex_ui_refresh_failed_1_s">"刷新失败：%1$s"</string>
-    <string name="waex_ui_refresh_hooks" formatted="false">"刷新钩子"</string>
+    <string name="waex_ui_refresh_hooks" formatted="false">"刷新 Hook 状态"</string>
     <string name="waex_ui_refresh_managed_keybox" formatted="false">"刷新托管密钥盒"</string>
     <string name="waex_ui_refreshing" formatted="false">"正在刷新…"</string>
     <string name="waex_ui_refreshing_managed_keybox" formatted="false">"正在刷新托管密钥盒"</string>
@@ -656,7 +652,7 @@
     <string name="waex_ui_search_github_usernames" formatted="false">"搜索 GitHub 用户名"</string>
     <string name="waex_ui_search_hidden" formatted="false">"搜索隐藏内容"</string>
     <string name="waex_ui_search_icon" formatted="false">"搜索图标"</string>
-    <string name="waex_ui_search_injected_hooks_classes" formatted="false">"搜索注入的钩子和类..."</string>
+    <string name="waex_ui_search_injected_hooks_classes" formatted="false">"搜索已注入的 Hook 与类名…"</string>
     <string name="waex_ui_search_supporters" formatted="false">"搜索支持者"</string>
     <string name="waex_ui_section_1_s">"部分：%1$s"</string>
     <string name="waex_ui_seen" formatted="false">"已查看"</string>
@@ -680,11 +676,11 @@
     <string name="waex_ui_share_call_recording" formatted="false">"分享通话录音"</string>
     <string name="waex_ui_share_selected" formatted="false">"分享已选择"</string>
     <string name="waex_ui_shield_heart" formatted="false">"护心"</string>
-    <string name="waex_ui_show_hook_injection_toast" formatted="false">"显示钩子注入提示"</string>
+    <string name="waex_ui_show_hook_injection_toast" formatted="false">"显示 Hook 注入提示"</string>
     <string name="waex_ui_show_in_3_dots_waex_menu" formatted="false">"在三点 / WAEX 菜单中显示"</string>
     <string name="waex_ui_show_it_again_on_the_next_check" formatted="false">"在下次检查时再次显示"</string>
     <string name="waex_ui_show_restart_sheet_after_changes" formatted="false">"更改后显示重启表单"</string>
-    <string name="waex_ui_show_the_injecting_hooks_notification" formatted="false">"当 WhatsApp 打开时显示注入钩子通知"</string>
+    <string name="waex_ui_show_the_injecting_hooks_notification" formatted="false">"打开 WhatsApp 时显示 Hook 注入提示"</string>
     <string name="waex_ui_silent_root_install" formatted="false">"静默 Root 安装"</string>
     <string name="waex_ui_simulates_caller_not_reachable" formatted="false">"模拟呼叫者无法接通"</string>
     <string name="waex_ui_simulates_immediate_line_busy_tone" formatted="false">"模拟立即线路忙音"</string>
@@ -694,7 +690,7 @@
     <string name="waex_ui_spoofer_runtime" formatted="false">"模拟器运行时"</string>
     <string name="waex_ui_stable" formatted="false">"稳定"</string>
     <string name="waex_ui_standard_mic" formatted="false">"标准麦克风"</string>
-    <string name="waex_ui_star_waenhancerx_on_github_and_your_pr" formatted="false">"在 GitHub 上给 WaEnhancerX 点星，您的个人资料可以加入这个支持者列表。它是免费的，只需片刻，并有助于更多人发现该项目。新星标可能需要一些时间才能显示。"</string>
+    <string name="waex_ui_star_waenhancerx_on_github_and_your_pr" formatted="false">"在 GitHub 上给 WaEnhancerX 点个 Star，您的个人资料就有机会出现在这份支持者名单中。点 Star 免费，只需片刻，也能帮助更多人发现这个项目。新点的 Star 可能要过一会儿才会显示。"</string>
     <string name="waex_ui_start_hour" formatted="false">"开始时间"</string>
     <string name="waex_ui_status" formatted="false">"状态"</string>
     <string name="waex_ui_status_download" formatted="false">"状态下载"</string>
@@ -727,7 +723,7 @@
     <string name="waex_ui_test" formatted="false">"测试"</string>
     <string name="waex_ui_text_deleted" formatted="false">"文本“已删除”"</string>
     <string name="waex_ui_text_size" formatted="false">"文本大小"</string>
-    <string name="waex_ui_thank_you_for_being_a_pro_subscriber_a" formatted="false">"感谢您成为专业订阅用户和 WaEnhancerX 的关注者！"</string>
+    <string name="waex_ui_thank_you_for_being_a_pro_subscriber_a" formatted="false">"感谢您成为 Pro 订阅用户并为 WaEnhancerX 点亮星标！"</string>
     <string name="waex_ui_the_full_quality_image_could_not_be_de" formatted="false">"无法解码完整质量图像"</string>
     <string name="waex_ui_theme_custom_styles" formatted="false">"主题与自定义样式"</string>
     <string name="waex_ui_this_behavior_requires_pro_license" formatted="false">"此操作需要专业版许可。"</string>
@@ -814,20 +810,20 @@
     <string name="waex_ui_voice_note_ai_rules" formatted="false">"语音笔记 AI 规则"</string>
     <string name="waex_ui_voice_transcription" formatted="false">"语音转录"</string>
     <string name="waex_ui_wa_enhancer_settings" formatted="false">"WA 增强器设置"</string>
-    <string name="waex_ui_waenhancer_x_could_not_finish_loading" formatted="false">"WaEnhancer X 无法完成挂钩加载。"</string>
+    <string name="waex_ui_waenhancer_x_could_not_finish_loading" formatted="false">"WaEnhancer X 未能完成 Hook 加载。\n\n"</string>
     <string name="waex_ui_waenhancer_x_injection_error" formatted="false">"WaEnhancer X 注入错误"</string>
     <string name="waex_ui_waenhancer_x_injection_failed" formatted="false">"WaEnhancer X 注入失败"</string>
     <string name="waex_ui_waenhancerx_settings_placement" formatted="false">"WAENHANCERX 设置位置"</string>
     <string name="waex_ui_waenhancerx_supports_rooted_devices_wi" formatted="false">"WaEnhancerX 仅支持具有已批准的 Xposed 框架的已root设备。在获取root权限之前，应用无法继续。"</string>
     <string name="waex_ui_waex_1_s_is_available">"WAEX %1$s 可用"</string>
     <string name="waex_ui_waex_compatibility_notice" formatted="false">"WAEX 兼容性通知"</string>
-    <string name="waex_ui_waex_features_are_temporarily_paused_f" formatted="false">"为防止应用不稳定，WAEX 功能已暂时暂停。"</string>
-    <string name="waex_ui_waex_hooks_injected" formatted="false">"WAEX 挂钩已注入"</string>
+    <string name="waex_ui_waex_features_are_temporarily_paused_f" formatted="false">"为避免影响应用稳定性，WAEX 功能已暂停。\n\n"</string>
+    <string name="waex_ui_waex_hooks_injected" formatted="false">"WAEX Hook 已注入"</string>
     <string name="waex_ui_waex_managed_keybox" formatted="false">"WAEX 管理的密钥盒"</string>
     <string name="waex_ui_wait_until_a_newer_release_is_availabl" formatted="false">"请等待新版本发布"</string>
     <string name="waex_ui_want_to_see_yourself_here" formatted="false">"想在这里看到自己吗？"</string>
     <string name="waex_ui_we_couldn_t_load_the_supporters_right" formatted="false">"我们目前无法加载支持者。"</string>
-    <string name="waex_ui_whatsapp_hook_active" formatted="false">"WhatsApp 钩子已激活"</string>
+    <string name="waex_ui_whatsapp_hook_active" formatted="false">"WhatsApp Hook 正在运行"</string>
     <string name="waex_ui_whatsapp_hooked" formatted="false">"WhatsApp 已钩住"</string>
     <string name="waex_ui_whatsapp_settings" formatted="false">"WhatsApp 设置"</string>
     <string name="waex_ui_whatsapp_will_resume_updating_your_las" formatted="false">"WhatsApp 将正常恢复更新您的最近查看时间。
@@ -849,8 +845,8 @@
     <string name="waex_ui_your_license_period_has_ended_pro_feat" formatted="false">"你的许可期限已结束。专业功能当前被锁定。"</string>
     <string name="waex_ui_your_previous_license_has_expired_ente" formatted="false">"你之前的许可已过期。输入新密钥以续订。"</string>
     <string name="waex_ui_your_privacy" formatted="false">"你的隐私"</string>
-    <string name="waex_ui_your_pro_license_is_active_and_hardwar" formatted="false">"您的专业版许可证已激活并与硬件绑定。"</string>
-    <string name="waex_ui_your_whatsapp_version_1_s_is_not_in_th">"您的 WhatsApp 版本 (%1$s) 不在已验证的支持版本范围内。"</string>
+    <string name="waex_ui_your_pro_license_is_active_and_hardwar" formatted="false">"您的 Pro 许可证已激活，并与本机硬件绑定。"</string>
+    <string name="waex_ui_your_whatsapp_version_1_s_is_not_in_th">"您的 WhatsApp 版本 (%1$s) 不在已验证的支持版本范围内。\n\n"</string>
     <plurals name="waex_recordings_deleted">
         <item quantity="one">"已删除 %1$d 录音"</item>
         <item quantity="other">"已删除 %1$d 录音"</item>
@@ -923,7 +919,7 @@
     <string name="waex_ui_silently_decline_calls_from_this_conta" formatted="false">"静默拒接此联系人的来电"</string>
     <string name="waex_ui_deleted_a_message" formatted="false">"已删除一条消息"</string>
     <string name="waex_ui_managed_by_ghost_mode" formatted="false">"由幽灵模式管理"</string>
-    <string name="waex_ui_lock_your_last_seen_timestamp" formatted="false">"锁定您的最后在线时间戳"</string>
+    <string name="waex_ui_lock_your_last_seen_timestamp" formatted="false">"冻结您的最后上线时间"</string>
     <string name="waex_ui_dnd_mode" formatted="false">"勿扰模式"</string>
     <string name="waex_ui_mute_all_incoming_notifications" formatted="false">"静音所有来通知"</string>
     <string name="waex_ui_hide_online_status_typing_read_receipt" formatted="false">"隐藏在线状态、输入状态和已读回执"</string>
@@ -959,9 +955,9 @@
     <string name="waex_ui_a_contact" formatted="false">"一个联系人"</string>
     <string name="waex_ui_no_internet" formatted="false">"没有互联网"</string>
     <string name="waex_ui_ended" formatted="false">"已结束"</string>
-    <string name="waex_ui_your_wa_enhancer_preferences_changed_r" formatted="false">"您的 WA 增强器偏好设置已更改。请重启 WhatsApp 以应用更改。"</string>
-    <string name="waex_ui_restart_whatsapp_to_apply" formatted="false">"重启 WhatsApp 以应用："</string>
-    <string name="waex_ui_more" formatted="false">"更多"</string>
+    <string name="waex_ui_your_wa_enhancer_preferences_changed_r" formatted="false">"您的 WA Enhancer 设置已更改。请重启 WhatsApp 使更改生效。"</string>
+    <string name="waex_ui_restart_whatsapp_to_apply" formatted="false">"重启 WhatsApp 以应用以下更改：\n\n"</string>
+    <string name="waex_ui_more" formatted="false">" 项未列出\n"</string>
     <string name="waex_ui_setting_1_s">"设置：%1$s"</string>
     <string name="waex_ui_chat_bubble_colors" formatted="false">"聊天气泡颜色"</string>
     <string name="waex_ui_channel_recommendations_filter" formatted="false">"频道推荐过滤"</string>
@@ -992,7 +988,7 @@
     <string name="waex_l10n_guard_paused">"为安全起见，WAEX 功能已暂停。这并不表示功能兼容性已确认。"</string>
     <string name="waex_l10n_guard_review">"打开 WAEX 设置以查看问题。不要仅为隐藏访问错误而启用版本绕过。"</string>
     <string name="waex_l10n_last_report">"上次报告（非当前）：%1$s"</string>
-    <string name="waex_l10n_detail_active">"已注入并激活（%1$d/%2$d 钩子激活）"</string>
+    <string name="waex_l10n_detail_active">"已注入并运行（%1$d/%2$d 个 Hook 正在运行）"</string>
     <string name="waex_l10n_detail_init">"已注入 • 初始化：%1$s"</string>
     <string name="waex_l10n_detail_bridge">"已注入 • 桥接：%1$s"</string>
     <string name="waex_runtime_status_not_installed">"未安装"</string>
@@ -1023,7 +1019,7 @@
     <string name="waex_runtime_status_unavailable">"不可用"</string>
     <string name="waex_runtime_status_not_reported">"未报告"</string>
     <string name="waex_runtime_status_completed">"完工"</string>
-    <string name="waex_runtime_status_completed_with_failures">"完成时钩子断裂"</string>
+    <string name="waex_runtime_status_completed_with_failures">"已完成，但部分 Hook 失败"</string>
     <string name="waex_runtime_status_in_progress">"进行中"</string>
     <string name="waex_runtime_status_paused_compatibility_unavailable">"暂停：兼容性检查不可用"</string>
     <string name="waex_runtime_status_paused_unsupported_version">"暂停：不支持版本"</string>
@@ -1095,9 +1091,137 @@
     <string name="waex_ui_most_accurate_slow" formatted="false">"最准确，但速度慢"</string>
     <string name="waex_ui_on_device_models" formatted="false">"设备上的型号"</string>
     <string name="waex_ui_on_device_transcription_isn_t_availabl" formatted="false">"此手机不支持设备内转录"</string>
-    <string name="waex_ui_runs_on_your_phone_nothing_is_uploaded" formatted="false">"在您的手机上运行，没有上传任何内容。较大的模型更准确但速度更慢。"</string>
+    <string name="waex_ui_runs_on_your_phone_nothing_is_uploaded" formatted="false">"在您的手机上本地运行，不会上传任何数据。较大的模型更准确，但运行速度也更慢。"</string>
     <string name="waex_ui_selected_download_it_to_start_using_it" formatted="false">"已选择：下载并开始使用。"</string>
     <string name="waex_ui_suggested" formatted="false">"建议"</string>
-    <string name="waex_ui_tap_a_model_to_choose_it_the_suggested" formatted="false">"点击一个模型来选择它。将使用建议的一个，直到您选择另一个为止。"</string>
+    <string name="waex_ui_tap_a_model_to_choose_it_the_suggested" formatted="false">"点按模型即可选用。在您另选模型之前，系统会使用推荐模型。"</string>
     <string name="waex_ui_this_phone" formatted="false">"这个电话"</string>
+    <string name="waex_ui_last_supported_version" formatted="false">"支持的最新版本"</string>
+    <string name="waex_ui_get_this_version" formatted="false">"安装受支持版本"</string>
+    <string name="waex_ui_get_supported_version_title" formatted="false">"获取 WhatsApp %1$s"</string>
+    <string name="waex_ui_get_supported_version_notice" formatted="false">"WAEX 可为你下载官方 WhatsApp 安装包，也可直接通过 Root 权限安装已有的本地文件。安装前会严格校验签名证书，仅允许 WhatsApp 官方原版文件，任何修改版或重打包 APK 均会被拒绝。受支持范围（例如 %1$s）内的任意版本均可正常使用。通过 Google Play 以外渠道安装存在账号封禁风险，建议尽量优先使用官方更新。"</string>
+    <string name="waex_ui_continue_to_browser" formatted="false">"在浏览器中继续"</string>
+    <string name="waex_ui_install_storage_title" formatted="false">"从本地存储安装"</string>
+    <string name="waex_ui_install_storage_official_title" formatted="false">"仅限 WhatsApp 官方原版文件"</string>
+    <string name="waex_ui_install_storage_official_body" formatted="false">"安装前，WAEX 会逐一严格校验文件签名，只安装由 WhatsApp 官方签名且未经修改的文件。WAEX 不接受任何经过修改、打过补丁、克隆或重新打包的 APK。"</string>
+    <string name="waex_ui_install_storage_target" formatted="false">"目标应用"</string>
+    <string name="waex_ui_install_storage_ranges" formatted="false">"允许安装的版本范围"</string>
+    <string name="waex_ui_install_storage_steps_title" formatted="false">"操作步骤"</string>
+    <string name="waex_ui_install_storage_step1" formatted="false">"先在浏览器中从可信来源下载 APK、APKM 或 XAPK 文件。"</string>
+    <string name="waex_ui_install_storage_step2" formatted="false">"返回此页面选择刚下载的文件。"</string>
+    <string name="waex_ui_install_storage_step3" formatted="false">"WAEX 会校验包名、版本范围以及 WhatsApp 官方签名。"</string>
+    <string name="waex_ui_install_storage_step4" formatted="false">"校验全部通过后，将使用 Root 权限安装，升级和降级均支持。"</string>
+    <string name="waex_ui_install_storage_choose" formatted="false">"选择 APK、APKM 或 XAPK 文件"</string>
+    <string name="waex_ui_install_storage_choose_another" formatted="false">"选择其他文件"</string>
+    <string name="waex_ui_install_downloaded_apk" formatted="false">"从本地存储安装"</string>
+    <string name="waex_ui_verify_apk_title" formatted="false">"APK 校验结果"</string>
+    <string name="waex_ui_verifying_apk" formatted="false">"正在校验 APK…"</string>
+    <string name="waex_ui_verify_check_package" formatted="false">"应用包名"</string>
+    <string name="waex_ui_verify_check_package_ok" formatted="false">"%1$s"</string>
+    <string name="waex_ui_verify_check_package_bad" formatted="false">"该文件属于其他应用（%2$s）"</string>
+    <string name="waex_ui_verify_check_version" formatted="false">"版本号"</string>
+    <string name="waex_ui_verify_check_version_ok" formatted="false">"%1$s 在受支持范围 %2$s 内"</string>
+    <string name="waex_ui_verify_check_version_bad" formatted="false">"%1$s 不在任何受支持的版本范围内"</string>
+    <string name="waex_ui_verify_check_splits" formatted="false">"分包 APK"</string>
+    <string name="waex_ui_verify_check_splits_ok" formatted="false">"共包含 %1$s，包名和签名均一致"</string>
+    <string name="waex_ui_verify_check_splits_bad" formatted="false">"存在分包 APK 的包名或签名不匹配"</string>
+    <string name="waex_ui_verify_check_signature" formatted="false">"签名证书"</string>
+    <string name="waex_ui_verify_check_signature_ok" formatted="false">"WhatsApp 官方签名"</string>
+    <string name="waex_ui_verify_check_signature_bad" formatted="false">"非 WhatsApp 官方签名，文件可能已被修改或重新打包。"</string>
+    <string name="waex_ui_verify_passed_hint" formatted="false">"校验全部通过，WAEX 将使用 Root 权限安装该文件。"</string>
+    <string name="waex_ui_verify_failed_hint" formatted="false">"校验未通过，已拒绝安装。WAEX 仅安装 WhatsApp 官方原版文件。"</string>
+    <string name="waex_ui_verify_read_failed" formatted="false">"无法读取该文件，请选择有效的 WhatsApp .apk、.apkm 或 .xapk 文件。"</string>
+    <string name="waex_ui_verify_install_root" formatted="false">"使用 Root 权限安装"</string>
+    <string name="waex_ui_verify_installing" formatted="false">"正在安装…"</string>
+    <string name="waex_ui_verify_close" formatted="false">"关闭"</string>
+    <string name="waex_ui_verify_install_ok" formatted="false">"已安装 WhatsApp %1$s"</string>
+    <string name="waex_ui_verify_install_failed" formatted="false">"安装失败：%1$s"</string>
+    <string name="waex_ui_chip_add_support" formatted="false">"添加支持"</string>
+    <string name="waex_ui_hooks_paused_short" formatted="false">"Hook 已暂停"</string>
+    <string name="waex_ui_hooks_not_reported_short" formatted="false">"尚未收到 Hook 状态上报"</string>
+    <string name="waex_ui_hooks_last_report" formatted="false">"上次报告"</string>
+    <string name="waex_ui_hooks_active_short" formatted="false">"%1$d/%2$d 个 Hook 活跃"</string>
+    <string name="waex_ui_hooks_checking" formatted="false">"正在检查…"</string>
+    <string name="waex_ui_hooks_paused_hint" formatted="false">"当前版本不受支持。请添加支持，然后重启。"</string>
+    <string name="waex_ui_hooks_unresponsive_hint" formatted="false">"无响应，请先打开 %1$s 再返回刷新。"</string>
+    <string name="waex_ui_fix" formatted="false">"修复"</string>
+    <string name="waex_runtime_status_rules_accepted_open_target">"版本规则检查已通过，请打开目标应用确认是否已注入"</string>
+    <string name="waex_ui_hma_reason_not_active">HMA 未激活</string>
+    <string name="waex_ui_theme_library" formatted="false">"主题库"</string>
+    <string name="waex_ui_theme_library_desc" formatted="false">"导入 WAEX 主题包（含 style.css 和可选图片的 .zip 文件），然后在下方选择启用。切换主题后请重启 WhatsApp。"</string>
+    <string name="waex_ui_import_theme_zip" formatted="false">"导入主题（.zip）"</string>
+    <string name="waex_ui_no_theme_default" formatted="false">"默认（无主题）"</string>
+    <string name="waex_ui_theme_imported" formatted="false">"主题已导入"</string>
+    <string name="waex_ui_theme_import_failed" formatted="false">"主题导入失败：%1$s"</string>
+    <string name="waex_ui_theme_by_author" formatted="false">"作者：%1$s"</string>
+    <string name="waex_ui_write_custom_css" formatted="false">"编写自定义 CSS"</string>
+    <string name="waex_ui_theme_active" formatted="false">"使用中"</string>
+    <string name="waex_ui_theme_delete_confirm" formatted="false">"删除此主题？"</string>
+    <string name="waex_ui_custom_css" formatted="false">"自定义 CSS"</string>
+    <string name="waex_ui_locked_chat_notifications" formatted="false">"已锁定聊天的消息通知"</string>
+    <string name="waex_ui_customize_native_floating_navigation" formatted="false">"自定义原生悬浮底部导航栏"</string>
+    <string name="waex_ui_native_floating_navigation_exclusive" formatted="false">"使用 WhatsApp 自带的原生悬浮底部导航栏。开启后会自动关闭模块自带的“悬浮底部导航栏”。"</string>
+    <string name="waex_ui_native_floating_navigation_colors" formatted="false">"颜色"</string>
+    <string name="waex_ui_native_floating_navigation_colors_hint" formatted="false">"保持默认以沿用 WhatsApp 原生主题色"</string>
+    <string name="waex_ui_native_floating_navigation_bg_color" formatted="false">"背景颜色"</string>
+    <string name="waex_ui_native_floating_navigation_selection_color" formatted="false">"选中项高亮颜色"</string>
+    <string name="waex_ui_feature_loading_channel" formatted="false">"WAEX 功能加载进度"</string>
+    <string name="waex_ui_feature_loading_progress">"更新完成，正在准备功能… %1$d/%2$d"</string>
+    <string name="waex_ui_choose_version" formatted="false">"选择版本"</string>
+    <string name="waex_ui_pick_version_title" formatted="false">"选择版本"</string>
+    <string name="waex_ui_pick_version_message">"WAEX 支持以下所有 %1$s 版本。点选一个版本后，可在 WAEX 内下载。"</string>
+    <string name="waex_ui_fetching_versions" formatted="false">"正在获取可用版本…"</string>
+    <string name="waex_ui_verify_human_title" formatted="false">"请完成人机验证"</string>
+    <string name="waex_ui_verify_human_message" formatted="false">"APKMirror 需要快速人机验证，完成后版本列表会自动加载。"</string>
+    <string name="waex_ui_no_matching_versions" formatted="false">"APKMirror 的版本源中没有受支持的版本。"</string>
+    <string name="waex_ui_open_apkmirror" formatted="false">"打开 APKMirror"</string>
+    <string name="waex_ui_versions_unavailable_title" formatted="false">"无法加载版本列表"</string>
+    <string name="waex_ui_versions_unavailable_message" formatted="false">"无法加载版本列表。请检查网络后重试，或直接前往 APKMirror 浏览下载。"</string>
+    <string name="waex_ui_verify_now" formatted="false">"立即验证"</string>
+    <string name="waex_ui_browser_unavailable_message" formatted="false">"当前设备无法启动内置浏览器，请改用外部浏览器打开 APKMirror。"</string>
+    <string name="waex_ui_step_source" formatted="false">"来源"</string>
+    <string name="waex_ui_step_version" formatted="false">"版本"</string>
+    <string name="waex_ui_step_download" formatted="false">"下载"</string>
+    <string name="waex_ui_step_install" formatted="false">"安装"</string>
+    <string name="waex_ui_source_choose_title" formatted="false">"选择版本"</string>
+    <string name="waex_ui_source_choose_desc" formatted="false">"浏览所有受支持的版本，在 WAEX 内直接下载并安装。"</string>
+    <string name="waex_ui_source_storage_desc" formatted="false">"已有安装包？WAEX 会先校验安装包，再使用 Root 权限安装。"</string>
+    <string name="waex_ui_download_started" formatted="false">"已开始下载"</string>
+    <string name="waex_ui_download_unsupported" formatted="false">"无法安装此文件"</string>
+    <string name="waex_ui_downloading_progress">"正在下载… %1$s"</string>
+    <string name="waex_ui_download_failed" formatted="false">"下载失败"</string>
+    <string name="waex_ui_download_again" formatted="false">"重新下载"</string>
+    <string name="waex_ui_remove_download" formatted="false">"移除"</string>
+    <string name="waex_ui_install_action" formatted="false">"安装"</string>
+    <string name="waex_ui_install_upgrade" formatted="false">"升级"</string>
+    <string name="waex_ui_install_downgrade" formatted="false">"降级"</string>
+    <string name="waex_ui_install_reinstall" formatted="false">"重新安装"</string>
+    <string name="waex_ui_downloaded_section" formatted="false">"已下载"</string>
+    <string name="waex_ui_install_sheet_button">"使用 Root 权限%1$s"</string>
+    <string name="waex_ui_validate_step_copy" formatted="false">"正在读取文件"</string>
+    <string name="waex_ui_validate_step_inspect" formatted="false">"正在读取安装包信息"</string>
+    <string name="waex_ui_validate_step_verify" formatted="false">"正在校验包名、版本与 WhatsApp 官方签名"</string>
+    <string name="waex_ui_remove_download_title" formatted="false">"移除已下载的安装包？"</string>
+    <string name="waex_ui_remove_download_message">"将从 WAEX 存储中移除 %1$s %2$s 的安装包，之后可以重新下载。"</string>
+    <string name="waex_ui_cancel_download_title" formatted="false">"取消此次下载？"</string>
+    <string name="waex_ui_cancel_download_message">"将停止下载 %1$s %2$s，并删除未完成的临时文件。"</string>
+    <string name="waex_ui_cancel_download_confirm" formatted="false">"停止下载"</string>
+    <string name="waex_ui_or_divider" formatted="false">"或"</string>
+    <string name="waex_ui_update_channel" formatted="false">"更新通道"</string>
+    <string name="waex_ui_channel_stable" formatted="false">"稳定版（Stable）"</string>
+    <string name="waex_ui_channel_beta" formatted="false">"测试版（Beta）"</string>
+    <string name="waex_ui_channel_nightly" formatted="false">"每日构建（Nightly）"</string>
+    <string name="waex_ui_channel_stable_desc" formatted="false">"仅接收经过完整测试的版本"</string>
+    <string name="waex_ui_channel_beta_desc" formatted="false">"稳定版发布前的早期测试版本"</string>
+    <string name="waex_ui_channel_nightly_desc" formatted="false">"接收每次自动构建的版本，这些版本未经测试，可能无法正常运行"</string>
+    <string name="waex_ui_channel_risk_title" formatted="false">"切换到稳定性较低的更新通道？"</string>
+    <string name="waex_ui_channel_risk_message" formatted="false">"这个通道的版本经过的测试较少，可能存在缺陷。切换通道只会改变可获取的更新；只有主动选择安装，才会安装更新。"</string>
+    <string name="waex_ui_channel_risk_confirm" formatted="false">"切换通道"</string>
+    <string name="waex_ui_install_risk_title" formatted="false">"确定要安装此构建版本？"</string>
+    <string name="waex_ui_install_risk_downgrade" formatted="false">"安装旧版本会覆盖当前版本，新版本写入的数据在旧版本中可能无法读取。"</string>
+    <string name="waex_ui_install_risk_prerelease" formatted="false">"测试版和每日构建未经过正式发布测试，可能存在 Bug。"</string>
+    <string name="waex_ui_install_risk_confirm" formatted="false">"仍然安装"</string>
+    <string name="waex_ui_switch_to_stable" formatted="false">"安装稳定版"</string>
+    <string name="waex_ui_build_debug" formatted="false">"调试版 (Debug)"</string>
+    <string name="waex_ui_build_release" formatted="false">"正式版 (Release)"</string>
 </resources>
