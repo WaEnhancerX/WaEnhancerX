@@ -35,6 +35,7 @@ PRODUCTION = [
     PKG / "xposed/bridge/HookProvider.java",
     PKG / "xposed/bridge/CallerScopePolicy.java",
     PKG / "xposed/bridge/ProviderDerivedKeyPolicy.java",
+    PKG / "xposed/bridge/ProviderPreferenceScopePolicy.java",
     PKG / "xposed/bridge/PreferenceWriteTypePolicy.java",
     PKG / "calls/RecordingOutputFiles.java",
     PKG / "calls/CallRecordingStore.kt",
@@ -319,13 +320,39 @@ public final class PreferenceRestartTracker {public static final String NEED_RES
 public class LicenseManager {public static String getProStatus(android.content.Context c){throw new AssertionError("Private licensing is outside this probe");}}""",
         "com/waenhancer/xposed/utils/AppRestartHelper.java": """package com.waenhancer.xposed.utils;
 public class AppRestartHelper {public static void restartPackage(android.content.Context c,String p,String n,boolean b){throw new AssertionError("App restart is outside this probe");}}""",
+        "com/waenhancer/xposed/utils/HookErrors.java": """package com.waenhancer.xposed.utils;
+public final class HookErrors {
+ public static void swallowed(String site, Throwable failure) {
+  if (failure == null) throw new AssertionError("Null swallowed error in fixture");
+  System.err.println("WAEX_FIXTURE_HANDLED " + site + " " + failure.getClass().getSimpleName());
+ }
+}""",
+        "com/waenhancer/utils/DiagnosticsRecorder.java": """package com.waenhancer.utils;
+public final class DiagnosticsRecorder {
+ public static boolean isAdvancedEnabled(android.content.Context c){throw new AssertionError("Diagnostics outside probe");}
+ public static void recordHookHealth(android.content.Context c,String p,String s,String b,boolean e,int pid){throw new AssertionError("Diagnostics outside probe");}
+ public static void recordHookSummary(android.content.Context c,String p,String j){throw new AssertionError("Diagnostics outside probe");}
+ public static int recordTargetExitHistory(android.content.Context c,String p,long[] t,int[] i,int[] r,int[] st,long[] ps,long[] rss){throw new AssertionError("Diagnostics outside probe");}
+}""",
+        "com/waenhancer/theme/ThemeRepository.java": """package com.waenhancer.theme;
+public final class ThemeRepository {
+ public static final Companion Companion = new Companion();
+ public static final class Companion {
+  public java.io.File assetFile(android.content.Context c,String themeId,String name){throw new AssertionError("Themes outside probe");}
+ }
+}""",
+        "com/waenhancer/core/preferences/WaexPreferenceManager.java": """package com.waenhancer.core.preferences;
+public final class WaexPreferenceManager {public static final String TARGET_SEEDED_KEY="target_seeded";}
+""",
         "com/waenhancer/update/UpdateCheckCoordinator.java": """package com.waenhancer.update;
 public class UpdateCheckCoordinator {public static final String TRIGGER_WHATSAPP="outside-probe";public static void request(android.content.Context c,String s,boolean b){throw new AssertionError("Update service is outside this probe");}}""",
         "com/waenhancer/core/transcription/TranscriptionRequestHandler.java": """package com.waenhancer.core.transcription;
 public class TranscriptionRequestHandler {
  public static final String METHOD="transcribe_audio",METHOD_READY="transcription_ready",METHOD_LOG="transcription_log";
  public static android.os.Bundle handle(android.content.Context c,android.os.Bundle b){throw new AssertionError("Transcription outside probe");}
+ public static android.os.Bundle handle(android.content.Context c,android.os.Bundle b,String p){throw new AssertionError("Transcription outside probe");}
  public static android.os.Bundle ready(android.content.Context c){throw new AssertionError("Transcription outside probe");}
+ public static android.os.Bundle ready(android.content.Context c,String p){throw new AssertionError("Transcription outside probe");}
  public static android.os.Bundle log(android.content.Context c,android.os.Bundle b){throw new AssertionError("Transcription outside probe");}
 }""",
     }
