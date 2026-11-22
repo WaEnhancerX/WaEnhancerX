@@ -34,7 +34,7 @@ import android.graphics.ColorFilter
 import android.graphics.PixelFormat
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
-import android.net.Uri
+import com.waenhancer.xposed.bridge.client.HookProviderIpc
 import android.os.ParcelFileDescriptor
 import android.util.LruCache
 import com.waenhancer.theme.ThemeIds
@@ -231,8 +231,8 @@ class CssThemeHook(
         assetCache.get(key)?.let { return it }
         if (key in missingAssets) return null
         val bitmap = runCatching {
-            val result = context.contentResolver.call(
-                Uri.parse("content://com.waenhancer.hookprovider"), "theme_asset", id,
+            val result = HookProviderIpc.call(
+                context, "theme_asset", id,
                 android.os.Bundle().apply { putString("name", name) }
             )
             val descriptor = result?.getParcelable<ParcelFileDescriptor>("descriptor") ?: return@runCatching null
