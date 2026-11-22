@@ -10,10 +10,24 @@ def main():
  with tempfile.TemporaryDirectory(prefix='waex-update-') as temp:
   out=a.out or Path(temp);out.mkdir(exist_ok=True,parents=True);src=out/'src';src.mkdir(exist_ok=True)
   files=dict(FIXTURES);files.pop('Root.kt');identities={}
+  files['Context.kt']=files['Context.kt'].replace('open class Context(val cacheDir:File,val packageName:String=\"com.waenhancer\",val packageManager:PackageManager=PackageManager())', 'class AppIdentity(val uid:Int=12345)\nopen class Context(val cacheDir:File,val packageName:String=\"com.waenhancer\",val packageManager:PackageManager=PackageManager()) {val applicationInfo=AppIdentity()}')
+  files['Os.kt']=files['Os.kt'].replace('object Process{fun myPid()=1;', 'object Process{fun myUid()=12345;fun myPid()=1;')
   root_source=a.root/'app/src/main/java/com/waenhancer/xposed/utils/RootCommandRunner.java'
+  user_source=a.root/'app/src/main/java/com/waenhancer/utils/AndroidUserScope.java'
+  errors_source=a.root/'app/src/main/java/com/waenhancer/xposed/utils/HookErrors.java'
+  diagnostics={
+   'androidx/annotation/NonNull.java':'package androidx.annotation; public @interface NonNull {}',
+   'androidx/annotation/VisibleForTesting.java':'package androidx.annotation; public @interface VisibleForTesting {}',
+   'de/robv/android/xposed/XposedBridge.java':'package de.robv.android.xposed; public final class XposedBridge {public static void log(String message){System.err.println("[QA diagnostic sink] " + message);}}',
+  }
+  diagnostic_sources=[]
+  for name,content in diagnostics.items():
+   path=out/'diagnostic-fixtures'/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_text(content);diagnostic_sources.append(str(path))
   root_classes=out/'root-classes';root_classes.mkdir(exist_ok=True)
-  subprocess.run(['javac','--release','17','-d',str(root_classes),str(root_source)],check=True,timeout=30)
+  subprocess.run(['javac','--release','17','-d',str(root_classes),str(root_source),str(user_source),str(errors_source),*diagnostic_sources],check=True,timeout=30)
   identities[str(root_source.relative_to(a.root))]=hashlib.sha256(root_source.read_bytes()).hexdigest()
+  identities[str(user_source.relative_to(a.root))]=hashlib.sha256(user_source.read_bytes()).hexdigest()
+  identities[str(errors_source.relative_to(a.root))]=hashlib.sha256(errors_source.read_bytes()).hexdigest()
   for name in ['UpdateDownloader.kt','UpdateTransferPolicy.kt']:
    path=a.root/'app/src/main/java/com/waenhancer/update'/name;files[name]=path.read_text();identities[str(path.relative_to(a.root))]=hashlib.sha256(path.read_bytes()).hexdigest()
   import re

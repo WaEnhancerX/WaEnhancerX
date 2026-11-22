@@ -5,7 +5,8 @@ Runs the actual executor and menu callback. Bitmap allocations are counted by a
 bitmap double, not measured heap usage; storage and UI are not a device test.
 """
 from pathlib import Path
-import argparse, hashlib, json, subprocess, tempfile
+import argparse, hashlib, json, re, subprocess, tempfile
+from localization_support import entries
 from test_gallery_export import STUBS as STORAGE_STUBS
 ROOT=Path(__file__).resolve().parents[1]
 HOOK=Path('app/src/main/java/com/waenhancer/xposed/features/media/ProfilePhotoDownloadHook.java')
@@ -91,6 +92,142 @@ public class ContentResolver {
 }'''
 STUBS['android/provider/MediaStore.java']=STUBS['android/provider/MediaStore.java'].replace('class Images{public static class Media{','class Images{public static class Media extends MediaColumns{')
 
+
+# Strict compile-only boundaries for the current, unchanged production hook.
+STUBS.update({
+'android/net/Uri.java': '''package android.net;public final class Uri {
+ private final String value;private Uri(String v){if(v==null)throw new NullPointerException();value=v;}
+ public static Uri parse(String v){return new Uri(v);}public String getPath(){return "/synthetic-photo";}
+ public String toString(){return value;}
+}''',
+'android/app/Activity.java': '''package android.app;
+import android.content.*;import android.view.*;import java.io.File;import java.util.concurrent.*;
+public class Activity extends Context {
+ public boolean destroyed,finishing;public Window window;public Context app;
+ public final ConcurrentLinkedQueue<Runnable> ui=new ConcurrentLinkedQueue<>();
+ public Activity(ContentResolver r){super(r);app=new Context(r);}
+ public Window getWindow(){return window;}public boolean isFinishing(){return finishing;}
+ public boolean isDestroyed(){return destroyed;}public Context getApplicationContext(){return app;}
+ public File getCacheDir(){return null;}
+ public void runOnUiThread(Runnable r){if(r==null)throw new AssertionError("null UI task");ui.add(r);}
+ public void drain(){Runnable r;while((r=ui.poll())!=null)r.run();com.waenhancer.xposed.utils.UiThread.drain();}
+}''',
+'android/view/MenuItem.java': '''package android.view;import android.graphics.drawable.Drawable;
+public class MenuItem{
+ public static final int SHOW_AS_ACTION_ALWAYS=2;public final int id;
+ public boolean visible=true,enabled=true;public Drawable icon;public int iconId;
+ public MenuItem(int id){this.id=id;}
+ public interface OnMenuItemClickListener{boolean onMenuItemClick(MenuItem item);}
+ public OnMenuItemClickListener listener;
+ public MenuItem setIcon(Drawable value){icon=value;return this;}
+ public MenuItem setIcon(int value){iconId=value;return this;}
+ public MenuItem setVisible(boolean value){visible=value;return this;}
+ public MenuItem setEnabled(boolean value){enabled=value;return this;}
+ public void setShowAsAction(int flags){if(flags!=SHOW_AS_ACTION_ALWAYS)throw new AssertionError("Unexpected menu flag");}
+ public void setOnMenuItemClickListener(OnMenuItemClickListener value){listener=value;}
+ public boolean click(){if(listener==null)throw new AssertionError("Menu listener not registered");return listener.onMenuItemClick(this);}
+}''',
+'android/widget/ImageView.java': '''package android.widget;
+import android.view.View;import android.content.Context;import android.graphics.*;
+import android.graphics.drawable.Drawable;
+public class ImageView extends View{
+ public Drawable drawable;public ImageView(Context c,Drawable d){super(c);drawable=d;}
+ public Drawable getDrawable(){return drawable;}
+ public void draw(Canvas canvas) {
+  if(canvas==null)throw new AssertionError("null Canvas");if(drawable==null)return;
+  Rect old=drawable.getBounds();drawable.setBounds(0,0,getWidth(),getHeight());
+  try {drawable.draw(canvas);}finally{drawable.setBounds(old.left,old.top,old.right,old.bottom);}
+ }
+}''',
+'com/waenhancer/app/R.java': '''package com.waenhancer.app;public final class R{public static final class string{
+ public static final int waex_ui_download=1,waex_ui_profile_photo_is_not_ready_yet=2,
+ waex_ui_profile_photo_saved_to_pictures_waex_p=3,waex_ui_couldn_t_save_profile_photo=4,
+ profile_photo_already_saved=5;
+}}''',
+'com/waenhancer/xposed/features/homescreen/MenuIconLoader.java': '''package com.waenhancer.xposed.features.homescreen;
+import android.content.Context;import android.graphics.drawable.Drawable;
+public final class MenuIconLoader{
+ public static Drawable load(Context c,String key){
+  if(c==null||!"ic_waex_download".equals(key))throw new AssertionError("Unexpected icon lookup");
+  return null;
+ }
+}''',
+'com/waenhancer/xposed/utils/UiThread.java': '''package com.waenhancer.xposed.utils;
+import java.util.concurrent.*;public final class UiThread{
+ private static final ConcurrentLinkedQueue<Runnable> tasks=new ConcurrentLinkedQueue<>();
+ public static void post(Runnable r){if(r==null)throw new AssertionError("null posted runnable");tasks.add(r);}
+ public static void drain(){Runnable r;while((r=tasks.poll())!=null)r.run();}
+}''',
+'androidx/annotation/VisibleForTesting.java':'package androidx.annotation;public @interface VisibleForTesting{}',
+'com/waenhancer/utils/TestActivity.java': '''package com.waenhancer.utils;
+import android.app.Activity;import android.content.ContentResolver;import android.view.Menu;
+public class TestActivity extends Activity{
+ public String jid="12345@s.whatsapp.net";public TestActivity(ContentResolver c){super(c);}
+ public boolean onCreateOptionsMenu(Menu menu){return menu!=null;}
+}''',
+'de/robv/android/xposed/XposedHelpers.java': '''package de.robv.android.xposed;
+public final class XposedHelpers{
+ public static Class<?> findClassIfExists(String n,ClassLoader l) {
+  return n!=null&&n.startsWith("com.whatsapp.profile.")?com.waenhancer.utils.TestActivity.class:null;
+ }
+}''',
+'de/robv/android/xposed/XposedBridge.java': '''package de.robv.android.xposed;
+import java.lang.reflect.*;import java.util.*;
+public final class XposedBridge{
+ public static XC_MethodHook hook;public static final List<String> logs=new ArrayList<>();
+ public static XC_MethodHook.Unhook hookMethod(Member m,XC_MethodHook h){
+  if(!(m instanceof Method)||!(m.getName().equals("onCreateOptionsMenu")||m.getName().equals("onPrepareOptionsMenu")))
+    throw new AssertionError("Unexpected menu hook");
+  hook=h;return new XC_MethodHook.Unhook();
+ }
+ public static Set<XC_MethodHook.Unhook> hookAllMethods(Class<?> c,String n,XC_MethodHook h){
+  throw new AssertionError("Unexpected hookAllMethods");
+ }
+ public static void log(String v){logs.add(v);}
+}''',
+'org/luckypray/dexkit/query/FindMethod.java': '''package org.luckypray.dexkit.query;public class FindMethod{
+ public static FindMethod create(){return new FindMethod();}
+ public FindMethod matcher(Object m){if(m==null)throw new AssertionError("Missing matcher");return this;}
+}''',
+'org/luckypray/dexkit/query/matchers/MethodMatcher.java': '''package org.luckypray.dexkit.query.matchers;
+public class MethodMatcher{
+ public static MethodMatcher create(){return new MethodMatcher();}
+ public MethodMatcher usingStrings(String v){
+  if(!"contactPhotosBitmapManager/getphotostream/".equals(v))throw new AssertionError("Wrong host query");
+  return this;
+ }
+}''',
+'org/luckypray/dexkit/query/enums/StringMatchType.java':
+ 'package org.luckypray.dexkit.query.enums;public enum StringMatchType{EndsWith,Contains}',
+'org/luckypray/dexkit/result/MethodData.java': '''package org.luckypray.dexkit.result;
+import java.lang.reflect.Method;
+public class MethodData{public Method getMethodInstance(ClassLoader l){
+ throw new AssertionError("Host stream unavailable in fixture");
+}}''',
+'com/waenhancer/xposed/core/devkit/DexSearchEngine.java': '''package com.waenhancer.xposed.core.devkit;
+import android.content.Context;import java.lang.reflect.Method;import org.luckypray.dexkit.query.*;
+import org.luckypray.dexkit.result.*;
+public final class DexSearchEngine{
+ public interface Query{Class<?> resolve(Bridge b,ClassLoader l);}
+ public interface MethodQuery{Method resolve(Bridge b,ClassLoader l);}
+ public static class Bridge{
+  public Results findClass(FindClass q){return new Results();}
+  public MethodResults findMethod(FindMethod q){return new MethodResults();}
+ }
+ public static class Results{public ClassData firstOrNull(){return null;}}
+ public static class MethodResults{public MethodData firstOrNull(){return null;}}
+ public static DexSearchEngine getInstance(){return new DexSearchEngine();}
+ public Class<?> findClassWithCache(Context c,ClassLoader l,String key,Query q){
+  if(!"profile_photo_viewer_class".equals(key))throw new AssertionError("Unrecognized Dex class query");
+  return q.resolve(new Bridge(),l);
+ }
+ public Method findMethodWithCache(Context c,ClassLoader l,String key,MethodQuery q){
+  if(!"contact_photos_get_stream_method".equals(key))throw new AssertionError("Unrecognized Dex method query");
+  return q.resolve(new Bridge(),l);
+ }
+}''',
+})
+
 TEST=r'''package com.waenhancer.xposed.features.media;
 import android.app.*;import android.content.*;import android.graphics.*;import android.graphics.drawable.*;import android.view.*;import android.widget.*;import de.robv.android.xposed.*;
 import java.io.*;import java.lang.reflect.*;import java.util.*;import java.util.concurrent.*;
@@ -104,13 +241,18 @@ public class TestProfilePhotoSave{
   final SharedPreferences prefs=new SharedPreferences(){public boolean getBoolean(String key,boolean fallback){if(key.equals("download_profile"))return enabled;if(key.equals("download_profile_save_duplicates"))return saveDuplicates;return fallback;}public Set<String> getStringSet(String key,Set<String> fallback){return key.equals("download_profile_saved_identities")?new LinkedHashSet<>(savedIdentities):fallback;}public Editor edit(){return new Editor(){Set<String> pending;public Editor putStringSet(String key,Set<String> value){if(key.equals("download_profile_saved_identities"))pending=new LinkedHashSet<>(value);return this;}public boolean commit(){if(pending!=null){savedIdentities.clear();savedIdentities.addAll(pending);}return true;}};}};
   Env(ContentResolver r){resolver=r;activity=new com.waenhancer.utils.TestActivity(r);image=new ImageView(activity,new BitmapDrawable(original));ViewGroup root=new ViewGroup(activity);root.children.add(image);activity.window=new Window(root);hook=new ProfilePhotoDownloadHook(activity.app,TestProfilePhotoSave.class.getClassLoader(),prefs);hook.hook();XC_MethodHook.MethodHookParam p=new XC_MethodHook.MethodHookParam();p.thisObject=activity;p.args=new Object[]{menu};XposedBridge.hook.dispatch(p);}
   void click(){menu.item.click();}
-  void finish()throws Exception{Field f=ProfilePhotoDownloadHook.class.getDeclaredField("io");f.setAccessible(true);((ExecutorService)f.get(hook)).submit(()->{}).get(10,TimeUnit.SECONDS);activity.drain();((ExecutorService)f.get(hook)).shutdownNow();}
+  ExecutorService worker()throws Exception{Field f=ProfilePhotoDownloadHook.class.getDeclaredField("io");f.setAccessible(true);return (ExecutorService)f.get(hook);}
+  void awaitPending()throws Exception{worker().submit(()->{}).get(10,TimeUnit.SECONDS);activity.drain();}
+  void finish()throws Exception{awaitPending();worker().shutdownNow();}
  }
  public static void main(String[] args)throws Exception{
   baseline=args.length>0&&args[0].equals("baseline");
   test("success waits for close and publish",()->{Env e=new Env(new ContentResolver());e.click();e.finish();ck(e.resolver.closed&&e.resolver.publishAfterClose&&e.resolver.updates==1,"ack closed output");ck(e.resolver.deleted.isEmpty(),"published row retained");ck(!e.original.recycled&&Bitmap.last.recycled,"only owned copy recycled");ck(Toast.messages.size()==1&&Toast.messages.get(0).startsWith("Profile photo saved"),"success toast");});
   for(String fault:new String[]{"nullInsert","nullOutput","open","write","flush","close","updateZero","updateMany","updateThrow","delete"})test("storage failure "+fault,()->{ContentResolver r=new ContentResolver();r.fault=fault;Env e=new Env(r);e.click();e.finish();ck(Toast.messages.size()==1&&Toast.messages.get(0).startsWith("Couldn't"),"failure toast only");ck(r.creates==0||r.deleted.size()==1,"owned partial removed");ck(!e.original.recycled&&Bitmap.last.recycled,"copy released");ck(XposedBridge.logs.stream().noneMatch(s->s.contains("private-contact")||s.contains("private-path")||s.contains("private-payload")),"payload-free diagnostics");});
   test("failed encode removes destination",()->{Bitmap.encodeFalse=true;Env e=new Env(new ContentResolver());e.click();e.finish();ck(e.resolver.deleted.size()==1&&Toast.messages.get(0).startsWith("Couldn't"),"encoding failure acknowledged");});
+  test("missing photo stays distinct from failed export",()->{Env e=new Env(new ContentResolver());e.image.visibility=View.GONE;e.click();e.finish();ck(e.resolver.creates==0,"no invisible photo exported");ck(Toast.messages.size()==1&&Toast.messages.get(0).equals("Profile photo is not ready yet"),"missing photo message");});
+  test("stream success publishes once",()->{ContentResolver r=new ContentResolver();Env e=new Env(r);Method m=ProfilePhotoDownloadHook.class.getDeclaredMethod("saveStreamToGallery",Context.class,InputStream.class,String.class);m.setAccessible(true);Object result=m.invoke(e.hook,e.activity.app,new ByteArrayInputStream(new byte[]{1,2,3}),null);ck(Boolean.TRUE.equals(result)&&r.creates==1&&r.updates==1&&r.publishAfterClose&&r.deleted.isEmpty(),"stream result acknowledged");e.finish();});
+  for(String fault:new String[]{"updateZero","updateMany","updateThrow"})test("stream must reject "+fault,()->{ContentResolver r=new ContentResolver();r.fault=fault;Env e=new Env(r);Method m=ProfilePhotoDownloadHook.class.getDeclaredMethod("saveStreamToGallery",Context.class,InputStream.class,String.class);m.setAccessible(true);Object result=m.invoke(e.hook,e.activity.app,new ByteArrayInputStream(new byte[]{1,2,3}),null);ck(Boolean.FALSE.equals(result)&&r.creates==1&&r.updates==1&&r.deleted.size()==1,"stream publication not acknowledged");e.finish();});
   test("1000 pending clicks allocate one copy",()->{
    CountDownLatch opened=new CountDownLatch(1),release=new CountDownLatch(1);ContentResolver r=new ContentResolver();r.onOpen=()->{opened.countDown();try{if(!release.await(5,TimeUnit.SECONDS))throw new AssertionError("blocked writer timeout");}catch(InterruptedException ex){throw new RuntimeException(ex);}};Env e=new Env(r);int before=Bitmap.copies.get();
    try{e.click();ck(opened.await(5,TimeUnit.SECONDS),"writer started");for(int i=0;i<1000;i++)e.click();System.out.println("MEASURE pending_clicks=1000 bitmap_copy_calls="+(Bitmap.copies.get()-before));ck(Bitmap.copies.get()-before==1,"admit before allocating bitmap");}finally{release.countDown();e.finish();System.out.println("MEASURE exported_rows="+r.creates);}
@@ -121,10 +263,10 @@ public class TestProfilePhotoSave{
   test("destroy owner before posted completion dispatch",()->{Env e=new Env(new ContentResolver());e.click();Field f=ProfilePhotoDownloadHook.class.getDeclaredField("io");f.setAccessible(true);((ExecutorService)f.get(e.hook)).submit(()->{}).get(5,TimeUnit.SECONDS);e.activity.destroyed=true;e.finish();ck(e.resolver.updates==1&&Toast.messages.isEmpty(),"posted callback rechecks owner lifetime");});
   test("live setting rechecked at click",()->{Env e=new Env(new ContentResolver());e.enabled=false;e.click();e.finish();ck(e.resolver.creates==0,"disable before click prevents export");});
   test("host error leaves menu alone",()->{Env e=new Env(new ContentResolver());Menu menu=new Menu();XC_MethodHook.MethodHookParam p=new XC_MethodHook.MethodHookParam();p.thisObject=e.activity;p.args=new Object[]{menu};p.throwable=new IllegalStateException("host");XposedBridge.hook.dispatch(p);e.finish();ck(menu.item==null&&p.throwable!=null,"host failure not decorated");});
-  test("drawable failure restores host bounds",()->{Env e=new Env(new ContentResolver());Drawable d=new Drawable();d.failDraw=true;e.image.drawable=d;int recycled=Bitmap.recycles.get();boolean escaped=false;try{e.click();}catch(RuntimeException unexpected){escaped=true;}ck(!escaped,"capture failure isolated");ck(d.bounds.left==2&&d.bounds.top==3&&d.bounds.right==7&&d.bounds.bottom==11,"host drawable restored");ck(Bitmap.recycles.get()==recycled+1,"failed render copy freed");e.image.drawable=new BitmapDrawable(e.original);e.click();e.finish();ck(e.resolver.creates==1,"admission recovered");});
-  test("bounds restoration error releases rendered copy",()->{Env e=new Env(new ContentResolver());Drawable d=new Drawable();d.failRestore=true;e.image.drawable=d;int recycled=Bitmap.recycles.get();boolean escaped=false;try{e.click();}catch(RuntimeException unexpected){escaped=true;}ck(!escaped&&Bitmap.recycles.get()==recycled+1,"restoration failure releases unreturned bitmap");e.image.drawable=new BitmapDrawable(e.original);e.click();e.finish();ck(e.resolver.creates==1,"admission recovered after restore failure");});
+  test("drawable failure restores host bounds",()->{Env e=new Env(new ContentResolver());Drawable d=new Drawable();d.failDraw=true;e.image.drawable=d;int recycled=Bitmap.recycles.get();boolean escaped=false;try{e.click();e.awaitPending();}catch(RuntimeException unexpected){escaped=true;}ck(!escaped,"capture failure isolated");ck(d.bounds.left==2&&d.bounds.top==3&&d.bounds.right==7&&d.bounds.bottom==11,"host drawable restored");ck(Bitmap.recycles.get()==recycled+1,"failed render copy freed");e.image.drawable=new BitmapDrawable(e.original);e.click();e.finish();ck(e.resolver.creates==1,"admission recovered");});
+  test("bounds restoration error releases rendered copy",()->{Env e=new Env(new ContentResolver());Drawable d=new Drawable();d.failRestore=true;e.image.drawable=d;int recycled=Bitmap.recycles.get();boolean escaped=false;try{e.click();e.awaitPending();}catch(RuntimeException unexpected){escaped=true;}ck(!escaped&&Bitmap.recycles.get()==recycled+1,"restoration failure releases unreturned bitmap");e.image.drawable=new BitmapDrawable(e.original);e.click();e.finish();ck(e.resolver.creates==1,"admission recovered after restore failure");});
   test("bitmap path applies existing 40MP ceiling before copy",()->{Env e=new Env(new ContentResolver());e.image.drawable=new BitmapDrawable(new Bitmap(8000,6000));int before=Bitmap.copies.get();e.click();e.finish();ck(Bitmap.copies.get()==before&&e.resolver.creates==0,"ceiling before copied allocation");});
-  test("executor rejection frees owned copy and admission",()->{Env e=new Env(new ContentResolver());Field f=ProfilePhotoDownloadHook.class.getDeclaredField("io");f.setAccessible(true);((ExecutorService)f.get(e.hook)).shutdownNow();boolean escaped=false;try{e.click();}catch(RuntimeException wrong){escaped=true;}ck(!escaped&&Bitmap.last.recycled,"rejection cleanup");e.activity.drain();ck(Toast.messages.size()==1&&Toast.messages.get(0).startsWith("Couldn't"),"rejection acknowledged");});
+  test("executor rejection restores admission without a copy",()->{Env e=new Env(new ContentResolver());e.worker().shutdownNow();int before=Bitmap.copies.get();boolean escaped=false;try{e.click();}catch(RuntimeException wrong){escaped=true;}Field flag=ProfilePhotoDownloadHook.class.getDeclaredField("saveInFlight");flag.setAccessible(true);ck(!escaped&&!((java.util.concurrent.atomic.AtomicBoolean)flag.get(e.hook)).get(),"rejected request releases gate");ck(Bitmap.copies.get()==before,"no bitmap copied for rejected work");e.activity.drain();ck(Toast.messages.size()==1&&Toast.messages.get(0).startsWith("Couldn't"),"rejection acknowledged");});
   test("repeated successful names differ",()->{Env e=new Env(new ContentResolver());e.click();Field f=ProfilePhotoDownloadHook.class.getDeclaredField("io");f.setAccessible(true);((ExecutorService)f.get(e.hook)).submit(()->{}).get(5,TimeUnit.SECONDS);e.click();e.finish();ck(e.resolver.inserted.size()==2,"second deliberate save permitted");ck(!e.resolver.inserted.get(0).get("name").equals(e.resolver.inserted.get(1).get("name")),"unique names");});
   test("duplicate protection remembers only a successful canonical contact save",()->{Env e=new Env(new ContentResolver());e.saveDuplicates=false;e.click();Field f=ProfilePhotoDownloadHook.class.getDeclaredField("io");f.setAccessible(true);((ExecutorService)f.get(e.hook)).submit(()->{}).get(5,TimeUnit.SECONDS);ck(e.resolver.inserted.size()==1&&e.savedIdentities.size()==1,"successful contact saved once");e.click();e.finish();ck(e.resolver.inserted.size()==1,"saved contact not exported again");ck(Toast.messages.stream().anyMatch(s->s.equals("Profile photo already saved")),"duplicate toast");});
   test("failed export does not suppress a later retry",()->{ContentResolver r=new ContentResolver();r.fault="open";Env e=new Env(r);e.saveDuplicates=false;e.click();Field f=ProfilePhotoDownloadHook.class.getDeclaredField("io");f.setAccessible(true);((ExecutorService)f.get(e.hook)).submit(()->{}).get(5,TimeUnit.SECONDS);r.fault="";e.click();e.finish();ck(r.creates==2&&e.savedIdentities.size()==1,"only published export remembered");});
@@ -134,20 +276,29 @@ public class TestProfilePhotoSave{
 
 def main():
  p=argparse.ArgumentParser();p.add_argument('--source-root',type=Path,default=ROOT);p.add_argument('--out',type=Path);a=p.parse_args()
- production=a.source_root.resolve()/HOOK
+ source_root=a.source_root.resolve()
+ production=source_root/HOOK
+ errors_source=source_root/'app/src/main/java/com/waenhancer/xposed/utils/HookErrors.java'
+ # The generated R fixture must cover resource keys actually used by production.
+ names=set(re.findall(r'R\.string\.([A-Za-z0-9_]+)', production.read_text(encoding='utf-8')))
+ available=entries(ROOT,'values')
+ assert names and names <= available.keys(), ('Missing actual string resources', sorted(names-set(available)))
+ r_fixture=STUBS['com/waenhancer/app/R.java']
+ assert all(re.search(r'\b'+re.escape(name)+r'\s*=',r_fixture) for name in names), 'R fixture lacks a referenced resource'
  with tempfile.TemporaryDirectory(prefix='waex-profile-save-') as directory:
   root=Path(directory)
   for path,source in STUBS.items():
    file=root/path;file.parent.mkdir(parents=True,exist_ok=True);file.write_text(source)
   (root/'TestProfilePhotoSave.java').write_text(TEST)
-  compile=subprocess.run(['javac','--release','17','-d',str(root/'classes'),str(production),*map(str,root.rglob('*.java'))],capture_output=True,text=True,timeout=60)
+  compile=subprocess.run(['javac','--release','17','-d',str(root/'classes'),str(production),str(errors_source),*map(str,root.rglob('*.java'))],capture_output=True,text=True,timeout=60)
   if a.out:a.out.mkdir(parents=True,exist_ok=True);(a.out/'compile.log').write_text(compile.stdout+compile.stderr)
   if compile.returncode:print(compile.stdout+compile.stderr);raise SystemExit(compile.returncode)
   print('COMPILE_OK complete profile hook with explicit Android/Xposed doubles')
+  print('SOURCE_SHA256',hashlib.sha256(production.read_bytes()).hexdigest(),'HOOKERRORS_SHA256',hashlib.sha256(errors_source.read_bytes()).hexdigest(),'RESOURCES',len(names))
   result=subprocess.run(['java','-cp',str(root/'classes'),'com.waenhancer.xposed.features.media.TestProfilePhotoSave'],capture_output=True,text=True,timeout=60)
   print(result.stdout+result.stderr)
   if a.out:
    (a.out/'execution.log').write_text(result.stdout+result.stderr)
-   (a.out/'result.json').write_text(json.dumps({'scope':'Complete production hook, explicit Android/Xposed doubles, real executor; allocation counts are simulated','production_path':str(production),'production_sha256':hashlib.sha256(production.read_bytes()).hexdigest(),'fixture_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'returncode':result.returncode},indent=2)+'\n')
+   (a.out/'result.json').write_text(json.dumps({'scope':'Complete production hook, explicit Android/Xposed doubles, real executor; allocation counts are simulated','production_path':str(production),'production_sha256':hashlib.sha256(production.read_bytes()).hexdigest(),'HookErrors_sha256':hashlib.sha256(errors_source.read_bytes()).hexdigest(),'resource_keys':sorted(names),'fixture_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'returncode':result.returncode},indent=2)+'\n')
   if result.returncode:raise SystemExit(result.returncode)
 if __name__=='__main__':main()
