@@ -58,6 +58,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import de.robv.android.xposed.XC_MethodHook;
@@ -74,6 +75,8 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
 
     private static volatile Object sContactPhotosManagerInstance;
     private static volatile Method sGetProfilePhotoStreamMethod;
+
+    private enum SaveResult { SAVED, SAVE_FAILED, PHOTO_UNAVAILABLE }
 
     private final AtomicBoolean saveInFlight = new AtomicBoolean();
     private final ExecutorService io = Executors.newSingleThreadExecutor(r -> {
@@ -207,41 +210,55 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
             if (!isEnabled("download_profile", false) || activity.isFinishing()
                     || activity.isDestroyed() || !saveInFlight.compareAndSet(false, true)) return true;
 
-            io.execute(() -> {
-                try {
-                    boolean saveDuplicates = isEnabled(PREF_SAVE_DUPLICATES, true);
-                    String profileIdentity = saveDuplicates ? null : profileIdentity(activity);
-                    if (profileIdentity != null && hasSavedProfile(profileIdentity)) {
-                        showToast(activity, UiText.get(R.string.profile_photo_already_saved, "Profile photo already saved"));
-                        saveInFlight.set(false);
-                        return;
-                    }
+            try {
+                io.execute(() -> {
+                    try {
+                        boolean saveDuplicates = isEnabled(PREF_SAVE_DUPLICATES, true);
+                        String profileIdentity = saveDuplicates ? null : profileIdentity(activity);
+                        if (profileIdentity != null && hasSavedProfile(profileIdentity)) {
+                            showToast(activity, UiText.get(R.string.profile_photo_already_saved, "Profile photo already saved"));
+                            saveInFlight.set(false);
+                            return;
+                        }
 
-                    boolean saved = extractAndSavePhoto(activity, profileIdentity);
-                    if (!saved) {
-                        showToast(activity, UiText.get(R.string.waex_ui_profile_photo_is_not_ready_yet, "Profile photo is not ready yet"));
+                        SaveResult result = extractAndSavePhoto(activity, profileIdentity);
+                        if (result == SaveResult.SAVE_FAILED) {
+                            showToast(activity, UiText.get(R.string.waex_ui_couldn_t_save_profile_photo,
+                                    "Couldn't save profile photo"));
+                        } else if (result == SaveResult.PHOTO_UNAVAILABLE) {
+                            showToast(activity, UiText.get(R.string.waex_ui_profile_photo_is_not_ready_yet,
+                                    "Profile photo is not ready yet"));
+                        }
+                    } catch (Throwable failure) {
+                        logFailure("save profile photo", failure);
+                        showToast(activity, UiText.get(R.string.waex_ui_couldn_t_save_profile_photo, "Couldn't save profile photo"));
+                    } finally {
+                        saveInFlight.set(false);
                     }
-                } catch (Throwable failure) {
-                    logFailure("save profile photo", failure);
-                    showToast(activity, UiText.get(R.string.waex_ui_couldn_t_save_profile_photo, "Couldn't save profile photo"));
-                } finally {
-                    saveInFlight.set(false);
-                }
-            });
+                });
+            } catch (RejectedExecutionException rejected) {
+                // No worker owns the save: return to idle and acknowledge the failure.
+                saveInFlight.set(false);
+                logFailure("submit profile photo save", rejected);
+                showToast(activity, UiText.get(R.string.waex_ui_couldn_t_save_profile_photo,
+                        "Couldn't save profile photo"));
+            }
             return true;
         });
     }
 
-    private boolean extractAndSavePhoto(Activity activity, String profileIdentity) {
+    private SaveResult extractAndSavePhoto(Activity activity, String profileIdentity) {
+        boolean photoAvailable = false;
         Context appCtx = activity.getApplicationContext() != null ? activity.getApplicationContext() : context;
 
         // Tier 1: Direct File check from photo helper or cache
         File directFile = resolveProfilePhotoFile(activity);
         if (directFile != null && directFile.isFile() && directFile.length() > 0) {
+            photoAvailable = true;
             try (InputStream in = new FileInputStream(directFile)) {
                 if (saveStreamToGallery(appCtx, in, profileIdentity)) {
                     notifySaved(activity);
-                    return true;
+                    return SaveResult.SAVED;
                 }
             } catch (Throwable t) {
                 logFailure("Tier 1 direct file copy", t);
@@ -251,10 +268,11 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
         // Tier 2: Contact photo stream via ContactPhotosBitmapManager
         InputStream stream = resolveContactPhotoStream(activity);
         if (stream != null) {
+            photoAvailable = true;
             try (InputStream in = stream) {
                 if (saveStreamToGallery(appCtx, in, profileIdentity)) {
                     notifySaved(activity);
-                    return true;
+                    return SaveResult.SAVED;
                 }
             } catch (Throwable t) {
                 logFailure("Tier 2 stream copy", t);
@@ -264,10 +282,11 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
         // Tier 3: PhotoView bitmap extraction
         Bitmap photoViewBitmap = extractBitmapFromPhotoView(activity);
         if (photoViewBitmap != null) {
+            photoAvailable = true;
             try {
                 if (saveBitmapToGallery(appCtx, photoViewBitmap, profileIdentity)) {
                     notifySaved(activity);
-                    return true;
+                    return SaveResult.SAVED;
                 }
             } finally {
                 photoViewBitmap.recycle();
@@ -277,17 +296,18 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
         // Tier 4: Window view hierarchy capture fallback
         Bitmap fallback = captureDisplayedPhoto(activity);
         if (fallback != null) {
+            photoAvailable = true;
             try {
                 if (saveBitmapToGallery(appCtx, fallback, profileIdentity)) {
                     notifySaved(activity);
-                    return true;
+                    return SaveResult.SAVED;
                 }
             } finally {
                 fallback.recycle();
             }
         }
 
-        return false;
+        return photoAvailable ? SaveResult.SAVE_FAILED : SaveResult.PHOTO_UNAVAILABLE;
     }
 
     private File resolveProfilePhotoFile(Activity activity) {
@@ -474,9 +494,15 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
         if ((long) width * height > 40_000_000L) return null;
 
         Bitmap rendered = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(rendered);
-        best.draw(canvas);
-        return rendered;
+        try {
+            Canvas canvas = new Canvas(rendered);
+            best.draw(canvas);
+            return rendered;
+        } catch (RuntimeException | Error failure) {
+            // If Canvas construction or rendering fails, ownership never leaves this method.
+            rendered.recycle();
+            throw failure;
+        }
     }
 
     private ImageView findLargestImage(View view, ImageView current) {
@@ -534,7 +560,9 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 ContentValues ready = new ContentValues();
                 ready.put(MediaStore.Images.Media.IS_PENDING, 0);
-                resolver.update(output, ready, null, null);
+                if (resolver.update(output, ready, null, null) != 1) {
+                    throw new IllegalStateException("MediaStore did not publish profile photo");
+                }
             } else {
                 MediaScannerConnection.scanFile(ctx, new String[]{output.getPath()}, new String[]{"image/jpeg"}, null);
             }
@@ -577,7 +605,9 @@ public final class ProfilePhotoDownloadHook extends BaseFeature {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 ContentValues ready = new ContentValues();
                 ready.put(MediaStore.Images.Media.IS_PENDING, 0);
-                resolver.update(output, ready, null, null);
+                if (resolver.update(output, ready, null, null) != 1) {
+                    throw new IllegalStateException("MediaStore did not publish profile photo");
+                }
             } else {
                 MediaScannerConnection.scanFile(ctx, new String[]{output.getPath()}, new String[]{"image/jpeg"}, null);
             }
