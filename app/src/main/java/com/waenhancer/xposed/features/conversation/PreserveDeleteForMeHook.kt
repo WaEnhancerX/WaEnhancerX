@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
-import android.net.Uri
+import com.waenhancer.xposed.bridge.client.HookProviderIpc
 import android.os.Bundle
 import android.os.SystemClock
 import com.waenhancer.xposed.core.BaseFeature
@@ -43,7 +43,6 @@ class PreserveDeleteForMeHook(
     companion object {
         private const val TAG = "[WAEX:PreserveDeleteForMe]"
         private const val PREF_KEY = "preserve_delete_for_me"
-        private const val PROVIDER_URI = "content://com.waenhancer.hookprovider"
 
         // A nested method invocation must not clear its caller's Delete-for-me scope.
         // Track qualifying invocations by identity: Xposed calls afterHookedMethod even
@@ -357,8 +356,8 @@ class PreserveDeleteForMeHook(
             // SQLite write; all metadata needed for preservation is already in the bundle.
             preservationExecutor.execute {
                 try {
-                    val acknowledgement = context.contentResolver.call(
-                        Uri.parse(PROVIDER_URI),
+                    val acknowledgement = HookProviderIpc.call(
+                        context,
                         "record_preserved_message",
                         null,
                         bundle
