@@ -38,17 +38,17 @@ sheet = (src / "xposed/features/homescreen/WaexQuickActionsSheet.java").read_tex
 privacy = (src / "ui/screens/privacy/GlobalPrivacySettingsScreen.kt").read_text()
 for name, text in [("hook", hook), ("header", header), ("sheet", sheet), ("privacy", privacy)]:
     assert "DndPreferencePolicy.isEnabled(" in text, f"{name} bypasses tested DND policy"
-# Two public entry paths share one confirmed action: the quick-action sheet's
-# onDndToggle callback and the classic/overflow menu item selected by ID.
-# The third occurrence is the helper declaration, not another untested route.
-assert header.count("promptDndModeSheet(") == 3, "unexpected DND confirmation route count"
-assert '/* onDndToggle    */ () -> promptDndModeSheet(activity)' in header, "quick-action sheet must confirm DND"
-assert 'if (id == MENU_ID_DND) {' in header, "menu dispatch must recognize DND"
-assert 'promptDndModeSheet((Activity) activityObj);' in header, "menu dispatch must confirm DND"
-assert header.count('target.add(Menu.NONE, MENU_ID_DND, Menu.NONE,') == 1, "DND menu must use shared builder"
-assert 'item.setOnMenuItemClickListener(mi -> handleItemSelected(mi, activity));' in header, "menu must share checked dispatcher"
+# Nightly removed the unused raw-ID dispatcher in 19a86ef0. Check both live
+# entry points explicitly instead of requiring its now-dead third call site.
+assert '/* onDndToggle    */ () -> promptDndModeSheet(activity)' in header
+assert 'if (id == MENU_ID_DND) {\n            if (activityObj instanceof Activity) {\n                promptDndModeSheet((Activity) activityObj);' in header
+assert header.count("promptDndModeSheet(") == 3, "unexpected DND dispatch path"
+# Both menu construction and dispatch must remain connected to the confirmation route.
+assert 'target.add(Menu.NONE, MENU_ID_DND, Menu.NONE,' in header, "missing shared DND menu builder"
+assert header.count('target.add(Menu.NONE, MENU_ID_DND, Menu.NONE,') == 1, "duplicate DND menu registration"
+assert 'item.setOnMenuItemClickListener(mi -> handleItemSelected(mi, activity));' in header, "menu bypasses confirmed dispatcher"
 assert 'isEnabled(PREF_KEY, false) || isEnabled("dndmode", false)' not in hook
-assert header.count('putBoolean("dnd_mode", !active)') == 1
+assert header.count('saveAndRestart(activity, "dnd_mode", !active)') == 1
 assert 'putBoolean("dnd_mode"' not in sheet, "quick sheet must not mutate DND before confirmation"
 assert 'putBoolean("ghostmode_active"' not in sheet, "quick sheet must not mutate Ghost Mode before confirmation"
 assert 'putBoolean("freeze_last_seen_active"' not in sheet, "quick sheet must not mutate Freeze before confirmation"
