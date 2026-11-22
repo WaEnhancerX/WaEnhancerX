@@ -1,6 +1,8 @@
 {
   "schema": 1,
   "channel": "nightly",
-  "fragments": [],
-  "notes": ""
+  "fragments": [
+    "spanish-resource-coverage-inventory.txt"
+  ],
+  "notes": "[Added]\n- Add Spanish and Latin American Spanish resource inventories with missing-key, extra-key and translation-divergence diagnostics, plus strict-mode controls.\n\n[Fixes]\n- Reject empty default string inventories and optimized Python runs that disable duplicate-resource or regression assertions.\n"
 }
