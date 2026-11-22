@@ -28,12 +28,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -914,9 +916,9 @@ fun MainContainerScreen() {
                         color = colors.surface,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(72.dp)
+                            .heightIn(min = 72.dp)
                     ) {
-                        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                             val totalWidth = maxWidth
                             val columnWidth = totalWidth / 5
                             // Match the indicator to the 40.dp icon slot rather than the
@@ -946,7 +948,10 @@ fun MainContainerScreen() {
                             )
 
                             Row(
-                                modifier = Modifier.fillMaxSize(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 72.dp)
+                                    .height(IntrinsicSize.Min),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceAround
                             ) {
@@ -977,6 +982,7 @@ fun MainContainerScreen() {
                                                     pagerState.animateScrollToPage(pageIndex)
                                                 }
                                             }
+                                            .padding(horizontal = 4.dp, vertical = 6.dp)
                                     ) {
                                         Box(
                                             modifier = Modifier.size(width = 64.dp, height = 32.dp),
