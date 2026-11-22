@@ -3,7 +3,8 @@
   "channel": "nightly",
   "fragments": [
     "manual-seen-tick-persistence.txt",
+    "proximity-voice-note-wakelock.txt",
     "spanish-resource-coverage-inventory.txt"
   ],
-  "notes": "[Added]\n- Add Spanish and Latin American Spanish resource inventories with missing-key, extra-key and translation-divergence diagnostics, plus strict-mode controls.\n\n[Fixes]\n- Confirm manual seen-tick changes only after a successful save and retain the last confirmed selection when saving fails.\n- Reject empty default string inventories and optimized Python runs that disable duplicate-resource or regression assertions.\n"
+  "notes": "[Added]\n- Add Spanish and Latin American Spanish resource inventories with missing-key, extra-key and translation-divergence diagnostics, plus strict-mode controls.\n\n[Fixes]\n- Confirm manual seen-tick changes only after a successful save and retain the last confirmed selection when saving fails.\n- Handle proximity wake locks when Disable Proximity is enabled so voice-note playback does not request proximity-based screen-off.\n- Reject empty default string inventories and optimized Python runs that disable duplicate-resource or regression assertions.\n"
 }
