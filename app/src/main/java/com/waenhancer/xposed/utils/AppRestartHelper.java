@@ -2,11 +2,14 @@ package com.waenhancer.xposed.utils;
 
 import com.waenhancer.app.R;
 import com.waenhancer.utils.UiText;
+import com.waenhancer.utils.AndroidUserScope;
 
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Process;
@@ -14,6 +17,8 @@ import android.os.SystemClock;
 import android.widget.Toast;
 import com.waenhancer.utils.WhatsAppPackageDetector;
 import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -75,13 +80,17 @@ public final class AppRestartHelper {
         }
 
         final Intent launchIntent;
+        final int userId;
+        final String rootLaunchCommand;
         try {
-            launchIntent = context.getPackageManager().getLaunchIntentForPackage(packageName);
-            if (launchIntent == null || launchIntent.getComponent() == null
-                    || !packageName.equals(launchIntent.getComponent().getPackageName())) {
+            userId = AndroidUserScope.matchingUserId(context.getApplicationInfo().uid, Process.myUid());
+            launchIntent = resolveLaunchIntent(context, packageName, userId);
+            if (launchIntent == null) {
                 toast(context, UiText.get(R.string.waex_ui_unable_to_launch_selected_whatsapp_app, "Unable to launch selected WhatsApp app"));
                 return;
             }
+            rootLaunchCommand = RestartTargetPolicy.launchCommand(packageName, supported,
+                    launchIntent.getComponent().getClassName(), userId);
         } catch (RuntimeException error) {
             toast(context, UiText.get(R.string.waex_ui_unable_to_find_selected_whatsapp_app, "Unable to find selected WhatsApp app"));
             return;
@@ -98,14 +107,11 @@ public final class AppRestartHelper {
                     // Root is tried first; never send the self-kill broadcast after
                     // a successful force-stop/relaunch, which could kill the new process.
                     boolean stoppedByRoot = runRootCommand(
-                            RestartTargetPolicy.forceStopCommand(packageName, supported)) != null;
+                            RestartTargetPolicy.forceStopCommand(packageName, supported, userId)) != null;
                     boolean startedByRoot = false;
                     if (stoppedByRoot) {
-                        String component = launchIntent.getComponent() != null
-                                ? launchIntent.getComponent().flattenToShortString() : null;
-                        String output = runRootCommand(
-                                RestartTargetPolicy.launchCommand(packageName, component, supported));
-                        startedByRoot = RestartTargetPolicy.reportsRootLaunch(output);
+                        String output = runRootCommand(rootLaunchCommand);
+                        startedByRoot = RestartTargetPolicy.reportsActivityLaunch(output);
                     }
                     if (startedByRoot) {
                         RESTART_PENDING.set(false);
@@ -152,7 +158,7 @@ public final class AppRestartHelper {
         }
     }
 
-    /** Restarts every installed WhatsApp target, then relaunches the WAEX manager process. */
+    /** Restarts installed WhatsApp targets in this profile, then relaunches its WAEX manager. */
     public static void restartWhatsAppAndModule(Context context) {
         if (context == null || !RESTART_PENDING.compareAndSet(false, true)) return;
         final Context appContext = context.getApplicationContext() != null
@@ -162,32 +168,57 @@ public final class AppRestartHelper {
         try {
             EXECUTOR.execute(() -> {
                 try {
+                    int userId = AndroidUserScope.matchingUserId(
+                            appContext.getApplicationInfo().uid, Process.myUid());
                     Set<String> discovered = WhatsAppPackageDetector.getSupportedPackages(appContext);
                     Set<String> targets = discovered == null
                             ? Collections.emptySet() : new LinkedHashSet<>(discovered);
+                    List<Intent> fallbackLaunches = new ArrayList<>();
+                    boolean broadcastAttempted = false;
 
                     for (String packageName : targets) {
-                        Intent targetLaunch = appContext.getPackageManager().getLaunchIntentForPackage(packageName);
-                        if (!RestartTargetPolicy.isSupportedTarget(packageName, targets)
-                                || targetLaunch == null) {
+                        if (!RestartTargetPolicy.isSupportedTarget(packageName, targets)) {
                             continue;
                         }
+                        Intent launch = resolveLaunchIntent(appContext, packageName, userId);
+                        if (launch == null) continue;
+                        String rootLaunchCommand = RestartTargetPolicy.launchCommand(packageName, targets,
+                                launch.getComponent().getClassName(), userId);
 
                         boolean stoppedByRoot = runRootCommand(
-                                RestartTargetPolicy.forceStopCommand(packageName, targets)) != null;
-                        if (stoppedByRoot) {
-                            String component = targetLaunch.getComponent() != null
-                                    ? targetLaunch.getComponent().flattenToShortString() : null;
-                            runRootCommand(RestartTargetPolicy.launchCommand(packageName, component, targets));
-                        } else {
-                            Intent restart = new Intent(RESTART_ACTION);
-                            restart.setPackage(packageName);
-                            restart.putExtra("PKG", packageName);
-                            appContext.sendBroadcast(restart);
+                                RestartTargetPolicy.forceStopCommand(packageName, targets, userId)) != null;
+                        if (stoppedByRoot && RestartTargetPolicy.reportsActivityLaunch(
+                                runRootCommand(rootLaunchCommand))) continue;
+                        if (!stoppedByRoot) {
+                            broadcastAttempted = true;
+                            try {
+                                Intent restart = new Intent(RESTART_ACTION);
+                                restart.setPackage(packageName);
+                                restart.putExtra("PKG", packageName);
+                                appContext.sendBroadcast(restart);
+                            } catch (RuntimeException ignored) {
+                                // A denied broadcast must not prevent a normal launch
+                                // or processing the next independently verified target.
+                            }
                         }
+                        fallbackLaunches.add(launch);
                     }
 
-                    MAIN.post(() -> relaunchModuleProcess(appContext));
+                    long delay = broadcastAttempted ? BROADCAST_SETTLE_MS : 0L;
+                    if (!MAIN.postDelayed(() -> {
+                        for (Intent launch : fallbackLaunches) {
+                            try {
+                                Intent fallback = new Intent(launch);
+                                fallback.setPackage(launch.getComponent().getPackageName());
+                                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                                appContext.startActivity(fallback);
+                            } catch (RuntimeException ignored) {
+                                toast(appContext, UiText.get(R.string.waex_ui_could_not_reopen_whatsapp,
+                                        "Could not reopen WhatsApp"));
+                            }
+                        }
+                        relaunchModuleProcess(appContext);
+                    }, delay)) RESTART_PENDING.set(false);
                 } catch (Throwable error) {
                     RESTART_PENDING.set(false);
                     toast(appContext, UiText.get(R.string.waex_ui_unable_to_restart_apps, "Unable to restart apps"));
@@ -196,6 +227,21 @@ public final class AppRestartHelper {
         } catch (RejectedExecutionException failure) {
             RESTART_PENDING.set(false);
             toast(appContext, UiText.get(R.string.waex_ui_restart_operation_unavailable, "Restart operation unavailable"));
+        }
+    }
+
+    private static Intent resolveLaunchIntent(Context context, String packageName, int userId) {
+        try {
+            PackageManager packages = context.getPackageManager();
+            Intent launch = packages.getLaunchIntentForPackage(packageName);
+            if (launch == null || launch.getComponent() == null
+                    || !packageName.equals(launch.getComponent().getPackageName())) return null;
+            ApplicationInfo target = packages.getApplicationInfo(packageName, 0);
+            if (target == null || !packageName.equals(target.packageName)
+                    || AndroidUserScope.userIdForUid(target.uid) != userId) return null;
+            return launch;
+        } catch (PackageManager.NameNotFoundException | RuntimeException ignored) {
+            return null;
         }
     }
 
