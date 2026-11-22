@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="waex_ui_restart_pending_change_not_saved_v37">Ya hay un reinicio pendiente. Este cambio no se guardó; inténtalo de nuevo después.</string>
+</resources>

@@ -14,9 +14,9 @@ BRIDGE = ROOT / 'app/src/main/java/com/waenhancer/xposed/bridge/client/Preferenc
 SCHEMA = ROOT / 'app/src/main/java/com/waenhancer/config/PreferenceSchema.java'
 HOOK_ERRORS = ROOT / 'app/src/main/java/com/waenhancer/xposed/utils/HookErrors.java'
 STUBS = {
-    'androidx/annotation/VisibleForTesting.java': 'package androidx.annotation; public @interface VisibleForTesting {}',
     'androidx/annotation/NonNull.java': 'package androidx.annotation; public @interface NonNull {}',
     'androidx/annotation/Nullable.java': 'package androidx.annotation; public @interface Nullable {}',
+    'androidx/annotation/VisibleForTesting.java': 'package androidx.annotation; public @interface VisibleForTesting {}',
     'android/net/Uri.java': '''package android.net; public class Uri {
         public final String path; private Uri(String p) { path = p; }
         public static Uri parse(String p) { return new Uri(p); }
@@ -113,17 +113,29 @@ STUBS = {
         public abstract class XSharedPreferences implements android.content.SharedPreferences {
             public void reload() {}
         }''',
+    # Count/cache behavior belongs to this fixture; the actual unstable-client
+    # lifecycle and AOSP Binder-death semantics are checked in provider_ipc_freezer.
+    'com/waenhancer/xposed/bridge/client/HookProviderIpc.java': '''package com.waenhancer.xposed.bridge.client;
+        public final class HookProviderIpc {
+            public static android.os.Bundle call(android.content.Context context, String method,
+                    String arg, android.os.Bundle extras) {
+                return context.getContentResolver().call(android.net.Uri.parse(
+                        "content://com.waenhancer.hookprovider"), method, arg, extras);
+            }
+        }''',
     'test/BridgeContract.java': r'''package test;
         import android.content.*;
         import android.net.Uri;
         import android.os.Bundle;
         import android.database.ContentObserver;
         import com.waenhancer.xposed.bridge.client.PreferenceBridgeClient;
+        import com.waenhancer.config.PreferenceSchema;
         import java.util.*;
         import java.util.concurrent.atomic.AtomicInteger;
         public final class BridgeContract {
             static class Resolver extends ContentResolver {
                 volatile boolean available = true;
+                String targetPackage = "com.whatsapp";
                 final Map<String,Object> db = Collections.synchronizedMap(new HashMap<>());
                 final List<ContentObserver> observers = new ArrayList<>();
                 final AtomicInteger batchCount = new AtomicInteger();
@@ -133,7 +145,26 @@ STUBS = {
                     if ("get_all_preferences".equals(method)) {
                         Bundle result = new Bundle(), values = new Bundle(), sets = new Bundle();
                         synchronized (db) {
-                            for (Map.Entry<String,Object> entry : db.entrySet()) {
+                            // Model the provider's caller-resolved, namespace-filtered wire
+                            // contract. The separate resolved-snapshot suite compiles the real
+                            // provider resolution and serialization rather than this double.
+                            Map<String,Object> snapshot = new HashMap<>(db);
+                            if ("Per Target App".equals(db.get("module_config_mode"))) {
+                                String prefix = targetPackage + ":";
+                                for (var entry : db.entrySet()) {
+                                    String key = entry.getKey();
+                                    if (key.startsWith(prefix) && !PreferenceSchema.isGlobalOnly(key.substring(prefix.length())))
+                                        snapshot.put(key.substring(prefix.length()), entry.getValue());
+                                }
+                                snapshot.put("need_restart", Boolean.TRUE.equals(db.get(prefix + "need_restart")));
+                                Object pending = db.get(prefix + "pending_restart_changes");
+                                if (pending instanceof Set<?>) snapshot.put("pending_restart_changes", pending);
+                                else snapshot.remove("pending_restart_changes");
+                            }
+                            snapshot.keySet().removeIf(key -> key.indexOf(':') > 0
+                                && Set.of("com.whatsapp", "com.whatsapp.w4b", "com.whatsapp.clone")
+                                    .contains(key.substring(0, key.indexOf(':'))));
+                            for (Map.Entry<String,Object> entry : snapshot.entrySet()) {
                                 String key = entry.getKey();
                                 Object val = entry.getValue();
                                 if (val instanceof String v) values.putString(key, v);
@@ -173,14 +204,14 @@ STUBS = {
                         for (ContentObserver observer : observers) observer.onChange(false);
                         Bundle result = new Bundle(); result.putBoolean("success", true); return result;
                     }
-                    return null;
+                    throw new AssertionError("Unexpected fake provider method: " + method);
                 }
             }
             static class Ctx extends Context {
                 final Resolver resolver = new Resolver();
                 final String targetPackage;
                 Ctx() { this("com.whatsapp"); }
-                Ctx(String targetPackage) { this.targetPackage = targetPackage; }
+                Ctx(String targetPackage) { this.targetPackage = targetPackage; resolver.targetPackage = targetPackage; }
                 @Override public ContentResolver getContentResolver() { return resolver; }
                 @Override public String getPackageName() { return targetPackage; }
             }
