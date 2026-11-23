@@ -1,30 +1,8 @@
 {
   "schema": 1,
   "channel": "nightly",
-  "updated_at": "2026-11-23T06:31:41Z",
+  "updated_at": "2026-11-23T06:35:54Z",
   "releases": [
-    {
-      "tag": "2.1.0-nightly.7",
-      "version_name": "2.1.0-nightly.7",
-      "version_code": 20100007,
-      "published_at": "2026-11-23T06:31:20Z",
-      "html_url": "https://github.com/WaEnhancerX/WaEnhancerX/releases/tag/2.1.0-nightly.7",
-      "assets": [
-        {
-          "name": "WaEnhancerX-v2.1.0-nightly.7_debug.apk",
-          "url": "https://github.com/WaEnhancerX/WaEnhancerX/releases/download/2.1.0-nightly.7/WaEnhancerX-v2.1.0-nightly.7_debug.apk",
-          "size": 8004414,
-          "sha256": "737bc42441c552e2050d5fda1f02562c90aa43c496074eff914890d8b146b5d7"
-        },
-        {
-          "name": "WaEnhancerX-v2.1.0-nightly.7_release.apk",
-          "url": "https://github.com/WaEnhancerX/WaEnhancerX/releases/download/2.1.0-nightly.7/WaEnhancerX-v2.1.0-nightly.7_release.apk",
-          "size": 8102539,
-          "sha256": "803849391446a4f766d47cf3bdba318fda9d7cebe27fc670e3f184d7cd39fbf2"
-        }
-      ],
-      "notes": "[Added]\n- Support WaEnhancer-style `background-color: #old #new` color replacement, three-color `color-tint` states, `left`/`top`/`right`/`bottom` offsets and `rgb()`/`rgba()`/`#rgb` colors in custom theme CSS.\n- Apply `change_dpi` from a theme's header comment when no DPI is set.\n\n[Fixes]\n- Load custom theme CSS from per-target-app settings instead of showing an unthemed WhatsApp in Per Target App mode.\n- Keep themed backgrounds, images and visibility in place when WhatsApp rebinds a view, and match activity-scoped rules on activity subclasses.\n- Match selector chains, `:nth-child` and widget types the same way as WaEnhancer themes expect.\n- Reject invalid CSS in the editor with the same checks the theme engine applies.\n- Keep double-tap reactions bound to the current message and conversation, preventing stale recycled views from reacting to the wrong message.\n\n[Improvements]\n- Rebuild the custom theme CSS engine around a precompiled view-id index, so themes no longer slow down scrolling.\n\nBuilt from commit 1c5ae9f903c77c5b2325d64d14aabcf3f2cc8131"
-    },
     {
       "tag": "2.1.0-nightly.6",
       "version_name": "2.1.0-nightly.6",
