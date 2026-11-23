@@ -1,2 +1,6 @@
 [Improvements]
 - Improved Custom Theme Engine.
+
+
+[Fixed]
+- Fixed custom chat bubbles colors.
