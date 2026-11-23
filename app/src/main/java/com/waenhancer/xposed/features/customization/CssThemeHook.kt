@@ -487,7 +487,44 @@ class CssThemeHook(
         val name = URL.find(value)?.groupValues?.get(1)?.trim('"', '\'', ' ') ?: return null
         val bitmap = loadAsset(name.substringAfterLast('/')) ?: return null
         val size = declarations?.get("background-size")?.trim()?.lowercase()
-        return AssetDrawable(BitmapDrawable(view.resources, bitmap), cover = size == "cover", contain = size == "contain")
+        val (width, height) = assetSize(view, size, bitmap)
+        return AssetDrawable(
+            BitmapDrawable(view.resources, bitmap),
+            cover = size == "cover", contain = size == "contain",
+            width = width, height = height
+        )
+    }
+
+    /**
+     * Intrinsic size for a theme image. `background-size: 77px 40px` sizes it like WaEnhancer
+     * (CSS px as dp; one length keeps the aspect ratio). Otherwise it takes the footprint of the
+     * drawable it replaces, so a large source bitmap never inflates a wrap-content view.
+     */
+    private fun assetSize(view: View, size: String?, bitmap: Bitmap): Pair<Int, Int> {
+        val lengths = size?.split(WHITESPACE)?.filter(String::isNotBlank).orEmpty()
+        if (lengths.isNotEmpty() && lengths.size <= 2) {
+            val width = sizeLength(view, lengths[0], horizontal = true)
+            val height = lengths.getOrNull(1)?.let { sizeLength(view, it, horizontal = false) }
+            if (width != null && width > 0) {
+                val resolvedHeight = height?.takeIf { it > 0 }
+                    ?: (width.toFloat() * bitmap.height / bitmap.width.coerceAtLeast(1)).roundToInt()
+                return width to resolvedHeight
+            }
+        }
+        val replaced = if (view is ImageView) view.drawable else view.background
+        val width = replaced?.intrinsicWidth?.takeIf { it > 0 } ?: view.width.takeIf { it > 0 } ?: -1
+        val height = replaced?.intrinsicHeight?.takeIf { it > 0 } ?: view.height.takeIf { it > 0 } ?: -1
+        return width to height
+    }
+
+    private fun sizeLength(view: View, token: String, horizontal: Boolean): Int? {
+        if (token == "auto") return null
+        if (token.endsWith('%')) {
+            val percent = token.dropLast(1).toFloatOrNull() ?: return null
+            val base = if (horizontal) view.width else view.height
+            return if (base > 0) (base * percent / 100f).roundToInt() else null
+        }
+        return parseDimension(view, token)
     }
 
     private fun loadAsset(name: String): Bitmap? {
@@ -514,7 +551,13 @@ class CssThemeHook(
     }
 
     /** Draws a bitmap stretched (default), center-cropped (`cover`) or letterboxed (`contain`). */
-    private class AssetDrawable(private val bitmap: BitmapDrawable, private val cover: Boolean, private val contain: Boolean) : Drawable() {
+    private class AssetDrawable(
+        private val bitmap: BitmapDrawable,
+        private val cover: Boolean,
+        private val contain: Boolean,
+        private val width: Int,
+        private val height: Int
+    ) : Drawable() {
         override fun draw(canvas: Canvas) {
             val b = bounds
             val source = bitmap.bitmap
@@ -535,8 +578,8 @@ class CssThemeHook(
             bitmap.draw(canvas)
             canvas.restoreToCount(save)
         }
-        override fun getIntrinsicWidth(): Int = bitmap.intrinsicWidth
-        override fun getIntrinsicHeight(): Int = bitmap.intrinsicHeight
+        override fun getIntrinsicWidth(): Int = width
+        override fun getIntrinsicHeight(): Int = height
         override fun setAlpha(alpha: Int) { bitmap.alpha = alpha }
         override fun setColorFilter(colorFilter: ColorFilter?) { bitmap.colorFilter = colorFilter }
         @Suppress("OVERRIDE_DEPRECATION")
