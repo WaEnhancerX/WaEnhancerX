@@ -1,0 +1,8 @@
+[Added]
+- Add a Bubble Colors screen with a live chat preview and separate colors
+  for received and sent messages.
+
+[Fixes]
+- Apply custom chat bubble colors again: the picked colors were never saved,
+  so bubbles always kept WhatsApp's default colors.
+- Tint the bubble border and the date/footer area along with the bubble body.

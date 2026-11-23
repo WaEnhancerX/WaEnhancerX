@@ -33,6 +33,7 @@ sealed class Screen(val route: String) {
     object ManageDevices : Screen("manage_devices")
     object FloatingBottomBarCustomizer : Screen("floating_bottom_bar_customizer")
     object NativeFloatingNavigation : Screen("native_floating_navigation")
+    object BubbleColors : Screen("bubble_colors")
     object FilterItems : Screen("filter_items")
     object CustomAbProps : Screen("custom_ab_props")
     data class CustomAbPropEditor(val index: Int = -1) : Screen("custom_ab_prop_editor/$index")

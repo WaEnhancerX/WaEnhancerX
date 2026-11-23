@@ -94,4 +94,15 @@ abstract class BaseFeature(
         return def
     }
 
+    protected fun getIntPref(key: String, def: Int): Int {
+        if (prefs.contains(key)) {
+            return prefs.getInt(key, def)
+        }
+        val scoped = scopedKey(key)
+        if (scoped != null && prefs.contains(scoped)) {
+            return prefs.getInt(scoped, def)
+        }
+        return def
+    }
+
 }

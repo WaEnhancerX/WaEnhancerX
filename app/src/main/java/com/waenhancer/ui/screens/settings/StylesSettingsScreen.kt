@@ -383,6 +383,8 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
                                             onActivatePro()
                                         } else if (needsTypedEditor) {
                                             typedEditorKey = item.key
+                                        } else if (item.key == "bubble_colors") {
+                                            navController.navigateTo(Screen.BubbleColors)
                                         } else {
                                             val currentVal = settingsState[item.key] ?: false
                                             updatePreference(item.key, !currentVal)
@@ -429,6 +431,19 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
                                                 Icon(
                                                     imageVector = WaexIcons.Settings,
                                                     contentDescription = UiText.get(R.string.waex_ui_customize_floating_bottom_bar, "Customize Floating Bottom Bar"),
+                                                    tint = colors.primary,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+                                        if (item.key == "bubble_colors") {
+                                            IconButton(
+                                                onClick = { navController.navigateTo(Screen.BubbleColors) },
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = WaexIcons.Settings,
+                                                    contentDescription = UiText.get(R.string.waex_ui_customize_bubble_colors, "Customize Bubble Colors"),
                                                     tint = colors.primary,
                                                     modifier = Modifier.size(20.dp)
                                                 )
