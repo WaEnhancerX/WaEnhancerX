@@ -1,6 +1,8 @@
 {
   "schema": 1,
   "channel": "nightly",
-  "fragments": [],
-  "notes": ""
+  "fragments": [
+    "custom-theme-css-engine.txt"
+  ],
+  "notes": "[Added]\n- Support WaEnhancer-style `background-color: #old #new` color replacement, three-color `color-tint` states, `left`/`top`/`right`/`bottom` offsets and `rgb()`/`rgba()`/`#rgb` colors in custom theme CSS.\n- Apply `change_dpi` from a theme's header comment when no DPI is set.\n\n[Fixes]\n- Load custom theme CSS from per-target-app settings instead of showing an unthemed WhatsApp in Per Target App mode.\n- Keep themed backgrounds, images and visibility in place when WhatsApp rebinds a view, and match activity-scoped rules on activity subclasses.\n- Match selector chains, `:nth-child` and widget types the same way as WaEnhancer themes expect.\n- Reject invalid CSS in the editor with the same checks the theme engine applies.\n\n[Improvements]\n- Rebuild the custom theme CSS engine around a precompiled view-id index, so themes no longer slow down scrolling.\n"
 }
