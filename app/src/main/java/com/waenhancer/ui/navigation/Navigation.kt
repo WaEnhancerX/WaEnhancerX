@@ -526,7 +526,7 @@ fun MainContainerScreen() {
                                             .size(42.dp)
                                             .clip(RoundedCornerShape(10.dp))
                                     )
-                                    Column {
+                                    Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = "WaEnhancerX",
                                             style = typography.titleMd,
@@ -534,15 +534,18 @@ fun MainContainerScreen() {
                                             color = colors.onSurface
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "v${BuildConfig.VERSION_NAME}",
+                                            style = typography.bodySm,
+                                            color = colors.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Spacer(modifier = Modifier.height(6.dp))
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            Text(
-                                                text = "v${BuildConfig.VERSION_NAME}",
-                                                style = typography.bodySm,
-                                                color = colors.onSurfaceVariant
-                                            )
                                             ReleaseKindChip(versionName = BuildConfig.VERSION_NAME)
 
                                             // License Plan Chip inside Drawer Header
@@ -579,7 +582,9 @@ fun MainContainerScreen() {
                                                     style = typography.labelSm,
                                                     fontWeight = FontWeight.SemiBold,
                                                     color = chipText,
-                                                    fontSize = 10.sp
+                                                    fontSize = 10.sp,
+                                                    maxLines = 1,
+                                                    softWrap = false
                                                 )
                                             }
                                         }

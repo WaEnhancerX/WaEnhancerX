@@ -102,6 +102,8 @@ fun ReleaseKindChip(versionName: String, modifier: Modifier = Modifier) {
             fontWeight = FontWeight.Bold,
             color = content,
             fontSize = 11.sp,
+            maxLines = 1,
+            softWrap = false,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
         )
     }
