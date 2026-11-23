@@ -70,6 +70,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.waenhancer.app.R
@@ -477,21 +478,24 @@ fun AboutScreen() {
                             color = colors.onSurfaceVariant,
                             lineHeight = 20.sp
                         )
+                        Text(
+                            text = "v${BuildConfig.VERSION_NAME}",
+                            style = typography.labelSm,
+                            fontWeight = FontWeight.Medium,
+                            color = colors.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text(
-                                text = "v${BuildConfig.VERSION_NAME}",
-                                style = typography.labelSm,
-                                fontWeight = FontWeight.Medium,
-                                color = colors.onSurfaceVariant
-                            )
                             ReleaseKindChip(versionName = BuildConfig.VERSION_NAME)
                             Text(
                                 text = if (BuildConfig.IS_DEBUG_VARIANT) stringResource(R.string.build_variant_debug) else stringResource(R.string.build_variant_release),
                                 style = typography.labelSm,
-                                color = colors.onSurfaceVariant
+                                color = colors.onSurfaceVariant,
+                                maxLines = 1
                             )
                         }
                     }
