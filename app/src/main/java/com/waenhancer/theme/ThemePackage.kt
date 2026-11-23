@@ -16,8 +16,9 @@ data class ThemeHeader(
     companion object {
         private val BLOCK = Regex("^\\s*/\\*(.*?)\\*/", RegexOption.DOT_MATCHES_ALL)
 
-        fun parse(css: String): ThemeHeader {
-            val values = BLOCK.find(css)?.groupValues?.get(1)
+        /** Every `key = value` line of the header, keys lower-cased (e.g. `change_dpi`). */
+        fun properties(css: String): Map<String, String> =
+            BLOCK.find(css)?.groupValues?.get(1)
                 ?.lineSequence()
                 ?.mapNotNull { line ->
                     val separator = line.indexOf('=')
@@ -27,6 +28,9 @@ data class ThemeHeader(
                 }
                 ?.toMap()
                 .orEmpty()
+
+        fun parse(css: String): ThemeHeader {
+            val values = properties(css)
             return ThemeHeader(
                 name = values["name"]?.takeIf(String::isNotBlank),
                 author = values["author"]?.takeIf(String::isNotBlank),
