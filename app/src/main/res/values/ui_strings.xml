@@ -1221,4 +1221,12 @@
     <string name="waex_ui_switch_to_stable" formatted="false">"Switch to stable"</string>
     <string name="waex_ui_build_debug" formatted="false">"Debug"</string>
     <string name="waex_ui_build_release" formatted="false">"Release"</string>
+    <string name="waex_ui_bubble_preview" formatted="false">"Preview"</string>
+    <string name="waex_ui_bubble_restart_hint" formatted="false">"Restart WhatsApp to apply changes"</string>
+    <string name="waex_ui_bubble_incoming" formatted="false">"Received messages"</string>
+    <string name="waex_ui_bubble_outgoing" formatted="false">"Sent messages"</string>
+    <string name="waex_ui_bubble_reset" formatted="false">"Reset to WhatsApp colors"</string>
+    <string name="waex_ui_bubble_preview_incoming" formatted="false">"Hey! Did you try the new colors?"</string>
+    <string name="waex_ui_bubble_preview_outgoing" formatted="false">"Yes, looks great 😄"</string>
+    <string name="waex_ui_customize_bubble_colors" formatted="false">"Customize Bubble Colors"</string>
 </resources>

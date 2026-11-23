@@ -155,6 +155,7 @@ import com.waenhancer.ui.screens.settings.CallRecordingSettingsScreen
 import com.waenhancer.ui.screens.settings.FilterItemsScreen
 import com.waenhancer.ui.screens.settings.FloatingBottomBarCustomizerScreen
 import com.waenhancer.ui.screens.settings.NativeFloatingNavigationScreen
+import com.waenhancer.ui.screens.settings.BubbleColorsScreen
 import com.waenhancer.ui.screens.settings.StylesSettingsScreen
 import com.waenhancer.update.UpdateCheckCoordinator
 import com.waenhancer.utils.ContactNameResolver
@@ -1337,6 +1338,7 @@ fun WaexAppNavigation(
         Screen.ManageDevices -> ManageDevicesScreen()
         Screen.FloatingBottomBarCustomizer -> FloatingBottomBarCustomizerScreen()
         Screen.NativeFloatingNavigation -> NativeFloatingNavigationScreen()
+        Screen.BubbleColors -> BubbleColorsScreen()
         Screen.FilterItems -> FilterItemsScreen()
         Screen.CustomAbProps -> CustomAbPropsScreen(
             prefs = preferenceManager,
