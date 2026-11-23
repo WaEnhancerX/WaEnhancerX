@@ -1,0 +1,5 @@
+[Improvements]
+- Check Blue-on-Reply diagnostic expressions with compiled privacy fixtures and
+  mutations that detect sensitive data in logs.
+- Execute the compiled contract from the existing privacy QA entrypoint and
+  fail if the required JDK or downstream regression is unavailable.
