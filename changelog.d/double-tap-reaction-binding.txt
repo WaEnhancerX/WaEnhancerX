@@ -1,0 +1,3 @@
+[Fixes]
+- Keep double-tap reactions bound to the current message and conversation,
+  preventing stale recycled views from reacting to the wrong message.
