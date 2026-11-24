@@ -42,6 +42,8 @@ import de.robv.android.xposed.XposedHelpers
 import org.json.JSONObject
 import android.content.res.Configuration
 import com.waenhancer.utils.ContactNameResolver
+import com.waenhancer.xposed.core.wa.WaJid
+import android.util.LruCache
 
 /**
  * Native in-WhatsApp Per-Contact Privacy Hook with authentic WDS (WhatsApp Design System) UI elements.
@@ -68,12 +70,31 @@ class CustomPrivacyHook(
                 ?: prefs.getString("${jidOrNumber}_privacy", null)
                 ?: prefs.getString("per_contact_rules_$jidOrNumber", null)
             if (jsonStr.isNullOrEmpty()) return null
+            // Hooks call this for every receipt, typing event and call; parse each stored rule once.
+            synchronized(PARSED_RULES) { PARSED_RULES.get(jsonStr) }?.let { return it }
             return try {
-                JSONObject(jsonStr)
+                JSONObject(jsonStr).also { parsed ->
+                    synchronized(PARSED_RULES) { PARSED_RULES.put(jsonStr, parsed) }
+                }
             } catch (_: Throwable) {
                 null
             }
         }
+
+        /**
+         * Per-contact rule for a chat JID, matching rules saved under either the JID itself or
+         * its phone number. WhatsApp now addresses most contacts by LID, while rules created from
+         * the contact screen are usually keyed by phone number.
+         */
+        @JvmStatic
+        fun getContactPrivacy(context: Context, prefs: SharedPreferences, jid: String?): JSONObject? {
+            for (id in WaJid.lookupIds(context, jid)) {
+                getContactPrivacy(prefs, id)?.let { return it }
+            }
+            return null
+        }
+
+        private val PARSED_RULES = LruCache<String, JSONObject>(128)
     }
 
     override fun hook() {

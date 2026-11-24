@@ -131,6 +131,14 @@ public class TestReceiptExecutionContract {
  Object prefs=new Object();
  boolean blueEnabled;
  boolean isEnabled(String key,boolean value){return blueEnabled||value;}
+ /** PrivacyPrefs double: only the Blue-on-reply switch matters to the installer. */
+ class Privacy { boolean flag(String key){return "blueonreply".equals(key)&&blueEnabled;} }
+ Privacy getPrivacy(){return new Privacy();}
+ /** Unsent read-receipt ledger double: persistence is outside this installer fixture. */
+ static class UnsentReadLedger {
+  static void track(Object c,String chat,String participant,Set<String> ids){}
+  static void markSent(Object c,String chat,Set<String> ids){}
+ }
  static String canonicalJid(String value){return ReceiptJidPolicy.canonical(value);}
  boolean isManualSeenTickEnabled(){return false;}
  static String allowedRecipient;

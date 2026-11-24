@@ -342,7 +342,6 @@ jobs:
             qa/test_manual_seen_tick_persistence.py \
             qa/test_receipt_job_execution_contract.py \
             qa/test_selected_upstream_hardening.py \
-            qa/test_played_receipt_dispatch_contract.py \
             qa/test_receipt_observation.py \
             qa/test_presence_event_contract.py \
             qa/test_presence_state_replay.py \

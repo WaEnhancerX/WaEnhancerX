@@ -67,6 +67,8 @@ import com.waenhancer.xposed.features.media.StatusDownloadHook;
 import com.waenhancer.xposed.features.media.VoiceDictationHook;
 import com.waenhancer.xposed.features.media.VoiceNoteRowTranscriptHook;
 import com.waenhancer.xposed.features.media.VoiceNoteTranscriptionHook;
+import com.waenhancer.xposed.core.privacy.PrivacyPrefs;
+import com.waenhancer.xposed.core.privacy.PrivacyToggle;
 import com.waenhancer.xposed.features.privacy.AlwaysOnlineHook;
 import com.waenhancer.xposed.features.privacy.AntiDisappearingMessagesHook;
 import com.waenhancer.xposed.features.privacy.AntiRevokeHook;
@@ -91,6 +93,9 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -221,8 +226,13 @@ public final class FeatureRegistry {
         // ==========================================
 
         // Privacy & Seen Controls
+        // A privacy hook is installed whenever its toggle is *available*: on now, offered as a
+        // runtime switch (quick actions / Ghost Mode), or reachable through a per-contact rule.
+        // The hooks read PrivacyPrefs live, so switching a toggle later needs no restart.
+        final PrivacyPrefs privacy = new PrivacyPrefs(prefs, reportingPackage);
+
         registerFeature(AntiViewOnceHook.class, "Privacy",
-                () -> prefs.getBoolean("anti_view_once", false) || prefs.getBoolean("viewonce", false),
+                () -> privacy.isAvailable(PrivacyToggle.ANTI_VIEW_ONCE),
                 () -> new AntiViewOnceHook(context, classLoader, prefs));
 
         registerFeature(ScreenshotRestrictionBypassHook.class, "Privacy",
@@ -230,42 +240,43 @@ public final class FeatureRegistry {
                 () -> new ScreenshotRestrictionBypassHook(context, classLoader, prefs));
 
         registerFeature(TypingPrivacyHook.class, "Privacy",
-                () -> prefs.getBoolean("typing_privacy", false) || prefs.getBoolean("hide_typing", false)
-                        || prefs.getBoolean("hide_recording", false) || prefs.getBoolean("ghostmode_t", false)
-                        || prefs.getBoolean("ghostmode_r", false),
+                () -> privacy.anyAvailable(PrivacyToggle.HIDE_TYPING, PrivacyToggle.HIDE_RECORDING)
+                        || privacy.hasContactRules(),
                 () -> new TypingPrivacyHook(context, classLoader, prefs));
 
         registerFeature(FreezeLastSeenHook.class, "Privacy",
-                () -> prefs.getBoolean("freeze_last_seen", false)
-                        || prefs.getBoolean("freeze_last_seen_active", false)
-                        || prefs.getBoolean("ghostmode_active", false)
-                        || prefs.getBoolean("online_status_indicator", false),
+                () -> privacy.isAvailable(PrivacyToggle.FREEZE_LAST_SEEN),
                 () -> new FreezeLastSeenHook(context, classLoader, prefs));
 
         registerFeature(AlwaysOnlineHook.class, "Privacy",
-                () -> prefs.getBoolean("always_online", false),
+                () -> privacy.isAvailable(PrivacyToggle.ALWAYS_ONLINE),
                 () -> new AlwaysOnlineHook(context, classLoader, prefs));
 
         registerFeature(HideReceiptsHook.class, "Privacy",
-                () -> prefs.getBoolean("hide_read_receipts", false) || prefs.getBoolean("hideread", false)
-                        || prefs.getBoolean("hideread_group", false)
-                        || prefs.getBoolean("hide_delivery_receipts", false) || prefs.getBoolean("hidereceipt", false)
-                        || prefs.getBoolean("hide_seen_receipts", false) || prefs.getBoolean("hideaudioseen", false)
-                        || prefs.getBoolean("hideonceseen", false) || prefs.getBoolean("ghostmode_active", false)
-                        || prefs.getBoolean("stealth_status_view", false) || prefs.getBoolean("hidestatusview", false),
+                () -> privacy.anyAvailable(PrivacyToggle.HIDE_READ, PrivacyToggle.HIDE_READ_GROUP,
+                        PrivacyToggle.HIDE_DELIVERY, PrivacyToggle.HIDE_VOICE_PLAYED,
+                        PrivacyToggle.HIDE_VIEW_ONCE_OPENED, PrivacyToggle.STEALTH_STATUS)
+                        || privacy.hasContactRules(),
                 () -> new HideReceiptsHook(context, classLoader, prefs));
 
         // These hooks observe transport/database/call events. They must be installed at process
         // startup: a notification, revoke, receipt, or call can arrive on any screen.
         registerFeature(BlueOnReplyHook.class, "Privacy",
-                () -> prefs.getBoolean("blueonreply", false)
-                        || prefs.getBoolean("manual_status_seen", false),
+                // Reply sending, the manual "Send blue tick" button and manual status seen all live
+                // in this hook; it must be installed when any of them is enabled.
+                // Also whenever read receipts can be withheld, so turning Blue-on-reply or the
+                // button on later works without restarting WhatsApp (both are checked live).
+                () -> privacy.flag("blueonreply") || privacy.flag("seentick")
+                        || privacy.flag("manual_status_seen")
+                        || privacy.anyAvailable(PrivacyToggle.HIDE_READ, PrivacyToggle.HIDE_READ_GROUP,
+                                PrivacyToggle.HIDE_DELIVERY),
                 () -> new BlueOnReplyHook(context, classLoader, prefs));
 
         registerFeature(CallPrivacyHook.class, "Privacy",
                 () -> !"0".equals(prefs.getString("call_privacy", "0"))
                         || prefs.getBoolean("call_privacy_enabled", false)
-                        || prefs.getBoolean("call_info", false),
+                        || prefs.getBoolean("call_info", false)
+                        || privacy.hasContactRules(),
                 () -> new CallPrivacyHook(context, classLoader, prefs));
 
         registerFeature(AntiRevokeHook.class, "Privacy",
@@ -571,6 +582,18 @@ public final class FeatureRegistry {
         }
     }
 
+    /**
+     * Privacy hooks that act on network traffic (receipts, presence, typing, calls, revokes,
+     * incoming messages). Those events arrive on any screen, so the hooks must be live from
+     * process start in every hooking mode; a lazy install would silently leak receipts or let
+     * calls through until a particular screen was opened. Matched by class, which survives R8.
+     */
+    private static final Set<Class<? extends BaseFeature>> TRANSPORT_PRIVACY_FEATURES =
+            Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+                    HideReceiptsHook.class, BlueOnReplyHook.class, TypingPrivacyHook.class,
+                    FreezeLastSeenHook.class, AlwaysOnlineHook.class, CallPrivacyHook.class,
+                    AntiRevokeHook.class, AntiViewOnceHook.class, DndModeHook.class)));
+
     private void registerFeature(Class<? extends BaseFeature> type, String category,
                                  FeatureFactory factory) {
         registerFeature(type, category, () -> true, factory);
@@ -581,7 +604,9 @@ public final class FeatureRegistry {
                                  FeatureFactory factory) {
         String className = type.getSimpleName();
         FeaturePolicy policy = HookingEngine.policyFor(className);
-        Installation effectiveInstallation = effectiveInstallation(policy, className, category);
+        Installation effectiveInstallation = TRANSPORT_PRIVACY_FEATURES.contains(type)
+                ? Installation.STARTUP
+                : effectiveInstallation(policy, className, category);
         FeatureEntry entry = new FeatureEntry(className, category,
                 effectiveInstallation, policy, enabled, factory);
         features.add(entry);
@@ -730,6 +755,7 @@ public final class FeatureRegistry {
             }
             entry.error = null; // A successful retry must not retain an earlier failure.
             entry.status = "ACTIVE";
+            if (entry.installation != Installation.STARTUP) refreshVisibleMenu();
         } catch (Throwable t) {
             if (entry.feature != null) entry.feature.unhookAll();
             entry.feature = null;
@@ -750,6 +776,21 @@ public final class FeatureRegistry {
             // Reporting it for every STARTUP entry duplicates JSON serialization and
             // synchronous provider IPC on the target's initialization thread.
         }
+    }
+
+    /**
+     * A lazy feature is installed when its screen opens, often after that screen already built
+     * its options menu. Ask the visible screen to rebuild it so menu-based features (download
+     * buttons, extra actions) appear on this screen too, not only on the next one.
+     */
+    private static void refreshVisibleMenu() {
+        Activity activity = ActivityTracker.getCurrentActivity();
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
+        activity.runOnUiThread(() -> {
+            try {
+                if (!activity.isFinishing() && !activity.isDestroyed()) activity.invalidateOptionsMenu();
+            } catch (Throwable ignored) { HookErrors.swallowed("FeatureRegistry", ignored); }
+        });
     }
 
     private void disposeLazyEntry(FeatureEntry entry, @NonNull Activity activity) {

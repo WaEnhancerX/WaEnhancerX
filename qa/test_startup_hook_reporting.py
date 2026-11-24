@@ -151,6 +151,9 @@ public class StartupReportChecks {
  void disposeLazyEntry(FeatureEntry entry,Activity a){throw new AssertionError("Disposal is outside this focused fixture");}
  __PRODUCTION__
  static int cases,checks,failures;
+ static int menuRefreshes;
+ /** Double for the visible-screen menu rebuild requested after a lazy install. */
+ static void refreshVisibleMenu(){menuRefreshes++;}
  static void ok(boolean b,String why){checks++;if(!b)throw new AssertionError(why);}
  static void test(String name,Runnable r){cases++;try{r.run();System.out.println("PASS "+name);}catch(AssertionError e){failures++;System.out.println("FAIL "+name+": "+e.getMessage());}}
  FeatureEntry add(String name,boolean enabled,boolean fail,Installation where){
@@ -175,7 +178,8 @@ public class StartupReportChecks {
    ok("DISABLED".equals(r.reportingContext.last.get(0).get("status")),"disabled changed");ok("WAITING".equals(r.reportingContext.last.get(1).get("status")),"lazy installed eagerly");ok(r.reportingContext.reports==1,"extra report");
   });
   test("late lazy install still publishes immediately and releases leases",()->{
-   StartupReportChecks r=new StartupReportChecks();FeatureEntry e=r.add("lazy",true,false,Installation.LAZY_HOME);r.completeStartup();int before=DexSearchEngine.INSTANCE.closes;r.install(e);
+   StartupReportChecks r=new StartupReportChecks();FeatureEntry e=r.add("lazy",true,false,Installation.LAZY_HOME);r.completeStartup();int before=DexSearchEngine.INSTANCE.closes;int menusBefore=menuRefreshes;r.install(e);
+   ok(menuRefreshes==menusBefore+1,"lazy install did not rebuild the visible screen's menu");
    ok(r.reportingContext.reports==2,"lazy report lost");ok("ACTIVE".equals(r.reportingContext.last.get(0).get("status")),"stale lazy snapshot");ok(DexSearchEngine.INSTANCE.closes==before+1,"lazy Dex index not closed");r.install(e);ok(r.reportingContext.reports==2,"duplicate install re-reported");
   });
   test("lazy failure still publishes",()->{

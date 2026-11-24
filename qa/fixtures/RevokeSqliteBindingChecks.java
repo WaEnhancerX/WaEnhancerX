@@ -16,6 +16,8 @@ public final class RevokeSqliteBindingChecks {
     static int checks;
     final Object context = new Object();
     boolean messages, statuses, own;
+    /** Production flags: true when the revoke methods themselves are hooked. */
+    volatile boolean messageRevokeHooked, statusRevokeHooked;
 
     private boolean isAntiRevokeEnabled() { return messages; }
     private boolean isAntiRevokeStatusEnabled() { return statuses; }
@@ -145,6 +147,10 @@ public final class RevokeSqliteBindingChecks {
         if (!value) throw new AssertionError(message);
     }
     static RevokeSqliteBindingChecks setup(boolean messages, boolean statuses, boolean own) {
+        return setup(messages, statuses, own, false, false);
+    }
+    static RevokeSqliteBindingChecks setup(boolean messages, boolean statuses, boolean own,
+                                           boolean messageHooked, boolean statusHooked) {
         XposedBridge.hooks.clear();
         XposedBridge.logs.clear();
         REVOKED_MESSAGES.clear();
@@ -159,6 +165,8 @@ public final class RevokeSqliteBindingChecks {
         hook.messages = messages;
         hook.statuses = statuses;
         hook.own = own;
+        hook.messageRevokeHooked = messageHooked;
+        hook.statusRevokeHooked = statusHooked;
         hook.hookDatabaseRevocation();
         check(XposedBridge.logs.isEmpty() && XposedBridge.hooks.size() == 3, "production hooks should install");
         return hook;
@@ -402,6 +410,30 @@ public final class RevokeSqliteBindingChecks {
         untouched(delete(disabled, "status", "key_id=?", "story"), disabled, "disabled preservation");
         check(disabled.queries.isEmpty(), "disabled option avoids query work");
     }
+    /**
+     * When the revoke methods are hooked, incoming revokes never reach SQLite as revokes, so the
+     * database path must not interpret ordinary deletes/inserts as revokes. Preserving one's own
+     * revoked messages has no method-level equivalent and keeps its database path.
+     */
+    static void methodHookActive() {
+        setup(true, false, false, true, false);
+        SQLiteDatabase incoming = message(0, "incoming-key");
+        untouched(delete(incoming, "message", "_id=?", "71"), incoming, "incoming delete with method hook active");
+        setup(true, false, false, true, false);
+        SQLiteDatabase insertDb = new SQLiteDatabase();
+        untouched(invoke("insertWithOnConflict", insertDb, "message", null, placeholder(0, "incoming-key", 71L), 0),
+                insertDb, "incoming placeholder with method hook active");
+        setup(false, true, false, false, true);
+        SQLiteDatabase story = status(new Object[]{"remote-story", 0, 10L});
+        untouched(delete(story, "status", "_id=?", "71"), story, "status delete with status method hook active");
+        check(story.queries.isEmpty(), "status fallback must not query while the method hook is active");
+        setup(false, false, true, true, true);
+        SQLiteDatabase own = message(1, "own-key");
+        XC_MethodHook.MethodHookParam kept = delete(own, "message", "_id=?", "71");
+        check(kept.handled && kept.result.equals(0) && REVOKED_MESSAGES.containsKey("own-key"),
+                "own-message preservation keeps its database path");
+    }
+
     public static void main(String[] args) {
         String scenario = args.length == 0 ? "all" : args[0];
         if (scenario.equals("all") || scenario.equals("fallback_key")) fallbackKey();
@@ -410,6 +442,7 @@ public final class RevokeSqliteBindingChecks {
         if (scenario.equals("all") || scenario.equals("placeholder_scope")) placeholderScope();
         if (scenario.equals("all") || scenario.equals("message_predicate")) messagePredicate();
         if (scenario.equals("all") || scenario.equals("compatibility")) compatibility();
+        if (scenario.equals("all") || scenario.equals("method_hook_active")) methodHookActive();
         System.out.println(checks + " verbatim SQLite revoke callback checks passed (" + scenario + ")");
     }
 }

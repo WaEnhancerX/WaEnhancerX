@@ -53,6 +53,9 @@ public final class StatusHookBindingChecks {
     private String resolveStatusSenderJid(Object target, Object metadata) { return "fixture"; }
     private void showDeletedStatusToast(String sender) {}
 
+    /** Production flag set once the status revoke manager is hooked. */
+    volatile boolean statusRevokeHooked;
+
     /* PRODUCTION_METHODS */
 
     static class DelMessageStore {

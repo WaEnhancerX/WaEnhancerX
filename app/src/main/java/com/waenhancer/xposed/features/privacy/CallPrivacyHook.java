@@ -19,6 +19,9 @@ import androidx.core.app.NotificationManagerCompat;
 import com.waenhancer.utils.ContactIdentityPolicy;
 import com.waenhancer.utils.ContactNameResolver;
 import com.waenhancer.xposed.core.BaseFeature;
+import com.waenhancer.xposed.core.wa.WaJid;
+import com.waenhancer.xposed.core.wa.WaTargets;
+import android.util.LruCache;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.xposed.utils.HookErrors;
 import de.robv.android.xposed.XC_MethodHook;
@@ -29,12 +32,9 @@ import okhttp3.Request;
 import okhttp3.Response;
 import org.json.JSONObject;
 import org.luckypray.dexkit.query.FindClass;
-import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.enums.StringMatchType;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
-import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.ClassData;
-import org.luckypray.dexkit.result.MethodData;
 import java.io.File;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -142,28 +142,9 @@ public class CallPrivacyHook extends BaseFeature {
 
     private void hookIncomingCall() {
         try {
-            // Strategy 1: Find voip/callStateChangedOnUIThread or onCallReceived
-            Method onCallReceivedMethod = DexSearchEngine.getInstance().findMethodWithCache(
-                    context,
-                    classLoader,
-                    "waex_voip_on_call_state_changed",
-                    (bridge, loader) -> {
-                        MethodData md = bridge.findMethod(FindMethod.create()
-                                .matcher(MethodMatcher.create()
-                                        .addUsingString("voip/callStateChangedOnUIThread", StringMatchType.Contains)
-                                )
-                        ).firstOrNull();
-                        if (md != null) return md.getMethodInstance(loader);
-
-                        md = bridge.findMethod(FindMethod.create()
-                                .matcher(MethodMatcher.create()
-                                        .addUsingString("VoiceService: onCallReceived", StringMatchType.Contains)
-                                )
-                        ).firstOrNull();
-                        return md != null ? md.getMethodInstance(loader) : null;
-                    }
-            );
-
+            // One anchor (WhatsApp's own log string). No speculative fallback: a guessed
+            // method here would have its result replaced on every call state change.
+            final Method onCallReceivedMethod = WaTargets.callStateChanged(context, classLoader);
             if (onCallReceivedMethod != null) {
                 XposedBridge.hookMethod(onCallReceivedMethod, new XC_MethodHook() {
                     @Override
@@ -186,6 +167,11 @@ public class CallPrivacyHook extends BaseFeature {
 
                             if (callInfo == null) return;
 
+                            // This callback fires for every state change. Act once, on the
+                            // incoming ring; never on connected/ended states of a call.
+                            Object callState = getObjectFieldSafe(callInfo, "callState");
+                            if (callState != null && !"RECEIVED_CALL".equals(callState.toString())) return;
+
                             // Check if caller is me (outgoing call)
                             try {
                                 Object isCaller = XposedHelpers.callMethod(callInfo, "isCaller");
@@ -202,6 +188,10 @@ public class CallPrivacyHook extends BaseFeature {
                             try {
                                 callId = XposedHelpers.callMethod(callInfo, "getCallId");
                             } catch (Throwable ignored) { HookErrors.swallowed("CallPrivacyHook", ignored); }
+                            if (callId != null && !markHandled(callId.toString())) {
+                                setHandled(param, onCallReceivedMethod);
+                                return;
+                            }
 
                             showBlockedCallNotification(callerJid, getFriendlyBlockType(rejectType));
 
@@ -217,7 +207,7 @@ public class CallPrivacyHook extends BaseFeature {
                                         if (pTypes.length >= 2) args[1] = rejectReason;
                                         mRejectCallMethod.invoke(mVoipManagerInstance, args);
                                     }
-                                    param.setResult(true);
+                                    setHandled(param, onCallReceivedMethod);
                                     break;
                                 case "ended":
                                     if (mEndCallMethod != null && mVoipManagerInstance != null) {
@@ -226,11 +216,11 @@ public class CallPrivacyHook extends BaseFeature {
                                         if (pTypes.length >= 1) args[0] = true;
                                         mEndCallMethod.invoke(mVoipManagerInstance, args);
                                     }
-                                    param.setResult(true);
+                                    setHandled(param, onCallReceivedMethod);
                                     break;
                                 case "no_internet":
                                 default:
-                                    param.setResult(true);
+                                    setHandled(param, onCallReceivedMethod);
                                     break;
                             }
                         } catch (Throwable t) {
@@ -242,6 +232,28 @@ public class CallPrivacyHook extends BaseFeature {
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Error hooking Call Privacy: " + t.getClass().getSimpleName());
         }
+    }
+
+    /** Call IDs already rejected; the state callback can repeat for the same ring. */
+    private final LruCache<String, Boolean> handledCalls = new LruCache<>(64);
+
+    private boolean markHandled(String callId) {
+        synchronized (handledCalls) {
+            if (handledCalls.get(callId) != null) return false;
+            handledCalls.put(callId, Boolean.TRUE);
+            return true;
+        }
+    }
+
+    /** Consume the callback with a value of the type WhatsApp expects, or leave it running. */
+    private static void setHandled(XC_MethodHook.MethodHookParam param, Method method) {
+        Class<?> type = method.getReturnType();
+        if (type == boolean.class || type == Boolean.class) {
+            param.setResult(true);
+        } else if (type == void.class) {
+            param.setResult(null);
+        }
+        // Any other return type: do not invent a value. The reject/end call above already ran.
     }
 
     private Object[] initDefaultArgs(Class<?>[] paramTypes) {
@@ -560,7 +572,7 @@ public class CallPrivacyHook extends BaseFeature {
         // numeric user part as a phone number or a namespace-free database key.
         String phone = ContactIdentityPolicy.phoneUser(callerJid);
         if (phone == null && ContactIdentityPolicy.isLid(callerJid)) {
-            phone = ContactNameResolver.INSTANCE.resolveLidToPhone(context, callerJid);
+            phone = ContactIdentityPolicy.phoneUser(WaJid.phoneJidFor(context, callerJid));
         }
         String phoneJid = phone != null ? phone + "@s.whatsapp.net" : null;
         JSONObject contactPrivacy = findContactPrivacy(callerJid, phoneJid);
@@ -626,7 +638,24 @@ public class CallPrivacyHook extends BaseFeature {
         return privacy;
     }
 
+    /** "Is this caller unknown?" answers; each one costs two database opens. */
+    private final LruCache<String, Boolean> unknownCallerCache = new LruCache<>(128);
+
     private boolean isUnknownCaller(String rawJid, String phone) {
+        String cacheKey = rawJid + "|" + phone;
+        Boolean cached;
+        synchronized (unknownCallerCache) {
+            cached = unknownCallerCache.get(cacheKey);
+        }
+        if (cached != null) return cached;
+        boolean unknown = queryUnknownCaller(rawJid, phone);
+        synchronized (unknownCallerCache) {
+            unknownCallerCache.put(cacheKey, unknown);
+        }
+        return unknown;
+    }
+
+    private boolean queryUnknownCaller(String rawJid, String phone) {
         String phoneJid = phone != null ? phone + "@s.whatsapp.net" : rawJid;
         try {
             // Check if saved in wa_contacts in wa.db

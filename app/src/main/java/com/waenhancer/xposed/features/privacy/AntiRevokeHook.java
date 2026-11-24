@@ -31,6 +31,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.waenhancer.xposed.core.BaseFeature;
+import com.waenhancer.xposed.core.wa.WaMessage;
+import com.waenhancer.xposed.core.wa.WaTargets;
 import com.waenhancer.xposed.utils.HookErrors;
 import com.waenhancer.xposed.utils.HostClassNames;
 import com.waenhancer.xposed.utils.HostFields;
@@ -143,6 +145,16 @@ public class AntiRevokeHook extends BaseFeature {
     private volatile Object statusToMessageMapper;
     private volatile Field cachedFMessageKeyField;
     private volatile Field cachedKeyIdField;
+    /**
+     * True once the revoke method itself is hooked with a type-safe result. While true, incoming
+     * revokes never reach SQLite, so the database interception below stays out of the way; it
+     * only acts as a fallback on builds where the method hook could not be installed safely.
+     */
+    private volatile boolean messageRevokeHooked;
+    /** Same, for the status revoke manager. */
+    private volatile boolean statusRevokeHooked;
+    /** Builds WhatsApp's own "revoke not applied" value for the hooked method. */
+    private volatile BlockedResult blockedRevokeResult;
     /** Track previous getView hook so we can unhook on adapter change. */
     private volatile XC_MethodHook.Unhook previousGetViewHook;
     /** Track the currently hooked adapter and ListView. */
@@ -156,6 +168,7 @@ public class AntiRevokeHook extends BaseFeature {
     @Override
     public void hook() throws Throwable {
         DelMessageStore.getInstance(context).preloadAsync(() -> dispatchRealtimeRevokeUI("", 0L));
+        WaMessage.init(context, classLoader);
         initMessageClasses();
         hookBytecodeRevocation();
         hookStatusBytecodeRevocation();
@@ -262,30 +275,15 @@ public class AntiRevokeHook extends BaseFeature {
 
     private void hookBytecodeRevocation() {
         try {
-            Method revokeMethod = DexSearchEngine.getInstance().findMethodWithCache(
-                    context, classLoader, "waex_core_msgstore_revoke",
-                    (bridge, loader) -> {
-                        String[] anchors = {
-                                "msgstore/edit/revoke",
-                                "msgstore/add/revoke",
-                                "CoreMessageStore/revoke",
-                                "RevokeMessageStore/revoke",
-                                "revoke_message"
-                        };
-                        for (String anchor : anchors) {
-                            try {
-                                MethodData data = bridge.findMethod(FindMethod.create()
-                                        .matcher(MethodMatcher.create().usingStrings(anchor))
-                                ).firstOrNull();
-                                if (data != null) {
-                                    Method m = data.getMethodInstance(loader);
-                                    if (m.getParameterTypes().length >= 1) return m;
-                                }
-                            } catch (Throwable ignored) { HookErrors.swallowed("AntiRevokeHook", ignored); }
-                        }
-                        return null;
-                    });
-
+            // The two anchors WhatsApp itself logs from the revoke path. No speculative
+            // fallbacks: blocking a wrongly matched method is how revokes used to crash.
+            Method revokeMethod = WaTargets.revokeMessage(context, classLoader);
+            blockedRevokeResult = BlockedResult.prepare(context, classLoader, revokeMethod);
+            if (blockedRevokeResult == null) {
+                XposedBridge.log(TAG + " Revoke result type " + revokeMethod.getReturnType().getName()
+                        + " has no safe blocked value; using the database fallback");
+                revokeMethod = null;
+            }
             if (revokeMethod != null) {
                 XposedBridge.hookMethod(revokeMethod, new XC_MethodHook() {
                     @Override
@@ -294,13 +292,22 @@ public class AntiRevokeHook extends BaseFeature {
                         if (!isAntiRevokeEnabled() && !isPreserveOwnRevokeEnabled()) return;
 
                         try {
-                            Object fMessage = (param.args != null && param.args.length > 0) ? param.args[0] : null;
+                            Object fMessage = null;
+                            if (param.args != null) {
+                                for (Object arg : param.args) {
+                                    if (WaMessage.isMessage(arg)) { fMessage = arg; break; }
+                                }
+                                if (fMessage == null && param.args.length > 0) fMessage = param.args[0];
+                            }
                             if (fMessage == null) return;
 
-                            Boolean fromMe = extractIsFromMe(fMessage);
+                            // Typed key contract first, value-scanning extractors as backup.
+                            Boolean fromMe = WaMessage.isFromMe(fMessage);
+                            if (fromMe == null) fromMe = extractIsFromMe(fMessage);
                             if (fromMe == null) return;
 
-                            String keyId = extractKeyIdFromFMessage(fMessage);
+                            String keyId = WaMessage.id(fMessage);
+                            if (keyId == null) keyId = extractKeyIdFromFMessage(fMessage);
                             if (keyId == null || keyId.isEmpty()) return;
 
                             if (fromMe) {
@@ -319,7 +326,7 @@ public class AntiRevokeHook extends BaseFeature {
                                     DelMessageStore.getInstance(context).insertMessage(null, keyId, now);
                                     dispatchRealtimeRevokeUI(keyId, now);
                                 }
-                                // Fall through — do NOT call setHandledResult / param.setResult.
+                                // Fall through: never set a result here.
                             } else {
                                 // Incoming message being revoked by the sender.
                                 if (!isAntiRevokeEnabled()) return;
@@ -330,13 +337,14 @@ public class AntiRevokeHook extends BaseFeature {
                                 showDeletedMessageToast(extractSenderJid(fMessage));
                                 // Keep the original incoming message row. The anti-revoke
                                 // indicator is rendered from the persisted key below.
-                                setHandledResult(param);
+                                param.setResult(blockedRevokeResult.create());
                             }
                         } catch (Throwable t) {
                             XposedBridge.log(TAG + " Error extracting key from bytecode revoke: " + t.getClass().getSimpleName());
                         }
                     }
                 });
+                messageRevokeHooked = true;
             }
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Error hooking bytecode revoke: " + t.getClass().getSimpleName());
@@ -403,33 +411,71 @@ public class AntiRevokeHook extends BaseFeature {
                         }
                     }
                 });
+                statusRevokeHooked = true;
             }
         } catch (Throwable t) {
             XposedBridge.log(TAG + " Error hooking status bytecode revoke: " + t.getClass().getSimpleName());
         }
     }
 
-    /** Completes an intercepted revoke with a value compatible with its runtime method. */
-    private void setHandledResult(@NonNull XC_MethodHook.MethodHookParam param) {
-        Class<?> returnType = ((Method) param.method).getReturnType();
-        if (returnType == boolean.class || returnType == Boolean.class) {
-            param.setResult(true);
-        } else if (returnType == byte.class || returnType == Byte.class) {
-            param.setResult((byte) 0);
-        } else if (returnType == short.class || returnType == Short.class) {
-            param.setResult((short) 0);
-        } else if (returnType == int.class || returnType == Integer.class) {
-            param.setResult(0);
-        } else if (returnType == long.class || returnType == Long.class) {
-            param.setResult(0L);
-        } else if (returnType == float.class || returnType == Float.class) {
-            param.setResult(0f);
-        } else if (returnType == double.class || returnType == Double.class) {
-            param.setResult(0d);
-        } else if (returnType == char.class || returnType == Character.class) {
-            param.setResult('\0');
-        } else {
-            param.setResult(null);
+    /**
+     * WhatsApp's own "revoke not applied" value for the hooked method's return type.
+     * Booleans and primitives get their neutral value; an object result is constructed with
+     * WhatsApp's "None" acknowledgement singletons (e.g. NoneIncomingAck). A return type that
+     * cannot be built safely yields no BlockedResult, and the method is then left unhooked:
+     * handing WhatsApp null where it expects a result object is what crashed revokes before.
+     */
+    static final class BlockedResult {
+        private final Object constant;
+        private final Constructor<?> constructor;
+        private final Object[] args;
+
+        private BlockedResult(Object constant, Constructor<?> constructor, Object[] args) {
+            this.constant = constant;
+            this.constructor = constructor;
+            this.args = args;
+        }
+
+        Object create() {
+            if (constructor == null) return constant;
+            try {
+                return constructor.newInstance(args);
+            } catch (Throwable t) {
+                return constant;
+            }
+        }
+
+        @Nullable
+        static BlockedResult prepare(@NonNull Context context, @NonNull ClassLoader loader, @NonNull Method method) {
+            Class<?> type = method.getReturnType();
+            if (type == void.class) return new BlockedResult(null, null, null);
+            if (type == boolean.class || type == Boolean.class) return new BlockedResult(Boolean.TRUE, null, null);
+            if (type == int.class || type == Integer.class) return new BlockedResult(0, null, null);
+            if (type == long.class || type == Long.class) return new BlockedResult(0L, null, null);
+            if (type.isPrimitive() || type.isInterface() || Modifier.isAbstract(type.getModifiers())) return null;
+            Constructor<?>[] constructors = type.getDeclaredConstructors();
+            if (constructors.length == 0) return null;
+            Constructor<?> constructor = constructors[0];
+            Class<?>[] params = constructor.getParameterTypes();
+            Object[] values = new Object[params.length];
+            for (int i = 0; i < params.length; i++) {
+                Class<?> p = params[i];
+                if (p == boolean.class) values[i] = false;
+                else if (p == int.class) values[i] = 0;
+                else if (p == long.class) values[i] = 0L;
+                else if (p.isPrimitive()) return null;
+                else if (p.isInterface()) {
+                    values[i] = WaTargets.noneInstanceOf(context, loader, p);
+                    if (values[i] == null) return null;
+                }
+            }
+            try {
+                constructor.setAccessible(true);
+                Object probe = constructor.newInstance(values);
+                return new BlockedResult(probe, constructor, values);
+            } catch (Throwable t) {
+                return null;
+            }
         }
     }
 
@@ -459,6 +505,8 @@ public class AntiRevokeHook extends BaseFeature {
                     // Handle Status table deletion
                     if (isStatusTable) {
                         if (!isAntiRevokeStatusEnabled()) return;
+                        // The status revoke manager hook handles this when installed.
+                        if (statusRevokeHooked) return;
                         // A whole-table cleanup has no identified revoke target.
                         if (where == null || where.trim().isEmpty()) return;
                         try {
@@ -508,7 +556,10 @@ public class AntiRevokeHook extends BaseFeature {
                                 long senderJidRowId = cursor.isNull(4) ? 0L : cursor.getLong(4);
 
                                 if (msgType != 15 && keyId != null) {
-                                    boolean preserveIncoming = fromMe == 0 && isAntiRevokeEnabled();
+                                    // Incoming revokes are handled by the revoke-method hook when it is
+                                    // installed; this database path is only its fallback.
+                                    boolean preserveIncoming = fromMe == 0 && isAntiRevokeEnabled()
+                                            && !messageRevokeHooked;
                                     boolean preserveOwnRevoke = fromMe == 1 && isPreserveOwnRevokeEnabled();
 
                                     if (preserveIncoming) {
@@ -573,7 +624,7 @@ public class AntiRevokeHook extends BaseFeature {
                     Integer fromMe = cv.getAsInteger("from_me");
 
                     boolean preserveIncoming = fromMe != null && fromMe == 0
-                            && isAntiRevokeEnabled();
+                            && isAntiRevokeEnabled() && !messageRevokeHooked;
                     boolean preserveOwnRevoke = fromMe != null && fromMe == 1
                             && isPreserveOwnRevokeEnabled();
 

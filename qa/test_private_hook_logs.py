@@ -14,8 +14,8 @@ if not __debug__:
 
 ROOT = Path(__file__).resolve().parents[1]
 FILES = {
-    "app/src/main/java/com/waenhancer/xposed/features/privacy/BlueOnReplyHook.java": 12,
-    "app/src/main/java/com/waenhancer/xposed/features/privacy/AntiRevokeHook.java": 31,
+    "app/src/main/java/com/waenhancer/xposed/features/privacy/BlueOnReplyHook.java": 11,
+    "app/src/main/java/com/waenhancer/xposed/features/privacy/AntiRevokeHook.java": 32,
     "app/src/main/java/com/waenhancer/xposed/features/conversation/PreserveDeleteForMeHook.kt": 9,
     "app/src/main/java/com/waenhancer/xposed/features/conversation/AntiEditMessagesHook.kt": 7,
     "app/src/main/java/com/waenhancer/xposed/core/db/EditMessageStore.kt": 5,
@@ -167,8 +167,9 @@ if 'PendingReadReceiptStore<ReadJobRecipe>' in blue:
     assert 'PENDING_JOBS.snapshot(key)' in blue
     assert 'PENDING_JOBS.remove(recipient, original)' in blue
     assert 'if (vetoed) restoreRecipe();' in blue
-    assert 'HideReceiptsHook.allowExplicitReceiptIds(key, recipe.arguments)' in blue
-    assert 'HideReceiptsHook.revokeExplicitReceiptIds(key, recipe.arguments)' in blue
+    # Shared enqueue path: grants are scoped to the exact job recipient.
+    assert 'HideReceiptsHook.allowExplicitReceiptIds(recipient, recipe.arguments)' in blue
+    assert 'HideReceiptsHook.revokeExplicitReceiptIds(recipient, recipe.arguments)' in blue
     assert 'HideReceiptsHook.allowBlueReplyReceipt(key)' not in blue
     assert 'lastHiddenConversationJid' not in blue
     hide = (ROOT / "app/src/main/java/com/waenhancer/xposed/features/privacy/HideReceiptsHook.java").read_text()
@@ -180,7 +181,7 @@ else:
     assert 'HideReceiptsHook.allowExplicitReceiptIds(recipe.arguments)' in blue
     assert 'lastHiddenConversationJid' in blue
 if 'Cannot dispatch: outgoing recipient is unavailable' in blue:
-    dispatch = blue.split('private static int sendPendingReadJobs(String jid)', 1)[1].split('private String extractRemoteJid(', 1)[0]
+    dispatch = blue.split('private int sendPendingReadJobs(String jid)', 1)[1].split('private String extractRemoteJid(', 1)[0]
     assert 'if (key == null)' in dispatch and 'return 0;' in dispatch
     assert 'attempt.acknowledgeEnqueue();' in dispatch
     for unsafe_fallback in ('getUserPart(', 'lastHiddenConversationJid', 'PENDING_JOBS.size() == 1'):

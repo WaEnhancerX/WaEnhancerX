@@ -1,6 +1,42 @@
+[Added]
+- Hidden blue ticks are no longer lost. Every message whose blue tick was held back
+  (by Ghost Mode, Hide Blue Ticks or Hide Delivered) is remembered, even after
+  WhatsApp restarts.
+- "Send Blue Tick" button and "Blue Tick on Reply" now send blue ticks for all of
+  these remembered messages, including ones from before you turned them on.
+- Privacy switches like Ghost Mode and Freeze Last Seen now apply right away,
+  without restarting WhatsApp.
+
+
 [Improvements]
 - Improved Custom Theme Engine.
+- Privacy features are more stable and keep working better after WhatsApp updates.
+- Hide Played (voice notes and view once) now hides only the right messages instead
+  of all of them.
+- Per-contact privacy settings now also work for contacts that WhatsApp shows by
+  their new ID instead of their phone number.
+- Call Privacy reacts once per incoming call and works faster.
+- Privacy features now always start with WhatsApp, so nothing slips through
+  before you open a chat.
+- Download View Once button now shows only on view once photos and videos, and
+  opening media is faster.
+- Buttons added by WAEX (like Download) now show up on the screen right away,
+  not only after opening it a second time.
 
 
 [Fixed]
 - Fixed custom chat bubbles colors.
+- Fixed WhatsApp crashing when someone deletes a message while Anti Delete is on.
+- Fixed Anti View Once also affecting view once photos and videos you send.
+- Fixed Freeze Last Seen turning on by itself when the online dot style was enabled.
+- Fixed "Send Blue Tick" button not showing unless Blue Tick on Reply was also on.
+- Fixed "Send Blue Tick" button needing Hide Blue Ticks to be on.
+- Fixed some hidden blue ticks being forgotten when there were many waiting.
+- Fixed delivered ticks sometimes still being sent when Hide Delivered was on.
+- Fixed blue ticks for older hidden messages not being sent when replying or using
+  the "Send Blue Tick" button.
+- Fixed "Blue Tick on Reply" and "Send Blue Tick" needing a WhatsApp restart after
+  being turned on.
+- Fixed Download View Once button not showing when opening a view once photo or video.
+- Fixed tapping Download on a status that is still loading doing nothing. It now
+  asks you to wait until the status finishes downloading.
