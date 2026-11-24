@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import de.robv.android.xposed.XC_MethodHook
 import java.util.concurrent.ConcurrentHashMap
 import com.waenhancer.xposed.utils.HookErrors
+import com.waenhancer.xposed.core.privacy.PrivacyPrefs
 
 /**
  * Base abstract class for all modular WAEX enhancements.
@@ -15,6 +16,12 @@ abstract class BaseFeature(
     @JvmField protected val prefs: SharedPreferences
 ) {
     private val installedHooks = ConcurrentHashMap.newKeySet<XC_MethodHook.Unhook>()
+
+    /**
+     * Live privacy settings (toggles, Ghost Mode, per-contact rules). Hooks must query this on
+     * every event rather than caching values, so runtime switches (quick actions) apply at once.
+     */
+    protected val privacy: PrivacyPrefs by lazy { PrivacyPrefs.of(context, prefs) }
 
     init {
         HookRegistrar.registerOwner(this)
