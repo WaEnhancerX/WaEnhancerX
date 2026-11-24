@@ -154,6 +154,13 @@ public class StatusTapSnapshotContract {
             check(UiThread.messages.equals(List.of("long:Please wait until the status finishes downloading, then try again")),
                     "missing pending-media notice: "+UiThread.messages);
             check(XposedBridge.diagnostics.isEmpty(),"pending media is not an exception");
+            // Still loading: the status is known but its file is not on disk yet.
+            UiThread.messages.clear();
+            Host loading=new Host(new Item(null,null));Subject waiting=new Subject();MenuItem loadingItem=new MenuItem();
+            waiting.configureStatusMenuItem(loadingItem,loading);loadingItem.tap();drain();
+            check(waiting.saved.isEmpty()&&waiting.copied==null,"loading status must not export or copy");
+            check(UiThread.messages.equals(List.of("long:Please wait until the status finishes downloading, then try again")),
+                    "loading status must ask the user to wait: "+UiThread.messages);
         });
         test("save_throws",()->{
             Host host=new Host(first);Subject subject=new Subject();subject.failSave=true;MenuItem item=new MenuItem();

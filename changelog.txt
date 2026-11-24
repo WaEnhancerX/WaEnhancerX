@@ -18,6 +18,10 @@
 - Call Privacy reacts once per incoming call and works faster.
 - Privacy features now always start with WhatsApp, so nothing slips through
   before you open a chat.
+- Download View Once button now shows only on view once photos and videos, and
+  opening media is faster.
+- Buttons added by WAEX (like Download) now show up on the screen right away,
+  not only after opening it a second time.
 
 
 [Fixed]
@@ -29,3 +33,10 @@
 - Fixed "Send Blue Tick" button needing Hide Blue Ticks to be on.
 - Fixed some hidden blue ticks being forgotten when there were many waiting.
 - Fixed delivered ticks sometimes still being sent when Hide Delivered was on.
+- Fixed blue ticks for older hidden messages not being sent when replying or using
+  the "Send Blue Tick" button.
+- Fixed "Blue Tick on Reply" and "Send Blue Tick" needing a WhatsApp restart after
+  being turned on.
+- Fixed Download View Once button not showing when opening a view once photo or video.
+- Fixed tapping Download on a status that is still loading doing nothing. It now
+  asks you to wait until the status finishes downloading.

@@ -279,7 +279,8 @@ public class StatusDownloadHook extends BaseFeature {
         item.setOnMenuItemClickListener(menuItem -> {
             // The menu is reused across swipes. Capture the selected file at tap time:
             // the playback fragment can point to a different status by worker time.
-            final File selectedMediaFile = extractMediaFile(resolveCurrentStatusItem(sourceObject));
+            final Object selectedStatus = resolveCurrentStatusItem(sourceObject);
+            final File selectedMediaFile = extractMediaFile(selectedStatus);
             if (selectedMediaFile != null) {
                 CompletableFuture.runAsync(() -> {
                     try {
@@ -292,7 +293,15 @@ public class StatusDownloadHook extends BaseFeature {
                 });
             } else {
                 String currentTextStatus = findVisibleTextStatus(sourceObject);
-                if (currentTextStatus != null) copyToClipboard(context, currentTextStatus);
+                if (currentTextStatus != null) {
+                    copyToClipboard(context, currentTextStatus);
+                } else if (selectedStatus != null) {
+                    // The status is identified but its photo/video is not on disk yet (still
+                    // loading): tell the user instead of doing nothing.
+                    UiThread.toast(context, UiText.get(R.string.waex_ui_please_wait_until_the_status_finishes,
+                            "Please wait until the status finishes downloading, then try again"),
+                            Toast.LENGTH_LONG);
+                }
             }
             return true;
         });
