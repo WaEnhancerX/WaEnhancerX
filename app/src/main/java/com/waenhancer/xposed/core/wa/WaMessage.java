@@ -62,6 +62,12 @@ public final class WaMessage {
         }
     }
 
+    /** The message key type, or null if unresolved. */
+    @Nullable
+    public static Class<?> keyClass() {
+        return keyLayout != null ? keyLayout.type : null;
+    }
+
     public static boolean isMessage(@Nullable Object value) {
         return value != null && fMessageClass != null && fMessageClass.isInstance(value);
     }

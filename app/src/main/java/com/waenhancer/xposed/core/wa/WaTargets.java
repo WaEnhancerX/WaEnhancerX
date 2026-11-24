@@ -231,6 +231,29 @@ public final class WaTargets {
         return methods;
     }
 
+    /**
+     * The media viewer's menu builder for view-once media: it references WhatsApp's
+     * {@code ic_viewonce} drawable, calls MenuItem.setShowAsAction and receives the Menu.
+     * Optional: returns null when this build has no such method.
+     */
+    @Nullable
+    public static Method viewOnceMediaMenu(@NonNull Context context, @NonNull ClassLoader loader) {
+        final int iconId = context.getResources().getIdentifier("ic_viewonce", "drawable", context.getPackageName());
+        if (iconId == 0) return null;
+        return DexSearchEngine.getInstance().findMethodWithCache(context, loader,
+                "waex_wa_view_once_media_menu_v1_" + iconId,
+                (bridge, cl) -> {
+                    for (MethodData data : bridge.findMethod(FindMethod.create().matcher(MethodMatcher.create()
+                            .usingNumbers(iconId)
+                            .addInvoke("Landroid/view/MenuItem;->setShowAsAction(I)V")))) {
+                        if (data.getParamCount() > 1 && data.getParamTypeNames().contains("android.view.Menu")) {
+                            return data.getMethodInstance(cl);
+                        }
+                    }
+                    return null;
+                });
+    }
+
     // ─── Receipts ────────────────────────────────────────────────────────
 
     /**

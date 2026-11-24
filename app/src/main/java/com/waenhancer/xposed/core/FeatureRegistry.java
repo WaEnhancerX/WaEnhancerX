@@ -755,6 +755,7 @@ public final class FeatureRegistry {
             }
             entry.error = null; // A successful retry must not retain an earlier failure.
             entry.status = "ACTIVE";
+            if (entry.installation != Installation.STARTUP) refreshVisibleMenu();
         } catch (Throwable t) {
             if (entry.feature != null) entry.feature.unhookAll();
             entry.feature = null;
@@ -775,6 +776,21 @@ public final class FeatureRegistry {
             // Reporting it for every STARTUP entry duplicates JSON serialization and
             // synchronous provider IPC on the target's initialization thread.
         }
+    }
+
+    /**
+     * A lazy feature is installed when its screen opens, often after that screen already built
+     * its options menu. Ask the visible screen to rebuild it so menu-based features (download
+     * buttons, extra actions) appear on this screen too, not only on the next one.
+     */
+    private static void refreshVisibleMenu() {
+        Activity activity = ActivityTracker.getCurrentActivity();
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
+        activity.runOnUiThread(() -> {
+            try {
+                if (!activity.isFinishing() && !activity.isDestroyed()) activity.invalidateOptionsMenu();
+            } catch (Throwable ignored) { HookErrors.swallowed("FeatureRegistry", ignored); }
+        });
     }
 
     private void disposeLazyEntry(FeatureEntry entry, @NonNull Activity activity) {
