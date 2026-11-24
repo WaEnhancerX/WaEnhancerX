@@ -28,6 +28,7 @@ interface SharedPreferences {
     fun contains(key: String): Boolean
     fun getBoolean(key: String, fallback: Boolean): Boolean
     fun getString(key: String, fallback: String?): String?
+    fun getInt(key: String, fallback: Int): Int
 }
 open class Context(val packageName: String = "com.whatsapp") {
     val receivers = mutableListOf<Triple<BroadcastReceiver, IntentFilter, Int?>>()
@@ -169,6 +170,14 @@ object ViewHookDispatcher {
     fun unregister(owner: BaseFeature) { throw AssertionError("View hooks outside Tasker fixture") }
 }
 ''',
+    # Logging is a separate boundary; production HookErrors has dedicated source QA.
+    "HookErrors.kt": r'''package com.waenhancer.xposed.utils
+object HookErrors {
+    fun swallowed(site: String, failure: Throwable) {
+        throw AssertionError("Unexpected swallowed error at $site", failure)
+    }
+}
+''',
 }
 
 TEST = r'''package fixture
@@ -191,6 +200,8 @@ class Prefs : SharedPreferences {
     override fun contains(key: String): Boolean = key == "tasker_integration"
     override fun getString(key: String, fallback: String?): String? =
         if (key == "module_config_mode") "Universal" else fallback
+    override fun getInt(key: String, fallback: Int): Int =
+        throw AssertionError("Unexpected Tasker preference integer read: $key")
     override fun getBoolean(key: String, fallback: Boolean): Boolean {
         check(key == "tasker_integration")
         failure?.let { throw it }
