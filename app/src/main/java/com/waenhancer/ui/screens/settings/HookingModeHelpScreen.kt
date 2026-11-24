@@ -1130,12 +1130,13 @@ private fun hookDisplayName(className: String): String = className
     .removeSuffix("Hook")
     .replace(Regex("([a-z0-9])([A-Z])"), "$1 $2")
 
+// Transport-level privacy hooks (receipts, presence, typing, calls, revokes, DND, view once)
+// always install at startup; FeatureRegistry.TRANSPORT_PRIVACY_FEATURES enforces it, so they
+// are not offered here.
 private val CUSTOMIZABLE_HOOKS = listOf(
-    "AntiViewOnceHook", "TypingPrivacyHook", "FreezeLastSeenHook", "AlwaysOnlineHook",
-    "HideReceiptsHook", "BlueOnReplyHook", "CallPrivacyHook", "AntiRevokeHook",
     "HideForwardedTagHook", "CustomPrivacyHook", "AutoNextStatusHook",
     "AntiDisappearingMessagesHook", "LockedChatsEnhancerHook", "HideArchivedChatsHook",
-    "DndModeHook", "HideChatsVaultHook", "AntiEditMessagesHook", "StickerConfirmHook",
+    "HideChatsVaultHook", "AntiEditMessagesHook", "StickerConfirmHook",
     "JumpFirstMessageHook", "PreserveDeleteForMeHook", "CopyStatusTextHook",
     "ChatLimitsBypassHook", "DoubleTapReactionHook", "MessageDeviceSourceHook",
     "MinorFixesHook", "HomeScreenHeaderActionsHook", "ChatListCustomizationsHook",

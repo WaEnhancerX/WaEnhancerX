@@ -3,23 +3,26 @@ package com.waenhancer.xposed.features.privacy;
 import android.content.Context;
 import android.content.SharedPreferences;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import com.waenhancer.xposed.core.BaseFeature;
-import com.waenhancer.xposed.core.devkit.DexCacheManager;
-import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.xposed.core.wa.WaJid;
+import com.waenhancer.xposed.core.wa.WaTargets;
 import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
-import org.luckypray.dexkit.query.FindMethod;
-import org.luckypray.dexkit.query.enums.StringMatchType;
-import org.luckypray.dexkit.query.matchers.MethodMatcher;
-import org.luckypray.dexkit.result.MethodData;
-import org.json.JSONObject;
+import com.waenhancer.xposed.core.privacy.PrivacyToggle;
+import com.waenhancer.xposed.core.wa.SafeHooks;
 import java.lang.reflect.Method;
 
 /**
- * Typing Privacy: intercepts outgoing typing and voice recording presence notifications
- * ("composing" and "recording" presence packets sent to WhatsApp servers).
+ * Typing Privacy: skips WhatsApp's outgoing "composing" (typing) and "recording" presence.
+ *
+ * The target is HandleMeComposing/sendComposing. Its int argument is the state
+ * (0 = typing, 1 = recording) and its Jid argument is the chat. Both are located by parameter
+ * type once, at hook time, so the callback never guesses from runtime values.
  */
 public class TypingPrivacyHook extends BaseFeature {
+
+    private static final int STATE_TYPING = 0;
+    private static final int STATE_RECORDING = 1;
 
     public TypingPrivacyHook(@NonNull Context context, @NonNull ClassLoader classLoader, @NonNull SharedPreferences prefs) {
         super(context, classLoader, prefs);
@@ -27,94 +30,45 @@ public class TypingPrivacyHook extends BaseFeature {
 
     @Override
     public void hook() throws Throwable {
-        DexCacheManager dexCache = DexCacheManager.getInstance(context);
-        DexSearchEngine engine = DexSearchEngine.getInstance();
+        Method sendComposing = WaTargets.sendComposing(context, classLoader);
+        SafeHooks.requireVoid(sendComposing);
+        final int stateIndex = firstIntParameter(sendComposing);
+        if (stateIndex < 0) throw new NoSuchMethodException("sendComposing state parameter");
 
-        Method composingMethod = dexCache.getMethod(classLoader, "waex_handle_me_composing_method", () -> {
-            var bridge = engine.getBridge();
-            if (bridge == null) {
-                engine.initialize(context);
-                bridge = engine.getBridge();
-            }
-            if (bridge == null) return null;
-
-            MethodData data = bridge.findMethod(
-                    FindMethod.create().matcher(
-                            MethodMatcher.create()
-                                    .addUsingString("HandleMeComposing/sendComposing", StringMatchType.Contains)
-                    )
-            ).firstOrNull();
-
-            if (data != null) {
-                return data.getMethodInstance(classLoader);
-            }
-            return null;
-        });
-
-        if (composingMethod != null) {
-            XposedBridge.hookMethod(composingMethod, new XC_MethodHook() {
-                @Override
-                protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-                    if (param.args == null || param.args.length == 0) return;
-
-                    boolean isGhostMode = isEnabled("ghostmode_active", false);
-
-                    boolean hideTypingGlobal = isGhostMode
-                            || isEnabled("typing_privacy", false)
-                            || isEnabled("hide_typing", false)
-                            || isEnabled("ghostmode_t", false);
-
-                    boolean hideRecordingGlobal = isGhostMode
-                            || isEnabled("typing_privacy", false)
-                            || isEnabled("hide_recording", false)
-                            || isEnabled("ghostmode_r", false);
-
-                    // Extract typing state: 0 = typing/composing, 1 = recording audio, 2 = clear
-                    int state = -1;
-                    Object jidObj = null;
-
-                    for (Object arg : param.args) {
-                        if (arg == null) continue;
-                        if (arg instanceof Integer) {
-                            state = (Integer) arg;
-                        } else if (!(arg instanceof Boolean)) {
-                            String className = arg.getClass().getName();
-                            if (className.contains("Jid") || className.contains("jid") || !arg.getClass().isPrimitive()) {
-                                jidObj = arg;
-                            }
-                        }
-                    }
-
-                    // Check per-contact privacy override if JID available
-                    boolean blockThisPacket = false;
-                    if (state == 0) {
-                        blockThisPacket = hideTypingGlobal;
-                    } else if (state == 1) {
-                        blockThisPacket = hideRecordingGlobal;
-                    }
-
-                    if (!blockThisPacket && jidObj != null) {
-                        String jidStr = jidObj.toString();
-                        // Query per-contact rules from prefs
-                        JSONObject contactJson = CustomPrivacyHook.getContactPrivacy(prefs, jidStr);
-                        if (contactJson != null) {
-                            if (state == 0 && (contactJson.optBoolean("hide_typing", false) || contactJson.optBoolean("HideTyping", false))) {
-                                blockThisPacket = true;
-                            } else if (state == 1 && (contactJson.optBoolean("hide_recording", false) || contactJson.optBoolean("HideRecording", false))) {
-                                blockThisPacket = true;
-                            }
-                        }
-                    }
-
-                    // Block typing (state 0) and voice recording (state 1) indicators
-                    if (blockThisPacket) {
-                        param.setResult(null); // Suppress outgoing presence packet
-                    }
+        XposedBridge.hookMethod(sendComposing, new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) {
+                Object rawState = param.args[stateIndex];
+                if (!(rawState instanceof Integer)) return;
+                int state = (Integer) rawState;
+                if (state != STATE_TYPING && state != STATE_RECORDING) return;
+                String chat = findChatJid(param.args);
+                if (SafeHooks.test(() -> shouldHide(state, chat))) {
+                    param.setResult(null);
                 }
-            });
-        } else {
-            XposedBridge.log("[WAEX] Could not locate 'HandleMeComposing/sendComposing' method via DexKit.");
+            }
+        });
+    }
+
+    private boolean shouldHide(int state, @Nullable String chatJid) {
+        PrivacyToggle toggle = state == STATE_TYPING ? PrivacyToggle.HIDE_TYPING : PrivacyToggle.HIDE_RECORDING;
+        return getPrivacy().appliesTo(context, toggle, chatJid);
+    }
+
+    @Nullable
+    private static String findChatJid(@NonNull Object[] args) {
+        for (Object arg : args) {
+            if (WaJid.isJid(arg)) return WaJid.raw(arg);
         }
+        return null;
+    }
+
+    private static int firstIntParameter(@NonNull Method method) {
+        Class<?>[] types = method.getParameterTypes();
+        for (int i = 0; i < types.length; i++) {
+            if (types[i] == int.class || types[i] == Integer.class) return i;
+        }
+        return -1;
     }
 
     @NonNull
