@@ -39,7 +39,6 @@ def main() -> None:
         method(source, "initMessageClasses"),
         method(source, "hookStatusBytecodeRevocation"),
         method(source, "findArgumentOfType", optional=True),
-        method(source, "setHandledResult"),
     ])
     template = (ROOT / "qa/fixtures/StatusHookBindingChecks.java").read_text(encoding="utf-8")
     assert template.count("/* PRODUCTION_METHODS */") == 1

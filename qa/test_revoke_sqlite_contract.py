@@ -43,7 +43,7 @@ def pattern_constant(source: str, name: str) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, default=PRIVACY / "AntiRevokeHook.java")
-    parser.add_argument("--scenario", choices=("all", "fallback_key", "ownership", "batch", "placeholder_scope", "message_predicate", "compatibility"), default="all")
+    parser.add_argument("--scenario", choices=("all", "fallback_key", "ownership", "batch", "placeholder_scope", "message_predicate", "compatibility", "method_hook_active"), default="all")
     args = parser.parse_args()
     source = args.source.read_text(encoding="utf-8")
     methods = "\n\n".join([

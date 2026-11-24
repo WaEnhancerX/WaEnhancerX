@@ -15,7 +15,7 @@ if not __debug__:
 ROOT = Path(__file__).resolve().parents[1]
 FILES = {
     "app/src/main/java/com/waenhancer/xposed/features/privacy/BlueOnReplyHook.java": 12,
-    "app/src/main/java/com/waenhancer/xposed/features/privacy/AntiRevokeHook.java": 31,
+    "app/src/main/java/com/waenhancer/xposed/features/privacy/AntiRevokeHook.java": 32,
     "app/src/main/java/com/waenhancer/xposed/features/conversation/PreserveDeleteForMeHook.kt": 9,
     "app/src/main/java/com/waenhancer/xposed/features/conversation/AntiEditMessagesHook.kt": 7,
     "app/src/main/java/com/waenhancer/xposed/core/db/EditMessageStore.kt": 5,

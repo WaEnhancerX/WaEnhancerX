@@ -229,10 +229,12 @@ public final class ReceiptStanzaRuntimeChecks {
                 Delivery.class.getMethod("combined"));
         DexSearchEngine.methods.put("waex_delivery_anchor_ReadReceipts_sendDeliveryReceiptIfNotRetry",
                 Delivery.class.getMethod("ordinary"));
-        DexSearchEngine.methods.put("waex_played_batch_dispatch_v1",
+        DexSearchEngine.methods.put("waex_wa_send_played_receipts_v1",
                 Played.class.getMethod("dispatch", Set.class, boolean.class));
         new HideReceiptsHook(new Context(), ReceiptStanzaRuntimeChecks.class.getClassLoader(), PREFS).hook();
-        for (Method method : List.of(generate, incoming, execution, dispatch)) {
+        // The former ReadReceipts/sendReceiptForIncomingMessage hook was a no-op and is gone.
+        check(!XposedBridge.hooks.containsKey(incoming), "no-op incoming receipt hook must not be installed");
+        for (Method method : List.of(generate, execution, dispatch)) {
             check(XposedBridge.hooks.containsKey(method) && XposedBridge.hooks.get(method).size() == 1,
                     "production callback did not register once: " + method.getName());
         }

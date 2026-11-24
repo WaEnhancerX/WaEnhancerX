@@ -60,10 +60,25 @@ hooks = root / 'xposed/features'
 toast = (hooks / 'automation/PresenceToastsHook.java').read_text()
 typing = (hooks / 'privacy/TypingPrivacyHook.java').read_text()
 receipts = (hooks / 'privacy/HideReceiptsHook.java').read_text()
+toggles_src = (root / 'xposed/core/privacy/PrivacyToggle.java').read_text()
+
+
+def toggle_keys(name):
+    """onKeys of one PrivacyToggle constant (the first keys(...) list after its name)."""
+    block = toggles_src[toggles_src.index('    ' + name + '('):]
+    return set(re.findall(r'"([^"]+)"', block[:block.index('keys(') + block[block.index('keys('):].index(')')]))
+
+
 assert 'isEnabled("typing_online_toasts", false)' in toast
-assert 'isEnabled("typing_privacy", false)' in typing
-assert 'isEnabled("hide_seen_receipts", false)' in receipts
-assert 'isEnabled("hidereceipt", false)' in receipts
+# Privacy switches are resolved only through PrivacyToggle; each legacy key stays on its own toggle.
+assert 'typing_privacy' in toggle_keys('HIDE_TYPING')
+assert 'typing_online_toasts' not in toggles_src
+assert 'PrivacyToggle.HIDE_TYPING' in typing
+assert 'hide_seen_receipts' in toggle_keys('HIDE_VOICE_PLAYED')
+assert 'hidereceipt' in toggle_keys('HIDE_DELIVERY')
+assert 'hide_seen_receipts' not in toggle_keys('HIDE_DELIVERY')
+assert 'hidereceipt' not in toggle_keys('HIDE_VOICE_PLAYED')
+assert 'PrivacyToggle.HIDE_VOICE_PLAYED' in receipts and 'PrivacyToggle.HIDE_DELIVERY' in receipts
 print(f'PASS: canonical keys preserved even in legacy JSON; '
       f'{len(colliding)} current-key aliases, {len(incompatible)} cross-type collisions protected; '
       'two unrelated privacy preferences kept separate')

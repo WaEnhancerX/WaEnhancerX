@@ -33,10 +33,14 @@ assert expression in source
 run(source.replace(expression, 'readBoolean.test("dnd_mode") || readBoolean.test("dndmode")'), False)
 
 hook = (src / "xposed/features/privacy/DndModeHook.java").read_text()
+privacy_prefs = (src / "xposed/core/privacy/PrivacyPrefs.java").read_text()
+# The hook asks PrivacyPrefs, which must resolve DND only through the tested policy.
+assert "PrivacyToggle.DND" in hook, "hook must use the shared DND toggle"
+assert "DndPreferencePolicy.isEnabled(" in privacy_prefs, "PrivacyPrefs bypasses tested DND policy"
 header = (src / "xposed/features/homescreen/HomeScreenHeaderActionsHook.java").read_text()
 sheet = (src / "xposed/features/homescreen/WaexQuickActionsSheet.java").read_text()
 privacy = (src / "ui/screens/privacy/GlobalPrivacySettingsScreen.kt").read_text()
-for name, text in [("hook", hook), ("header", header), ("sheet", sheet), ("privacy", privacy)]:
+for name, text in [("header", header), ("sheet", sheet), ("privacy", privacy)]:
     assert "DndPreferencePolicy.isEnabled(" in text, f"{name} bypasses tested DND policy"
 # Nightly removed the unused raw-ID dispatcher in 19a86ef0. Check both live
 # entry points explicitly instead of requiring its now-dead third call site.

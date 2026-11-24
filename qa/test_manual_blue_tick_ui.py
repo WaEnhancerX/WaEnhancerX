@@ -34,8 +34,12 @@ for resource in (root / 'app/src/main/res').glob('values*/strings.xml'):
     if resource.parent.name == 'values':
         assert entries['feat_seen_tick_customization_title'] == 'Manual Blue Tick Button'
         assert 'held read receipts' in entries['feat_seen_tick_customization_desc']
-for consumer in (blue, receipts):
-    assert 'prefs.getAll().get("seentick")' in consumer
+assert 'prefs.getAll().get("seentick")' in blue
+# HideReceipts reads it through PrivacyPrefs.flag, which accepts Boolean, Number and String values.
+assert 'getPrivacy().flag("seentick")' in receipts
+privacy_prefs = (src / "xposed/core/privacy/PrivacyPrefs.java").read_text()
+assert 'if (value instanceof Number) return ((Number) value).intValue() != 0;' in privacy_prefs
+assert '!"0".equals(text) && !"false".equalsIgnoreCase(text)' in privacy_prefs
 assert 'if (!isHideBlueTicksEnabled()) return false;' in blue
 assert '"hide_read_receipts"' in blue
 assert 'ConversationRecipientPolicy.resolve(candidates)' in blue
