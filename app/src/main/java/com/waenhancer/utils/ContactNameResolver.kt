@@ -246,6 +246,31 @@ object ContactNameResolver {
         return null
     }
 
+    /** Reverse of [resolveLidToPhone]: only a unique explicit jid_map edge counts. */
+    fun resolvePhoneToLid(context: Context, rawJid: String): String? {
+        if (ContactIdentityPolicy.phoneUser(rawJid) == null) return null
+        try {
+            findDatabase(context, "msgstore.db")?.let { file ->
+                SQLiteDatabase.openDatabase(file.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { db ->
+                    val query = """
+                        SELECT DISTINCT j1.raw_string
+                        FROM jid_map jm
+                        JOIN jid j1 ON jm.lid_row_id = j1._id
+                        JOIN jid j2 ON jm.jid_row_id = j2._id
+                        WHERE j2.raw_string = ? LIMIT 2
+                    """.trimIndent()
+                    db.rawQuery(query, arrayOf(rawJid)).use { cursor ->
+                        if (cursor == null || !cursor.moveToFirst()) return null
+                        val lid = cursor.getString(0)?.takeIf { ContactIdentityPolicy.isLid(it) } ?: return null
+                        if (cursor.moveToNext()) return null
+                        return lid
+                    }
+                }
+            }
+        } catch (_: Exception) { }
+        return null
+    }
+
     /** PhoneLookup may be fuzzy: independently compare its complete number before using a name. */
     fun getSystemContactName(context: Context, phoneNumber: String): String? {
         val digits = ContactIdentityPolicy.phoneDigits(phoneNumber) ?: return null

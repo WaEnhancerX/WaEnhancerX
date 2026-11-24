@@ -62,6 +62,43 @@ public final class WaTargets {
         return result;
     }
 
+    /**
+     * FMessage's sender getter (for group messages, the participant). It is the method that
+     * logs "FMessage/getSenderUserJid/key.id", i.e. the same anchor as the message class.
+     */
+    @Nullable
+    public static Method messageSenderGetter(@NonNull Context context, @NonNull ClassLoader loader) {
+        Method method = DexSearchEngine.getInstance().findMethodWithCache(context, loader,
+                "waex_wa_fmessage_sender_getter_v1",
+                (bridge, cl) -> {
+                    MethodData data = bridge.findMethod(FindMethod.create().matcher(MethodMatcher.create()
+                            .addUsingString("FMessage/getSenderUserJid/key.id", StringMatchType.Contains)))
+                            .firstOrNull();
+                    return data != null ? data.getMethodInstance(cl) : null;
+                });
+        if (method == null || method.getParameterTypes().length != 0
+                || method.getReturnType().isPrimitive() || Modifier.isStatic(method.getModifiers())) {
+            return null;
+        }
+        method.setAccessible(true);
+        return method;
+    }
+
+    /** WhatsApp's base Jid class (class name ends with "jid.Jid"). */
+    @Nullable
+    public static Class<?> jidClass(@NonNull Context context, @NonNull ClassLoader loader) {
+        return DexSearchEngine.getInstance().findClassWithCache(context, loader,
+                "waex_wa_jid_class_v1",
+                (bridge, cl) -> {
+                    for (ClassData data : bridge.findClass(FindClass.create().matcher(ClassMatcher.create()
+                            .className("jid.Jid", StringMatchType.EndsWith)))) {
+                        Class<?> candidate = data.getInstance(cl);
+                        if ("Jid".equals(candidate.getSimpleName())) return candidate;
+                    }
+                    return null;
+                });
+    }
+
     /** The message key class: exactly one Jid, one String id and one boolean fromMe. */
     @NonNull
     public static Class<?> messageKeyClass(@NonNull Context context, @NonNull ClassLoader loader)

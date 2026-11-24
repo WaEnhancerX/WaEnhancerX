@@ -262,8 +262,10 @@ public final class FeatureRegistry {
         // These hooks observe transport/database/call events. They must be installed at process
         // startup: a notification, revoke, receipt, or call can arrive on any screen.
         registerFeature(BlueOnReplyHook.class, "Privacy",
-                () -> prefs.getBoolean("blueonreply", false)
-                        || prefs.getBoolean("manual_status_seen", false),
+                // Reply sending, the manual "Send blue tick" button and manual status seen all live
+                // in this hook; it must be installed when any of them is enabled.
+                () -> privacy.flag("blueonreply") || privacy.flag("seentick")
+                        || privacy.flag("manual_status_seen"),
                 () -> new BlueOnReplyHook(context, classLoader, prefs));
 
         registerFeature(CallPrivacyHook.class, "Privacy",

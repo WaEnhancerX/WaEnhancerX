@@ -25,6 +25,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
@@ -76,6 +77,7 @@ public class HideReceiptsHook extends BaseFeature {
     public void hook() throws Throwable {
         PropsOverrideHook.BOOLEANS.put(19148, false); // Route IQ through receiptMethod
         WaMessage.init(context, classLoader);
+        UnsentReadLedger.prune(context);
         initProtocolTreeReflection();
         initFMessageReflection();
         hookPlaintextMessageCapture();
@@ -180,7 +182,7 @@ public class HideReceiptsHook extends BaseFeature {
             XC_MethodHook observer = new XC_MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
-                    if (!isHideReadReceiptsEnabled()) return;
+                    if (!SafeHooks.test(() -> anyReadWithholdingAvailable())) return;
                     Object message = findFMessage(param.args);
                     if (message != null) captureIncomingMessageIfHidden(message);
                 }
@@ -238,7 +240,7 @@ public class HideReceiptsHook extends BaseFeature {
                                     }
                                     XposedHelpers.setAdditionalInstanceField(job, "waex_hide_status_view", true);
                                 }
-                            } else if ((isEnabled("blueonreply", false)
+                            } else if ((getPrivacy().flag("blueonreply")
                                     || isManualSeenTickEnabled())
                                     && !hasExplicitReceiptIds(jid, param.args)) {
                                 // The serialized job recipient is authoritative. A group participant
@@ -300,11 +302,8 @@ public class HideReceiptsHook extends BaseFeature {
                             // Step 1 succeeded. This is the critical fix for in-chat messages
                             // where WhatsApp creates and runs the job before our constructor-time
                             // staging can populate the String[] fields.
-                            Set<String> msgIds = BlueOnReplyHook.readReceiptMessageIds(job);
-                            if (!msgIds.isEmpty() && target != null) {
-                                HideSeenStore.getInstance(context).insertHideSeenMessagesAsync(
-                                        target, msgIds, HideSeenStore.TYPE_READ, false);
-                            }
+                            UnsentReadLedger.track(context, target, participant,
+                                    BlueOnReplyHook.readReceiptMessageIds(job));
                             param.setResult(null);
                             return;
                         }
@@ -314,8 +313,13 @@ public class HideReceiptsHook extends BaseFeature {
                             if (BlueOnReplyHook.isManualChatReceipt(job)) {
                                 BlueOnReplyHook.recordSuppressedReadJob(job);
                             }
+                            UnsentReadLedger.track(context, target, participant,
+                                    BlueOnReplyHook.readReceiptMessageIds(job));
                             param.setResult(null);
+                            return;
                         }
+                        // The receipt is going out: it is no longer owed.
+                        UnsentReadLedger.markSent(context, target, BlueOnReplyHook.readReceiptMessageIds(job));
                     }
                 });
             }
@@ -347,7 +351,8 @@ public class HideReceiptsHook extends BaseFeature {
     }
 
     private boolean isManualSeenTickEnabled() {
-        return isHideReadReceiptsEnabled() && getPrivacy().flag("seentick");
+        // The manual button can send receipts withheld by any privacy setting.
+        return getPrivacy().flag("seentick");
     }
 
     private static String findJidInArguments(Object[] arguments) {
@@ -444,17 +449,24 @@ public class HideReceiptsHook extends BaseFeature {
                         // exempt a read receipt, and never delivery privacy or Ghost Mode.
                         if (ExplicitReadReceiptPolicy.maySend(type, target, messageId,
                                 hideDelivery, EXPLICIT_RECEIPT_IDS,
-                                SystemClock.elapsedRealtime())) return;
+                                SystemClock.elapsedRealtime())) {
+                            UnsentReadLedger.markSent(context, target,
+                                    messageId != null ? Collections.singletonList(messageId) : null);
+                            return;
+                        }
                         boolean hideRead = isReadReceipt && shouldHideReadReceipt(target);
 
                         if (hideDelivery) {
+                            // Delivery and read receipts both identify a received message whose
+                            // read receipt is now withheld.
                             applyHideDelivery(node);
+                            UnsentReadLedger.track(context, target, participant, messageId);
                         } else if (hideRead) {
                             applyHideRead(node);
-                            if (target != null && messageId != null) {
-                                HideSeenStore.getInstance(context).insertHideSeenMessageAsync(
-                                        target, messageId, HideSeenStore.TYPE_READ, false);
-                            }
+                            UnsentReadLedger.track(context, target, participant, messageId);
+                        } else if (isReadReceipt) {
+                            UnsentReadLedger.markSent(context, target,
+                                    messageId != null ? Collections.singletonList(messageId) : null);
                         }
                     }
                 });
@@ -554,7 +566,6 @@ public class HideReceiptsHook extends BaseFeature {
 
     /** Record one incoming decrypted message independently of current UI state. */
     private void captureIncomingMessageIfHidden(Object msgObj) {
-        if (!isHideReadReceiptsEnabled()) return;
         if (fMessageClass == null || !fMessageClass.isInstance(msgObj)) return;
         // Typed key contract first; the value-scanning fallback below covers builds where it
         // could not be confirmed.
@@ -563,9 +574,8 @@ public class HideReceiptsHook extends BaseFeature {
         Boolean typedFromMe = WaMessage.isFromMe(msgObj);
         if (typedId != null && typedChat != null && typedFromMe != null) {
             String target = canonicalJid(typedChat);
-            if (typedFromMe || target == null || !shouldHideReadReceipt(target)) return;
-            HideSeenStore.getInstance(context).insertHideSeenMessageAsync(
-                    target, typedId, HideSeenStore.TYPE_READ, false);
+            if (typedFromMe || target == null || !withholdsRead(target)) return;
+            UnsentReadLedger.track(context, target, WaMessage.senderJid(msgObj), typedId);
             BlueOnReplyHook.recordObservedReceipt(target, WaMessage.remoteJidObject(msgObj), typedId);
             return;
         }
@@ -606,10 +616,9 @@ public class HideReceiptsHook extends BaseFeature {
             String target = canonicalJid(rawJid);
             if (target == null) return;
 
-            if (!shouldHideReadReceipt(target)) return;
+            if (!withholdsRead(target)) return;
 
-            HideSeenStore.getInstance(context).insertHideSeenMessageAsync(
-                    target, messageId, HideSeenStore.TYPE_READ, false);
+            UnsentReadLedger.track(context, target, WaMessage.senderJid(msgObj), messageId);
 
             BlueOnReplyHook.recordObservedReceipt(target, typedJid, messageId);
         } catch (Throwable t) {
@@ -910,6 +919,19 @@ public class HideReceiptsHook extends BaseFeature {
         return getPrivacy().appliesTo(context, PrivacyToggle.STEALTH_STATUS, target);
     }
 
+    /** True when this chat's read receipt is withheld in any form (blue ticks, delivered, Ghost). */
+    private boolean withholdsRead(String target) {
+        return shouldHideReadReceipt(target) || shouldHideDeliveryReceipt(target);
+    }
+
+    /** Cheap global pre-check before inspecting an incoming message. */
+    private boolean anyReadWithholdingAvailable() {
+        // Ghost Mode is included (it covers all three). Per-contact-only rules are still
+        // recorded by the receipt job and receipt node hooks.
+        return getPrivacy().isOn(PrivacyToggle.HIDE_READ) || getPrivacy().isOn(PrivacyToggle.HIDE_READ_GROUP)
+                || getPrivacy().isOn(PrivacyToggle.HIDE_DELIVERY);
+    }
+
     private boolean shouldHideReadReceipt(String target) {
         return getPrivacy().hideReadFor(context, target);
     }
@@ -1053,6 +1075,7 @@ public class HideReceiptsHook extends BaseFeature {
                 if (target == null || WaJid.isNewsletter(target)) return;
                 if (SafeHooks.test(() -> shouldHideDeliveryReceipt(target))) {
                     param.setResult(null);
+                    UnsentReadLedger.track(context, target, participant, getAttributeValue(node, "id"));
                 }
             }
         });
@@ -1091,10 +1114,6 @@ public class HideReceiptsHook extends BaseFeature {
 
     // All switches are read live from PrivacyPrefs (Ghost Mode, aliases and per-contact rules
     // included), so quick actions apply to the next receipt without a restart.
-
-    private boolean isHideReadReceiptsEnabled() {
-        return getPrivacy().isOn(PrivacyToggle.HIDE_READ);
-    }
 
     private boolean isHideDeliveryReceiptsEnabled() {
         return getPrivacy().isOn(PrivacyToggle.HIDE_DELIVERY);

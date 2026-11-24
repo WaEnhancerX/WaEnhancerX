@@ -8,6 +8,7 @@ import androidx.annotation.Nullable;
 import com.waenhancer.xposed.utils.HookErrors;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
 /**
@@ -29,6 +30,7 @@ public final class WaMessage {
     private static Field keyField;
     private static KeyLayout keyLayout;
     private static Field mediaTypeField;
+    private static Method senderGetter;
 
     private WaMessage() {}
 
@@ -44,6 +46,11 @@ public final class WaMessage {
             HookErrors.swallowed(TAG, t);
         }
         mediaTypeField = WaTargets.mediaTypeField(context, loader);
+        try {
+            senderGetter = WaTargets.messageSenderGetter(context, loader);
+        } catch (Throwable t) {
+            HookErrors.swallowed(TAG, t);
+        }
         if (mediaTypeField != null) mediaTypeField.setAccessible(true);
         initialized = true;
     }
@@ -103,6 +110,19 @@ public final class WaMessage {
     public static Object remoteJidObject(@Nullable Object messageOrKey) {
         Object key = key(messageOrKey);
         return key != null ? keyLayout.read(keyLayout.remoteJid, key) : null;
+    }
+
+    /** Normalized sender JID (the participant in a group), or null when unknown. */
+    @Nullable
+    public static String senderJid(@Nullable Object message) {
+        Method getter = senderGetter;
+        if (message == null || getter == null || !getter.getDeclaringClass().isInstance(message)) return null;
+        try {
+            return WaJid.raw(getter.invoke(message));
+        } catch (Throwable t) {
+            HookErrors.swallowed(TAG, t);
+            return null;
+        }
     }
 
     public static boolean hasMediaType() {
