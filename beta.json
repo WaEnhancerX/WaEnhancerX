@@ -1,8 +1,30 @@
 {
   "schema": 1,
   "channel": "beta",
-  "updated_at": "2026-11-19T06:40:17Z",
+  "updated_at": "2026-11-24T18:32:36Z",
   "releases": [
+    {
+      "tag": "2.1.0-beta-1",
+      "version_name": "2.1.0-beta-1",
+      "version_code": 20100501,
+      "published_at": "2026-11-24T18:32:20Z",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/2.1.0-beta-1",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v2.1.0-beta-1_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/2.1.0-beta-1/WaEnhancerX-v2.1.0-beta-1_debug.apk",
+          "size": 8020870,
+          "sha256": "8ca306d13faa844793f7755fe52bd78e95a2f1a5ad3afd577ecba0b995b16b1c"
+        },
+        {
+          "name": "WaEnhancerX-v2.1.0-beta-1_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/2.1.0-beta-1/WaEnhancerX-v2.1.0-beta-1_release.apk",
+          "size": 8117258,
+          "sha256": "e3d32e4cee769bea297fbe193eb4e9198fbbf41c1394d80402762c638947e9fc"
+        }
+      ],
+      "notes": "[Added]\n- Hidden blue ticks are no longer lost. Every message whose blue tick was held back\n  (by Ghost Mode, Hide Blue Ticks or Hide Delivered) is remembered, even after\n  WhatsApp restarts.\n- \"Send Blue Tick\" button and \"Blue Tick on Reply\" now send blue ticks for all of\n  these remembered messages, including ones from before you turned them on.\n- Privacy switches like Ghost Mode and Freeze Last Seen now apply right away,\n  without restarting WhatsApp.\n- New Bubble Colors screen with a live chat preview and separate colors for sent and\n  received messages.\n- Custom themes support more WaEnhancer theme features: color replacement, tint\n  states, position offsets, rgb()/rgba() colors and the DPI set in a theme.\n- Spanish and Latin American Spanish translations.\n\n\n[Fixes]\n- Fixed WhatsApp crashing when someone deletes a message while Anti Delete is on.\n- Fixed Anti View Once also affecting view once photos and videos you send.\n- Fixed Freeze Last Seen turning on by itself when the online dot style was enabled.\n- Fixed \"Send Blue Tick\" button not showing unless Blue Tick on Reply was also on,\n  and needing Hide Blue Ticks to be on.\n- Fixed blue ticks for older hidden messages not being sent when replying or using\n  the \"Send Blue Tick\" button.\n- Fixed delivered ticks sometimes still being sent when Hide Delivered was on.\n- Fixed Download View Once button not showing when opening a view once photo or video.\n- Fixed tapping Download on a status that is still loading doing nothing. It now\n  asks you to wait until the status finishes downloading.\n- Fixed Download saving a different status when the status changed right after tapping.\n- Fixed custom chat bubble colors not being applied.\n- Fixed custom themes not loading in Per Target App mode, and large theme images\n  making the chat input bar too big.\n- Fixed double tap reactions sometimes reacting to the wrong message.\n- Fixed Ghost Mode, Freeze Last Seen and DND restarting WhatsApp before the setting\n  was saved.\n- Fixed per-contact call blocking not working in some cases.\n- Fixed Delete for Me sometimes not keeping a copy of the message.\n- Fixed online dots being placed wrongly on some chat rows.\n- Fixed the profile photo of the wrong person being shown or saved in some cases.\n- Fixed voice notes turning the screen off when Disable Proximity is on.\n- Fixed custom emoji fonts breaking when a download was incomplete.\n- Fixed Harmful App warning by Play Protect.\n\n\n[Improvements]\n- Privacy features are more stable and keep working better after WhatsApp updates.\n- Privacy features now always start with WhatsApp, so nothing slips through\n  before you open a chat.\n- Hide Played (voice notes and view once) now hides only the right messages.\n- Per-contact privacy settings now also work for contacts that WhatsApp shows by\n  their new ID instead of their phone number.\n- Call Privacy reacts once per incoming call and works faster.\n- Download View Once now shows only on view once media, and opening media is faster.\n- Buttons added by WAEX (like Download) now show up on the screen right away.\n- Custom themes no longer slow down scrolling.\n- Larger text sizes fit better in the bottom bar and dashboard.\n- On-device transcription libraries are now downloaded only when needed.\n- VirusTotal scan results are attached to every release."
+    },
     {
       "tag": "2003-2.0.0-beta-3",
       "version_name": "2.0.0-beta-3",
@@ -544,22 +566,6 @@
         }
       ],
       "notes": "[Improvements]\n- Optimized performance\n\n[Fixes]\n- Fixed Hide Tabs showing hidden tabs during swipe\n- Fixed compatibility errors\n- Fixed CustomThemeV2 errors"
-    },
-    {
-      "tag": "16802-1.6.8-beta-2",
-      "version_name": "1.6.8-beta-2",
-      "version_code": 10608502,
-      "published_at": "2026-05-18T03:52:15Z",
-      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/16802-1.6.8-beta-2",
-      "assets": [
-        {
-          "name": "WaEnhancerX-v1.6.8-beta-2.apk",
-          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/16802-1.6.8-beta-2/WaEnhancerX-v1.6.8-beta-2.apk",
-          "size": 18264029,
-          "sha256": "4f1e3e43cf828ac451aae8a4b80e6cdb6de4fab7fd0c627b896b774e1fa25eed"
-        }
-      ],
-      "notes": "[Improvements]\n- Opttimized performance\n\n[Fixes]\n- Fixed Preferences not saving/loading\n- Fixed Hooks not applying\n- Fixed Revoked message indicator not showing\n- Fixed Crash when opening app\n- Fixed Crash when opening chat\n\nNote: Force stop WhatsApp before updating the module. WhatsApp may take longer time to open on first launch."
     }
   ]
 }
