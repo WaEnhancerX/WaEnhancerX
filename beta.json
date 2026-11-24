@@ -1,24 +1,24 @@
 {
   "schema": 1,
   "channel": "beta",
-  "updated_at": "2026-11-24T18:32:36Z",
+  "updated_at": "2026-11-24T18:43:27Z",
   "releases": [
     {
-      "tag": "2.1.0-beta-1",
+      "tag": "20100501-2.1.0-beta-1",
       "version_name": "2.1.0-beta-1",
       "version_code": 20100501,
       "published_at": "2026-11-24T18:32:20Z",
-      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/2.1.0-beta-1",
+      "html_url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/tag/20100501-2.1.0-beta-1",
       "assets": [
         {
           "name": "WaEnhancerX-v2.1.0-beta-1_debug.apk",
-          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/2.1.0-beta-1/WaEnhancerX-v2.1.0-beta-1_debug.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/20100501-2.1.0-beta-1/WaEnhancerX-v2.1.0-beta-1_debug.apk",
           "size": 8020870,
           "sha256": "8ca306d13faa844793f7755fe52bd78e95a2f1a5ad3afd577ecba0b995b16b1c"
         },
         {
           "name": "WaEnhancerX-v2.1.0-beta-1_release.apk",
-          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/2.1.0-beta-1/WaEnhancerX-v2.1.0-beta-1_release.apk",
+          "url": "https://github.com/Xposed-Modules-Repo/com.waenhancer/releases/download/20100501-2.1.0-beta-1/WaEnhancerX-v2.1.0-beta-1_release.apk",
           "size": 8117258,
           "sha256": "e3d32e4cee769bea297fbe193eb4e9198fbbf41c1394d80402762c638947e9fc"
         }
