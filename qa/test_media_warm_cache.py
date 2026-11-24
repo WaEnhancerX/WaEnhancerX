@@ -33,7 +33,7 @@ import de.robv.android.xposed.*;
 import org.luckypray.dexkit.DexKitBridge;
 
 public final class MediaWarmCacheProbe {
-  public static final String CLASS_KEY="class:waex_process_image_quality_class";
+  public static final String CLASS_KEY="class:waex_process_image_quality_exact_v3";
   public static final String APK="/synthetic-waex-probe/base.apk";
   public static String scenario;
   public static final List<String> violations=new ArrayList<>(), assertions=new ArrayList<>();
@@ -165,10 +165,18 @@ public final class MediaWarmCacheProbe {
     FilePrefs preferences=new FilePrefs(null);
     preferences.edit().putBoolean("imagequality",!scenario.equals("G_fps"))
       .putBoolean("video_maxfps",scenario.equals("G_fps")).putString("module_config_mode","Universal").apply();
+    MediaQualityBypassHook.configurePropertyOverrides(!scenario.equals("G_fps"));
     engine.acquireLease();
     try{
       if(preinitialize)engine.initialize(context);
-      new MediaQualityBypassHook(context,MediaWarmCacheProbe.class.getClassLoader(),preferences).hook();
+      try {
+        new MediaQualityBypassHook(context,MediaWarmCacheProbe.class.getClassLoader(),preferences).hook();
+      } catch(Throwable failure) {
+        boolean expected=(scenario.equals("D_init_fail")||scenario.equals("D2_warm_init_fail"))
+          && failure instanceof IllegalStateException
+          && "Media quality contract unavailable".equals(failure.getMessage());
+        require(expected,"unexpected hook failure "+failure.getClass().getSimpleName());
+      }
     }finally{engine.releaseLease();}
     DexCacheManager.Diagnostics stats=DexCacheManager.getInstance(context).diagnostics();
     if(scenario.startsWith("B_")||scenario.equals("D2_warm_init_fail")){
@@ -189,7 +197,7 @@ public final class MediaWarmCacheProbe {
       require(metadataReads==0,"metadata accessed without available bridge");
       require(XposedBridge.logs.stream().anyMatch(line->line.contains("initialize DexKitBridge")),"initialization failure was not diagnosed");
     }else if(!scenario.equals("G_fps")){
-      require(metadataReads==1,"structured metadata was not read exactly once");
+      require(metadataReads==2,"constructor and stringifier metadata were not read exactly once each");
       if(!scenario.startsWith("B_"))require(classQueries==1,"cold class resolution not executed exactly once");
     }
     if(scenario.equals("G_fps"))exerciseFps(preferences);else exerciseConstructor(scenario,preferences);
@@ -286,9 +294,15 @@ public abstract class BaseFeature {
     "com/waenhancer/xposed/features/customization/PropsOverrideHook.java": '''package com.waenhancer.xposed.features.customization;
 import fixture.MediaWarmCacheProbe;
 public final class PropsOverrideHook {
- public static void setIntegerOverride(int id,boolean enabled,int value){throw MediaWarmCacheProbe.unexpected("unexpected property configuration entry point");}
- public static void setBooleanOverride(int id,boolean enabled,boolean value){throw MediaWarmCacheProbe.unexpected("unexpected property configuration entry point");}
+ public static final java.util.Map<Integer,Integer> INTEGERS=new java.util.HashMap<>();
+ public static final java.util.Map<Integer,Boolean> BOOLEANS=new java.util.HashMap<>();
+ public static void setIntegerOverride(int id,boolean enabled,int value){if(id<=0)throw MediaWarmCacheProbe.unexpected("invalid property ID");if(enabled)INTEGERS.put(id,value);else INTEGERS.remove(id);}
+ public static void setBooleanOverride(int id,boolean enabled,boolean value){if(id<=0)throw MediaWarmCacheProbe.unexpected("invalid property ID");if(enabled)BOOLEANS.put(id,value);else BOOLEANS.remove(id);}
 }
+''',
+    "com/waenhancer/xposed/features/media/MediaHostFingerprint.java": '''package com.waenhancer.xposed.features.media;
+public final class MediaHostFingerprint {public static boolean accepts(android.content.Context c){
+ if(!"com.whatsapp".equals(c.getPackageName()))throw fixture.MediaWarmCacheProbe.unexpected("unexpected fixture host");return true;}}
 ''',
     "de/robv/android/xposed/XC_MethodHook.java": '''package de.robv.android.xposed;
 public abstract class XC_MethodHook {
@@ -328,7 +342,7 @@ public final class XposedBridge {
  }
 }
 ''',
-    "org/luckypray/dexkit/query/enums/StringMatchType.java": '''package org.luckypray.dexkit.query.enums;public enum StringMatchType{StartsWith,Contains}''',
+    "org/luckypray/dexkit/query/enums/StringMatchType.java": '''package org.luckypray.dexkit.query.enums;public enum StringMatchType{StartsWith,Contains,Equals}''',
     "org/luckypray/dexkit/query/matchers/ClassMatcher.java": '''package org.luckypray.dexkit.query.matchers;
 import org.luckypray.dexkit.query.enums.StringMatchType;
 public final class ClassMatcher {public String anchor;public StringMatchType match;
@@ -339,6 +353,8 @@ public final class ClassMatcher {public String anchor;public StringMatchType mat
 import org.luckypray.dexkit.query.enums.StringMatchType;
 public final class MethodMatcher {public String anchor;public StringMatchType match;
  public static MethodMatcher create(){return new MethodMatcher();}
+ public MethodMatcher paramCount(int count){if(count!=0)throw fixture.MediaWarmCacheProbe.unexpected("unexpected parameter count");return this;}
+ public MethodMatcher returnType(Class<?> type){if(type!=boolean.class)throw fixture.MediaWarmCacheProbe.unexpected("unexpected return type");return this;}
  public MethodMatcher addUsingString(String value,StringMatchType mode){anchor=value;match=mode;return this;}}
 ''',
     "org/luckypray/dexkit/query/FindClass.java": '''package org.luckypray.dexkit.query;import org.luckypray.dexkit.query.matchers.ClassMatcher;
@@ -367,14 +383,28 @@ public final class UsingFieldData {private final FieldData field;public UsingFie
 ''',
     "org/luckypray/dexkit/result/MethodData.java": '''package org.luckypray.dexkit.result;
 import java.lang.reflect.*;import java.util.*;import fixture.MediaWarmCacheProbe;
-public final class MethodData {private final Method method;public MethodData(Method value){method=value;}
+public final class MethodData {private final Method method;private final Constructor<?> constructor;
+ public MethodData(Method value){method=value;constructor=null;}
+ public MethodData(Constructor<?> value){method=null;constructor=value;}
+ public boolean isMethod(){return method!=null;}public boolean isConstructor(){return constructor!=null;}
+ public Constructor<?> getConstructorInstance(ClassLoader loader){return constructor;}
+ public List<MethodData> getInvokes(){
+  if(constructor==null)return List.of();
+  if(constructor.getDeclaringClass()!=MediaWarmCacheProbe.Quality.class)throw MediaWarmCacheProbe.unexpected("unexpected constructor invokes");
+  try{return List.of(new MethodData(Object.class.getDeclaredConstructor()));}catch(ReflectiveOperationException failure){throw new AssertionError(failure);}
+ }
+ public List<Integer> getOpCodes(){
+  if(constructor!=null)return List.of(0x70,0x59,0x59,0x59,0x0e);
+  if(method.getDeclaringClass()!=MediaWarmCacheProbe.Quality.class)throw MediaWarmCacheProbe.unexpected("unexpected opcode metadata");
+  return List.of(0x52,0x52,0x52,0x1a,0x71,0x0c,0x1a,0x6e,0x6e,0x1a,0x71,0x0c,0x11);
+ }
  public Method getMethodInstance(ClassLoader loader){return method;}
  public List<String> getUsingStrings(){
   if(method.getDeclaringClass()!=MediaWarmCacheProbe.Quality.class)throw MediaWarmCacheProbe.unexpected("unexpected string metadata");
   return List.of("ProcessImageQuality(maxKb=",", quality=",", maxEdge=");
  }
  public List<UsingFieldData> getUsingFields(){
-  if(method.getDeclaringClass()!=MediaWarmCacheProbe.Quality.class)throw MediaWarmCacheProbe.unexpected("unexpected field metadata");
+  if((method!=null?method.getDeclaringClass():constructor.getDeclaringClass())!=MediaWarmCacheProbe.Quality.class)throw MediaWarmCacheProbe.unexpected("unexpected field metadata");
   try{List<UsingFieldData> fields=new ArrayList<>();for(String name:List.of("maxKb","quality","maxEdge"))
    fields.add(new UsingFieldData(new FieldData(MediaWarmCacheProbe.Quality.class.getField(name))));return fields;
   }catch(ReflectiveOperationException failed){throw new AssertionError(failed);}
@@ -396,14 +426,16 @@ public final class DexKitBridge {
  public void close(){open();closed=true;MediaWarmCacheProbe.closeCalls++;}
  public ResultList<ClassData> findClass(FindClass query){
   open();MediaWarmCacheProbe.classQueries++;
-  if(query.matcher==null||!"ProcessImageQuality(".equals(query.matcher.anchor)||query.matcher.match!=StringMatchType.StartsWith)
+  if(query.matcher==null||!"ProcessImageQuality(maxKb=".equals(query.matcher.anchor)||query.matcher.match!=StringMatchType.StartsWith)
    throw MediaWarmCacheProbe.unexpected("unrecognized class query");
   ResultList<ClassData> result=new ResultList<>();result.add(new ClassData());return result;
  }
  public ResultList<MethodData> findMethod(FindMethod query){
   open();MediaWarmCacheProbe.methodQueries++;ResultList<MethodData> result=new ResultList<>();
-  if(query.matcher==null||query.matcher.match!=StringMatchType.Contains)throw MediaWarmCacheProbe.unexpected("unrecognized method matcher");
+  if(query.matcher==null)throw MediaWarmCacheProbe.unexpected("missing method matcher");
   String anchor=query.matcher.anchor;
+  if("show_media_quality_toggle".equals(anchor)&&query.matcher.match==StringMatchType.Equals)return result;
+  if(query.matcher.match!=StringMatchType.Contains)throw MediaWarmCacheProbe.unexpected("unrecognized method matcher");
   if(!anchor.equals("image/compress quality")&&!anchor.equals("video/encoder fps"))throw MediaWarmCacheProbe.unexpected("unrecognized method anchor");
   if(anchor.equals("video/encoder fps")&&MediaWarmCacheProbe.scenario.equals("G_fps")){
    try{result.add(new MethodData(MediaWarmCacheProbe.Encoder.class.getDeclaredMethod("fps")));}
@@ -416,6 +448,12 @@ public final class DexKitBridge {
   if(Boolean.getBoolean("waex.probe.unexpectedMetadata"))throw MediaWarmCacheProbe.unexpected("injected unexpected metadata boundary call");
   if(method.getDeclaringClass()!=MediaWarmCacheProbe.Quality.class||!method.getName().equals("toString")||method.getParameterCount()!=0)
    throw MediaWarmCacheProbe.unexpected("unrecognized metadata request");return new MethodData(method);
+ }
+ public MethodData getMethodData(Constructor<?> constructor){
+  open();MediaWarmCacheProbe.metadataReads++;
+  if(constructor.getDeclaringClass()!=MediaWarmCacheProbe.Quality.class||constructor.getParameterCount()!=3)
+   throw MediaWarmCacheProbe.unexpected("unrecognized constructor metadata request");
+  return new MethodData(constructor);
  }
 }
 ''',
@@ -442,7 +480,7 @@ def main() -> int:
     parser.add_argument("--java", default=shutil.which("java") or "java")
     parser.add_argument("--preinitialize-control", action="store_true",
                         help="external priming control, NOT a product fix; run B only")
-    parser.add_argument("--negative-control", choices=["swallowed-boundary-error", "forced-disk-cache-miss"],
+    parser.add_argument("--negative-control", choices=["swallowed-boundary-error", "forced-disk-cache-miss", "missing-consumer-initialization"],
                         help="intentional fixture fault; a completed behavioral FAIL is expected")
     args = parser.parse_args()
     if args.preinitialize_control and args.negative_control:
@@ -456,7 +494,8 @@ def main() -> int:
     production_dir = root / "app/src/main/java/com/waenhancer/xposed"
     production = [production_dir / "core/devkit" / filename for filename in (
         "DexSearchEngine.java", "DexCacheManager.java", "DexNegativeLookupCache.java", "HookReturnTypeGuard.java")]
-    production.append(production_dir / "features/media/MediaQualityBypassHook.java")
+    production += [production_dir / "features/media" / name for name in
+                   ("MediaQualityBypassHook.java", "ProcessImageQualityContract.java", "MediaQualitySelectorContract.java")]
     template = root / "qa/test_dex_negative_cache.py"
     identities = {str(p.relative_to(root)): sha256(p) for p in [*production, template]}
     stubs = inherited_stubs(template)
@@ -477,7 +516,7 @@ def main() -> int:
         "source_sha256": identities, "runner_sha256": sha256(Path(__file__)),
         "mode": "EXTERNAL_PREINITIALIZE_CONTROL" if args.preinitialize_control else
                 "NEGATIVE_CONTROL_"+args.negative_control if args.negative_control else "EXPECTED_CORRECT_CONTRACT",
-        "limits": "JVM; actual production hook, engine and both cache classes. Strict Android/DexKit/Xposed fixtures. No native DexKit, APK, ART, codec or UI acceptance. Source/target17 on JDK21 is not Java17 API-surface verification.",
+        "limits": "JVM; actual production hook, structural contracts, engine and both cache classes. Strict Android/DexKit/Xposed fixtures; MediaHostFingerprint admission is an explicit synthetic-host boundary. No native DexKit, APK identity, ART, codec or UI acceptance. Source/target17 on JDK21 is not Java17 API-surface verification.",
         "commands": [], "cases": []}
     report["git_head"] = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"], text=True, capture_output=True, check=True).stdout.strip()
     report["git_status"] = subprocess.run(["git", "-C", str(root), "status", "--short"], text=True, capture_output=True, check=True).stdout
@@ -492,8 +531,20 @@ def main() -> int:
                                    "duration_seconds": round(time.monotonic()-start, 6)})
         return completed
 
+    compile_production = list(production)
+    if args.negative_control == "missing-consumer-initialization":
+        original = production_dir / "features/media/MediaQualityBypassHook.java"
+        text = original.read_text()
+        anchor = "            engine.initialize(context);"
+        if text.count(anchor) != 1:
+            raise ValueError("Current consumer initialization mutation anchor changed")
+        mutated = generated / "com/waenhancer/xposed/features/media/MediaQualityBypassHook.java"
+        mutated.parent.mkdir(parents=True, exist_ok=True)
+        mutated.write_text(text.replace(anchor, "            // Negative control: omit native metadata initialization.", 1))
+        compile_production[compile_production.index(original)] = mutated
+        report["controlled_mutated_input_sha256"] = sha256(mutated)
     compile_command = [args.java, "-m", "jdk.compiler/com.sun.tools.javac.Main", "-source", "17", "-target", "17",
-                       "-d", str(classes), *sources, *map(str, production)]
+                       "-d", str(classes), *sources, *map(str, compile_production)]
     compiled = execute("compile", compile_command)
     if compiled.returncode:
         report["status"] = "BLOCKED"
@@ -503,7 +554,7 @@ def main() -> int:
         return 2
     print("COMPILE_OK production hook + DexSearchEngine + DexCacheManager + DexNegativeLookupCache", flush=True)
     cases = ["A_cold"] if args.negative_control == "swallowed-boundary-error" else ["B_warm_disk"] if (
-        args.preinitialize_control or args.negative_control == "forced-disk-cache-miss") else [
+        args.preinitialize_control or args.negative_control in {"forced-disk-cache-miss", "missing-consumer-initialization"}) else [
         "A_cold", "B_warm_disk", "C_invalid_disk", "D_init_fail", "D2_warm_init_fail",
         "E_disable", "F_constructor_error", "G_fps", "H_null_receiver"]
     fail_count = 0
