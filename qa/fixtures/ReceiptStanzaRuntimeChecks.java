@@ -291,7 +291,11 @@ public final class ReceiptStanzaRuntimeChecks {
         scenario("contact-hide-delivery", () -> {
             CustomPrivacyHook.contacts.put(PERSON, new JSONObject().put("HideReceipt", true));
             expectReadHidden(node(null, PERSON, null, "delivery-id"), "inactive");
+            check(com.waenhancer.xposed.core.db.HideSeenStore.inserts==1,
+                    "hidden delivery must record the message as owing a read receipt");
             expectUntouched(node(null, OTHER, null, "other-id"));
+            check(com.waenhancer.xposed.core.db.HideSeenStore.inserts==1,
+                    "an untouched receipt must not be recorded");
         });
         scenario("contact-exceptions", () -> {
             PREFS.values.put("hide_read_receipts", true);
@@ -309,7 +313,10 @@ public final class ReceiptStanzaRuntimeChecks {
             Object[] args = {new String[]{"allowed-id"}};
             HideReceiptsHook.allowExplicitReceiptIds(PERSON, args);
             try {
+                int sentBefore = com.waenhancer.xposed.core.db.HideSeenStore.sentMarks;
                 expectUntouched(node("read", PERSON, null, "allowed-id"));
+                check(com.waenhancer.xposed.core.db.HideSeenStore.sentMarks == sentBefore + 1,
+                        "an explicitly sent read receipt must be marked sent in the ledger");
                 expectReadHidden(node("read", PERSON, null, "other-id"), null);
                 expectReadHidden(node("read", OTHER, null, "allowed-id"), null);
                 PREFS.values.put("hide_delivery_receipts", true);

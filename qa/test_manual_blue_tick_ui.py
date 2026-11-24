@@ -40,8 +40,11 @@ assert 'getPrivacy().flag("seentick")' in receipts
 privacy_prefs = (src / "xposed/core/privacy/PrivacyPrefs.java").read_text()
 assert 'if (value instanceof Number) return ((Number) value).intValue() != 0;' in privacy_prefs
 assert '!"0".equals(text) && !"false".equalsIgnoreCase(text)' in privacy_prefs
-assert 'if (!isHideBlueTicksEnabled()) return false;' in blue
-assert '"hide_read_receipts"' in blue
+# The button sends receipts withheld by any privacy setting (Ghost Mode, Hide blue ticks,
+# Hide delivered), including older ones from the persistent ledger, so it only needs its own
+# switch. It must never send while a setting still withholds that chat's receipts.
+assert 'return getPrivacy().flag("seentick");' in blue
+assert 'getPrivacy().appliesTo(context, PrivacyToggle.HIDE_DELIVERY, key)) return SEND_BLOCKED;' in blue
 assert 'ConversationRecipientPolicy.resolve(candidates)' in blue
 assert 'extras.keySet()' not in blue
 assert 'extractRemoteJid(' not in blue

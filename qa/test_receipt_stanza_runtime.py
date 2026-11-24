@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 AREA = Path('app/src/main/java/com/waenhancer/xposed/features/privacy')
 PRODUCTION = [
     'HideReceiptsHook.java', 'ReceiptJobExecutionPolicy.java',
-    'PlayedReceiptBatch.java', 'ReceiptJidPolicy.java',
+    'PlayedReceiptBatch.java', 'UnsentReadLedger.java', 'ReceiptJidPolicy.java',
     'BoundedReceiptAllowance.java', 'RecipientReceiptAllowance.java',
     'ExplicitReadReceiptPolicy.java',
 ]
@@ -289,12 +289,12 @@ SHARED_EARLY = [  # needed before BaseFeature.kt is compiled
     CORE / 'xposed/core/privacy/PrivacyToggle.java',
     CORE / 'xposed/core/privacy/PrivacyPrefs.java',
     CORE / 'xposed/core/wa/WaJid.java',
+    CORE / 'xposed/core/wa/WaMessage.java',
+    CORE / 'xposed/core/wa/WaTargets.java',
     CORE / 'config/DndPreferencePolicy.java',
 ]
 SHARED_LATE = [  # compiled with the hook (SafeHooks needs HookRegistrar)
     CORE / 'xposed/core/wa/SafeHooks.java',
-    CORE / 'xposed/core/wa/WaMessage.java',
-    CORE / 'xposed/core/wa/WaTargets.java',
 ]
 
 STUBS['android/content/SharedPreferences.java'] = (
@@ -316,7 +316,8 @@ STUBS['android/util/LruCache.java'] = (
 STUBS['com/waenhancer/utils/ContactNameResolver.java'] = (
     'package com.waenhancer.utils;\n'
     'public final class ContactNameResolver { public static final ContactNameResolver INSTANCE=new ContactNameResolver();\n'
-    ' public String resolveLidToPhone(android.content.Context c,String raw){return null;} }')
+    ' public String resolveLidToPhone(android.content.Context c,String raw){return null;}\n'
+    ' public String resolvePhoneToLid(android.content.Context c,String raw){return null;} }')
 STUBS['com/waenhancer/xposed/bridge/client/PreferenceBridgeClient.java'] = (
     'package com.waenhancer.xposed.bridge.client;\n'
     'public abstract class PreferenceBridgeClient implements android.content.SharedPreferences {}')
@@ -340,7 +341,16 @@ STUBS['com/waenhancer/xposed/features/privacy/CustomPrivacyHook.java'] = STUBS['
     ' public static JSONObject getContactPrivacy(android.content.Context c,SharedPreferences p,String jid){return getContactPrivacy(p,jid);}\n'
     ' public static JSONObject getContactPrivacy(SharedPreferences ignored,')
 STUBS['com/waenhancer/xposed/core/db/HideSeenStore.java'] = STUBS['com/waenhancer/xposed/core/db/HideSeenStore.java'].replace(
-    'public static final int TYPE_READ=0;', 'public static final int TYPE_READ=0, TYPE_PLAYED=1;')
+    'public static final int TYPE_READ=0;', 'public static final int TYPE_READ=0, TYPE_PLAYED=1;').replace(
+    'public void insertHideSeenMessagesAsync(',
+    # Unsent read-receipt ledger: each owed message counts as one recorded insert; sent marks are counted apart.
+    'public static final class PendingRead { public String chat, participant, messageId; public long createdAt; }\n'
+    ' public static int sentMarks;\n'
+    ' public void trackUnsentReadsAsync(String chat,String participant,Iterable<String> ids){for(String id:ids)insertHideSeenMessageAsync(chat,id,TYPE_READ,false);}\n'
+    ' public void setReadsSentAsync(String chat,Iterable<String> ids,boolean sent){if(sent&&ids!=null)for(String id:ids)sentMarks++;}\n'
+    ' public java.util.List<PendingRead> pendingReads(Iterable<String> chats,int limit){return new java.util.ArrayList<>();}\n'
+    ' public void pruneReadsAsync(long owed,long sent){}\n'
+    ' public void insertHideSeenMessagesAsync(')
 assert 'TYPE_PLAYED=1' in STUBS['com/waenhancer/xposed/core/db/HideSeenStore.java']
 for _name in ('org/json/JSONObject.java', 'com/waenhancer/xposed/features/privacy/CustomPrivacyHook.java',
               'com/waenhancer/xposed/core/devkit/DexSearchEngine.java'):
