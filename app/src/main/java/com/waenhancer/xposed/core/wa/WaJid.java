@@ -176,12 +176,16 @@ public final class WaJid {
         Class<?> base = WaTargets.jidClass(context, loader);
         if (base == null) return;
         jidClass = base;
-        // The Jid class (or its Kotlin Companion) exposes a (String) -> Jid parser.
+        // The Jid class, or a helper held in one of its static fields (its Kotlin Companion,
+        // a JID factory), exposes a (String) -> Jid parser. Those helper classes are obfuscated
+        // (e.g. X.0CZ), so match by field and method signature, never by class name.
         List<Object[]> candidates = new ArrayList<>();
         collectFactories(base, null, base, candidates);
         for (Field field : base.getDeclaredFields()) {
-            if (!Modifier.isStatic(field.getModifiers()) || field.getType().isPrimitive()
-                    || field.getType() == base || !field.getType().getName().startsWith(base.getName())) continue;
+            Class<?> type = field.getType();
+            if (!Modifier.isStatic(field.getModifiers()) || type.isPrimitive() || type.isArray()
+                    || type == base || type.getName().startsWith("java.")
+                    || type.getName().startsWith("android.")) continue;
             try {
                 field.setAccessible(true);
                 collectFactories(field.getType(), field.get(null), base, candidates);

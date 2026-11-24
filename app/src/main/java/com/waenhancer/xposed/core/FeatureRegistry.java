@@ -264,8 +264,12 @@ public final class FeatureRegistry {
         registerFeature(BlueOnReplyHook.class, "Privacy",
                 // Reply sending, the manual "Send blue tick" button and manual status seen all live
                 // in this hook; it must be installed when any of them is enabled.
+                // Also whenever read receipts can be withheld, so turning Blue-on-reply or the
+                // button on later works without restarting WhatsApp (both are checked live).
                 () -> privacy.flag("blueonreply") || privacy.flag("seentick")
-                        || privacy.flag("manual_status_seen"),
+                        || privacy.flag("manual_status_seen")
+                        || privacy.anyAvailable(PrivacyToggle.HIDE_READ, PrivacyToggle.HIDE_READ_GROUP,
+                                PrivacyToggle.HIDE_DELIVERY),
                 () -> new BlueOnReplyHook(context, classLoader, prefs));
 
         registerFeature(CallPrivacyHook.class, "Privacy",

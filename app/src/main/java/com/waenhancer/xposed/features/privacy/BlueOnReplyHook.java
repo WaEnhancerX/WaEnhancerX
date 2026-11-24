@@ -110,6 +110,11 @@ public class BlueOnReplyHook extends BaseFeature {
         initializeReadReceiptDispatcher();
         hookMessageSend();
         hookConversationMenu();
+        // Owed receipts from the persistent ledger are rebuilt from stored JIDs. Say once if
+        // that is impossible on this build, instead of silently sending only session receipts.
+        if (sendReadConstructor != null && WaJid.create(context, classLoader, "status@broadcast") == null) {
+            XposedBridge.log(TAG + " Owed read receipts cannot be rebuilt: Jid factory unavailable");
+        }
     }
 
     private void initializeReadReceiptDispatcher() {
