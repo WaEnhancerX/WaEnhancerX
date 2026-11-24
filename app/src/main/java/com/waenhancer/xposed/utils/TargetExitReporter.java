@@ -82,8 +82,7 @@ public final class TargetExitReporter {
             data.putLongArray("exit_pss_kib", java.util.Arrays.copyOf(pss, count));
             data.putLongArray("exit_rss_kib", java.util.Arrays.copyOf(rss, count));
             // Existing unstable provider route: no crash-thread IPC, no retry on ambiguity.
-            HookProviderIpc.call(context,
-                    "report_target_exit_history", target, data);
+            HookProviderIpc.call(context, "report_target_exit_history", target, data);
         }
     }
 }

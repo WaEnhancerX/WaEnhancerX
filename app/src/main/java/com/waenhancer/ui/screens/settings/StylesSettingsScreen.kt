@@ -1,5 +1,6 @@
 package com.waenhancer.ui.screens.settings
 
+import com.waenhancer.theme.ThemeCssValidator
 import com.waenhancer.ui.components.WaexSheetTitle
 
 import com.waenhancer.ui.components.WaexSheetHorizontalMargin
@@ -382,6 +383,8 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
                                             onActivatePro()
                                         } else if (needsTypedEditor) {
                                             typedEditorKey = item.key
+                                        } else if (item.key == "bubble_colors") {
+                                            navController.navigateTo(Screen.BubbleColors)
                                         } else {
                                             val currentVal = settingsState[item.key] ?: false
                                             updatePreference(item.key, !currentVal)
@@ -428,6 +431,19 @@ fun StylesSettingsScreen(targetEpoch: Int = 0) {
                                                 Icon(
                                                     imageVector = WaexIcons.Settings,
                                                     contentDescription = UiText.get(R.string.waex_ui_customize_floating_bottom_bar, "Customize Floating Bottom Bar"),
+                                                    tint = colors.primary,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+                                        if (item.key == "bubble_colors") {
+                                            IconButton(
+                                                onClick = { navController.navigateTo(Screen.BubbleColors) },
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = WaexIcons.Settings,
+                                                    contentDescription = UiText.get(R.string.waex_ui_customize_bubble_colors, "Customize Bubble Colors"),
                                                     tint = colors.primary,
                                                     modifier = Modifier.size(20.dp)
                                                 )
@@ -1365,32 +1381,8 @@ private fun ModifyTimestampTextSheet(
     }
 }
 
-private fun isValidCustomCss(css: String): Boolean {
-    if (css.isBlank()) return true
-    var depth = 0
-    var inComment = false
-    var index = 0
-    while (index < css.length) {
-        if (!inComment && index + 1 < css.length && css[index] == '/' && css[index + 1] == '*') {
-            inComment = true
-            index += 2
-            continue
-        }
-        if (inComment && index + 1 < css.length && css[index] == '*' && css[index + 1] == '/') {
-            inComment = false
-            index += 2
-            continue
-        }
-        if (!inComment) {
-            when (css[index]) {
-                '{' -> depth++
-                '}' -> if (--depth < 0) return false
-            }
-        }
-        index++
-    }
-    return !inComment && depth == 0 && css.contains('{')
-}
+/** Same checks the WhatsApp-side hook applies, so CSS that saves here is never silently dropped there. */
+private fun isValidCustomCss(css: String): Boolean = css.isBlank() || ThemeCssValidator.validate(css).valid
 
 private fun typedStyleSummary(
     key: String,

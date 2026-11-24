@@ -26,6 +26,7 @@ PRODUCTION=[
  PKG/'xposed/bridge/client/HookProviderIpc.java',
  PKG/'xposed/bridge/CallerScopePolicy.java',
  PKG/'xposed/bridge/ProviderDerivedKeyPolicy.java',
+ PKG/'xposed/bridge/ProviderPreferenceScopePolicy.java',
  PKG/'xposed/bridge/PreferenceWriteTypePolicy.java',
  PKG/'xposed/core/devkit/DexSearchEngine.java',
  PKG/'xposed/core/devkit/DexCacheManager.java',

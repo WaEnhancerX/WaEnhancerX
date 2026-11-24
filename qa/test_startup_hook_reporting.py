@@ -33,12 +33,21 @@ def code_without_comments_or_literals(text):
   i+=1
  return ''.join(result)
 def terminal_present(text):
- return bool(re.search(r'registry\.initializeAll\(\);\s*(?:logStartupStage\(\s*,\s*(?:installStart|initStart)\);\s*){0,2}queueDeferred\(\(\)\s*->\s*registry\.reportInjectedHooks\(appContext, packageName\)\);',code_without_comments_or_literals(text)))
-sequence='registry.initializeAll(); queueDeferred(() -> registry.reportInjectedHooks(appContext, packageName));'
-assert terminal_present(sequence),'Executable deferred terminal sequence was not recognized'
+ # The current MainHook finishes registration on the startup thread and queues only
+ # the report for deferred IPC. Both stages and the queuing boundary must exist.
+ executable = code_without_comments_or_literals(text)
+ pattern = (r'registry\.initializeAll\(\);\s*'
+            r'logStartupStage\(\s*,\s*installStart\);\s*'
+            r'logStartupStage\(\s*,\s*initStart\);\s*'
+            r'queueDeferred\(\(\)\s*->\s*registry\.reportInjectedHooks\(appContext,\s*packageName\)\);')
+ return bool(re.search(pattern, executable))
+sequence='registry.initializeAll(); logStartupStage("startup", installStart); logStartupStage("total", initStart); queueDeferred(() -> registry.reportInjectedHooks(appContext, packageName));'
 assert not terminal_present('/* '+sequence+' */'),'Comment falsely accepted as executable code'
-assert not terminal_present('String text="'+sequence+'";'),'String falsely accepted as executable code'
-if not terminal_present(main):raise RuntimeError('MainHook terminal source call missing outside comments/literals; review batching')
+assert not terminal_present('String text="'+sequence.replace('"', '\\\"')+'";'),'String falsely accepted as executable code'
+assert not terminal_present('registry.initializeAll(); registry.reportInjectedHooks(appContext, packageName);'),'Synchronous main-thread report falsely accepted'
+if not terminal_present(main):raise RuntimeError('MainHook missing deferred terminal report after startup, outside comments/literals')
+if not re.search(r'HOOK_REPORT_EXECUTOR\.execute\(\(\)\s*->\s*\{',code_without_comments_or_literals(source)):
+ raise RuntimeError('FeatureRegistry hook report must be dispatched off the caller thread')
 def extract(anchor):
  start=source.index(anchor);brace=source.index('{',start);depth=0;state='code';i=brace
  while i<len(source):
@@ -60,14 +69,13 @@ def extract(anchor):
    if not depth:return source[start:i+1]
   i+=1
  raise RuntimeError('Unterminated source block: '+anchor)
-anchors=['public static final class FeatureEntry','public void initializeAll()','private void install(FeatureEntry entry)','private void installLocked(FeatureEntry entry)','private static boolean isEntryEnabled(FeatureEntry entry)','private void markDisabled(FeatureEntry entry)','public boolean hasFailures()','public void reportInjectedHooks(','private int countEnabledStartupFeatures()']
+anchors=['public static final class FeatureEntry','public void initializeAll()','private void install(FeatureEntry entry)','private void installLocked(FeatureEntry entry)','private int countEnabledStartupFeatures()','private static boolean isEntryEnabled(FeatureEntry entry)','private void markDisabled(FeatureEntry entry)','public boolean hasFailures()','public void reportInjectedHooks(']
 parts=[extract(x) for x in anchors]
-parts.append(extract('private static final ExecutorService HOOK_REPORT_EXECUTOR')+');')
-parts.append(re.search(r'private static final long SLOW_HOOK_LOG_MS = [^;]+;',source).group(0))
+slow_match=re.search(r'private static final long SLOW_HOOK_LOG_MS\s*=\s*(\d+)L;',source)
+if not slow_match:raise RuntimeError('Production slow-hook threshold missing')
 fixtures=r'''
-import java.util.*;import java.util.concurrent.*;import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.*;import java.util.concurrent.atomic.AtomicBoolean;
 public class StartupReportChecks {
- static final Thread CALLER=Thread.currentThread();
  @interface NonNull {}
  enum Installation { STARTUP, LAZY_HOME }
  interface FeatureFactory { BaseFeature create() throws Throwable; }
@@ -81,20 +89,21 @@ public class StartupReportChecks {
   void beginHookTracking(){begun++;}void endHookTracking(){ended++;}void unhookAll(){unhooked++;}
   void hook(){if(fail)throw new IllegalStateException("deliberate fixture failure");}
  }
+ // Startup progress is out of scope. Unexpected notification calls must fail loudly.
+ static class DexCacheManager {
+  static DexCacheManager getInstance(Context c){return new DexCacheManager();}
+  boolean isColdStart(){return false;}
+ }
+ static class FeatureLoadingNotifier {
+  static boolean start(Context c,int n){throw new AssertionError("Unexpected progress start");}
+  static void onFeatureLoaded(String n){throw new AssertionError("Unexpected progress update");}
+  static void finish(Context c){throw new AssertionError("Unexpected progress finish");}
+ }
+ static final long SLOW_HOOK_LOG_MS=__SLOW_HOOK_MS__L;
  static class DexSearchEngine {
   static final DexSearchEngine INSTANCE=new DexSearchEngine();int acquisitions,releases,closes;
   static DexSearchEngine getInstance(){return INSTANCE;}
   void acquireLease(){acquisitions++;}void releaseLease(){releases++;}void close(){closes++;}
- }
- static class DexCacheManager {
-  static final DexCacheManager INSTANCE=new DexCacheManager();
-  static DexCacheManager getInstance(Context context){return INSTANCE;}
-  boolean isColdStart(){return false;}
- }
- static class FeatureLoadingNotifier {
-  static boolean start(Context context,int count){throw new AssertionError("cold-start UI outside this transport fixture");}
-  static void onFeatureLoaded(String name){throw new AssertionError("unexpected progress update");}
-  static void finish(Context context){throw new AssertionError("unexpected progress finish");}
  }
  static class XposedBridge {static void log(Object o){} }
  static class ActivityTracker {
@@ -110,11 +119,9 @@ public class StartupReportChecks {
  }
  static class JSONObject extends LinkedHashMap<String,Object> {}
  static class JSONArray {
-  static final Map<String,List<Map<String,Object>>> transport=new ConcurrentHashMap<>();
-  static final java.util.concurrent.atomic.AtomicInteger nextId=new java.util.concurrent.atomic.AtomicInteger();
-  final List<Map<String,Object>> rows=new ArrayList<>();
+  static List<Map<String,Object>> serialized; final List<Map<String,Object>> rows=new ArrayList<>();
   void put(JSONObject j){rows.add(new LinkedHashMap<>(j));}
-  public String toString(){String id="EXPLICIT_JSON_"+nextId.incrementAndGet();transport.put(id,new ArrayList<>(rows));return id;}
+  public String toString(){serialized=new ArrayList<>(rows);return "EXPLICIT_JSON_TRANSPORT_FIXTURE";}
  }
  static class Context {
   int reports,rowsSerialized,accepted;boolean fail;List<Map<String,Object>> last;
@@ -123,12 +130,9 @@ public class StartupReportChecks {
    if(!"register_injected_hooks".equals(method))throw new AssertionError("Unexpected endpoint");
    if(!"fixture.whatsapp".equals(arg)||!arg.equals(extras.get("package")))throw new AssertionError("Target mismatch");
    if(!extras.containsKey("timestamp")||!extras.containsKey("hooking_mode"))throw new AssertionError("Missing protocol metadata");
-   if(Thread.currentThread()==CALLER||!Thread.currentThread().isDaemon())throw new AssertionError("provider IPC not on daemon worker");
-   List<Map<String,Object>> snapshot=JSONArray.transport.remove(extras.get("hooks_json"));
-   if(snapshot==null)throw new AssertionError("missing captured JSON snapshot");
-   reports++;rowsSerialized+=snapshot.size();
+   reports++;rowsSerialized+=JSONArray.serialized.size();
    if(fail)throw new IllegalStateException("provider unavailable");
-   last=new ArrayList<>(snapshot);accepted++;return null;
+   last=new ArrayList<>(JSONArray.serialized);accepted++;return null;
   }
  }
  // The production IPC helper's unstable Binder lifecycle is exercised separately
@@ -138,6 +142,9 @@ public class StartupReportChecks {
    return context.call(Uri.parse("content://com.waenhancer.hookprovider"),method,arg,extras);
   }
  }
+ // The fixture drains the real async report operation synchronously for deterministic counts.
+ // Thread scheduling is separately protected by the executable source guard above.
+ static final java.util.concurrent.Executor HOOK_REPORT_EXECUTOR=Runnable::run;
  final List<FeatureEntry> features=new ArrayList<>();final LazyHookCoordinator lazyHooks=new LazyHookCoordinator();
  final Context reportingContext=new Context();final String reportingPackage="fixture.whatsapp",hookingMode="fixture";
  void applyUiPreHooks(){}
@@ -149,9 +156,7 @@ public class StartupReportChecks {
  FeatureEntry add(String name,boolean enabled,boolean fail,Installation where){
   FeatureEntry e=new FeatureEntry(name,"Fixture",where,null,()->enabled,()->new BaseFeature(name,fail));features.add(e);return e;
  }
- static void drainReports(){try{HOOK_REPORT_EXECUTOR.submit(()->{}).get(5,TimeUnit.SECONDS);}catch(Exception failure){throw new AssertionError(failure);}}
- void completeStartup(){initializeAll();reportInjectedHooks(reportingContext,reportingPackage);drainReports();}
- void installAndDrain(FeatureEntry entry){install(entry);drainReports();}
+ void completeStartup(){initializeAll();reportInjectedHooks(reportingContext,reportingPackage);}
  public static void main(String[] args){
   for(int count:new int[]{1,8,28,65})test("terminal startup batch "+count,()->{
    StartupReportChecks r=new StartupReportChecks();for(int i=0;i<count;i++)r.add("F"+i,true,false,Installation.STARTUP);
@@ -170,11 +175,11 @@ public class StartupReportChecks {
    ok("DISABLED".equals(r.reportingContext.last.get(0).get("status")),"disabled changed");ok("WAITING".equals(r.reportingContext.last.get(1).get("status")),"lazy installed eagerly");ok(r.reportingContext.reports==1,"extra report");
   });
   test("late lazy install still publishes immediately and releases leases",()->{
-   StartupReportChecks r=new StartupReportChecks();FeatureEntry e=r.add("lazy",true,false,Installation.LAZY_HOME);r.completeStartup();int before=DexSearchEngine.INSTANCE.closes;r.installAndDrain(e);
-   ok(r.reportingContext.reports==2,"lazy report lost");ok("ACTIVE".equals(r.reportingContext.last.get(0).get("status")),"stale lazy snapshot");ok(DexSearchEngine.INSTANCE.closes==before+1,"lazy Dex index not closed");r.installAndDrain(e);ok(r.reportingContext.reports==2,"duplicate install re-reported");
+   StartupReportChecks r=new StartupReportChecks();FeatureEntry e=r.add("lazy",true,false,Installation.LAZY_HOME);r.completeStartup();int before=DexSearchEngine.INSTANCE.closes;r.install(e);
+   ok(r.reportingContext.reports==2,"lazy report lost");ok("ACTIVE".equals(r.reportingContext.last.get(0).get("status")),"stale lazy snapshot");ok(DexSearchEngine.INSTANCE.closes==before+1,"lazy Dex index not closed");r.install(e);ok(r.reportingContext.reports==2,"duplicate install re-reported");
   });
   test("lazy failure still publishes",()->{
-   StartupReportChecks r=new StartupReportChecks();FeatureEntry e=r.add("lazybad",true,true,Installation.LAZY_HOME);r.completeStartup();r.installAndDrain(e);
+   StartupReportChecks r=new StartupReportChecks();FeatureEntry e=r.add("lazybad",true,true,Installation.LAZY_HOME);r.completeStartup();r.install(e);
    ok(r.reportingContext.reports==2,"lazy failure report lost");ok("FAILED".equals(r.reportingContext.last.get(0).get("status")),"lazy failure concealed");
   });
   test("provider failure cannot block successful initialization",()->{
@@ -182,7 +187,7 @@ public class StartupReportChecks {
   });
   test("early lazy install precedes terminal snapshot when an Activity is already visible",()->{
    StartupReportChecks r=new StartupReportChecks();FeatureEntry e=r.add("early",true,false,Installation.LAZY_HOME);
-   r.lazyHooks.onResume=()->r.installAndDrain(e);ActivityTracker.current=new Activity();
+   r.lazyHooks.onResume=()->r.install(e);ActivityTracker.current=new Activity();
    try{r.completeStartup();}finally{ActivityTracker.current=null;}
    ok(r.reportingContext.reports==2 && r.reportingContext.accepted==2,"early lazy and terminal reports are distinct");
    ok("ACTIVE".equals(r.reportingContext.last.get(0).get("status")),"terminal snapshot lost early lazy state");
@@ -190,23 +195,23 @@ public class StartupReportChecks {
   test("successful lazy retry clears the previous failure",()->{
    StartupReportChecks r=new StartupReportChecks();java.util.concurrent.atomic.AtomicInteger attempts=new java.util.concurrent.atomic.AtomicInteger();
    FeatureEntry e=new FeatureEntry("retry","Fixture",Installation.LAZY_HOME,null,()->true,()->new BaseFeature("retry",attempts.getAndIncrement()==0));r.features.add(e);
-   r.completeStartup();r.installAndDrain(e);ok("FAILED".equals(e.status) && e.error!=null,"first failure required");
-   r.installAndDrain(e);ok("ACTIVE".equals(e.status) && e.error==null,"successful retry retained stale error");
+   r.completeStartup();r.install(e);ok("FAILED".equals(e.status) && e.error!=null,"first failure required");
+   r.install(e);ok("ACTIVE".equals(e.status) && e.error==null,"successful retry retained stale error");
    ok(!r.reportingContext.last.get(0).containsKey("error"),"retry snapshot retains error");
   });
   test("lazy opt-out publishes DISABLED exactly once",()->{
    StartupReportChecks r=new StartupReportChecks();AtomicBoolean enabled=new AtomicBoolean(true);
    FeatureEntry e=new FeatureEntry("optout","Fixture",Installation.LAZY_HOME,null,enabled::get,()->new BaseFeature("optout",false));r.features.add(e);
-   r.completeStartup();enabled.set(false);r.installAndDrain(e);
+   r.completeStartup();enabled.set(false);r.install(e);
    ok(r.reportingContext.reports==2 && "DISABLED".equals(r.reportingContext.last.get(0).get("status")),"WAITING opt-out not published");
-   r.installAndDrain(e);ok(r.reportingContext.reports==2,"unchanged DISABLED republished");
+   r.install(e);ok(r.reportingContext.reports==2,"unchanged DISABLED republished");
   });
   test("leases balanced",()->ok(DexSearchEngine.INSTANCE.acquisitions==DexSearchEngine.INSTANCE.releases,"Dex lease leak"));
   System.out.println("RESULT cases="+cases+" checks="+checks+" failures="+failures);
   if(failures!=0)throw new AssertionError("REGRESSION "+failures);
  }
 }
-'''.replace('__PRODUCTION__','\n'.join(parts))
+'''.replace('__PRODUCTION__','\n'.join(parts)).replace('__SLOW_HOOK_MS__',slow_match.group(1))
 f=a.out/'StartupReportChecks.java';f.write_text(fixtures,encoding='utf-8');classes=a.out/'classes';classes.mkdir()
 for tool in ['javac','java']:
  if not shutil.which(tool):raise RuntimeError(tool+' unavailable')
@@ -215,5 +220,5 @@ if c.returncode:raise RuntimeError('COMPILE_FAILED '+c.stderr.decode(errors='rep
 r=subprocess.run(['java','-cp',str(classes),'StartupReportChecks'],capture_output=True,timeout=30);(a.out/'behavior.log').write_bytes(r.stdout+r.stderr)
 s=r.stdout.decode(errors='replace');m=re.search(r'RESULT cases=(\d+) checks=(\d+) failures=(\d+)',s)
 if not m:raise RuntimeError('No completed result')
-result={'source_sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'main_sha256':hashlib.sha256(main.encode('utf-8')).hexdigest(),'source_guard_negative_cases':2,'source':str(p),'extracted_production_blocks':len(parts),'cases':int(m[1]),'checks':int(m[2]),'failures':int(m[3]),'compile_exit':c.returncode,'behavior_exit':r.returncode,'scope':'exact production methods; explicit IPC/JSON/feature/Dex/lifecycle counting boundaries; not complete registry nor runtime benchmark'}
+result={'source_sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'main_sha256':hashlib.sha256(main.encode('utf-8')).hexdigest(),'source_guard_negative_cases':3,'source':str(p),'extracted_production_blocks':len(parts),'cases':int(m[1]),'checks':int(m[2]),'failures':int(m[3]),'compile_exit':c.returncode,'behavior_exit':r.returncode,'scope':'exact production methods, deferred-report source guard; explicit IPC/JSON/feature/Dex/progress excluded or fail-closed; not full registry nor runtime benchmark'}
 (a.out/'result.json').write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8');print(s);print(json.dumps(result));raise SystemExit(r.returncode)

@@ -35,7 +35,8 @@ VARIANTS = [
      'candidate != null && (latest == null', 'candidate != null && candidate.known && (latest == null',
      'deniedAliasMasksAnOlderCanonicalObservation'),
     ('no-dot-child-attachment', qa.RENDERER,
-     'targetGroup.addView(dot, params)', 'Unit // Fault: omit normal child attachment',
+     'targetGroup.addView(\n                    dot,\n                    FrameLayout.LayoutParams(size, size, Gravity.TOP or Gravity.LEFT)\n                )'.replace('\n', '\n'),
+     'Unit // Fault: omit normal child attachment',
      'exactCachedOnlineMeasuresVisibleDot'),
     ('ignore-cached-alias', qa.RENDERER,
      'PresenceStateStore.getLatest(keys)', 'PresenceStateStore.get(jid)',
@@ -117,6 +118,10 @@ def main():
                 relative = Path('app/src/main/java/com/waenhancer/utils')/name_java
                 (candidate/relative).parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(root/relative, candidate/relative)
+            # The candidate and every mutant compile the actual resource-ID resolver.
+            host_ids = Path('app/src/main/java/com/waenhancer/xposed/utils/HostResourceIds.java')
+            (candidate/host_ids).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(root/host_ids, candidate/host_ids)
             # Same extraction, compiler, framework and expectations as positive.
             # baseline=True requests behavioral rejection, not a reduced fixture.
             result = qa.execute(candidate, folder, deps, True, host_resources, runtime_jars,

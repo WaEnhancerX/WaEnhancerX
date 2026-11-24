@@ -11,10 +11,8 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 BRIDGE = ROOT / 'app/src/main/java/com/waenhancer/xposed/bridge/client/PreferenceBridgeClient.java'
-PRODUCTION_DEPENDENCIES = [
-    ROOT / 'app/src/main/java/com/waenhancer/config/PreferenceSchema.java',
-    ROOT / 'app/src/main/java/com/waenhancer/xposed/utils/HookErrors.java',
-]
+SCHEMA = ROOT / 'app/src/main/java/com/waenhancer/config/PreferenceSchema.java'
+HOOK_ERRORS = ROOT / 'app/src/main/java/com/waenhancer/xposed/utils/HookErrors.java'
 STUBS = {
     'androidx/annotation/NonNull.java': 'package androidx.annotation; public @interface NonNull {}',
     'androidx/annotation/Nullable.java': 'package androidx.annotation; public @interface Nullable {}',
@@ -131,11 +129,13 @@ STUBS = {
         import android.os.Bundle;
         import android.database.ContentObserver;
         import com.waenhancer.xposed.bridge.client.PreferenceBridgeClient;
+        import com.waenhancer.config.PreferenceSchema;
         import java.util.*;
         import java.util.concurrent.atomic.AtomicInteger;
         public final class BridgeContract {
             static class Resolver extends ContentResolver {
                 volatile boolean available = true;
+                String targetPackage = "com.whatsapp";
                 final Map<String,Object> db = Collections.synchronizedMap(new HashMap<>());
                 final List<ContentObserver> observers = new ArrayList<>();
                 final AtomicInteger batchCount = new AtomicInteger();
@@ -145,7 +145,26 @@ STUBS = {
                     if ("get_all_preferences".equals(method)) {
                         Bundle result = new Bundle(), values = new Bundle(), sets = new Bundle();
                         synchronized (db) {
-                            for (Map.Entry<String,Object> entry : db.entrySet()) {
+                            // Model the provider's caller-resolved, namespace-filtered wire
+                            // contract. The separate resolved-snapshot suite compiles the real
+                            // provider resolution and serialization rather than this double.
+                            Map<String,Object> snapshot = new HashMap<>(db);
+                            if ("Per Target App".equals(db.get("module_config_mode"))) {
+                                String prefix = targetPackage + ":";
+                                for (var entry : db.entrySet()) {
+                                    String key = entry.getKey();
+                                    if (key.startsWith(prefix) && !PreferenceSchema.isGlobalOnly(key.substring(prefix.length())))
+                                        snapshot.put(key.substring(prefix.length()), entry.getValue());
+                                }
+                                snapshot.put("need_restart", Boolean.TRUE.equals(db.get(prefix + "need_restart")));
+                                Object pending = db.get(prefix + "pending_restart_changes");
+                                if (pending instanceof Set<?>) snapshot.put("pending_restart_changes", pending);
+                                else snapshot.remove("pending_restart_changes");
+                            }
+                            snapshot.keySet().removeIf(key -> key.indexOf(':') > 0
+                                && Set.of("com.whatsapp", "com.whatsapp.w4b", "com.whatsapp.clone")
+                                    .contains(key.substring(0, key.indexOf(':'))));
+                            for (Map.Entry<String,Object> entry : snapshot.entrySet()) {
                                 String key = entry.getKey();
                                 Object val = entry.getValue();
                                 if (val instanceof String v) values.putString(key, v);
@@ -185,14 +204,14 @@ STUBS = {
                         for (ContentObserver observer : observers) observer.onChange(false);
                         Bundle result = new Bundle(); result.putBoolean("success", true); return result;
                     }
-                    return null;
+                    throw new AssertionError("Unexpected fake provider method: " + method);
                 }
             }
             static class Ctx extends Context {
                 final Resolver resolver = new Resolver();
                 final String targetPackage;
                 Ctx() { this("com.whatsapp"); }
-                Ctx(String targetPackage) { this.targetPackage = targetPackage; }
+                Ctx(String targetPackage) { this.targetPackage = targetPackage; resolver.targetPackage = targetPackage; }
                 @Override public ContentResolver getContentResolver() { return resolver; }
                 @Override public String getPackageName() { return targetPackage; }
             }
@@ -214,8 +233,6 @@ STUBS = {
                 check(prefs.getInt("int_as_string", 0)==42, "numeric compatibility");
                 prefs.getStringSet("choices", null).clear();
                 check(prefs.getStringSet("choices", null).size()==2, "defensive string sets");
-                // SharedPreferences#getAll must expose a read-only snapshot; caller writes
-                // may neither change the source cache nor mutate the returned view.
                 try {
                     prefs.getAll().clear();
                     throw new AssertionError("getAll exposed a mutable external snapshot");
@@ -293,5 +310,5 @@ with tempfile.TemporaryDirectory(prefix='waex_test_') as path:
         dest.write_text(content, encoding='utf-8')
     dest_classes = out / 'classes'
     dest_classes.mkdir()
-    subprocess.run(['javac', '-Xlint:unchecked', '-d', str(dest_classes), *map(str, out.rglob('*.java')), str(BRIDGE), *map(str, PRODUCTION_DEPENDENCIES)], check=True)
+    subprocess.run(['javac', '-Xlint:unchecked', '-d', str(dest_classes), *map(str, out.rglob('*.java')), str(BRIDGE), str(SCHEMA), str(HOOK_ERRORS)], check=True)
     subprocess.run(['java', '-cp', str(dest_classes), 'test.BridgeContract'], check=True)

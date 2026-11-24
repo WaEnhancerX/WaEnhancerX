@@ -139,7 +139,7 @@ class OnlinePresenceIndicatorsHook(
             // through a compiler-generated bridge or a static trampoline, so only the shape matters.
             fun usable(method: Method) = !Modifier.isAbstract(method.modifiers) &&
                 !Modifier.isNative(method.modifiers) &&
-                method.returnType == Void.TYPE && method.parameterCount >= 2
+                method.returnType == Void.TYPE && method.parameterTypes.size >= 2
             fun query(prefix: String) = bridge.findMethod(
                 FindMethod.create().matcher(
                     MethodMatcher.create().addUsingString(prefix, StringMatchType.StartsWith)
@@ -322,6 +322,17 @@ class OnlinePresenceIndicatorsHook(
                 targetGroup.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
                     targetGroup.findViewById<View>(ID_DOT)?.let { placeDotOnAvatarRim(targetGroup, it) }
                 }
+                // A host row can retain identical container bounds while its photo
+                // child is measured later. Observe the child as well as the parent.
+                val photoId = HostResourceIds.id(targetGroup.context, "contact_photo")
+                if (photoId != 0) {
+                    targetGroup.findViewById<View>(photoId)?.addOnLayoutChangeListener {
+                        _, _, _, _, _, _, _, _, _ ->
+                        targetGroup.findViewById<View>(ID_DOT)?.let {
+                            placeDotOnAvatarRim(targetGroup, it)
+                        }
+                    }
+                }
                 placeDotOnAvatarRim(targetGroup, dot)
             } else {
                 targetGroup.addView(dot, ViewGroup.LayoutParams(size, size))
@@ -339,7 +350,21 @@ class OnlinePresenceIndicatorsHook(
         val photoId = HostResourceIds.id(group.context, "contact_photo")
         val photo = if (photoId != 0) group.findViewById<View>(photoId) else null
         val params = dot.layoutParams as? FrameLayout.LayoutParams ?: return
-        if (photo == null || photo.width <= 0 || photo.height <= 0) return
+        // Keep the older, measured bottom-end placement when this host layout
+        // exposes an avatar container but no separate (or measured) photo view.
+        // The layout listener retries the precise rim placement after measurement.
+        if (photo == null || photo.width <= 0 || photo.height <= 0) {
+            val inset = dp(4)
+            if (params.gravity == (Gravity.BOTTOM or Gravity.END) &&
+                params.marginEnd == inset && params.bottomMargin == inset) return
+            params.gravity = Gravity.BOTTOM or Gravity.END
+            params.leftMargin = 0
+            params.topMargin = 0
+            params.marginEnd = inset
+            params.bottomMargin = inset
+            dot.layoutParams = params
+            return
+        }
         val bounds = Rect(0, 0, photo.width, photo.height)
         try {
             group.offsetDescendantRectToMyCoords(photo, bounds)
@@ -352,13 +377,18 @@ class OnlinePresenceIndicatorsHook(
         val left = (bounds.exactCenterX() + rim - size / 2f).toInt()
         val top = (bounds.exactCenterY() + rim - size / 2f).toInt()
         if (params.width == size && params.height == size &&
-            params.leftMargin == left && params.topMargin == top) return
-        params.width = size
-        params.height = size
-        params.leftMargin = left
-        params.topMargin = top
-        params.gravity = Gravity.TOP or Gravity.LEFT
-        dot.layoutParams = params
+            params.leftMargin == left && params.topMargin == top &&
+            params.gravity == (Gravity.TOP or Gravity.LEFT) &&
+            !params.isMarginRelative()) return
+        // Android re-resolves start/end margins over absolute left/right margins.
+        // A prior BOTTOM|END fallback leaves relative margin flags set even after
+        // marginEnd=0. Use fresh absolute params when the photo becomes measured.
+        dot.layoutParams = FrameLayout.LayoutParams(
+            size, size, Gravity.TOP or Gravity.LEFT
+        ).apply {
+            leftMargin = left
+            topMargin = top
+        }
     }
 
     private fun ensureTextView(row: View): TextView? {
@@ -495,7 +525,7 @@ class OnlinePresenceIndicatorsHook(
         val methods = stringMembers.getOrPut(type) {
             try {
                 type.methods.filter {
-                    it.parameterCount == 0 && it.returnType == String::class.java &&
+                    it.parameterTypes.size == 0 && it.returnType == String::class.java &&
                         !Modifier.isStatic(it.modifiers) && it.declaringClass != Any::class.java
                 }
             } catch (_: Throwable) { emptyList() }
@@ -548,7 +578,7 @@ class OnlinePresenceIndicatorsHook(
         val accessors = accessorCache.getOrPut(type) {
             try {
                 type.methods.filter {
-                    it.parameterCount == 0 && !Modifier.isStatic(it.modifiers) &&
+                    it.parameterTypes.size == 0 && !Modifier.isStatic(it.modifiers) &&
                         jidType.isAssignableFrom(it.returnType)
                 }
             } catch (_: Throwable) { emptyList() }
@@ -577,7 +607,7 @@ class OnlinePresenceIndicatorsHook(
         val accessors = accessorCache.getOrPut(value.javaClass) {
             try {
                 value.javaClass.methods.filter {
-                    it.parameterCount == 0 && !Modifier.isStatic(it.modifiers) &&
+                    it.parameterTypes.size == 0 && !Modifier.isStatic(it.modifiers) &&
                         jidType.isAssignableFrom(it.returnType)
                 }
             } catch (_: Throwable) { emptyList() }
