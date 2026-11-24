@@ -4,24 +4,19 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
-import com.waenhancer.xposed.core.devkit.DexSearchEngine;
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
-import org.luckypray.dexkit.query.FindMethod;
-import org.luckypray.dexkit.query.enums.StringMatchType;
-import org.luckypray.dexkit.query.matchers.MethodMatcher;
-import org.luckypray.dexkit.result.MethodData;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
+import com.waenhancer.xposed.core.privacy.PrivacyToggle;
+import com.waenhancer.xposed.core.wa.SafeHooks;
+import com.waenhancer.xposed.core.wa.WaTargets;
 
 /**
- * Freeze Last Seen & Hide Online Status Hook:
- * Intercepts PresenceStateManager setAvailable state transitions and outgoing presence jobs
- * so the user does not broadcast active/online presence to WhatsApp servers or contacts.
+ * Freeze Last Seen: skips PresenceStateManager.setAvailable, so WhatsApp never announces that
+ * the user came online and the last-seen timestamp stays where it was.
+ *
+ * One hook on one void method anchored by WhatsApp's own log string
+ * ("presencestatemanager/setAvailable/new-state", unchanged since 2024). The switch is read
+ * live, so Freeze / Ghost Mode quick actions apply without a restart.
  */
 public class FreezeLastSeenHook extends BaseFeature {
-
-    private static final String TAG = "[WAEX][FreezeLastSeen]";
 
     public FreezeLastSeenHook(@NonNull Context context, @NonNull ClassLoader classLoader, @NonNull SharedPreferences prefs) {
         super(context, classLoader, prefs);
@@ -29,84 +24,13 @@ public class FreezeLastSeenHook extends BaseFeature {
 
     @Override
     public void hook() throws Throwable {
-        hookPresenceSetAvailable();
-        hookSendPresenceJob();
-    }
-
-    private void hookPresenceSetAvailable() {
-        try {
-            Method setAvailableMethod = DexSearchEngine.getInstance().findMethodWithCache(
-                    context,
-                    classLoader,
-                    "waex_presence_set_available",
-                    (bridge, loader) -> {
-                        MethodData data = bridge.findMethod(FindMethod.create()
-                                .matcher(MethodMatcher.create()
-                                        .addUsingString("presencestatemanager/setAvailable/new-state", StringMatchType.Contains)
-                                )
-                        ).firstOrNull();
-                        return data != null ? data.getMethodInstance(loader) : null;
-                    }
-            );
-
-            if (setAvailableMethod != null) {
-                XposedBridge.hookMethod(setAvailableMethod, new XC_MethodHook() {
-                    @Override
-                    protected void beforeHookedMethod(MethodHookParam param) {
-                        if (isPresenceSuppressed()) {
-                            param.setResult(null); // Suppress transition to available/online
-                        }
-                    }
-                });
-            }
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + " Error hooking PresenceStateManager.setAvailable: " + t.getMessage());
-        }
-    }
-
-    private void hookSendPresenceJob() {
-        try {
-            Method sendJobMethod = DexSearchEngine.getInstance().findMethodWithCache(
-                    context,
-                    classLoader,
-                    "waex_freeze_last_seen_job",
-                    (bridge, loader) -> {
-                        MethodData data = bridge.findMethod(FindMethod.create()
-                                .matcher(MethodMatcher.create()
-                                        .modifiers(Modifier.PUBLIC)
-                                        .returnType(void.class)
-                                        .addUsingString("SendPresenceJob", StringMatchType.Contains)
-                                )
-                        ).firstOrNull();
-                        return data != null ? data.getMethodInstance(loader) : null;
-                    }
-            );
-
-            if (sendJobMethod != null) {
-                XposedBridge.hookMethod(sendJobMethod, new XC_MethodHook() {
-                    @Override
-                    protected void beforeHookedMethod(MethodHookParam param) {
-                        if (isPresenceSuppressed()) {
-                            param.setResult(null); // Prevent outgoing presence timestamp ping
-                        }
-                    }
-                });
-            }
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + " Error hooking SendPresenceJob: " + t.getMessage());
-        }
-    }
-
-    private boolean isPresenceSuppressed() {
-        return isEnabled("freeze_last_seen", false)
-                || isEnabled("freeze_last_seen_active", false)
-                || isEnabled("ghostmode_active", false)
-                || isEnabled("online_status_indicator", false);
+        SafeHooks.skipWhile(WaTargets.presenceSetAvailable(context, classLoader),
+                () -> getPrivacy().isOn(PrivacyToggle.FREEZE_LAST_SEEN));
     }
 
     @NonNull
     @Override
     public String getName() {
-        return "Freeze Last Seen & Hide Online";
+        return "Freeze Last Seen";
     }
 }

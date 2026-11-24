@@ -28,12 +28,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -153,6 +155,7 @@ import com.waenhancer.ui.screens.settings.CallRecordingSettingsScreen
 import com.waenhancer.ui.screens.settings.FilterItemsScreen
 import com.waenhancer.ui.screens.settings.FloatingBottomBarCustomizerScreen
 import com.waenhancer.ui.screens.settings.NativeFloatingNavigationScreen
+import com.waenhancer.ui.screens.settings.BubbleColorsScreen
 import com.waenhancer.ui.screens.settings.StylesSettingsScreen
 import com.waenhancer.update.UpdateCheckCoordinator
 import com.waenhancer.utils.ContactNameResolver
@@ -524,7 +527,7 @@ fun MainContainerScreen() {
                                             .size(42.dp)
                                             .clip(RoundedCornerShape(10.dp))
                                     )
-                                    Column {
+                                    Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = "WaEnhancerX",
                                             style = typography.titleMd,
@@ -532,15 +535,18 @@ fun MainContainerScreen() {
                                             color = colors.onSurface
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "v${BuildConfig.VERSION_NAME}",
+                                            style = typography.bodySm,
+                                            color = colors.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Spacer(modifier = Modifier.height(6.dp))
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            Text(
-                                                text = "v${BuildConfig.VERSION_NAME}",
-                                                style = typography.bodySm,
-                                                color = colors.onSurfaceVariant
-                                            )
                                             ReleaseKindChip(versionName = BuildConfig.VERSION_NAME)
 
                                             // License Plan Chip inside Drawer Header
@@ -577,7 +583,9 @@ fun MainContainerScreen() {
                                                     style = typography.labelSm,
                                                     fontWeight = FontWeight.SemiBold,
                                                     color = chipText,
-                                                    fontSize = 10.sp
+                                                    fontSize = 10.sp,
+                                                    maxLines = 1,
+                                                    softWrap = false
                                                 )
                                             }
                                         }
@@ -914,9 +922,9 @@ fun MainContainerScreen() {
                         color = colors.surface,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(72.dp)
+                            .heightIn(min = 72.dp)
                     ) {
-                        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                             val totalWidth = maxWidth
                             val columnWidth = totalWidth / 5
                             // Match the indicator to the 40.dp icon slot rather than the
@@ -946,7 +954,10 @@ fun MainContainerScreen() {
                             )
 
                             Row(
-                                modifier = Modifier.fillMaxSize(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 72.dp)
+                                    .height(IntrinsicSize.Min),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceAround
                             ) {
@@ -977,6 +988,7 @@ fun MainContainerScreen() {
                                                     pagerState.animateScrollToPage(pageIndex)
                                                 }
                                             }
+                                            .padding(horizontal = 4.dp, vertical = 6.dp)
                                     ) {
                                         Box(
                                             modifier = Modifier.size(width = 64.dp, height = 32.dp),
@@ -1096,23 +1108,10 @@ fun MainContainerScreen() {
                                         contactPrivacyList.clear()
                                     },
                                     onUpdateContact = { updated ->
-                                        val idx = contactPrivacyList.indexOfFirst { it.id == updated.id }
-                                        if (idx >= 0) contactPrivacyList[idx] = updated
                                         try {
-                                            val json = JSONObject().apply {
-                                                put("name", updated.name)
-                                                put("HideSeen", updated.hideSeen)
-                                                put("HideTyping", updated.hideTyping)
-                                                put("HideRecording", updated.hideRecording)
-                                                put("AntiRevoke", updated.antiRevoke)
-                                                put("FreezeLastSeen", updated.freezeLastSeen)
-                                                put("BlockCall", updated.freezeLastSeen)
-                                                put("scope", updated.scope)
-                                            }
-                                            val jsonStr = json.toString()
-                                            preferenceManager.putString("${updated.id}_privacy", jsonStr)
-                                            preferenceManager.putString("${updated.jid}_privacy", jsonStr)
-                                            preferenceManager.putString("per_contact_rules_${updated.jid}", jsonStr)
+                                            saveContactPrivacy(preferenceManager, updated)
+                                            val idx = contactPrivacyList.indexOfFirst { it.id == updated.id }
+                                            if (idx >= 0) contactPrivacyList[idx] = updated
                                         } catch (_: Throwable) {}
                                     }
                                 )
@@ -1143,23 +1142,10 @@ fun MainContainerScreen() {
                                 contactPrivacyList.clear()
                             },
                             onUpdateContact = { updated ->
-                                val idx = contactPrivacyList.indexOfFirst { it.id == updated.id }
-                                if (idx >= 0) contactPrivacyList[idx] = updated
                                 try {
-                                    val json = JSONObject().apply {
-                                        put("name", updated.name)
-                                        put("HideSeen", updated.hideSeen)
-                                        put("HideTyping", updated.hideTyping)
-                                        put("HideRecording", updated.hideRecording)
-                                        put("AntiRevoke", updated.antiRevoke)
-                                        put("FreezeLastSeen", updated.freezeLastSeen)
-                                        put("BlockCall", updated.freezeLastSeen)
-                                        put("scope", updated.scope)
-                                    }
-                                    val jsonStr = json.toString()
-                                    preferenceManager.putString("${updated.id}_privacy", jsonStr)
-                                    preferenceManager.putString("${updated.jid}_privacy", jsonStr)
-                                    preferenceManager.putString("per_contact_rules_${updated.jid}", jsonStr)
+                                    saveContactPrivacy(preferenceManager, updated)
+                                    val idx = contactPrivacyList.indexOfFirst { it.id == updated.id }
+                                    if (idx >= 0) contactPrivacyList[idx] = updated
                                 } catch (_: Throwable) {}
                             }
                         )
@@ -1352,6 +1338,7 @@ fun WaexAppNavigation(
         Screen.ManageDevices -> ManageDevicesScreen()
         Screen.FloatingBottomBarCustomizer -> FloatingBottomBarCustomizerScreen()
         Screen.NativeFloatingNavigation -> NativeFloatingNavigationScreen()
+        Screen.BubbleColors -> BubbleColorsScreen()
         Screen.FilterItems -> FilterItemsScreen()
         Screen.CustomAbProps -> CustomAbPropsScreen(
             prefs = preferenceManager,
@@ -1384,6 +1371,30 @@ data class ContactPrivacy(
     val endHour: Int = 18
 )
 
+/** Update only the controls owned by the manager's per-contact editor. */
+private fun saveContactPrivacy(preferenceManager: WaexPreferenceManager, updated: ContactPrivacy) {
+    // Match CustomPrivacyHook's existing first-non-null precedence. Read at save
+    // time so a call/status rule changed after opening this editor is preserved.
+    // A malformed authoritative document must fail before any preference write.
+    val currentRules = preferenceManager.getString("${updated.id}_privacy", null)
+        ?: preferenceManager.getString("${updated.jid}_privacy", null)
+        ?: preferenceManager.getString("per_contact_rules_${updated.jid}", null)
+    val json = if (currentRules == null) org.json.JSONObject() else org.json.JSONObject(currentRules)
+    if (!json.has("name")) json.put("name", updated.name)
+    json.put("HideSeen", updated.hideSeen)
+    json.put("HideTyping", updated.hideTyping)
+    json.put("HideRecording", updated.hideRecording)
+    json.put("AntiRevoke", updated.antiRevoke)
+    // This legacy field is independent of BlockCall. The public hooks currently
+    // consume only the global freeze-last-seen preferences.
+    json.put("FreezeLastSeen", updated.freezeLastSeen)
+    json.put("scope", updated.scope)
+    val jsonStr = json.toString()
+    preferenceManager.putString("${updated.id}_privacy", jsonStr)
+    preferenceManager.putString("${updated.jid}_privacy", jsonStr)
+    preferenceManager.putString("per_contact_rules_${updated.jid}", jsonStr)
+}
+
 fun loadContactPrivacyList(context: Context, preferenceManager: WaexPreferenceManager): List<ContactPrivacy> {
     val list = mutableListOf<ContactPrivacy>()
     val all = preferenceManager.all ?: return list
@@ -1414,7 +1425,7 @@ fun loadContactPrivacyList(context: Context, preferenceManager: WaexPreferenceMa
                         hideTyping = json.optBoolean("HideTyping", false),
                         hideRecording = json.optBoolean("HideRecording", false),
                         antiRevoke = json.optBoolean("AntiRevoke", false),
-                        freezeLastSeen = json.optBoolean("FreezeLastSeen", false) || json.optBoolean("BlockCall", false),
+                        freezeLastSeen = json.optBoolean("FreezeLastSeen", false),
                         scope = json.optString("scope", "always")
                     )
                 )

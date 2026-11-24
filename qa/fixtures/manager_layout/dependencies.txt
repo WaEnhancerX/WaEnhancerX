@@ -1,0 +1,56 @@
+import org.gradle.api.attributes.Attribute
+import org.gradle.api.attributes.AttributeCompatibilityRule
+import org.gradle.api.attributes.CompatibilityCheckDetails
+import org.gradle.api.attributes.Usage
+import org.gradle.api.attributes.Category
+import org.gradle.api.attributes.java.TargetJvmEnvironment
+
+plugins { id 'java-library' }
+
+repositories { google(); mavenCentral() }
+abstract class AndroidJvmPlatformCompatibility implements AttributeCompatibilityRule<String> {
+    void execute(CompatibilityCheckDetails<String> details) {
+        if (details.consumerValue == 'androidJvm' && details.producerValue == 'jvm') details.compatible()
+    }
+}
+def kotlinPlatform = Attribute.of('org.jetbrains.kotlin.platform.type', String)
+configurations { qaRuntime {
+    canBeConsumed = false
+    canBeResolved = true
+    attributes {
+        attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_RUNTIME))
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category, Category.LIBRARY))
+        attribute(kotlinPlatform, 'androidJvm')
+        attribute(TargetJvmEnvironment.TARGET_JVM_ENVIRONMENT_ATTRIBUTE, objects.named(TargetJvmEnvironment, TargetJvmEnvironment.ANDROID))
+    }
+} }
+dependencies {
+    attributesSchema.attribute(kotlinPlatform) { compatibilityRules.add(AndroidJvmPlatformCompatibility) }
+    qaRuntime platform('androidx.compose:compose-bom:@BOM@')
+    qaRuntime 'androidx.compose.material3:material3'
+    qaRuntime 'androidx.compose.foundation:foundation'
+    qaRuntime 'androidx.compose.ui:ui'
+    qaRuntime 'androidx.compose.ui:ui-text'
+    qaRuntime 'androidx.compose.animation:animation'
+    qaRuntime 'androidx.compose.material:material-icons-core'
+    qaRuntime 'androidx.compose.material:material-icons-extended'
+    qaRuntime 'androidx.activity:activity-compose:@ACTIVITY@'
+    qaRuntime 'androidx.lifecycle:lifecycle-runtime-compose:@LIFECYCLE@'
+    qaRuntime 'androidx.core:core-ktx:@CORE@'
+    qaRuntime 'org.jetbrains.kotlinx:kotlinx-coroutines-test:@COROUTINES@'
+    qaRuntime 'org.robolectric:robolectric:4.17'
+    qaRuntime 'org.robolectric:android-all:14-robolectric-10818077'
+    qaRuntime 'junit:junit:4.13.2'
+}
+tasks.register('copyQaDependencies', Copy) {
+    from configurations.qaRuntime
+    into layout.projectDirectory.dir('deps')
+    doLast {
+        def rows = configurations.qaRuntime.resolvedConfiguration.resolvedArtifacts.collect {
+            [module: it.moduleVersion.id.toString(), file: it.file.name,
+             sha256: java.security.MessageDigest.getInstance('SHA-256').digest(it.file.bytes).encodeHex().toString()]
+        }.sort { it.module }
+        if (rows.any { it.module.contains('-desktop:') }) throw new GradleException('Desktop artifacts are not the Android project graph')
+        layout.projectDirectory.file('resolved-sha256.json').asFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(rows)) + '\n'
+    }
+}

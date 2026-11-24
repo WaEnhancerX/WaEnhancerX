@@ -536,7 +536,7 @@ fun MainDashboardScreen(
                                                     fontWeight = FontWeight.SemiBold,
                                                     color = colors.onSurface,
                                                     fontSize = 11.sp,
-                                                    maxLines = 1,
+                                                    maxLines = 2,
                                                     overflow = TextOverflow.Ellipsis
                                                 )
                                                 val hint = when {

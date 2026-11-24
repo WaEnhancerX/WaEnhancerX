@@ -1084,4 +1084,144 @@
     <string name="waex_ui_suggested" formatted="false">"sugerido"</string>
     <string name="waex_ui_tap_a_model_to_choose_it_the_suggested" formatted="false">"Toca un modelo para elegirlo. El sugerido se usa hasta que elijas otro."</string>
     <string name="waex_ui_this_phone" formatted="false">"este telefono"</string>
+
+    <!-- Supported WhatsApp downloads, verification and installation -->
+    <string name="waex_ui_last_supported_version" formatted="false">"Última versión compatible"</string>
+    <string name="waex_ui_get_this_version" formatted="false">"Instalar versión compatible"</string>
+    <string name="waex_ui_get_supported_version_title" formatted="false">"Obtener WhatsApp %1$s"</string>
+    <string name="waex_ui_get_supported_version_notice" formatted="false">"WAEX descarga versiones oficiales de WhatsApp o usa un archivo que ya tengas y realiza la instalación con root. Comprueba estrictamente el certificado de firma y solo instala archivos oficiales de WhatsApp; se rechaza cualquier APK modificado o reempaquetado. Funciona cualquier versión dentro de un intervalo compatible, como %1$s. Instalar fuera de Google Play puede poner tu número de teléfono en riesgo de suspensión, así que prefiere las actualizaciones oficiales cuando puedas."</string>
+    <string name="waex_ui_continue_to_browser" formatted="false">"Continuar en el navegador"</string>
+    <string name="waex_ui_install_storage_title" formatted="false">"Instalar desde el almacenamiento"</string>
+    <string name="waex_ui_install_storage_official_title" formatted="false">"Solo archivos oficiales de WhatsApp"</string>
+    <string name="waex_ui_install_storage_official_body" formatted="false">"WAEX comprueba estrictamente la firma de cada archivo antes de instalarlo. Solo se instala un archivo oficial de WhatsApp, sin modificaciones y firmado por WhatsApp. Se rechaza cualquier APK modificado, parcheado, clonado o reempaquetado."</string>
+    <string name="waex_ui_install_storage_target" formatted="false">"APLICACIÓN DE DESTINO"</string>
+    <string name="waex_ui_install_storage_ranges" formatted="false">"INTERVALOS DE VERSIONES ACEPTADOS"</string>
+    <string name="waex_ui_install_storage_steps_title" formatted="false">"CÓMO FUNCIONA"</string>
+    <string name="waex_ui_install_storage_step1" formatted="false">"Descarga el APK, APKM o XAPK en tu navegador desde una fuente de confianza."</string>
+    <string name="waex_ui_install_storage_step2" formatted="false">"Elige el archivo aquí."</string>
+    <string name="waex_ui_install_storage_step3" formatted="false">"WAEX verifica el paquete, el intervalo de versiones y la firma de WhatsApp."</string>
+    <string name="waex_ui_install_storage_step4" formatted="false">"Si todo coincide, lo instala con root. Permite tanto actualizar como volver a versiones anteriores."</string>
+    <string name="waex_ui_install_storage_choose" formatted="false">"Elegir APK, APKM o XAPK"</string>
+    <string name="waex_ui_install_storage_choose_another" formatted="false">"Elegir otro archivo"</string>
+    <string name="waex_ui_install_downloaded_apk" formatted="false">"Instalar desde el almacenamiento"</string>
+    <string name="waex_ui_verify_apk_title" formatted="false">"Verificar APK"</string>
+    <string name="waex_ui_verifying_apk" formatted="false">"Verificando APK…"</string>
+    <string name="waex_ui_verify_check_package" formatted="false">"Paquete"</string>
+    <string name="waex_ui_verify_check_package_ok" formatted="false">"%1$s"</string>
+    <string name="waex_ui_verify_check_package_bad" formatted="false">"Este archivo es de otra aplicación (%2$s)"</string>
+    <string name="waex_ui_verify_check_version" formatted="false">"Versión"</string>
+    <string name="waex_ui_verify_check_version_ok" formatted="false">"%1$s está dentro del intervalo compatible %2$s"</string>
+    <string name="waex_ui_verify_check_version_bad" formatted="false">"%1$s está fuera de todos los intervalos compatibles"</string>
+    <string name="waex_ui_verify_check_splits" formatted="false">"APK divididos"</string>
+    <string name="waex_ui_verify_check_splits_ok" formatted="false">"%1$s incluidos, con el mismo paquete y firmante"</string>
+    <string name="waex_ui_verify_check_splits_bad" formatted="false">"Un APK dividido tiene un paquete o firmante incorrecto"</string>
+    <string name="waex_ui_verify_check_signature" formatted="false">"Firma"</string>
+    <string name="waex_ui_verify_check_signature_ok" formatted="false">"Firmado por WhatsApp"</string>
+    <string name="waex_ui_verify_check_signature_bad" formatted="false">"Este archivo no está firmado por WhatsApp. Puede haber sido modificado o reempaquetado."</string>
+    <string name="waex_ui_verify_passed_hint" formatted="false">"Todas las comprobaciones se superaron. WAEX instalará este archivo con root."</string>
+    <string name="waex_ui_verify_failed_hint" formatted="false">"Rechazado: este archivo no superó la verificación y no se instalará. WAEX solo instala archivos oficiales de WhatsApp."</string>
+    <string name="waex_ui_verify_read_failed" formatted="false">"No se pudo leer este archivo. Elige un archivo .apk, .apkm o .xapk de WhatsApp."</string>
+    <string name="waex_ui_verify_install_root" formatted="false">"Instalar con root"</string>
+    <string name="waex_ui_verify_installing" formatted="false">"Instalando…"</string>
+    <string name="waex_ui_verify_close" formatted="false">"Cerrar"</string>
+    <string name="waex_ui_verify_install_ok" formatted="false">"Se instaló WhatsApp %1$s"</string>
+    <string name="waex_ui_verify_install_failed" formatted="false">"No se pudo instalar: %1$s"</string>
+    <string name="waex_ui_choose_version" formatted="false">"Elegir una versión"</string>
+    <string name="waex_ui_pick_version_title" formatted="false">"Elegir una versión"</string>
+    <string name="waex_ui_pick_version_message">"Todas las versiones de %1$s que se muestran abajo son compatibles. Toca una para descargarla en WAEX."</string>
+    <string name="waex_ui_fetching_versions" formatted="false">"Buscando versiones disponibles…"</string>
+    <string name="waex_ui_verify_human_title" formatted="false">"Verifica que eres una persona"</string>
+    <string name="waex_ui_verify_human_message" formatted="false">"APKMirror solicita una comprobación rápida. Complétala y las versiones se cargarán automáticamente."</string>
+    <string name="waex_ui_no_matching_versions" formatted="false">"No se encontraron versiones compatibles en la fuente."</string>
+    <string name="waex_ui_open_apkmirror" formatted="false">"Abrir APKMirror"</string>
+    <string name="waex_ui_versions_unavailable_title" formatted="false">"No se pudieron cargar las versiones"</string>
+    <string name="waex_ui_versions_unavailable_message" formatted="false">"No se pudo cargar la lista de versiones. Comprueba tu conexión e inténtalo de nuevo, o consulta APKMirror directamente."</string>
+    <string name="waex_ui_verify_now" formatted="false">"Verificar ahora"</string>
+    <string name="waex_ui_browser_unavailable_message" formatted="false">"El navegador integrado no pudo iniciarse en este dispositivo. Abre APKMirror en tu navegador."</string>
+    <string name="waex_ui_step_source" formatted="false">"Origen"</string>
+    <string name="waex_ui_step_version" formatted="false">"Versión"</string>
+    <string name="waex_ui_step_download" formatted="false">"Descargar"</string>
+    <string name="waex_ui_step_install" formatted="false">"Instalar"</string>
+    <string name="waex_ui_source_choose_title" formatted="false">"Elegir una versión"</string>
+    <string name="waex_ui_source_choose_desc" formatted="false">"Consulta todas las versiones compatibles, descárgalas en WAEX e instálalas después."</string>
+    <string name="waex_ui_source_storage_desc" formatted="false">"¿Ya tienes el archivo? WAEX lo verifica y lo instala con root."</string>
+    <string name="waex_ui_download_started" formatted="false">"Descarga iniciada"</string>
+    <string name="waex_ui_download_unsupported" formatted="false">"Este archivo no se puede instalar"</string>
+    <string name="waex_ui_downloading_progress">"Descargando… %1$s"</string>
+    <string name="waex_ui_download_failed" formatted="false">"La descarga falló"</string>
+    <string name="waex_ui_download_again" formatted="false">"Descargar de nuevo"</string>
+    <string name="waex_ui_remove_download" formatted="false">"Eliminar"</string>
+    <string name="waex_ui_install_action" formatted="false">"Instalar"</string>
+    <string name="waex_ui_install_upgrade" formatted="false">"Actualizar"</string>
+    <string name="waex_ui_install_downgrade" formatted="false">"Volver a una versión anterior"</string>
+    <string name="waex_ui_install_reinstall" formatted="false">"Reinstalar"</string>
+    <string name="waex_ui_downloaded_section" formatted="false">"DESCARGADOS"</string>
+    <string name="waex_ui_install_sheet_button">"%1$s con root"</string>
+    <string name="waex_ui_validate_step_copy" formatted="false">"Leyendo el archivo"</string>
+    <string name="waex_ui_validate_step_inspect" formatted="false">"Leyendo los datos del paquete"</string>
+    <string name="waex_ui_validate_step_verify" formatted="false">"Comprobando el paquete, la versión y la firma de WhatsApp"</string>
+    <string name="waex_ui_remove_download_title" formatted="false">"¿Eliminar esta descarga?"</string>
+    <string name="waex_ui_remove_download_message">"Se eliminará %1$s %2$s del almacenamiento de WAEX. Podrás descargarlo de nuevo más tarde."</string>
+    <string name="waex_ui_cancel_download_title" formatted="false">"¿Cancelar esta descarga?"</string>
+    <string name="waex_ui_cancel_download_message">"Se detendrá la descarga de %1$s %2$s y se eliminará el archivo parcial."</string>
+    <string name="waex_ui_cancel_download_confirm" formatted="false">"Detener descarga"</string>
+    <string name="waex_ui_or_divider" formatted="false">"O"</string>
+
+    <!-- Runtime and compatibility diagnostics -->
+    <string name="waex_ui_chip_add_support" formatted="false">"Agregar compatibilidad"</string>
+    <string name="waex_ui_hooks_paused_short" formatted="false">"Interceptores en pausa"</string>
+    <string name="waex_ui_hooks_not_reported_short" formatted="false">"Aún no hay informes de interceptores"</string>
+    <string name="waex_ui_hooks_last_report" formatted="false">"último informe"</string>
+    <string name="waex_ui_hooks_active_short" formatted="false">"%1$d/%2$d interceptores activos"</string>
+    <string name="waex_ui_hooks_checking" formatted="false">"Comprobando…"</string>
+    <string name="waex_ui_hooks_paused_hint" formatted="false">"Versión no compatible. Agrega compatibilidad y luego reinicia."</string>
+    <string name="waex_ui_hooks_unresponsive_hint" formatted="false">"Sin respuesta. Abre %1$s y luego actualiza."</string>
+    <string name="waex_ui_fix" formatted="false">"Corregir"</string>
+    <string name="waex_runtime_status_rules_accepted_open_target">"Reglas aceptadas; abre una aplicación de destino para confirmar la inyección"</string>
+    <string name="waex_ui_hma_reason_not_active">HMA no está activo</string>
+
+    <!-- Theme library and custom CSS -->
+    <string name="waex_ui_theme_library" formatted="false">"Biblioteca de temas"</string>
+    <string name="waex_ui_theme_library_desc" formatted="false">"Importa un tema de WAEX (un archivo .zip con style.css e imágenes opcionales) y selecciónalo abajo. Reinicia WhatsApp después de cambiar de tema."</string>
+    <string name="waex_ui_import_theme_zip" formatted="false">"Importar tema (.zip)"</string>
+    <string name="waex_ui_no_theme_default" formatted="false">"Predeterminado (sin tema)"</string>
+    <string name="waex_ui_theme_imported" formatted="false">"Tema importado"</string>
+    <string name="waex_ui_theme_import_failed" formatted="false">"No se pudo importar el tema: %1$s"</string>
+    <string name="waex_ui_theme_by_author" formatted="false">"por %1$s"</string>
+    <string name="waex_ui_write_custom_css" formatted="false">"Escribir CSS personalizado"</string>
+    <string name="waex_ui_theme_active" formatted="false">"Activo"</string>
+    <string name="waex_ui_theme_delete_confirm" formatted="false">"¿Eliminar este tema?"</string>
+    <string name="waex_ui_custom_css" formatted="false">"CSS personalizado"</string>
+
+    <!-- Locked chat notifications and native floating navigation -->
+    <string name="waex_ui_locked_chat_notifications" formatted="false">"Notificaciones de chats bloqueados"</string>
+    <string name="waex_ui_customize_native_floating_navigation" formatted="false">"Personalizar la navegación flotante nativa"</string>
+    <string name="waex_ui_native_floating_navigation_exclusive" formatted="false">"Usa la barra flotante de WhatsApp. Al activarla, se desactiva la barra inferior flotante del módulo."</string>
+    <string name="waex_ui_native_floating_navigation_colors" formatted="false">"Colores"</string>
+    <string name="waex_ui_native_floating_navigation_colors_hint" formatted="false">"Deja el valor predeterminado para conservar los colores del tema de WhatsApp"</string>
+    <string name="waex_ui_native_floating_navigation_bg_color" formatted="false">"Color de fondo"</string>
+    <string name="waex_ui_native_floating_navigation_selection_color" formatted="false">"Color de selección"</string>
+
+    <!-- Feature-loading notifications -->
+    <string name="waex_ui_feature_loading_channel" formatted="false">"Carga de funciones de WAEX"</string>
+    <string name="waex_ui_feature_loading_title" translatable="false">"WaEnhancer X"</string>
+    <string name="waex_ui_feature_loading_progress">"Preparando las funciones después de una actualización… %1$d/%2$d"</string>
+
+    <string name="waex_ui_update_channel" formatted="false">Canal de actualizaciones</string>
+    <string name="waex_ui_channel_stable" formatted="false">Estable</string>
+    <string name="waex_ui_channel_beta" formatted="false">Beta</string>
+    <string name="waex_ui_channel_nightly" formatted="false">Compilaciones nocturnas</string>
+    <string name="waex_ui_channel_stable_desc" formatted="false">Solo versiones sometidas a pruebas completas</string>
+    <string name="waex_ui_channel_beta_desc" formatted="false">Versiones preliminares antes de llegar al canal estable</string>
+    <string name="waex_ui_channel_nightly_desc" formatted="false">Cada compilación automática, sin pruebas completas y con posibles fallos</string>
+    <string name="waex_ui_channel_risk_title" formatted="false">¿Cambiar a un canal menos estable?</string>
+    <string name="waex_ui_channel_risk_message" formatted="false">Las compilaciones de este canal se prueban menos y pueden contener errores. Cambiar de canal solo modifica qué actualizaciones se ofrecen; no se instala nada hasta que lo elijas.</string>
+    <string name="waex_ui_channel_risk_confirm" formatted="false">Cambiar de canal</string>
+    <string name="waex_ui_install_risk_title" formatted="false">¿Instalar esta compilación?</string>
+    <string name="waex_ui_install_risk_downgrade" formatted="false">Esto reemplazará tu versión instalada por otra anterior. Es posible que la versión anterior no pueda leer los datos guardados por la más reciente.</string>
+    <string name="waex_ui_install_risk_prerelease" formatted="false">Las versiones beta y nocturnas no han pasado las pruebas de una versión estable y pueden contener errores.</string>
+    <string name="waex_ui_install_risk_confirm" formatted="false">Instalar de todos modos</string>
+    <string name="waex_ui_switch_to_stable" formatted="false">Cambiar al canal estable</string>
+    <string name="waex_ui_build_debug" formatted="false">Depuración</string>
+    <string name="waex_ui_build_release" formatted="false">Distribución</string>
 </resources>

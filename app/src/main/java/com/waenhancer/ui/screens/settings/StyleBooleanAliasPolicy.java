@@ -10,6 +10,7 @@ public final class StyleBooleanAliasPolicy {
     public static String canonicalKey(String uiKey) {
         if (uiKey == null) return null;
         switch (uiKey) {
+            case "bubble_colors": return "bubble_color";
             case "custom_time_format": return "segundos";
             case "custom_toolbar": return "novaconfig";
             case "instagram_status_layout": return "igstatus";

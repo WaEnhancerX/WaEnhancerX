@@ -15,6 +15,8 @@ import androidx.fragment.app.FragmentActivity;
 import com.waenhancer.app.R;
 import com.waenhancer.utils.UiText;
 import com.waenhancer.xposed.core.BaseFeature;
+import com.waenhancer.xposed.core.wa.WaMessage;
+import com.waenhancer.xposed.core.wa.WaTargets;
 import com.waenhancer.xposed.core.db.MessageStore;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.xposed.features.homescreen.MenuIconLoader;
@@ -38,7 +40,6 @@ import org.luckypray.dexkit.query.matchers.ClassMatcher;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.ClassData;
 import org.luckypray.dexkit.result.MethodData;
-import org.luckypray.dexkit.result.MethodDataList;
 
 /**
  * Download View Once Media:
@@ -62,6 +63,7 @@ public class DownloadViewOnceHook extends BaseFeature {
         if (!isEnabled("downloadviewonce", false)) {
             return;
         }
+        WaMessage.init(context, classLoader);
         initCachedMessageStoreHook();
         hookViewOnceViewerActivity();
         hookMediaViewMenu();
@@ -185,24 +187,8 @@ public class DownloadViewOnceHook extends BaseFeature {
      */
     private void hookMediaViewMenu() {
         try {
-            DexSearchEngine.getInstance().initialize(context);
-            var bridge = DexSearchEngine.getInstance().getBridge();
-            if (bridge == null) return;
-
-            Method menuMethod = null;
-            int icViewOnceId = context.getResources().getIdentifier("ic_viewonce", "drawable", context.getPackageName());
-            if (icViewOnceId > 0) {
-                MethodDataList mdList = bridge.findMethod(FindMethod.create()
-                        .matcher(MethodMatcher.create()
-                                .usingNumbers(icViewOnceId)
-                        ));
-                for (MethodData md : mdList) {
-                    if (md.getParamCount() >= 2 && md.getParamTypeNames().contains(Menu.class.getName())) {
-                        menuMethod = md.getMethodInstance(classLoader);
-                        break;
-                    }
-                }
-            }
+            // ic_viewonce + MenuItem.setShowAsAction + Menu parameter; cached per WhatsApp build.
+            Method menuMethod = WaTargets.viewOnceMediaMenu(context, classLoader);
 
             // No generic MediaViewFragment fallback: it would add the icon to every media screen.
             if (menuMethod != null) {
@@ -216,10 +202,25 @@ public class DownloadViewOnceHook extends BaseFeature {
 
                         for (Object arg : param.args) {
                             if (arg instanceof Menu) menu = (Menu) arg;
-                            else if (arg != null && isFMessageObject(arg)) fmessageObj = arg;
+                            else if (arg != null && fmessageObj == null && WaMessage.isMessage(arg)) fmessageObj = arg;
+                        }
+                        if (fmessageObj == null) {
+                            for (Object arg : param.args) {
+                                if (arg != null && !(arg instanceof Menu) && isFMessageObject(arg)) {
+                                    fmessageObj = arg;
+                                    break;
+                                }
+                            }
                         }
 
                         if (menu == null) return;
+                        // This builder also runs for ordinary media; offer Download only for
+                        // view-once messages (when the media type is known on this build).
+                        if (fmessageObj != null && WaMessage.isMessage(fmessageObj) && WaMessage.hasMediaType()
+                                && !WaMessage.isViewOnceType(WaMessage.mediaType(fmessageObj))) {
+                            menu.removeItem(MENU_ID_DOWNLOAD);
+                            return;
+                        }
 
                         MenuItem existing = menu.findItem(MENU_ID_DOWNLOAD);
                         if (existing != null) {
@@ -344,6 +345,20 @@ public class DownloadViewOnceHook extends BaseFeature {
     }
 
     private Object extractMessageKeyObject(Activity activity) {
+        // Typed: the activity holds the message key in a field of the key type.
+        Class<?> keyClass = WaMessage.keyClass();
+        if (keyClass != null) {
+            for (Class<?> curr = activity.getClass(); curr != null && curr != Activity.class; curr = curr.getSuperclass()) {
+                for (Field field : curr.getDeclaredFields()) {
+                    if (!keyClass.isAssignableFrom(field.getType())) continue;
+                    try {
+                        field.setAccessible(true);
+                        Object key = field.get(activity);
+                        if (key != null) return key;
+                    } catch (Throwable ignored) { HookErrors.swallowed("DownloadViewOnceHook", ignored); }
+                }
+            }
+        }
         for (Class<?> curr = activity.getClass(); curr != null && curr != Activity.class; curr = curr.getSuperclass()) {
             for (Field field : curr.getDeclaredFields()) {
                 field.setAccessible(true);
@@ -376,6 +391,8 @@ public class DownloadViewOnceHook extends BaseFeature {
 
     private String extractKeyIdString(Object messageKeyObj) {
         if (messageKeyObj == null) return null;
+        String typedId = WaMessage.id(messageKeyObj);
+        if (typedId != null && !typedId.isEmpty()) return typedId;
         try {
             Field idField = findKeyIdField(messageKeyObj.getClass());
             if (idField != null) {

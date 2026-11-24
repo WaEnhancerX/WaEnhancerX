@@ -16,6 +16,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 HOOK = Path("app/src/main/java/com/waenhancer/xposed/features/conversation/DoubleTapReactionHook.java")
 EMOJI_POLICY = Path("app/src/main/java/com/waenhancer/utils/EmojiInputPolicy.java")
+HOST_CLASS_NAMES = Path("app/src/main/java/com/waenhancer/xposed/utils/HostClassNames.java")
 STUBS = {}
 def stub(path, text):
     STUBS[path] = text
@@ -41,6 +42,9 @@ import android.content.Context;
 public class View {
  public static final int VISIBLE=0; public int id=1; public Context context=new Context();
  public ListenerInfo mListenerInfo=new ListenerInfo();
+ private final java.util.Map<Integer,Object> tags=new java.util.HashMap<>();
+ public Object getTag(int key){return tags.get(key);}
+ public void setTag(int key,Object value){if((key>>>24)<2)throw new IllegalArgumentException("invalid Android tag key");if(value==null)tags.remove(key);else tags.put(key,value);}
  public int getId(){return id;}public Context getContext(){return context;}public int getVisibility(){return VISIBLE;}
  public <T extends View>T findViewById(int id){return null;}
  public void setOnTouchListener(OnTouchListener l){mListenerInfo.mOnTouchListener=l;}
@@ -51,7 +55,7 @@ public class View {
 stub("android/view/ViewGroup.java", """package android.view;
 public class ViewGroup extends View {public int getChildCount(){return 0;}public View getChildAt(int i){throw new IndexOutOfBoundsException();}}""")
 stub("android/view/MotionEvent.java", """package android.view;
-public class MotionEvent {public static final int ACTION_DOWN=0,ACTION_UP=1,ACTION_MOVE=2,ACTION_CANCEL=3;
+public class MotionEvent {public static final int ACTION_DOWN=0,ACTION_UP=1,ACTION_MOVE=2,ACTION_CANCEL=3,ACTION_POINTER_DOWN=5;
 private final int action;public MotionEvent(int a){action=a;}public int getActionMasked(){return action;}
 public float getX(){return 1;}public float getY(){return 1;}}""")
 stub("android/view/ViewConfiguration.java", """package android.view;
@@ -75,6 +79,21 @@ protected boolean isEnabled(String k,boolean d){return prefs.getBoolean(k,d);}
 public abstract void hook()throws Throwable;public abstract String getName();}""")
 stub("com/waenhancer/xposed/utils/ActivityTracker.java", """package com.waenhancer.xposed.utils;
 public class ActivityTracker {public static android.app.Activity current;public static android.app.Activity getCurrentActivity(){return current;}}""")
+stub("com/waenhancer/xposed/utils/HookErrors.java", """package com.waenhancer.xposed.utils;
+public final class HookErrors {public static int calls;public static void swallowed(String site,Throwable error){
+ if(!"DoubleTapReactionHook".equals(site)||error==null)throw new AssertionError("unexpected diagnostic contract");calls++;}}""")
+stub("com/waenhancer/xposed/utils/HostResourceIds.java", """package com.waenhancer.xposed.utils;
+public final class HostResourceIds {public static int id(android.content.Context context,String name){
+ if(context==null||!"reactions_bubble_layout".equals(name))throw new AssertionError("unexpected resource lookup");return 0;}}""")
+stub("com/waenhancer/xposed/features/conversation/ReactionSenderResolver.java", """package com.waenhancer.xposed.features.conversation;
+final class ReactionSenderResolver {
+ static Class<?> resolveMessageClass(android.content.Context context,ClassLoader loader){if(context==null||loader==null)throw new AssertionError();return null;}
+ static java.lang.reflect.Method resolveSender(android.content.Context context,ClassLoader loader,Class<?> message){if(context==null||loader==null||message!=null)throw new AssertionError("fixture expects unresolved host discovery");return null;}
+ static Class<?> messageParameter(java.lang.reflect.Method sender){throw new AssertionError("unexpected discovery fallback");}}""")
+stub("com/waenhancer/xposed/features/conversation/OwnReactionLookup.java", """package com.waenhancer.xposed.features.conversation;
+final class OwnReactionLookup {static final String UNKNOWN="unknown";
+ static String messageKeyId(Object message){if(!(message instanceof fixture.DoubleTapChecks.Message))throw new AssertionError("unexpected message type");return null;}
+ static String ownReaction(android.content.Context context,Object message){if(context==null)throw new AssertionError();messageKeyId(message);return UNKNOWN;}}""")
 stub("de/robv/android/xposed/XC_MethodHook.java", """package de.robv.android.xposed;
 public class XC_MethodHook {protected void beforeHookedMethod(MethodHookParam p)throws Throwable{}protected void afterHookedMethod(MethodHookParam p)throws Throwable{}
 public void before(MethodHookParam p)throws Throwable{beforeHookedMethod(p);}public void after(MethodHookParam p)throws Throwable{afterHookedMethod(p);}
@@ -127,6 +146,7 @@ import com.waenhancer.xposed.utils.ActivityTracker;import de.robv.android.xposed
 import java.lang.reflect.*;import java.util.*;
 public class DoubleTapChecks {
  static final String BOUND="waex_doubletap_fmessage";
+ static final int BOUND_TAG=0x57414454;
  public static class ConversationFixture extends android.app.Activity{}
  public static class Message {final String id;Message(String i){id=i;}}
  public static class Prefs implements SharedPreferences {boolean enabled=true;
@@ -157,7 +177,8 @@ public class DoubleTapChecks {
   void bind(Adapter adapter,ViewGroup row)throws Throwable{
    Method m=Adapter.class.getMethod("getView",int.class,View.class,ViewGroup.class);
    XC_MethodHook.MethodHookParam p=new XC_MethodHook.MethodHookParam();p.thisObject=adapter;p.method=m;p.args=new Object[]{0,row,list};p.setResult(row);
-   List<XC_MethodHook> callbacks=new ArrayList<>(XposedBridge.hooks.get(m));
+   List<XC_MethodHook> installed=XposedBridge.hooks.get(m);check(installed!=null,"getView callback missing after registration");
+   List<XC_MethodHook> callbacks=new ArrayList<>(installed);
    // Xposed after-callbacks unwind registrations at equal priority.
    for(int i=callbacks.size()-1;i>=0;i--)callbacks.get(i).after(p);
    check(p.getResult()==row&&p.thisObject==adapter,"host row/receiver changed");
@@ -172,14 +193,18 @@ public class DoubleTapChecks {
   test("class hook binds the invoking second adapter",()->{Env e=new Env();Message a=new Message("first"),b=new Message("second");Adapter x=new Adapter(a),y=new Adapter(b);ViewGroup r=new ViewGroup();e.install(x);e.bind(y,r);doubleTap(r);check(e.action.sent.size()==1&&e.action.sent.get(0)==b,"reaction used captured first adapter");check(x.reads==0&&y.reads==1,"wrong receiver queried");});
   test("reinstalling same getView method does not duplicate callback",()->{Env e=new Env();Adapter x=new Adapter(new Message("first")),y=new Adapter(new Message("second"));e.install(x);e.install(y);Method m=Adapter.class.getMethod("getView",int.class,View.class,ViewGroup.class);check(XposedBridge.hooks.get(m).size()==1,"duplicate getView hooks");});
   test("second chat after two installations reacts to second message",()->{Env e=new Env();Message a=new Message("first"),b=new Message("second");Adapter x=new Adapter(a),y=new Adapter(b);ViewGroup r=new ViewGroup();e.install(x);e.install(y);e.bind(y,r);doubleTap(r);check(e.action.sent.size()==1&&e.action.sent.get(0)==b,"later callback overwritten by stale adapter");});
-  test("recycled null item cannot react to its predecessor",()->{Env e=new Env();Adapter x=new Adapter(new Message("first"));ViewGroup r=new ViewGroup();e.install(x);e.bind(x,r);x.item=null;e.bind(x,r);doubleTap(r);check(e.action.sent.isEmpty()&&XposedHelpers.getAdditionalInstanceField(r,BOUND)==null,"null item retained old reaction target");});
+  test("recycled null item cannot react to its predecessor",()->{Env e=new Env();Adapter x=new Adapter(new Message("first"));ViewGroup r=new ViewGroup();e.install(x);e.bind(x,r);x.item=null;e.bind(x,r);doubleTap(r);check(e.action.sent.isEmpty()&&r.getTag(BOUND_TAG)==null&&XposedHelpers.getAdditionalInstanceField(r,BOUND)==null,"null item retained old reaction target");});
   test("failed recycled item cannot react to its predecessor",()->{Env e=new Env();Adapter x=new Adapter(new Message("first"));ViewGroup r=new ViewGroup();e.install(x);e.bind(x,r);x.fail=true;e.bind(x,r);doubleTap(r);check(e.action.sent.isEmpty(),"failed item retained old reaction target");});
   test("disabled-time recycle invalidates old identity before reenabling",()->{Env e=new Env();Adapter x=new Adapter(new Message("first"));ViewGroup r=new ViewGroup();e.install(x);e.bind(x,r);e.prefs.enabled=false;x.item=new Message("second");e.bind(x,r);e.prefs.enabled=true;doubleTap(r);check(e.action.sent.isEmpty(),"disabled recycle retained old target");});
   test("original touch handler keeps event and return behavior",()->{Env e=new Env();Adapter x=new Adapter(new Message("first"));ViewGroup r=new ViewGroup();final int[] seen={0};r.setOnTouchListener((v,event)->{seen[0]++;return true;});e.install(x);e.bind(x,r);check(r.touch(new MotionEvent(MotionEvent.ACTION_DOWN))&&seen[0]==1,"original touch callback changed");});
   test("registration failure permits a later adapter retry",()->{Env e=new Env();Adapter x=new Adapter(new Message("first"));Message b=new Message("second");Adapter y=new Adapter(b);ViewGroup r=new ViewGroup();XposedBridge.failGetViewOnce=true;e.install(x);e.install(y);e.bind(y,r);doubleTap(r);check(e.action.sent.size()==1&&e.action.sent.get(0)==b,"failed registration retained reservation");});
   test("unsupported recycled item clears reaction target",()->{Env e=new Env();Adapter x=new Adapter(new Message("first"));ViewGroup r=new ViewGroup();e.install(x);e.bind(x,r);x.item=new Object();e.bind(x,r);doubleTap(r);check(e.action.sent.isEmpty(),"unsupported item retained predecessor");});
   test("a tap before row recycling cannot complete a later reaction",()->{Env e=new Env();Adapter x=new Adapter(new Message("first"));ViewGroup r=new ViewGroup();e.install(x);e.bind(x,r);SystemClock.now+=30;r.touch(new MotionEvent(MotionEvent.ACTION_DOWN));SystemClock.now+=30;r.touch(new MotionEvent(MotionEvent.ACTION_UP));x.item=new Message("second");e.bind(x,r);SystemClock.now+=30;r.touch(new MotionEvent(MotionEvent.ACTION_DOWN));SystemClock.now+=30;r.touch(new MotionEvent(MotionEvent.ACTION_UP));check(e.action.sent.isEmpty(),"gesture crossed recycled messages");});
-  System.out.println("RESULT|"+tests+"|"+failed);check(tests==11,"missing scenarios");check(failed==0,"reaction binding regressions");
+  test("host activity context works before ActivityTracker is ready",()->{Env e=new Env();ActivityTracker.current=null;e.list.context=new ConversationFixture();Message m=new Message("context");Adapter a=new Adapter(m);ViewGroup r=new ViewGroup();e.install(a);e.bind(a,r);doubleTap(r);check(e.action.sent.size()==1&&e.action.sent.get(0)==m,"context-based conversation lost");});
+  test("replacement host listener is wrapped on recycled binding",()->{Env e=new Env();Message m=new Message("second");Adapter a=new Adapter(m);ViewGroup r=new ViewGroup();e.install(a);e.bind(a,r);final int[] seen={0};r.setOnTouchListener((v,event)->{seen[0]++;return true;});e.bind(a,r);doubleTap(r);check(e.action.sent.size()==1&&e.action.sent.get(0)==m&&seen[0]==2,"replacement listener/reaction contract");});
+  test("repeated binding retains a single touch wrapper",()->{Env e=new Env();Adapter a=new Adapter(new Message("single"));ViewGroup r=new ViewGroup();final int[] seen={0};r.setOnTouchListener((v,event)->{seen[0]++;return false;});e.install(a);for(int i=0;i<5;i++)e.bind(a,r);doubleTap(r);check(e.action.sent.size()==1&&seen[0]==2,"touch wrappers accumulated");});
+  test("cleared recycled target never swallows host taps",()->{Env e=new Env();Adapter a=new Adapter(new Message("old"));ViewGroup r=new ViewGroup();final int[] seen={0};r.setOnTouchListener((v,event)->{seen[0]++;return false;});e.install(a);e.bind(a,r);a.item=null;e.bind(a,r);doubleTap(r);check(e.action.sent.isEmpty()&&seen[0]==4,"targetless row consumed host input");});
+  System.out.println("RESULT|"+tests+"|"+failed);check(tests==15,"missing scenarios");check(failed==0,"reaction binding regressions");
  }
 }'''
 
@@ -189,19 +214,47 @@ def run(source, out, allow_failure):
     classes=out/"classes";classes.mkdir()
     for path,text in {**STUBS,"fixture/DoubleTapChecks.java":TEST}.items():
         p=src/path;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(text)
-    result=subprocess.run(["javac","--release","17","-d",str(classes),str(source),str(ROOT/EMOJI_POLICY),*map(str,src.rglob("*.java"))],capture_output=True,text=True,timeout=60)
+    result=subprocess.run(["javac","--release","17","-d",str(classes),str(source),str(ROOT/EMOJI_POLICY),str(ROOT/HOST_CLASS_NAMES),*map(str,src.rglob("*.java"))],capture_output=True,text=True,timeout=60)
     (out/"compile.log").write_text(result.stdout+result.stderr)
     if result.returncode:raise AssertionError("Complete production compile failed: "+str(out/"compile.log"))
     result=subprocess.run(["java","-cp",str(classes),"fixture.DoubleTapChecks"],capture_output=True,text=True,timeout=15)
     log=result.stdout+result.stderr;(out/"tests.log").write_text(log);print(log)
     summary=re.search(r"RESULT\|(\d+)\|(\d+)",result.stdout)
-    assert summary and int(summary[1])==11,"fixture incomplete"
+    assert summary and int(summary[1])==15,"fixture incomplete"
     record={"source":str(source),"source_sha256":hashlib.sha256(source.read_bytes()).hexdigest(),"fixture_sha256":hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),"complete_production_compiled":True,"checks":int(summary[1]),"failed":int(summary[2]),"test_exit":result.returncode,"limits":"Android/Xposed/DexKit/host reaction sender are explicit doubles. No external message or reaction sent."}
     (out/"result.json").write_text(json.dumps(record,indent=2)+"\n")
     if not allow_failure:assert result.returncode==0,"Double-tap binding regression"
+    return record
+
+def verify(source, out, allow_failure, mutations):
+    run(source, out, allow_failure)
+    if not mutations:
+        return
+    text=source.read_text()
+    reservation="if (!hookedAdapterMethods.add(getViewMethod)) return;"
+    receiver="((ListAdapter) p.thisObject).getItem((Integer) p.args[0])"
+    changes={
+        "duplicate-method-hooks":(reservation,"hookedAdapterMethods.add(getViewMethod);"),
+        "stale-recycled-target":("row.setTag(TAG_BOUND_MSG, null);","/* mutation: retain old message */"),
+        "failed-reservation-retained":("hookedAdapterMethods.remove(getViewMethod);","/* mutation: retain failed reservation */"),
+    }
+    variants={}
+    for name,(before,after) in changes.items():
+        assert text.count(before)==1,f"mutation target changed: {name}"
+        variants[name]=text.replace(before,after)
+    assert text.count(reservation)==1 and text.count(receiver)==1,"captured adapter mutation target changed"
+    variants["captured-installer"]=text.replace(reservation,reservation+" final ListAdapter captured = adapter;").replace(receiver,"captured.getItem((Integer) p.args[0])")
+    for name,mutant in variants.items():
+        folder=out/"mutations"/name
+        folder.mkdir(parents=True)
+        path=folder/"DoubleTapReactionHook.java"
+        path.write_text(mutant)
+        record=run(path,folder/"execution",True)
+        assert record["test_exit"]!=0 and record["failed"]>0,f"surviving mutation: {name}"
+        print("REJECTED MUTATION:",name)
 
 if __name__=="__main__":
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument("--source",type=Path,default=ROOT/HOOK);p.add_argument("--out",type=Path);p.add_argument("--allow-test-failure",action="store_true");a=p.parse_args()
-    if a.out:run(a.source.resolve(),a.out.resolve(),a.allow_test_failure)
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument("--source",type=Path,default=ROOT/HOOK);p.add_argument("--out",type=Path);p.add_argument("--allow-test-failure",action="store_true");p.add_argument("--mutation-control",action="store_true");a=p.parse_args()
+    if a.out:verify(a.source.resolve(),a.out.resolve(),a.allow_test_failure,a.mutation_control)
     else:
-        with tempfile.TemporaryDirectory(prefix="waex-double-tap-") as temp:run(a.source.resolve(),Path(temp),a.allow_test_failure)
+        with tempfile.TemporaryDirectory(prefix="waex-double-tap-") as temp:verify(a.source.resolve(),Path(temp),a.allow_test_failure,a.mutation_control)

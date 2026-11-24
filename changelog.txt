@@ -1,16 +1,57 @@
 [Added]
-- Added VirusTotal scan on every Stable Release for all APKs, this makes sure all APKs are safe to use. This will attach a VirusTotal badge/link on every release page for users to verify.
-- Revived Update Channels back into the project
+- Hidden blue ticks are no longer lost. Every message whose blue tick was held back
+  (by Ghost Mode, Hide Blue Ticks or Hide Delivered) is remembered, even after
+  WhatsApp restarts.
+- "Send Blue Tick" button and "Blue Tick on Reply" now send blue ticks for all of
+  these remembered messages, including ones from before you turned them on.
+- Privacy switches like Ghost Mode and Freeze Last Seen now apply right away,
+  without restarting WhatsApp.
+- New Bubble Colors screen with a live chat preview and separate colors for sent and
+  received messages.
+- Custom themes support more WaEnhancer theme features: color replacement, tint
+  states, position offsets, rgb()/rgba() colors and the DPI set in a theme.
+- Spanish and Latin American Spanish translations.
 
 
 [Fixes]
-- Fixed Harmful App Error by play protect
+- Fixed WhatsApp crashing when someone deletes a message while Anti Delete is on.
+- Fixed Anti View Once also affecting view once photos and videos you send.
+- Fixed Freeze Last Seen turning on by itself when the online dot style was enabled.
+- Fixed "Send Blue Tick" button not showing unless Blue Tick on Reply was also on,
+  and needing Hide Blue Ticks to be on.
+- Fixed blue ticks for older hidden messages not being sent when replying or using
+  the "Send Blue Tick" button.
+- Fixed delivered ticks sometimes still being sent when Hide Delivered was on.
+- Fixed Download View Once button not showing when opening a view once photo or video.
+- Fixed tapping Download on a status that is still loading doing nothing. It now
+  asks you to wait until the status finishes downloading.
+- Fixed Download saving a different status when the status changed right after tapping.
+- Fixed custom chat bubble colors not being applied.
+- Fixed custom themes not loading in Per Target App mode, and large theme images
+  making the chat input bar too big.
+- Fixed double tap reactions sometimes reacting to the wrong message.
+- Fixed Ghost Mode, Freeze Last Seen and DND restarting WhatsApp before the setting
+  was saved.
+- Fixed per-contact call blocking not working in some cases.
+- Fixed Delete for Me sometimes not keeping a copy of the message.
+- Fixed online dots being placed wrongly on some chat rows.
+- Fixed the profile photo of the wrong person being shown or saved in some cases.
+- Fixed voice notes turning the screen off when Disable Proximity is on.
+- Fixed custom emoji fonts breaking when a download was incomplete.
+- Fixed Harmful App warning by Play Protect.
 
 
 [Improvements]
-- Migrate on-device transcription native libraries to on-demand download and provisioning
-
-
-[Update Channels]
-Now you can install stable or nightly build of WAEX on top of each other without any issues.
-Contributors are always welcome to contribute to nightly branch of this project. 
+- Privacy features are more stable and keep working better after WhatsApp updates.
+- Privacy features now always start with WhatsApp, so nothing slips through
+  before you open a chat.
+- Hide Played (voice notes and view once) now hides only the right messages.
+- Per-contact privacy settings now also work for contacts that WhatsApp shows by
+  their new ID instead of their phone number.
+- Call Privacy reacts once per incoming call and works faster.
+- Download View Once now shows only on view once media, and opening media is faster.
+- Buttons added by WAEX (like Download) now show up on the screen right away.
+- Custom themes no longer slow down scrolling.
+- Larger text sizes fit better in the bottom bar and dashboard.
+- On-device transcription libraries are now downloaded only when needed.
+- VirusTotal scan results are attached to every release.

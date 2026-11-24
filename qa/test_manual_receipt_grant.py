@@ -8,7 +8,7 @@ A=a.source_root/'app/src/main/java/com/waenhancer/xposed/features/privacy'
 # Reuse only the source-extraction function, without executing the other runner.
 module=ast.parse((R/'qa/test_receipt_job_execution_contract.py').read_text(encoding='utf-8'))
 fn=next(n for n in module.body if isinstance(n,ast.FunctionDef) and n.name=='extract');space={};exec(compile(ast.Module(body=[fn],type_ignores=[]),'<source-extractor>','exec'),space);extract=space['extract']
-source=(A/'BlueOnReplyHook.java').read_text(encoding='utf-8');anchors=['    private static int sendPendingReadJobs(', '    private static Object[] copyArguments(', '    private static final class ReadJobRecipe','    private static String canonicalJid('];
+source=(A/'BlueOnReplyHook.java').read_text(encoding='utf-8');anchors=['    private int sendPendingReadJobs(', '    private int sendOwedFromLedger(', '    private static boolean enqueueExplicit(', '    private static List<String> idsOf(', '    private static Object[] buildReadJobArgs(', '    private static Object[] copyArguments(', '    private static final class ReadJobRecipe','    private static String canonicalJid('];
 if '    private static final class ManualReadAttempt' in source:anchors.append('    private static final class ManualReadAttempt')
 blocks=[extract(source,m) for m in anchors]
 java=r'''
@@ -22,6 +22,28 @@ public final class ActualManualGrantChecks {
  static final Manager manager=new Manager();static Method enqueueJobMethod;
  static RecipientReceiptAllowance grants=new RecipientReceiptAllowance(1000,4096);static long now;
  static Object getOrFindJobManager(){return manager;}
+ // Seams for the persistent ledger path (production fields/services outside the extracted methods).
+ static final int SEND_BLOCKED=-1, MAX_LEDGER_SEND=500, IDS_PER_JOB=100;
+ static class Context {}
+ static Context appContext=new Context();
+ final Context context=new Context();final ClassLoader classLoader=null;
+ static Constructor<?> sendReadConstructor;static boolean blockDelivery;
+ static final List<HideSeenStore.PendingRead> owedRows=new ArrayList<>();static final List<String> sentMarks=new ArrayList<>();
+ static class PrivacyToggle {static final Object HIDE_DELIVERY=new Object();}
+ class Privacy {boolean appliesTo(Context c,Object toggle,String jid){return blockDelivery;}}
+ Privacy getPrivacy(){return new Privacy();}
+ static class HideSeenStore {static class PendingRead {String chat,participant,messageId;}}
+ static HideSeenStore.PendingRead row(String chat,String participant,String id){HideSeenStore.PendingRead r=new HideSeenStore.PendingRead();r.chat=chat;r.participant=participant;r.messageId=id;return r;}
+ static class UnsentReadLedger {
+  static List<HideSeenStore.PendingRead> owed(Context c,String chat,int limit){return new ArrayList<>(owedRows);}
+  static void markSent(Context c,String chat,List<String> ids){for(String id:ids)sentMarks.add(chat+"/"+id);}
+  static void markOwed(Context c,String chat,List<String> ids){for(String id:ids)sentMarks.remove(chat+"/"+id);}
+ }
+ public static class FakeJid {final String raw;FakeJid(String raw){this.raw=raw;}public String getRawString(){return raw;}}
+ static class WaJid {static Object create(Context c,ClassLoader l,String raw){return new FakeJid(raw);}}
+ public static class LedgerJob {final FakeJid chat;final String[] ids;public LedgerJob(FakeJid chat,String[] ids){this.chat=chat;this.ids=ids;}}
+ static final ActualManualGrantChecks INSTANCE=new ActualManualGrantChecks();
+ static int send(String jid){return INSTANCE.sendPendingReadJobs(jid);}
  public static class ManualJob {
   public final String jid;public final String[] ids;public final String[] diagnosticIds={"M2"};static boolean fail;
   public ManualJob(String jid,String[] ids){if(fail)throw new IllegalStateException("SYNTHETIC-PRIVATE-CONSTRUCTOR");this.jid=jid;this.ids=ids;}
@@ -46,12 +68,12 @@ public final class ActualManualGrantChecks {
  static void queue(String recipient,String id)throws Exception{PENDING_JOBS.add(recipient,new ReadJobRecipe(ManualJob.class.getConstructor(String.class,String[].class),new Object[]{recipient,new String[]{id}}));}
  static void reset(){
   for(String recipient:new String[]{PERSON,OTHER,GROUP})for(ReadJobRecipe r:PENDING_JOBS.snapshot(recipient))PENDING_JOBS.remove(recipient,r);
-  manager.accepted.clear();manager.fail=false;ManualJob.fail=false;grants=new RecipientReceiptAllowance(1000,4096);now=0;XposedHelpers.fields.clear();XposedBridge.logs.clear();
+  manager.accepted.clear();manager.fail=false;ManualJob.fail=false;owedRows.clear();sentMarks.clear();blockDelivery=false;sendReadConstructor=null;grants=new RecipientReceiptAllowance(1000,4096);now=0;XposedHelpers.fields.clear();XposedBridge.logs.clear();
  }
- static Object token(ManualJob job){return XposedHelpers.getAdditionalInstanceField(job,ExplicitReadReceiptPolicy.JOB_GRANT_KEY);}
+ static Object token(Object job){return XposedHelpers.getAdditionalInstanceField(job,ExplicitReadReceiptPolicy.JOB_GRANT_KEY);}
  public static void main(String[] args)throws Exception{
   enqueueJobMethod=Manager.class.getMethod("enqueue",Object.class);
-  reset();queue(PERSON,"M1");ok(sendPendingReadJobs(PERSON)==1,"real sender must enqueue one recipe");
+  reset();queue(PERSON,"M1");ok(send(PERSON)==1,"real sender must enqueue one recipe");
   ManualJob job=(ManualJob)manager.accepted.get(0);Object token=token(job);ok(token!=null,"sender did not attach immutable action grant");
   ok(PENDING_JOBS.pendingCount(PERSON)==0,"accepted recipe not acknowledged");
   now=2000;ok(!grants.isAllowed(PERSON,"M1",now),"initial grant did not expire in fixture");
@@ -67,17 +89,30 @@ public final class ActualManualGrantChecks {
   ok(!ExplicitReadReceiptPolicy.refreshJobGrant(Boolean.TRUE,PERSON,PERSON,false,grants,now),"boolean/manual marker forged consent");
   job.ids[0]="M3";ok(ExplicitReadReceiptPolicy.refreshJobGrant(token,PERSON,PERSON,false,grants,now),"original grant disappeared after host array mutation");
   ok(grants.isAllowed(PERSON,"M1",now)&&!grants.isAllowed(PERSON,"M3",now),"mutable host array changed original authorization");
-  reset();queue(PERSON,"M1");queue(OTHER,"M2");ok(sendPendingReadJobs("not-a-jid")==0,"unknown recipient dispatched jobs");
+  reset();queue(PERSON,"M1");queue(OTHER,"M2");ok(send("not-a-jid")==0,"unknown recipient dispatched jobs");
   ok(PENDING_JOBS.pendingCount(PERSON)==1&&PENDING_JOBS.pendingCount(OTHER)==1,"unknown recipient modified queues");
-  manager.fail=true;ok(sendPendingReadJobs(PERSON)==0,"queue failure reported accepted");
+  manager.fail=true;ok(send(PERSON)==0,"queue failure reported accepted");
   ok(PENDING_JOBS.pendingCount(PERSON)==1&&!grants.isAllowed(PERSON,"M1",now),"failed queue lost recipe or retained grant");
-  manager.fail=false;ok(sendPendingReadJobs(PERSON)==1&&PENDING_JOBS.pendingCount(PERSON)==0,"retry did not acknowledge exact successful recipe");
+  manager.fail=false;ok(send(PERSON)==1&&PENDING_JOBS.pendingCount(PERSON)==0,"retry did not acknowledge exact successful recipe");
   ok(PENDING_JOBS.pendingCount(OTHER)==1,"retry removed another recipient");
-  reset();queue(PERSON,"M1");ManualJob.fail=true;ok(sendPendingReadJobs(PERSON)==0,"throwing constructor reported success");
+  reset();queue(PERSON,"M1");ManualJob.fail=true;ok(send(PERSON)==0,"throwing constructor reported success");
   ok(PENDING_JOBS.pendingCount(PERSON)==1&&!grants.isAllowed(PERSON,"M1",now),"constructor failure lost retry scope or leaked allowance");
   ok(XposedBridge.logs.stream().noneMatch(s->s.contains("SYNTHETIC-PRIVATE")),"sender leaked private constructor/queue text");
-  reset();queue(PERSON,"");ok(sendPendingReadJobs(PERSON)==0&&manager.accepted.isEmpty(),"no-ID recipe became blanket permission");
+  reset();queue(PERSON,"");ok(send(PERSON)==0&&manager.accepted.isEmpty(),"no-ID recipe became blanket permission");
   ok(PENDING_JOBS.pendingCount(PERSON)==1,"unconfirmed empty recipe was removed");
+  // Persistent ledger: owed receipts from before this session are sent once, deduplicated.
+  reset();sendReadConstructor=LedgerJob.class.getConstructor(FakeJid.class,String[].class);
+  owedRows.add(row(PERSON,null,"L1"));owedRows.add(row(PERSON,null,"L2"));owedRows.add(row(GROUP,null,"G1"));
+  queue(PERSON,"L1");ok(send(PERSON)==2,"session recipe plus remaining ledger rows must be sent");
+  LedgerJob ledgerJob=(LedgerJob)manager.accepted.get(1);
+  ok(Arrays.equals(ledgerJob.ids,new String[]{"L2"}),"ledger send must skip IDs already sent by a session recipe");
+  ok(ledgerJob.chat.raw.equals(PERSON),"ledger job addressed to the wrong chat");
+  ok(sentMarks.contains(PERSON+"/L2"),"accepted ledger job not marked sent");
+  ok(token(ledgerJob)!=null&&grants.isAllowed(PERSON,"L2",now),"ledger job lacks its exact explicit grant");
+  ok(manager.accepted.size()==2,"group row without its sender must stay owed, not be misaddressed");
+  reset();owedRows.add(row(PERSON,null,"B1"));blockDelivery=true;
+  ok(send(PERSON)==SEND_BLOCKED&&manager.accepted.isEmpty(),"send must be blocked while delivery receipts are hidden");
+  ok(sentMarks.isEmpty(),"blocked send marked receipts sent");
   System.out.println("MANUAL_GRANT_CHECKS="+checks+"; exact production sender and immutable policy; explicit host queue/initial-allowance/Xposed boundaries");
  }
 }

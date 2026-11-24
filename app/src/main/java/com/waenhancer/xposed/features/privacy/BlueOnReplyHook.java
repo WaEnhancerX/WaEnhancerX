@@ -44,6 +44,13 @@ import android.graphics.drawable.Drawable;
 import java.lang.reflect.Array;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
+import java.util.HashSet;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import android.os.Handler;
+import android.os.Looper;
+import com.waenhancer.xposed.core.privacy.PrivacyToggle;
+import com.waenhancer.xposed.core.wa.WaJid;
 
 /**
  * Blue on Reply Hook:
@@ -70,6 +77,18 @@ public class BlueOnReplyHook extends BaseFeature {
     private static final Object MANUAL_STATUS_RECEIPT = new Object();
     private static final String PENDING_CHAT_RECEIPT = "waex_pending_chat_receipt";
     private static final String MANUAL_CHAT_ATTEMPT = "waex_manual_chat_attempt";
+    /** sendPendingReadJobs result when a privacy setting still withholds this chat's receipts. */
+    private static final int SEND_BLOCKED = -1;
+    /** Upper bound of owed receipts sent from the ledger in one action, and IDs per job. */
+    private static final int MAX_LEDGER_SEND = 500;
+    private static final int IDS_PER_JOB = 100;
+    /** Sending reads the ledger; never do that on WhatsApp's UI or job threads. */
+    private static final ExecutorService SEND_EXECUTOR = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "WAEX-ReadReceipts");
+        thread.setDaemon(true);
+        return thread;
+    });
+    private static final Handler MAIN = new Handler(Looper.getMainLooper());
 
     private static final class ReadJobRecipe {
         final Constructor<?> constructor;
@@ -91,6 +110,11 @@ public class BlueOnReplyHook extends BaseFeature {
         initializeReadReceiptDispatcher();
         hookMessageSend();
         hookConversationMenu();
+        // Owed receipts from the persistent ledger are rebuilt from stored JIDs. Say once if
+        // that is impossible on this build, instead of silently sending only session receipts.
+        if (sendReadConstructor != null && WaJid.create(context, classLoader, "status@broadcast") == null) {
+            XposedBridge.log(TAG + " Owed read receipts cannot be rebuilt: Jid factory unavailable");
+        }
     }
 
     private void initializeReadReceiptDispatcher() {
@@ -181,7 +205,7 @@ public class BlueOnReplyHook extends BaseFeature {
                         // Use the outgoing job's actual recipient, not the Activity currently
                         // in the foreground: a queued send may belong to another conversation.
                         String remoteJid = extractOutgoingJobJid(param.thisObject);
-                        if (remoteJid != null) sendPendingReadJobs(remoteJid);
+                        if (remoteJid != null) SEND_EXECUTOR.execute(() -> sendPendingReadJobs(remoteJid));
                     }
                 });
             }
@@ -190,8 +214,12 @@ public class BlueOnReplyHook extends BaseFeature {
         }
     }
 
+    /**
+     * Replying sends every owed read receipt of that chat, whichever privacy setting withheld
+     * it, including messages from before Blue-on-reply was enabled.
+     */
     public boolean isBlueOnReplyEnabled() {
-        return isHideBlueTicksEnabled() && isEnabled(PREF_KEY, false);
+        return getPrivacy().flag(PREF_KEY);
     }
 
     /**
@@ -231,7 +259,7 @@ public class BlueOnReplyHook extends BaseFeature {
             return;
         }
         PendingChatReceipt pending = (PendingChatReceipt) value;
-        markEvictedHandled(pending.recipient, PENDING_JOBS.add(pending.recipient, pending.recipe));
+        PENDING_JOBS.add(pending.recipient, pending.recipe);
         XposedHelpers.removeAdditionalInstanceField(job, PENDING_CHAT_RECEIPT);
     }
 
@@ -255,6 +283,8 @@ public class BlueOnReplyHook extends BaseFeature {
             if (accepted) return;
             accepted = true;
             PENDING_JOBS.remove(recipient, original);
+            Context context = appContext;
+            if (context != null) UnsentReadLedger.markSent(context, recipient, idsOf(original));
             if (vetoed) restoreRecipe();
         }
 
@@ -267,7 +297,9 @@ public class BlueOnReplyHook extends BaseFeature {
         }
 
         private void restoreRecipe() {
-            markEvictedHandled(recipient, PENDING_JOBS.add(recipient, retryRecipe));
+            PENDING_JOBS.add(recipient, retryRecipe);
+            Context context = appContext;
+            if (context != null) UnsentReadLedger.markOwed(context, recipient, idsOf(original));
         }
     }
 
@@ -324,70 +356,60 @@ public class BlueOnReplyHook extends BaseFeature {
         String key = canonicalJid(jid);
         if (key == null || typedJid == null || messageId == null || messageId.isEmpty()) return;
         Constructor<?> ctor = sendReadConstructor;
-        if (ctor == null) {
-            XposedBridge.log(TAG + " Cannot record observed receipt: constructor unavailable");
-            return;
-        }
-        // Build args: find an existing pending recipe for this jid to reuse its constructor shape,
-        // or construct minimal args with just the messageId array.
-        Object[] args = buildMinimalConstructorArgs(
-                ctor, typedJid, new String[]{messageId});
+        // Blue-on-reply / the manual button are not installed: the persistent ledger already
+        // holds this message, so there is nothing to stage and nothing worth logging.
+        if (ctor == null) return;
+        Object[] args = buildReadJobArgs(ctor, typedJid, null, new String[]{messageId});
         if (args == null) return;
         ReadJobRecipe recipe = new ReadJobRecipe(ctor, args);
-        markEvictedHandled(key, PENDING_JOBS.add(key, recipe));
+        PENDING_JOBS.add(key, recipe);
     }
 
-    private static void markEvictedHandled(String recipient, ReadJobRecipe evicted) {
-        Context context = appContext;
-        if (context == null || evicted == null) return;
-        for (Object argument : evicted.arguments) {
+    /** Message IDs carried by a recipe's String[] arguments. */
+    private static List<String> idsOf(ReadJobRecipe recipe) {
+        List<String> ids = new ArrayList<>();
+        for (Object argument : recipe.arguments) {
             if (!(argument instanceof String[])) continue;
             for (String id : (String[]) argument) {
-                if (id != null && !id.isEmpty()) {
-                    HideSeenStore.getInstance(context).updateViewedMessageAsync(
-                            recipient, id, HideSeenStore.TYPE_READ, true);
-                }
+                if (id != null && !id.isEmpty()) ids.add(id);
             }
         }
+        return ids;
     }
 
     /**
-     * Creates the smallest valid direct-chat recipe using the typed JID retained
-     * from the decrypted message. Optional participant/recipient fields stay null.
+     * Arguments for WhatsApp's read-receipt job: the chat in the first Jid slot that accepts it,
+     * the group sender in the next one (groups only), the IDs in the String[] slot, neutral
+     * defaults elsewhere. Returns null if any required slot cannot be filled.
      */
-    private static Object[] buildMinimalConstructorArgs(Constructor<?> ctor, Object typedJid,
-                                                        String[] messageIds) {
+    private static Object[] buildReadJobArgs(Constructor<?> ctor, Object chat, Object participant,
+                                             String[] messageIds) {
+        if (chat == null || chat instanceof String) return null;
         Class<?>[] params = ctor.getParameterTypes();
         Object[] args = new Object[params.length];
-        boolean jidSet = false;
-        boolean idsSet = false;
+        boolean chatSet = false, participantSet = participant == null, idsSet = false;
         for (int i = 0; i < params.length; i++) {
             Class<?> p = params[i];
             if (!idsSet && p == String[].class) {
                 args[i] = messageIds;
                 idsSet = true;
-            } else if (!jidSet && typedJid != null
-                    && !(typedJid instanceof String) && p.isInstance(typedJid)) {
-                // The current SendReadReceiptJob constructor requires the host's
-                // typed JID as its first argument. The remaining participant and
-                // recipient JID parameters are optional for a direct chat.
-                args[i] = typedJid;
-                jidSet = true;
-            } else if (p == boolean.class || p == Boolean.class) {
+            } else if (!chatSet && p.isInstance(chat)) {
+                args[i] = chat;
+                chatSet = true;
+            } else if (chatSet && !participantSet && p.isInstance(participant)) {
+                args[i] = participant;
+                participantSet = true;
+            } else if (p == boolean.class) {
                 args[i] = false;
-            } else if (p == int.class || p == Integer.class) {
+            } else if (p == int.class) {
                 args[i] = 0;
-            } else if (p == long.class || p == Long.class) {
+            } else if (p == long.class) {
                 args[i] = 0L;
-            } else {
-                args[i] = null; // Reference types default to null
+            } else if (p.isPrimitive()) {
+                return null; // An unknown primitive slot has no safe default.
             }
         }
-        if (!idsSet || !jidSet) {
-            XposedBridge.log(TAG + " buildMinimalConstructorArgs: required argument unavailable");
-            return null;
-        }
-        return args;
+        return chatSet && participantSet && idsSet ? args : null;
     }
 
     public static boolean sendCapturedStatusReceipt(Object statusItem) {
@@ -496,13 +518,20 @@ public class BlueOnReplyHook extends BaseFeature {
         return null;
     }
 
-    private static int sendPendingReadJobs(String jid) {
+    /**
+     * Sends every owed read receipt of a chat: first the exact jobs WhatsApp built this session,
+     * then everything else recorded in the persistent ledger (also from before a restart).
+     * Returns the number of jobs enqueued, or SEND_BLOCKED while Ghost Mode or Hide delivered
+     * still withholds this chat's receipts (they stay owed). Never call on the main thread.
+     */
+    private int sendPendingReadJobs(String jid) {
         String key = canonicalJid(jid);
         if (key == null) {
             // Preserve upstream's exact outgoing-recipient guard and sanitized diagnostic.
             XposedBridge.log(TAG + " Cannot dispatch: outgoing recipient is unavailable");
             return 0;
         }
+        if (getPrivacy().appliesTo(context, PrivacyToggle.HIDE_DELIVERY, key)) return SEND_BLOCKED;
 
         Method enqueue = enqueueJobMethod;
         Object manager = getOrFindJobManager();
@@ -511,40 +540,69 @@ public class BlueOnReplyHook extends BaseFeature {
             return 0;
         }
 
-        // Exact canonical JID match only. @lid, @s.whatsapp.net and @g.us are
-        // distinct identity namespaces; same local user part is NOT proof that
-        // their queued read receipts belong to the same recipient.
-        // Keep records until WhatsApp has accepted their explicit jobs. This mirrors the
-        // reliable chat flow: a temporary manager/constructor failure must not make a
-        // user's hidden messages impossible to mark read on the next tap or reply.
-        List<ReadJobRecipe> pending = PENDING_JOBS.snapshot(key);
-        if (pending.isEmpty()) {
-            return 0;
-        }
-
-        // Do not authorize an entire JID: only IDs from explicitly enqueued jobs.
+        // Exact recipes captured this session. Keep them until WhatsApp accepts their jobs.
         int sent = 0;
-        for (ReadJobRecipe recipe : pending) {
-            try {
-                Object grant = ExplicitReadReceiptPolicy.captureJobGrant(key, recipe.arguments);
-                if (grant == null) continue;
-                HideReceiptsHook.allowExplicitReceiptIds(key, recipe.arguments);
-                Object job = recipe.constructor.newInstance(copyArguments(recipe.arguments));
-                XposedHelpers.setAdditionalInstanceField(job, "blue_on_reply", true);
-                XposedHelpers.setAdditionalInstanceField(job, ExplicitReadReceiptPolicy.JOB_GRANT_KEY, grant);
-                ManualReadAttempt attempt = new ManualReadAttempt(key, recipe);
-                XposedHelpers.setAdditionalInstanceField(job, MANUAL_CHAT_ATTEMPT, attempt);
-                enqueue.invoke(manager, job);
-                attempt.acknowledgeEnqueue();
+        Set<String> covered = new HashSet<>();
+        for (ReadJobRecipe recipe : PENDING_JOBS.snapshot(key)) {
+            if (enqueueExplicit(key, recipe, enqueue, manager)) {
                 sent++;
-            } catch (Throwable t) {
-                // Constructor or dispatch failure must not leave a stale permission.
-                HideReceiptsHook.revokeExplicitReceiptIds(key, recipe.arguments);
-                XposedBridge.log(TAG + " Error enqueueing read receipt: "
-                        + t.getClass().getSimpleName());
+                covered.addAll(idsOf(recipe));
+            }
+        }
+        return sent + sendOwedFromLedger(key, covered, enqueue, manager);
+    }
+
+    private int sendOwedFromLedger(String key, Set<String> covered, Method enqueue, Object manager) {
+        Constructor<?> ctor = sendReadConstructor;
+        if (ctor == null) return 0;
+        // Group rows need their sender; rows without one stay owed rather than be misaddressed.
+        Map<String, List<HideSeenStore.PendingRead>> batches = new LinkedHashMap<>();
+        for (HideSeenStore.PendingRead row : UnsentReadLedger.owed(context, key, MAX_LEDGER_SEND)) {
+            if (covered.contains(row.messageId)) continue;
+            boolean group = row.chat.endsWith("@g.us");
+            if (group && row.participant == null) continue;
+            batches.computeIfAbsent(row.chat + "\n" + (group ? row.participant : ""),
+                    k -> new ArrayList<>()).add(row);
+        }
+        int sent = 0;
+        for (List<HideSeenStore.PendingRead> rows : batches.values()) {
+            HideSeenStore.PendingRead first = rows.get(0);
+            Object chat = WaJid.create(context, classLoader, first.chat);
+            Object participant = first.participant != null && first.chat.endsWith("@g.us")
+                    ? WaJid.create(context, classLoader, first.participant) : null;
+            if (chat == null || (first.chat.endsWith("@g.us") && participant == null)) continue;
+            for (int start = 0; start < rows.size(); start += IDS_PER_JOB) {
+                List<HideSeenStore.PendingRead> chunk = rows.subList(start, Math.min(rows.size(), start + IDS_PER_JOB));
+                String[] ids = new String[chunk.size()];
+                for (int i = 0; i < ids.length; i++) ids[i] = chunk.get(i).messageId;
+                Object[] args = buildReadJobArgs(ctor, chat, participant, ids);
+                if (args == null) break;
+                if (enqueueExplicit(first.chat, new ReadJobRecipe(ctor, args), enqueue, manager)) sent++;
             }
         }
         return sent;
+    }
+
+    /** Enqueue one explicit read job; only its exact IDs may bypass read hiding. */
+    private static boolean enqueueExplicit(String recipient, ReadJobRecipe recipe, Method enqueue, Object manager) {
+        try {
+            Object grant = ExplicitReadReceiptPolicy.captureJobGrant(recipient, recipe.arguments);
+            if (grant == null) return false;
+            HideReceiptsHook.allowExplicitReceiptIds(recipient, recipe.arguments);
+            Object job = recipe.constructor.newInstance(copyArguments(recipe.arguments));
+            XposedHelpers.setAdditionalInstanceField(job, "blue_on_reply", true);
+            XposedHelpers.setAdditionalInstanceField(job, ExplicitReadReceiptPolicy.JOB_GRANT_KEY, grant);
+            ManualReadAttempt attempt = new ManualReadAttempt(recipient, recipe);
+            XposedHelpers.setAdditionalInstanceField(job, MANUAL_CHAT_ATTEMPT, attempt);
+            enqueue.invoke(manager, job);
+            attempt.acknowledgeEnqueue();
+            return true;
+        } catch (Throwable t) {
+            // Constructor or dispatch failure must not leave a stale permission.
+            HideReceiptsHook.revokeExplicitReceiptIds(recipient, recipe.arguments);
+            XposedBridge.log(TAG + " Error enqueueing read receipt: " + t.getClass().getSimpleName());
+            return false;
+        }
     }
 
     /**
@@ -642,31 +700,32 @@ public class BlueOnReplyHook extends BaseFeature {
                 ? MenuItem.SHOW_AS_ACTION_ALWAYS : MenuItem.SHOW_AS_ACTION_NEVER);
         item.setOnMenuItemClickListener(clicked -> {
             String jid = resolveConversationJid(conversation);
-            int sent = jid == null ? 0 : sendPendingReadJobs(jid);
             Context toastContext = conversation instanceof Context
                     ? (Context) conversation : context;
-            Toast.makeText(toastContext,
-                    jid == null ? UiText.get(R.string.waex_l10n_recipient_unconfirmed, "Cannot verify chat recipient")
-                            : (sent > 0 ? UiText.get(R.string.waex_ui_blue_tick_sent, "Seen sent") : UiText.get(R.string.waex_ui_no_hidden_read_receipt_to_send, "No hidden read receipt to send")),
-                    Toast.LENGTH_SHORT).show();
+            SEND_EXECUTOR.execute(() -> {
+                int sent = jid == null ? 0 : sendPendingReadJobs(jid);
+                String text;
+                if (jid == null) {
+                    text = UiText.get(R.string.waex_l10n_recipient_unconfirmed, "Cannot verify chat recipient");
+                } else if (sent == SEND_BLOCKED) {
+                    // Still withheld; the receipts stay owed until that setting is turned off.
+                    text = getPrivacy().isOn(PrivacyToggle.GHOST_MODE)
+                            ? UiText.get(R.string.waex_ui_managed_by_ghost_mode, "Managed by Ghost Mode")
+                            : UiText.get(R.string.waex_ui_hide_delivered_receipts, "Hide Delivered Receipts");
+                } else if (sent > 0) {
+                    text = UiText.get(R.string.waex_ui_blue_tick_sent, "Seen sent");
+                } else {
+                    text = UiText.get(R.string.waex_ui_no_hidden_read_receipt_to_send, "No hidden read receipt to send");
+                }
+                MAIN.post(() -> Toast.makeText(toastContext, text, Toast.LENGTH_SHORT).show());
+            });
             return true;
         });
     }
 
+    /** The button sends receipts withheld by any privacy setting, so it only needs its own switch. */
     private boolean isManualButtonEnabled() {
-        if (!isHideBlueTicksEnabled()) return false;
-        Object value = prefs.getAll().get("seentick");
-        if (value instanceof Boolean) return (Boolean) value;
-        if (value instanceof Number) return ((Number) value).intValue() != 0;
-        if (value instanceof String) {
-            String text = (String) value;
-            return !text.isEmpty() && !"0".equals(text) && !"false".equalsIgnoreCase(text);
-        }
-        return false;
-    }
-
-    private boolean isHideBlueTicksEnabled() {
-        return isEnabled("hide_read_receipts", false) || isEnabled("hideread", false);
+        return getPrivacy().flag("seentick");
     }
 
     /** 1 = toolbar icon, 2 = overflow menu. Boolean legacy values migrate as toolbar mode. */

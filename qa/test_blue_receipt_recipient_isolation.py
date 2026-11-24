@@ -37,8 +37,9 @@ assert 'getUserPart(' not in blue
 assert 'PENDING_JOBS.size() == 1' not in blue
 assert 'PENDING_JOBS.remove(candidateKey)' not in blue
 assert 'HideReceiptsHook.allowBlueReplyReceipt(key)' not in blue
-assert 'HideReceiptsHook.allowExplicitReceiptIds(key, recipe.arguments)' in blue
-assert 'HideReceiptsHook.revokeExplicitReceiptIds(key, recipe.arguments)' in blue
+# One shared enqueue path; the grant is scoped to the exact job recipient.
+assert 'HideReceiptsHook.allowExplicitReceiptIds(recipient, recipe.arguments)' in blue
+assert 'HideReceiptsHook.revokeExplicitReceiptIds(recipient, recipe.arguments)' in blue
 assert 'getOrFindJobManager()' in blue
 assert 'SendE2EMessageJob/onRun' in blue
 assert 'new PendingReadReceiptStore<>(128, MAX_MANUAL_READ_JOBS)' in blue

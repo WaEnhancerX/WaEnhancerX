@@ -10,7 +10,7 @@ from pathlib import Path
 import shutil
 import tempfile
 
-from test_receipt_stanza_runtime import AREA, PRODUCTION, ROOT, run_contracts
+from test_receipt_stanza_runtime import AREA, PRODUCTION, ROOT, SHARED_EARLY, SHARED_LATE, run_contracts
 
 
 MUTANTS = [
@@ -54,6 +54,7 @@ def validate(out, kotlinc):
     rows = []
     paths = [AREA / name for name in PRODUCTION]
     paths.extend(Path('app/src/main/java/com/waenhancer/xposed/core') / name for name in ('BaseFeature.kt','HookRegistrar.java','ViewHookDispatcher.java'))
+    paths.extend([*SHARED_EARLY, *SHARED_LATE])  # shared privacy layer compiled for real
     for label, name, before, after, expected in MUTANTS:
         snapshot = out / 'sources' / label
         for rel in paths:

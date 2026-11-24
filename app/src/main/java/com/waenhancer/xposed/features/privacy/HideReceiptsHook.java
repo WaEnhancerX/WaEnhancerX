@@ -11,14 +11,12 @@ import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
-import org.json.JSONObject;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.enums.StringMatchType;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.ClassData;
-import org.luckypray.dexkit.result.ClassDataList;
 import org.luckypray.dexkit.result.MethodData;
 import org.luckypray.dexkit.result.MethodDataList;
 import java.lang.reflect.Array;
@@ -26,6 +24,9 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -34,6 +35,11 @@ import java.util.concurrent.atomic.AtomicReference;
 import com.waenhancer.xposed.features.customization.PropsOverrideHook;
 import com.waenhancer.xposed.utils.HookErrors;
 import com.waenhancer.xposed.utils.HostFields;
+import com.waenhancer.xposed.core.privacy.PrivacyToggle;
+import com.waenhancer.xposed.core.wa.SafeHooks;
+import com.waenhancer.xposed.core.wa.WaJid;
+import com.waenhancer.xposed.core.wa.WaMessage;
+import com.waenhancer.xposed.core.wa.WaTargets;
 import java.lang.reflect.Modifier;
 
 /**
@@ -70,14 +76,16 @@ public class HideReceiptsHook extends BaseFeature {
     @Override
     public void hook() throws Throwable {
         PropsOverrideHook.BOOLEANS.put(19148, false); // Route IQ through receiptMethod
+        WaMessage.init(context, classLoader);
+        UnsentReadLedger.prune(context);
         initProtocolTreeReflection();
         initFMessageReflection();
         hookPlaintextMessageCapture();
-        hookEnforceHiding();
         hookSendReadReceiptJob();
         hookReceiptMethod();
         hookDeliveryDispatchers();
         hookOnDispatchMessage();
+        hookStanzaWriter();
         hookSenderPlayed();
     }
 
@@ -146,23 +154,9 @@ public class HideReceiptsHook extends BaseFeature {
         }
     }
 
-    /** Resolve the host message type; members are discovered by value contracts. */
+    /** Resolve the host message type through the shared finder. */
     private void initFMessageReflection() {
-        try {
-            fMessageClass = DexSearchEngine.getInstance().findClassWithCache(
-                    context, classLoader, "waex_fmessage_class",
-                    (bridge, loader) -> {
-                        MethodData data = bridge.findMethod(
-                                FindMethod.create().matcher(MethodMatcher.create()
-                                        .addUsingString("FMessage/getSenderUserJid/key.id",
-                                                StringMatchType.Contains)))
-                                .firstOrNull();
-                        return data != null ? data.getMethodInstance(loader).getDeclaringClass() : null;
-                    });
-
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + " Error initializing FMessage reflection: " + t.getClass().getSimpleName());
-        }
+        fMessageClass = WaMessage.messageClass();
     }
 
     /**
@@ -172,22 +166,23 @@ public class HideReceiptsHook extends BaseFeature {
      */
     private void hookPlaintextMessageCapture() {
         try {
-            DexSearchEngine engine = DexSearchEngine.getInstance();
-            engine.initialize(context);
-            if (engine.getBridge() == null) return;
-            MethodDataList matches = engine.getBridge().findMethod(FindMethod.create().matcher(
-                    MethodMatcher.create().addUsingString(
-                            "SharedMessageProcessor/handlePlaintext",
-                            StringMatchType.Contains)));
-            Set<Method> plaintextMethods = new LinkedHashSet<>();
-            for (MethodData match : matches) {
-                plaintextMethods.add(match.getMethodInstance(classLoader));
-            }
-            if (plaintextMethods.isEmpty()) return;
+            Method[] plaintextMethods = DexSearchEngine.getInstance().findMethodsWithCache(
+                    context, classLoader, "waex_shared_message_plaintext_v1",
+                    (bridge, loader) -> {
+                        Set<Method> found = new LinkedHashSet<>();
+                        for (MethodData match : bridge.findMethod(FindMethod.create().matcher(
+                                MethodMatcher.create().addUsingString(
+                                        "SharedMessageProcessor/handlePlaintext",
+                                        StringMatchType.Contains)))) {
+                            found.add(match.getMethodInstance(loader));
+                        }
+                        return found.isEmpty() ? null : found.toArray(new Method[0]);
+                    });
+            if (plaintextMethods == null || plaintextMethods.length == 0) return;
             XC_MethodHook observer = new XC_MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
-                    if (!isHideReadReceiptsEnabled()) return;
+                    if (!SafeHooks.test(() -> anyReadWithholdingAvailable())) return;
                     Object message = findFMessage(param.args);
                     if (message != null) captureIncomingMessageIfHidden(message);
                 }
@@ -196,60 +191,6 @@ public class HideReceiptsHook extends BaseFeature {
         } catch (Throwable t) {
             XposedBridge.log(TAG + " plaintext message observer error: "
                     + t.getClass().getSimpleName());
-        }
-    }
-
-    /**
-     * Enforce suppression at the root incoming receipt method.
-     * Hooks ReadReceipts/sendReceiptForIncomingMessage to prevent status or message read receipts from ever generating.
-     */
-    private void hookEnforceHiding() {
-        try {
-            Method readReceiptMethod = DexSearchEngine.getInstance().findMethodWithCache(
-                    context,
-                    classLoader,
-                    "waex_read_receipt_incoming_message",
-                    (bridge, loader) -> {
-                        MethodData md = bridge.findMethod(FindMethod.create()
-                                .matcher(MethodMatcher.create()
-                                        .addUsingString("ReadReceipts/sendReceiptForIncomingMessage", StringMatchType.Contains))
-                        ).firstOrNull();
-                        return md != null ? md.getMethodInstance(loader) : null;
-                    }
-            );
-
-            if (readReceiptMethod != null) {
-                XposedBridge.hookMethod(readReceiptMethod, new XC_MethodHook() {
-                    @Override
-                    protected void beforeHookedMethod(MethodHookParam param) {
-                        if (param.args == null || param.args.length == 0) return;
-                        Object fMessageObj = param.args[0];
-                        if (fMessageObj == null) return;
-
-                        String jid = extractJidString(fMessageObj, "key");
-                        String participant = extractParticipantOrJid(fMessageObj);
-                        String target = resolveConversationTarget(jid, participant);
-
-                        if (isStatusTarget(jid, participant)) {
-                            // Let WhatsApp construct its complete status receipt job. The
-                            // constructor hook retains that authentic recipe and the verified
-                            // execution hook below suppresses automatic delivery. Cancelling here
-                            // loses participant, receipt-class and timestamp metadata required by
-                            // an explicit status blue tick.
-                            return;
-                        }
-
-                        if (shouldHideReadReceipt(target)) {
-                            // Do not cancel this call. On current WhatsApp builds the open-chat
-                            // path may combine delivery and read acknowledgement generation. The
-                            // ProtocolTreeNode hook below downgrades only type=read, preserving the
-                            // sender's ordinary delivered (double-tick) acknowledgement.
-                        }
-                    }
-                });
-            }
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + " Error hooking enforce hiding: " + t.getClass().getSimpleName());
         }
     }
 
@@ -299,7 +240,7 @@ public class HideReceiptsHook extends BaseFeature {
                                     }
                                     XposedHelpers.setAdditionalInstanceField(job, "waex_hide_status_view", true);
                                 }
-                            } else if ((isEnabled("blueonreply", false)
+                            } else if ((getPrivacy().flag("blueonreply")
                                     || isManualSeenTickEnabled())
                                     && !hasExplicitReceiptIds(jid, param.args)) {
                                 // The serialized job recipient is authoritative. A group participant
@@ -361,11 +302,8 @@ public class HideReceiptsHook extends BaseFeature {
                             // Step 1 succeeded. This is the critical fix for in-chat messages
                             // where WhatsApp creates and runs the job before our constructor-time
                             // staging can populate the String[] fields.
-                            Set<String> msgIds = BlueOnReplyHook.readReceiptMessageIds(job);
-                            if (!msgIds.isEmpty() && target != null) {
-                                HideSeenStore.getInstance(context).insertHideSeenMessagesAsync(
-                                        target, msgIds, HideSeenStore.TYPE_READ, false);
-                            }
+                            UnsentReadLedger.track(context, target, participant,
+                                    BlueOnReplyHook.readReceiptMessageIds(job));
                             param.setResult(null);
                             return;
                         }
@@ -375,8 +313,13 @@ public class HideReceiptsHook extends BaseFeature {
                             if (BlueOnReplyHook.isManualChatReceipt(job)) {
                                 BlueOnReplyHook.recordSuppressedReadJob(job);
                             }
+                            UnsentReadLedger.track(context, target, participant,
+                                    BlueOnReplyHook.readReceiptMessageIds(job));
                             param.setResult(null);
+                            return;
                         }
+                        // The receipt is going out: it is no longer owed.
+                        UnsentReadLedger.markSent(context, target, BlueOnReplyHook.readReceiptMessageIds(job));
                     }
                 });
             }
@@ -408,16 +351,8 @@ public class HideReceiptsHook extends BaseFeature {
     }
 
     private boolean isManualSeenTickEnabled() {
-        if (!isHideReadReceiptsEnabled()) return false;
-        Object value = prefs.getAll().get("seentick");
-        if (value instanceof Boolean) return (Boolean) value;
-        if (value instanceof Number) return ((Number) value).intValue() != 0;
-        if (value instanceof String) {
-            String text = (String) value;
-            return !text.isEmpty() && !"0".equals(text)
-                    && !"false".equalsIgnoreCase(text);
-        }
-        return false;
+        // The manual button can send receipts withheld by any privacy setting.
+        return getPrivacy().flag("seentick");
     }
 
     private static String findJidInArguments(Object[] arguments) {
@@ -514,17 +449,24 @@ public class HideReceiptsHook extends BaseFeature {
                         // exempt a read receipt, and never delivery privacy or Ghost Mode.
                         if (ExplicitReadReceiptPolicy.maySend(type, target, messageId,
                                 hideDelivery, EXPLICIT_RECEIPT_IDS,
-                                SystemClock.elapsedRealtime())) return;
+                                SystemClock.elapsedRealtime())) {
+                            UnsentReadLedger.markSent(context, target,
+                                    messageId != null ? Collections.singletonList(messageId) : null);
+                            return;
+                        }
                         boolean hideRead = isReadReceipt && shouldHideReadReceipt(target);
 
                         if (hideDelivery) {
+                            // Delivery and read receipts both identify a received message whose
+                            // read receipt is now withheld.
                             applyHideDelivery(node);
+                            UnsentReadLedger.track(context, target, participant, messageId);
                         } else if (hideRead) {
                             applyHideRead(node);
-                            if (target != null && messageId != null) {
-                                HideSeenStore.getInstance(context).insertHideSeenMessageAsync(
-                                        target, messageId, HideSeenStore.TYPE_READ, false);
-                            }
+                            UnsentReadLedger.track(context, target, participant, messageId);
+                        } else if (isReadReceipt) {
+                            UnsentReadLedger.markSent(context, target,
+                                    messageId != null ? Collections.singletonList(messageId) : null);
                         }
                     }
                 });
@@ -557,15 +499,13 @@ public class HideReceiptsHook extends BaseFeature {
                         }
                 );
 
-                if (deliveryMethod != null) {
-                    XposedBridge.hookMethod(deliveryMethod, new XC_MethodHook() {
-                        @Override
-                        protected void beforeHookedMethod(MethodHookParam param) {
-                            if (isHideDeliveryReceiptsEnabled()) {
-                                param.setResult(null); // Drop delivery receipt dispatch
-                            }
-                        }
-                    });
+                if (deliveryMethod == null) continue;
+                try {
+                    // Only a void dispatcher may be skipped; anything else would hand WhatsApp
+                    // a null result. A non-void target is reported and left alone.
+                    SafeHooks.skipWhile(deliveryMethod, this::isHideDeliveryReceiptsEnabled);
+                } catch (NoSuchMethodException changed) {
+                    XposedBridge.log(TAG + " " + anchor + " is not void on this build; not hooked");
                 }
             }
         } catch (Throwable t) {
@@ -626,8 +566,19 @@ public class HideReceiptsHook extends BaseFeature {
 
     /** Record one incoming decrypted message independently of current UI state. */
     private void captureIncomingMessageIfHidden(Object msgObj) {
-        if (!isHideReadReceiptsEnabled()) return;
         if (fMessageClass == null || !fMessageClass.isInstance(msgObj)) return;
+        // Typed key contract first; the value-scanning fallback below covers builds where it
+        // could not be confirmed.
+        String typedId = WaMessage.id(msgObj);
+        String typedChat = WaMessage.remoteJid(msgObj);
+        Boolean typedFromMe = WaMessage.isFromMe(msgObj);
+        if (typedId != null && typedChat != null && typedFromMe != null) {
+            String target = canonicalJid(typedChat);
+            if (typedFromMe || target == null || !withholdsRead(target)) return;
+            UnsentReadLedger.track(context, target, WaMessage.senderJid(msgObj), typedId);
+            BlueOnReplyHook.recordObservedReceipt(target, WaMessage.remoteJidObject(msgObj), typedId);
+            return;
+        }
         try {
             Object keyObj = findMessageKey(msgObj);
             if (keyObj == null) return;
@@ -665,10 +616,9 @@ public class HideReceiptsHook extends BaseFeature {
             String target = canonicalJid(rawJid);
             if (target == null) return;
 
-            if (!shouldHideReadReceipt(target)) return;
+            if (!withholdsRead(target)) return;
 
-            HideSeenStore.getInstance(context).insertHideSeenMessageAsync(
-                    target, messageId, HideSeenStore.TYPE_READ, false);
+            UnsentReadLedger.track(context, target, WaMessage.senderJid(msgObj), messageId);
 
             BlueOnReplyHook.recordObservedReceipt(target, typedJid, messageId);
         } catch (Throwable t) {
@@ -959,27 +909,6 @@ public class HideReceiptsHook extends BaseFeature {
         }
     }
 
-    private String extractParticipantOrJid(Object fMessageObj) {
-        if (fMessageObj == null) return null;
-        try {
-            Class<?> curr = fMessageObj.getClass();
-            while (curr != null && curr != Object.class) {
-                for (Field f : HostFields.declared(curr)) {
-                    f.setAccessible(true);
-                    Object val = f.get(fMessageObj);
-                    if (val != null) {
-                        String s = val.toString();
-                        if (s.contains("@s.whatsapp.net") || s.contains("@lid") || s.contains("@broadcast")) {
-                            return s;
-                        }
-                    }
-                }
-                curr = curr.getSuperclass();
-            }
-        } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
-        return null;
-    }
-
     private boolean isStatusTarget(String jid, String participant) {
         // Numeric broadcast-list recipients are ordinary conversations. Matching
         // the namespace or a substring would apply status privacy to their jobs.
@@ -987,42 +916,28 @@ public class HideReceiptsHook extends BaseFeature {
     }
 
     private boolean shouldHideStatusView(String target) {
-        boolean globalEnabled = isStealthStatusViewEnabled();
-        if (target != null) {
-            JSONObject contactPrivacy = CustomPrivacyHook.getContactPrivacy(prefs, target);
-            if (contactPrivacy != null) {
-                return contactPrivacy.optBoolean("HideViewStatus", globalEnabled);
-            }
-        }
-        return globalEnabled;
+        return getPrivacy().appliesTo(context, PrivacyToggle.STEALTH_STATUS, target);
+    }
+
+    /** True when this chat's read receipt is withheld in any form (blue ticks, delivered, Ghost). */
+    private boolean withholdsRead(String target) {
+        return shouldHideReadReceipt(target) || shouldHideDeliveryReceipt(target);
+    }
+
+    /** Cheap global pre-check before inspecting an incoming message. */
+    private boolean anyReadWithholdingAvailable() {
+        // Ghost Mode is included (it covers all three). Per-contact-only rules are still
+        // recorded by the receipt job and receipt node hooks.
+        return getPrivacy().isOn(PrivacyToggle.HIDE_READ) || getPrivacy().isOn(PrivacyToggle.HIDE_READ_GROUP)
+                || getPrivacy().isOn(PrivacyToggle.HIDE_DELIVERY);
     }
 
     private boolean shouldHideReadReceipt(String target) {
-        if (isGhostModeActive()) {
-            return true;
-        }
-        boolean isGroup = target != null && (target.contains("@g.us") || target.contains("-"));
-        boolean globalEnabled = isGroup ? isEnabled("hideread_group", false) : isHideReadReceiptsEnabled();
-        if (target != null) {
-            JSONObject contactPrivacy = CustomPrivacyHook.getContactPrivacy(prefs, target);
-            if (contactPrivacy != null) {
-                return contactPrivacy.optBoolean("HideSeen", globalEnabled);
-            }
-        }
-        return globalEnabled;
+        return getPrivacy().hideReadFor(context, target);
     }
 
     private boolean shouldHideDeliveryReceipt(String target) {
-        if (isGhostModeActive()) return true;
-        boolean globalEnabled = isEnabled("hide_delivery_receipts", false)
-                || isEnabled("hidereceipt", false);
-        if (target != null) {
-            JSONObject contactPrivacy = CustomPrivacyHook.getContactPrivacy(prefs, target);
-            if (contactPrivacy != null) {
-                return contactPrivacy.optBoolean("HideReceipt", globalEnabled);
-            }
-        }
-        return globalEnabled;
+        return getPrivacy().appliesTo(context, PrivacyToggle.HIDE_DELIVERY, target);
     }
 
     /**
@@ -1078,134 +993,130 @@ public class HideReceiptsHook extends BaseFeature {
     }
 
     /**
-     * Hooks WhatsApp's SenderPlayed dispatcher to suppress outgoing "Played" / "Opened" receipts
-     * for Voice Notes (audio) and View-Once media when the corresponding privacy toggles are active.
+     * Played receipts ("listened" for voice notes, "opened" for view once). WhatsApp sends them
+     * for a Set of messages through the sendClearDirty dispatcher. Each message is checked on its
+     * own: hidden ones are removed from the batch, the rest are still sent, and the call is
+     * skipped only when nothing is left.
      */
     private void hookSenderPlayed() {
+        final Method dispatch;
         try {
-            Method dispatch = resolvePlayedReceiptDispatch();
-            if (dispatch == null) {
-                XposedBridge.log(TAG + " WARNING: Verified played dispatcher unavailable; audio/view-once privacy coverage is incomplete.");
-                return;
-            }
-            XposedBridge.hookMethod(dispatch, new XC_MethodHook() {
-                @Override
-                protected void beforeHookedMethod(MethodHookParam param) {
-                    if (!PlayedReceiptDispatchPolicy.isDispatchCall(
-                            dispatch, param.method, param.thisObject, param.args)) return;
-                    Set<?> messages = (Set<?>) param.args[0];
-                    // Retain existing played-batch privacy semantics. Media-kind classification
-                    // and mixed-batch granularity require an independently verified contract.
-                    if (!messages.isEmpty()
-                            && shouldSuppressPlayedReceipt(messages.iterator().next())) {
-                        param.setResult(null);
-                    }
-                }
-            });
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + " Error hooking sender played: " + t.getClass().getSimpleName());
+            dispatch = WaTargets.sendPlayedReceipts(context, classLoader);
+        } catch (NoSuchMethodException missing) {
+            XposedBridge.log(TAG + " Played-receipt dispatcher not found; voice note / view once privacy unavailable");
+            return;
         }
-    }
-
-    private Method resolvePlayedReceiptDispatch() {
-        Method method = DexSearchEngine.getInstance().findMethodWithCache(
-                context, classLoader, "waex_played_batch_dispatch_v1",
-                (bridge, loader) -> {
-                    // sendClearDirty identifies a multi-purpose dispatcher, not a played method.
-                    // Require the actual constructor call edge observed for the receipt job.
-                    MethodDataList matches = bridge.findMethod(FindMethod.create()
-                            .matcher(MethodMatcher.create()
-                                    .returnType("void")
-                                    .paramCount(2)
-                                    .addParamType("java.util.Set")
-                                    .addParamType("boolean")
-                                    .addInvoke(MethodMatcher.create()
-                                            .declaredClass("com.whatsapp.messaging.receipts.jobqueue.job.SendPlayedReceiptJobV2")
-                                            .name("<init>")
-                                            .paramCount(2)
-                                            .addUsingString("played-receipt-v2-", StringMatchType.Equals))));
-                    if (matches.size() != 1) return null;
-                    Method candidate = matches.get(0).getMethodInstance(loader);
-                    return PlayedReceiptDispatchPolicy.isDispatchMethod(candidate) ? candidate : null;
-                });
-        return PlayedReceiptDispatchPolicy.isDispatchMethod(method) ? method : null;
-    }
-
-    private boolean shouldSuppressPlayedReceipt(Object msgObj) {
-        if (msgObj == null) return false;
-
-        boolean hideVoiceNote = isHideVoiceNotePlayedEnabled();
-        boolean hideViewOnce = isHideViewOnceSeenEnabled();
-
-        if (!hideVoiceNote && !hideViewOnce) return false;
-
-        try {
-            // Check media type / view once properties dynamically
-            Class<?> cls = msgObj.getClass();
-            while (cls != null && cls != Object.class) {
-                for (Field f : HostFields.declared(cls)) {
-                    f.setAccessible(true);
-                    String name = f.getName().toLowerCase();
-                    if (f.getType() == int.class || f.getType() == byte.class) {
-                        int val = f.getInt(msgObj);
-                        // MediaType 2 = Voice Note / Audio
-                        if (hideVoiceNote && val == 2) {
-                            return true;
-                        }
-                    } else if (f.getType() == boolean.class) {
-                        boolean bVal = f.getBoolean(msgObj);
-                        if (hideViewOnce && (name.contains("viewonce") || name.contains("ephemeral")) && bVal) {
-                            return true;
-                        }
-                    }
+        XposedBridge.hookMethod(dispatch, new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) {
+                if (!(param.args[0] instanceof Set)) return;
+                Set<?> batch = (Set<?>) param.args[0];
+                if (batch.isEmpty()) return;
+                Set<Object> kept = PlayedReceiptBatch.keep(batch,
+                        HideReceiptsHook.this::shouldSuppressPlayedReceipt,
+                        HideReceiptsHook.this::recordHiddenPlayed);
+                if (kept == null) return;
+                if (kept.isEmpty()) {
+                    param.setResult(null);
+                } else {
+                    param.args[0] = kept;
                 }
-                cls = cls.getSuperclass();
             }
-        } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
-
-        // Fallback: If either toggle is enabled and played method is triggered for this message
-        return hideVoiceNote || hideViewOnce;
+        });
     }
 
-    private boolean isGhostModeActive() {
-        return isEnabled("ghostmode_active", false);
-    }
-
-    private boolean isHideVoiceNotePlayedEnabled() {
-        return isEnabled("hide_seen_receipts", false) || isEnabled("hideaudioseen", false) || isGhostModeActive();
-    }
-
-    private boolean isHideViewOnceSeenEnabled() {
-        return isEnabled("hideonceseen", false) || isGhostModeActive();
-    }
-
-    private boolean isHideReadReceiptsEnabled() {
-        return isEnabled("hide_read_receipts", false) || isEnabled("hideread", false) || isGhostModeActive();
-    }
-
-    private boolean isHideDeliveryReceiptsEnabled() {
-        return isEnabled("hide_delivery_receipts", false) || isEnabled("hidereceipt", false) || isGhostModeActive();
-    }
-
-    private boolean isStealthStatusViewEnabled() {
-        if (isGhostModeActive()) {
+    private boolean shouldSuppressPlayedReceipt(Object message) {
+        if (message == null) return false;
+        String chat = WaMessage.remoteJid(message);
+        boolean hideVoice = getPrivacy().appliesTo(context, PrivacyToggle.HIDE_VOICE_PLAYED, chat);
+        boolean hideOnce = getPrivacy().appliesTo(context, PrivacyToggle.HIDE_VIEW_ONCE_OPENED, chat);
+        if (!hideVoice && !hideOnce) return false;
+        if (!WaMessage.hasMediaType()) {
+            // Media type unknown on this build: keep privacy rather than leak a receipt.
             return true;
         }
+        int type = WaMessage.mediaType(message);
+        return (hideVoice && WaMessage.isVoiceNoteType(type))
+                || (hideOnce && WaMessage.isViewOnceType(type));
+    }
+
+    private void recordHiddenPlayed(Object message) {
+        String chat = canonicalJid(WaMessage.remoteJid(message));
+        String id = WaMessage.id(message);
+        if (chat != null && id != null) {
+            HideSeenStore.getInstance(context).insertHideSeenMessageAsync(
+                    chat, id, HideSeenStore.TYPE_PLAYED, false);
+        }
+    }
+
+    /**
+     * Safety net for delivery receipts that reach the socket without passing the receipt builder
+     * hook (new WhatsApp code paths appear regularly). Only a plain delivery receipt (no type)
+     * for a hidden chat is dropped; call, retry, played, read and server receipts pass untouched.
+     * Optional: if the writer cannot be identified, the builder hook still covers the main path.
+     */
+    private void hookStanzaWriter() {
+        Method writer = WaTargets.stanzaWriter(context, classLoader);
+        if (writer == null || protocolTreeNodeClass == null || fieldAttributes == null) return;
+        final Field tagField = firstFieldOfType(protocolTreeNodeClass, String.class);
+        final Field childrenField = firstFieldOfType(protocolTreeNodeClass,
+                Array.newInstance(protocolTreeNodeClass, 0).getClass());
+        if (tagField == null) return;
+        XposedBridge.hookMethod(writer, new XC_MethodHook() {
+            @Override
+            protected void beforeHookedMethod(MethodHookParam param) {
+                Object node = param.args[0];
+                if (!protocolTreeNodeClass.isInstance(node)) return;
+                if (!SafeHooks.test(() -> isLeakedDeliveryReceipt(node, tagField, childrenField))) return;
+                String to = getAttributeValue(node, "to");
+                String participant = getAttributeValue(node, "participant");
+                if (isStatusTarget(to, participant)) return;
+                String target = resolveConversationTarget(to, participant);
+                if (target == null || WaJid.isNewsletter(target)) return;
+                if (SafeHooks.test(() -> shouldHideDeliveryReceipt(target))) {
+                    param.setResult(null);
+                    UnsentReadLedger.track(context, target, participant, getAttributeValue(node, "id"));
+                }
+            }
+        });
+    }
+
+    private static final Set<String> CALL_RECEIPT_CHILDREN =
+            new HashSet<>(Arrays.asList("offer", "accept", "reject", "enc_rekey"));
+
+    private boolean isLeakedDeliveryReceipt(Object node, Field tagField, Field childrenField) {
         try {
-            if (prefs.contains("stealth_status_view")) {
-                Object val = prefs.getAll().get("stealth_status_view");
-                if (val instanceof Boolean) return (Boolean) val;
-                if (val instanceof String) return !"0".equals(val) && !"false".equalsIgnoreCase((String) val);
-                if (val instanceof Number) return ((Number) val).intValue() != 0;
+            if (!"receipt".equals(tagField.get(node))) return false;
+            if (getAttributeValue(node, "type") != null) return false;
+            if (childrenField != null) {
+                Object[] children = (Object[]) childrenField.get(node);
+                if (children != null) {
+                    for (Object child : children) {
+                        if (child != null && CALL_RECEIPT_CHILDREN.contains(tagField.get(child))) return false;
+                    }
+                }
             }
-            if (prefs.contains("hidestatusview")) {
-                Object val = prefs.getAll().get("hidestatusview");
-                if (val instanceof Boolean) return (Boolean) val;
-                if (val instanceof String) return !"0".equals(val) && !"false".equalsIgnoreCase((String) val);
-                if (val instanceof Number) return ((Number) val).intValue() != 0;
+            return true;
+        } catch (IllegalAccessException unreadable) {
+            return false;
+        }
+    }
+
+    private static Field firstFieldOfType(Class<?> owner, Class<?> type) {
+        for (Field f : HostFields.declared(owner)) {
+            if (!Modifier.isStatic(f.getModifiers()) && f.getType() == type) {
+                f.setAccessible(true);
+                return f;
             }
-        } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
-        return isEnabled("stealth_status_view", false) || isEnabled("hidestatusview", false);
+        }
+        return null;
+    }
+
+    // All switches are read live from PrivacyPrefs (Ghost Mode, aliases and per-contact rules
+    // included), so quick actions apply to the next receipt without a restart.
+
+    private boolean isHideDeliveryReceiptsEnabled() {
+        return getPrivacy().isOn(PrivacyToggle.HIDE_DELIVERY);
     }
 
     @NonNull
