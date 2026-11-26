@@ -28,7 +28,11 @@ PRODUCTION = [
 ]
 
 STUBS = {'android/content/Context.java': 'package android.content; public class Context { public String '
-                                 'getPackageName(){return "com.whatsapp";} }',
+                                 'getPackageName(){return "com.whatsapp";} '
+                                 'public android.content.res.Resources getResources(){return new android.content.res.Resources();} }',
+ 'android/content/res/Resources.java': 'package android.content.res; public class Resources { '
+                                      'public int getIdentifier(String name,String type,String packageName){'
+                                      'throw new AssertionError("resource lookup outside receipt fixture");} }',
  'android/content/SharedPreferences.java': 'package android.content;\n'
                                            'public interface SharedPreferences {\n'
                                            ' boolean getBoolean(String key, boolean fallback);\n'
@@ -402,7 +406,24 @@ def run_contracts(source_root, out, kotlinc):
     summary=re.search(r'Receipt stanza runtime: (\d+) scenarios, (\d+) checks, (\d+) failed scenarios',result.stdout)
     completed=summary is not None and int(summary[1])==101
     accepted=completed and result.returncode==0 and int(summary[3])==0
+    # Compile the actual shared selector, but fail if this receipt-only fixture
+    # attempts its unrelated resource lookup. Exercise that boundary causally.
+    boundary_probe = generated / 'ReceiptResourceBoundaryProbe.java'
+    boundary_probe.write_text(
+        'public final class ReceiptResourceBoundaryProbe { public static void main(String[] args) {'
+        ' com.waenhancer.xposed.core.wa.WaTargets.viewOnceMediaMenu(new android.content.Context(),'
+        ' ReceiptResourceBoundaryProbe.class.getClassLoader()); } }', encoding='utf-8')
+    run(['javac', '--release', '17', '-encoding', 'UTF-8', '-cp', classpath,
+         '-d', str(classes), str(boundary_probe)])
+    boundary = subprocess.run(['java', '-cp', classpath, 'ReceiptResourceBoundaryProbe'],
+                              text=True, capture_output=True, timeout=30)
+    (out / 'resource-boundary.log').write_text(boundary.stdout + boundary.stderr, encoding='utf-8')
+    boundary_rejected = (boundary.returncode != 0 and
+                         'java.lang.AssertionError: resource lookup outside receipt fixture' in boundary.stderr)
+    accepted = accepted and boundary_rejected
     report = {
+        'resource_lookup_boundary_rejected': boundary_rejected,
+        'resource_lookup_boundary_exit_code': boundary.returncode,
         'completed_matrix':completed,'expected_scenarios':101,
         'scenarios':int(summary[1]) if summary else 0,
         'checks':int(summary[2]) if summary else 0,

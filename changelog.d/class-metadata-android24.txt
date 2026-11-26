@@ -1,0 +1,3 @@
+[Fixes]
+- Remove an Android 14-only cache dependency from receipt privacy and JID handling on older Android versions.
+  Preserve per-class lookup results without retaining unloaded host classes.

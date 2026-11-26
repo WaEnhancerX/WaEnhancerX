@@ -10,12 +10,15 @@ import androidx.annotation.Nullable;
 import com.waenhancer.utils.ContactNameResolver;
 import com.waenhancer.xposed.utils.HookErrors;
 
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.function.BiFunction;
 import java.util.regex.Pattern;
 
@@ -33,18 +36,38 @@ public final class WaJid {
     private static final Pattern DEVICE_SUFFIX = Pattern.compile("[.:][\\d:]+@");
     private static final long MISS_TTL_MS = 60_000L;
 
-    private static final ClassValue<Method> RAW_STRING = new ClassValue<Method>() {
-        @Override
-        protected Method computeValue(Class<?> type) {
-            try {
-                Method method = type.getMethod("getRawString");
-                method.setAccessible(true);
-                return method.getReturnType() == String.class ? method : null;
-            } catch (Throwable ignored) {
-                return null;
-            }
+    // ClassValue is available only from Android 14. Both ends must be weak:
+    // a Method retained strongly as a value would keep its declaring Class alive.
+    private static final Map<Class<?>, WeakReference<Method>> RAW_STRING = new WeakHashMap<>();
+    private static final WeakReference<Method> NO_RAW_STRING = new WeakReference<>(null);
+
+    private static Method rawStringMethod(Class<?> type) {
+        if (type == null) throw new NullPointerException("type");
+        synchronized (RAW_STRING) {
+            WeakReference<Method> cached = RAW_STRING.get(type);
+            if (cached == NO_RAW_STRING) return null;
+            Method method = cached == null ? null : cached.get();
+            if (method != null) return method;
         }
-    };
+        Method resolved = null;
+        try {
+            Method method = type.getMethod("getRawString");
+            method.setAccessible(true);
+            if (method.getReturnType() == String.class) resolved = method;
+        } catch (Throwable ignored) {
+            // Preserve the existing negative result for an unavailable contract.
+        }
+        synchronized (RAW_STRING) {
+            // Reflection runs outside the lock. Keep a result already published
+            // by another thread, including a negative result for this Class.
+            WeakReference<Method> cached = RAW_STRING.get(type);
+            if (cached == NO_RAW_STRING) return null;
+            Method method = cached == null ? null : cached.get();
+            if (method != null) return method;
+            RAW_STRING.put(type, resolved == null ? NO_RAW_STRING : new WeakReference<>(resolved));
+            return resolved;
+        }
+    }
 
     private static final IdentityMap LID_TO_PHONE = new IdentityMap(
             (context, lid) -> {
@@ -71,7 +94,7 @@ public final class WaJid {
         if (jid instanceof String) {
             value = (String) jid;
         } else {
-            Method method = RAW_STRING.get(jid.getClass());
+            Method method = rawStringMethod(jid.getClass());
             if (method == null) return null;
             try {
                 value = (String) method.invoke(jid);
@@ -86,7 +109,7 @@ public final class WaJid {
 
     /** True when the object exposes WhatsApp's Jid contract. */
     public static boolean isJid(@Nullable Object value) {
-        return value != null && !(value instanceof String) && RAW_STRING.get(value.getClass()) != null;
+        return value != null && !(value instanceof String) && rawStringMethod(value.getClass()) != null;
     }
 
     public static boolean isGroup(@Nullable String raw) {

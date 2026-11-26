@@ -19,6 +19,7 @@ import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.ClassData;
 import org.luckypray.dexkit.result.MethodData;
 import org.luckypray.dexkit.result.MethodDataList;
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -30,8 +31,9 @@ import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicReference;
 import com.waenhancer.xposed.features.customization.PropsOverrideHook;
 import com.waenhancer.xposed.utils.HookErrors;
 import com.waenhancer.xposed.utils.HostFields;
@@ -627,17 +629,16 @@ public class HideReceiptsHook extends BaseFeature {
         }
     }
 
-    /** The field that held the message key, per message class: it is the same for every message. */
-    private static final ClassValue<AtomicReference<Field>> MESSAGE_KEY_FIELDS =
-            new ClassValue<AtomicReference<Field>>() {
-                @Override protected AtomicReference<Field> computeValue(Class<?> type) {
-                    return new AtomicReference<>();
-                }
-            };
+    /** Weak metadata avoids Android 14-only ClassValue and does not retain host class loaders. */
+    private static final Map<Class<?>, WeakReference<Field>> MESSAGE_KEY_FIELDS = new WeakHashMap<>();
 
     private Object findMessageKey(Object message) {
         if (message == null) return null;
-        Field known = MESSAGE_KEY_FIELDS.get(message.getClass()).get();
+        Field known;
+        synchronized (MESSAGE_KEY_FIELDS) {
+            WeakReference<Field> cached = MESSAGE_KEY_FIELDS.get(message.getClass());
+            known = cached == null ? null : cached.get();
+        }
         if (known != null) {
             try {
                 Object candidate = known.get(message);
@@ -659,7 +660,10 @@ public class HideReceiptsHook extends BaseFeature {
                     if (className.contains("Key")
                             || candidate.toString().startsWith("Key(")
                             || isMessageKey(candidate)) {
-                        MESSAGE_KEY_FIELDS.get(message.getClass()).set(field);
+                        synchronized (MESSAGE_KEY_FIELDS) {
+                            // As before, the latest valid discovery for this class wins.
+                            MESSAGE_KEY_FIELDS.put(message.getClass(), new WeakReference<>(field));
+                        }
                         return candidate;
                     }
                 } catch (Throwable ignored) { HookErrors.swallowed("HideReceiptsHook", ignored); }
