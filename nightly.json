@@ -1,8 +1,30 @@
 {
   "schema": 1,
   "channel": "nightly",
-  "updated_at": "2026-11-24T18:32:36Z",
+  "updated_at": "2026-11-26T07:32:52Z",
   "releases": [
+    {
+      "tag": "2.1.0-nightly.9",
+      "version_name": "2.1.0-nightly.9",
+      "version_code": 20100009,
+      "published_at": "2026-11-26T07:32:36Z",
+      "html_url": "https://github.com/WaEnhancerX/WaEnhancerX/releases/tag/2.1.0-nightly.9",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v2.1.0-nightly.9_debug.apk",
+          "url": "https://github.com/WaEnhancerX/WaEnhancerX/releases/download/2.1.0-nightly.9/WaEnhancerX-v2.1.0-nightly.9_debug.apk",
+          "size": 8019372,
+          "sha256": "01ac66fff8c87718b334abfd99b046ea5034a7d6768c8327a717bd2a052bcfbd"
+        },
+        {
+          "name": "WaEnhancerX-v2.1.0-nightly.9_release.apk",
+          "url": "https://github.com/WaEnhancerX/WaEnhancerX/releases/download/2.1.0-nightly.9/WaEnhancerX-v2.1.0-nightly.9_release.apk",
+          "size": 8118511,
+          "sha256": "ece736cd09305eefb7bde9bde9f115031a9b3277b42592dc85e9bd94faf1f55b"
+        }
+      ],
+      "notes": "[Fixes]\n- Remove an Android 14-only cache dependency from receipt privacy and JID handling on older Android versions. Preserve per-class lookup results without retaining unloaded host classes.\n\nBuilt from commit 6671421c9c6b0e9608944bd6d2b30aa07251c92b"
+    },
     {
       "tag": "2.1.0-nightly.8",
       "version_name": "2.1.0-nightly.8",
