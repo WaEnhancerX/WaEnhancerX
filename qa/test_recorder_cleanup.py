@@ -12,6 +12,10 @@ def method(marker):
 parts=[method(x) for x in ['private synchronized void stopRecorder(', 'private void releaseRecorder(', 'private void closeDestination(']]
 program=r'''
 import java.util.concurrent.atomic.AtomicBoolean;
+import android.content.Context;
+import android.os.Bundle;
+import com.waenhancer.xposed.bridge.client.HookProviderIpc;
+import com.waenhancer.xposed.utils.HookErrors;
 public class RecorderCleanupProbe {
  static final String TAG="[probe]", BRIDGE_URI="fixture";
  final AtomicBoolean recording=new AtomicBoolean(false);
@@ -23,19 +27,6 @@ public class RecorderCleanupProbe {
   void reset(){resets++;}void release(){releases++;if(throwsOnRelease)throw new IllegalStateException("release failed");}
  }
  static class ParcelFileDescriptor {int closes;void close(){closes++;}}
- static class Bundle {java.util.Map<String,Object> values=new java.util.HashMap<>();
-  void putString(String k,String v){values.put(k,v);} void putLong(String k,long v){values.put(k,v);}
-  void putBoolean(String k,boolean v){values.put(k,v);}}
- static class Context {int deletes,finishes;Boolean success;Context getContentResolver(){return this;}
-  Object call(String u,String op,String arg,Bundle b){
-   if("delete_call_recording".equals(op)){deletes++;return null;}
-   if("finish_call_recording".equals(op)){
-    if(!"fixture-call".equals(b.values.get("call_id")) || !(b.values.get("ended_at") instanceof Long))
-      throw new AssertionError("Invalid recording completion metadata");
-    finishes++;success=(Boolean)b.values.get("successful");return null;
-   }
-   throw new AssertionError("Unexpected recorder IPC: "+op);
-  }}
  static class XposedBridge {static void log(String s){}}
  BODY
  static RecorderCleanupProbe fixture(boolean stopFails){
@@ -50,6 +41,7 @@ public class RecorderCleanupProbe {
    if(r.releases!=1)throw new AssertionError("release omitted on stop failure");
    if(!failure && r.releases!=1)throw new AssertionError("success control failed");
    if(p.context.deletes!=(failure?1:0))throw new AssertionError("unexpected deletion");
+   if(p.context.acquires!=p.context.closes || p.context.acquires!=(failure?2:1))throw new AssertionError("unstable provider reference leaked");
    if(p.context.finishes!=1||!Boolean.valueOf(!failure).equals(p.context.success))
     throw new AssertionError("recording completion notification omitted or incorrect");
   }
@@ -64,10 +56,52 @@ public class RecorderCleanupProbe {
  }
 }
 '''.replace('BODY','\n'.join(parts))
+platform={
+ 'androidx/annotation/NonNull.java':'package androidx.annotation; public @interface NonNull {}',
+ 'androidx/annotation/VisibleForTesting.java':'package androidx.annotation; public @interface VisibleForTesting {}',
+ 'android/net/Uri.java':'package android.net; public class Uri {public static Uri parse(String s){return new Uri();}}',
+ 'android/os/RemoteException.java':'package android.os; public class RemoteException extends Exception {}',
+ 'android/os/Bundle.java':'''package android.os; public class Bundle {
+  public final java.util.Map<String,Object> values=new java.util.HashMap<>();
+  public void putString(String k,String v){values.put(k,v);}public void putLong(String k,long v){values.put(k,v);}
+  public void putBoolean(String k,boolean v){values.put(k,v);}
+ }''',
+ 'android/content/Context.java':'''package android.content; import android.os.*;import android.net.Uri;
+ public class Context {
+  public int deletes,finishes,acquires,closes;public Boolean success;
+  public Context getContentResolver(){return this;}
+  public ContentProviderClient acquireUnstableContentProviderClient(Uri uri){acquires++;return new ContentProviderClient(this);}
+  public Bundle call(String op,String arg,Bundle b){
+   if("delete_call_recording".equals(op)){deletes++;return null;}
+   if("finish_call_recording".equals(op)){
+    if(!"fixture-call".equals(b.values.get("call_id")) || !(b.values.get("ended_at") instanceof Long))
+     throw new AssertionError("Invalid recording completion metadata");
+    finishes++;success=(Boolean)b.values.get("successful");return null;
+   }
+   throw new AssertionError("Unexpected recorder IPC: "+op);
+  }
+ }''',
+ 'android/content/ContentProviderClient.java':'''package android.content; import android.os.*;
+ public class ContentProviderClient implements AutoCloseable {
+  private final Context owner; private boolean closed;
+  public ContentProviderClient(Context c){owner=c;}
+  public Bundle call(String method,String arg,Bundle b)throws RemoteException{
+   if(closed)throw new AssertionError("Provider used after close");return owner.call(method,arg,b);
+  }
+  public void close(){if(closed)throw new AssertionError("Provider closed twice");closed=true;owner.closes++;}
+ }''',
+ 'de/robv/android/xposed/XposedBridge.java':'package de.robv.android.xposed; public class XposedBridge {public static void log(String s){System.err.println("[QA diagnostic sink] "+s);}}',
+}
+java_sources=[a.out/'RecorderCleanupProbe.java',
+ a.root/'app/src/main/java/com/waenhancer/xposed/bridge/client/HookProviderIpc.java',
+ a.root/'app/src/main/java/com/waenhancer/xposed/utils/HookErrors.java']
+for name,content in platform.items():
+ target=a.out/'platform'/name;target.parent.mkdir(parents=True,exist_ok=True);target.write_text(content);java_sources.append(target)
 (a.out/'RecorderCleanupProbe.java').write_text(program)
-with (a.out/'compile.log').open('w') as f:r=subprocess.run(['javac','--release','17','-d',str(a.out),str(a.out/'RecorderCleanupProbe.java')],stdout=f,stderr=subprocess.STDOUT,timeout=30)
+with (a.out/'compile.log').open('w') as f:r=subprocess.run(['javac','--release','17','-d',str(a.out),*map(str,java_sources)],stdout=f,stderr=subprocess.STDOUT,timeout=30)
+if r.returncode:print((a.out/'compile.log').read_text())
 r.check_returncode()
 print("COMPILE_OK", flush=True)
 with (a.out/'behavior.log').open('w') as f:r=subprocess.run(['java','-cp',str(a.out),'RecorderCleanupProbe'],stdout=f,stderr=subprocess.STDOUT,timeout=30)
 print((a.out/'behavior.log').read_text());r.check_returncode()
-(a.out/'source-identity.json').write_text(json.dumps({'path':str(s.relative_to(a.root)),'sha256':hashlib.sha256(s.read_bytes()).hexdigest(),'extracted_methods':['stopRecorder','releaseRecorder','closeDestination'],'limitations':'Exact method bodies; field environment, MediaRecorder, Context/IPC and file descriptor are explicit doubles; no Android cleanup or microphone observation.'},indent=2))
+(a.out/'source-identity.json').write_text(json.dumps({'path':str(s.relative_to(a.root)),'sha256':hashlib.sha256(s.read_bytes()).hexdigest(),'dependencies':{str(p.relative_to(a.root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in java_sources if p.is_relative_to(a.root)},'extracted_methods':['stopRecorder','releaseRecorder','closeDestination'],'limitations':'Exact method bodies; field environment, MediaRecorder, Context/IPC and file descriptor are explicit doubles; no Android cleanup or microphone observation.'},indent=2))
