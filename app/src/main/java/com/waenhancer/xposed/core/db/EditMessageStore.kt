@@ -186,13 +186,18 @@ class EditMessageStore private constructor(private val context: Context) : SQLit
 
     private val originalKeyCache = java.util.concurrent.ConcurrentHashMap<String, String>()
 
+    /** Null means this alias has never been resolved successfully. This read never opens SQLite. */
+    fun cachedOriginalKey(keyId: String): String? {
+        return originalKeyCache[keyId]?.ifEmpty { keyId }
+    }
+
     /**
      * An edited message's row carries the edit's own key; WhatsApp keeps the key of the
      * original in message_edit_info. History is stored under the original key, so map to it.
      * Returns [keyId] unchanged when the message was never edited or cannot be resolved.
      */
     fun resolveOriginalKey(keyId: String): String {
-        originalKeyCache[keyId]?.let { return it.ifEmpty { keyId } }
+        cachedOriginalKey(keyId)?.let { return it }
         var resolved = ""
         var definitive = false
         try {

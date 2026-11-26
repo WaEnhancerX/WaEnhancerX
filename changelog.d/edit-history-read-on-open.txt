@@ -1,0 +1,3 @@
+[Fixes]
+- Look up an edited message’s history when you open it. Scrolling past an
+  edited row with an unknown original key skips its optional snapshot.

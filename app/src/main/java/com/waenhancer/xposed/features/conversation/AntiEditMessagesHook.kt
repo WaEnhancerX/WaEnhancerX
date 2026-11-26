@@ -398,15 +398,16 @@ class AntiEditMessagesHook(
                                         val pos = p.args.getOrNull(0) as? Int ?: return
                                         val boundAdapter = p.thisObject as? ListAdapter ?: return
                                         val item = try { boundAdapter.getItem(pos) } catch (t: Throwable) { null } ?: return
-                                        var keyId = extractStableKeyId(item)
-                                        // Edited rows expose the edit's own key; history lives under the original's.
-                                        if (editLabel != null && !keyId.isNullOrEmpty()) {
-                                            keyId = editStore.resolveOriginalKey(keyId)
-                                        }
-                                        val rowId = if (keyId.isNullOrEmpty()) extractRowId(item) else 0L
+                                        val boundKey = extractStableKeyId(item)
+                                        // A cold edited row can open its history on click. Its optional binding
+                                        // snapshot must not query SQLite or use an unverified key or numeric row.
+                                        val keyId = if (editLabel != null && !boundKey.isNullOrEmpty()) {
+                                            editStore.cachedOriginalKey(boundKey)
+                                        } else boundKey
+                                        val rowId = if (boundKey.isNullOrEmpty()) extractRowId(item) else 0L
                                         val msgText = extractMessageText(item)
 
-                                        // Snapshot every bound message's current text, edited or not.
+                                        // Snapshot the current text only when the binding already has a usable identity.
                                         // By the time any edit-bookkeeping hook fires, WhatsApp has
                                         // already overwritten its own row with the new text, so that
                                         // is too late to recover the original from. Capturing it here,
@@ -425,7 +426,8 @@ class AntiEditMessagesHook(
                                         }
 
                                         if (editLabel != null) {
-                                            bindEditLabel(editLabel, row, rowId, keyId, msgText)
+                                            bindEditLabel(editLabel, row, rowId, keyId ?: boundKey, msgText,
+                                                resolveOnClick = keyId == null && !boundKey.isNullOrEmpty())
                                         }
                                     }
                                 }
@@ -441,7 +443,8 @@ class AntiEditMessagesHook(
         }
     }
 
-    private data class EditData(val rowId: Long, val keyId: String?, val msgText: String?)
+    private data class EditData(val rowId: Long, val keyId: String?, val msgText: String?,
+                                val resolveOnClick: Boolean, val binding: Any)
 
     private fun invalidateEditLabelBinding(labelView: View) {
         if (labelView.getTag(TAG_EDIT_DATA) !is EditData) return
@@ -462,7 +465,7 @@ class AntiEditMessagesHook(
         // now observes a missing tag and must not open a different history.
     }
 
-    private fun bindEditLabel(labelView: View, parentRow: View?, boundRowId: Long, boundKeyId: String?, boundText: String?) {
+    private fun bindEditLabel(labelView: View, parentRow: View?, boundRowId: Long, boundKeyId: String?, boundText: String?, resolveOnClick: Boolean) {
         if (boundRowId <= 0 && boundKeyId.isNullOrEmpty()) return
         if (labelView is TextView) {
             val originalText = labelView.text.toString()
@@ -474,7 +477,8 @@ class AntiEditMessagesHook(
             }
         }
 
-        val editData = EditData(boundRowId, boundKeyId, boundText)
+        val binding = Any()
+        val editData = EditData(boundRowId, boundKeyId, boundText, resolveOnClick, binding)
         labelView.setTag(TAG_EDIT_DATA, editData)
         if (boundRowId > 0) {
             XposedHelpers.setAdditionalInstanceField(labelView, FIELD_ROW_ID, boundRowId)
@@ -491,6 +495,7 @@ class AntiEditMessagesHook(
             if (!isFeatureEnabled()) return@setOnClickListener
             val data = clickedView.getTag(TAG_EDIT_DATA) as? EditData
                 ?: return@setOnClickListener
+            if (data.binding !== binding) return@setOnClickListener
             val row = parentRow ?: findParentMessageRow(clickedView)
             val rowId = data?.rowId
                 ?: (XposedHelpers.getAdditionalInstanceField(clickedView, FIELD_ROW_ID) as? Long)
@@ -507,7 +512,8 @@ class AntiEditMessagesHook(
                 ?: (row?.let { XposedHelpers.getAdditionalInstanceField(it, FIELD_MSG_TEXT) as? String })
                 ?: extractTextFromMessageBubble(row)
 
-            showEditHistoryBottomSheet(clickedView.context, rowId, keyId, visibleBubbleText)
+            val historyKey = if (data.resolveOnClick && keyId != null) editStore.resolveOriginalKey(keyId) else keyId
+            showEditHistoryBottomSheet(clickedView.context, rowId, historyKey, visibleBubbleText)
         }
     }
 
