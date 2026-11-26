@@ -11,6 +11,7 @@ import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.net.Uri;
 import com.waenhancer.config.PreferenceRestartTracker;
+import com.waenhancer.utils.DiagnosticsRecorder;
 import com.waenhancer.ui.screens.media.MediaQuickSettingPolicy;
 import java.io.File;
 import java.util.Collections;
@@ -238,6 +239,7 @@ public final class TestMediaPreferenceBatch {
     public static void main(String[] args) {
         FakeContext context = new FakeContext();
         PreferenceRestartTracker.changes.clear();
+        DiagnosticsRecorder.changes.clear();
         WaexPreferenceManager manager = new WaexPreferenceManager(context);
         check(manager.putBooleans(MediaQuickSettingPolicy.changesFor("media_upload_quality", true)),
                 "bulk HD update failed");
@@ -246,6 +248,10 @@ public final class TestMediaPreferenceBatch {
         check(PreferenceRestartTracker.changes.equals(Arrays.asList(
                 "imagequality", "video_maxfps", "media_upload_quality")),
                 "HD batch did not report all three exact keys in order");
+        check(DiagnosticsRecorder.changes.equals(Arrays.asList(
+                "imagequality:universal:PUT", "video_maxfps:universal:PUT",
+                "media_upload_quality:universal:PUT")),
+                "successful Media Hub batch not journaled at exact scope");
         check(manager.getBoolean("imagequality", false), "image hook flag");
         check(manager.getBoolean("video_maxfps", false), "fps hook flag");
         check(manager.getBoolean("media_upload_quality", false), "legacy UI alias retained");
@@ -294,6 +300,8 @@ public final class TestMediaPreferenceBatch {
         check(context.resolver.notifications == 2, "storage exception notified observers");
         check(PreferenceRestartTracker.changes.size() == 5,
                 "rejected or failed batch reported restart changes");
+        check(DiagnosticsRecorder.changes.size() == 5,
+                "failed or invalid batch leaked diagnostic change records");
         context.publicStore.throwCommit = false;
 
         check(manager.putBooleans(MediaQuickSettingPolicy.changesFor("media_upload_quality", false)),
@@ -303,6 +311,8 @@ public final class TestMediaPreferenceBatch {
         check(context.resolver.notifications == 3, "valid update not notified");
         check(PreferenceRestartTracker.changes.size() == 8,
                 "successful HD disable did not report all three restart keys");
+        check(DiagnosticsRecorder.changes.size() == 8,
+                "successful HD disable did not log canonical diagnostic keys");
         testTypedWrites();
         testLegacyVoidWriteFailures();
         System.out.println("PASS: " + checks + " production manager/schema/failure checks (Android doubles)");

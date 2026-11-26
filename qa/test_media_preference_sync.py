@@ -30,6 +30,12 @@ with tempfile.TemporaryDirectory(prefix="waex_media_policy_") as output:
 # Compile the production preference manager against minimal Android/Hilt doubles,
 # then exercise commit atomicity, schema validation and failure/notification behavior.
 STUBS = {
+    "androidx/annotation/NonNull.java": """package androidx.annotation;
+public @interface NonNull {}
+""",
+    "androidx/annotation/Nullable.java": """package androidx.annotation;
+public @interface Nullable {}
+""",
     "android/net/Uri.java": """package android.net;
 public final class Uri {
  private final String value;
@@ -93,6 +99,26 @@ public @interface Inject {}
     "javax/inject/Singleton.java": """package javax.inject;
 public @interface Singleton {}
 """,
+    "com/waenhancer/utils/DiagnosticsRecorder.java": """package com.waenhancer.utils;
+import android.content.Context;
+import java.util.ArrayList;
+import java.util.List;
+/** Exact observed manager boundary; no settings values or private files copied. */
+public final class DiagnosticsRecorder {
+ public static final List<String> changes = new ArrayList<>();
+ public static void recordPreferenceChange(Context context, String key,
+                                            boolean targetScoped, String operation) {
+  if (context == null || key == null || key.isEmpty()
+      || (!"PUT".equals(operation) && !"REMOVE".equals(operation))) {
+   throw new AssertionError("Unexpected diagnostic change contract");
+  }
+  changes.add(key + ":" + (targetScoped ? "target" : "universal") + ":" + operation);
+ }
+ public static void recordSettingsTransfer(Context context, String kind, int count) {
+  throw new AssertionError("Media setting test must not execute a backup");
+ }
+}
+""",
     "com/waenhancer/core/preferences/SettingsBackupCodec.java": """package com.waenhancer.core.preferences;
 import android.content.Context; import java.io.InputStream; import java.io.OutputStream;
 public class SettingsBackupCodec {
@@ -136,6 +162,7 @@ with tempfile.TemporaryDirectory(prefix="waex_media_manager_") as output:
     sources = stub_paths + [
         str(SRC / "config/PreferenceSchema.java"),
         str(SRC / "config/PreferenceStores.java"),
+        str(SRC / "config/ExclusivePreferences.java"),
         str(manager_source),
         str(POLICY),
         str(ROOT / "qa/TestMediaPreferenceBatch.java"),
@@ -202,5 +229,6 @@ for folder, expected in [("values", "Unable to save setting"),
                          ("values-b+es+419", "No se pudo guardar el ajuste")]:
     resources = ET.parse(ROOT / "app/src/main/res" / folder / "view_once_settings.xml").getroot()
     feedback = resources.find("string[@name='view_once_setting_save_failed']")
-    assert feedback is not None and feedback.text == expected, f"missing localized feedback in {folder}"
+    if feedback is None or feedback.text != expected:
+        raise AssertionError(f"missing localized feedback in {folder}")
 print("PASS: independent default/es/es-419 save-failure resources")
