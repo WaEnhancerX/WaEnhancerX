@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "channel": "nightly",
-  "updated_at": "2026-11-26T07:32:52Z",
+  "updated_at": "2026-11-26T14:14:38Z",
   "releases": [
     {
       "tag": "2.1.0-nightly.9",
@@ -23,7 +23,7 @@
           "sha256": "ece736cd09305eefb7bde9bde9f115031a9b3277b42592dc85e9bd94faf1f55b"
         }
       ],
-      "notes": "[Fixes]\n- Remove an Android 14-only cache dependency from receipt privacy and JID handling on older Android versions. Preserve per-class lookup results without retaining unloaded host classes.\n\nBuilt from commit 6671421c9c6b0e9608944bd6d2b30aa07251c92b"
+      "notes": "[Fixes]\n- Remove an Android 14-only cache dependency from receipt privacy and JID handling on older Android versions. Preserve per-class lookup results without retaining unloaded host classes.\n\nBuilt from commit 6671421c9c6b0e9608944bd6d2b30aa07251c92b\n\n\n<!-- virustotal:start -->\n**VirusTotal scan** (click a badge to open its report):\n\n[![VirusTotal WaEnhancerX-v2.1.0-nightly.9_debug.apk](https://img.shields.io/badge/VirusTotal:_WaEnhancerX--v2.1.0--nightly.9__debug.apk-0%2F65_detections-brightgreen?logo=virustotal&logoColor=white)](https://www.virustotal.com/gui/file/01ac66fff8c87718b334abfd99b046ea5034a7d6768c8327a717bd2a052bcfbd)\n[![VirusTotal WaEnhancerX-v2.1.0-nightly.9_release.apk](https://img.shields.io/badge/VirusTotal:_WaEnhancerX--v2.1.0--nightly.9__release.apk-0%2F67_detections-brightgreen?logo=virustotal&logoColor=white)](https://www.virustotal.com/gui/file/ece736cd09305eefb7bde9bde9f115031a9b3277b42592dc85e9bd94faf1f55b)\n<!-- virustotal:end -->"
     },
     {
       "tag": "2.1.0-nightly.8",
