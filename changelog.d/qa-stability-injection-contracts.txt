@@ -1,0 +1,5 @@
+[Improvements]
+- Compile stability regression fixtures against the real WAEX color and filter
+  dependencies while preserving every updater and filter case.
+- Select PID/boot evidence once in CI and require a distinct production source
+  and fixture for optional Compose clock tests.
