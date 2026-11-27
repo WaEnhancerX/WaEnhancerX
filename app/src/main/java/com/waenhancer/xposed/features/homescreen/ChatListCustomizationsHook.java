@@ -8,13 +8,11 @@ import android.content.res.Resources;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewParent;
 import androidx.annotation.NonNull;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.ViewHookDispatcher;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.xposed.utils.ActivityTracker;
-import com.waenhancer.xposed.utils.HookErrors;
 import com.waenhancer.xposed.utils.HostClassNames;
 import com.waenhancer.xposed.utils.HostResourceIds;
 import de.robv.android.xposed.XC_MethodHook;
@@ -173,8 +171,10 @@ public class ChatListCustomizationsHook extends BaseFeature {
         CharSequence description = view.getContentDescription();
         if (description == null) return false;
         String text = description.toString().trim().toLowerCase(Locale.ROOT);
-        return text.contains("meta ai") || text.contains("ask meta")
-                || text.contains("message your assistant");
+        // A shared search control may also mention Meta AI. Only an unambiguous
+        // assistant label is a fallback when no assistant resource ID was found.
+        return text.equals("meta ai") || text.equals("ask meta ai")
+                || text.equals("message your assistant");
     }
 
     private static boolean isAssistantViewId(String entry) {
@@ -192,24 +192,10 @@ public class ChatListCustomizationsHook extends BaseFeature {
     }
 
     private static void removeView(View view) {
+        // The host owns this hierarchy. In particular, ViewStub.inflate() needs
+        // its parent and passes its LayoutParams to the replacement view. GONE
+        // suppresses layout and interaction without breaking later host binding.
         view.setVisibility(View.GONE);
-        ViewGroup.LayoutParams params = view.getLayoutParams();
-        if (params != null) {
-            params.width = 0;
-            params.height = 0;
-            if (params instanceof ViewGroup.MarginLayoutParams) {
-                ((ViewGroup.MarginLayoutParams) params).setMargins(0, 0, 0, 0);
-            }
-            view.setLayoutParams(params);
-        }
-        view.post(() -> {
-            ViewParent parent = view.getParent();
-            if (parent instanceof ViewGroup) {
-                try {
-                    ((ViewGroup) parent).removeView(view);
-                } catch (Throwable ignored) { HookErrors.swallowed("ChatListCustomizationsHook", ignored); }
-            }
-        });
     }
 
     private void hookConversationsRow() {

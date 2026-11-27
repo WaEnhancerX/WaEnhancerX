@@ -2,6 +2,8 @@
 """Protect the layered Meta AI removal contract."""
 
 from pathlib import Path
+import subprocess
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 HOOK = ROOT / "app/src/main/java/com/waenhancer/xposed/features/homescreen/ChatListCustomizationsHook.java"
@@ -17,9 +19,11 @@ settings = SETTINGS.read_text(encoding="utf-8")
 contracts = {
     "host preference follows complete suppression": 'HOST_PREFERENCE.equals(param.args[0])' in hook
     and "shouldDisableHostConfiguration()" in hook and "param.setResult(false)" in hook,
-    "new views removed": '"onAttachedToWindow"' in hook and "removeView(view)" in hook,
+    "new views hidden through the shared attachment dispatcher":
+        "ViewHookDispatcher.onAttached(this" in hook and "removeView(view)" in hook,
     "existing hierarchy rescanned": '"onPostResume"' in hook and "removeAssistantViews(decor)" in hook,
-    "layout space collapsed": "params.width = 0" in hook and "params.height = 0" in hook,
+    "hidden controls preserve the host hierarchy": "view.setVisibility(View.GONE)" in hook
+        and ".removeView(view)" not in hook and "view.setLayoutParams(" not in hook,
     "assistant navigation blocked": "isAssistantConversation" in hook and "activity.finish()" in hook,
     "known FAB resource handled": 'case "fab_second"' in hook,
     "boolean feature gates disabled": all(
@@ -54,3 +58,4 @@ if missing:
     raise SystemExit("Meta AI removal contract violations:\n- " + "\n- ".join(missing))
 
 print(f"PASS: {len(contracts)} layered Meta AI removal contracts are present")
+subprocess.run([sys.executable, str(ROOT / "qa/test_meta_ai_view_hierarchy.py")], check=True)
