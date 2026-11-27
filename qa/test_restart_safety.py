@@ -22,7 +22,28 @@ scope = [item.text.strip() for arr in xml.findall('string-array')
 assert len(scope) > 10 and 'com.whatsapp' in scope and 'com.whatsapp.w4b' in scope
 
 with tempfile.TemporaryDirectory(prefix='waex_root_runner_') as output:
-    sources = [SRC/'RestartTargetPolicy.java', SRC/'RootCommandRunner.java',
+    # Current production cleanup records swallowed failures through HookErrors.
+    # Compile that implementation, not a permissive replacement logger.
+    boundaries = {
+        'androidx/annotation/NonNull.java': 'package androidx.annotation; public @interface NonNull {}',
+        'androidx/annotation/VisibleForTesting.java': 'package androidx.annotation; public @interface VisibleForTesting {}',
+        'de/robv/android/xposed/XposedBridge.java': '''package de.robv.android.xposed;
+public final class XposedBridge {
+ public static void log(String message) {
+  System.err.println("[QA diagnostic sink] " + message);
+ }
+}
+''',
+    }
+    boundary_sources = []
+    for name, content in boundaries.items():
+        path = Path(output) / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding='utf-8')
+        boundary_sources.append(path)
+    sources = [ROOT/'app/src/main/java/com/waenhancer/utils/AndroidUserScope.java',
+               SRC/'RestartTargetPolicy.java', SRC/'RootCommandRunner.java', SRC/'HookErrors.java',
+               *boundary_sources,
                QA/'TestRestartTargetPolicy.java', QA/'TestRootCommandRunner.java']
     subprocess.run(['javac', '--release', '17', '-d', output, *map(str, sources)], check=True)
     for name, argv in [('TestRestartTargetPolicy', scope), ('TestRootCommandRunner', [])]:
@@ -81,9 +102,14 @@ public class Intent {
  }
 }
 ''',
+ 'android/content/pm/ApplicationInfo.java': '''package android.content.pm;
+public class ApplicationInfo {public int uid = 12345; public String packageName;}
+''',
  'android/content/pm/PackageManager.java': '''package android.content.pm;
 import android.content.Intent;
 public class PackageManager {
+ public static class NameNotFoundException extends Exception {}
+ public ApplicationInfo getApplicationInfo(String name,int flags) throws NameNotFoundException {ApplicationInfo info=new ApplicationInfo();info.packageName=name;return info;}
  public volatile Intent intent; public volatile int calls;
  public Intent getLaunchIntentForPackage(String name) { calls++; return intent; }
 }
@@ -94,6 +120,7 @@ public abstract class Context {
  public static final String ALARM_SERVICE="alarm";
  public abstract Context getApplicationContext();
  public abstract PackageManager getPackageManager();
+ public abstract android.content.pm.ApplicationInfo getApplicationInfo();
  public abstract String getPackageName();
  public abstract Object getSystemService(String name);
  public abstract void sendBroadcast(Intent intent);
@@ -105,14 +132,16 @@ public class Looper { public static Looper getMainLooper(){return new Looper();}
 ''',
  'android/os/Handler.java': '''package android.os;
 public class Handler {
+ public static volatile boolean reject;
  public Handler(Looper loop) {}
- public boolean post(Runnable task) { task.run(); return true; }
- public boolean postDelayed(Runnable task,long delay){ task.run(); return true; }
+ public boolean post(Runnable task) { if(reject)return false; task.run(); return true; }
+ public boolean postDelayed(Runnable task,long delay){ if(reject)return false; task.run(); return true; }
 }
 ''',
  'android/os/Process.java': '''package android.os;
 public class Process {
  public static int myPid(){return 1234;}
+ public static int myUid(){return 12345;}
  public static void killProcess(int pid) {}
 }
 ''',
@@ -159,7 +188,7 @@ public class RootCommandRunner {
   if (mode.equals("denied")) return null;
   if (command.equals("id")) return "uid=0(root) gid=0(root)";
   if (command.startsWith("am force-stop")) return "";
-  if (command.startsWith("am start") || command.startsWith("ACT=")) return mode.equals("root") ? "Starting: Intent { cmp=com.whatsapp/.Main }" : null;
+  if (command.startsWith("am start")) return mode.equals("root") ? "Status: ok\\nComplete" : null;
   return null;
  }
 }
@@ -176,7 +205,8 @@ with tempfile.TemporaryDirectory(prefix='waex_restart_integration_') as output:
     # Explicit English display adapter; actual resource routing has its own runtime test.
     from localization_support import write_display_adapter
     stub_sources.extend(write_display_adapter(ROOT, base))
-    compiled = [*stub_sources, SRC/'RestartTargetPolicy.java',
+    compiled = [*stub_sources, ROOT/'app/src/main/java/com/waenhancer/utils/AndroidUserScope.java',
+                SRC/'RestartTargetPolicy.java',
                 SRC/'AppRestartHelper.java', QA/'TestAppRestartHelper.java']
     subprocess.run(['javac','--release','17','-d',output,*map(str,compiled)],check=True)
     subprocess.run(['java','-cp',output,
@@ -194,8 +224,8 @@ checks = {
     'package-scoped sender': 'restart.setPackage(packageName)' in app,
     'exact package extra': 'restart.putExtra("PKG", packageName)' in app,
     'single active request guard': 'RESTART_PENDING.compareAndSet(false, true)' in app,
-    'command generated by validated policy': 'RestartTargetPolicy.forceStopCommand(packageName, supported)' in app,
-    'root launch generated by validated policy': 'RestartTargetPolicy.launchCommand(packageName, component, supported)' in app,
+    'command generated by validated policy': 'RestartTargetPolicy.forceStopCommand(packageName, supported, userId)' in app,
+    'root launch generated by validated policy': 'RestartTargetPolicy.launchCommand(packageName, supported,' in app,
     'root stop performed before module broadcast': app.index('boolean stoppedByRoot') < app.index('context.sendBroadcast(restart)'),
     'no broadcast when root succeeds': 'if (!stoppedByRoot) {' in app,
     'root output processed through bounded runner': 'RootCommandRunner.run(command, ROOT_TIMEOUT_MS' in app,

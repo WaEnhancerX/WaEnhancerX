@@ -14,6 +14,7 @@ public final class InternalLabels {
         }
         switch (value) {
             case "Not configured in HMA scope": return UiText.get(R.string.waex_ui_hma_reason_not_configured, "Not configured in HMA scope");
+            case "HMA not active": return UiText.get(R.string.waex_ui_hma_reason_not_active, "HMA not active");
             case "Active in HMA, module visible": return UiText.get(R.string.waex_ui_hma_reason_visible, "Active in HMA, module visible");
             case "Hidden via Whitelist mode (in invisible apps list)": return UiText.get(R.string.waex_ui_hma_reason_allowlist_invisible, "Hidden via Whitelist mode (in invisible apps list)");
             case "Hidden via Whitelist mode (module not included in visible apps)": return UiText.get(R.string.waex_ui_hma_reason_allowlist_missing, "Hidden via Whitelist mode (module not included in visible apps)");
@@ -109,9 +110,11 @@ public final class InternalLabels {
             case "Instagram Status Layout": return UiText.get(R.string.waex_ui_instagram_status_layout, "Instagram Status Layout");
             case "Separate Groups": return UiText.get(R.string.feat_separate_groups_tabs_title, "Separate Groups");
             case "Floating Bottom Bar": return UiText.get(R.string.feat_floating_bottom_bar_title, "Floating Bottom Bar");
+            case "Native Floating Navigation": return UiText.get(R.string.feat_native_floating_navigation_title, "Native Floating Navigation");
             case "CSS Theme": return UiText.get(R.string.waex_ui_css_theme, "CSS Theme");
             case "Chat Filters": return UiText.get(R.string.waex_ui_chat_filters, "Chat Filters");
             case "Stickers": return UiText.get(R.string.waex_ui_stickers, "Stickers");
+            case "Remove Sticker Outline": return UiText.get(R.string.feat_remove_sticker_white_outline_title, "Remove Sticker White Outline");
             case "Prevent Revoke": return UiText.get(R.string.waex_ui_prevent_revoke, "Prevent Revoke");
             case "Anti View Once": return UiText.get(R.string.waex_ui_anti_view_once_label, "Anti View Once");
             case "Custom Theme CSS": return UiText.get(R.string.feat_custom_theme_title, "Custom Theme CSS");
@@ -133,6 +136,7 @@ public final class InternalLabels {
             case "Freeze Last Seen & Hide Online": return UiText.get(R.string.waex_ui_freeze_last_seen_hide_online, "Freeze Last Seen & Hide Online");
             case "Hide Archived Chats": return UiText.get(R.string.waex_ui_hide_archived_chats, "Hide Archived Chats");
             case "Hide Locked Chats": return UiText.get(R.string.waex_ui_hide_locked_chats, "Hide Locked Chats");
+            case "Locked Chat Notifications": return UiText.get(R.string.waex_ui_locked_chat_notifications, "Locked Chat Notifications");
             case "Locked Chats Enhancer": return UiText.get(R.string.waex_ui_locked_chats_enhancer, "Locked Chats Enhancer");
             case "Typing Privacy": return UiText.get(R.string.waex_ui_typing_privacy, "Typing Privacy");
             case "Hide Read Receipts": return UiText.get(R.string.waex_ui_hide_read_receipts, "Hide Read Receipts");
@@ -197,6 +201,7 @@ public final class InternalLabels {
             case "Version bypass active; compatibility unverified": return UiText.get(R.string.waex_runtime_status_bypass_unverified, "Version bypass active; compatibility unverified");
             case "Custom version allowance; compatibility unverified": return UiText.get(R.string.waex_runtime_status_custom_version_unverified, "Custom version allowance; compatibility unverified");
             case "Version rules accepted; runtime unconfirmed": return UiText.get(R.string.waex_runtime_status_rules_accepted_runtime_unconfirmed, "Version rules accepted; runtime unconfirmed");
+            case "Rules accepted; open a target app to confirm injection": return UiText.get(R.string.waex_runtime_status_rules_accepted_open_target, "Rules accepted; open a target app to confirm injection");
             case "Rules accepted; initialization reported": return UiText.get(R.string.waex_runtime_status_rules_accepted_initialization_reported, "Rules accepted; initialization reported");
             default: return value;
         }

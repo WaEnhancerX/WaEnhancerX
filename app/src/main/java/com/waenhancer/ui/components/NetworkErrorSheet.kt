@@ -102,8 +102,7 @@ fun GlobalNetworkErrorHost() {
     val typography = WaexTheme.typography
 
     WaexModalBottomSheet(
-        onDismissRequest = NetworkErrorCenter::dismiss,
-        containerColor = colors.surfaceContainerLow
+        onDismissRequest = NetworkErrorCenter::dismiss
     ) {
         Column(
             modifier = Modifier
@@ -131,22 +130,10 @@ fun GlobalNetworkErrorHost() {
                     color = colors.onSurfaceVariant
                 )
             }
-            Button(
-                onClick = NetworkErrorCenter::dismiss,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp),
-                shape = WaexTheme.radius.fullShape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colors.primary,
-                    contentColor = colors.onPrimary
-                )
-            ) {
-                Text(
-                    text = UiText.get(R.string.waex_ui_close, "Close"),
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
+            WaexSheetPrimaryButton(
+                text = UiText.get(R.string.waex_ui_close, "Close"),
+                onClick = NetworkErrorCenter::dismiss
+            )
         }
     }
 }

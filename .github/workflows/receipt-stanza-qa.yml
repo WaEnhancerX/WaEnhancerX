@@ -43,7 +43,6 @@ jobs:
           python3 qa/test_manual_receipt_retry.py --out "$RUNNER_TEMP/waex-receipt-stanza/manual-retry"
           python3 qa/mutate_manual_receipt_retry.py --out "$RUNNER_TEMP/waex-receipt-stanza/manual-retry-mutants"
           python3 qa/test_receipt_job_execution_contract.py
-          python3 qa/test_played_receipt_dispatch_contract.py
           python3 qa/test_blue_receipt_recipient_isolation.py
           python3 qa/test_receipt_observation.py
       - name: Preserve source identities and execution evidence

@@ -22,13 +22,17 @@ ROOT = Path(__file__).resolve().parents[1]
 AREA = Path('app/src/main/java/com/waenhancer/xposed/features/privacy')
 PRODUCTION = [
     'HideReceiptsHook.java', 'ReceiptJobExecutionPolicy.java',
-    'PlayedReceiptDispatchPolicy.java', 'ReceiptJidPolicy.java',
+    'PlayedReceiptBatch.java', 'UnsentReadLedger.java', 'ReceiptJidPolicy.java',
     'BoundedReceiptAllowance.java', 'RecipientReceiptAllowance.java',
     'ExplicitReadReceiptPolicy.java',
 ]
 
 STUBS = {'android/content/Context.java': 'package android.content; public class Context { public String '
-                                 'getPackageName(){return "com.whatsapp";} }',
+                                 'getPackageName(){return "com.whatsapp";} '
+                                 'public android.content.res.Resources getResources(){return new android.content.res.Resources();} }',
+ 'android/content/res/Resources.java': 'package android.content.res; public class Resources { '
+                                      'public int getIdentifier(String name,String type,String packageName){'
+                                      'throw new AssertionError("resource lookup outside receipt fixture");} }',
  'android/content/SharedPreferences.java': 'package android.content;\n'
                                            'public interface SharedPreferences {\n'
                                            ' boolean getBoolean(String key, boolean fallback);\n'
@@ -122,6 +126,14 @@ STUBS = {'android/content/Context.java': 'package android.content; public class 
                                               'value){result=value;throwable=null;early=true;}\n'
                                               ' }\n'
                                               '}',
+ 'com/waenhancer/xposed/utils/HookErrors.java': 'package com.waenhancer.xposed.utils;\n'
+                                                 'public final class HookErrors {\n'
+                                                 ' public static void swallowed(String site, Throwable failure){}\n'
+                                                 '}',
+ 'com/waenhancer/xposed/utils/HostFields.java': 'package com.waenhancer.xposed.utils;\n'
+                                                'public final class HostFields {\n'
+                                                ' public static java.lang.reflect.Field[] declared(Class<?> type){return type.getDeclaredFields();}\n'
+                                                '}',
  'de/robv/android/xposed/XposedBridge.java': 'package de.robv.android.xposed;\n'
                                              'import java.lang.reflect.*; import java.util.*;\n'
                                              'public final class XposedBridge {\n'
@@ -275,6 +287,79 @@ STUBS = {'android/content/Context.java': 'package android.content; public class 
                                          'raw; public Jid(String raw){this.raw=raw;} public String '
                                          'getRawString(){return raw;} public String toString(){return raw;}}'}
 
+# Shared privacy layer compiled for real (not stubbed): settings resolution and hook helpers.
+CORE = Path('app/src/main/java/com/waenhancer')
+SHARED_EARLY = [  # needed before BaseFeature.kt is compiled
+    CORE / 'xposed/core/privacy/PrivacyToggle.java',
+    CORE / 'xposed/core/privacy/PrivacyPrefs.java',
+    CORE / 'xposed/core/wa/WaJid.java',
+    CORE / 'xposed/core/wa/WaMessage.java',
+    CORE / 'xposed/core/wa/WaTargets.java',
+    CORE / 'config/DndPreferencePolicy.java',
+]
+SHARED_LATE = [  # compiled with the hook (SafeHooks needs HookRegistrar)
+    CORE / 'xposed/core/wa/SafeHooks.java',
+]
+
+STUBS['android/content/SharedPreferences.java'] = (
+    'package android.content;\n'
+    'public interface SharedPreferences {\n'
+    ' boolean getBoolean(String key, boolean fallback);\n'
+    ' default String getString(String key,String fallback){Object v=getAll().get(key);return v==null?fallback:(String)v;}\n'
+    ' default int getInt(String key,int fallback){Object v=getAll().get(key);return v instanceof Integer?(Integer)v:fallback;}\n'
+    ' boolean contains(String key); java.util.Map<String,?> getAll();\n'
+    ' interface Editor { Editor putBoolean(String key, boolean value); void apply(); }\n'
+    ' default Editor edit(){throw new UnsupportedOperationException("writes outside stanza fixture");}\n'
+    '}')
+STUBS['androidx/annotation/Nullable.java'] = 'package androidx.annotation; public @interface Nullable {}'
+STUBS['android/util/LruCache.java'] = (
+    'package android.util;\n'
+    'public class LruCache<K,V> { private final java.util.LinkedHashMap<K,V> m=new java.util.LinkedHashMap<>();\n'
+    ' public LruCache(int max){} public synchronized V get(K k){return m.get(k);}\n'
+    ' public synchronized V put(K k,V v){return m.put(k,v);} public synchronized V remove(K k){return m.remove(k);} }')
+STUBS['com/waenhancer/utils/ContactNameResolver.java'] = (
+    'package com.waenhancer.utils;\n'
+    'public final class ContactNameResolver { public static final ContactNameResolver INSTANCE=new ContactNameResolver();\n'
+    ' public String resolveLidToPhone(android.content.Context c,String raw){return null;}\n'
+    ' public String resolvePhoneToLid(android.content.Context c,String raw){return null;} }')
+STUBS['com/waenhancer/xposed/bridge/client/PreferenceBridgeClient.java'] = (
+    'package com.waenhancer.xposed.bridge.client;\n'
+    'public abstract class PreferenceBridgeClient implements android.content.SharedPreferences {}')
+STUBS['com/waenhancer/xposed/core/devkit/DexCacheManager.java'] = (
+    'package com.waenhancer.xposed.core.devkit;\n'
+    'public final class DexCacheManager { private static final DexCacheManager I=new DexCacheManager();\n'
+    ' public interface Resolver<T> { T resolve() throws Throwable; }\n'
+    ' public static DexCacheManager getInstance(android.content.Context c){return I;}\n'
+    ' public java.lang.reflect.Field getField(ClassLoader l,String key,Resolver<java.lang.reflect.Field> r){return null;} }')
+STUBS['com/waenhancer/xposed/core/devkit/DexSearchEngine.java'] = STUBS['com/waenhancer/xposed/core/devkit/DexSearchEngine.java'].replace(
+    ' public Method findMethodWithCache(',
+    ' public interface DexKitMethodsQuery {Method[] execute(DexKitBridge b,ClassLoader l)throws Throwable;}\n'
+    ' public static final Map<String,Method[]> methodArrays=new HashMap<>();\n'
+    ' public Method[] findMethodsWithCache(Context c,ClassLoader loader,String key,DexKitMethodsQuery finder){return methodArrays.get(key);}\n'
+    ' public Method findMethodWithCache(')
+STUBS['org/json/JSONObject.java'] = STUBS['org/json/JSONObject.java'].replace(
+    ' public boolean optBoolean(',
+    ' public boolean has(String key){return values.containsKey(key);}\n public boolean optBoolean(')
+STUBS['com/waenhancer/xposed/features/privacy/CustomPrivacyHook.java'] = STUBS['com/waenhancer/xposed/features/privacy/CustomPrivacyHook.java'].replace(
+    ' public static JSONObject getContactPrivacy(SharedPreferences ignored,',
+    ' public static JSONObject getContactPrivacy(android.content.Context c,SharedPreferences p,String jid){return getContactPrivacy(p,jid);}\n'
+    ' public static JSONObject getContactPrivacy(SharedPreferences ignored,')
+STUBS['com/waenhancer/xposed/core/db/HideSeenStore.java'] = STUBS['com/waenhancer/xposed/core/db/HideSeenStore.java'].replace(
+    'public static final int TYPE_READ=0;', 'public static final int TYPE_READ=0, TYPE_PLAYED=1;').replace(
+    'public void insertHideSeenMessagesAsync(',
+    # Unsent read-receipt ledger: each owed message counts as one recorded insert; sent marks are counted apart.
+    'public static final class PendingRead { public String chat, participant, messageId; public long createdAt; }\n'
+    ' public static int sentMarks;\n'
+    ' public void trackUnsentReadsAsync(String chat,String participant,Iterable<String> ids){for(String id:ids)insertHideSeenMessageAsync(chat,id,TYPE_READ,false);}\n'
+    ' public void setReadsSentAsync(String chat,Iterable<String> ids,boolean sent){if(sent&&ids!=null)for(String id:ids)sentMarks++;}\n'
+    ' public java.util.List<PendingRead> pendingReads(Iterable<String> chats,int limit){return new java.util.ArrayList<>();}\n'
+    ' public void pruneReadsAsync(long owed,long sent){}\n'
+    ' public void insertHideSeenMessagesAsync(')
+assert 'TYPE_PLAYED=1' in STUBS['com/waenhancer/xposed/core/db/HideSeenStore.java']
+for _name in ('org/json/JSONObject.java', 'com/waenhancer/xposed/features/privacy/CustomPrivacyHook.java',
+              'com/waenhancer/xposed/core/devkit/DexSearchEngine.java'):
+    assert STUBS[_name].count('\n') > 2, _name
+
 
 def run_contracts(source_root, out, kotlinc):
     source_root, out = Path(source_root).resolve(), Path(out).resolve()
@@ -305,13 +390,15 @@ def run_contracts(source_root, out, kotlinc):
         completed=subprocess.run(command,capture_output=True,timeout=90)
         with (out/'compile.log').open('ab') as log:log.write(completed.stdout+completed.stderr)
         if completed.returncode:raise RuntimeError('COMPILE_FAILED '+(completed.stdout+completed.stderr).decode('utf-8',errors='replace')[-12000:])
-    run(['javac','--release','17','-encoding','UTF-8','-cp',classpath,'-d',str(classes),*map(str,stubs)])
+    early=[source_root/p for p in SHARED_EARLY]
+    late=[source_root/p for p in SHARED_LATE]
+    run(['javac','--release','17','-encoding','UTF-8','-cp',classpath,'-d',str(classes),*map(str,stubs),*map(str,early)])
     base=source_root/'app/src/main/java/com/waenhancer/xposed/core/BaseFeature.kt'
     lifecycle=[base.parent/n for n in ('HookRegistrar.java','ViewHookDispatcher.java')]
     run(['java','-cp',str(kotlin_home/'lib/*'),'org.jetbrains.kotlin.cli.jvm.K2JVMCompiler','-kotlin-home',str(kotlin_home),'-jvm-target','17','-classpath',classpath,'-d',str(classes),str(base),*map(str,lifecycle)])
     production=[source_root/AREA/name for name in PRODUCTION]
     fixture=ROOT/'qa/fixtures/ReceiptStanzaRuntimeChecks.java'
-    run(['javac','--release','17','-encoding','UTF-8','-cp',classpath,'-d',str(classes),*map(str,lifecycle),*map(str,production),str(fixture)])
+    run(['javac','--release','17','-encoding','UTF-8','-cp',classpath,'-d',str(classes),*map(str,lifecycle),*map(str,late),*map(str,production),str(fixture)])
     result = subprocess.run(['java', '-ea', '-cp', classpath,
                              'com.waenhancer.xposed.features.privacy.ReceiptStanzaRuntimeChecks'],
                             text=True, capture_output=True, timeout=60)
@@ -319,7 +406,24 @@ def run_contracts(source_root, out, kotlinc):
     summary=re.search(r'Receipt stanza runtime: (\d+) scenarios, (\d+) checks, (\d+) failed scenarios',result.stdout)
     completed=summary is not None and int(summary[1])==101
     accepted=completed and result.returncode==0 and int(summary[3])==0
+    # Compile the actual shared selector, but fail if this receipt-only fixture
+    # attempts its unrelated resource lookup. Exercise that boundary causally.
+    boundary_probe = generated / 'ReceiptResourceBoundaryProbe.java'
+    boundary_probe.write_text(
+        'public final class ReceiptResourceBoundaryProbe { public static void main(String[] args) {'
+        ' com.waenhancer.xposed.core.wa.WaTargets.viewOnceMediaMenu(new android.content.Context(),'
+        ' ReceiptResourceBoundaryProbe.class.getClassLoader()); } }', encoding='utf-8')
+    run(['javac', '--release', '17', '-encoding', 'UTF-8', '-cp', classpath,
+         '-d', str(classes), str(boundary_probe)])
+    boundary = subprocess.run(['java', '-cp', classpath, 'ReceiptResourceBoundaryProbe'],
+                              text=True, capture_output=True, timeout=30)
+    (out / 'resource-boundary.log').write_text(boundary.stdout + boundary.stderr, encoding='utf-8')
+    boundary_rejected = (boundary.returncode != 0 and
+                         'java.lang.AssertionError: resource lookup outside receipt fixture' in boundary.stderr)
+    accepted = accepted and boundary_rejected
     report = {
+        'resource_lookup_boundary_rejected': boundary_rejected,
+        'resource_lookup_boundary_exit_code': boundary.returncode,
         'completed_matrix':completed,'expected_scenarios':101,
         'scenarios':int(summary[1]) if summary else 0,
         'checks':int(summary[2]) if summary else 0,
@@ -328,7 +432,7 @@ def run_contracts(source_root, out, kotlinc):
         'result': 'PASS' if accepted else 'FAIL',
         'exit_code': result.returncode,
         'production_sources': {str(p.relative_to(source_root)): hashlib.sha256(p.read_bytes()).hexdigest()
-                               for p in [*production, base, *lifecycle]},
+                               for p in [*production, *early, *late, base, *lifecycle]},
         'fixture_sha256': hashlib.sha256(fixture.read_bytes()).hexdigest(),
         'dexkit_jar_sha256': hashlib.sha256(dexkit.read_bytes()).hexdigest(), 'complete_lifecycle_compiled': True, 'service_boundaries': ['BlueOnReplyHook', 'HideSeenStore', 'PropsOverrideHook', 'CustomPrivacyHook'], 'complete_hook_compiled': True, 'complete_base_feature_compiled': True,
         'dexkit_native_matching_executed': False, 'android_device_executed': False,

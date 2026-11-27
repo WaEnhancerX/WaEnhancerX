@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 HOOK = Path("app/src/main/java/com/waenhancer/xposed/features/automation/TaskerIntegrationHook.kt")
 BASE = Path("app/src/main/java/com/waenhancer/xposed/core/BaseFeature.kt")
 POLICY = Path("app/src/main/java/com/waenhancer/xposed/features/automation/TaskerMessagePolicy.java")
+PRIVACY = Path("app/src/main/java/com/waenhancer/xposed/core/privacy/PrivacyPrefs.java")
 
 STUBS = {
     "Content.kt": r'''package android.content
@@ -168,6 +169,18 @@ object HookRegistrar {
 }
 object ViewHookDispatcher {
     fun unregister(owner: BaseFeature) { throw AssertionError("View hooks outside Tasker fixture") }
+}
+''',
+    # BaseFeature declares this factory lazily; Tasker must not initialize it.
+    "PrivacyPrefs.kt": r'''package com.waenhancer.xposed.core.privacy
+import android.content.Context
+import android.content.SharedPreferences
+class PrivacyPrefs private constructor() {
+    companion object {
+        @JvmStatic fun of(context: Context, prefs: SharedPreferences): PrivacyPrefs {
+            throw AssertionError("Privacy service is outside Tasker fixture")
+        }
+    }
 }
 ''',
     # Logging is a separate boundary; production HookErrors has dedicated source QA.
@@ -335,7 +348,24 @@ fun main() {
 '''
 
 
+def privacy_compile_contract(source_root):
+    # Match the real factory declaration before accepting the compile-only boundary.
+    # The actual privacy service and its per-contact behavior are not executed here.
+    factory = (source_root / PRIVACY).read_text(encoding="utf-8")
+    if not re.search(
+            r"public\s+static\s+PrivacyPrefs\s+of\s*\(\s*@NonNull\s+Context\s+context\s*,"
+            r"\s*@NonNull\s+SharedPreferences\s+prefs\s*\)", factory):
+        raise AssertionError("PrivacyPrefs factory contract changed")
+    base = (source_root / BASE).read_text(encoding="utf-8")
+    if not re.search(
+            r"protected\s+val\s+privacy\s*:\s*PrivacyPrefs\s+by\s+lazy\s*"
+            r"\{\s*PrivacyPrefs\.of\(context,\s*prefs\)\s*\}", base):
+        raise AssertionError("BaseFeature privacy factory is no longer the expected lazy boundary")
+    return {str(PRIVACY): hashlib.sha256((source_root / PRIVACY).read_bytes()).hexdigest()}
+
+
 def execute(source_root, output, allow_failure):
+    privacy_contract = privacy_compile_contract(source_root)
     output.mkdir(parents=True, exist_ok=True)
     classes = output / "classes"
     classes.mkdir()
@@ -371,9 +401,10 @@ def execute(source_root, output, allow_failure):
         "sources": {str(path): hashlib.sha256((source_root / path).read_bytes()).hexdigest()
                     for path in (HOOK, BASE, POLICY)},
         "fixture_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "compile_only_contract_sources": privacy_contract,
         "compile_exit_codes": [0, 0], "test_exit_code": result.returncode,
         "total": int(summary[1]), "failed": int(summary[2]),
-        "boundaries": "Android/Xposed/DexKit/preferences/main-looper doubles; no Android or external broadcast",
+        "boundaries": "Android/Xposed/DexKit/preferences/main-looper doubles; lazy PrivacyPrefs factory throws if called; no Android or external broadcast",
     }
     (output / "result.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
     print(log, end="")

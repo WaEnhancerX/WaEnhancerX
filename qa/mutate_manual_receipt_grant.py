@@ -5,7 +5,8 @@ import argparse,json,shutil,subprocess,sys,tempfile
 R=Path(__file__).resolve().parents[1];A=Path('app/src/main/java/com/waenhancer/xposed/features/privacy')
 FILES=['BlueOnReplyHook.java','ExplicitReadReceiptPolicy.java','RecipientReceiptAllowance.java','BoundedReceiptAllowance.java','ReceiptJidPolicy.java','PendingReadReceiptStore.java']
 CASES=[
- ('lose_action_token','BlueOnReplyHook.java','                XposedHelpers.setAdditionalInstanceField(job, ExplicitReadReceiptPolicy.JOB_GRANT_KEY, grant);','                // Deliberately omit immutable consent.','sender did not attach immutable action grant'),
+ ('lose_action_token','BlueOnReplyHook.java','            XposedHelpers.setAdditionalInstanceField(job, ExplicitReadReceiptPolicy.JOB_GRANT_KEY, grant);','            // Deliberately omit immutable consent.','sender did not attach immutable action grant'),
+ ('ignore_withheld_chat','BlueOnReplyHook.java','        if (getPrivacy().appliesTo(context, PrivacyToggle.HIDE_DELIVERY, key)) return SEND_BLOCKED;\n','','send must be blocked while delivery receipts are hidden'),
  ('widen_to_participant','ExplicitReadReceiptPolicy.java','\n                || !grant.recipient.equals(ReceiptJidPolicy.canonical(policyTarget))','', 'participant group replaced explicit action recipient'),
  ('add_unapproved_id','ExplicitReadReceiptPolicy.java','return ids.isEmpty() ? null : new JobGrant(exact, ids);','ids.add("M2"); return ids.isEmpty() ? null : new JobGrant(exact, ids);','unrelated host String[] granted M2'),
  ('ignore_delivery_veto','ExplicitReadReceiptPolicy.java','if (hideDelivery || grants == null || !(token instanceof JobGrant)) return false;','if (grants == null || !(token instanceof JobGrant)) return false;','explicit action bypassed Ghost/delivery')]
@@ -17,7 +18,7 @@ def main():
   if not (out/'result.json').is_file():raise RuntimeError('Compilation/setup failed: '+name)
   return proc,json.loads((out/'result.json').read_text(encoding='utf-8')),(out/'behavior.log').read_text(encoding='utf-8')
  proc,r,log=run(R,'healthy')
- if proc.returncode or r['checks']!=26:raise RuntimeError('Healthy sender must pass all26 assertions')
+ if proc.returncode or r['checks']!=34:raise RuntimeError('Healthy sender must pass all 34 assertions')
  rows=[]
  for name,file,before,after,expected in CASES:
   with tempfile.TemporaryDirectory(prefix='waex_manual_grant_') as directory:
@@ -29,5 +30,5 @@ def main():
    valid=proc.returncode!=0 and r['compile_exit']==0 and ('java.lang.AssertionError: '+expected) in log
    rows.append({'mutation':name,'compiled':r['compile_exit']==0,'valid_negative':valid,'expected_assertion':expected});print(json.dumps(rows[-1]),flush=True)
    if not valid:raise RuntimeError('Mutation survived or failed for wrong reason: '+name)
- (a.out/'result.json').write_text(json.dumps({'healthy_checks':26,'mutants':rows},indent=2)+'\n',encoding='utf-8')
+ (a.out/'result.json').write_text(json.dumps({'healthy_checks':34,'mutants':rows},indent=2)+'\n',encoding='utf-8')
 if __name__=='__main__':main()

@@ -3,25 +3,16 @@ package com.waenhancer.xposed.features.privacy;
 import android.content.Context;
 import android.content.SharedPreferences;
 import androidx.annotation.NonNull;
-import com.waenhancer.config.DndPreferencePolicy;
 import com.waenhancer.xposed.core.BaseFeature;
-import com.waenhancer.xposed.core.devkit.DexSearchEngine;
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
-import org.luckypray.dexkit.query.FindMethod;
-import org.luckypray.dexkit.query.enums.StringMatchType;
-import org.luckypray.dexkit.query.matchers.MethodMatcher;
-import org.luckypray.dexkit.result.MethodData;
-import java.lang.reflect.Method;
+import com.waenhancer.xposed.core.privacy.PrivacyToggle;
+import com.waenhancer.xposed.core.wa.SafeHooks;
+import com.waenhancer.xposed.core.wa.WaTargets;
 
 /**
- * Do Not Disturb (DND) Mode Hook:
- * Dynamically blocks all incoming traffic and messages without disconnecting device internet.
+ * Do Not Disturb (DND) Mode: skips WhatsApp's MessageHandler/start so no incoming traffic is
+ * processed while the device stays online. The anchor string has not changed since 2024.
  */
 public class DndModeHook extends BaseFeature {
-
-    private static final String TAG = "[WAEX][DNDMode]";
-    private static final String PREF_KEY = "dnd_mode";
 
     public DndModeHook(@NonNull Context context,
                        @NonNull ClassLoader classLoader,
@@ -35,54 +26,9 @@ public class DndModeHook extends BaseFeature {
         return "Do Not Disturb (DND) Mode";
     }
 
-    private boolean isDndActive() {
-        return DndPreferencePolicy.isEnabled(prefs::contains, key -> isEnabled(key, false));
-    }
-
     @Override
     public void hook() throws Throwable {
-        try {
-            hookMessageHandler();
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + " Error hooking message handler: " + t.getMessage());
-        }
-    }
-
-    private void hookMessageHandler() {
-        DexSearchEngine engine = DexSearchEngine.getInstance();
-
-        Method dndMethod = engine.findMethodWithCache(
-                context,
-                classLoader,
-                "waex_dnd_message_handler_start",
-                (bridge, loader) -> {
-                    MethodData md = bridge.findMethod(FindMethod.create()
-                            .matcher(MethodMatcher.create()
-                                    .addUsingString("MessageHandler/start", StringMatchType.Equals)
-                            )
-                    ).firstOrNull();
-
-                    if (md == null) {
-                        md = bridge.findMethod(FindMethod.create()
-                                .matcher(MethodMatcher.create()
-                                        .addUsingString("MessageHandler/start", StringMatchType.Contains)
-                                )
-                        ).firstOrNull();
-                    }
-
-                    return md != null ? md.getMethodInstance(loader) : null;
-                }
-        );
-
-        if (dndMethod != null) {
-            XposedBridge.hookMethod(dndMethod, new XC_MethodHook() {
-                @Override
-                protected void beforeHookedMethod(MethodHookParam param) {
-                    if (isDndActive()) {
-                        param.setResult(null); // Block incoming message handler execution
-                    }
-                }
-            });
-        }
+        SafeHooks.skipWhile(WaTargets.messageHandlerStart(context, classLoader),
+                () -> getPrivacy().isOn(PrivacyToggle.DND));
     }
 }

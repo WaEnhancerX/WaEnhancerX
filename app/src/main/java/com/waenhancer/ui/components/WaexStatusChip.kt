@@ -20,18 +20,21 @@ fun WaexStatusChip(
 ) {
     val radius = WaexTheme.radius
     val typography = WaexTheme.typography
+    // WhatsApp "New" badge: sent-green fill with deep green (light) / pale green (dark) text.
+    val isBadge = color == WaexTheme.colors.primaryContainer
+    val badgeText = if (WaexTheme.colors.isLight) Color(0xFF15603E) else Color(0xFFD9FDD3)
 
     Box(
         modifier = modifier
             .clip(radius.fullShape)
-            .background(color.copy(alpha = 0.16f))
+            .background(if (isBadge) color else color.copy(alpha = 0.16f))
             .padding(horizontal = 12.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
             style = typography.labelSm,
-            color = color
+            color = if (isBadge) badgeText else color
         )
     }
 }

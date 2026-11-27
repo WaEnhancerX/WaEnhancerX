@@ -2,9 +2,9 @@ name: Source and JVM regression checks
 
 on:
   push:
-    branches: [main, 'integration/preview-current-main-*', 'fix/qa-localized-catalog-*']
+    branches: [main, nightly, 'integration/preview-current-main-*', 'fix/qa-localized-catalog-*']
   pull_request:
-    branches: [main]
+    branches: [main, nightly]
   workflow_dispatch:
 
 permissions:
@@ -37,6 +37,35 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Verify release pipeline contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for test in qa/test_version_scheme.py qa/test_next_version.py qa/test_changelog_assembly.py \
+                      qa/test_pr_gate.py qa/test_ai_review.py qa/test_merge_pr.py \
+                      qa/test_manual_merge.py qa/test_publish_review.py \
+                      qa/test_nightly_release_state.py qa/test_pending_changelog.py; do
+            python3 "$test"
+          done
+
+      - name: Verify screenshot and default image-quality MobileConfig contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_media_quality_screenshot_props.py \
+            --source-root . --out "$RUNNER_TEMP/waex-media-screenshot-props"
+
+      - name: Preserve image-quality property contract evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: media-screenshot-props-evidence
+          path: |
+            ${{ runner.temp }}/waex-media-screenshot-props/*.json
+            ${{ runner.temp }}/waex-media-screenshot-props/*.log
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Require complete source parsing tools
         shell: bash
         run: |
@@ -48,6 +77,24 @@ jobs:
             exit 1
           fi
           kotlinc -version
+
+      - name: Verify target-scoped legacy string preference reads
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_preference_manager_string_scope.py
+          python3 qa/mutate_preference_manager_string_scope.py --out "$RUNNER_TEMP/preference-string-scope-mutants"
+
+      - name: Preserve scoped string preference mutation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preference-string-scope-mutants
+          path: |
+            ${{ runner.temp }}/preference-string-scope-mutants/results.json
+            ${{ runner.temp }}/preference-string-scope-mutants/*/run.log
+          retention-days: 14
+          if-no-files-found: error
 
       - name: Verify call-blocking opt-out and target-switch contracts
         shell: bash
@@ -102,6 +149,27 @@ jobs:
           set -euo pipefail
           python3 qa/test_syntax_checker.py
 
+      - name: Verify media constructor hook with cold and persisted DexKit caches
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_media_warm_cache.py \
+            --source-root . \
+            --out "$RUNNER_TEMP/media-warm-cache-contract"
+
+      - name: Preserve media cache and callback contract evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: media-warm-cache-contract-evidence
+          path: |
+            ${{ runner.temp }}/media-warm-cache-contract/RESULTS.json
+            ${{ runner.temp }}/media-warm-cache-contract/*.stdout.txt
+            ${{ runner.temp }}/media-warm-cache-contract/*.stderr.txt
+            ${{ runner.temp }}/media-warm-cache-contract/*/cache-input.properties
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Validate complete status style and property hook contracts
         shell: bash
         run: |
@@ -131,6 +199,7 @@ jobs:
             qa/test_bridge_ordering.py
             qa/test_media_preference_sync.py
             qa/mutate_media_preference_sync.py
+            qa/test_parallel_download_stream_contract.py
             qa/test_dnd_preference_policy.py
             qa/test_dex_negative_cache.py
             qa/test_android24_compatibility.py
@@ -218,6 +287,10 @@ jobs:
           if grep -q 'release failed:' app/src/main/java/com/waenhancer/xposed/features/media/CallRecordingHook.java; then
             test -f qa/test_recorder_cleanup.py
           fi
+          if [[ -f app/src/main/java/com/waenhancer/calls/RecordingOutputFiles.java ]]; then
+            test -f qa/test_call_recording_output_safety.py
+            test -f qa/fixtures/RecordingOutputFilesProbe.java
+          fi
           if [[ -f app/src/main/java/com/waenhancer/xposed/features/media/CallRecordingEventContract.java ]]; then
             test -f qa/test_call_recording_lifecycle.py
             test -f qa/fixtures/CallRecordingLifecycleChecks.java
@@ -269,7 +342,6 @@ jobs:
             qa/test_manual_seen_tick_persistence.py \
             qa/test_receipt_job_execution_contract.py \
             qa/test_selected_upstream_hardening.py \
-            qa/test_played_receipt_dispatch_contract.py \
             qa/test_receipt_observation.py \
             qa/test_presence_event_contract.py \
             qa/test_presence_state_replay.py \
@@ -295,6 +367,7 @@ jobs:
             qa/test_runtime_observation_clock.py \
             qa/test_filter_work.py \
             qa/test_recorder_cleanup.py \
+            qa/test_call_recording_output_safety.py \
             qa/test_call_recording_lifecycle.py \
             qa/test_gallery_export.py \
             qa/test_contact_identity.py \

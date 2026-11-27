@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.DisplayMetrics;
 import androidx.annotation.NonNull;
+import com.waenhancer.theme.ThemeHeader;
 import com.waenhancer.xposed.core.BaseFeature;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
@@ -20,12 +21,23 @@ public final class CustomDpiHook extends BaseFeature {
 
     @Override public void hook() {
         int dpi = TypedStyleHookPolicy.parseDpi(prefs.getString("change_dpi", "0"));
+        // Like WaEnhancer, an explicit setting wins and the theme header supplies the fallback.
+        if (dpi == 0) dpi = TypedStyleHookPolicy.parseDpi(themeHeaderDpi());
         if (dpi == 0) return;
+        final int targetDpi = dpi;
         XposedBridge.hookAllMethods(Activity.class, "onCreate", new XC_MethodHook() {
             @Override protected void beforeHookedMethod(MethodHookParam param) {
-                if (param.thisObject instanceof Activity) applyDpi((Activity) param.thisObject, dpi);
+                if (param.thisObject instanceof Activity) applyDpi((Activity) param.thisObject, targetDpi);
             }
         });
+    }
+
+    private String themeHeaderDpi() {
+        String css = getStringPref("css_theme", null);
+        if (css == null) css = getStringPref("custom_css", "");
+        if (css == null || css.isEmpty()) return "0";
+        String value = ThemeHeader.Companion.properties(css).get("change_dpi");
+        return value != null ? value : "0";
     }
 
     private static void applyDpi(Activity activity, int dpi) {

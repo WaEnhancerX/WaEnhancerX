@@ -3,7 +3,6 @@ package com.waenhancer.xposed.core;
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.net.Uri;
 import android.os.Bundle;
 import androidx.annotation.NonNull;
 import com.waenhancer.config.HookingModePolicy;
@@ -15,6 +14,7 @@ import com.waenhancer.hooking.ScreenScopedFeature;
 import com.waenhancer.licensing.customprops.CustomAbPropsRuntime;
 import com.waenhancer.licensing.features.AudioToVoiceStatusFeature;
 import com.waenhancer.licensing.features.BootloaderSpooferFeature;
+import com.waenhancer.licensing.features.CustomEmojisFeature;
 import com.waenhancer.licensing.features.DeviceDefaultEmojisFeature;
 import com.waenhancer.licensing.features.FileSizeSpooferFeature;
 import com.waenhancer.licensing.features.MessageBomberFeature;
@@ -22,7 +22,9 @@ import com.waenhancer.licensing.features.NewChatFeature;
 import com.waenhancer.licensing.features.PlayIntegrityBypassHook;
 import com.waenhancer.licensing.features.StatusSplitterFeature;
 import com.waenhancer.licensing.features.UnlockWaPlusFeature;
+import com.waenhancer.xposed.core.devkit.DexCacheManager;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.xposed.bridge.client.HookProviderIpc;
 import com.waenhancer.xposed.utils.ActivityTracker;
 import com.waenhancer.xposed.features.automation.PresenceToastsHook;
 import com.waenhancer.xposed.features.automation.TaskerIntegrationHook;
@@ -36,6 +38,7 @@ import com.waenhancer.xposed.features.conversation.MessageDeviceSourceHook;
 import com.waenhancer.xposed.features.conversation.MinorFixesHook;
 import com.waenhancer.xposed.features.conversation.PreserveDeleteForMeHook;
 import com.waenhancer.xposed.features.conversation.StickerConfirmHook;
+import com.waenhancer.xposed.features.conversation.StickerOutlineHook;
 import com.waenhancer.xposed.features.customization.ChannelRecommendationsFilterHook;
 import com.waenhancer.xposed.features.customization.ChatFilterDisplayHook;
 import com.waenhancer.xposed.features.customization.CustomDpiHook;
@@ -43,6 +46,7 @@ import com.waenhancer.xposed.features.customization.CustomTimeHook;
 import com.waenhancer.xposed.features.customization.CssThemeHook;
 import com.waenhancer.xposed.features.customization.FilterItemsHook;
 import com.waenhancer.xposed.features.customization.FloatingBottomBarHook;
+import com.waenhancer.xposed.features.customization.NativeFloatingNavigationHook;
 import com.waenhancer.xposed.features.customization.OnlinePresenceIndicatorsHook;
 import com.waenhancer.xposed.features.customization.HideHomeTabsHook;
 import com.waenhancer.xposed.features.customization.NewSettingsStyleHook;
@@ -63,6 +67,8 @@ import com.waenhancer.xposed.features.media.StatusDownloadHook;
 import com.waenhancer.xposed.features.media.VoiceDictationHook;
 import com.waenhancer.xposed.features.media.VoiceNoteRowTranscriptHook;
 import com.waenhancer.xposed.features.media.VoiceNoteTranscriptionHook;
+import com.waenhancer.xposed.core.privacy.PrivacyPrefs;
+import com.waenhancer.xposed.core.privacy.PrivacyToggle;
 import com.waenhancer.xposed.features.privacy.AlwaysOnlineHook;
 import com.waenhancer.xposed.features.privacy.AntiDisappearingMessagesHook;
 import com.waenhancer.xposed.features.privacy.AntiRevokeHook;
@@ -75,22 +81,29 @@ import com.waenhancer.xposed.features.privacy.DndModeHook;
 import com.waenhancer.xposed.features.privacy.FreezeLastSeenHook;
 import com.waenhancer.xposed.features.privacy.HideArchivedChatsHook;
 import com.waenhancer.xposed.features.privacy.HideChatsVaultHook;
+import com.waenhancer.xposed.features.privacy.LockedChatNotificationsHook;
 import com.waenhancer.xposed.features.privacy.HideForwardedTagHook;
 import com.waenhancer.xposed.features.privacy.HideReceiptsHook;
 import com.waenhancer.xposed.features.privacy.LockedChatsEnhancerHook;
 import com.waenhancer.xposed.features.privacy.ScreenshotRestrictionBypassHook;
 import com.waenhancer.xposed.features.privacy.TypingPrivacyHook;
+import com.waenhancer.xposed.utils.HookErrors;
 import de.robv.android.xposed.XposedBridge;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Orchestrates and registers all modular hooks in WAEX and reports injected status.
@@ -185,7 +198,7 @@ public final class FeatureRegistry {
                     String key = keys.next();
                     customizedInstallations.put(key, custom.optString(key, ""));
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("FeatureRegistry", ignored); }
         }
         try {
             BootloaderSpooferFeature.install(context, classLoader, prefs);
@@ -213,8 +226,13 @@ public final class FeatureRegistry {
         // ==========================================
 
         // Privacy & Seen Controls
+        // A privacy hook is installed whenever its toggle is *available*: on now, offered as a
+        // runtime switch (quick actions / Ghost Mode), or reachable through a per-contact rule.
+        // The hooks read PrivacyPrefs live, so switching a toggle later needs no restart.
+        final PrivacyPrefs privacy = new PrivacyPrefs(prefs, reportingPackage);
+
         registerFeature(AntiViewOnceHook.class, "Privacy",
-                () -> prefs.getBoolean("anti_view_once", false) || prefs.getBoolean("viewonce", false),
+                () -> privacy.isAvailable(PrivacyToggle.ANTI_VIEW_ONCE),
                 () -> new AntiViewOnceHook(context, classLoader, prefs));
 
         registerFeature(ScreenshotRestrictionBypassHook.class, "Privacy",
@@ -222,41 +240,43 @@ public final class FeatureRegistry {
                 () -> new ScreenshotRestrictionBypassHook(context, classLoader, prefs));
 
         registerFeature(TypingPrivacyHook.class, "Privacy",
-                () -> prefs.getBoolean("typing_privacy", false) || prefs.getBoolean("hide_typing", false)
-                        || prefs.getBoolean("hide_recording", false) || prefs.getBoolean("ghostmode_t", false)
-                        || prefs.getBoolean("ghostmode_r", false),
+                () -> privacy.anyAvailable(PrivacyToggle.HIDE_TYPING, PrivacyToggle.HIDE_RECORDING)
+                        || privacy.hasContactRules(),
                 () -> new TypingPrivacyHook(context, classLoader, prefs));
 
         registerFeature(FreezeLastSeenHook.class, "Privacy",
-                () -> prefs.getBoolean("freeze_last_seen", false)
-                        || prefs.getBoolean("freeze_last_seen_active", false)
-                        || prefs.getBoolean("ghostmode_active", false)
-                        || prefs.getBoolean("online_status_indicator", false),
+                () -> privacy.isAvailable(PrivacyToggle.FREEZE_LAST_SEEN),
                 () -> new FreezeLastSeenHook(context, classLoader, prefs));
 
         registerFeature(AlwaysOnlineHook.class, "Privacy",
-                () -> prefs.getBoolean("always_online", false),
+                () -> privacy.isAvailable(PrivacyToggle.ALWAYS_ONLINE),
                 () -> new AlwaysOnlineHook(context, classLoader, prefs));
 
         registerFeature(HideReceiptsHook.class, "Privacy",
-                () -> prefs.getBoolean("hide_read_receipts", false) || prefs.getBoolean("hideread", false)
-                        || prefs.getBoolean("hide_delivery_receipts", false) || prefs.getBoolean("hidereceipt", false)
-                        || prefs.getBoolean("hide_seen_receipts", false) || prefs.getBoolean("hideaudioseen", false)
-                        || prefs.getBoolean("hideonceseen", false) || prefs.getBoolean("ghostmode_active", false)
-                        || prefs.getBoolean("stealth_status_view", false) || prefs.getBoolean("hidestatusview", false),
+                () -> privacy.anyAvailable(PrivacyToggle.HIDE_READ, PrivacyToggle.HIDE_READ_GROUP,
+                        PrivacyToggle.HIDE_DELIVERY, PrivacyToggle.HIDE_VOICE_PLAYED,
+                        PrivacyToggle.HIDE_VIEW_ONCE_OPENED, PrivacyToggle.STEALTH_STATUS)
+                        || privacy.hasContactRules(),
                 () -> new HideReceiptsHook(context, classLoader, prefs));
 
         // These hooks observe transport/database/call events. They must be installed at process
         // startup: a notification, revoke, receipt, or call can arrive on any screen.
         registerFeature(BlueOnReplyHook.class, "Privacy",
-                () -> prefs.getBoolean("blueonreply", false)
-                        || prefs.getBoolean("manual_status_seen", false),
+                // Reply sending, the manual "Send blue tick" button and manual status seen all live
+                // in this hook; it must be installed when any of them is enabled.
+                // Also whenever read receipts can be withheld, so turning Blue-on-reply or the
+                // button on later works without restarting WhatsApp (both are checked live).
+                () -> privacy.flag("blueonreply") || privacy.flag("seentick")
+                        || privacy.flag("manual_status_seen")
+                        || privacy.anyAvailable(PrivacyToggle.HIDE_READ, PrivacyToggle.HIDE_READ_GROUP,
+                                PrivacyToggle.HIDE_DELIVERY),
                 () -> new BlueOnReplyHook(context, classLoader, prefs));
 
         registerFeature(CallPrivacyHook.class, "Privacy",
                 () -> !"0".equals(prefs.getString("call_privacy", "0"))
                         || prefs.getBoolean("call_privacy_enabled", false)
-                        || prefs.getBoolean("call_info", false),
+                        || prefs.getBoolean("call_info", false)
+                        || privacy.hasContactRules(),
                 () -> new CallPrivacyHook(context, classLoader, prefs));
 
         registerFeature(AntiRevokeHook.class, "Privacy",
@@ -290,18 +310,28 @@ public final class FeatureRegistry {
         registerFeature(DndModeHook.class, "Privacy",
                 () -> new DndModeHook(context, classLoader, prefs));
 
+        registerFeature(LockedChatNotificationsHook.class, "Privacy",
+                () -> LockedChatNotificationsHook.isSuppressing(prefs),
+                () -> new LockedChatNotificationsHook(context, classLoader, prefs));
+
         registerFeature(HideChatsVaultHook.class, "Privacy",
                 () -> prefs.getBoolean("hide_chats", false),
                 () -> new HideChatsVaultHook(context, classLoader, prefs));
 
         // Conversation & Message Controls
         registerFeature(AntiEditMessagesHook.class, "Conversation",
-                () -> prefs.getBoolean("anti_edit", false) || prefs.getBoolean("antieditmessages", false),
+                () -> prefs.getBoolean("anti_edit_messages", false)
+                        || prefs.getBoolean("anti_edit", false)
+                        || prefs.getBoolean("antieditmessages", false),
                 () -> new AntiEditMessagesHook(context, classLoader, prefs));
 
         registerFeature(StickerConfirmHook.class, "Conversation",
                 () -> prefs.getBoolean("sticker_confirm_alert", false),
                 () -> new StickerConfirmHook(context, classLoader, prefs));
+
+        registerFeature(StickerOutlineHook.class, "Conversation",
+                () -> prefs.getBoolean(StickerOutlineHook.PREF_KEY, false),
+                () -> new StickerOutlineHook(context, classLoader, prefs));
 
         registerFeature(JumpFirstMessageHook.class, "Conversation",
                 () -> prefs.getBoolean("jump_to_first_message", false),
@@ -323,8 +353,9 @@ public final class FeatureRegistry {
                 () -> new ChatLimitsBypassHook(context, classLoader, prefs));
 
         try {
-            if (prefs.getBoolean("disable_defemojis", false)
-                    || prefs.getBoolean(context.getPackageName() + ":disable_defemojis", false)) {
+            boolean deviceEmojis = prefs.getBoolean("disable_defemojis", false)
+                    || prefs.getBoolean(context.getPackageName() + ":disable_defemojis", false);
+            if (deviceEmojis) {
                 DeviceDefaultEmojisFeature.install(context, classLoader, prefs,
                         (cacheKey, query) -> DexSearchEngine.getInstance().findClassWithCache(
                                 context, classLoader, cacheKey, query::execute));
@@ -332,8 +363,24 @@ public final class FeatureRegistry {
             } else {
                 features.add(new FeatureEntry("Device Default Emojis", "DeviceDefaultEmojisFeature", "Conversation", "DISABLED"));
             }
+
+            // Custom Emojis requires device emojis to be turned off
+            String pkg = context.getPackageName();
+            boolean customEmojis = !deviceEmojis && (
+                    prefs.getBoolean("custom_emojis", false)
+                    || prefs.getBoolean("custom_emoji_enabled", false)
+                    || prefs.getBoolean(pkg + ":custom_emojis", false)
+                    || prefs.getBoolean(pkg + ":custom_emoji_enabled", false));
+            if (customEmojis) {
+                CustomEmojisFeature.install(context, classLoader, prefs,
+                        (cacheKey, query) -> DexSearchEngine.getInstance().findClassWithCache(
+                                context, classLoader, cacheKey, query::execute));
+                features.add(new FeatureEntry("Custom Emojis", "CustomEmojisFeature", "Conversation", "ACTIVE"));
+            } else {
+                features.add(new FeatureEntry("Custom Emojis", "CustomEmojisFeature", "Conversation", "DISABLED"));
+            }
         } catch (Throwable t) {
-            FeatureEntry entry = new FeatureEntry("Device Default Emojis", "DeviceDefaultEmojisFeature", "Conversation", "FAILED");
+            FeatureEntry entry = new FeatureEntry("Custom Emojis", "CustomEmojisFeature", "Conversation", "FAILED");
             entry.error = t.getMessage();
             features.add(entry);
         }
@@ -514,6 +561,10 @@ public final class FeatureRegistry {
                 () -> prefs.getBoolean("floating_bottom_bar", false),
                 () -> new FloatingBottomBarHook(context, classLoader, prefs));
 
+        registerFeature(NativeFloatingNavigationHook.class, "Customization",
+                () -> NativeFloatingNavigationHook.isActive(prefs),
+                () -> new NativeFloatingNavigationHook(context, classLoader, prefs));
+
         registerFeature(FilterItemsHook.class, "Customization",
                 () -> {
                     String raw = prefs.getString("filter_items", null);
@@ -531,6 +582,18 @@ public final class FeatureRegistry {
         }
     }
 
+    /**
+     * Privacy hooks that act on network traffic (receipts, presence, typing, calls, revokes,
+     * incoming messages). Those events arrive on any screen, so the hooks must be live from
+     * process start in every hooking mode; a lazy install would silently leak receipts or let
+     * calls through until a particular screen was opened. Matched by class, which survives R8.
+     */
+    private static final Set<Class<? extends BaseFeature>> TRANSPORT_PRIVACY_FEATURES =
+            Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+                    HideReceiptsHook.class, BlueOnReplyHook.class, TypingPrivacyHook.class,
+                    FreezeLastSeenHook.class, AlwaysOnlineHook.class, CallPrivacyHook.class,
+                    AntiRevokeHook.class, AntiViewOnceHook.class, DndModeHook.class)));
+
     private void registerFeature(Class<? extends BaseFeature> type, String category,
                                  FeatureFactory factory) {
         registerFeature(type, category, () -> true, factory);
@@ -541,7 +604,9 @@ public final class FeatureRegistry {
                                  FeatureFactory factory) {
         String className = type.getSimpleName();
         FeaturePolicy policy = HookingEngine.policyFor(className);
-        Installation effectiveInstallation = effectiveInstallation(policy, className, category);
+        Installation effectiveInstallation = TRANSPORT_PRIVACY_FEATURES.contains(type)
+                ? Installation.STARTUP
+                : effectiveInstallation(policy, className, category);
         FeatureEntry entry = new FeatureEntry(className, category,
                 effectiveInstallation, policy, enabled, factory);
         features.add(entry);
@@ -578,14 +643,23 @@ public final class FeatureRegistry {
 
     public void initializeAll() {
         applyUiPreHooks();
-        for (FeatureEntry entry : features) {
-            if (entry.factory == null) continue;
-            if (entry.installation == Installation.STARTUP) install(entry);
-            else if (isEntryEnabled(entry)) {
-                entry.status = "WAITING";
-            } else {
-                markDisabled(entry);
+        boolean showProgress = DexCacheManager.getInstance(reportingContext).isColdStart()
+                && FeatureLoadingNotifier.start(reportingContext, countEnabledStartupFeatures());
+        try {
+            for (FeatureEntry entry : features) {
+                if (entry.factory == null) continue;
+                if (entry.installation == Installation.STARTUP) {
+                    boolean counted = showProgress && isEntryEnabled(entry);
+                    install(entry);
+                    if (counted) FeatureLoadingNotifier.onFeatureLoaded(entry.name);
+                } else if (isEntryEnabled(entry)) {
+                    entry.status = "WAITING";
+                } else {
+                    markDisabled(entry);
+                }
             }
+        } finally {
+            if (showProgress) FeatureLoadingNotifier.finish(reportingContext);
         }
         // DexKit's native index is only required while a feature is resolving its targets.
         // Lazy features reopen it on their first matching screen and close it again afterwards.
@@ -615,6 +689,8 @@ public final class FeatureRegistry {
         boolean newSettingsEnabled = prefs.getBoolean("novaconfig", false);
         PropsOverrideHook.setBooleanOverride(14862, newSettingsEnabled, true);
         PropsOverrideHook.setIntegerOverride(18564, newSettingsEnabled, 2);
+        PropsOverrideHook.setBooleanOverride(NativeFloatingNavigationHook.FLOATING_NAVIGATION_PROP,
+                NativeFloatingNavigationHook.isActive(prefs), true);
         boolean metaAiFullyDisabled = prefs.getBoolean("metaai", false)
                 && prefs.getBoolean("metaai_remove_entry_points", true)
                 && prefs.getBoolean("metaai_block_chat", true);
@@ -665,13 +741,21 @@ public final class FeatureRegistry {
             entry.feature = entry.factory.create();
             entry.name = entry.feature.getName();
             entry.feature.beginHookTracking();
+            final long hookStart = System.nanoTime();
             try {
                 entry.feature.hook();
             } finally {
                 entry.feature.endHookTracking();
+                long hookMs = (System.nanoTime() - hookStart) / 1_000_000L;
+                // Only report features that are noticeably slow, to keep the log readable.
+                if (hookMs >= SLOW_HOOK_LOG_MS) {
+                    XposedBridge.log("[WAEX][Startup] " + entry.name + " hook " + hookMs + "ms ("
+                            + entry.installation + ")");
+                }
             }
             entry.error = null; // A successful retry must not retain an earlier failure.
             entry.status = "ACTIVE";
+            if (entry.installation != Installation.STARTUP) refreshVisibleMenu();
         } catch (Throwable t) {
             if (entry.feature != null) entry.feature.unhookAll();
             entry.feature = null;
@@ -694,6 +778,21 @@ public final class FeatureRegistry {
         }
     }
 
+    /**
+     * A lazy feature is installed when its screen opens, often after that screen already built
+     * its options menu. Ask the visible screen to rebuild it so menu-based features (download
+     * buttons, extra actions) appear on this screen too, not only on the next one.
+     */
+    private static void refreshVisibleMenu() {
+        Activity activity = ActivityTracker.getCurrentActivity();
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
+        activity.runOnUiThread(() -> {
+            try {
+                if (!activity.isFinishing() && !activity.isDestroyed()) activity.invalidateOptionsMenu();
+            } catch (Throwable ignored) { HookErrors.swallowed("FeatureRegistry", ignored); }
+        });
+    }
+
     private void disposeLazyEntry(FeatureEntry entry, @NonNull Activity activity) {
         if (entry.installation == Installation.STARTUP || HookingModePolicy.COMPATIBILITY.equals(hookingMode)) return;
         synchronized (entry) {
@@ -714,6 +813,15 @@ public final class FeatureRegistry {
             }
         }
         reportInjectedHooks(reportingContext, reportingPackage);
+    }
+
+    private int countEnabledStartupFeatures() {
+        int count = 0;
+        for (FeatureEntry entry : features) {
+            if (entry.factory != null && entry.installation == Installation.STARTUP
+                    && isEntryEnabled(entry)) count++;
+        }
+        return count;
     }
 
     private static boolean isEntryEnabled(FeatureEntry entry) {
@@ -748,6 +856,16 @@ public final class FeatureRegistry {
         return false;
     }
 
+    private static final long SLOW_HOOK_LOG_MS = 15L;
+
+    private static final ExecutorService HOOK_REPORT_EXECUTOR =
+            Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "WAEX-HookReportIpc");
+                t.setDaemon(true);
+                t.setPriority(Thread.MIN_PRIORITY);
+                return t;
+            });
+
     public void reportInjectedHooks(@NonNull Context context, @NonNull String packageName) {
         try {
             JSONArray array = new JSONArray();
@@ -763,14 +881,21 @@ public final class FeatureRegistry {
                 array.put(obj);
             }
 
-            Uri uri = Uri.parse("content://com.waenhancer.hookprovider");
             Bundle extras = new Bundle();
             extras.putString("package", packageName);
             extras.putString("hooks_json", array.toString());
             extras.putString("hooking_mode", hookingMode);
             extras.putLong("timestamp", System.currentTimeMillis());
 
-            context.getContentResolver().call(uri, "register_injected_hooks", packageName, extras);
+            // The JSON snapshot above is built on the caller; the cross-process call is not, because
+            // lazy installs report from the UI thread while a screen is opening.
+            HOOK_REPORT_EXECUTOR.execute(() -> {
+                try {
+                    HookProviderIpc.call(context, "register_injected_hooks", packageName, extras);
+                } catch (Throwable t) {
+                    XposedBridge.log("[WAEX] Failed to report injected hooks: " + t.getMessage());
+                }
+            });
         } catch (Throwable t) {
             XposedBridge.log("[WAEX] Failed to report injected hooks: " + t.getMessage());
         }

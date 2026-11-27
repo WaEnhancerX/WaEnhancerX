@@ -1,7 +1,6 @@
 package com.waenhancer.xposed.features.media;
 
 import android.content.Context;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -11,6 +10,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.waenhancer.core.transcription.TranscriptionClient;
 import com.waenhancer.core.transcription.TranscriptionRequestHandler;
+import com.waenhancer.xposed.bridge.client.HookProviderIpc;
+import com.waenhancer.xposed.utils.HookErrors;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -24,7 +25,6 @@ import java.util.Map;
  */
 final class VoiceTranscriptionBridge {
 
-    private static final Uri PROVIDER = Uri.parse("content://com.waenhancer.hookprovider");
     private static final long READY_CACHE_MS = 60_000;
     private static final int REMEMBERED_TRANSCRIPTS = 256;
 
@@ -90,7 +90,7 @@ final class VoiceTranscriptionBridge {
             try {
                 Bundle extras = new Bundle();
                 extras.putString(TranscriptionRequestHandler.EXTRA_MESSAGE, message);
-                context.getContentResolver().call(PROVIDER, TranscriptionRequestHandler.METHOD_LOG, null, extras);
+                HookProviderIpc.call(context, TranscriptionRequestHandler.METHOD_LOG, null, extras);
             } catch (Throwable ignored) {
                 // Logging must never affect WhatsApp.
             }
@@ -158,8 +158,8 @@ final class VoiceTranscriptionBridge {
         boolean answer;
         try {
             // No lock held here: starting the WAEX process can take seconds.
-            Bundle result = context.getContentResolver().call(
-                    PROVIDER, TranscriptionRequestHandler.METHOD_READY, null, new Bundle());
+            Bundle result = HookProviderIpc.call(context,
+                    TranscriptionRequestHandler.METHOD_READY, null, new Bundle());
             answer = result != null && result.getBoolean(TranscriptionRequestHandler.RESULT_READY, false);
         } catch (Throwable t) {
             return null;
@@ -222,8 +222,8 @@ final class VoiceTranscriptionBridge {
             Bundle extras = new Bundle();
             extras.putByteArray(TranscriptionRequestHandler.EXTRA_AUDIO, audio);
             extras.putString(TranscriptionRequestHandler.EXTRA_FILE_NAME, name);
-            Bundle result = context.getContentResolver().call(
-                    PROVIDER, TranscriptionRequestHandler.METHOD, null, extras);
+            Bundle result = HookProviderIpc.call(context,
+                    TranscriptionRequestHandler.METHOD, null, extras);
             if (result == null) return new Result(null, "WAEX did not answer");
             String text = result.getString(TranscriptionRequestHandler.RESULT_TEXT);
             if (text != null) return new Result(text, null);
@@ -249,11 +249,10 @@ final class VoiceTranscriptionBridge {
             retriever.setDataSource(audio.getAbsolutePath());
             String ms = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION);
             if (ms != null) seconds = Math.round(Long.parseLong(ms) / 1000.0);
-        } catch (Throwable ignored) {
-        } finally {
+        } catch (Throwable ignored) { HookErrors.swallowed("VoiceTranscriptionBridge", ignored); } finally {
             try {
                 retriever.release();
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("VoiceTranscriptionBridge", ignored); }
         }
         return seconds >= 0 ? "(" + kb + " KB, " + seconds + " s)" : "(" + kb + " KB)";
     }

@@ -15,6 +15,7 @@ import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import com.waenhancer.xposed.utils.ActivityTracker
+import com.waenhancer.xposed.utils.HostResourceIds
 
 /**
  * Enables long-press copy functionality for status text captions and text status updates.
@@ -86,7 +87,7 @@ class CopyStatusTextHook(
     private fun getResourceEntryName(view: View): String? {
         return try {
             if (view.id != View.NO_ID && view.resources != null) {
-                view.resources.getResourceEntryName(view.id)
+                HostResourceIds.entryName(view, view.id)
             } else null
         } catch (ignored: Throwable) {
             null

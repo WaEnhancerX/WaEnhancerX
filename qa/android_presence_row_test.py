@@ -57,7 +57,7 @@ POM = '''<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0<
 <dependency><groupId>junit</groupId><artifactId>junit</artifactId><version>4.13.2</version></dependency>
 </dependencies></project>'''
 
-RENDER_METHODS = ('bindRow', 'ensureDotView', 'ensureTextView', 'render',
+RENDER_METHODS = ('bindRow', 'ensureDotView', 'placeDotOnAvatarRim', 'ensureTextView', 'render',
                   'recordIdentityAlias', 'queueBindRow', 'queuePresenceRefresh',
                   'clearRow', 'stateForRow')
 RENDER_FIELDS = ('mainHandler', 'visibleRows', 'pendingBindings', 'refreshPending')
@@ -71,7 +71,8 @@ COMPILE_JARS = (
 def harness(source, baseline=False):
     imports = '\n'.join(line for line in source.splitlines() if line.startswith('import ') and
                          (line.startswith('import android.') or line.startswith('import java.') or
-                          'PresenceStateStore' in line or 'import com.waenhancer.app.R' in line or 'import com.waenhancer.utils.UiText' in line))
+                          'PresenceStateStore' in line or 'HostResourceIds' in line or
+                          'import com.waenhancer.app.R' in line or 'import com.waenhancer.utils.UiText' in line))
     # Baseline and candidate must execute the same methods and expectations.
     # These bodies are copied verbatim; accessors below cannot create/size/render views.
     methods = '\n\n'.join(extract(source, 'private fun ' + name + '(') for name in RENDER_METHODS)
@@ -202,7 +203,7 @@ def prepare_runtime_dependencies(deps, out):
 def build_host_resources(out, aapt2):
     out = fresh_output(out)
     resources = out/'res/values'; resources.mkdir(parents=True, exist_ok=True)
-    (resources/'ids.xml').write_text('<resources><item name="contact_selector" type="id"/></resources>', encoding='utf-8')
+    (resources/'ids.xml').write_text('<resources><item name="contact_selector" type="id"/><item name="contact_photo" type="id"/></resources>', encoding='utf-8')
     manifest = out/'AndroidManifest.xml'
     manifest.write_text('<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="org.waex.qa.presence.host"/>', encoding='utf-8')
     run([str(aapt2), 'version'], out/'aapt2-version.log')
@@ -239,7 +240,13 @@ def execute(root, out, deps, baseline, host_resources, runtime_jars, sdk_dir=Non
     for dependency in compile_paths:
         if not dependency.is_file(): raise RuntimeError('Required compile API missing: '+str(dependency))
     compile_cp=os.pathsep.join(str(p) for p in compile_paths)
-    java_sources=[root/STORE]
+    java_sources=[root/STORE, root/'app/src/main/java/com/waenhancer/xposed/utils/HostResourceIds.java']
+    # The production resource resolver depends only on the AndroidX NonNull annotation.
+    # Supply its compile-time marker; the actual resolver and Android Resources run unmodified.
+    nonnull = out/'generated/androidx/annotation/NonNull.java'
+    nonnull.parent.mkdir(parents=True, exist_ok=True)
+    nonnull.write_text('package androidx.annotation; public @interface NonNull {}', encoding='utf-8')
+    java_sources.append(nonnull)
     if 'UiText.' in source:
         # Numeric R IDs are compile bindings only. Actual UiText selects its
         # explicit English fallback here; resource localization is another gate.
@@ -289,9 +296,10 @@ def execute(root, out, deps, baseline, host_resources, runtime_jars, sdk_dir=Non
             'test_fixture_sha256':hashlib.sha256(TESTS.encode()).hexdigest()}
 
 MUTATIONS = {
-    'wrong_dot_gravity': ('Gravity.BOTTOM or Gravity.END','Gravity.BOTTOM or Gravity.START'),
+    'wrong_dot_gravity': ('params.gravity = Gravity.BOTTOM or Gravity.END','params.gravity = Gravity.BOTTOM or Gravity.START'),
     'ignore_known_state': ('state == null || !state.known ->','state == null ->'),
-    'omit_dot_attachment': ('targetGroup.addView(dot, params)','Unit // negative control: omit normal child attachment'),
+    'omit_dot_attachment': ('targetGroup.addView(\n                    dot,\n                    FrameLayout.LayoutParams(size, size, Gravity.TOP or Gravity.LEFT)\n                )'.replace('\n', '\n'),
+                            'Unit // negative control: omit normal child attachment'),
 }
 MUTATION_ORACLES = {
     'wrong_dot_gravity':'rtlFollowsHostDirection',

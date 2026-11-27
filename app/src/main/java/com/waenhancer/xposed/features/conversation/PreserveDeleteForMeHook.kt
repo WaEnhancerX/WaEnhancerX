@@ -4,11 +4,13 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
-import android.net.Uri
+import com.waenhancer.xposed.bridge.client.HookProviderIpc
 import android.os.Bundle
 import android.os.SystemClock
 import com.waenhancer.xposed.core.BaseFeature
 import com.waenhancer.xposed.core.devkit.DexSearchEngine
+import com.waenhancer.xposed.utils.HookErrors
+import com.waenhancer.xposed.utils.HostFields
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import org.luckypray.dexkit.query.FindMethod
@@ -17,6 +19,8 @@ import org.luckypray.dexkit.query.matchers.MethodMatcher
 import java.io.File
 import java.lang.reflect.Method
 import java.lang.reflect.Field
+import java.util.Collections
+import java.util.IdentityHashMap
 import java.util.concurrent.Executors
 import org.luckypray.dexkit.DexKitBridge
 
@@ -39,9 +43,11 @@ class PreserveDeleteForMeHook(
     companion object {
         private const val TAG = "[WAEX:PreserveDeleteForMe]"
         private const val PREF_KEY = "preserve_delete_for_me"
-        private const val PROVIDER_URI = "content://com.waenhancer.hookprovider"
 
-        private val deleteForMeScope = ThreadLocal<Boolean>()
+        // A nested method invocation must not clear its caller's Delete-for-me scope.
+        // Track qualifying invocations by identity: Xposed calls afterHookedMethod even
+        // when that invocation's beforeHookedMethod decided not to enter the scope.
+        private val deleteForMeScope = ThreadLocal<MutableSet<XC_MethodHook.MethodHookParam>>()
         private val preservationWarningLock = Any()
         private var lastPreservationWarningAtElapsed = -1L
         private const val PRESERVATION_WARNING_INTERVAL_MS = 30_000L
@@ -51,7 +57,19 @@ class PreserveDeleteForMeHook(
 
         /** Lets other database hooks distinguish a local Delete-for-me from a remote revoke. */
         @JvmStatic
-        fun isDeleteForMeInProgress(): Boolean = deleteForMeScope.get() == true
+        fun isDeleteForMeInProgress(): Boolean = deleteForMeScope.get()?.isNotEmpty() == true
+
+        private fun enterDeleteForMeScope(param: XC_MethodHook.MethodHookParam) {
+            val active = deleteForMeScope.get() ?: Collections.newSetFromMap(
+                IdentityHashMap<XC_MethodHook.MethodHookParam, Boolean>()
+            ).also(deleteForMeScope::set)
+            active.add(param)
+        }
+
+        private fun leaveDeleteForMeScope(param: XC_MethodHook.MethodHookParam) {
+            val active = deleteForMeScope.get() ?: return
+            if (active.remove(param) && active.isEmpty()) deleteForMeScope.remove()
+        }
     }
 
     override fun hook() {
@@ -73,11 +91,11 @@ class PreserveDeleteForMeHook(
                                 // Only enter the delete scope after resolving real message keys.
                                 if (!captureRunnableMessages(param.thisObject)) return
                             }
-                            deleteForMeScope.set(true)
+                            enterDeleteForMeScope(param)
                         }
 
                         override fun afterHookedMethod(param: MethodHookParam) {
-                            deleteForMeScope.remove()
+                            leaveDeleteForMeScope(param)
                         }
                     }
                 )
@@ -168,7 +186,7 @@ class PreserveDeleteForMeHook(
                     if (!raw.isNullOrEmpty()) return raw
                 }
             }
-        } catch (ignored: Throwable) {}
+        } catch (ignored: Throwable) { HookErrors.swallowed("PreserveDeleteForMeHook", ignored) }
         return "chat_$chatRowId"
     }
 
@@ -192,7 +210,7 @@ class PreserveDeleteForMeHook(
                 val resolved = resolveUserDisplayName(ctx, msgstoreDb, rawJid, userPart)
                 if (resolved.isNotBlank()) return resolved
             }
-        } catch (ignored: Throwable) {}
+        } catch (ignored: Throwable) { HookErrors.swallowed("PreserveDeleteForMeHook", ignored) }
         return fallback
     }
 
@@ -210,7 +228,7 @@ class PreserveDeleteForMeHook(
                     if (!subject.isNullOrBlank()) return subject
                 }
             }
-        } catch (ignored: Throwable) {}
+        } catch (ignored: Throwable) { HookErrors.swallowed("PreserveDeleteForMeHook", ignored) }
 
         val userPart = rawJid.substringBefore("@")
         return resolveUserDisplayName(ctx, msgstoreDb, rawJid, userPart)
@@ -241,7 +259,7 @@ class PreserveDeleteForMeHook(
                     resolvedPhoneUser = cursor.getString(1)
                 }
             }
-        } catch (ignored: Throwable) {}
+        } catch (ignored: Throwable) { HookErrors.swallowed("PreserveDeleteForMeHook", ignored) }
 
         // 2. Query wa.db (wa_contacts table)
         try {
@@ -272,7 +290,7 @@ class PreserveDeleteForMeHook(
                     }
                 }
             }
-        } catch (ignored: Throwable) {}
+        } catch (ignored: Throwable) { HookErrors.swallowed("PreserveDeleteForMeHook", ignored) }
 
         // 3. Check verified business names in wa.db
         try {
@@ -287,7 +305,7 @@ class PreserveDeleteForMeHook(
                     }
                 }
             }
-        } catch (ignored: Throwable) {}
+        } catch (ignored: Throwable) { HookErrors.swallowed("PreserveDeleteForMeHook", ignored) }
 
         if (!resolvedPhoneUser.isNullOrBlank()) {
             return "+$resolvedPhoneUser"
@@ -338,8 +356,8 @@ class PreserveDeleteForMeHook(
             // SQLite write; all metadata needed for preservation is already in the bundle.
             preservationExecutor.execute {
                 try {
-                    val acknowledgement = context.contentResolver.call(
-                        Uri.parse(PROVIDER_URI),
+                    val acknowledgement = HookProviderIpc.call(
+                        context,
                         "record_preserved_message",
                         null,
                         bundle
@@ -459,7 +477,7 @@ class PreserveDeleteForMeHook(
     private fun captureRunnableMessages(instance: Any?): Boolean {
         if (instance == null) return false
         try {
-            val messageSets = instance.javaClass.declaredFields.asSequence()
+            val messageSets = HostFields.declared(instance.javaClass).asSequence()
                 .filterNot { it.type.isPrimitive }
                 .mapNotNull { field ->
                     field.isAccessible = true
@@ -545,7 +563,7 @@ class PreserveDeleteForMeHook(
                 }
                 .firstOrNull(::looksLikeMessageKey)
                 ?: return null
-            val fields = key.javaClass.declaredFields.onEach { it.isAccessible = true }
+            val fields = HostFields.declared(key.javaClass).onEach { it.isAccessible = true }
             val id = fields.singleOrNull { it.type == String::class.java }
                 ?.get(key) as? String ?: return null
             val jid = fields.firstOrNull {
@@ -560,13 +578,13 @@ class PreserveDeleteForMeHook(
     private fun allInstanceFields(type: Class<*>): Sequence<Field> = sequence {
         var current: Class<*>? = type
         while (current != null && current != Any::class.java) {
-            yieldAll(current.declaredFields.asSequence())
+            yieldAll(HostFields.declared(current).asSequence())
             current = current.superclass
         }
     }
 
     private fun looksLikeMessageKey(candidate: Any): Boolean {
-        val fields = candidate.javaClass.declaredFields
+        val fields = HostFields.declared(candidate.javaClass)
         return fields.count { it.type == String::class.java } == 1 &&
             fields.count { it.type == Boolean::class.javaPrimitiveType } == 1 &&
             fields.any { !it.type.isPrimitive && it.type != String::class.java }

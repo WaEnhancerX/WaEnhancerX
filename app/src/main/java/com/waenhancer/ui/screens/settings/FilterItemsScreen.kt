@@ -383,18 +383,7 @@ private fun FilterEditBottomSheet(
 
     WaexModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.surface,
-        shape = radius.bottomSheetShape,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(top = 10.dp, bottom = 6.dp)
-                    .size(width = 36.dp, height = 4.dp)
-                    .clip(CircleShape)
-                    .background(colors.outlineVariant.copy(alpha = 0.6f))
-            )
-        }
+        sheetState = sheetState
     ) {
         Column(
             modifier = Modifier

@@ -1,7 +1,6 @@
 package com.waenhancer.xposed.core.components
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.app.Dialog
 import android.content.Context
 import android.content.DialogInterface
@@ -30,6 +29,7 @@ import androidx.core.widget.NestedScrollView
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
 import android.R
+import com.waenhancer.xposed.utils.HookErrors
 
 /**
  * Modern Native WhatsApp WDS (WhatsApp Design System) bottom sheet component for WAEX.
@@ -52,7 +52,6 @@ class WaexBottomSheet(private val context: Context) {
     private var multiChoiceItems: Array<CharSequence>? = null
     private var checkedItems: BooleanArray? = null
     private var multiChoiceListener: DialogInterface.OnMultiChoiceClickListener? = null
-    private var isBottomSheet: Boolean = true
 
     private var createdDialog: Dialog? = null
 
@@ -108,23 +107,11 @@ class WaexBottomSheet(private val context: Context) {
         return this
     }
 
-    fun asBottomSheet(): WaexBottomSheet {
-        this.isBottomSheet = true
-        return this
-    }
+    /** Kept for existing call sites: WAEX only ever renders sheets, never system dialogs. */
+    fun asBottomSheet(): WaexBottomSheet = this
 
     fun create(): Dialog {
         if (createdDialog != null) return createdDialog!!
-
-        if (!isBottomSheet) {
-            return AlertDialog.Builder(context).apply {
-                titleText?.let { setTitle(it) }
-                messageText?.let { setMessage(it) }
-                positiveButtonText?.let { setPositiveButton(it, positiveListener) }
-                negativeButtonText?.let { setNegativeButton(it, negativeListener) }
-                customView?.let { setView(it) }
-            }.create().also { createdDialog = it }
-        }
 
         val dialog = Dialog(context, R.style.Theme_Translucent_NoTitleBar)
         val density = context.resources.displayMetrics.density
@@ -575,7 +562,7 @@ class WaexBottomSheet(private val context: Context) {
                         XposedHelpers.callMethod(button, "setVariant", enumVal)
                     }
                 }
-            } catch (ignored: Throwable) {}
+            } catch (ignored: Throwable) { HookErrors.swallowed("WaexBottomSheet", ignored) }
             button
         } catch (t: Throwable) {
             null

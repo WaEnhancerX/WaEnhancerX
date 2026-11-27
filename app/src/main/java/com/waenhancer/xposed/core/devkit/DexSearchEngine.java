@@ -7,6 +7,7 @@ import de.robv.android.xposed.XposedBridge;
 import org.luckypray.dexkit.DexKitBridge;
 import java.io.File;
 import java.lang.reflect.Method;
+import com.waenhancer.xposed.utils.HookErrors;
 
 /**
  * Singleton wrapper around DexKitBridge for runtime signature-based class and method unobfuscation.
@@ -21,7 +22,7 @@ public final class DexSearchEngine {
     static {
         try {
             System.loadLibrary("dexkit");
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("DexSearchEngine", ignored); }
     }
 
     private DexSearchEngine() {}
@@ -46,7 +47,7 @@ public final class DexSearchEngine {
                 System.load(libFile.getAbsolutePath());
                 return;
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("DexSearchEngine", ignored); }
 
         try {
             String modulePath = com.waenhancer.xposed.MainHook.sModulePath;
@@ -63,11 +64,11 @@ public final class DexSearchEngine {
                     }
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("DexSearchEngine", ignored); }
 
         try {
             System.loadLibrary("dexkit");
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("DexSearchEngine", ignored); }
     }
 
     public synchronized void initialize(@NonNull Context context) {
@@ -183,7 +184,7 @@ public final class DexSearchEngine {
         if (mBridge != null) {
             try {
                 mBridge.close();
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("DexSearchEngine", ignored); }
             mBridge = null;
         }
         closePending = false;

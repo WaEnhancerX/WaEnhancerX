@@ -4,13 +4,9 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.drawable.Drawable;
-import android.net.Uri;
 import android.os.Environment;
-import android.os.Handler;
-import android.os.Looper;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
@@ -19,19 +15,19 @@ import androidx.fragment.app.FragmentActivity;
 import com.waenhancer.app.R;
 import com.waenhancer.utils.UiText;
 import com.waenhancer.xposed.core.BaseFeature;
+import com.waenhancer.xposed.core.wa.WaMessage;
+import com.waenhancer.xposed.core.wa.WaTargets;
 import com.waenhancer.xposed.core.db.MessageStore;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.xposed.features.homescreen.MenuIconLoader;
+import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.UiThread;
 
 import java.io.File;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import de.robv.android.xposed.XC_MethodHook;
@@ -44,7 +40,6 @@ import org.luckypray.dexkit.query.matchers.ClassMatcher;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.ClassData;
 import org.luckypray.dexkit.result.MethodData;
-import org.luckypray.dexkit.result.MethodDataList;
 
 /**
  * Download View Once Media:
@@ -68,6 +63,7 @@ public class DownloadViewOnceHook extends BaseFeature {
         if (!isEnabled("downloadviewonce", false)) {
             return;
         }
+        WaMessage.init(context, classLoader);
         initCachedMessageStoreHook();
         hookViewOnceViewerActivity();
         hookMediaViewMenu();
@@ -117,6 +113,8 @@ public class DownloadViewOnceHook extends BaseFeature {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
                     if (!isEnabled("downloadviewonce", false) || !(param.thisObject instanceof Activity)) return;
+                    // Hooks may sit on shared base classes; only act on the view-once viewer itself.
+                    if (!viewOnceClass.isInstance(param.thisObject)) return;
 
                     Menu menu = null;
                     if (param.args.length > 0 && param.args[0] instanceof Menu) {
@@ -171,13 +169,13 @@ public class DownloadViewOnceHook extends BaseFeature {
                 try {
                     File mediaFile = extractMediaFileFromActivity(activity);
                     if (mediaFile == null || !mediaFile.exists()) {
-                        showToast(activity, "Media not cached or available yet");
+                        UiThread.toast(activity, "Media not cached or available yet");
                         return;
                     }
                     saveMediaFile(activity, mediaFile);
                 } catch (Throwable t) {
                     XposedBridge.log(TAG + " Error saving view once from Activity: " + t.getClass().getSimpleName());
-                    showToast(activity, "Failed to save: " + t.getMessage());
+                    UiThread.toast(activity, "Failed to save: " + t.getMessage());
                 }
             });
             return true;
@@ -189,38 +187,10 @@ public class DownloadViewOnceHook extends BaseFeature {
      */
     private void hookMediaViewMenu() {
         try {
-            DexSearchEngine.getInstance().initialize(context);
-            var bridge = DexSearchEngine.getInstance().getBridge();
-            if (bridge == null) return;
+            // ic_viewonce + MenuItem.setShowAsAction + Menu parameter; cached per WhatsApp build.
+            Method menuMethod = WaTargets.viewOnceMediaMenu(context, classLoader);
 
-            Method menuMethod = null;
-            int icViewOnceId = context.getResources().getIdentifier("ic_viewonce", "drawable", context.getPackageName());
-            if (icViewOnceId > 0) {
-                MethodDataList mdList = bridge.findMethod(FindMethod.create()
-                        .matcher(MethodMatcher.create()
-                                .usingNumbers(icViewOnceId)
-                        ));
-                for (MethodData md : mdList) {
-                    if (md.getParamCount() >= 2 && md.getParamTypeNames().contains(Menu.class.getName())) {
-                        menuMethod = md.getMethodInstance(classLoader);
-                        break;
-                    }
-                }
-            }
-
-            if (menuMethod == null) {
-                Class<?> mediaViewFragmentClass = XposedHelpers.findClassIfExists("com.whatsapp.mediaview.MediaViewFragment", classLoader);
-                if (mediaViewFragmentClass != null) {
-                    for (Method m : mediaViewFragmentClass.getMethods()) {
-                        Class<?>[] parameterTypes = m.getParameterTypes();
-                        if (parameterTypes.length >= 2 && parameterTypes[0] == Menu.class) {
-                            menuMethod = m;
-                            break;
-                        }
-                    }
-                }
-            }
-
+            // No generic MediaViewFragment fallback: it would add the icon to every media screen.
             if (menuMethod != null) {
                 XposedBridge.hookMethod(menuMethod, new XC_MethodHook() {
                     @Override
@@ -232,10 +202,25 @@ public class DownloadViewOnceHook extends BaseFeature {
 
                         for (Object arg : param.args) {
                             if (arg instanceof Menu) menu = (Menu) arg;
-                            else if (arg != null && isFMessageObject(arg)) fmessageObj = arg;
+                            else if (arg != null && fmessageObj == null && WaMessage.isMessage(arg)) fmessageObj = arg;
+                        }
+                        if (fmessageObj == null) {
+                            for (Object arg : param.args) {
+                                if (arg != null && !(arg instanceof Menu) && isFMessageObject(arg)) {
+                                    fmessageObj = arg;
+                                    break;
+                                }
+                            }
                         }
 
                         if (menu == null) return;
+                        // This builder also runs for ordinary media; offer Download only for
+                        // view-once messages (when the media type is known on this build).
+                        if (fmessageObj != null && WaMessage.isMessage(fmessageObj) && WaMessage.hasMediaType()
+                                && !WaMessage.isViewOnceType(WaMessage.mediaType(fmessageObj))) {
+                            menu.removeItem(MENU_ID_DOWNLOAD);
+                            return;
+                        }
 
                         MenuItem existing = menu.findItem(MENU_ID_DOWNLOAD);
                         if (existing != null) {
@@ -266,10 +251,10 @@ public class DownloadViewOnceHook extends BaseFeature {
                                         saveMediaFile(context, mediaFile);
                                         return;
                                     }
-                                    showToast(context, "Media not available yet");
+                                    UiThread.toast(context, "Media not available yet");
                                 } catch (Throwable t) {
                                     XposedBridge.log(TAG + " Error saving media: " + t.getClass().getSimpleName());
-                                    showToast(context, "Failed to save: " + t.getMessage());
+                                    UiThread.toast(context, "Failed to save: " + t.getMessage());
                                 }
                             });
                             return true;
@@ -349,17 +334,31 @@ public class DownloadViewOnceHook extends BaseFeature {
                 List<Fragment> fragments = ((FragmentActivity) activity).getSupportFragmentManager().getFragments();
                 for (Fragment fragment : fragments) {
                     if (fragment == null) continue;
-                    File f = extractFileFromObjectGraph(fragment, 0, 5);
+                    File f = MediaFileLocator.find(fragment, 5, MediaFileLocator.Mode.SHALLOW, null);
                     if (f != null && f.isFile() && f.length() > 0) return f;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("DownloadViewOnceHook", ignored); }
         }
 
         // Tier 4: Deep field search on Activity instance
-        return extractFileFromObjectGraph(activity, 0, 6);
+        return MediaFileLocator.find(activity, 6, MediaFileLocator.Mode.SHALLOW, null);
     }
 
     private Object extractMessageKeyObject(Activity activity) {
+        // Typed: the activity holds the message key in a field of the key type.
+        Class<?> keyClass = WaMessage.keyClass();
+        if (keyClass != null) {
+            for (Class<?> curr = activity.getClass(); curr != null && curr != Activity.class; curr = curr.getSuperclass()) {
+                for (Field field : curr.getDeclaredFields()) {
+                    if (!keyClass.isAssignableFrom(field.getType())) continue;
+                    try {
+                        field.setAccessible(true);
+                        Object key = field.get(activity);
+                        if (key != null) return key;
+                    } catch (Throwable ignored) { HookErrors.swallowed("DownloadViewOnceHook", ignored); }
+                }
+            }
+        }
         for (Class<?> curr = activity.getClass(); curr != null && curr != Activity.class; curr = curr.getSuperclass()) {
             for (Field field : curr.getDeclaredFields()) {
                 field.setAccessible(true);
@@ -374,7 +373,7 @@ public class DownloadViewOnceHook extends BaseFeature {
                     // Check if object has id (String) and chatJid fields
                     Field idField = findKeyIdField(val.getClass());
                     if (idField != null) return val;
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("DownloadViewOnceHook", ignored); }
             }
         }
         return null;
@@ -392,6 +391,8 @@ public class DownloadViewOnceHook extends BaseFeature {
 
     private String extractKeyIdString(Object messageKeyObj) {
         if (messageKeyObj == null) return null;
+        String typedId = WaMessage.id(messageKeyObj);
+        if (typedId != null && !typedId.isEmpty()) return typedId;
         try {
             Field idField = findKeyIdField(messageKeyObj.getClass());
             if (idField != null) {
@@ -410,7 +411,7 @@ public class DownloadViewOnceHook extends BaseFeature {
                     return str.substring(start, end).trim();
                 }
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("DownloadViewOnceHook", ignored); }
         return null;
     }
 
@@ -489,80 +490,8 @@ public class DownloadViewOnceHook extends BaseFeature {
      */
     private File extractFileFromFMessage(Object fmessage) {
         if (fmessage == null) return null;
-        return extractFileFromObjectGraph(fmessage, 0, 5);
+        return MediaFileLocator.find(fmessage, 5, MediaFileLocator.Mode.SHALLOW, null);
     }
-
-    private File extractFileFromObjectGraph(Object root, int depth, int maxDepth) {
-        Set<Object> visited = Collections.newSetFromMap(new IdentityHashMap<>());
-        List<File> candidates = new ArrayList<>();
-        collectFilesRecursive(root, visited, candidates, depth, maxDepth);
-
-        File best = null;
-        for (File candidate : candidates) {
-            if (best == null || candidate.length() > best.length()) {
-                best = candidate;
-            }
-        }
-        return best;
-    }
-
-    private void collectFilesRecursive(
-            Object obj,
-            Set<Object> visited,
-            List<File> candidates,
-            int depth,
-            int maxDepth
-    ) {
-        if (obj == null || depth > maxDepth || !visited.add(obj)) return;
-
-        Class<?> clazz = obj.getClass();
-        String className = clazz.getName();
-
-        if (className.startsWith("java.lang.") && !(obj instanceof String)) return;
-        if (className.startsWith("android.graphics.") || className.startsWith("android.view.ViewGroup$LayoutParams")) return;
-
-        if (obj instanceof File) {
-            File f = (File) obj;
-            if (f.isFile() && f.length() > 0) candidates.add(f);
-            return;
-        }
-
-        if (obj instanceof Uri) {
-            Uri uri = (Uri) obj;
-            if ("file".equalsIgnoreCase(uri.getScheme())) {
-                String path = uri.getPath();
-                if (path != null) {
-                    File f = new File(path);
-                    if (f.isFile() && f.length() > 0) candidates.add(f);
-                }
-            }
-            return;
-        }
-
-        for (Class<?> curr = clazz; curr != null && curr != Object.class && !curr.getName().startsWith("android.content.Context"); curr = curr.getSuperclass()) {
-            for (Field field : curr.getDeclaredFields()) {
-                field.setAccessible(true);
-                try {
-                    Object val = field.get(obj);
-                    if (val == null) continue;
-
-                    if (val instanceof File) {
-                        File f = (File) val;
-                        if (f.isFile() && f.length() > 0) candidates.add(f);
-                    } else if (val instanceof Uri) {
-                        Uri uri = (Uri) val;
-                        if ("file".equalsIgnoreCase(uri.getScheme()) && uri.getPath() != null) {
-                            File f = new File(uri.getPath());
-                            if (f.isFile() && f.length() > 0) candidates.add(f);
-                        }
-                    } else if (!field.getType().isPrimitive() && !field.getType().getName().startsWith("java.lang.")) {
-                        collectFilesRecursive(val, visited, candidates, depth + 1, maxDepth);
-                    }
-                } catch (Throwable ignored) {}
-            }
-        }
-    }
-
     private boolean isFMessageObject(Object obj) {
         if (obj == null) return false;
         String name = obj.getClass().getName();
@@ -575,19 +504,11 @@ public class DownloadViewOnceHook extends BaseFeature {
     private void saveMediaFile(Context ctx, File srcFile) {
         try {
             GalleryMediaExporter.export(ctx, srcFile);
-            showToast(ctx, "Media saved (WAEX)");
+            UiThread.toast(ctx, "Media saved (WAEX)");
         } catch (Exception failure) {
             XposedBridge.log(TAG + " Export failed: " + failure.getClass().getSimpleName());
-            showToast(ctx, "Unable to save this media file");
+            UiThread.toast(ctx, "Unable to save this media file");
         }
-    }
-
-    private void showToast(Context ctx, String msg) {
-        new Handler(Looper.getMainLooper()).post(() -> {
-            try {
-                Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show();
-            } catch (Throwable ignored) {}
-        });
     }
 
     @NonNull

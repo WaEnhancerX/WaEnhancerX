@@ -33,11 +33,21 @@ def code_without_comments_or_literals(text):
   i+=1
  return ''.join(result)
 def terminal_present(text):
- return bool(re.search(r'registry\.initializeAll\(\);\s*registry\.reportInjectedHooks\(appContext, packageName\);',code_without_comments_or_literals(text)))
-sequence='registry.initializeAll(); registry.reportInjectedHooks(appContext, packageName);'
+ # The current MainHook finishes registration on the startup thread and queues only
+ # the report for deferred IPC. Both stages and the queuing boundary must exist.
+ executable = code_without_comments_or_literals(text)
+ pattern = (r'registry\.initializeAll\(\);\s*'
+            r'logStartupStage\(\s*,\s*installStart\);\s*'
+            r'logStartupStage\(\s*,\s*initStart\);\s*'
+            r'queueDeferred\(\(\)\s*->\s*registry\.reportInjectedHooks\(appContext,\s*packageName\)\);')
+ return bool(re.search(pattern, executable))
+sequence='registry.initializeAll(); logStartupStage("startup", installStart); logStartupStage("total", initStart); queueDeferred(() -> registry.reportInjectedHooks(appContext, packageName));'
 assert not terminal_present('/* '+sequence+' */'),'Comment falsely accepted as executable code'
-assert not terminal_present('String text="'+sequence+'";'),'String falsely accepted as executable code'
-if not terminal_present(main):raise RuntimeError('MainHook terminal source call missing outside comments/literals; review batching')
+assert not terminal_present('String text="'+sequence.replace('"', '\\\"')+'";'),'String falsely accepted as executable code'
+assert not terminal_present('registry.initializeAll(); registry.reportInjectedHooks(appContext, packageName);'),'Synchronous main-thread report falsely accepted'
+if not terminal_present(main):raise RuntimeError('MainHook missing deferred terminal report after startup, outside comments/literals')
+if not re.search(r'HOOK_REPORT_EXECUTOR\.execute\(\(\)\s*->\s*\{',code_without_comments_or_literals(source)):
+ raise RuntimeError('FeatureRegistry hook report must be dispatched off the caller thread')
 def extract(anchor):
  start=source.index(anchor);brace=source.index('{',start);depth=0;state='code';i=brace
  while i<len(source):
@@ -59,8 +69,10 @@ def extract(anchor):
    if not depth:return source[start:i+1]
   i+=1
  raise RuntimeError('Unterminated source block: '+anchor)
-anchors=['public static final class FeatureEntry','public void initializeAll()','private void install(FeatureEntry entry)','private void installLocked(FeatureEntry entry)','private static boolean isEntryEnabled(FeatureEntry entry)','private void markDisabled(FeatureEntry entry)','public boolean hasFailures()','public void reportInjectedHooks(']
+anchors=['public static final class FeatureEntry','public void initializeAll()','private void install(FeatureEntry entry)','private void installLocked(FeatureEntry entry)','private int countEnabledStartupFeatures()','private static boolean isEntryEnabled(FeatureEntry entry)','private void markDisabled(FeatureEntry entry)','public boolean hasFailures()','public void reportInjectedHooks(']
 parts=[extract(x) for x in anchors]
+slow_match=re.search(r'private static final long SLOW_HOOK_LOG_MS\s*=\s*(\d+)L;',source)
+if not slow_match:raise RuntimeError('Production slow-hook threshold missing')
 fixtures=r'''
 import java.util.*;import java.util.concurrent.atomic.AtomicBoolean;
 public class StartupReportChecks {
@@ -77,6 +89,17 @@ public class StartupReportChecks {
   void beginHookTracking(){begun++;}void endHookTracking(){ended++;}void unhookAll(){unhooked++;}
   void hook(){if(fail)throw new IllegalStateException("deliberate fixture failure");}
  }
+ // Startup progress is out of scope. Unexpected notification calls must fail loudly.
+ static class DexCacheManager {
+  static DexCacheManager getInstance(Context c){return new DexCacheManager();}
+  boolean isColdStart(){return false;}
+ }
+ static class FeatureLoadingNotifier {
+  static boolean start(Context c,int n){throw new AssertionError("Unexpected progress start");}
+  static void onFeatureLoaded(String n){throw new AssertionError("Unexpected progress update");}
+  static void finish(Context c){throw new AssertionError("Unexpected progress finish");}
+ }
+ static final long SLOW_HOOK_LOG_MS=__SLOW_HOOK_MS__L;
  static class DexSearchEngine {
   static final DexSearchEngine INSTANCE=new DexSearchEngine();int acquisitions,releases,closes;
   static DexSearchEngine getInstance(){return INSTANCE;}
@@ -112,12 +135,25 @@ public class StartupReportChecks {
    last=new ArrayList<>(JSONArray.serialized);accepted++;return null;
   }
  }
+ // The production IPC helper's unstable Binder lifecycle is exercised separately
+ // by qa/provider_ipc_freezer/verify.py; keep this fixture's existing report oracle.
+ static class HookProviderIpc {
+  static Object call(Context context,String method,String arg,Bundle extras){
+   return context.call(Uri.parse("content://com.waenhancer.hookprovider"),method,arg,extras);
+  }
+ }
+ // The fixture drains the real async report operation synchronously for deterministic counts.
+ // Thread scheduling is separately protected by the executable source guard above.
+ static final java.util.concurrent.Executor HOOK_REPORT_EXECUTOR=Runnable::run;
  final List<FeatureEntry> features=new ArrayList<>();final LazyHookCoordinator lazyHooks=new LazyHookCoordinator();
  final Context reportingContext=new Context();final String reportingPackage="fixture.whatsapp",hookingMode="fixture";
  void applyUiPreHooks(){}
  void disposeLazyEntry(FeatureEntry entry,Activity a){throw new AssertionError("Disposal is outside this focused fixture");}
  __PRODUCTION__
  static int cases,checks,failures;
+ static int menuRefreshes;
+ /** Double for the visible-screen menu rebuild requested after a lazy install. */
+ static void refreshVisibleMenu(){menuRefreshes++;}
  static void ok(boolean b,String why){checks++;if(!b)throw new AssertionError(why);}
  static void test(String name,Runnable r){cases++;try{r.run();System.out.println("PASS "+name);}catch(AssertionError e){failures++;System.out.println("FAIL "+name+": "+e.getMessage());}}
  FeatureEntry add(String name,boolean enabled,boolean fail,Installation where){
@@ -142,7 +178,8 @@ public class StartupReportChecks {
    ok("DISABLED".equals(r.reportingContext.last.get(0).get("status")),"disabled changed");ok("WAITING".equals(r.reportingContext.last.get(1).get("status")),"lazy installed eagerly");ok(r.reportingContext.reports==1,"extra report");
   });
   test("late lazy install still publishes immediately and releases leases",()->{
-   StartupReportChecks r=new StartupReportChecks();FeatureEntry e=r.add("lazy",true,false,Installation.LAZY_HOME);r.completeStartup();int before=DexSearchEngine.INSTANCE.closes;r.install(e);
+   StartupReportChecks r=new StartupReportChecks();FeatureEntry e=r.add("lazy",true,false,Installation.LAZY_HOME);r.completeStartup();int before=DexSearchEngine.INSTANCE.closes;int menusBefore=menuRefreshes;r.install(e);
+   ok(menuRefreshes==menusBefore+1,"lazy install did not rebuild the visible screen's menu");
    ok(r.reportingContext.reports==2,"lazy report lost");ok("ACTIVE".equals(r.reportingContext.last.get(0).get("status")),"stale lazy snapshot");ok(DexSearchEngine.INSTANCE.closes==before+1,"lazy Dex index not closed");r.install(e);ok(r.reportingContext.reports==2,"duplicate install re-reported");
   });
   test("lazy failure still publishes",()->{
@@ -178,7 +215,7 @@ public class StartupReportChecks {
   if(failures!=0)throw new AssertionError("REGRESSION "+failures);
  }
 }
-'''.replace('__PRODUCTION__','\n'.join(parts))
+'''.replace('__PRODUCTION__','\n'.join(parts)).replace('__SLOW_HOOK_MS__',slow_match.group(1))
 f=a.out/'StartupReportChecks.java';f.write_text(fixtures,encoding='utf-8');classes=a.out/'classes';classes.mkdir()
 for tool in ['javac','java']:
  if not shutil.which(tool):raise RuntimeError(tool+' unavailable')
@@ -187,5 +224,5 @@ if c.returncode:raise RuntimeError('COMPILE_FAILED '+c.stderr.decode(errors='rep
 r=subprocess.run(['java','-cp',str(classes),'StartupReportChecks'],capture_output=True,timeout=30);(a.out/'behavior.log').write_bytes(r.stdout+r.stderr)
 s=r.stdout.decode(errors='replace');m=re.search(r'RESULT cases=(\d+) checks=(\d+) failures=(\d+)',s)
 if not m:raise RuntimeError('No completed result')
-result={'source_sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'main_sha256':hashlib.sha256(main.encode('utf-8')).hexdigest(),'source_guard_negative_cases':2,'source':str(p),'extracted_production_blocks':len(parts),'cases':int(m[1]),'checks':int(m[2]),'failures':int(m[3]),'compile_exit':c.returncode,'behavior_exit':r.returncode,'scope':'exact production methods; explicit IPC/JSON/feature/Dex/lifecycle counting boundaries; not complete registry nor runtime benchmark'}
+result={'source_sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'main_sha256':hashlib.sha256(main.encode('utf-8')).hexdigest(),'source_guard_negative_cases':3,'source':str(p),'extracted_production_blocks':len(parts),'cases':int(m[1]),'checks':int(m[2]),'failures':int(m[3]),'compile_exit':c.returncode,'behavior_exit':r.returncode,'scope':'exact production methods, deferred-report source guard; explicit IPC/JSON/feature/Dex/progress excluded or fail-closed; not full registry nor runtime benchmark'}
 (a.out/'result.json').write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8');print(s);print(json.dumps(result));raise SystemExit(r.returncode)

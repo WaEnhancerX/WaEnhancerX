@@ -16,6 +16,7 @@ import androidx.annotation.NonNull;
 import com.waenhancer.utils.ContactNameResolver;
 import com.waenhancer.xposed.core.BaseFeature;
 import com.waenhancer.xposed.core.devkit.DexSearchEngine;
+import com.waenhancer.xposed.utils.HookErrors;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import org.luckypray.dexkit.query.FindMethod;
@@ -366,9 +367,9 @@ public class PresenceToastsHook extends BaseFeature {
                 handler.post(() -> {
                     try {
                         Toast.makeText(context, text, Toast.LENGTH_SHORT).show();
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable ignored) { HookErrors.swallowed("PresenceToastsHook", ignored); }
                 });
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("PresenceToastsHook", ignored); }
         });
     }
 
@@ -381,7 +382,7 @@ public class PresenceToastsHook extends BaseFeature {
             try {
                 // A queued name lookup must not announce an already invalidated transition.
                 if (stillValid.getAsBoolean()) Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("PresenceToastsHook", ignored); }
         });
     }
 

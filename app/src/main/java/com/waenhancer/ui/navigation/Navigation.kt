@@ -28,12 +28,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -80,7 +82,14 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.waenhancer.utils.WhatsAppPackageDetector
 import com.waenhancer.utils.LsposedScopeReader
+import com.waenhancer.utils.SystemDiagnosticsReader
 import com.waenhancer.utils.TargetAppManager
+import com.waenhancer.ui.screens.dashboard.ReportIssueScreen
+import com.waenhancer.ui.screens.dashboard.ReportedIssuesScreen
+import com.waenhancer.licensing.report.ReportLogin
+import com.waenhancer.ui.screens.dashboard.TelegramLoginSheet
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.BugReport
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.rememberCoroutineScope
@@ -94,12 +103,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.waenhancer.ui.components.ReleaseKindChip
 import com.waenhancer.ui.components.LicenseActivationModal
 import com.waenhancer.ui.designsystem.WaexIcons
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.screens.audio.AudioTranscriptionScreen
 import com.waenhancer.ui.screens.automation.AutomationTaskerScreen
 import com.waenhancer.ui.screens.conversation.ConversationEnhancementsScreen
+import com.waenhancer.ui.screens.conversation.CustomEmojisScreen
 import com.waenhancer.ui.screens.dashboard.MainDashboardScreen
 import com.waenhancer.ui.screens.dashboard.InjectedHooksScreen
 import com.waenhancer.ui.screens.license.LicenseActivationScreen
@@ -116,6 +127,8 @@ import com.waenhancer.ui.screens.settings.StargazersScreen
 import com.waenhancer.ui.screens.settings.ModuleSettingsScreen
 import com.waenhancer.ui.screens.settings.HookingModeHelpScreen
 import com.waenhancer.ui.screens.settings.UpdateSettingsScreen
+import com.waenhancer.ui.screens.settings.GetVersionScreen
+import com.waenhancer.ui.screens.settings.InstallFromStorageScreen
 import com.waenhancer.ui.screens.settings.SupportedVersionsScreen
 import com.waenhancer.ui.screens.settings.BootloaderSpooferScreen
 import android.app.Activity
@@ -141,6 +154,8 @@ import com.waenhancer.ui.screens.search.SearchScreen
 import com.waenhancer.ui.screens.settings.CallRecordingSettingsScreen
 import com.waenhancer.ui.screens.settings.FilterItemsScreen
 import com.waenhancer.ui.screens.settings.FloatingBottomBarCustomizerScreen
+import com.waenhancer.ui.screens.settings.NativeFloatingNavigationScreen
+import com.waenhancer.ui.screens.settings.BubbleColorsScreen
 import com.waenhancer.ui.screens.settings.StylesSettingsScreen
 import com.waenhancer.update.UpdateCheckCoordinator
 import com.waenhancer.utils.ContactNameResolver
@@ -193,6 +208,10 @@ class WaexNavController(initialScreen: Screen = Screen.MainDashboard) {
             navigateTo(Screen.CustomAbProps)
             return
         }
+        if (preferenceKey == "custom_emojis" || preferenceKey == "custom_emoji_enabled" || preferenceKey == "disable_defemojis") {
+            navigateTo(Screen.CustomEmojis)
+            return
+        }
         val rootScreen = when (tabIndex) {
             0 -> Screen.MainDashboard
             1 -> Screen.GlobalPrivacySettings
@@ -206,6 +225,13 @@ class WaexNavController(initialScreen: Screen = Screen.MainDashboard) {
         scrollToTargetKey = preferenceKey
         highlightTargetKey = preferenceKey
         navigateTo(rootScreen, clearStack = true)
+    }
+
+    /** Home → Automation tab → Audio & AI sub-tab. */
+    fun navigateToAudioAi() {
+        targetPageIndex = 3
+        targetSubTabId = "ai"
+        navigateTo(Screen.AutomationTasker, clearStack = true)
     }
 
     fun navigateTo(screen: Screen, clearStack: Boolean = false) {
@@ -269,6 +295,7 @@ fun MainContainerScreen() {
     val preferenceManager = LocalWaexPreferenceManager.current
     var licenseState by remember { mutableStateOf(if ("ACTIVE".equals(LicenseManager.getProStatus(context), ignoreCase = true)) "pro" else "free") }
     val isPro = licenseState == "pro"
+    var showReportLoginSheet by remember { mutableStateOf(false) }
     var activeModal by remember { mutableStateOf<String?>(null) } // "license" | "file-spoofer" | "message-bomber" | "status-splitter" | null
     var activeNotice by remember { mutableStateOf<NoticeItem?>(null) }
 
@@ -402,32 +429,26 @@ fun MainContainerScreen() {
     val configMode = preferenceManager.getString("module_config_mode", "Universal")
     val isPerTargetApp = configMode == "Per Target App"
 
-    val targetPackages = listOf("com.whatsapp", "com.whatsapp.w4b")
-    val fallbackNames = mapOf(
-        "com.whatsapp" to stringResource(R.string.target_whatsapp),
-        "com.whatsapp.w4b" to "WA Business"
-    )
-
     data class TargetAppInfo(
         val packageName: String,
         val label: String,
         val icon: androidx.compose.ui.graphics.ImageBitmap?
     )
 
-    LaunchedEffect(Unit) {
-        TargetAppManager.init(context)
-    }
-
+    // Targets are read on demand with root while the home screen is visible; nothing runs when it is not.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                TargetAppManager.refresh(context)
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> TargetAppManager.attach(context)
+                Lifecycle.Event.ON_PAUSE -> TargetAppManager.detach(context)
+                else -> Unit
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+            TargetAppManager.detach(context)
         }
     }
 
@@ -452,7 +473,7 @@ fun MainContainerScreen() {
             }.getOrNull()
 
             // Priority 3: Built-in localized fallback name
-            val label = launcherLabel ?: appLabel ?: fallbackNames[pkg].orEmpty()
+            val label = launcherLabel ?: appLabel ?: pkg
 
             val icon = runCatching {
                 pm.getApplicationIcon(pkg).toBitmap(64, 64).asImageBitmap()
@@ -462,14 +483,12 @@ fun MainContainerScreen() {
         }
     }
 
-    var selectedPackage by remember { mutableStateOf(targetPackages.first()) }
+    var chosenPackage by remember { mutableStateOf<String?>(null) }
+    // Always a package that is currently an active target, or null when there is none.
+    val selectedPackage = chosenPackage?.takeIf { pkg -> visibleTargetApps.any { it.packageName == pkg } }
+        ?: visibleTargetApps.firstOrNull()?.packageName
     // Update synchronously before any preference-backed screen is composed.
     preferenceManager.setTargetPackage(selectedPackage)
-    LaunchedEffect(visibleTargetApps) {
-        if (visibleTargetApps.isNotEmpty() && visibleTargetApps.none { it.packageName == selectedPackage }) {
-            selectedPackage = visibleTargetApps.first().packageName
-        }
-    }
     var showTargetMenu by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -508,7 +527,7 @@ fun MainContainerScreen() {
                                             .size(42.dp)
                                             .clip(RoundedCornerShape(10.dp))
                                     )
-                                    Column {
+                                    Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = "WaEnhancerX",
                                             style = typography.titleMd,
@@ -516,15 +535,19 @@ fun MainContainerScreen() {
                                             color = colors.onSurface
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "v${BuildConfig.VERSION_NAME}",
+                                            style = typography.bodySm,
+                                            color = colors.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Spacer(modifier = Modifier.height(6.dp))
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            Text(
-                                                text = "v${BuildConfig.VERSION_NAME}",
-                                                style = typography.bodySm,
-                                                color = colors.onSurfaceVariant
-                                            )
+                                            ReleaseKindChip(versionName = BuildConfig.VERSION_NAME)
 
                                             // License Plan Chip inside Drawer Header
                                             val chipBg = when (licenseState) {
@@ -560,7 +583,9 @@ fun MainContainerScreen() {
                                                     style = typography.labelSm,
                                                     fontWeight = FontWeight.SemiBold,
                                                     color = chipText,
-                                                    fontSize = 10.sp
+                                                    fontSize = 10.sp,
+                                                    maxLines = 1,
+                                                    softWrap = false
                                                 )
                                             }
                                         }
@@ -616,6 +641,22 @@ fun MainContainerScreen() {
                             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                         )
 
+                        NavigationDrawerItem(
+                            label = { Text(text = stringResource(R.string.report_issue_title), style = typography.bodyMd) },
+                            icon = { Icon(Icons.Rounded.BugReport, contentDescription = null, tint = colors.primary, modifier = Modifier.size(20.dp)) },
+                            selected = false,
+                            onClick = {
+                                coroutineScope.launch { drawerState.close() }
+                                // Issues are tied to the Telegram account, so a real login comes first.
+                                if (ReportLogin.isLoggedIn(context)) {
+                                    navController.navigateTo(Screen.ReportedIssues)
+                                } else {
+                                    showReportLoginSheet = true
+                                }
+                            },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp),
                             color = colors.outlineVariant.copy(alpha = 0.5f)
@@ -635,6 +676,15 @@ fun MainContainerScreen() {
                 }
             }
         ) {
+        if (showReportLoginSheet) {
+            TelegramLoginSheet(
+                onLoggedIn = {
+                    showReportLoginSheet = false
+                    navController.navigateTo(Screen.ReportedIssues)
+                },
+                onDismiss = { showReportLoginSheet = false }
+            )
+        }
         Scaffold(
             topBar = {
                 if (showParentTopBar) {
@@ -730,7 +780,7 @@ fun MainContainerScreen() {
                                             modifier = Modifier.align(Alignment.CenterVertically)
                                         ) {
                                             Text(
-                                                text = "No Scoped App",
+                                                text = "No Active Target",
                                                 style = typography.labelSm,
                                                 color = colors.onSurfaceVariant,
                                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
@@ -828,7 +878,7 @@ fun MainContainerScreen() {
                                                             }
                                                         },
                                                         onClick = {
-                                                            selectedPackage = target.packageName
+                                                            chosenPackage = target.packageName
                                                             showTargetMenu = false
                                                         }
                                                     )
@@ -864,26 +914,23 @@ fun MainContainerScreen() {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.Transparent)
+                        .background(colors.surface)
                         .navigationBarsPadding()
-                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 6.dp)
                 ) {
                     Surface(
-                        shape = CircleShape,
+                        shape = RoundedCornerShape(0.dp),
                         color = colors.surface,
-                        border = BorderStroke(1.dp, colors.outlineVariant),
-                        shadowElevation = 6.dp,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(66.dp)
+                            .heightIn(min = 72.dp)
                     ) {
-                        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                             val totalWidth = maxWidth
                             val columnWidth = totalWidth / 5
                             // Match the indicator to the 40.dp icon slot rather than the
                             // icon glyph. This keeps the selected icon visually centered
                             // inside the thumb across icons with different intrinsic bounds.
-                            val pillWidth = 48.dp
+                            val pillWidth = 64.dp
 
                             val activeIndex = pagerState.currentPage.coerceIn(0, BottomTab.entries.lastIndex)
 
@@ -899,15 +946,18 @@ fun MainContainerScreen() {
 
                             Box(
                                 modifier = Modifier
-                                    .padding(top = 10.dp)
+                                    .padding(top = 12.dp)
                                     .offset(x = animatedOffset)
-                                    .size(width = pillWidth, height = 28.dp)
+                                    .size(width = pillWidth, height = 32.dp)
                                     .clip(CircleShape)
                                     .background(colors.primaryContainer)
                             )
 
                             Row(
-                                modifier = Modifier.fillMaxSize(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 72.dp)
+                                    .height(IntrinsicSize.Min),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceAround
                             ) {
@@ -915,7 +965,7 @@ fun MainContainerScreen() {
                                     val active = tabIndex == activeIndex
 
                                     val contentColor by animateColorAsState(
-                                        targetValue = if (active) colors.primary else colors.onSurfaceVariant,
+                                        targetValue = if (active) colors.onSurface else colors.onSurfaceVariant,
                                         animationSpec = tween(durationMillis = 200),
                                         label = "tab_content_color"
                                     )
@@ -938,9 +988,10 @@ fun MainContainerScreen() {
                                                     pagerState.animateScrollToPage(pageIndex)
                                                 }
                                             }
+                                            .padding(horizontal = 4.dp, vertical = 6.dp)
                                     ) {
                                         Box(
-                                            modifier = Modifier.size(width = 40.dp, height = 24.dp),
+                                            modifier = Modifier.size(width = 64.dp, height = 32.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
@@ -1057,23 +1108,10 @@ fun MainContainerScreen() {
                                         contactPrivacyList.clear()
                                     },
                                     onUpdateContact = { updated ->
-                                        val idx = contactPrivacyList.indexOfFirst { it.id == updated.id }
-                                        if (idx >= 0) contactPrivacyList[idx] = updated
                                         try {
-                                            val json = JSONObject().apply {
-                                                put("name", updated.name)
-                                                put("HideSeen", updated.hideSeen)
-                                                put("HideTyping", updated.hideTyping)
-                                                put("HideRecording", updated.hideRecording)
-                                                put("AntiRevoke", updated.antiRevoke)
-                                                put("FreezeLastSeen", updated.freezeLastSeen)
-                                                put("BlockCall", updated.freezeLastSeen)
-                                                put("scope", updated.scope)
-                                            }
-                                            val jsonStr = json.toString()
-                                            preferenceManager.putString("${updated.id}_privacy", jsonStr)
-                                            preferenceManager.putString("${updated.jid}_privacy", jsonStr)
-                                            preferenceManager.putString("per_contact_rules_${updated.jid}", jsonStr)
+                                            saveContactPrivacy(preferenceManager, updated)
+                                            val idx = contactPrivacyList.indexOfFirst { it.id == updated.id }
+                                            if (idx >= 0) contactPrivacyList[idx] = updated
                                         } catch (_: Throwable) {}
                                     }
                                 )
@@ -1104,23 +1142,10 @@ fun MainContainerScreen() {
                                 contactPrivacyList.clear()
                             },
                             onUpdateContact = { updated ->
-                                val idx = contactPrivacyList.indexOfFirst { it.id == updated.id }
-                                if (idx >= 0) contactPrivacyList[idx] = updated
                                 try {
-                                    val json = JSONObject().apply {
-                                        put("name", updated.name)
-                                        put("HideSeen", updated.hideSeen)
-                                        put("HideTyping", updated.hideTyping)
-                                        put("HideRecording", updated.hideRecording)
-                                        put("AntiRevoke", updated.antiRevoke)
-                                        put("FreezeLastSeen", updated.freezeLastSeen)
-                                        put("BlockCall", updated.freezeLastSeen)
-                                        put("scope", updated.scope)
-                                    }
-                                    val jsonStr = json.toString()
-                                    preferenceManager.putString("${updated.id}_privacy", jsonStr)
-                                    preferenceManager.putString("${updated.jid}_privacy", jsonStr)
-                                    preferenceManager.putString("per_contact_rules_${updated.jid}", jsonStr)
+                                    saveContactPrivacy(preferenceManager, updated)
+                                    val idx = contactPrivacyList.indexOfFirst { it.id == updated.id }
+                                    if (idx >= 0) contactPrivacyList[idx] = updated
                                 } catch (_: Throwable) {}
                             }
                         )
@@ -1230,13 +1255,11 @@ fun MainContainerScreen() {
 
         downloadingUrl?.let { url ->
             val version = downloadingVersion ?: "latest"
-            val useRoot = preferenceManager.getBoolean("root_auto_install", false)
             UpdateDownloadSheet(
                 url = url,
                 version = version,
                 expectedSha256 = downloadingSha256,
                 expectedSize = downloadingSize,
-                useRoot = useRoot,
                 onDismiss = {
                     downloadingUrl = null
                     downloadingVersion = null
@@ -1300,22 +1323,29 @@ fun WaexAppNavigation(
         is Screen.ReleaseDetails -> ReleaseDetailsScreen(currentScreen.tagName)
         Screen.About -> AboutScreen()
         Screen.Stargazers -> StargazersScreen()
+        Screen.ReportedIssues -> ReportedIssuesScreen()
+        Screen.ReportIssue -> ReportIssueScreen()
         Screen.ModuleSettings -> ModuleSettingsScreen()
         Screen.HookingModeHelp -> HookingModeHelpScreen()
         Screen.UpdateSettings -> UpdateSettingsScreen()
         Screen.SupportedVersions -> SupportedVersionsScreen()
+        is Screen.InstallFromStorage -> InstallFromStorageScreen(packageName = currentScreen.packageName, filePath = currentScreen.filePath)
+        is Screen.GetVersion -> GetVersionScreen(packageName = currentScreen.packageName)
         Screen.DeletedMessages -> DeletedMessagesVaultScreen()
         Screen.CallRecordingSettings -> CallRecordingSettingsScreen()
         Screen.TaskerGuide -> TaskerGuideScreen()
         Screen.TaskerHistory -> TaskerHistoryScreen()
         Screen.ManageDevices -> ManageDevicesScreen()
         Screen.FloatingBottomBarCustomizer -> FloatingBottomBarCustomizerScreen()
+        Screen.NativeFloatingNavigation -> NativeFloatingNavigationScreen()
+        Screen.BubbleColors -> BubbleColorsScreen()
         Screen.FilterItems -> FilterItemsScreen()
         Screen.CustomAbProps -> CustomAbPropsScreen(
             prefs = preferenceManager,
             onBack = navController::popBack,
             onEdit = { index -> navController.navigateTo(Screen.CustomAbPropEditor(index)) }
         )
+        Screen.CustomEmojis -> CustomEmojisScreen()
         is Screen.CustomAbPropEditor -> CustomAbPropEditorScreen(
             index = currentScreen.index,
             prefs = preferenceManager,
@@ -1340,6 +1370,30 @@ data class ContactPrivacy(
     val startHour: Int = 9,
     val endHour: Int = 18
 )
+
+/** Update only the controls owned by the manager's per-contact editor. */
+private fun saveContactPrivacy(preferenceManager: WaexPreferenceManager, updated: ContactPrivacy) {
+    // Match CustomPrivacyHook's existing first-non-null precedence. Read at save
+    // time so a call/status rule changed after opening this editor is preserved.
+    // A malformed authoritative document must fail before any preference write.
+    val currentRules = preferenceManager.getString("${updated.id}_privacy", null)
+        ?: preferenceManager.getString("${updated.jid}_privacy", null)
+        ?: preferenceManager.getString("per_contact_rules_${updated.jid}", null)
+    val json = if (currentRules == null) org.json.JSONObject() else org.json.JSONObject(currentRules)
+    if (!json.has("name")) json.put("name", updated.name)
+    json.put("HideSeen", updated.hideSeen)
+    json.put("HideTyping", updated.hideTyping)
+    json.put("HideRecording", updated.hideRecording)
+    json.put("AntiRevoke", updated.antiRevoke)
+    // This legacy field is independent of BlockCall. The public hooks currently
+    // consume only the global freeze-last-seen preferences.
+    json.put("FreezeLastSeen", updated.freezeLastSeen)
+    json.put("scope", updated.scope)
+    val jsonStr = json.toString()
+    preferenceManager.putString("${updated.id}_privacy", jsonStr)
+    preferenceManager.putString("${updated.jid}_privacy", jsonStr)
+    preferenceManager.putString("per_contact_rules_${updated.jid}", jsonStr)
+}
 
 fun loadContactPrivacyList(context: Context, preferenceManager: WaexPreferenceManager): List<ContactPrivacy> {
     val list = mutableListOf<ContactPrivacy>()
@@ -1371,7 +1425,7 @@ fun loadContactPrivacyList(context: Context, preferenceManager: WaexPreferenceMa
                         hideTyping = json.optBoolean("HideTyping", false),
                         hideRecording = json.optBoolean("HideRecording", false),
                         antiRevoke = json.optBoolean("AntiRevoke", false),
-                        freezeLastSeen = json.optBoolean("FreezeLastSeen", false) || json.optBoolean("BlockCall", false),
+                        freezeLastSeen = json.optBoolean("FreezeLastSeen", false),
                         scope = json.optString("scope", "always")
                     )
                 )

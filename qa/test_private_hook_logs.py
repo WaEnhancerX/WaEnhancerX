@@ -9,14 +9,17 @@ It does not establish comprehensive privacy of every log across WAEX.
 from pathlib import Path
 import re
 
+if not __debug__:
+    raise SystemExit("BLOCKED: privacy assertions are disabled under Python -O")
+
 ROOT = Path(__file__).resolve().parents[1]
 FILES = {
-    "app/src/main/java/com/waenhancer/xposed/features/privacy/BlueOnReplyHook.java": 7,
-    "app/src/main/java/com/waenhancer/xposed/features/privacy/AntiRevokeHook.java": 26,
+    "app/src/main/java/com/waenhancer/xposed/features/privacy/BlueOnReplyHook.java": 11,
+    "app/src/main/java/com/waenhancer/xposed/features/privacy/AntiRevokeHook.java": 32,
     "app/src/main/java/com/waenhancer/xposed/features/conversation/PreserveDeleteForMeHook.kt": 9,
-    "app/src/main/java/com/waenhancer/xposed/features/conversation/AntiEditMessagesHook.kt": 6,
-    "app/src/main/java/com/waenhancer/xposed/core/db/EditMessageStore.kt": 4,
-    "app/src/main/java/com/waenhancer/xposed/features/customization/OnlinePresenceIndicatorsHook.kt": 3,
+    "app/src/main/java/com/waenhancer/xposed/features/conversation/AntiEditMessagesHook.kt": 7,
+    "app/src/main/java/com/waenhancer/xposed/core/db/EditMessageStore.kt": 5,
+    "app/src/main/java/com/waenhancer/xposed/features/customization/OnlinePresenceIndicatorsHook.kt": 2,
 }
 
 # Each source is scanned as an expression, including Java multi-line logs
@@ -144,7 +147,7 @@ assert 'XposedBridge.log(TAG + " Cannot dispatch: WaJobManager or enqueueJobMeth
 assert 'Preserved Delete-For-Me: chat=' not in preserve
 online_presence = (ROOT / "app/src/main/java/com/waenhancer/xposed/features/customization/OnlinePresenceIndicatorsHook.kt").read_text()
 assert 'contactIdResolved=$hasContactId' not in online_presence
-assert 'Presence request failed: ${t.javaClass.simpleName}' in online_presence
+assert 'Presence request error: ${t.javaClass.simpleName}' in online_presence
 assert 'Setup failed: ${t.javaClass.simpleName}' in online_presence
 assert 'Setup failed: $t' not in online_presence
 # No private-object reflection is performed solely to populate discarded debug strings.
@@ -161,9 +164,12 @@ assert 'Presence request failed for $key' not in online_presence
 # The older store remains a valid *log regression fixture* on its original PR;
 # the integrated variant must not reintroduce its JID-wide bypass.
 if 'PendingReadReceiptStore<ReadJobRecipe>' in blue:
-    assert 'PENDING_JOBS.drain(key)' in blue
-    assert 'HideReceiptsHook.allowExplicitReceiptIds(key, recipe.arguments)' in blue
-    assert 'HideReceiptsHook.revokeExplicitReceiptIds(key, recipe.arguments)' in blue
+    assert 'PENDING_JOBS.snapshot(key)' in blue
+    assert 'PENDING_JOBS.remove(recipient, original)' in blue
+    assert 'if (vetoed) restoreRecipe();' in blue
+    # Shared enqueue path: grants are scoped to the exact job recipient.
+    assert 'HideReceiptsHook.allowExplicitReceiptIds(recipient, recipe.arguments)' in blue
+    assert 'HideReceiptsHook.revokeExplicitReceiptIds(recipient, recipe.arguments)' in blue
     assert 'HideReceiptsHook.allowBlueReplyReceipt(key)' not in blue
     assert 'lastHiddenConversationJid' not in blue
     hide = (ROOT / "app/src/main/java/com/waenhancer/xposed/features/privacy/HideReceiptsHook.java").read_text()
@@ -175,9 +181,9 @@ else:
     assert 'HideReceiptsHook.allowExplicitReceiptIds(recipe.arguments)' in blue
     assert 'lastHiddenConversationJid' in blue
 if 'Cannot dispatch: outgoing recipient is unavailable' in blue:
-    dispatch = blue.split('private static int sendPendingReadJobs(String jid)', 1)[1].split('private String extractRemoteJid(', 1)[0]
+    dispatch = blue.split('private int sendPendingReadJobs(String jid)', 1)[1].split('private String extractRemoteJid(', 1)[0]
     assert 'if (key == null)' in dispatch and 'return 0;' in dispatch
-    assert 'PENDING_JOBS.remove(key)' in dispatch or 'PENDING_JOBS.drain(key)' in dispatch
+    assert 'attempt.acknowledgeEnqueue();' in dispatch
     for unsafe_fallback in ('getUserPart(', 'lastHiddenConversationJid', 'PENDING_JOBS.size() == 1'):
         assert unsafe_fallback not in dispatch, 'Recipient fallback restored: ' + unsafe_fallback
 assert 'getOrFindJobManager()' in blue

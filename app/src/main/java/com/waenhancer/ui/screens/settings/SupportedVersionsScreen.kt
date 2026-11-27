@@ -1,5 +1,9 @@
 package com.waenhancer.ui.screens.settings
 
+import com.waenhancer.ui.components.WaexSheetHorizontalMargin
+import com.waenhancer.ui.components.WaexConfirmationBottomSheet
+import com.waenhancer.ui.components.WaexSheetTextButton
+import com.waenhancer.ui.components.WaexSheetTitle
 import com.waenhancer.app.R
 import com.waenhancer.utils.UiText
 
@@ -27,6 +31,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import com.waenhancer.ui.components.TargetAppIcon
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Delete
@@ -44,8 +49,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -61,8 +68,14 @@ import com.waenhancer.ui.components.StitchSwitch
 import com.waenhancer.ui.components.WaexTopBar
 import com.waenhancer.ui.designsystem.WaexTheme
 import com.waenhancer.ui.navigation.LocalWaexNavController
+import com.waenhancer.ui.navigation.Screen
 import com.waenhancer.ui.navigation.LocalWaexPreferenceManager
+import com.waenhancer.utils.TargetAppManager
 import com.waenhancer.utils.UniversalVersionValidator
+import com.waenhancer.utils.SupportedVersionSuggester
+import com.waenhancer.utils.VersionSuggestion
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.text.style.TextAlign
@@ -101,24 +114,42 @@ fun SupportedVersionsScreen() {
         }
     }
 
+    // Bumped whenever rules change. SharedPreferences is not Compose state, so the per-app
+    // decisions below must depend on something Compose observes or they go stale.
+    var rulesRevision by remember { mutableIntStateOf(0) }
+
     fun refreshCustomList() {
         customVersionsList.clear()
         customVersionsList.addAll(UniversalVersionValidator.getCustomVersions(prefs))
+        rulesRevision++
     }
 
     // Dynamic list of detected WhatsApp packages & clones
-    val detectedApps = remember(customVersionsList.size, isCustomizeEnabled, isBypassEnabled) {
-        WhatsAppPackageDetector.detectWhatsAppApps(context)
-    }
+    val detectedApps by TargetAppManager.detectedApps.collectAsState()
 
-    val decisions = detectedApps.associate {
-        it.packageName to UniversalVersionValidator.evaluate(context, it.versionName, prefs)
+    val decisions = remember(detectedApps, rulesRevision, isCustomizeEnabled, isBypassEnabled) {
+        detectedApps.associate {
+            it.packageName to UniversalVersionValidator.evaluate(context, it.versionName, prefs)
+        }
     }
     val unsupportedApps = detectedApps.filter { app ->
         app.isInstalled && decisions[app.packageName] == UniversalVersionValidator.Decision.UNSUPPORTED
     }
 
     var showSelectAppDialog by remember { mutableStateOf(false) }
+
+    // Suggested supported version per unsupported WhatsApp target: the newest built-in rule
+    // pattern (for example 2.26.45.xx), which the download search matches without the suffix.
+    val suggestions = remember { mutableStateMapOf<String, VersionSuggestion>() }
+    val suggestionTargets = unsupportedApps
+        .map { it.packageName }
+        .filter(SupportedVersionSuggester::isSuggestionTarget)
+    LaunchedEffect(suggestionTargets) {
+        val rules = UniversalVersionValidator.getBuiltinSupportedVersions(context)
+        suggestionTargets.forEach { pkg ->
+            SupportedVersionSuggester.suggest(emptyList(), rules)?.let { suggestions[pkg] = it }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -159,6 +190,8 @@ fun SupportedVersionsScreen() {
                             packageName = app.packageName,
                             versionName = if (app.isInstalled) cleanVer else null,
                             decision = decision,
+                            suggestion = suggestions[app.packageName],
+                            onGetSuggestedVersionClick = { navController.navigateTo(Screen.GetVersion(app.packageName)) },
                             onAddCurrentClick = {
                                 if (app.isInstalled) {
                                     val wildcardRule = UniversalVersionValidator.toWildcard(cleanVer)
@@ -378,9 +411,7 @@ fun SupportedVersionsScreen() {
     if (showSelectAppDialog) {
         WaexModalBottomSheet(
             onDismissRequest = { showSelectAppDialog = false },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = colors.surface,
-            shape = radius.bottomSheetShape
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ) {
             Column(
                 modifier = Modifier
@@ -388,16 +419,11 @@ fun SupportedVersionsScreen() {
                     .verticalScroll(rememberScrollState())
                     .imePadding()
                     .navigationBarsPadding()
-                    .padding(horizontal = 20.dp)
+                    .padding(horizontal = WaexSheetHorizontalMargin)
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = UiText.get(R.string.waex_ui_select_unsupported_app, "Select Unsupported App"),
-                    style = typography.headlineMd,
-                    color = colors.onSurface,
-                    fontWeight = FontWeight.Bold
-                )
+                WaexSheetTitle(UiText.get(R.string.waex_ui_select_unsupported_app, "Select Unsupported App"))
                 Text(
                     text = UiText.get(R.string.waex_ui_select_an_installed_app_to_automatical, "Select an installed app to automatically generate and register its universal version rule:"),
                     style = typography.labelSm,
@@ -460,13 +486,10 @@ fun SupportedVersionsScreen() {
                         }
                 }
 
-                OutlinedButton(
-                    onClick = { showSelectAppDialog = false },
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
-                    shape = radius.buttonShape
-                ) {
-                    Text(UiText.get(R.string.action_cancel, "Cancel"))
-                }
+                WaexSheetTextButton(
+                    text = UiText.get(R.string.action_cancel, "Cancel"),
+                    onClick = { showSelectAppDialog = false }
+                )
             }
         }
     }
@@ -478,13 +501,17 @@ private fun AppVersionStatusCard(
     packageName: String,
     versionName: String?,
     decision: UniversalVersionValidator.Decision,
+    suggestion: VersionSuggestion?,
+    onGetSuggestedVersionClick: () -> Unit,
     onAddCurrentClick: () -> Unit
 ) {
     val colors = WaexTheme.colors
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
     val isInstalled = versionName != null
-    val isSupported = decision == UniversalVersionValidator.Decision.BUILTIN_RULE
+    // A user-added custom rule is a normal, accepted state: no warning styling.
+    val isSupported = decision == UniversalVersionValidator.Decision.BUILTIN_RULE ||
+        decision == UniversalVersionValidator.Decision.CUSTOM_RULE
 
     Surface(
         shape = radius.mdShape,
@@ -504,22 +531,25 @@ private fun AppVersionStatusCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (packageName == "com.whatsapp") Color(0xFF25D366).copy(alpha = 0.15f)
-                                else Color(0xFF3B82F6).copy(alpha = 0.15f)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Security,
-                            contentDescription = appName,
-                            tint = if (packageName == "com.whatsapp") Color(0xFF25D366) else Color(0xFF3B82F6),
-                            modifier = Modifier.size(20.dp)
-                        )
+                    // The app's own launcher icon; the shield only shows when the app isn't installed.
+                    TargetAppIcon(packageName = packageName, size = 40.dp) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (packageName == "com.whatsapp") Color(0xFF25D366).copy(alpha = 0.15f)
+                                    else Color(0xFF3B82F6).copy(alpha = 0.15f)
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Security,
+                                contentDescription = appName,
+                                tint = if (packageName == "com.whatsapp") Color(0xFF25D366) else Color(0xFF3B82F6),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.width(12.dp))
@@ -554,7 +584,7 @@ private fun AppVersionStatusCard(
                             decision == UniversalVersionValidator.Decision.BUILTIN_RULE -> UiText.get(R.string.waex_l10n_builtin_match, "Supported")
                             decision == UniversalVersionValidator.Decision.CUSTOM_RULE -> UiText.get(R.string.waex_l10n_custom_unverified, "Custom")
                             decision == UniversalVersionValidator.Decision.EXPLICIT_BYPASS -> UiText.get(R.string.waex_l10n_bypass_unverified, "Bypass active (unverified)")
-                            decision == UniversalVersionValidator.Decision.UNSUPPORTED -> UiText.get(R.string.waex_l10n_rejected_rules, "Version rejected by rules")
+                            decision == UniversalVersionValidator.Decision.UNSUPPORTED -> UiText.get(R.string.waex_ui_unsupported, "Unsupported")
                             else -> UiText.get(R.string.waex_l10n_version_check_unavailable, "Version check unavailable")
                         },
                         style = typography.labelSm,
@@ -589,6 +619,57 @@ private fun AppVersionStatusCard(
                         style = typography.labelSm,
                         fontWeight = FontWeight.Bold
                     )
+                }
+
+                // Suggestion: the newest supported version, only for official WhatsApp packages.
+                if (suggestion != null && SupportedVersionSuggester.isSuggestionTarget(packageName)) {
+                    // The two actions are alternatives, so say so between them.
+                    Text(
+                        text = UiText.get(R.string.waex_ui_or_divider, "OR"),
+                        style = typography.labelSm,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Surface(
+                        shape = radius.smShape,
+                        color = colors.surface,
+                        border = BorderStroke(1.dp, colors.outlineVariant),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                Text(
+                                    text = UiText.get(R.string.waex_ui_last_supported_version, "Last supported version"),
+                                    style = typography.labelSm,
+                                    color = colors.onSurfaceVariant
+                                )
+                                Text(
+                                    text = suggestion.version,
+                                    style = typography.bodyMd,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.onSurface
+                                )
+                            }
+                            OutlinedButton(
+                                onClick = onGetSuggestedVersionClick,
+                                shape = radius.smShape,
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.height(36.dp)
+                            ) {
+                                Text(
+                                    text = UiText.get(R.string.waex_ui_get_this_version, "Install Supported"),
+                                    style = typography.labelSm,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

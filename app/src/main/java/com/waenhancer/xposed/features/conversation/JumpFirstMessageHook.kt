@@ -16,6 +16,7 @@ import android.view.MenuItem
 import android.widget.Toast
 import com.waenhancer.xposed.core.BaseFeature
 import com.waenhancer.xposed.utils.ActivityTracker
+import com.waenhancer.xposed.utils.HookErrors
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.XposedHelpers
@@ -102,7 +103,7 @@ class JumpFirstMessageHook(
                         }
                     })
                     hooked = true
-                } catch (ignored: Throwable) {}
+                } catch (ignored: Throwable) { HookErrors.swallowed("JumpFirstMessageHook", ignored) }
             }
         }
 
@@ -285,7 +286,7 @@ class JumpFirstMessageHook(
                 }
                 curr = curr.superclass
             }
-        } catch (ignored: Throwable) {}
+        } catch (ignored: Throwable) { HookErrors.swallowed("JumpFirstMessageHook", ignored) }
 
         return null
     }

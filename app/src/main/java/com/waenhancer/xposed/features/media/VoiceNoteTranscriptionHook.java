@@ -26,6 +26,7 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import com.waenhancer.core.transcription.TranscriptionClient;
 import com.waenhancer.xposed.core.BaseFeature;
+import com.waenhancer.xposed.utils.HookErrors;
 import de.robv.android.xposed.XposedBridge;
 import java.io.File;
 import java.io.IOException;
@@ -129,12 +130,12 @@ public final class VoiceNoteTranscriptionHook extends BaseFeature {
         try {
             File[] mediaDirs = context.getExternalMediaDirs();
             if (mediaDirs != null) bases.addAll(Arrays.asList(mediaDirs));
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("VoiceNoteTranscriptionHook", ignored); }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             // Pre-Android 11 layout. On newer versions this is a stale copy left by migration.
             try {
                 bases.add(Environment.getExternalStorageDirectory());
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("VoiceNoteTranscriptionHook", ignored); }
         }
         for (File base : bases) {
             if (base == null) continue;

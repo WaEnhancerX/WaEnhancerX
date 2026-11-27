@@ -39,6 +39,7 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import com.waenhancer.ui.components.ReleaseKindChip
 import com.waenhancer.ui.components.WaexCircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -69,6 +70,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.waenhancer.app.R
@@ -476,20 +478,24 @@ fun AboutScreen() {
                             color = colors.onSurfaceVariant,
                             lineHeight = 20.sp
                         )
+                        Text(
+                            text = "v${BuildConfig.VERSION_NAME}",
+                            style = typography.labelSm,
+                            fontWeight = FontWeight.Medium,
+                            color = colors.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
+                            ReleaseKindChip(versionName = BuildConfig.VERSION_NAME)
                             Text(
-                                text = "v${BuildConfig.VERSION_NAME}",
+                                text = if (BuildConfig.IS_DEBUG_VARIANT) stringResource(R.string.build_variant_debug) else stringResource(R.string.build_variant_release),
                                 style = typography.labelSm,
-                                fontWeight = FontWeight.Medium,
-                                color = colors.onSurfaceVariant
-                            )
-                            Text(
-                                text = if (BuildConfig.DEBUG) stringResource(R.string.build_variant_debug) else stringResource(R.string.build_variant_release),
-                                style = typography.labelSm,
-                                color = colors.onSurfaceVariant
+                                color = colors.onSurfaceVariant,
+                                maxLines = 1
                             )
                         }
                     }
@@ -758,10 +764,7 @@ fun AboutScreen() {
 
         WaexModalBottomSheet(
             onDismissRequest = { selectedUserForSheet = null },
-            sheetState = sheetState,
-            containerColor = colors.surface,
-            contentColor = colors.onSurface,
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            sheetState = sheetState
         ) {
             Column(
                 modifier = Modifier

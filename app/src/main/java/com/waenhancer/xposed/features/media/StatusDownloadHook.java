@@ -9,9 +9,6 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.drawable.Drawable;
-import android.net.Uri;
-import android.os.Handler;
-import android.os.Looper;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -30,15 +27,17 @@ import com.waenhancer.xposed.core.devkit.DexSearchEngine;
 import com.waenhancer.xposed.features.homescreen.MenuIconLoader;
 import com.waenhancer.xposed.features.privacy.BlueOnReplyHook;
 import com.waenhancer.xposed.utils.ActivityTracker;
+import com.waenhancer.xposed.utils.HookErrors;
+import com.waenhancer.xposed.utils.HostResourceIds;
+import com.waenhancer.xposed.utils.UiThread;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -59,7 +58,6 @@ import org.luckypray.dexkit.result.ClassData;
 import org.luckypray.dexkit.result.MethodDataList;
 import org.luckypray.dexkit.result.UsingFieldData;
 import android.os.Build;
-import android.util.Log;
 import java.lang.reflect.Proxy;
 import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.result.FieldData;
@@ -143,32 +141,32 @@ public class StatusDownloadHook extends BaseFeature {
             try {
                 statusListField = findStatusListField(statusContactFragClass);
             } catch (Throwable t) {
-                XposedBridge.log(TAG + " findStatusListField failed: " + t);
+                XposedBridge.log(TAG + " findStatusListField failed: " + t.getClass().getSimpleName());
             }
             try {
                 currentStatusIndexField = findCurrentStatusIndexField(bridge, statusBaseFragClass);
             } catch (Throwable t) {
-                XposedBridge.log(TAG + " findCurrentStatusIndexField failed: " + t);
+                XposedBridge.log(TAG + " findCurrentStatusIndexField failed: " + t.getClass().getSimpleName());
             }
 
             try {
                 hookMenuRefreshMethods(statusContactFragClass);
                 hookMenuRefreshMethods(statusBaseFragClass);
             } catch (Throwable t) {
-                XposedBridge.log(TAG + " hookMenuRefreshMethods failed: " + t);
+                XposedBridge.log(TAG + " hookMenuRefreshMethods failed: " + t.getClass().getSimpleName());
             }
 
             try {
                 hookStatusSeenIcon(statusContactFragClass);
                 hookStatusSeenIcon(statusBaseFragClass);
             } catch (Throwable t) {
-                XposedBridge.log(TAG + " hookStatusSeenIcon failed: " + t);
+                XposedBridge.log(TAG + " hookStatusSeenIcon failed: " + t.getClass().getSimpleName());
             }
 
             try {
                 hookStatusSeenIconActivity();
             } catch (Throwable t) {
-                XposedBridge.log(TAG + " hookStatusSeenIconActivity failed: " + t);
+                XposedBridge.log(TAG + " hookStatusSeenIconActivity failed: " + t.getClass().getSimpleName());
             }
 
             if (menuStatusMethod != null) {
@@ -184,16 +182,16 @@ public class StatusDownloadHook extends BaseFeature {
                             try {
                                 handleStatusMenuHook(param, contactClass, baseClass);
                             } catch (Throwable t) {
-                                XposedBridge.log(TAG + " Error handling status menu hook: " + t);
+                                XposedBridge.log(TAG + " Error handling status menu hook: " + t.getClass().getSimpleName());
                             }
                         }
                     });
                 } catch (Throwable t) {
-                    XposedBridge.log(TAG + " hookMethod(menuStatusMethod) failed: " + t);
+                    XposedBridge.log(TAG + " hookMethod(menuStatusMethod) failed: " + t.getClass().getSimpleName());
                 }
             }
         } catch (Throwable t) {
-            XposedBridge.log(TAG + " Error setting up status playback hook: " + Log.getStackTraceString(t));
+            XposedBridge.log(TAG + " Error setting up status playback hook: " + t.getClass().getSimpleName());
         }
     }
 
@@ -229,7 +227,7 @@ public class StatusDownloadHook extends BaseFeature {
                                     targetFragment = val;
                                 }
                             }
-                        } catch (Throwable ignored) {}
+                        } catch (Throwable ignored) { HookErrors.swallowed("StatusDownloadHook", ignored); }
                     }
                     cls = cls.getSuperclass();
                 }
@@ -263,7 +261,7 @@ public class StatusDownloadHook extends BaseFeature {
                 UiText.get(R.string.waex_ui_send_blue_tick, "Send blue tick"));
         item.setOnMenuItemClickListener(clicked -> {
             boolean sent = BlueOnReplyHook.sendCapturedStatusReceipt(resolveCurrentStatusItem(sourceObject));
-            showToast(context, sent
+            UiThread.toast(context, sent
                     ? UiText.get(R.string.waex_ui_blue_tick_sent, "Seen sent")
                     : UiText.get(R.string.waex_ui_no_hidden_read_receipt_to_send, "No hidden read receipt to send"));
             return true;
@@ -279,20 +277,31 @@ public class StatusDownloadHook extends BaseFeature {
                 isTextStatus ? "ic_waex_copy" : "ic_waex_download");
         if (icon != null) item.setIcon(icon);
         item.setOnMenuItemClickListener(menuItem -> {
-            // Decide again at tap time: the user may swipe while the menu remains alive.
-            if (isCurrentMediaStatus(sourceObject)) {
+            // The menu is reused across swipes. Capture the selected file at tap time:
+            // the playback fragment can point to a different status by worker time.
+            final Object selectedStatus = resolveCurrentStatusItem(sourceObject);
+            final File selectedMediaFile = extractMediaFile(selectedStatus);
+            if (selectedMediaFile != null) {
                 CompletableFuture.runAsync(() -> {
                     try {
-                        downloadCurrentStatus(sourceObject);
+                        downloadStatusFile(selectedMediaFile);
                     } catch (Throwable t) {
                         XposedBridge.log(TAG + " Download error: " + t.getClass().getSimpleName());
-                        showToast(context, UiText.get(R.string.waex_ui_failed_to_download_status,
+                        UiThread.toast(context, UiText.get(R.string.waex_ui_failed_to_download_status,
                                 "Failed to download status"));
                     }
                 });
             } else {
                 String currentTextStatus = findVisibleTextStatus(sourceObject);
-                if (currentTextStatus != null) copyToClipboard(context, currentTextStatus);
+                if (currentTextStatus != null) {
+                    copyToClipboard(context, currentTextStatus);
+                } else if (selectedStatus != null) {
+                    // The status is identified but its photo/video is not on disk yet (still
+                    // loading): tell the user instead of doing nothing.
+                    UiThread.toast(context, UiText.get(R.string.waex_ui_please_wait_until_the_status_finishes,
+                            "Please wait until the status finishes downloading, then try again"),
+                            Toast.LENGTH_LONG);
+                }
             }
             return true;
         });
@@ -303,7 +312,7 @@ public class StatusDownloadHook extends BaseFeature {
     }
 
     private boolean isCurrentMediaStatus(Object sourceObject) {
-        return extractMediaFileDeep(resolveCurrentStatusItem(sourceObject)) != null;
+        return extractMediaFile(resolveCurrentStatusItem(sourceObject)) != null;
     }
 
     private void hookMenuRefreshMethods(Class<?> fragmentClass) {
@@ -459,7 +468,7 @@ public class StatusDownloadHook extends BaseFeature {
                 "status_emoji_reaction_button"
         };
         for (String name : likeNames) {
-            int id = root.getResources().getIdentifier(name, "id", pkg);
+            int id = HostResourceIds.id(root.getContext(), name);
             if (id != 0) {
                 View v = root.findViewById(id);
                 if (v != null) return v;
@@ -473,7 +482,7 @@ public class StatusDownloadHook extends BaseFeature {
                 "status_footer_bar"
         };
         for (String barName : barNames) {
-            int id = root.getResources().getIdentifier(barName, "id", pkg);
+            int id = HostResourceIds.id(root.getContext(), barName);
             if (id == 0) continue;
             View bar = root.findViewById(id);
             if (!(bar instanceof ViewGroup)) continue;
@@ -527,7 +536,7 @@ public class StatusDownloadHook extends BaseFeature {
      */
     private void watchStatusPager(View root, Object sourceObject) {
         String packageName = root.getContext().getPackageName();
-        int pagerId = root.getResources().getIdentifier("playback_pager", "id", packageName);
+        int pagerId = HostResourceIds.id(root.getContext(), "playback_pager");
         View pager = pagerId == 0 ? null : root.findViewById(pagerId);
         if (pager == null) return;
         synchronized (watchedStatusPagers) {
@@ -664,7 +673,7 @@ public class StatusDownloadHook extends BaseFeature {
         Object statusItem = resolveCurrentStatusItem(playbackSource);
         boolean sent = BlueOnReplyHook.hasCapturedStatusReceipt(statusItem)
                 && BlueOnReplyHook.sendCapturedStatusReceipt(statusItem);
-        showToast(statusContext, sent
+        UiThread.toast(statusContext, sent
                 ? UiText.get(R.string.waex_ui_blue_tick_sent, "Seen sent")
                 : UiText.get(R.string.waex_ui_no_hidden_read_receipt_to_send, "No hidden read receipt to send"));
     }
@@ -676,7 +685,7 @@ public class StatusDownloadHook extends BaseFeature {
             Constructor<?> constructor = source.getClass().getConstructor(ViewGroup.LayoutParams.class);
             Object copy = constructor.newInstance(source);
             if (copy instanceof ViewGroup.LayoutParams) return (ViewGroup.LayoutParams) copy;
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("StatusDownloadHook", ignored); }
         if (source instanceof ViewGroup.MarginLayoutParams) {
             return new ViewGroup.MarginLayoutParams((ViewGroup.MarginLayoutParams) source);
         }
@@ -719,14 +728,11 @@ public class StatusDownloadHook extends BaseFeature {
         return activity != null && activity.getWindow() != null ? activity.getWindow().getDecorView() : null;
     }
 
-    private void downloadCurrentStatus(Object sourceObject) {
-        Object currentStatusItem = resolveCurrentStatusItem(sourceObject);
-        File mediaFile = extractMediaFileDeep(currentStatusItem);
-
+    private void downloadStatusFile(File mediaFile) {
         if (isMediaFileReady(mediaFile)) {
             saveMediaFile(context, mediaFile);
         } else {
-            showToast(
+            UiThread.toast(
                     context,
                     UiText.get(R.string.waex_ui_please_wait_until_the_status_finishes, "Please wait until the status finishes downloading, then try again"),
                     Toast.LENGTH_LONG
@@ -778,7 +784,7 @@ public class StatusDownloadHook extends BaseFeature {
                 Object view = getView.invoke(sourceObject);
                 if (view instanceof View) return (View) view;
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("StatusDownloadHook", ignored); }
         return null;
     }
 
@@ -787,12 +793,12 @@ public class StatusDownloadHook extends BaseFeature {
 
         if (view instanceof TextView && view.getId() != View.NO_ID) {
             try {
-                String resourceName = view.getResources().getResourceEntryName(view.getId());
+                String resourceName = HostResourceIds.entryName(view, view.getId());
                 if ("message_text".equals(resourceName) || "status_text".equals(resourceName)) {
                     String text = ((TextView) view).getText().toString().trim();
                     if (!text.isEmpty()) return text;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("StatusDownloadHook", ignored); }
         }
 
         if (view instanceof ViewGroup) {
@@ -833,7 +839,7 @@ public class StatusDownloadHook extends BaseFeature {
                 Object value = cached.get(fragmentInstance);
                 if (value instanceof List && !((List<?>) value).isEmpty()) lists.add((List<?>) value);
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("StatusDownloadHook", ignored); }
         for (Class<?> type = fragmentInstance.getClass(); type != null && type != Object.class; type = type.getSuperclass()) {
             for (Field field : type.getDeclaredFields()) {
                 if (!List.class.isAssignableFrom(field.getType())) continue;
@@ -843,38 +849,10 @@ public class StatusDownloadHook extends BaseFeature {
                     if (value instanceof List && !((List<?>) value).isEmpty() && !lists.contains(value)) {
                         lists.add((List<?>) value);
                     }
-                } catch (Throwable ignored) {}
+                } catch (Throwable ignored) { HookErrors.swallowed("StatusDownloadHook", ignored); }
             }
         }
         return lists;
-    }
-
-    private List<?> readStatusList(Object fragmentInstance) {
-        try {
-            Field field = statusListField;
-            if (field != null && field.getDeclaringClass().isInstance(fragmentInstance)) {
-                Object value = field.get(fragmentInstance);
-                if (value instanceof List && !((List<?>) value).isEmpty()) {
-                    return (List<?>) value;
-                }
-            }
-        } catch (Throwable ignored) {}
-
-        Class<?> type = fragmentInstance.getClass();
-        while (type != null && type != Object.class) {
-            for (Field field : type.getDeclaredFields()) {
-                if (!List.class.isAssignableFrom(field.getType())) continue;
-                try {
-                    field.setAccessible(true);
-                    Object value = field.get(fragmentInstance);
-                    if (value instanceof List && !((List<?>) value).isEmpty()) {
-                        return (List<?>) value;
-                    }
-                } catch (Throwable ignored) {}
-            }
-            type = type.getSuperclass();
-        }
-        return null;
     }
 
     private int readCurrentStatusIndex(Object fragmentInstance, int itemCount) {
@@ -883,7 +861,7 @@ public class StatusDownloadHook extends BaseFeature {
             try {
                 int index = field.getInt(fragmentInstance);
                 if (index >= 0 && index < itemCount) return index;
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("StatusDownloadHook", ignored); }
         }
 
         for (String fieldName : new String[]{"A02", "A00"}) {
@@ -893,7 +871,7 @@ public class StatusDownloadHook extends BaseFeature {
                     int index = fallback.getInt(fragmentInstance);
                     if (index >= 0 && index < itemCount) return index;
                 }
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("StatusDownloadHook", ignored); }
         }
         return itemCount == 1 ? 0 : -1;
     }
@@ -938,126 +916,15 @@ public class StatusDownloadHook extends BaseFeature {
         return null;
     }
 
-    /**
-     * Recursively traverses object graphs to locate the underlying File instance (e.g. within MediaData / FMessage / FStatus).
-     */
-    private File extractMediaFileDeep(Object root) {
-        if (root == null) return null;
-        Set<Object> visited = Collections.newSetFromMap(new IdentityHashMap<>());
-        List<File> candidates = new ArrayList<>();
-        collectFilesRecursive(root, visited, candidates, 0, 8);
-
-        File best = null;
-        for (File candidate : candidates) {
+    private File extractMediaFile(Object root) {
+        return MediaFileLocator.find(root, 8, MediaFileLocator.Mode.DEEP, file -> {
             try {
-                StatusMediaExporter.inspect(candidate);
-                if (best == null || candidate.length() > best.length()) {
-                    best = candidate;
-                }
-            } catch (Throwable ignored) {}
-        }
-        return best;
-    }
-
-    private void collectFilesRecursive(
-            Object obj,
-            Set<Object> visited,
-            List<File> candidates,
-            int depth,
-            int maxDepth
-    ) {
-        if (obj == null || depth > maxDepth || !visited.add(obj)) return;
-
-        Class<?> clazz = obj.getClass();
-        String className = clazz.getName();
-
-        if (className.startsWith("java.lang.") && !(obj instanceof String)) return;
-        if (className.startsWith("android.graphics.") || className.startsWith("android.view.ViewGroup$LayoutParams")) return;
-
-        if (obj instanceof File) {
-            File f = (File) obj;
-            if (f.isFile() && f.length() > 0) candidates.add(f);
-            return;
-        }
-
-        if (obj instanceof Uri) {
-            Uri uri = (Uri) obj;
-            if ("file".equalsIgnoreCase(uri.getScheme())) {
-                String path = uri.getPath();
-                if (path != null) {
-                    File f = new File(path);
-                    if (f.isFile() && f.length() > 0) candidates.add(f);
-                }
+                StatusMediaExporter.inspect(file);
+                return true;
+            } catch (IOException invalid) {
+                return false;
             }
-            return;
-        }
-
-        if (obj instanceof String) {
-            String str = (String) obj;
-            if (str.startsWith("/") || str.startsWith("file://")) {
-                String path = str.startsWith("file://") ? str.substring(7) : str;
-                File f = new File(path);
-                if (f.isFile() && f.length() > 0) candidates.add(f);
-            }
-            return;
-        }
-
-        if (obj instanceof Iterable) {
-            for (Object item : (Iterable<?>) obj) {
-                collectFilesRecursive(item, visited, candidates, depth + 1, maxDepth);
-            }
-            return;
-        }
-
-        if (obj instanceof Object[]) {
-            for (Object item : (Object[]) obj) {
-                collectFilesRecursive(item, visited, candidates, depth + 1, maxDepth);
-            }
-            return;
-        }
-
-        if (obj instanceof Map) {
-            for (Object item : ((Map<?, ?>) obj).values()) {
-                collectFilesRecursive(item, visited, candidates, depth + 1, maxDepth);
-            }
-            return;
-        }
-
-        // Check 0-arg methods returning File
-        try {
-            for (Method m : clazz.getDeclaredMethods()) {
-                if (m.getParameterTypes().length == 0 && m.getReturnType() == File.class) {
-                    m.setAccessible(true);
-                    try {
-                        File f = (File) m.invoke(obj);
-                        if (f != null && f.isFile() && f.length() > 0) candidates.add(f);
-                    } catch (Throwable ignored) {}
-                }
-            }
-        } catch (Throwable ignored) {}
-
-        // Traverse declared fields
-        Class<?> curr = clazz;
-        while (curr != null && curr != Object.class) {
-            Field[] fields;
-            try {
-                fields = curr.getDeclaredFields();
-            } catch (Throwable t) {
-                break;
-            }
-            for (Field f : fields) {
-                if (Modifier.isStatic(f.getModifiers()) && !f.getType().getName().startsWith("com.whatsapp")) continue;
-                if (f.getType().isPrimitive()) continue;
-                f.setAccessible(true);
-                try {
-                    Object val = f.get(obj);
-                    if (val != null) {
-                        collectFilesRecursive(val, visited, candidates, depth + 1, maxDepth);
-                    }
-                } catch (Throwable ignored) {}
-            }
-            curr = curr.getSuperclass();
-        }
+        });
     }
 
     private void saveMediaFile(Context ctx, File srcFile) {
@@ -1069,7 +936,7 @@ public class StatusDownloadHook extends BaseFeature {
         }
         synchronized (SAVED_IDENTITIES_LOCK) {
             if (hasSavedStatus(identity)) {
-                showToast(ctx, UiText.get(R.string.status_already_saved, "Status already saved"));
+                UiThread.toast(ctx, UiText.get(R.string.status_already_saved, "Status already saved"));
                 return;
             }
             if (exportStatus(ctx, srcFile)) markStatusSaved(identity);
@@ -1079,12 +946,12 @@ public class StatusDownloadHook extends BaseFeature {
     private boolean exportStatus(Context ctx, File srcFile) {
         try {
             StatusMediaExporter.export(ctx, srcFile);
-            showToast(ctx, UiText.get(R.string.waex_ui_status_saved_to_gallery_waex,
+            UiThread.toast(ctx, UiText.get(R.string.waex_ui_status_saved_to_gallery_waex,
                     "Status saved to Gallery (WAEX)"));
             return true;
         } catch (Exception failure) {
             XposedBridge.log(TAG + " status export failed: " + failure.getClass().getSimpleName());
-            showToast(ctx, UiText.get(R.string.waex_ui_failed_to_download_status,
+            UiThread.toast(ctx, UiText.get(R.string.waex_ui_failed_to_download_status,
                     "Failed to download status: ") + failure.getClass().getSimpleName());
             return false;
         }
@@ -1110,7 +977,7 @@ public class StatusDownloadHook extends BaseFeature {
     }
 
     private void copyToClipboard(Context ctx, String text) {
-        new Handler(Looper.getMainLooper()).post(() -> {
+        UiThread.post(() -> {
             try {
                 ClipboardManager clipboard = (ClipboardManager) ctx.getSystemService(Context.CLIPBOARD_SERVICE);
                 ClipData clip = ClipData.newPlainText(UiText.get(R.string.waex_ui_status_text, "Status Text"), text);
@@ -1118,19 +985,7 @@ public class StatusDownloadHook extends BaseFeature {
                     clipboard.setPrimaryClip(clip);
                     Toast.makeText(ctx, UiText.get(R.string.waex_ui_copied_status_text_to_clipboard, "Copied status text to clipboard"), Toast.LENGTH_SHORT).show();
                 }
-            } catch (Throwable ignored) {}
-        });
-    }
-
-    private void showToast(Context ctx, String msg) {
-        showToast(ctx, msg, Toast.LENGTH_SHORT);
-    }
-
-    private void showToast(Context ctx, String msg, int duration) {
-        new Handler(Looper.getMainLooper()).post(() -> {
-            try {
-                Toast.makeText(ctx, msg, duration).show();
-            } catch (Throwable ignored) {}
+            } catch (Throwable ignored) { HookErrors.swallowed("StatusDownloadHook", ignored); }
         });
     }
 
@@ -1146,7 +1001,7 @@ public class StatusDownloadHook extends BaseFeature {
                         return cd != null ? cd.getInstance(loader) : null;
                     }
             );
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("StatusDownloadHook", ignored); }
         return XposedHelpers.findClassIfExists("com.whatsapp.status.playback.fragment.StatusPlaybackContactFragment", classLoader);
     }
 
@@ -1162,7 +1017,7 @@ public class StatusDownloadHook extends BaseFeature {
                         return cd != null ? cd.getInstance(loader) : null;
                     }
             );
-        } catch (Throwable ignored) {}
+        } catch (Throwable ignored) { HookErrors.swallowed("StatusDownloadHook", ignored); }
         return XposedHelpers.findClassIfExists("com.whatsapp.status.playback.fragment.StatusPlaybackBaseFragment", classLoader);
     }
 }
