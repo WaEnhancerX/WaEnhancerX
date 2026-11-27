@@ -18,6 +18,7 @@ data class XposedRuntimeSnapshot(
     }
 }
 
+private val processColumnSeparator = Regex("\\s+")
 private val processNamePattern = Regex("[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)+")
 
 /**
@@ -27,7 +28,7 @@ private val processNamePattern = Regex("[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-
 internal fun parseProcessList(output: String, observedAtElapsed: Long = SystemClock.elapsedRealtime()): XposedRuntimeSnapshot {
     val byName = linkedMapOf<String, MutableSet<Int>>()
     output.lineSequence().forEach { line ->
-        val tokens = line.trim().split(Regex("\\s+"))
+        val tokens = line.trim().split(processColumnSeparator)
         if (tokens.size < 2) return@forEach
         val (pidToken, name) = if (tokens.size == 2) tokens[0] to tokens[1] else tokens[1] to tokens.last()
         val pid = pidToken.toIntOrNull()?.takeIf { it > 0 } ?: return@forEach
