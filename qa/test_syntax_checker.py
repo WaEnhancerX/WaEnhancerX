@@ -105,6 +105,48 @@ class SyntaxCheckerTests(unittest.TestCase):
         self.assertTrue(any(e['language'] == 'kotlin' and e['line'] == 2
                             for e in obj['syntax_errors']))
 
+    def test_large_unicode_source_inventory_is_not_a_command_line(self):
+        # The total for EACH language exceeds the Windows CreateProcess limit,
+        # even though individual filenames and absolute paths remain short.
+        directory = "src/" + "long folder with spaces " + "a" * 85 + "/日本語"
+        for index in range(240):
+            self.write(f"{directory}/Good{index:03d}.java",
+                       f"class Good{index:03d} {{}}\n")
+            self.write(f"{directory}/Good{index:03d}.kt",
+                       f"fun sample{index:03d}() = {index}\n")
+        for extension in (".java", ".kt"):
+            inventory = sorted(self.root.rglob("*" + extension))
+            self.assertGreater(len(subprocess.list2cmdline(list(map(str, inventory)))), 32767)
+        code, obj = self.run_checker()
+        self.assertEqual(code, 0, obj)
+        self.assertEqual((obj["java_files"], obj["kotlin_files"]), (240, 240))
+        self.assertEqual(obj["syntax_errors"], [])
+
+        # Last entries must still be parsed and reported, not truncated.
+        self.write(f"{directory}/Z最後.java", "class Broken { void fail( { }\n")
+        self.write(f"{directory}/Z最後.kt", "fun broken( {\n")
+        code, obj = self.run_checker()
+        self.assertEqual(code, 1, obj)
+        self.assertEqual((obj["java_files"], obj["kotlin_files"]), (241, 241))
+        errors = {(e["language"], Path(e["file"]).name) for e in obj["syntax_errors"]}
+        self.assertIn(("java", "Z最後.java"), errors)
+        self.assertIn(("kotlin", "Z最後.kt"), errors)
+
+    def test_parser_total_must_cover_the_entire_inventory(self):
+        from check_syntax import _diagnostics
+        for output in (
+            "SYNTAX_TOTAL\tjava\t1\t0",
+            "SYNTAX_TOTAL\tjava\t2\t0\nSYNTAX_TOTAL\tjava\t2\t0",
+            "SYNTAX_TOTAL\tjava\t2\t-1",
+        ):
+            with self.assertRaises(ValueError):
+                _diagnostics(output, self.root, "java", 2)
+        self.assertFalse(_diagnostics("", self.root, "java", 2)[1])
+        self.assertFalse(_diagnostics("SYNTAX_TOTAL\tjava\t2\t1",
+                                      self.root, "java", 2)[1])
+        self.assertTrue(_diagnostics("SYNTAX_TOTAL\tjava\t2\t0",
+                                     self.root, "java", 2)[1])
+
     def test_missing_kotlin_compiler_fails_closed(self):
         self.write('Good.java', 'class Good {}\n')
         self.write('Good.kt', 'val answer = 42\n')
