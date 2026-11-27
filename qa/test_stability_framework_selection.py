@@ -152,6 +152,27 @@ def empty_optional_sources(root):
         path.touch()
 
 
+def remaining_source_scripts():
+    step = source_qa_step('Run remaining required public-source QA suites')
+    loop = step.split('for test_script in', 1)[1].split('; do', 1)[0]
+    scripts = re.findall(r'qa/[A-Za-z0-9_/]+\.py', loop)
+    if not scripts:
+        raise AssertionError('Expected remaining required Source QA suites')
+    return scripts
+
+
+# Shell-dispatch and file-presence double; it does not execute the Python suites.
+REMAINING_DISPATCH_RECORDER = '''python3() {
+  printf '%s\\n' "$1" >> "$WAEX_DISPATCH_LOG"
+  if [[ ! -f "$1" ]]; then
+    printf 'Missing required suite: %s\\n' "$1" >&2
+    return 2
+  fi
+  [[ "$1" != "$WAEX_FAIL_SUITE" ]] || return 23
+}
+'''
+
+
 class WorkflowSelectionTests(unittest.TestCase):
     def test_current_workflow_selects_evidence_once(self):
         self.assertFalse(CLOCK.exists())
@@ -254,6 +275,58 @@ class SourceQaWiringTests(unittest.TestCase):
                     calls = log.read_text().splitlines()
                     expected = scripts if scenario == 'all' else scripts[:scripts.index(target) + 1]
                     self.assertEqual(expected, calls)
+
+    def test_remaining_source_loop_runs_existing_suites_and_keeps_optional_guard(self):
+        name = 'Run remaining required public-source QA suites'
+        scripts = remaining_source_scripts()
+        optional = 'qa/test_forwarded_metadata_scope.py'
+        with tempfile.TemporaryDirectory(prefix='waex-remaining-existing-') as tmp:
+            root = Path(tmp)
+            for script in scripts:
+                # Mirror actual repository presence: a retired listed script stays absent.
+                if (ROOT / script).is_file():
+                    path = root / script
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.touch()
+            self.assertFalse((root / 'qa/test_runtime_observation_clock.py').exists())
+            for with_optional in (False, True):
+                with self.subTest(optional=with_optional):
+                    if with_optional:
+                        (root / optional).touch()
+                    log = root / ('optional-' + str(with_optional) + '.log')
+                    result = execute_source_step(root, name, REMAINING_DISPATCH_RECORDER,
+                        WAEX_DISPATCH_LOG=str(log), WAEX_FAIL_SUITE='')
+                    self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                    expected = scripts + ([optional] if with_optional else [])
+                    self.assertEqual(expected, log.read_text().splitlines())
+
+    def test_remaining_source_loop_propagates_missing_required_and_failed_suites(self):
+        name = 'Run remaining required public-source QA suites'
+        scripts = remaining_source_scripts()
+        target = 'qa/test_filter_work.py'
+        optional = 'qa/test_forwarded_metadata_scope.py'
+        self.assertIn(target, scripts)
+        for scenario, failure, wanted in (
+            ('failed-required', target, 23),
+            ('missing-required', '', 2),
+            ('failed-optional', optional, 23),
+        ):
+            with self.subTest(scenario=scenario), tempfile.TemporaryDirectory(prefix='waex-remaining-failure-') as tmp:
+                root = Path(tmp)
+                for script in scripts:
+                    path = root / script
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.touch()
+                if scenario == 'missing-required':
+                    (root / target).unlink()
+                if scenario == 'failed-optional':
+                    (root / optional).touch()
+                log = root / 'dispatch.log'
+                result = execute_source_step(root, name, REMAINING_DISPATCH_RECORDER,
+                    WAEX_DISPATCH_LOG=str(log), WAEX_FAIL_SUITE=failure)
+                self.assertEqual(wanted, result.returncode, result.stdout + result.stderr)
+                expected = scripts + [optional] if scenario == 'failed-optional' else scripts[:scripts.index(target) + 1]
+                self.assertEqual(expected, log.read_text().splitlines())
 
 
 if __name__ == '__main__':

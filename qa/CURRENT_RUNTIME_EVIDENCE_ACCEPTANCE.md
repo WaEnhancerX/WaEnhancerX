@@ -5,8 +5,8 @@
 The current base is `nightly@c089458569564c241e6e2cddbd5a4de301299f28`.
 The focal stability candidate preserves all 12 updater, 3 filter and 15 evidence
 JUnit methods; it stages the current production classifier and its dependencies
-without modifying production. Sixteen selection regressions preserve C22 suite identity and exercise the actual
-workflow, including missing fixtures. An absent clock is rejected explicitly;
+without modifying production. Eighteen selection regressions preserve C22 suite identity and exercise the actual
+workflow, including both required Source QA loops and missing fixtures. An absent clock is rejected explicitly;
 evidence is never reported as clock execution. CI discovery
 requires the companion workflow change in this same candidate (R5).
 

@@ -18,9 +18,9 @@ colors, filter dependencies and shared `HookErrors` source are required.
 The unmodified nightly workflow still selected the removed observation-clock
 source. On this base, the original seven selection regressions fail in three
 cases, normally and under optimized Python. The focused workflow change additionally selects `InjectionEvidence.kt` and
-requires `StabilityEvidenceTest.kt`. Sixteen selection regressions preserve C22
+requires `StabilityEvidenceTest.kt`. Eighteen selection regressions preserve C22
 fixture/identity controls and exercise actual CI discovery, missing evidence,
-the optional clock fixture, and combined execution. All sixteen pass normally
+the optional clock fixture, and combined execution. All eighteen pass normally
 and under optimized Python on this local candidate. The original three failures
 remain recorded; their alias expectation is superseded by the C22 contract. Because this candidate
 changes `.github/workflows/source-qa.yml`, R5 requires maintainer handling.
@@ -32,9 +32,21 @@ was absent from its explicit test loop. The presence check now requires the
 real optional clock fixture and framework runner; the classifier/event controls
 are in the required loop. Four additional tests execute those actual shell
 blocks, including missing fixture/runner, failed and missing classifier tests.
-The earlier workflow reproduces four focal failures; the final sixteen-method
-selection suite passes normally and under optimized Python. The compiled
+The earlier workflow reproduces four focal failures; the R2 sixteen-method
+selection suite passed normally and under optimized Python. The compiled
 framework inputs and all thirty framework methods are unchanged.
+
+Integration review then found a second invocation of the deleted clock script
+in the remaining required Source QA loop. R3 removes only that obsolete call;
+the classifier/event test remains in the first required loop. Two new tests
+execute the actual second shell block, mirroring repository file presence and
+checking ordered dispatch, missing/failed required suites and the conditional
+forwarding suite. R2 fails both optional-presence subcases at the absent clock
+script. R3 passes all eighteen methods normally and under optimized Python.
+The complete workflow and all references to the retired script were reviewed;
+remaining references are historical documentation or negative controls. All 58
+compiled framework inputs remain identical, so the 30-method Gradle run was not
+repeated. Earlier review results do not apply automatically to the new head.
 
 ## Historical Nightly reconciliation — 2026-11-21
 

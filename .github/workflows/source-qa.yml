@@ -366,7 +366,6 @@ jobs:
             qa/test_dynamic_menu_resources.py \
             qa/test_update_download_contract.py \
             qa/test_update_session.py \
-            qa/test_runtime_observation_clock.py \
             qa/test_filter_work.py \
             qa/test_recorder_cleanup.py \
             qa/test_call_recording_output_safety.py \
