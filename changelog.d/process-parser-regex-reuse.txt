@@ -1,0 +1,2 @@
+[Improvements]
+- Reuse the diagnostic process-column separator instead of compiling it for every process row.
