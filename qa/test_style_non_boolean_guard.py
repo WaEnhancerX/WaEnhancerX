@@ -81,7 +81,14 @@ def main():
         schema_type = 'STRING_SET' if typ == 'StringSet' else 'STRING'
         assert re.search(r'add\(entries,\s*"'+key+r'",\s*Type\.'+schema_type+r'\b', schema), key
         consumer = (SRC/CONSUMERS[key]).read_text(encoding='utf-8')
-        assert re.search(r'get'+typ+r'\(\s*"'+key+r'"', consumer), key
+        if key == 'css_theme':
+            # Current CSS hook reads the canonical constant through BaseFeature;
+            # an explicitly empty canonical value must still beat the legacy key.
+            assert 'const val CSS_KEY = "css_theme"' in consumer
+            assert 'const val LEGACY_CSS_KEY = "custom_css"' in consumer
+            assert '(if (hasPref(CSS_KEY)) getStringPref(CSS_KEY, "") else getStringPref(LEGACY_CSS_KEY, "")).orEmpty()' in consumer
+        else:
+            assert re.search(r'get'+typ+r'\(\s*"'+key+r'"', consumer), key
     check_wiring(styles)
     mutations = []
     for key, typ, _, value in EDITORS.values():

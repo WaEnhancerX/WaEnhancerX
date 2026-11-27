@@ -66,7 +66,12 @@ def main():
     schema = parse_schema((SRC / 'config/PreferenceSchema.java').read_text(encoding='utf-8'))
     aliases = parse_aliases((SRC / 'core/preferences/SettingsBackupCodec.kt').read_text(encoding='utf-8'))
     count, missing = validate(cat, schema, aliases)
-    assert count == 93, 'Catalog size changed; review and update feature acceptance matrix'
+    # Reviewed additions and canonical destinations are recorded in
+    # CATALOG_SCHEMA_ACCEPTANCE.md; unknown catalog growth still fails closed.
+    assert count == 97, 'Catalog size changed; review and update feature acceptance matrix'
+    for key in ('custom_emojis', 'locked_chats_message_notifications',
+                'native_floating_navigation', 'remove_sticker_white_outline'):
+        assert key in cat and schema[key] == 'BOOLEAN', f'Reviewed Boolean catalog entry changed: {key}'
     assert schema['parallel_downloading'] == 'BOOLEAN', 'Parallel downloader toggle is not a typed Boolean'
     assert schema['parallel_downloading_connections'] == 'INT', 'Parallel downloader connection count is not a typed integer'
     assert schema['app_interface_size'] == 'STRING', 'Interface size must remain a typed choice'

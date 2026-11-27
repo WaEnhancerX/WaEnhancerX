@@ -10,7 +10,7 @@ SRC = ROOT / 'app/src/main/java/com/waenhancer'
 styles = (SRC / 'ui/screens/settings/StylesSettingsScreen.kt').read_text()
 policy = (SRC / 'ui/screens/settings/StyleBooleanAliasPolicy.java').read_text()
 schema = (SRC / 'config/PreferenceSchema.java').read_text()
-for key in ('segundos', 'novaconfig', 'igstatus', 'verify_blocked_contact'):
+for key in ('bubble_color', 'segundos', 'novaconfig', 'igstatus', 'verify_blocked_contact'):
     assert re.search(r'add\(entries,\s*"' + key + r'",\s*Type\.BOOLEAN', schema), key
     assert 'return "' + key + '";' in policy
 assert 'StyleBooleanAliasPolicy.canonicalKey(key)' in styles
