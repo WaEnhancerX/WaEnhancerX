@@ -1,5 +1,10 @@
 # Dashboard refresh acceptance
 
+> This describes an earlier heartbeat/clock architecture. Current source uses
+> event-driven target reports plus lifecycle and explicit refresh; use
+> [CURRENT_RUNTIME_EVIDENCE_ACCEPTANCE.md](CURRENT_RUNTIME_EVIDENCE_ACCEPTANCE.md)
+> for present implementation, tests and outstanding device acceptance.
+
 The dashboard separates target heartbeat refreshes from the full system diagnostic
 inventory. Target broadcasts still refresh process observations and target reports.
 System diagnostics (root permission, framework packages, device and SELinux) refresh

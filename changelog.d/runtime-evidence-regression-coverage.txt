@@ -1,0 +1,3 @@
+[Improvements]
+- Add executable PID/boot injection and event-wiring regression checks, and mark
+  the retired observation-clock acceptance records as historical evidence.
