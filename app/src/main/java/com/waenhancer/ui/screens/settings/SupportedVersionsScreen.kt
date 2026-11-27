@@ -509,9 +509,8 @@ private fun AppVersionStatusCard(
     val typography = WaexTheme.typography
     val radius = WaexTheme.radius
     val isInstalled = versionName != null
-    // A user-added custom rule is a normal, accepted state: no warning styling.
-    val isSupported = decision == UniversalVersionValidator.Decision.BUILTIN_RULE ||
-        decision == UniversalVersionValidator.Decision.CUSTOM_RULE
+    // A custom rule permits evaluation but is not verified built-in compatibility.
+    val isSupported = decision == UniversalVersionValidator.Decision.BUILTIN_RULE
 
     Surface(
         shape = radius.mdShape,

@@ -23,7 +23,7 @@ object TargetRuntimePresentation {
         app.runtimeStatus != "READY" -> Status("Injected • Feature readiness unconfirmed", Severity.UNKNOWN)
         app.bridgeStatus != "PROVIDER" -> Status("Injected • Settings connection unconfirmed", Severity.UNKNOWN)
         decision == UniversalVersionValidator.Decision.EXPLICIT_BYPASS -> Status("Injected • Version bypass active", Severity.REVIEW)
-        decision == UniversalVersionValidator.Decision.CUSTOM_RULE -> Status("Injected • Initialization reported complete", Severity.OK)
+        decision == UniversalVersionValidator.Decision.CUSTOM_RULE -> Status("Injected • Custom version allowance; unverified", Severity.REVIEW)
         else -> Status("Injected • Initialization reported complete", Severity.OK)
     }
 
@@ -64,16 +64,16 @@ object TargetRuntimePresentation {
             return Summary("Target runtime requires review", false)
         if (installed.any { decisions[it.packageName] == UniversalVersionValidator.Decision.EXPLICIT_BYPASS })
             return Summary("Version bypass active; compatibility unverified", false)
-        if (running.isEmpty()) {
-            // Distinguish "we could not check" from "nothing is open".
-            val blocked = installed.firstOrNull {
-                it.injectionEvidence == InjectionEvidence.PROCESS_OBSERVATION_UNAVAILABLE ||
-                    it.injectionEvidence == InjectionEvidence.BOOT_UNKNOWN ||
-                    it.injectionEvidence == InjectionEvidence.MODULE_INACTIVE
-            }
-            return if (blocked != null) Summary(blocked.injectionEvidence.label, null)
-            else Summary("Rules accepted; open a target app to confirm injection", null)
+        if (installed.any { decisions[it.packageName] == UniversalVersionValidator.Decision.CUSTOM_RULE })
+            return Summary("Custom version allowance; compatibility unverified", null)
+        // A stopped target is neutral, but unknown observations or a changed process
+        // must not be converted into an all-target readiness claim.
+        val blocked = installed.firstOrNull {
+            !it.isHooked && it.injectionEvidence != InjectionEvidence.PROCESS_STOPPED
         }
+        if (blocked != null) return Summary(blocked.injectionEvidence.label, null)
+        if (running.isEmpty())
+            return Summary("Rules accepted; open a target app to confirm injection", null)
         if (running.any { it.runtimeStatus != "READY" || it.bridgeStatus != "PROVIDER" })
             return Summary("Version rules accepted; runtime unconfirmed", null)
         // Even current READY reports are not acceptance tests of all individual features.

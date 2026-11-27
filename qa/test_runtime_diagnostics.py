@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Compile production decision/evidence/inspector/presentation code with explicit Android doubles.
 
-This does not execute root on Android, Compose, Binder, HMA or LSPosed. The shell
-command is additionally exercised using a fake pidof executable on the local OS.
+This does not execute root on Android, Compose, Binder, HMA or LSPosed. The current on-demand RootProbe shell is exercised with fake ps and real grep.
+Historical heartbeat-specific tests are replaced by the current boot/PID and
+explicit-observation contract; actual Android/ART/Compose are not executed.
 """
 from pathlib import Path
 import hashlib
@@ -17,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 JAVA = ROOT / 'app/src/main/java/com/waenhancer'
 
 def main():
-    for tool in ('kotlinc', 'java', 'sh'):
+    for tool in ('kotlinc', 'java', 'javac', 'sh', 'grep'):
         if not shutil.which(tool):
             raise SystemExit('Required tool unavailable: ' + tool)
     with tempfile.TemporaryDirectory(prefix='waex-runtime-') as temp:
@@ -32,6 +33,25 @@ def main():
         det = (JAVA / 'utils/WhatsAppPackageDetector.kt').read_text()
         model = det[det.index('data class InjectedHookItem('):det.index('object WhatsAppPackageDetector')]
         put('Model.kt', 'package com.waenhancer.utils\n' + model)
+        manager = (JAVA/'utils/TargetAppManager.kt').read_text()
+        root_probe = manager[manager.index('internal data class RootProbeResult'):manager.index('/**\n * Universal source of truth')]
+        put('RootProbe.kt', 'package com.waenhancer.utils\nimport android.content.Context\nimport android.os.SystemClock\nimport com.waenhancer.xposed.utils.AppRestartHelper\n' + root_probe)
+        put('Scope.kt', """package com.waenhancer.utils
+import android.content.Context
+data class LsposedScopeSnapshot(val isLive:Boolean=false,val packages:Set<String> = emptySet()) {
+ fun contains(p:String)=packages.contains(p)
+}
+object LsposedScopeReader {
+ const val STAGED_OK_MARKER="SYNTHETIC_SCOPE_OK"
+ fun stageCommand(c:Context)=":"
+ fun parseStaged(c:Context,ok:Boolean)=LsposedScopeSnapshot(ok)
+}
+""")
+        for rel in ('utils/TargetAppManager.kt','utils/WhatsAppPackageDetector.kt','utils/DeclaredWhatsAppTargets.java','xposed/core/VersionGuard.kt'):
+            path=JAVA/rel
+            hashes[str(path.relative_to(ROOT))]=hashlib.sha256(path.read_bytes()).hexdigest()
+        classes=out/'classes';classes.mkdir()
+        subprocess.run(['javac','--release','8','-d',str(classes),str(JAVA/'utils/DeclaredWhatsAppTargets.java')],check=True,timeout=30)
         # Full production guard is compiled too; the visual builder is an explicit double.
         guard_source = (JAVA/'xposed/core/VersionGuard.kt').read_text()
         put('VersionGuard.kt', guard_source)
@@ -112,45 +132,59 @@ object AppRestartHelper {var output:String?=null;var lastCommand="";var fail=fal
         fixture = (ROOT/'qa/fixtures/RuntimeDiagnosticsChecks.kt').read_text()
         rules=[i.text for i in ET.parse(ROOT/'app/src/main/res/values/arrays.xml').getroot().find("string-array[@name='universal_supported_versions']")]
         put('Checks.kt',fixture.replace('/*BUILTIN_RULES*/',','.join(json.dumps(s) for s in rules)))
-        args = [shutil.which('kotlinc'), '-nowarn', '-language-version', '2.0', *map(str, sorted(src.glob('*.kt'))), '-include-runtime', '-d', str(out/'checks.jar')]
+        args = [shutil.which('kotlinc'), '-nowarn', '-language-version', '2.0', '-classpath', str(classes), *map(str, sorted(src.glob('*.kt'))), '-include-runtime', '-d', str(out/'checks.jar')]
         subprocess.run(args, check=True, timeout=90)
         print('COMPILE_OK: production runtime source',flush=True)
-        subprocess.run(['java','-jar',str(out/'checks.jar'),str(out/'command.sh')], check=True, timeout=30)
-        # Validate the exact emitted shell: unavailable/malformed command results
-        # must never produce a valid empty observation. Never invoke real su here.
+        subprocess.run(['java','-cp',os.pathsep.join((str(out/'checks.jar'),str(classes))),'com.waenhancer.utils.ChecksKt',str(out/'command.sh')],check=True,timeout=30)
         command=(out/'command.sh').read_text()
-        pidof=out/'pidof';pidof.write_text('#!/bin/sh\nprintf "%s" "$FAKE_OUTPUT"\nexit "$FAKE_CODE"\n');pidof.chmod(0o700)
-        for code,output,success in ((0,'123 456',True),(1,'',True),(0,'',False),(1,'123',False),(2,'',False),(127,'',False)):
-            env=os.environ|{'PATH':str(out),'FAKE_CODE':str(code),'FAKE_OUTPUT':output}
+        assert command.startswith(":\necho WAEX_PS_BEGIN\n"), "Unexpected root staging adapter"
+        # Only the synthetic ps and a known grep executable are reachable.
+        bin_dir=out/'fake-bin';bin_dir.mkdir()
+        ps=bin_dir/'ps'
+        ps.write_text('#!/bin/sh\nif [ "$#" -gt 0 ]; then printf "%s" "$PRIMARY_OUT"; exit "$PRIMARY_CODE"; else printf "%s" "$FALLBACK_OUT"; exit "$FALLBACK_CODE"; fi\n')
+        ps.chmod(0o700)
+        (bin_dir/'grep').symlink_to(shutil.which('grep'))
+        cases=(
+            (0,"1 com.waenhancer\n123 com.whatsapp\n456 com.whatsapp.w4b\n999 com.example.other\n",9,"",True,["1 com.waenhancer","123 com.whatsapp","456 com.whatsapp.w4b"]),
+            (2,"1 com.waenhancer\n123 com.whatsapp\n",0,"u0_a1 1 0 12 34 S com.waenhancer\nu0_a2 456 1 12 34 S com.whatsapp.w4b\n",True,["u0_a1 1 0 12 34 S com.waenhancer","u0_a2 456 1 12 34 S com.whatsapp.w4b"]),
+            (2,"1 com.waenhancer\n",3,"123 com.whatsapp\n",False,[]),
+            (2,"",127,"",False,[]),
+            (0,"PID NAME\n999 com.example.other\n",3,"",False,[]),
+            (0,"PID NAME\n 1 com.waenhancer\n",9,"",True,[" 1 com.waenhancer"]),
+            (0,"1 com.waenhancer\n123 com.whatsapp.extra\n124 com.whatsapp:worker\n125 com.whatsapp\n",9,"",True,["1 com.waenhancer","125 com.whatsapp"]),
+            (2,"123 com.whatsapp\n",0,"1 com.waenhancer\n",True,["1 com.waenhancer"]),
+            (0,"",0,"1 com.waenhancer\n",False,[]),
+            (0,"1\tcom.waenhancer\n123\tcom.whatsapp\n",9,"",True,["1\tcom.waenhancer","123\tcom.whatsapp"]),
+        )
+        for pc,po,fc,fo,end,rows in cases:
+            env={'PATH':str(bin_dir),'PRIMARY_CODE':str(pc),'PRIMARY_OUT':po,'FALLBACK_CODE':str(fc),'FALLBACK_OUT':fo,'LANG':'C'}
             result=subprocess.run(['/bin/sh','-c',command],text=True,capture_output=True,env=env,timeout=5)
-            assert (result.returncode==0)==success,(code,output,result)
-            if success: assert result.stdout==f'PID|com.whatsapp|{output}\nEND|WAEX_PROCESS_SNAPSHOT\n'
-        empty=out/'empty';empty.mkdir()
-        result=subprocess.run(['/bin/sh','-c',command],text=True,capture_output=True,env=os.environ|{'PATH':str(empty)},timeout=5)
-        assert result.returncode==127
+            expected=['WAEX_PS_BEGIN']+rows+(['WAEX_PS_END'] if end else [])
+            assert result.returncode==0 and result.stdout.splitlines()==expected,(pc,fc,result)
+        print(f'PASS: {len(cases)} exact emitted-shell controls, synthetic ps only')
     # Guard actual call sites: production decisions, not a replacement demo UI.
     dash=(JAVA/'ui/screens/dashboard/MainDashboardScreen.kt').read_text()
     health=(JAVA/'ui/screens/settings/SystemHealthScreen.kt').read_text()
     versions=(JAVA/'ui/screens/settings/SupportedVersionsScreen.kt').read_text()
-    for ui in (dash,health):
-        assert 'runtimeSnapshot = refreshed' in ui
-        assert 'refreshed ?: XposedRuntimeSnapshot' not in ui
-        assert 'rememberRuntimeObservationClock()' in ui and 'TargetRuntimePresentation.asOf(' in ui
+    for ui in (dash,health,versions):
+        assert 'TargetAppManager.detectedApps.collectAsState()' in ui
     assert 'TargetRuntimePresentation.card(' in dash and 'TargetRuntimePresentation.summarize(' in dash
     assert 'TargetRuntimePresentation.bridge(app)' in health and 'TargetRuntimePresentation.initialization(app)' in health
     assert 'app.injectionEvidence.label' in health
     assert 'UniversalVersionValidator.evaluate(' in versions and 'Version check unavailable' in versions
     assert 'if (isAllSupported)' not in versions
-    assert 'Custom allowance (unverified)' in versions
     assert 'val isSupported = decision == UniversalVersionValidator.Decision.BUILTIN_RULE\n' in versions
-    clock=(JAVA/'ui/components/RuntimeObservationClock.kt').read_text()
-    assert 'repeatOnLifecycle(Lifecycle.State.STARTED)' in clock and 'delay(5_000L)' in clock
-    assert all(s not in clock for s in ('inspect(', 'detectWhatsAppApps(', 'runRootCommand('))
+    assert 'val isCustomRuleYellow = isYellow && allInjected && installedTargets.any {' in dash
+    assert 'decisions[it.packageName] == UniversalVersionValidator.Decision.CUSTOM_RULE' in dash
+    assert 'isYellow && allInjected -> stringResource(R.string.waex_runtime_status_rules_accepted_runtime_unconfirmed)' in dash
+    labels=(JAVA/'utils/InternalLabels.java').read_text()
+    assert 'case "Injected • Custom version allowance; unverified":' in labels
+    assert 'case "Custom version allowance; compatibility unverified":' in labels
     assert 'runtimeSnapshot?.pidsFor(' in det and 'classifyInjection(' in det
     assert 'runtimeSnapshot?.runningPids?.get(pkg).orEmpty()' not in det
     mainhook=(JAVA/'xposed/MainHook.java').read_text();provider=(JAVA/'xposed/bridge/HookProvider.java').read_text()
     assert 'VersionGuard.runtimeStatus()' in mainhook and '"COMPATIBILITY_UNAVAILABLE"' in provider
-    print('PASS: 7 shell process controls and UI/transport/refresh source guards; no Android/LSPosed test.')
+    print('PASS: current on-demand UI/transport source guards; no Android/LSPosed or Compose execution.')
     print('PRODUCTION_SHA256='+json.dumps(hashes,sort_keys=True))
 
 if __name__ == '__main__': main()

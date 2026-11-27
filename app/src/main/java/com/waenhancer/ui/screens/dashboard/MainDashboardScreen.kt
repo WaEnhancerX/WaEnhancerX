@@ -956,8 +956,11 @@ private fun TargetCompatibilityBottomSheet(
     val installedTargets = remember(apps) { apps.filter { it.isInstalled } }
     val isYellow = targetSummary.healthy == null
     val isRed = targetSummary.healthy == false
-    // True when isYellow but all apps are already hooked — means custom version rule, not "not yet opened"
-    val isCustomRuleYellow = isYellow && installedTargets.isNotEmpty() && installedTargets.all { it.isHooked }
+    // An unconfirmed bridge/initialization is not evidence of a custom rule.
+    val allInjected = installedTargets.isNotEmpty() && installedTargets.all { it.isHooked }
+    val isCustomRuleYellow = isYellow && allInjected && installedTargets.any {
+        decisions[it.packageName] == UniversalVersionValidator.Decision.CUSTOM_RULE
+    }
 
     WaexModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1031,6 +1034,7 @@ private fun TargetCompatibilityBottomSheet(
                             text = when {
                                 isRed -> stringResource(R.string.diag_status_review_required)
                                 isCustomRuleYellow -> stringResource(R.string.diag_target_sheet_custom_rule_warning)
+                                isYellow && allInjected -> stringResource(R.string.waex_runtime_status_rules_accepted_runtime_unconfirmed)
                                 isYellow -> stringResource(R.string.diag_target_sheet_partial_warning)
                                 else -> stringResource(R.string.diag_target_sheet_all_ok)
                             },
