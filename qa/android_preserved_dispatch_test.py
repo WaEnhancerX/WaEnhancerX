@@ -23,6 +23,7 @@ PRODUCTION=[
  PKG/'utils/DeclaredWhatsAppTargets.java',
  PKG/'config/PreferenceSchema.java',
  PKG/'xposed/bridge/HookProvider.java',
+ PKG/'xposed/bridge/client/HookProviderIpc.java',
  PKG/'xposed/bridge/CallerScopePolicy.java',
  PKG/'xposed/bridge/ProviderDerivedKeyPolicy.java',
  PKG/'xposed/bridge/ProviderPreferenceScopePolicy.java',
@@ -240,6 +241,8 @@ def main():
     # Require their real source declarations before compiling a standalone fixture;
     # missing/changed methods must fail here rather than silently changing semantics.
     contracts = {
+        PKG/'xposed/core/privacy/PrivacyPrefs.java': (
+            r'public\s+static\s+PrivacyPrefs\s+of\s*\(\s*@NonNull\s+Context\s+context\s*,\s*@NonNull\s+SharedPreferences\s+prefs\s*\)',),
         PKG/'config/PreferenceRestartTracker.java': (
             r'NEED_RESTART\s*=\s*"need_restart"',
             r'PENDING_CHANGES\s*=\s*"pending_restart_changes"'),
@@ -310,6 +313,14 @@ def main():
     version_name=version_names[0].strip()
     if not version_name:raise RuntimeError('Empty Gradle VERSION_NAME')
     fixtures={
+        # BaseFeature has a lazy reference, not a preserve-path privacy service call.
+        'com/waenhancer/xposed/core/privacy/PrivacyPrefs.java':'''package com.waenhancer.xposed.core.privacy;
+public final class PrivacyPrefs {
+ private PrivacyPrefs() {}
+ public static PrivacyPrefs of(android.content.Context context, android.content.SharedPreferences prefs) {
+  throw new AssertionError("Privacy service is outside preserved-message fixture");
+ }
+}''',
         'androidx/annotation/NonNull.java':'package androidx.annotation;public @interface NonNull{}',
         'androidx/annotation/Nullable.java':'package androidx.annotation;public @interface Nullable{}',
         'androidx/annotation/VisibleForTesting.java':'package androidx.annotation;public @interface VisibleForTesting{}',
