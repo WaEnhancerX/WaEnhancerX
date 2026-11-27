@@ -1,0 +1,5 @@
+[Improvements]
+- Update standalone Tasker regression fixtures for current preference and hook
+  lifecycle contracts, with portable JVM tool and classpath handling.
+- Validate the lazy privacy factory contract and fail if standalone Tasker
+  checks attempt to initialize that out-of-scope service.
