@@ -86,8 +86,8 @@ class ChatBubbleColorsHook(
             val siblings = paddingOwner?.declaredMethods
                 ?.filter { it != body && isLayerFactory(it) }
                 .orEmpty()
-            val wrapper = siblings.firstOrNull { it.parameterCount in 1..2 && firstParamIsInt(it) }
-            val border = siblings.firstOrNull { it.parameterCount == 3 }
+            val wrapper = siblings.firstOrNull { it.parameterTypes.size in 1..2 && firstParamIsInt(it) }
+            val border = siblings.firstOrNull { it.parameterTypes.size == 3 }
 
             listOfNotNull(body, wrapper, border).distinct().toTypedArray()
                 .takeIf { it.isNotEmpty() }
@@ -103,7 +103,7 @@ class ChatBubbleColorsHook(
 
     /** The border factory carries the direction second; the others carry it first. */
     private fun directionOf(method: Method, args: Array<Any?>): Int? {
-        val index = if (method.parameterCount == 3) 1 else 0
+        val index = if (method.parameterTypes.size == 3) 1 else 0
         return args.getOrNull(index) as? Int
     }
 
