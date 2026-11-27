@@ -1,0 +1,2 @@
+[Fixes]
+- Restore the current IPC and lazy privacy dependencies in the isolated runtime and preserved-message QA fixtures.
