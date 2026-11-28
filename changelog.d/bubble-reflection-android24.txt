@@ -1,0 +1,3 @@
+[Improvements]
+- Use the older reflection API for custom chat-bubble color factory discovery,
+  without depending on parameter-count backports.
