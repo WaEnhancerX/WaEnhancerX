@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="diag_capture_title">Pomagaj nam odpraviti težave</string>
+    <string name="diag_capture_description">Vklopi to možnost in uporabljaj WAEX kot običajno. Ko pride do težave, deli kratko poročilo z razvijalci. Možnost je privzeto izklopljena, poročila pa ostanejo na tvojem telefonu, dokler jih ne deliš.\n\nNajveč 7 dni se hranijo: podatki o tem, katere zaslone WAEX odpreš in katere nastavitve spremeniš (nikoli njihove vrednosti), podatki o zrušitvah WAEX in o tem, ali so se hooki WAEX pravilno zagnali v WhatsAppu.\n\nNikoli se ne shranjujejo: klepeti, stiki, medijske datoteke, gesla ali dnevniki drugih aplikacij.</string>
+    <string name="diag_capture_enable">Shranjuj poročila o težavah</string>
+    <string name="diag_capture_target_exit_enable">Vključi zgodovino zrušitev WhatsAppa</string>
+    <string name="diag_capture_target_exit_description">Doda razloge, zaradi katerih je Android pred kratkim zaprl WhatsApp (zrušitev, neodzivnost, pomanjkanje pomnilnika). Po vklopu enkrat znova zaženi WhatsApp. Zahteva Android 11 ali novejši.</string>
+    <string name="diag_capture_share">Deli poročilo</string>
+    <string name="diag_capture_clear">Izbriši shranjene podatke</string>
+    <string name="diag_capture_consent">Ko poročilo deliš, so vanj vključeni tudi model telefona, različice Androida in aplikacij ter podatki o tem, katere funkcije WAEX so vklopljene. Nič se ne pošlje samodejno. Sam izbereš aplikacijo in prejemnika.</string>
+    <string name="diag_capture_no_events">Za zdaj ni ničesar za deljenje. Nekaj časa uporabljaj WAEX in poskusi znova, ko se pojavi težava.</string>
+    <string name="diag_capture_export_failed">Poročila ni bilo mogoče ustvariti. Preveri prosti prostor za shranjevanje in poskusi znova.</string>
+    <string name="diag_capture_share_failed">Nobena aplikacija ni mogla sprejeti poročila. V meniju za deljenje poskusi z drugo aplikacijo.</string>
+    <string name="diag_capture_pref_failed">Te nastavitve ni bilo mogoče shraniti. Poskusi znova.</string>
+    <string name="diag_capture_confirm_clear_title">Izbrišem shranjene podatke?</string>
+    <string name="diag_capture_confirm_clear_body">S tem izbrišeš podatke o težavah, shranjene v telefonu. Že deljena poročila ostanejo nespremenjena.</string>
+    <string name="diag_capture_cancel">Prekliči</string>
+    <string name="diag_capture_confirm">Izbriši</string>
+    <string name="diag_capture_cleared">Shranjeni podatki so izbrisani.</string>
+    <string name="diag_capture_share_chooser">Deli poročilo WAEX</string>
+</resources>
