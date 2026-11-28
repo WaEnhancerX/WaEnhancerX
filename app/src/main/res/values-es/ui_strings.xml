@@ -1224,4 +1224,12 @@
     <string name="waex_ui_switch_to_stable" formatted="false">Cambiar al canal estable</string>
     <string name="waex_ui_build_debug" formatted="false">Depuración</string>
     <string name="waex_ui_build_release" formatted="false">Distribución</string>
+    <string name="waex_ui_bubble_preview" formatted="false">Vista previa</string>
+    <string name="waex_ui_bubble_restart_hint" formatted="false">Reinicia WhatsApp para aplicar los cambios</string>
+    <string name="waex_ui_bubble_incoming" formatted="false">Mensajes recibidos</string>
+    <string name="waex_ui_bubble_outgoing" formatted="false">Mensajes enviados</string>
+    <string name="waex_ui_bubble_reset" formatted="false">Restablecer los colores de WhatsApp</string>
+    <string name="waex_ui_bubble_preview_incoming" formatted="false">¡Hola! ¿Probaste los nuevos colores?</string>
+    <string name="waex_ui_bubble_preview_outgoing" formatted="false">Sí, ¡quedan muy bien! 😄</string>
+    <string name="waex_ui_customize_bubble_colors" formatted="false">Personalizar colores de burbujas</string>
 </resources>

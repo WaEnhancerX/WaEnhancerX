@@ -1,0 +1,3 @@
+[Fixes]
+- Show the bubble color controls, restart hint and preview messages in Spanish
+  and Latin American Spanish instead of falling back to English.
