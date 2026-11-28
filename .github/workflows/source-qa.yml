@@ -453,6 +453,38 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
+  call-type-framework:
+    name: Call type / verified conversation ownership and explicit choice
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Require the complete production fixture and public toolchain
+        run: |
+          set -euo pipefail
+          kotlinc -version
+          mvn -version
+          test -f qa/fixtures/call_type/CallTypeAndroidTest.java
+      - name: Exercise callback contracts, recipient ownership and dialer choice
+        run: python3 qa/android_call_type_test.py --out "$RUNNER_TEMP/waex-call-type" --maven-repo "$RUNNER_TEMP/waex-call-type-m2"
+      - name: Preserve source identities, compiler output and Android results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: call-type-framework-evidence
+          path: |
+            ${{ runner.temp }}/waex-call-type/*.json
+            ${{ runner.temp }}/waex-call-type/*.log
+          retention-days: 14
+          if-no-files-found: error
+
   runtime-framework:
     name: Runtime policies / Android resource tables / API compile
     runs-on: ubuntu-24.04

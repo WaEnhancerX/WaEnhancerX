@@ -76,6 +76,7 @@ import com.waenhancer.xposed.features.privacy.AntiViewOnceHook;
 import com.waenhancer.xposed.features.privacy.AutoNextStatusHook;
 import com.waenhancer.xposed.features.privacy.BlueOnReplyHook;
 import com.waenhancer.xposed.features.privacy.CallPrivacyHook;
+import com.waenhancer.xposed.features.privacy.CallTypeControllerHook;
 import com.waenhancer.xposed.features.privacy.CustomPrivacyHook;
 import com.waenhancer.xposed.features.privacy.DndModeHook;
 import com.waenhancer.xposed.features.privacy.FreezeLastSeenHook;
@@ -278,6 +279,10 @@ public final class FeatureRegistry {
                         || prefs.getBoolean("call_info", false)
                         || privacy.hasContactRules(),
                 () -> new CallPrivacyHook(context, classLoader, prefs));
+
+        registerFeature(CallTypeControllerHook.class, "Privacy",
+                () -> prefs.getBoolean("call_type_controller", false),
+                () -> new CallTypeControllerHook(context, classLoader, prefs));
 
         registerFeature(AntiRevokeHook.class, "Privacy",
                 () -> prefs.getBoolean("anti_revoke", false)

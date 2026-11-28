@@ -1,0 +1,9 @@
+[Added]
+- Connect Call Type Selection to verified outgoing conversation actions, with a
+  choice between WhatsApp and opening the phone dialer.
+
+[Fixes]
+- Bind the selector to the current conversation, cancel requests on screen
+  lifecycle changes and reject stale contact actions.
+- Integrate selection with the current tracked hook registry while preserving
+  the selected original outgoing operation and its arguments.
