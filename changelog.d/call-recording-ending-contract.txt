@@ -1,0 +1,5 @@
+[Fixes]
+- Reject ambiguous or incompatible call-ending callbacks when resolving
+  call-recording events.
+- Keep current recording metadata and test the complete recorder hook against
+  both exact and unique typed ending callbacks.

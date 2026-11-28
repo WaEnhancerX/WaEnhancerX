@@ -13,6 +13,26 @@ in the supplied WhatsApp 2.26.40.76 APK. The optional `--dexkit-jar` and
 that check does not execute its native search. These checks establish the
 reviewed source contract, not compatibility with every host version or device.
 
+## Ending-event overload regression checks
+
+`python3 qa/test_call_recording_event_contract.py` compiles the complete production
+event contract and checks 23 declaration variants for each of the two supported
+callback packages in isolated class loaders (46 Java reflection cases). It checks
+the verified exact signature, a unique typed alternative, unrelated overloads,
+wrong return/static/native/abstract contracts, same-suffix classes from another
+package, and ambiguous typed alternatives. An exact, usable signature takes
+precedence; otherwise exactly one usable instance `void` method beginning with
+the expected `CallLogInfo` class is required. A first-match or suffix-only result
+does not establish the lifetime of a call.
+
+`python3 qa/test_call_recording_lifecycle.py --host-variant typed-ending` repeats
+the complete recorder lifecycle with a controlled alternate trailing-argument
+signature. The fixture independently declares the expected host signature, verifies that
+exactly that event is registered, rejects a decoy overload, and dispatches the
+expected event rather than learning its choice from the implementation under test. This demonstrates
+source handling of that declaration shape; it does not identify another supported
+WhatsApp release. Run the on-device acceptance below for every actual host version.
+
 ## Isolated Android provider acceptance (real Binder, PFD, SQLite)
 
 `qa/android_call_recording_device_test.py` builds a **test-only** APK under a
@@ -119,3 +139,35 @@ the recording hooks. Events without an identified call are ignored, so they
 cannot affect another call's recording. A host that stops exposing an ending
 call's identity requires a separately verified terminal event contract; it must
 not be marked compatible solely because these JVM fixtures pass.
+
+## Reconciliation evidence — 2026-11-10
+
+The same 46 selector cases pass on the candidate and produce22 failures on official current main. Missing CallLogInfo is rejected; invalid native/abstract preferred signatures do not hide a valid unique alternative. Successful resolutions retain current optional peer-JID and direction metadata. The three compiling selector mutants are rejected at named cases:8,4 and2 failures respectively.
+
+    python3 qa/mutate_call_recording_event_contract.py --out /tmp/waex-ending-mutants
+
+The complete recorder hook executes 109 lifecycle checks with each of the exact and typed-ending host shapes. The same oracle verifies success/failure cleanup, stop/release/descriptor closure exactly once, duplicate endings and finalization metadata, including injected stop and release failures. These two runs are not 218 independent scenarios.
+
+Storage, contact-name resolution, Android audio, Xposed and scheduler remain explicit seams. Contact resolution fails loudly if exercised outside this fixture. A successful simulated finish_call_recording call does not establish persisted provider metadata. Native audio, remote-participant audibility, hardware routes and candidate APK behavior remain NOT_VERIFIED.
+
+The focused call-ending workflow runs independently of unrelated failing source-QA steps, retains failures and does not replace the existing source-QA gate. The merge preserves both the earlier call-ending checks and current upstream localization checks.
+
+## Nightly reconciliation — 2026-11-21
+
+The candidate reconciles original PR head `997b23f8268c25d0d92f799d19ae44b66fc42591`
+with nightly `9972e49fac9bfb650c25ee31fde0da9425b67175`. On Linux x86_64 with
+Temurin 21.0.13.1+2 and Python 3.12.14, the reconciled sources pass the 46 reflection
+cases, reject all three compiling selector mutants at their intended assertions,
+and pass 109 complete-hook checks for each exact and typed-ending host shape.
+Five incompatible host shapes each pass the three fail-closed assertions. The
+two 109-check executions reuse the same scenarios; they are not distinct coverage.
+
+The lifecycle fixture now compiles the actual current `HookErrors` dependency.
+A duplicate `ContactNameResolver` dictionary entry was removed, retaining the
+strict throw-and-count boundary rather than a silently overriding permissive stub.
+The focused workflow also runs for pull requests targeting `nightly`. The current
+provider acceptance section and metadata behavior remain intact.
+
+These are fresh JVM/source results, not the historical integration result above.
+Actual audio capture, a full APK build, real DexKit discovery and Android-device
+execution remain NOT_VERIFIED in this reconciliation environment.
