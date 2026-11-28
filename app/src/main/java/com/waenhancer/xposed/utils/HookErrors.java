@@ -14,8 +14,9 @@ import de.robv.android.xposed.XposedBridge;
 /**
  * Records failures that a hook deliberately survives, so a feature that stops working leaves a
  * trace instead of failing silently. Each (site, exception type) pair is logged at most
- * {@link #MAX_LOGGED_PER_SITE} times with its origin frame; later occurrences are only counted, so
- * a failure in a hot path (a view bind, a message hook) cannot flood the LSPosed log.
+ * {@link #MAX_LOGGED_PER_SITE} times with its exception class, never its message or stack text.
+ * Later occurrences are only counted, so a failure in a hot path (a view bind, a message hook)
+ * cannot flood the LSPosed log.
  */
 public final class HookErrors {
     static final int MAX_LOGGED_PER_SITE = 3;
@@ -35,10 +36,8 @@ public final class HookErrors {
             int seen = COUNTS.computeIfAbsent(new Key(site, failure.getClass()), k -> new AtomicInteger())
                     .incrementAndGet();
             if (seen > MAX_LOGGED_PER_SITE) return;
-            StackTraceElement[] frames = failure.getStackTrace();
-            String origin = frames.length > 0 ? " at " + frames[0] : "";
             String more = seen == MAX_LOGGED_PER_SITE ? " (further repeats are counted, not logged)" : "";
-            sink.accept("[WAEX][swallowed] " + site + ": " + failure + origin + more);
+            sink.accept("[WAEX][swallowed] " + site + ": " + failure.getClass().getName() + more);
         } catch (Throwable loggingFailed) {
             // Nothing safe left to do; the original failure is already being intentionally ignored.
         }

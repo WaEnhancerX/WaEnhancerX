@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Static fail-closed regression for exception messages in selected sensitive paths.
 
-This does not scan unrelated app logging; source-only, not Android instrumentation.
+Also runs the compiled swallowed-error logger regression with explicit logger doubles.
+This does not scan unrelated app logging or perform Android instrumentation.
 """
 from pathlib import Path
 import re
+import subprocess
+import sys
 
 root = Path(__file__).resolve().parents[1] / 'app/src/main/java/com/waenhancer'
 paths = {
@@ -119,3 +122,5 @@ assert 'error.getMessage()' not in src['ipc'], 'Persistent runtime health leaks 
 assert 'String detail = error.getClass().getSimpleName();' in src['ipc']
 print('PASS: exception text redacted from selected custom-privacy, media, view-once, proximity and IPC logs/status')
 print(f'PASS: {parser_checks} log parser/payload controls; quotes, escapes, literal parentheses and malformed calls')
+
+subprocess.run([sys.executable, str(Path(__file__).with_name("test_hook_errors_redaction.py"))], check=True)

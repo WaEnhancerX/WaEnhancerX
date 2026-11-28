@@ -1,6 +1,7 @@
 package com.waenhancer.xposed.utils;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Before;
@@ -53,13 +54,19 @@ public class HookErrorsTest {
     }
 
     @Test
-    public void logLineNamesSiteExceptionAndOriginFrame() {
-        HookErrors.swallowed("StatusDownloadHook", new IllegalArgumentException("bad file"));
+    public void logLineNamesSiteAndExceptionWithoutPrivatePayload() {
+        IllegalArgumentException error = new IllegalArgumentException("SYNTHETIC_MESSAGE_MARKER");
+        error.setStackTrace(new StackTraceElement[]{new StackTraceElement(
+                "SYNTHETIC_FRAME_MARKER", "SYNTHETIC_METHOD_MARKER", "SYNTHETIC_FILE_MARKER", 7)});
+        HookErrors.swallowed("StatusDownloadHook", error);
 
         String line = logged.get(0);
         assertTrue(line.startsWith("[WAEX][swallowed] StatusDownloadHook: "));
-        assertTrue(line.contains("IllegalArgumentException: bad file"));
-        assertTrue(line.contains(" at "));
+        assertTrue(line.contains(IllegalArgumentException.class.getName()));
+        assertFalse(line.contains("SYNTHETIC_MESSAGE_MARKER"));
+        assertFalse(line.contains("SYNTHETIC_FRAME_MARKER"));
+        assertFalse(line.contains("SYNTHETIC_METHOD_MARKER"));
+        assertFalse(line.contains("SYNTHETIC_FILE_MARKER"));
     }
 
     @Test
