@@ -7,6 +7,15 @@ from pathlib import Path
 import argparse, subprocess, tempfile
 ROOT = Path(__file__).resolve().parents[1]
 STUBS = {
+'androidx/annotation/NonNull.java': 'package androidx.annotation; public @interface NonNull {}',
+'androidx/annotation/VisibleForTesting.java': 'package androidx.annotation; public @interface VisibleForTesting {}',
+'de/robv/android/xposed/XposedBridge.java': '''package de.robv.android.xposed;
+import java.util.ArrayList;import java.util.List;
+public final class XposedBridge {
+ public static final List<String> messages=new ArrayList<>();
+ public static void log(String message){messages.add(message);}
+}''',
+
 'android/content/ContentValues.java': '''package android.content;
 import java.util.*; public class ContentValues { public final Map<String,Object> m=new HashMap<>();
 public void put(String k,String v){m.put(k,v);}public void put(String k,Integer v){m.put(k,v);}
@@ -14,7 +23,7 @@ public Object get(String k){return m.get(k);} }''',
 'android/net/Uri.java': '''package android.net; public final class Uri {public final String s; private Uri(String v){s=v;} public static Uri parse(String v){return new Uri(v);} public String toString(){return s;} }''',
 'android/os/Build.java': '''package android.os; public class Build {public static class VERSION{public static int SDK_INT=34;}public static class VERSION_CODES{public static final int Q=29;}}''',
 'android/os/Environment.java': '''package android.os;import java.io.*;public class Environment {public static final String DIRECTORY_MOVIES="Movies",DIRECTORY_PICTURES="Pictures";public static File root;public static File getExternalStoragePublicDirectory(String d){return new File(root,d);}}''',
-'android/media/MediaScannerConnection.java': '''package android.media;import android.content.Context; public class MediaScannerConnection{public static int scans;public static void scanFile(Context c,String[] p,String[] m,Object cb){scans++;}}''',
+'android/media/MediaScannerConnection.java': '''package android.media;import android.content.Context; public class MediaScannerConnection{public static int scans;public static boolean fail;public static void scanFile(Context c,String[] p,String[] m,Object cb){scans++;if(fail)throw new IllegalStateException("private scan detail");}}''',
 'android/provider/MediaStore.java': '''package android.provider;import android.net.Uri;public class MediaStore {public static class MediaColumns{public static final String DISPLAY_NAME="name",MIME_TYPE="mime",RELATIVE_PATH="path",IS_PENDING="pending";}public static class Images{public static class Media{public static final Uri EXTERNAL_CONTENT_URI=Uri.parse("images");}}public static class Video{public static class Media{public static final Uri EXTERNAL_CONTENT_URI=Uri.parse("videos");}}}''',
 'android/content/Context.java': '''package android.content;public class Context{public final ContentResolver r;public Context(ContentResolver v){r=v;}public ContentResolver getContentResolver(){return r;}}''',
 'android/content/ContentResolver.java': '''package android.content;
@@ -43,6 +52,7 @@ public class ContentResolver {
 TEST = r'''package com.waenhancer.xposed.features.media;
 import android.content.*;import android.os.*;import android.media.*;
 import java.io.*;import java.nio.file.*;import java.util.*;
+import com.waenhancer.xposed.utils.HookErrors;
 public class TestGalleryExport {
  static int count;static boolean legacy;
  static void ck(String name,boolean result){if(!result)throw new AssertionError(name);count++;}
@@ -99,12 +109,16 @@ public class TestGalleryExport {
   ck("legacy final only",outputs!=null&&outputs.length==1&&outputs[0].getName().endsWith(".png"));
   ck("legacy preserved bytes",Arrays.equals(header("png"),Files.readAllBytes(outputs[0].toPath())));
   ck("legacy scan requested",MediaScannerConnection.scans==1);
+  MediaScannerConnection.fail=true;export(ctx,src);
+  ck("scan exception counted",HookErrors.count("GalleryMediaExporter",IllegalStateException.class)==1);
+  ck("scan failure diagnosed once",de.robv.android.xposed.XposedBridge.messages.size()==1);
+  ck("private scan detail excluded",de.robv.android.xposed.XposedBridge.messages.stream().noneMatch(s->s.contains("private scan detail")));
   System.out.println("PASS: "+count+" storage/header/copy checks (Android storage doubles, real file IO)");
  }
 }'''
 
 def legacy_source(path):
-    text = path.read_text(); start=text.index('    private void saveMediaFile(');end=text.index('    private void showToast(',start)
+    text = path.read_text(encoding='utf-8'); start=text.index('    private void saveMediaFile(');end=text.index('    private void showToast(',start)
     method=text[start:end].replace('private void saveMediaFile(', 'public static void export(')
     return '''package com.waenhancer.xposed.features.media;
 import android.content.*;import android.net.*;import android.os.*;import android.provider.*;
@@ -119,14 +133,15 @@ def main():
     with tempfile.TemporaryDirectory(prefix='waex-export-test-') as t:
         d=Path(t)
         for rel,s in STUBS.items():
-            f=d/rel;f.parent.mkdir(parents=True,exist_ok=True);f.write_text(s)
-        (d/'TestGalleryExport.java').write_text(TEST)
-        (d/'LegacyGalleryExporter.java').write_text(legacy_source(a.legacy_hook) if a.legacy_hook else 'package com.waenhancer.xposed.features.media;class LegacyGalleryExporter {static void export(android.content.Context c,java.io.File f){throw new AssertionError("Unused legacy adapter");}}')
+            f=d/rel;f.parent.mkdir(parents=True,exist_ok=True);f.write_text(s,encoding='utf-8')
+        (d/'TestGalleryExport.java').write_text(TEST,encoding='utf-8')
+        (d/'LegacyGalleryExporter.java').write_text(legacy_source(a.legacy_hook) if a.legacy_hook else 'package com.waenhancer.xposed.features.media;class LegacyGalleryExporter {static void export(android.content.Context c,java.io.File f){throw new AssertionError("Unused legacy adapter");}}',encoding='utf-8')
         production=ROOT/'app/src/main/java/com/waenhancer/xposed/features/media/GalleryMediaExporter.java'
-        subprocess.run(['javac','--release','17','-d',str(d/'classes'),str(production),*map(str,d.rglob('*.java'))],check=True,timeout=60)
+        errors=ROOT/'app/src/main/java/com/waenhancer/xposed/utils/HookErrors.java'
+        subprocess.run(['javac','--release','17','-d',str(d/'classes'),str(production),str(errors),*map(str,d.rglob('*.java'))],check=True,timeout=60)
         print('COMPILE_OK: production and explicit test adapters', flush=True)
         subprocess.run(['java','-cp',str(d/'classes'),'com.waenhancer.xposed.features.media.TestGalleryExport',*(['legacy'] if a.legacy_hook else [])],check=True,timeout=60)
-    hook=(ROOT/'app/src/main/java/com/waenhancer/xposed/features/media/DownloadViewOnceHook.java').read_text()
+    hook=(ROOT/'app/src/main/java/com/waenhancer/xposed/features/media/DownloadViewOnceHook.java').read_text(encoding='utf-8')
     assert 'GalleryMediaExporter.export(ctx, srcFile);' in hook
     assert '"Saved to Gallery (WAEX)"' not in hook
 if __name__=='__main__': main()

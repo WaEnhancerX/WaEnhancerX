@@ -32,6 +32,17 @@ def extract(source, marker):
         i+=1
     raise ValueError(marker)
 
+ERROR_STUBS = {
+    'androidx/annotation/NonNull.java': 'package androidx.annotation; public @interface NonNull {}',
+    'androidx/annotation/VisibleForTesting.java': 'package androidx.annotation; public @interface VisibleForTesting {}',
+    'de/robv/android/xposed/XposedBridge.java': '''package de.robv.android.xposed;
+import java.util.ArrayList; import java.util.List;
+public final class XposedBridge {
+ public static final List<String> messages = new ArrayList<>();
+ public static void log(String message) { messages.add(message); }
+}''',
+}
+
 CASES=r'''
  interface Scenario { void run() throws Exception; }
  static int scenarios, failures;
@@ -39,16 +50,16 @@ CASES=r'''
  static Queue<Runnable> lookupQueue=new ArrayDeque<>(), uiQueue=new ArrayDeque<>();
  final Handler mainHandler=new Handler();
  static class Toast {
-  static final int LENGTH_SHORT=0;String text;
+  static final int LENGTH_SHORT=0;static boolean fail;String text;
   static Toast makeText(Object c,String text,int d){Toast t=new Toast();t.text=text;return t;}
-  void show(){toasts.add(text);}
+  void show(){if(fail)throw new IllegalStateException("private toast detail");toasts.add(text);}
  }
  static void reset() throws Exception {
   for(String n:new String[]{"STATES","LISTENERS"}){
    Field f=PresenceStateStore.class.getDeclaredField(n);f.setAccessible(true);Object o=f.get(null);
    if(o instanceof Map)((Map<?,?>)o).clear();else ((Set<?>)o).clear();
   }
-  lookupQueue.clear();uiQueue.clear();toasts.clear();enabled=true;
+  lookupQueue.clear();uiQueue.clear();toasts.clear();enabled=true;Toast.fail=false;
   DexSearchEngine.cached=null;Bridge.candidates=Arrays.asList(TestHandler.class.getDeclaredMethod("handleMessage",Message.class));
   new TestPresenceEventContract().hookIncomingPresence();
  }
@@ -95,6 +106,15 @@ CASES=r'''
    }});
    online();pump();require(toasts.size()==1,"reread newer transition and queued it twice");
   });
+  scenario("toast failure uses real error recorder without stopping UI",()->{
+   int before=HookErrors.count("PresenceToastsHook",IllegalStateException.class);
+   int logged=de.robv.android.xposed.XposedBridge.messages.size();
+   Toast.fail=true;online();pump();
+   require(toasts.isEmpty()&&HookErrors.count("PresenceToastsHook",IllegalStateException.class)==before+1,"toast error lost");
+   require(de.robv.android.xposed.XposedBridge.messages.size()==logged+1,"Xposed diagnostic not observed");
+   require(de.robv.android.xposed.XposedBridge.messages.stream().noneMatch(s->s.contains("private toast detail")),"private diagnostic payload");
+   Toast.fail=false;offline();online();pump();require(toasts.size()==1,"later toast lost after logging failure");
+  });
   System.out.println("SCENARIOS="+scenarios+"; FAILURES="+failures+"; queued JVM doubles, not Android/LSPosed");
   if(failures>0)throw new AssertionError("Presence lifecycle regressions: "+failures);
  }
@@ -104,11 +124,11 @@ CASES=r'''
 def main():
     ap=argparse.ArgumentParser();ap.add_argument('--source-root',type=Path,default=ROOT);args=ap.parse_args()
     src=args.source_root/'app/src/main/java/com/waenhancer/xposed/features/automation'
-    text=(src/'PresenceToastsHook.java').read_text()
+    text=(src/'PresenceToastsHook.java').read_text(encoding='utf-8')
     values={'install':extract(text,'    private void hookIncomingPresence()'),
             'shape':extract(text,'    private static boolean isPresenceHandler('),
             'decode':extract(text,'    private static PresenceEventPolicy.Event decodePresenceEvent(')}
-    tree=ast.parse((args.source_root/'qa/test_presence_event_contract.py').read_text())
+    tree=ast.parse((args.source_root/'qa/test_presence_event_contract.py').read_text(encoding='utf-8'))
     expr=next(n.value for n in tree.body if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='body' for t in n.targets))
     if any(not isinstance(n,(ast.BinOp,ast.Add,ast.Constant,ast.Name,ast.Load)) for n in ast.walk(expr)):
         raise ValueError('Unexpected fixture template expression')
@@ -122,9 +142,14 @@ def main():
     body=body[:start]+' boolean isOnlineToastEnabled(){return enabled;}\n'+toast+'\n'+body[end:]
     body=body.replace('static class Handler {public void handleMessage(Message m){}}',
                       'static class Handler {public void handleMessage(Message m){} boolean post(Runnable r){uiQueue.add(r);return true;}}')
-    body+=CASES
+    body='import com.waenhancer.xposed.utils.HookErrors;\n'+body+CASES
     with tempfile.TemporaryDirectory(prefix='waex_presence_lifecycle_') as tmp:
-        p=Path(tmp)/'TestPresenceEventContract.java';p.write_text(body)
-        subprocess.run(['javac','--release','17','-d',tmp,str(src/'PresenceStateStore.java'),str(src/'PresenceEventPolicy.java'),str(p)],check=True,timeout=60)
+        p=Path(tmp)/'TestPresenceEventContract.java';p.write_text(body,encoding='utf-8')
+        support=[]
+        for name, content in ERROR_STUBS.items():
+            file=Path(tmp)/name;file.parent.mkdir(parents=True,exist_ok=True)
+            file.write_text(content,encoding='utf-8');support.append(str(file))
+        errors=args.source_root/'app/src/main/java/com/waenhancer/xposed/utils/HookErrors.java'
+        subprocess.run(['javac','--release','17','-d',tmp,str(src/'PresenceStateStore.java'),str(src/'PresenceEventPolicy.java'),str(errors),*support,str(p)],check=True,timeout=60)
         subprocess.run(['java','-cp',tmp,'TestPresenceEventContract'],check=True,timeout=60)
 if __name__=='__main__':main()
