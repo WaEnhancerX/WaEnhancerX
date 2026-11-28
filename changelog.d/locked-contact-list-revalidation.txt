@@ -1,0 +1,3 @@
+[Fixes]
+- Recheck locked contacts when picker lists are reused, including when their
+  size stays the same or a row changes identity.

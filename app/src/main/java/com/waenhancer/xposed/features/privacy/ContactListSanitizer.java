@@ -1,7 +1,6 @@
 package com.waenhancer.xposed.features.privacy;
 
 import com.waenhancer.xposed.utils.HookErrors;
-import java.lang.ref.WeakReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -84,57 +83,16 @@ final class ContactListSanitizer {
     /** A filtered copy, or null when the list holds no locked contact (it is left untouched). */
     private static List<?> filtered(List<?> source, Set<String> lockedIds,
                                     Function<Object, Collection<String>> identities, Result result) {
-        if (source.isEmpty() || CLEAN.contains(source, lockedIds)) return null;
+        if (source.isEmpty()) return null;
+        // Recheck even a previously filtered list: its rows can now yield different identities.
         List<Object> kept = LockedContactFilterPolicy.withoutLockedContacts(
                 castToObjects(source), lockedIds, identities);
         int removed = source.size() - kept.size();
-        if (removed <= 0) {
-            CLEAN.remember(source, lockedIds);
-            return null;
-        }
+        if (removed <= 0) return null;
         result.removedContacts += removed;
         result.cleanedLists++;
-        CLEAN.remember(kept, lockedIds);
         return kept;
     }
-
-    /**
-     * Lists already verified free of the current locked contacts. One picker load reaches several
-     * hooked methods with the same lists, so the second and third visit become identity checks.
-     * A list is trusted only while its size is unchanged and the locked set is the same instance.
-     */
-    static final class CleanLists {
-        private final WeakReference<List<?>>[] lists;
-        private final int[] sizes;
-        private final Set<?>[] lockedSets;
-        private int cursor;
-
-        @SuppressWarnings("unchecked")
-        CleanLists(int capacity) {
-            lists = (WeakReference<List<?>>[]) new WeakReference<?>[capacity];
-            sizes = new int[capacity];
-            lockedSets = new Set<?>[capacity];
-        }
-
-        synchronized boolean contains(List<?> list, Set<String> locked) {
-            for (int i = 0; i < lists.length; i++) {
-                WeakReference<List<?>> ref = lists[i];
-                if (ref != null && ref.get() == list && lockedSets[i] == locked && sizes[i] == list.size()) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        synchronized void remember(List<?> list, Set<String> locked) {
-            lists[cursor] = new WeakReference<>(list);
-            sizes[cursor] = list.size();
-            lockedSets[cursor] = locked;
-            cursor = (cursor + 1) % lists.length;
-        }
-    }
-
-    private static final CleanLists CLEAN = new CleanLists(32);
 
     @SuppressWarnings("unchecked")
     private static Collection<Object> castToObjects(List<?> source) {
