@@ -1,6 +1,8 @@
 {
   "schema": 1,
   "channel": "nightly",
-  "fragments": [],
-  "notes": ""
+  "fragments": [
+    "bubble-color-preview-contrast.txt"
+  ],
+  "notes": "[Fixes]\n- Keep bubble color preview text and timestamps readable on mid-tone and transparent colors.\n"
 }
