@@ -1,0 +1,4 @@
+[Fixes]
+- Complete Slovenian labels for current settings, diagnostics and issue reporting while preserving existing translations.
+- Complete the remaining translatable Slovenian UI labels, preserving formatting and official-installation warnings.
+- Complete Slovenian cardinal plural forms for deleted recordings and prevent resource coverage regressions.

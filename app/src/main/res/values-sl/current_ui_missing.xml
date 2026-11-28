@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="waex_runtime_status_rules_accepted_open_target">"Pravila so sprejeta; odpri ciljno aplikacijo, da preveriš, ali je vbrizgavanje uspelo"</string>
+    <string name="waex_ui_browser_unavailable_message" formatted="false">"Brskalnika v aplikaciji na tej napravi ni bilo mogoče zagnati. Odpri APKMirror v svojem brskalniku."</string>
+    <string name="waex_ui_bubble_incoming" formatted="false">"Prejeta sporočila"</string>
+    <string name="waex_ui_bubble_outgoing" formatted="false">"Poslana sporočila"</string>
+    <string name="waex_ui_bubble_preview" formatted="false">"Predogled"</string>
+    <string name="waex_ui_bubble_preview_incoming" formatted="false">"Živjo! Si preizkusil nove barve?"</string>
+    <string name="waex_ui_bubble_preview_outgoing" formatted="false">"Ja, odlično izgleda 😄"</string>
+    <string name="waex_ui_bubble_reset" formatted="false">"Ponastavi na barve WhatsAppa"</string>
+    <string name="waex_ui_bubble_restart_hint" formatted="false">"Za uveljavitev sprememb ponovno zaženi WhatsApp"</string>
+    <string name="waex_ui_cancel_download_confirm" formatted="false">"Ustavi prenos"</string>
+    <string name="waex_ui_cancel_download_message">"Prenos %1$s %2$s se bo ustavil, delno prenesena datoteka pa bo izbrisana."</string>
+    <string name="waex_ui_cancel_download_title" formatted="false">"Prekličeš ta prenos?"</string>
+    <string name="waex_ui_channel_beta_desc" formatted="false">"Zgodnje različice pred prehodom na stabilno izdajo"</string>
+    <string name="waex_ui_channel_nightly" formatted="false">"Nightly"</string>
+    <string name="waex_ui_channel_nightly_desc" formatted="false">"Vsaka samodejno ustvarjena različica; ni preizkušena in morda ne bo delovala"</string>
+    <string name="waex_ui_channel_risk_confirm" formatted="false">"Zamenjaj kanal"</string>
+    <string name="waex_ui_channel_risk_message" formatted="false">"Različice na tem kanalu so manj preizkušene in lahko vsebujejo napake. Zamenjava kanala spremeni le ponujene posodobitve; nič se ne namesti, dokler tega ne izbereš."</string>
+    <string name="waex_ui_channel_risk_title" formatted="false">"Preklopiš na manj stabilen kanal?"</string>
+    <string name="waex_ui_channel_stable_desc" formatted="false">"Samo v celoti preizkušene izdaje"</string>
+    <string name="waex_ui_chip_add_support" formatted="false">"Dodaj podporo"</string>
+    <string name="waex_ui_choose_version" formatted="false">"Izberi različico"</string>
+    <string name="waex_ui_continue_to_browser" formatted="false">"Nadaljuj v brskalniku"</string>
+    <string name="waex_ui_custom_css" formatted="false">"CSS po meri"</string>
+    <string name="waex_ui_customize_bubble_colors" formatted="false">"Prilagodi barve oblačkov"</string>
+    <string name="waex_ui_customize_native_floating_navigation" formatted="false">"Prilagodi vgrajeno plavajočo navigacijo"</string>
+    <string name="waex_ui_download_again" formatted="false">"Prenesi znova"</string>
+    <string name="waex_ui_download_failed" formatted="false">"Prenos ni uspel"</string>
+    <string name="waex_ui_download_started" formatted="false">"Prenos se je začel"</string>
+    <string name="waex_ui_download_unsupported" formatted="false">"Te datoteke ni mogoče namestiti"</string>
+    <string name="waex_ui_downloaded_section" formatted="false">"PRENESENO"</string>
+    <string name="waex_ui_downloading_progress">"Prenašanje… %1$s"</string>
+    <string name="waex_ui_feature_loading_channel" formatted="false">"Nalaganje funkcij WAEX"</string>
+    <string name="waex_ui_feature_loading_progress">"Priprava funkcij po posodobitvi… %1$d/%2$d"</string>
+    <string name="waex_ui_fetching_versions" formatted="false">"Pridobivanje razpoložljivih različic…"</string>
+    <string name="waex_ui_fix" formatted="false">"Popravi"</string>
+    <string name="waex_ui_get_supported_version_notice" formatted="false">"WAEX zate prenese uradno različico WhatsAppa ali uporabi datoteko, ki jo že imaš. V obeh primerih jo namesti z dostopom root. Dosledno preveri podpisno potrdilo in namesti samo uradne datoteke WhatsAppa; vsak spremenjen ali ponovno zapakiran APK zavrne. Deluje vsaka različica, ki spada v katerega od podprtih razponov (na primer %1$s). Nameščanje zunaj trgovine Google Play lahko povzroči blokado tvoje telefonske številke, zato daj prednost uradnim posodobitvam, kadar je to mogoče."</string>
+    <string name="waex_ui_get_supported_version_title" formatted="false">"Pridobi WhatsApp %1$s"</string>
+    <string name="waex_ui_get_this_version" formatted="false">"Namesti podprto različico"</string>
+    <string name="waex_ui_hma_reason_not_active">"HMA ni aktiven"</string>
+    <string name="waex_ui_hooks_active_short" formatted="false">"Aktivni hooki: %1$d/%2$d"</string>
+    <string name="waex_ui_hooks_checking" formatted="false">"Preverjanje…"</string>
+    <string name="waex_ui_hooks_last_report" formatted="false">"zadnje poročilo"</string>
+    <string name="waex_ui_hooks_not_reported_short" formatted="false">"O hookih še ni poročila"</string>
+    <string name="waex_ui_hooks_paused_hint" formatted="false">"Različica ni podprta. Dodaj podporo in ponovno zaženi aplikacijo."</string>
+    <string name="waex_ui_hooks_paused_short" formatted="false">"Hooki so začasno ustavljeni"</string>
+    <string name="waex_ui_hooks_unresponsive_hint" formatted="false">"Ni odziva. Odpri %1$s in nato osveži."</string>
+    <string name="waex_ui_import_theme_zip" formatted="false">"Uvozi temo (.zip)"</string>
+    <string name="waex_ui_install_action" formatted="false">"Namesti"</string>
+    <string name="waex_ui_install_downloaded_apk" formatted="false">"Namesti iz pomnilnika"</string>
+    <string name="waex_ui_install_reinstall" formatted="false">"Ponovno namesti"</string>
+    <string name="waex_ui_install_risk_confirm" formatted="false">"Vseeno namesti"</string>
+    <string name="waex_ui_install_risk_downgrade" formatted="false">"To zamenja nameščeno različico s starejšo. Podatkov, ki jih je zapisala novejša različica, starejša morda ne bo mogla prebrati."</string>
+    <string name="waex_ui_install_risk_prerelease" formatted="false">"Različice Beta in Nightly niso preizkušene kot končne izdaje in lahko vsebujejo napake."</string>
+    <string name="waex_ui_install_risk_title" formatted="false">"Namestiš to različico?"</string>
+    <string name="waex_ui_install_sheet_button">"%1$s z dostopom root"</string>
+    <string name="waex_ui_install_storage_choose" formatted="false">"Izberi APK, APKM ali XAPK"</string>
+    <string name="waex_ui_install_storage_choose_another" formatted="false">"Izberi drugo datoteko"</string>
+    <string name="waex_ui_install_storage_official_body" formatted="false">"WAEX pred namestitvijo dosledno preveri podpis vsake datoteke. Namesti le uradno, nespremenjeno datoteko WhatsAppa, ki jo je podpisal WhatsApp. Vsak spremenjen, popravljen, kloniran ali ponovno zapakiran APK zavrne."</string>
+    <string name="waex_ui_install_storage_official_title" formatted="false">"Samo uradne datoteke WhatsAppa"</string>
+    <string name="waex_ui_install_storage_ranges" formatted="false">"SPREJETI RAZPONI RAZLIČIC"</string>
+    <string name="waex_ui_install_storage_step1" formatted="false">"V brskalniku prenesi APK, APKM ali XAPK iz vira, ki mu zaupaš."</string>
+    <string name="waex_ui_install_storage_step2" formatted="false">"Tukaj izberi datoteko."</string>
+    <string name="waex_ui_install_storage_step3" formatted="false">"WAEX preveri paket, razpon različic in podpis WhatsAppa."</string>
+    <string name="waex_ui_install_storage_step4" formatted="false">"Če se vse ujema, datoteko namesti z dostopom root. Podprti sta tako nadgradnja kot vrnitev na starejšo različico."</string>
+    <string name="waex_ui_install_storage_steps_title" formatted="false">"KAKO DELUJE"</string>
+    <string name="waex_ui_install_storage_target" formatted="false">"CILJNA APLIKACIJA"</string>
+    <string name="waex_ui_install_storage_title" formatted="false">"Namesti iz pomnilnika"</string>
+    <string name="waex_ui_last_supported_version" formatted="false">"Zadnja podprta različica"</string>
+    <string name="waex_ui_locked_chat_notifications" formatted="false">"Obvestila zaklenjenih klepetov"</string>
+    <string name="waex_ui_native_floating_navigation_bg_color" formatted="false">"Barva ozadja"</string>
+    <string name="waex_ui_native_floating_navigation_colors" formatted="false">"Barve"</string>
+    <string name="waex_ui_native_floating_navigation_colors_hint" formatted="false">"Pusti privzeto nastavitev, da ohraniš barve teme WhatsAppa"</string>
+    <string name="waex_ui_native_floating_navigation_exclusive" formatted="false">"Uporablja plavajočo vrstico WhatsAppa. Z vklopom izklopiš plavajočo spodnjo vrstico modula."</string>
+    <string name="waex_ui_native_floating_navigation_selection_color" formatted="false">"Barva izbire"</string>
+    <string name="waex_ui_no_matching_versions" formatted="false">"Na seznamu ni bilo mogoče najti podprtih različic."</string>
+    <string name="waex_ui_no_theme_default" formatted="false">"Privzeto (brez teme)"</string>
+    <string name="waex_ui_open_apkmirror" formatted="false">"Odpri APKMirror"</string>
+    <string name="waex_ui_or_divider" formatted="false">"ALI"</string>
+    <string name="waex_ui_pick_version_message">"Vse spodnje različice %1$s so podprte. Tapni eno, da jo preneseš v WAEX."</string>
+    <string name="waex_ui_pick_version_title" formatted="false">"Izberi različico"</string>
+    <string name="waex_ui_remove_download" formatted="false">"Odstrani"</string>
+    <string name="waex_ui_remove_download_message">"Datoteka %1$s %2$s bo izbrisana iz shrambe aplikacije WAEX. Pozneje jo lahko znova preneseš."</string>
+    <string name="waex_ui_remove_download_title" formatted="false">"Odstraniš ta prenos?"</string>
+    <string name="waex_ui_source_choose_desc" formatted="false">"Prebrskaj vse podprte različice, izbrano prenesi v WAEX in jo nato namesti."</string>
+    <string name="waex_ui_source_choose_title" formatted="false">"Izberi različico"</string>
+    <string name="waex_ui_source_storage_desc" formatted="false">"Datoteko že imaš? WAEX jo preveri in namesti z dostopom root."</string>
+    <string name="waex_ui_step_install" formatted="false">"Namestitev"</string>
+    <string name="waex_ui_step_source" formatted="false">"Vir"</string>
+    <string name="waex_ui_step_version" formatted="false">"Različica"</string>
+    <string name="waex_ui_switch_to_stable" formatted="false">"Preklopi na stabilni kanal"</string>
+    <string name="waex_ui_theme_active" formatted="false">"Aktivna"</string>
+    <string name="waex_ui_theme_by_author" formatted="false">"Avtor: %1$s"</string>
+    <string name="waex_ui_theme_delete_confirm" formatted="false">"Izbrišeš to temo?"</string>
+    <string name="waex_ui_theme_import_failed" formatted="false">"Uvoz teme ni uspel: %1$s"</string>
+    <string name="waex_ui_theme_imported" formatted="false">"Tema je uvožena"</string>
+    <string name="waex_ui_theme_library" formatted="false">"Knjižnica tem"</string>
+    <string name="waex_ui_theme_library_desc" formatted="false">"Uvozi temo WAEX (datoteko .zip s style.css in neobveznimi slikami) in jo nato izberi spodaj. Po spremembi teme ponovno zaženi WhatsApp."</string>
+    <string name="waex_ui_update_channel" formatted="false">"Kanal posodobitev"</string>
+    <string name="waex_ui_validate_step_copy" formatted="false">"Branje datoteke"</string>
+    <string name="waex_ui_validate_step_inspect" formatted="false">"Branje podatkov o paketu"</string>
+    <string name="waex_ui_validate_step_verify" formatted="false">"Preverjanje paketa, različice in podpisa WhatsAppa"</string>
+    <string name="waex_ui_verify_apk_title" formatted="false">"Preveri APK"</string>
+    <string name="waex_ui_verify_check_package" formatted="false">"Paket"</string>
+    <string name="waex_ui_verify_check_package_bad" formatted="false">"Ta datoteka je namenjena drugi aplikaciji (%2$s)"</string>
+    <string name="waex_ui_verify_check_package_ok" formatted="false">"%1$s"</string>
+    <string name="waex_ui_verify_check_signature" formatted="false">"Podpis"</string>
+    <string name="waex_ui_verify_check_signature_bad" formatted="false">"Te datoteke ni podpisal WhatsApp. Morda je spremenjena ali ponovno zapakirana."</string>
+    <string name="waex_ui_verify_check_signature_ok" formatted="false">"Podpisal WhatsApp"</string>
+    <string name="waex_ui_verify_check_splits" formatted="false">"Razdeljeni APK-ji"</string>
+    <string name="waex_ui_verify_check_splits_bad" formatted="false">"Eden od razdeljenih APK-jev ima napačen paket ali napačnega podpisnika"</string>
+    <string name="waex_ui_verify_check_splits_ok" formatted="false">"Vključenih: %1$s, enak paket in podpisnik"</string>
+    <string name="waex_ui_verify_check_version" formatted="false">"Različica"</string>
+    <string name="waex_ui_verify_check_version_bad" formatted="false">"%1$s je zunaj vseh podprtih razponov"</string>
+    <string name="waex_ui_verify_check_version_ok" formatted="false">"%1$s je znotraj podprtega razpona %2$s"</string>
+    <string name="waex_ui_verify_failed_hint" formatted="false">"Zavrnjeno: datoteka ni prestala preverjanja in ne bo nameščena. WAEX namesti samo uradne datoteke WhatsAppa."</string>
+    <string name="waex_ui_verify_human_message" formatted="false">"APKMirror zahteva hitro preverjanje. Dokončaj ga in različice se bodo samodejno naložile."</string>
+    <string name="waex_ui_verify_human_title" formatted="false">"Potrdi, da si človek"</string>
+    <string name="waex_ui_verify_install_failed" formatted="false">"Namestitev ni uspela: %1$s"</string>
+    <string name="waex_ui_verify_install_ok" formatted="false">"WhatsApp %1$s je nameščen"</string>
+    <string name="waex_ui_verify_install_root" formatted="false">"Namesti z dostopom root"</string>
+    <string name="waex_ui_verify_installing" formatted="false">"Nameščanje…"</string>
+    <string name="waex_ui_verify_now" formatted="false">"Preveri zdaj"</string>
+    <string name="waex_ui_verify_passed_hint" formatted="false">"Vsa preverjanja so uspešna. WAEX bo to datoteko namestil z dostopom root."</string>
+    <string name="waex_ui_verify_read_failed" formatted="false">"Datoteke ni bilo mogoče prebrati. Izberi datoteko WhatsAppa s končnico .apk, .apkm ali .xapk."</string>
+    <string name="waex_ui_verifying_apk" formatted="false">"Preverjanje APK-ja…"</string>
+    <string name="waex_ui_versions_unavailable_message" formatted="false">"Seznama različic ni bilo mogoče naložiti. Preveri povezavo in poskusi znova ali neposredno prebrskaj APKMirror."</string>
+    <string name="waex_ui_versions_unavailable_title" formatted="false">"Različic ni bilo mogoče naložiti"</string>
+    <string name="waex_ui_write_custom_css" formatted="false">"Napiši CSS po meri"</string>
+</resources>

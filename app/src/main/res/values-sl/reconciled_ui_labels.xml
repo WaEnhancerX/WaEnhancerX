@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="waex_ui_build_debug" formatted="false">Različica za odpravljanje napak</string>
+    <string name="waex_ui_build_release" formatted="false">Izdaja</string>
+    <string name="waex_ui_channel_beta" formatted="false">Beta</string>
+    <string name="waex_ui_channel_stable" formatted="false">Stabilno</string>
+    <string name="waex_ui_install_downgrade" formatted="false">Namesti starejšo različico</string>
+    <string name="waex_ui_install_upgrade" formatted="false">Nadgradnja</string>
+    <string name="waex_ui_step_download" formatted="false">Prenos</string>
+    <string name="waex_ui_verify_close" formatted="false">Zapri</string>
+</resources>

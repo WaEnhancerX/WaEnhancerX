@@ -852,8 +852,10 @@ Znova zaženite WhatsApp, da uporabite spremembe?"</string>
     <string name="waex_ui_your_pro_license_is_active_and_hardwar" formatted="false">"Vaša Pro licenca je aktivna in vezana na strojno opremo."</string>
     <string name="waex_ui_your_whatsapp_version_1_s_is_not_in_th">"Vaša različica WhatsApp (%1$s) ni v preverjenem obsegu podprtih različic."</string>
     <plurals name="waex_recordings_deleted">
-        <item quantity="one">"Izbrisano snemanje %1$d"</item>
-        <item quantity="other">"Izbrisana snemanja %1$d"</item>
+        <item quantity="one">"Izbrisan je %1$d posnetek"</item>
+        <item quantity="two">"Izbrisana sta %1$d posnetka"</item>
+        <item quantity="few">"Izbrisani so %1$d posnetki"</item>
+        <item quantity="other">"Izbrisanih je %1$d posnetkov"</item>
     </plurals>
     <string name="waex_ui_urgent" formatted="false">"NUJNO"</string>
     <string name="waex_ui_important" formatted="false">"POMEMBNO"</string>
