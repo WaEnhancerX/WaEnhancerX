@@ -14,6 +14,7 @@ SOURCES = [
     ROOT / "app/src/main/java/com/waenhancer/xposed/features/media/ParallelDownloadingInputStream.java",
     ROOT / "qa/java/ParallelDownloadingStreamContractChecks.java",
     ROOT / "qa/java/de/robv/android/xposed/XposedBridge.java",
+    ROOT / "app/src/main/java/com/waenhancer/xposed/utils/HookErrors.java",
 ]
 
 
@@ -29,8 +30,16 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="waex-parallel-range-") as temporary:
         classes = Path(temporary) / "classes"
         classes.mkdir()
+        # AndroidX annotations are a compile boundary; HookErrors itself is
+        # compiled without replacing its production exception handling.
+        annotations = []
+        for name in ("NonNull", "VisibleForTesting"):
+            path = Path(temporary) / "androidx" / "annotation" / (name + ".java")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("package androidx.annotation; public @interface " + name + " {}\n", encoding="utf-8")
+            annotations.append(path)
         compiler = ["javac"] if shutil.which("javac") else ["java", "com.sun.tools.javac.Main"]
-        compile_args = compiler + ["-encoding", "UTF-8", "-d", str(classes)] + [str(path) for path in SOURCES]
+        compile_args = compiler + ["-encoding", "UTF-8", "-d", str(classes)] + [str(path) for path in SOURCES + annotations]
         compiled = subprocess.run(compile_args, text=True, capture_output=True, timeout=45)
         executed = None
         if compiled.returncode == 0:
