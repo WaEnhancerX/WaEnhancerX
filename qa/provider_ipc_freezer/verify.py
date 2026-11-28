@@ -29,6 +29,8 @@ EXPECTED_CALLS = {
     "xposed/features/media/CallRecordingHook.java": 3,
     "xposed/features/media/VoiceTranscriptionBridge.java": 3,
     "xposed/utils/WhatsAppProcessRestarter.java": 1,
+    "xposed/utils/TargetExitReporter.java": 1,
+    "xposed/features/customization/CssThemeHook.kt": 1,
 }
 
 
@@ -48,9 +50,8 @@ def execute(source: str) -> tuple[bool, str]:
         candidate.write_text(source, encoding="utf-8")
         classes = dest / "classes"
         classes.mkdir()
-        # The minimal JDK in CI may omit lib/ct.sym, so --release is unavailable;
-        # source/target 17 suffice for this stub-only API contract compilation.
-        command = [*compiler(), "-source", "17", "-target", "17", "-d", str(classes),
+        # Require the same supported Java platform signatures as current public QA.
+        command = [*compiler(), "--release", "17", "-d", str(classes),
                    *map(str, STUBS), str(HARNESS), str(candidate)]
         compiled = subprocess.run(command, capture_output=True, text=True, timeout=40)
         if compiled.returncode:

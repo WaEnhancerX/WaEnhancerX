@@ -11,7 +11,19 @@ import argparse, hashlib, json, os, subprocess, tempfile
 ROOT = Path(__file__).resolve().parents[1]
 STUBS = {
     'androidx/annotation/NonNull.java': 'package androidx.annotation; public @interface NonNull {}',
-    'android/net/Uri.java': 'package android.net; public class Uri {public static Uri parse(String value){return new Uri();}}',
+    'androidx/annotation/VisibleForTesting.java': 'package androidx.annotation; public @interface VisibleForTesting {}',
+    'android/net/Uri.java': 'package android.net; public class Uri {private String value; public static Uri parse(String value){Uri uri=new Uri();uri.value=value;return uri;} public String toString(){return value;}}',
+    'android/os/RemoteException.java': 'package android.os; public class RemoteException extends Exception {}',
+    'android/content/ContentProviderClient.java': '''package android.content;
+    public final class ContentProviderClient implements AutoCloseable {
+      private final Context.ContentResolver owner;private boolean closed;
+      ContentProviderClient(Context.ContentResolver owner){this.owner=owner;}
+      public android.os.Bundle call(String method,String arg,android.os.Bundle extras) throws android.os.RemoteException {
+        if(closed)throw new AssertionError("Use after provider close");
+        return owner.call(null,method,arg,extras);
+      }
+      public void close(){if(closed)throw new AssertionError("Duplicate provider close");closed=true;owner.clientsClosed++;}
+    }''',
     'android/os/Build.java': '''package android.os; public final class Build {
       public static class VERSION {public static int SDK_INT=34;}
       public static class VERSION_CODES {public static final int Q=29,S=31;}
@@ -37,8 +49,13 @@ STUBS = {
     public class Context {public final ContentResolver resolver=new ContentResolver();
       public ContentResolver getContentResolver(){return resolver;} public Context getApplicationContext(){return this;}
       public String getPackageName(){return "com.whatsapp";}
-      public static class ContentResolver {public final List<ParcelFileDescriptor> files=new ArrayList<>(); public int deletes,creates; public boolean fail;
+      public static class ContentResolver {public final List<ParcelFileDescriptor> files=new ArrayList<>(); public int deletes,creates,clientsOpened,clientsClosed; public boolean fail;
+        public ContentProviderClient acquireUnstableContentProviderClient(Uri uri){
+          if(!"content://com.waenhancer.hookprovider".equals(uri.toString()))throw new AssertionError("Wrong provider authority");
+          clientsOpened++;return new ContentProviderClient(this);
+        }
         public Bundle call(Uri uri,String method,String argument,Bundle request){
+          if(uri!=null)throw new AssertionError("Stable resolver call must not run in recorder fixture");
           if(method.equals("create_call_recording")){creates++;if(fail)return null;
             Bundle result=new Bundle(); ParcelFileDescriptor fd=new ParcelFileDescriptor();files.add(fd);
             result.values.put("descriptor",fd);result.putString("path","private/"+request.getString("name"));return result;}
@@ -183,7 +200,9 @@ def main():
         target=directory/'stubs'/path;target.parent.mkdir(parents=True,exist_ok=True);target.write_text(content)
         sources.append(str(target))
     media=args.root/'app/src/main/java/com/waenhancer/xposed/features/media'
-    production=[media/'CallRecordingHook.java']
+    production=[media/'CallRecordingHook.java',
+                args.root/'app/src/main/java/com/waenhancer/xposed/utils/HookErrors.java',
+                args.root/'app/src/main/java/com/waenhancer/xposed/bridge/client/HookProviderIpc.java']
     contract=media/'CallRecordingEventContract.java'
     if contract.exists():production.append(contract)
     recording_files=args.root/'app/src/main/java/com/waenhancer/calls/RecordingOutputFiles.java'

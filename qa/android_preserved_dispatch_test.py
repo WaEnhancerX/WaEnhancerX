@@ -23,6 +23,7 @@ PRODUCTION=[
  PKG/'utils/DeclaredWhatsAppTargets.java',
  PKG/'config/PreferenceSchema.java',
  PKG/'xposed/bridge/HookProvider.java',
+ PKG/'xposed/bridge/client/HookProviderIpc.java',
  PKG/'xposed/bridge/CallerScopePolicy.java',
  PKG/'xposed/bridge/ProviderDerivedKeyPolicy.java',
  PKG/'xposed/bridge/ProviderPreferenceScopePolicy.java',
