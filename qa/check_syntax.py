@@ -48,7 +48,11 @@ import javax.tools.ToolProvider;
 import com.sun.source.util.JavacTask;
 
 public final class WaexJavaSyntaxRunner {
-    public static void main(String[] paths) throws Exception {
+    public static void main(String[] args) throws Exception {
+        if (args.length != 1) throw new IllegalArgumentException("Expected one path manifest");
+        System.setOut(new java.io.PrintStream(System.out, true, java.nio.charset.StandardCharsets.UTF_8));
+        String[] paths = java.nio.file.Files.readString(java.nio.file.Path.of(args[0]),
+                java.nio.charset.StandardCharsets.UTF_8).split(String.valueOf((char) 0), -1);
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         if (compiler == null) throw new IllegalStateException("JDK compiler unavailable");
         List<File> files = new ArrayList<>();
@@ -135,7 +139,11 @@ public final class WaexKotlinSyntaxRunner {
                 "Kotlin companion configuration factory missing from supported compiler JARs");
     }
 
-    public static void main(String[] paths) throws Exception {
+    public static void main(String[] args) throws Exception {
+        if (args.length != 1) throw new IllegalArgumentException("Expected one path manifest");
+        System.setOut(new java.io.PrintStream(System.out, true, java.nio.charset.StandardCharsets.UTF_8));
+        String[] paths = Files.readString(java.nio.file.Path.of(args[0]),
+                java.nio.charset.StandardCharsets.UTF_8).split(String.valueOf((char) 0), -1);
         Disposable disposable = Disposer.newDisposable();
         int errors = 0;
         try {
@@ -205,14 +213,28 @@ def _execute(command: list[str], *, cwd: Path) -> subprocess.CompletedProcess[st
                           timeout=TIMEOUT_SECONDS, encoding="utf-8", errors="replace", check=False)
 
 
-def _diagnostics(output: str, root: Path, language: str) -> tuple[list[dict], bool]:
+def _path_manifest(working: Path, language: str, files: list[Path]) -> Path:
+    """Pass paths as UTF-8 data, not command-line arguments.
+
+    Windows CreateProcess limits a command line to 32,767 UTF-16 code units.
+    A NUL separator cannot occur in a filesystem path and avoids platform-
+    dependent quoting, escaping and Java launcher @argfile encoding.
+    """
+    manifest = working / (language + ".paths")
+    manifest.write_bytes("\0".join(map(str, files)).encode("utf-8"))
+    return manifest
+
+
+def _diagnostics(output: str, root: Path, language: str, expected_count: int) -> tuple[list[dict], bool]:
     errors: list[dict] = []
-    saw_total = False
+    total_errors = None
     for line in output.splitlines():
         if line.startswith("SYNTAX_TOTAL\t"):
             parts = line.split("\t", 3)
-            if len(parts) == 4 and parts[1] == language:
-                saw_total = True
+            if (len(parts) != 4 or parts[1] != language or total_errors is not None
+                    or int(parts[2]) != expected_count or int(parts[3]) < 0):
+                raise ValueError("Incomplete or malformed parser total")
+            total_errors = int(parts[3])
         elif line.startswith("SYNTAX_ERROR\t"):
             parts = line.split("\t", 4)
             if len(parts) != 5 or parts[1] != language:
@@ -224,7 +246,7 @@ def _diagnostics(output: str, root: Path, language: str) -> tuple[list[dict], bo
                 file_label = str(file)
             errors.append({"language": language, "file": file_label,
                            "line": int(parts[3]), "message": parts[4]})
-    return errors, saw_total
+    return errors, total_errors == len(errors)
 
 
 def check(root: Path, *, java_only: bool = False) -> tuple[int, dict]:
@@ -260,9 +282,10 @@ def check(root: Path, *, java_only: bool = False) -> tuple[int, dict]:
                 built = _execute([javac_bin, "--release", "17", "-d", temp, str(runner)], cwd=root)
                 if built.returncode:
                     raise RuntimeError("Cannot compile Java syntax runner: " + built.stderr[-1300:])
+                manifest = _path_manifest(working, "java", java_files)
                 result = _execute([java_bin, "-Xmx800m", "-cp", temp,
-                                   "WaexJavaSyntaxRunner", *map(str, java_files)], cwd=root)
-                parsed, complete = _diagnostics(result.stdout, root, "java")
+                                   "WaexJavaSyntaxRunner", str(manifest)], cwd=root)
+                parsed, complete = _diagnostics(result.stdout, root, "java", len(java_files))
                 report["syntax_errors"].extend(parsed)
                 if result.returncode or not complete:
                     raise RuntimeError("Java parser failed: " + (result.stderr or result.stdout)[-1300:])
@@ -280,10 +303,11 @@ def check(root: Path, *, java_only: bool = False) -> tuple[int, dict]:
                                   "-d", temp, str(runner)], cwd=root)
                 if built.returncode:
                     raise RuntimeError("Cannot compile Kotlin PSI syntax runner: " + built.stderr[-1500:])
+                manifest = _path_manifest(working, "kotlin", kotlin_files)
                 result = _execute([java_bin, "-Xmx1200m", "-Djava.awt.headless=true",
                                    "-cp", os.pathsep.join((temp, classpath)),
-                                   "WaexKotlinSyntaxRunner", *map(str, kotlin_files)], cwd=root)
-                parsed, complete = _diagnostics(result.stdout, root, "kotlin")
+                                   "WaexKotlinSyntaxRunner", str(manifest)], cwd=root)
+                parsed, complete = _diagnostics(result.stdout, root, "kotlin", len(kotlin_files))
                 report["syntax_errors"].extend(parsed)
                 if result.returncode or not complete:
                     raise RuntimeError("Kotlin PSI parser failed: " + (result.stderr or result.stdout)[-1500:])
