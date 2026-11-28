@@ -133,3 +133,59 @@ establish uniqueness by chat, sender or account, verify a reflected numeric ID,
 or detect another process changing a history while a positive cache is retained.
 The ambiguous legacy history remains unavailable through key-based UI until a
 separate identity-aware migration or repair can establish its correct ownership.
+
+## Follow-up: confirm original-key aliases before caching
+
+The SQL fallback for an edited message's original key now checks a single
+unambiguous source row. A left join keeps unedited same-key rows visible to this
+check; the previous inner join could hide them. LIMIT 2 returns at most two rows
+for the ambiguity check; it does not bound query planning or scan cost. Duplicate source rows are rejected
+even if the returned original-key strings are equal.
+
+Only a nonblank original key returned after both cursor and database closure is
+published to the alias cache. Failed/absent/ambiguous lookups return the input key
+unchanged and remain retryable. This also allows a subsequent click to discover
+an edit that becomes visible after the first lookup. The bind path still calls
+only cachedOriginalKey; no SQLite query is introduced during scrolling.
+
+Run `python3 qa/test_edit_history_identity.py` for the complete production store
+with explicit Android database doubles, and
+`python3 qa/test_edit_original_key_sql.py` for the literal production query in
+SQLite with a minimal compatible schema. The launcher compiles the actual
+HookErrors dependency and doubles only its Android/Xposed annotation and logging
+boundaries. New store scenarios cover unique and duplicate aliases, unedited
+collisions, later inserts, blank values and read/closure failures. The existing
+store checks remain in the same all scenario. Compiled reference controls fail
+in duplicate selection, permanent negative caching and closure-failure return.
+Compiled mutants restoring the inner join, LIMIT 1 or miss caching also fail.
+
+The guarantee is bounded to an uncached lookup's observed rows. Existing positive
+aliases remain cached without cross-process or account-change invalidation; a
+later collision can therefore be hidden by that pre-existing cache. Returning
+the input key on uncertainty does not prove complete chat/sender/account identity.
+No schema migration, data deletion, repair of old history, verified host reflection
+or attribution of a historical Telegram report is claimed. Repeated unresolved
+clicks perform another read; ordinary row binding remains query-free.
+
+### Physical SQLite probe
+
+The manual probe sources are `qa/fixtures/EditOriginalKeyArtProbe.java` and
+`qa/fixtures/EditOriginalKeyArtMessageStore.kt`. Compile the production store and
+HookErrors with the probe, the Kotlin standard library and an Android SDK platform;
+only the MessageStore file locator, Context and Xposed logging boundary are replaced.
+The class requires a new empty directory named
+`/data/local/tmp/waex-edit-alias-<hex>/{baseline|candidate}` and uses only its own
+minimal message/edit tables. It does not discover an installed WhatsApp database.
+The second argument is the source label. It returns 0 for all passing checks, 1
+for assertion failures, or 2 for an execution/setup failure. Remove only those
+owned probe files after collecting the result.
+
+On 2026-11-28, the same probe SHA256
+`80266517f3ab1776d07815106491abebf62ccc46358d53945919db9ccaadb8ff`
+ran the complete reference and candidate store bytecode on physical Android 11,
+API 30, with real Android SQLite: 16 scenarios and 75 checks per source. The
+reference had 34 expected failed checks; the candidate had none. The candidate
+store SHA256 was `7bcca21e0c6967f5fa4d9690451a3d35fb995ddaacc35028e2fdc309dede3aa4`.
+The 68 owned files and 35 directories were removed and their absence verified.
+Both runs retained the same boot and unprivileged shell UID. This is not a host
+hook, installed-app, rendered-UI, concurrent-writer or API-24 runtime qualification.

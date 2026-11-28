@@ -186,7 +186,7 @@ class EditMessageStore private constructor(private val context: Context) : SQLit
 
     private val originalKeyCache = java.util.concurrent.ConcurrentHashMap<String, String>()
 
-    /** Null means this alias has never been resolved successfully. This read never opens SQLite. */
+    /** Null means no confirmed alias is cached. This read never opens SQLite. */
     fun cachedOriginalKey(keyId: String): String? {
         return originalKeyCache[keyId]?.ifEmpty { keyId }
     }
@@ -194,33 +194,31 @@ class EditMessageStore private constructor(private val context: Context) : SQLit
     /**
      * An edited message's row carries the edit's own key; WhatsApp keeps the key of the
      * original in message_edit_info. History is stored under the original key, so map to it.
-     * Returns [keyId] unchanged when the message was never edited or cannot be resolved.
+     * Returns [keyId] unchanged when the lookup is absent, ambiguous or unsuccessful.
      */
     fun resolveOriginalKey(keyId: String): String {
         cachedOriginalKey(keyId)?.let { return it }
-        var resolved = ""
-        var definitive = false
-        try {
-            val dbFile = MessageStore.findMsgstoreDbFile(context)
-            if (dbFile != null) {
-                SQLiteDatabase.openDatabase(dbFile.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { db ->
-                    db.rawQuery(
-                        "SELECT e.original_key_id FROM message m JOIN message_edit_info e " +
-                            "ON e.message_row_id = m._id WHERE m.key_id = ? LIMIT 1",
-                        arrayOf(keyId)
-                    ).use { c ->
-                        if (c.moveToFirst()) resolved = c.getString(0).orEmpty()
-                    }
-                    definitive = true
+        val resolved = try {
+            val dbFile = MessageStore.findMsgstoreDbFile(context) ?: return keyId
+            SQLiteDatabase.openDatabase(dbFile.absolutePath, null, SQLiteDatabase.OPEN_READONLY).use { db ->
+                db.rawQuery(
+                    "SELECT e.original_key_id FROM message m LEFT JOIN message_edit_info e " +
+                        "ON e.message_row_id = m._id WHERE m.key_id = ? LIMIT 2",
+                    arrayOf(keyId)
+                ).use { c ->
+                    // Include unedited same-key rows: an inner join can hide that ambiguity.
+                    if (c.count != 1 || !c.moveToFirst()) null
+                    else c.getString(0)?.takeIf { it.isNotBlank() }
                 }
             }
         } catch (t: Throwable) {
             XposedBridge.log("$TAG Resolve original key error: ${t.javaClass.simpleName}")
+            null
         }
-        // An edit gives the row a new key, so a definitive miss for this key stays a miss.
-        // Never cache a miss caused by a failed read.
-        if (definitive) originalKeyCache[keyId] = resolved
-        return resolved.ifEmpty { keyId }
+        // Only publish after both handles close. A missing row/edit may be inserted later,
+        // so an unsuccessful lookup must not become a permanent negative cache entry.
+        if (resolved != null) originalKeyCache[keyId] = resolved
+        return resolved ?: keyId
     }
 
     fun getCurrentMessageFromWhatsApp(rowId: Long, keyId: String?): String {
