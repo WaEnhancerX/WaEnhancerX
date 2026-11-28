@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.getAndUpdate
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -159,10 +161,10 @@ object TargetAppManager {
             // Do not depend on "hooked" evidence here: right after a cold start the cached list has no
             // process data yet, so nothing would be marked hooked and no request would ever go out.
             // A package that is not running simply does not answer and is reported as such.
-            val targets = (packages ?: _detectedApps.value.filter { it.isInstalled }.map { it.packageName })
-                .filter { it !in _hooksSyncing.value }
+            val requested = (packages ?: _detectedApps.value.filter { it.isInstalled }.map { it.packageName }).toSet()
+            // Claim targets atomically so concurrent syncs cannot send duplicate requests.
+            val targets = requested - _hooksSyncing.getAndUpdate { it + requested }
             if (targets.isEmpty()) { refresh(appContext); return@launch }
-            _hooksSyncing.value = _hooksSyncing.value + targets
             try {
                 val prefs = PreferenceStores.publicStore(appContext)
                 val before = targets.associateWith { prefs.getLong("injected_hooks_time_$it", 0L) }
@@ -177,10 +179,10 @@ object TargetAppManager {
                     delay(150)
                     pending = pending.filter { prefs.getLong("injected_hooks_time_$it", 0L) <= (before[it] ?: 0L) }.toSet()
                 }
-                _hooksUnresponsive.value = (_hooksUnresponsive.value - targets.toSet()) + pending
+                _hooksUnresponsive.update { (it - targets) + pending }
                 refresh(appContext)
             } finally {
-                _hooksSyncing.value = _hooksSyncing.value - targets.toSet()
+                _hooksSyncing.update { it - targets }
             }
         }
     }
