@@ -3,17 +3,29 @@
 import argparse, json, os, shutil, subprocess, sys
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
+
+def select_mutations(mutations, start_at):
+ """Return the named suffix without marking preceding cases as executed."""
+ names=[case[0] for case in mutations]
+ if start_at not in names:raise ValueError('Unknown mutation start: '+start_at)
+ return mutations[names.index(start_at):]
+
 def main():
- p=argparse.ArgumentParser(description=__doc__);p.add_argument('--out',required=True,type=Path);p.add_argument('--kotlinc',default=os.environ.get('KOTLINC') or shutil.which('kotlinc'));a=p.parse_args()
+ p=argparse.ArgumentParser(description=__doc__);p.add_argument('--out',required=True,type=Path);p.add_argument('--kotlinc',default=os.environ.get('KOTLINC') or shutil.which('kotlinc'));p.add_argument('--start-at',default='lost-delayed-retry',help='Run this mutation and later cases; preceding cases are not counted as executed');a=p.parse_args()
  if not a.kotlinc:p.error('Supply a complete Kotlin compiler distribution')
- a.out.mkdir(parents=True,exist_ok=False);rows=[]
  mutations=[
  ('lost-delayed-retry','BlueOnReplyHook.java','if (accepted) restoreRecipe();','if (accepted) { /* mutant */ }'),
  ('lost-synchronous-retry','BlueOnReplyHook.java','if (vetoed) restoreRecipe();','if (vetoed) { /* mutant */ }'),
  ('duplicate-veto-recovery','BlueOnReplyHook.java','if (vetoed) return;','/* mutant: duplicate recovery */'),
  ('missing-enqueue-ack','BlueOnReplyHook.java','PENDING_JOBS.remove(recipient, original);','/* mutant: accepted recipe retained */'),
  ('lost-delivery-only-retry','HideReceiptsHook.java','if (BlueOnReplyHook.isManualChatReceipt(job)) {\n                                BlueOnReplyHook.recordSuppressedReadJob(job);\n                            }','/* mutant: delivery-only veto loses retry */')]
- for label,name,old,new in mutations:
+ try:selected=select_mutations(mutations,a.start_at)
+ except ValueError as error:p.error(str(error))
+ # Keep selection regressions on this entrypoint without changing workflow
+ # permissions. Invalid selections above never create evidence directories.
+ subprocess.run([sys.executable,str(ROOT/'qa/test_manual_receipt_mutation_selection.py')],check=True,timeout=30)
+ a.out.mkdir(parents=True,exist_ok=False);rows=[]
+ for label,name,old,new in selected:
   source=a.out/(label+'-source');shutil.copytree(ROOT/'app',source/'app')
   file=source/'app/src/main/java/com/waenhancer/xposed/features/privacy'/name;text=file.read_text(encoding='utf-8')
   if text.count(old)!=1:raise RuntimeError('Mutation anchor changed: '+label)
@@ -27,4 +39,6 @@ def main():
   print(json.dumps(rows[-1]),flush=True)
   if not valid:raise RuntimeError('Mutation survived or failed outside its behavior checks: '+label)
  (a.out/'result.json').write_text(json.dumps(rows,indent=2)+'\n',encoding='utf-8')
+ print(json.dumps({'completed_mutations':len(rows),'total_mutations':len(mutations),
+                   'start_at':a.start_at,'full_matrix':len(rows)==len(mutations)}),flush=True)
 if __name__=='__main__':main()
