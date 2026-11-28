@@ -45,7 +45,9 @@ import android.content.pm.ApplicationInfo;
 import java.util.*;
 public final class FakeContext extends Context {
  public int notifications; public final Prefs prefs=new Prefs();
- public SharedPreferences getSharedPreferences(String n,int m){return prefs;}
+ public SharedPreferences getSharedPreferences(String n,int m){
+  if(!"waex_prefs".equals(n)||m!=MODE_PRIVATE)throw new AssertionError("Unexpected preference scope");return prefs;}
+ public java.io.File getFilesDir(){throw new AssertionError("Unexpected file access");}
  public ApplicationInfo getApplicationInfo(){return new ApplicationInfo();}
  public ContentResolver getContentResolver(){return new ContentResolver(){
   public void notifyChange(android.net.Uri u,Object o){notifications++;}
@@ -59,6 +61,7 @@ public final class FakeContext extends Context {
   public int getInt(String k,int d){return (Integer)memory.getOrDefault(k,d);}
   public float getFloat(String k,float d){return (Float)memory.getOrDefault(k,d);}
   @SuppressWarnings("unchecked") public Set<String> getStringSet(String k,Set<String>d){return (Set<String>)memory.getOrDefault(k,d);}
+  public boolean contains(String k){return memory.containsKey(k);}
   public Map<String,?>getAll(){return new HashMap<>(memory);}
   public Editor edit(){edits++;if(mode==3)throw new IllegalStateException("editor fixture");return new Editor(){
    final Map<String,Object> pending=new HashMap<>();
@@ -67,7 +70,9 @@ public final class FakeContext extends Context {
    public Editor putInt(String k,int v){pending.put(k,v);return this;}
    public Editor putFloat(String k,float v){pending.put(k,v);return this;}
    public Editor putStringSet(String k,Set<String>v){pending.put(k,v);return this;}
-   public Editor remove(String k){return this;}
+   public Editor putLong(String k,long v){throw new AssertionError("Unexpected long preference");}
+   public Editor remove(String k){throw new AssertionError("Unexpected preference removal");}
+   public void apply(){throw new AssertionError("Manual setting requires synchronous commit");}
    public boolean commit(){commits++;if(mode==2)throw new IllegalStateException("commit fixture");
     if(mode==0||mode==4)memory.putAll(pending);
     if(mode!=0)return false;disk.putAll(pending);return true;}
@@ -79,6 +84,7 @@ TEST = r'''
 import fixture.FakeContext
 import android.widget.Toast
 import com.waenhancer.core.preferences.WaexPreferenceManager
+import com.waenhancer.utils.DiagnosticsRecorder
 import com.waenhancer.ui.screens.settings.*
 class Ui(val context: FakeContext) {
  val preferenceManager = WaexPreferenceManager(context)
@@ -90,22 +96,25 @@ fun main() {
  var scenarios=0
  for (initial in listOf<String?>(null,"0","1","2","true","invalid")) {
   for (value in listOf(false,true)) for (mode in 0..4) {
-   val c=FakeContext();c.prefs.seed(initial);c.prefs.mode=mode;Toast.shown=0
+   val c=FakeContext();c.prefs.seed(initial);c.prefs.mode=mode;Toast.shown=0;DiagnosticsRecorder.changes=0
    val u=Ui(c);val before=u.settingsState["seen_tick_customization"]
    val diskBefore=HashMap(c.prefs.disk)
    val target=ManualSeenTickPreferencePolicy.valueAfterExplicitToggle(value,initial?:"0")
    u.updatePreference("seen_tick_customization",value)
    if(mode==0){
     check(c.prefs.disk["seentick"]==target);check(c.notifications==1);check(Toast.shown==0)
+    check(DiagnosticsRecorder.changes==1){"successful write not journaled once"}
     check(u.settingsState["seen_tick_customization"]==ManualSeenTickPreferencePolicy.isEnabled(target))
    } else {
     check(c.prefs.disk==diskBefore){"failed write changed durable fixture"}
     check(c.notifications==0){"failure notified as success"};check(Toast.shown==1){"failure not surfaced"}
+    check(DiagnosticsRecorder.changes==0){"failed write journaled as success"}
     check(u.settingsState["seen_tick_customization"]==before){"UI accepted failed write mode=$mode initial=$initial"}
     check(c.prefs.readsAfterCommit==0){"reread failed in-memory write as successful"}
     if(mode==4)check(c.prefs.memory["seentick"]==target){"memory-first failure must be exercised"}
     c.prefs.mode=0;Toast.shown=0;u.updatePreference("seen_tick_customization",value)
     check(c.notifications==1&&Toast.shown==0&&c.prefs.disk["seentick"]==target){"retry failed"}
+    check(DiagnosticsRecorder.changes==1){"retry not journaled once"}
    }
    check(!c.prefs.memory.containsKey("seen_tick_customization")){"legacy Boolean alias written"}
    scenarios++
@@ -116,13 +125,32 @@ fun main() {
 '''
 
 def main():
-    for tool in ('javac','java','kotlinc'):
-        if not shutil.which(tool): raise RuntimeError('Required tool missing: '+tool)
-    text=(SRC/'ui/screens/settings/StylesSettingsScreen.kt').read_text()
+    tools = {tool: shutil.which(tool) for tool in ('javac','java','kotlinc')}
+    for tool, path in tools.items():
+        if path is None: raise RuntimeError('Required tool missing: '+tool)
+    text=(SRC/'ui/screens/settings/StylesSettingsScreen.kt').read_text(encoding='utf-8')
     update=block(text,'val updatePreference: (String, Boolean) -> Unit = update@')
-    stub_tree=ast.parse((ROOT/'qa/test_media_preference_sync.py').read_text())
+    stub_tree=ast.parse((ROOT/'qa/test_media_preference_sync.py').read_text(encoding='utf-8'))
     stubs=next(ast.literal_eval(n.value) for n in stub_tree.body if isinstance(n,ast.Assign)
                and any(isinstance(t,ast.Name) and t.id=='STUBS' for t in n.targets))
+    # Own this fixture boundary instead of depending on another QA proposal.
+    stubs['androidx/annotation/NonNull.java']='package androidx.annotation; public @interface NonNull {}'
+    stubs['androidx/annotation/Nullable.java']='package androidx.annotation; public @interface Nullable {}'
+    stubs['com/waenhancer/utils/DiagnosticsRecorder.java']=r"""
+package com.waenhancer.utils;
+import android.content.Context;
+public final class DiagnosticsRecorder {
+ public static int changes;
+ public static void recordPreferenceChange(Context context,String key,boolean scoped,String operation) {
+  if(context==null||!"seentick".equals(key)||scoped||!"PUT".equals(operation))
+   throw new AssertionError("Unexpected manual-setting diagnostic contract");
+  changes++;
+ }
+ public static void recordSettingsTransfer(Context context,String kind,int count) {
+  throw new AssertionError("Unexpected settings transfer");
+ }
+}
+"""
     # Older standalone branches have fewer methods in their Android double.
     prefs=stubs['android/content/SharedPreferences.java']
     if 'getStringSet' not in prefs:
@@ -137,22 +165,23 @@ public void show(){shown++;}}'''
     with tempfile.TemporaryDirectory(prefix='waex_manual_persist_') as td:
         out=Path(td);sources=[]
         for name,content in stubs.items():
-            p=out/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(content);sources.append(str(p))
+            p=out/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(content,encoding='utf-8');sources.append(str(p))
         for rel in ('config/PreferenceSchema.java','config/PreferenceStores.java',
+                    'config/ExclusivePreferences.java',
                     'core/preferences/WaexPreferenceManager.java',
                     'ui/screens/settings/ManualSeenTickPreferencePolicy.java',
                     'ui/screens/settings/StyleBooleanAliasPolicy.java',
                     'ui/screens/settings/StyleNonBooleanPreferencePolicy.java'):
             sources.append(str(SRC/rel))
-        subprocess.run(['javac','--release','17','-d',td,*sources],check=True,timeout=60)
+        subprocess.run([tools['javac'],'--release','17','-d',td,*sources],check=True,timeout=60)
         # Production callback uses the module's localized, presentation-only warning.
         # Keep its exact body but provide explicit resource adapters for this JVM probe.
         import re
         ids=sorted(set(re.findall(r'R\.string\.([A-Za-z_][A-Za-z_0-9]*)',update)))
         r_stub='object R {object string {'+ ''.join(f'const val {name} = {0x7f060100+i};' for i,name in enumerate(ids))+'}}\n'
         ui_stub='object UiText {fun get(id:Int, fallback:String, vararg args:Any?):String = if(args.isEmpty()) fallback else String.format(java.util.Locale.US, fallback, *args)}\n'
-        kt=out/'TestManual.kt';kt.write_text(TEST.replace('__PRODUCTION__',update).replace('class Ui(',r_stub+ui_stub+'class Ui('))
+        kt=out/'TestManual.kt';kt.write_text(TEST.replace('__PRODUCTION__',update).replace('class Ui(',r_stub+ui_stub+'class Ui('),encoding='utf-8')
         jar=out/'test.jar'
-        subprocess.run(['kotlinc',str(kt),'-classpath',td,'-jvm-target','17','-include-runtime','-d',str(jar)],check=True,timeout=90)
-        subprocess.run(['java','-cp',str(jar)+os.pathsep+td,'TestManualKt'],check=True,timeout=60)
+        subprocess.run([tools['kotlinc'],str(kt),str(SRC/'ui/screens/settings/FloatingNavigationExclusivity.kt'),'-classpath',td,'-jvm-target','17','-include-runtime','-d',str(jar)],check=True,timeout=90)
+        subprocess.run([tools['java'],'-cp',str(jar)+os.pathsep+td,'TestManualKt'],check=True,timeout=60)
 if __name__=='__main__':main()
