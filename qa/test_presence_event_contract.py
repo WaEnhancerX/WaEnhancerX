@@ -55,10 +55,11 @@ assert 'setResult(' not in install and 'setThrowable(' not in install
 assert 'hookStatusViewedReceipt();' in text and 'hookOnInsertReceipt();' in text
 body = r"""
 import java.lang.reflect.*;import java.util.*;import java.util.concurrent.Executor;
+import java.util.function.BooleanSupplier;
 import com.waenhancer.xposed.features.automation.PresenceEventPolicy;
 import com.waenhancer.xposed.features.automation.PresenceStateStore;
 public class TestPresenceEventContract {
- static class R {static class string {static final int waex_ui_is_online_e0992fa5=1;}}
+ static class R {static class string {static final int waex_ui_is_online=1;}}
  static class UiText {static String get(int id, String fallback){return fallback;}}
  static int checks;
  static void check(boolean value,String label){checks++;if(!value)throw new AssertionError(label);System.out.println("PASS: "+label);}
