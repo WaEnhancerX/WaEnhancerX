@@ -47,6 +47,10 @@ for name, text in [("header", header), ("sheet", sheet), ("privacy", privacy)]:
 assert '/* onDndToggle    */ () -> promptDndModeSheet(activity)' in header
 assert 'if (id == MENU_ID_DND) {\n            if (activityObj instanceof Activity) {\n                promptDndModeSheet((Activity) activityObj);' in header
 assert header.count("promptDndModeSheet(") == 3, "unexpected DND dispatch path"
+# Both menu construction and dispatch must remain connected to the confirmation route.
+assert 'target.add(Menu.NONE, MENU_ID_DND, Menu.NONE,' in header, "missing shared DND menu builder"
+assert header.count('target.add(Menu.NONE, MENU_ID_DND, Menu.NONE,') == 1, "duplicate DND menu registration"
+assert 'item.setOnMenuItemClickListener(mi -> handleItemSelected(mi, activity));' in header, "menu bypasses confirmed dispatcher"
 assert 'isEnabled(PREF_KEY, false) || isEnabled("dndmode", false)' not in hook
 assert header.count('saveAndRestart(activity, "dnd_mode", !active)') == 1
 assert 'putBoolean("dnd_mode"' not in sheet, "quick sheet must not mutate DND before confirmation"
