@@ -1,0 +1,2 @@
+[Fixes]
+- Avoid duplicate hook-report requests when dashboard refreshes overlap.

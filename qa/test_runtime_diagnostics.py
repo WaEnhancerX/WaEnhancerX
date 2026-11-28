@@ -18,6 +18,8 @@ ROOT = Path(__file__).resolve().parents[1]
 JAVA = ROOT / 'app/src/main/java/com/waenhancer'
 
 def main():
+    from test_target_hook_sync import run_checks
+    run_checks(ROOT)
     for tool in ('kotlinc', 'java', 'javac', 'sh', 'grep'):
         if not shutil.which(tool):
             raise SystemExit('Required tool unavailable: ' + tool)
