@@ -265,7 +265,7 @@ def execute(root, out, deps, baseline, host_resources, runtime_jars, sdk_dir=Non
         argfile=out/'kotlinc.args'
         def arg_token(value):
             token=str(value).replace('\\','/')
-            return '"'+token.replace('"','\\"')+'"' if any(c.isspace() for c in token) else token
+            return '"'+token.replace('"','\\"')+'"'
         argfile.write_text('\n'.join(arg_token(value) for value in kotlin_args)+'\n',encoding='utf-8')
         kotlin_args=['@'+str(argfile)]
     run(['kotlinc',*kotlin_args],out/'kotlinc.log')

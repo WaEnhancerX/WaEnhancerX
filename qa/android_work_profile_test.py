@@ -159,8 +159,17 @@ public class FileProvider {
     # must depend only on its Android/OkHttp APIs and Kotlin runtime, without skip flags.
     production_cp = os.pathsep.join([str(classes), *[str(path) for path in jar_paths
         if path.name.startswith(('android-all-', 'okhttp-', 'okio-', 'kotlin-stdlib'))]])
-    run([compiler, '-jvm-target', '17', '-language-version', '2.0', '-classpath', production_cp,
-         '-d', str(classes), *map(str, kotlin_sources)], out / 'kotlinc-production.log')
+    kotlin_args = ['-jvm-target', '17', '-language-version', '2.0',
+                   '-classpath', production_cp, '-d', str(classes), *map(str, kotlin_sources)]
+    if os.name == 'nt':
+        # Preserve semicolon classpaths and source paths through the batch launcher.
+        argfile = out / 'kotlinc.args'
+        def arg_token(value):
+            token = str(value).replace('\\', '/')
+            return '"' + token.replace('"', '\\"') + '"'
+        argfile.write_text('\n'.join(arg_token(value) for value in kotlin_args) + '\n', encoding='utf-8')
+        kotlin_args = ['@' + str(argfile)]
+    run([compiler, *kotlin_args], out / 'kotlinc-production.log')
     run(['javac', '--release', '17', '-cp', runtime_cp, '-d', str(classes), str(test_dest)],
         out / 'javac-tests.log')
     opens = ['java.base/java.lang', 'java.base/java.util', 'java.base/java.io', 'java.base/java.net',
