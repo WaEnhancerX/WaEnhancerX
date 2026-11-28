@@ -1,8 +1,30 @@
 {
   "schema": 1,
   "channel": "nightly",
-  "updated_at": "2026-11-26T14:14:38Z",
+  "updated_at": "2026-11-28T06:57:48Z",
   "releases": [
+    {
+      "tag": "2.1.0-nightly.10",
+      "version_name": "2.1.0-nightly.10",
+      "version_code": 20100010,
+      "published_at": "2026-11-28T06:57:32Z",
+      "html_url": "https://github.com/WaEnhancerX/WaEnhancerX/releases/tag/2.1.0-nightly.10",
+      "assets": [
+        {
+          "name": "WaEnhancerX-v2.1.0-nightly.10_debug.apk",
+          "url": "https://github.com/WaEnhancerX/WaEnhancerX/releases/download/2.1.0-nightly.10/WaEnhancerX-v2.1.0-nightly.10_debug.apk",
+          "size": 8024329,
+          "sha256": "ce83729b14ecc84b0f592a004556e9e83b0178e34bb9fb4fba1bef0ce2c07b60"
+        },
+        {
+          "name": "WaEnhancerX-v2.1.0-nightly.10_release.apk",
+          "url": "https://github.com/WaEnhancerX/WaEnhancerX/releases/download/2.1.0-nightly.10/WaEnhancerX-v2.1.0-nightly.10_release.apk",
+          "size": 8120453,
+          "sha256": "b9aedecd508882e31a73abd6269e2b4b1cf0a7a208c1c9551b5e345ee4017fcc"
+        }
+      ],
+      "notes": "[Fixes]\n- Keep bubble color preview text and timestamps readable on mid-tone and transparent colors.\n- Respect an explicit Bubble Colors off setting even when an older enabled preference remains. Keep the legacy fallback when the current setting is absent.\n- Look up an edited message’s history when you open it. Scrolling past an edited row with an unknown original key skips its optional snapshot.\n- Keep host view parents and layout parameters intact when hiding Meta AI controls, so deferred search layouts can still inflate. Preserve shared search controls whose accessibility labels also mention Meta AI.\n- Keep unavailable process evidence and custom version allowances distinct from verified runtime compatibility.\n- Report SELinux mode only when it can be read reliably, and show Unknown when evidence is unavailable instead of assuming Enforcing or Permissive.\n- Recheck the mode during the background diagnostic collection when the fast snapshot cannot establish it.\n- Show the bubble color controls, restart hint and preview messages in Spanish and Latin American Spanish instead of falling back to English.\n- Anti-Delete Status now honors its saved switch when deciding whether to install and run the protection.\n\n[Improvements]\n- Use the older reflection API for custom chat-bubble color factory discovery, without depending on parameter-count backports.\n- Keep exception messages and stack details out of swallowed-hook diagnostics while preserving error categories, failure counts and rate limits.\n\nBuilt from commit 3553bc189b33a7ce6bfcbe0ec9856ad7b84a5637"
+    },
     {
       "tag": "2.1.0-nightly.9",
       "version_name": "2.1.0-nightly.9",
