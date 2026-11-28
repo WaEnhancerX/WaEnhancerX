@@ -62,12 +62,13 @@ internal object RootProbe {
     internal fun processListCommand(): String {
         val names = (DeclaredWhatsAppTargets.packages() + MODULE_PACKAGE_NAME)
             .joinToString("|") { it.replace(".", "\\.") }
-        return "(ps -A -o PID,NAME 2>/dev/null || ps 2>/dev/null) | grep -E ' ($names)[[:space:]]*$'"
+        return "{ processes=\$(ps -A -o PID,NAME 2>/dev/null) || processes=\$(ps 2>/dev/null); }" +
+            " && printf '%s\\n' \"\$processes\" | grep -E '[[:space:]]($names)[[:space:]]*$'"
     }
 
     fun run(context: Context): RootProbeResult {
         val script = LsposedScopeReader.stageCommand(context) +
-            "\necho $PS_BEGIN\n${processListCommand()}\necho $PS_END"
+            "\necho $PS_BEGIN\nif ${processListCommand()}; then echo $PS_END; fi"
         val startedAt = SystemClock.elapsedRealtime()
         val output = try { AppRestartHelper.runRootCommand(script).orEmpty() }
             catch (_: RuntimeException) { "" } catch (_: LinkageError) { "" }
@@ -76,11 +77,19 @@ internal object RootProbe {
     }
 
     internal fun parseRuntime(output: String, observedAt: Long): XposedRuntimeSnapshot? {
-        val begin = output.indexOf(PS_BEGIN)
-        val end = output.indexOf(PS_END)
-        if (begin < 0 || end < begin) return null // truncated: an incomplete list must not mean "not running"
-        val snapshot = parseProcessList(output.substring(begin + PS_BEGIN.length, end), observedAt)
-        return snapshot.takeIf { it.runningPids.isNotEmpty() }
+        val lines = output.lineSequence().map { it.trim() }.toList()
+        if (observedAt < 0 || lines.count { it == PS_BEGIN } != 1 || lines.count { it == PS_END } != 1) return null
+        val begin = lines.indexOf(PS_BEGIN)
+        val end = lines.indexOf(PS_END)
+        if (end <= begin) return null
+        val snapshot = parseProcessList(lines.subList(begin + 1, end).joinToString("\n"), observedAt)
+        val allowed = DeclaredWhatsAppTargets.packages() + MODULE_PACKAGE_NAME
+        // A successful filtered list must include the manager process itself. Missing,
+        // malformed, or truncated evidence is unknown rather than a proof of absence.
+        return snapshot.takeIf {
+            it.complete && it.runningPids[MODULE_PACKAGE_NAME]?.isNotEmpty() == true &&
+                it.runningPids.keys.all(allowed::contains)
+        }?.copy(exhaustive = false, observedPackages = java.util.Collections.unmodifiableSet(allowed))
     }
 }
 

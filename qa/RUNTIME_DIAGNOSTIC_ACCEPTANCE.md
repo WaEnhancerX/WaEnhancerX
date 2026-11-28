@@ -1,5 +1,11 @@
 # Target identity and runtime evidence acceptance
 
+> The earlier heartbeat/observation-clock sections below are historical. The
+> current candidate contract appears under “Local candidate: current on-demand
+> runtime contract”. Those historical timings and test counts do not validate
+> this candidate. The C52/C60 controls and C62 declared-targets companion remain
+> intact; the separate stability/CI reconciliation does not replace this suite.
+
 The manager's active-module indicator, the host's version-policy decision, its
 stored initialization report, and evidence of a recently running injected process
 are different observations. None certifies every feature.
@@ -84,3 +90,22 @@ controls. The shell uses a fake pidof and does not run Android root. A separate
 framework runner compiles public utilities and the lifecycle clock against real
 Android/Compose dependencies and exercises compiled release/debug resources.
 These do not replace a full WAEX build or HMA, Binder, Vector and LSPosed acceptance.
+
+
+## Local candidate: current on-demand runtime contract
+
+The current upstream implementation retired the heartbeat clock. The historical
+heartbeat assertions above are retained as provenance, not requirements silently
+applied to this different implementation. The current QA compiles the actual
+classifier, inspector, presentation, version validator/guard and exact RootProbe
+and data-model excerpts; the original failed historical test remains recorded.
+Policy tests use controlled rules and check each actual source rule separately.
+Filtered process observations require a unique completed frame, positive unique
+PIDs and the manager row. Failure/malformed/truncated results are unknown, not
+absence. Only explicitly covered packages may be reported absent. Root command
+completion requires successful ps and filtering; fake ps exercises errors and
+fallbacks without Android root. Current custom rules and unknown target evidence
+are not certified by the presentation. UI wiring guards are source-only.
+PID reuse, report binding, actual APK lifecycle, Binder, physical framework and
+Compose behavior still require runtime acceptance; these tests do not certify
+those. HookErrors redaction has a separate executable regression.

@@ -1,0 +1,2 @@
+[Fixes]
+- Keep unavailable process evidence and custom version allowances distinct from verified runtime compatibility.
