@@ -2,7 +2,8 @@
   "schema": 1,
   "channel": "nightly",
   "fragments": [
-    "bubble-color-preview-contrast.txt"
+    "bubble-color-preview-contrast.txt",
+    "bubble-reflection-android24.txt"
   ],
-  "notes": "[Fixes]\n- Keep bubble color preview text and timestamps readable on mid-tone and transparent colors.\n"
+  "notes": "[Fixes]\n- Keep bubble color preview text and timestamps readable on mid-tone and transparent colors.\n\n[Improvements]\n- Use the older reflection API for custom chat-bubble color factory discovery, without depending on parameter-count backports.\n"
 }
