@@ -1,0 +1,6 @@
+[Fixes]
+- Cancel preview downloads and discard late media results after closing or replacing the preview.
+- Keep temporary files and playback resources owned by the preview that created them.
+
+[Improvements]
+- Bound pending preview work and coalesce progress updates.
