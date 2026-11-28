@@ -3,6 +3,9 @@ package com.waenhancer.xposed.features.privacy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.fail;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
@@ -13,6 +16,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Test;
 
 public class ContactListSanitizerTest {
@@ -164,7 +173,7 @@ public class ContactListSanitizerTest {
     }
 
     @Test
-    public void listsAlreadyCleanedAreNotScannedAgain() {
+    public void previouslyCleanedListsAreRescanned() {
         Set<String> locked = new HashSet<>(Collections.singleton("locked@s.whatsapp.net"));
         Results results = new Results(
                 rows("a@s.whatsapp.net", "locked@s.whatsapp.net"),
@@ -181,7 +190,7 @@ public class ContactListSanitizerTest {
 
         // A second hooked method of the same picker load receives the same holder.
         ContactListSanitizer.scrub(new Object[]{results}, locked, counting);
-        assertEquals("no identity work on the second visit", afterFirst, calls[0]);
+        assertEquals("each of the three remaining rows is rechecked", afterFirst + 3, calls[0]);
 
         // A different locked set (the user locked another chat) must re-check everything.
         Set<String> changed = new HashSet<>(Arrays.asList("locked@s.whatsapp.net", "b@s.whatsapp.net"));
@@ -219,5 +228,270 @@ public class ContactListSanitizerTest {
         assertFalse(ContactListSanitizer.isResultsHolder(Row.class, 1));
         assertFalse(ContactListSanitizer.isResultsHolder(String.class, 1));
         assertFalse(ContactListSanitizer.isResultsHolder(ArrayList.class, 1));
+    }
+
+    static final class MutableRow {
+        Object identity;
+        MutableRow(String raw) { identity = new Jid(raw); }
+    }
+
+    static final class OneList {
+        List<Object> list;
+        OneList(List<Object> list) { this.list = list; }
+    }
+
+    public static final class ChangingJid {
+        int calls;
+        public String getRawString() {
+            return ++calls == 1 ? "open@s.whatsapp.net" : "locked@s.whatsapp.net";
+        }
+    }
+
+    public static final class RecoveringJid {
+        int calls;
+        public String getRawString() {
+            if (++calls == 1) throw new IllegalStateException("synthetic unavailable identity");
+            return "locked@s.whatsapp.net";
+        }
+    }
+
+    @Test
+    public void sameSizeReplacementInPreviouslyCleanListIsFiltered() {
+        List<Object> source = rows("open@s.whatsapp.net");
+        Object[] args = {source};
+        ContactListSanitizer.scrub(args, LOCKED, ContactListSanitizerTest::ids);
+        source.set(0, new Row("locked@s.whatsapp.net", "replacement"));
+
+        ContactListSanitizer.Result outcome =
+                ContactListSanitizer.scrub(args, LOCKED, ContactListSanitizerTest::ids);
+
+        assertEquals(1, outcome.removedContacts);
+        assertEquals(0, ((List<?>) args[0]).size());
+        assertEquals(1, source.size());
+    }
+
+    @Test
+    public void previouslyInstalledFilteredCopyIsRecheckedAfterReplacement() {
+        Object[] args = {rows("locked@s.whatsapp.net", "open@s.whatsapp.net")};
+        ContactListSanitizer.scrub(args, LOCKED, ContactListSanitizerTest::ids);
+        @SuppressWarnings("unchecked")
+        List<Object> filtered = (List<Object>) args[0];
+        filtered.set(0, new Row("locked@s.whatsapp.net", "replacement"));
+
+        ContactListSanitizer.Result outcome =
+                ContactListSanitizer.scrub(args, LOCKED, ContactListSanitizerTest::ids);
+
+        assertEquals(1, outcome.removedContacts);
+        assertEquals(0, ((List<?>) args[0]).size());
+        assertEquals(1, filtered.size());
+    }
+
+    @Test
+    public void holderFieldIsRecheckedAfterSameSizeReplacement() {
+        OneList holder = new OneList(rows("open@s.whatsapp.net"));
+        Object[] args = {holder};
+        ContactListSanitizer.scrub(args, LOCKED, ContactListSanitizerTest::ids);
+        holder.list.set(0, new Row("locked@s.whatsapp.net", "replacement"));
+
+        ContactListSanitizer.Result outcome =
+                ContactListSanitizer.scrub(args, LOCKED, ContactListSanitizerTest::ids);
+
+        assertSame(holder, args[0]);
+        assertEquals(1, outcome.removedContacts);
+        assertTrue(holder.list.isEmpty());
+    }
+
+    @Test
+    public void unmodifiableListWithChangedNestedIdentityIsRechecked() {
+        MutableRow row = new MutableRow("open@s.whatsapp.net");
+        List<Object> source = Collections.singletonList(row);
+        Object[] args = {source};
+        ContactListSanitizer.scrub(args, LOCKED, ContactListSanitizerTest::ids);
+        row.identity = new Jid("locked@s.whatsapp.net");
+
+        ContactListSanitizer.Result outcome =
+                ContactListSanitizer.scrub(args, LOCKED, ContactListSanitizerTest::ids);
+
+        assertEquals(1, outcome.removedContacts);
+        assertEquals(0, ((List<?>) args[0]).size());
+        assertSame(row, source.get(0));
+    }
+
+    @Test
+    public void changedMembershipInSameSetInstanceIsRechecked() {
+        // A generic scrub contract control; LockedChatIds publishes unmodifiable snapshots.
+        Set<String> locked = new HashSet<>(LOCKED);
+        List<Object> source = rows("open@s.whatsapp.net");
+        Object[] args = {source};
+        ContactListSanitizer.scrub(args, locked, ContactListSanitizerTest::ids);
+        locked.clear();
+        locked.add("open@s.whatsapp.net");
+
+        ContactListSanitizer.Result outcome =
+                ContactListSanitizer.scrub(args, locked, ContactListSanitizerTest::ids);
+
+        assertEquals(1, outcome.removedContacts);
+        assertTrue(((List<?>) args[0]).isEmpty());
+    }
+
+    @Test
+    public void dirtyAliasesReceiveIndependentCopiesWithoutMutatingSource() {
+        Object unknown = new Object();
+        Row open = new Row("open@s.whatsapp.net", "open");
+        Row locked = new Row("locked@s.whatsapp.net", "locked");
+        List<Object> source = Collections.unmodifiableList(
+                Arrays.asList(unknown, open, locked, open, locked, null));
+        OneList holder = new OneList(source);
+        Object[] args = {source, holder};
+
+        ContactListSanitizer.Result outcome =
+                ContactListSanitizer.scrub(args, LOCKED, ContactListSanitizerTest::ids);
+
+        assertEquals(Arrays.asList(unknown, open, open, null), args[0]);
+        assertEquals(Arrays.asList(unknown, open, open, null), holder.list);
+        assertNotSame(args[0], holder.list);
+        assertEquals(6, source.size());
+        assertSame(locked, source.get(2));
+        assertSame(locked, source.get(4));
+        assertEquals(4, outcome.removedContacts);
+        assertEquals(2, outcome.cleanedLists);
+        assertEquals(12, outcome.rowsSeen);
+        assertEquals(8, outcome.rowsIdentified);
+    }
+
+    @Test
+    public void aliasesAreRecheckedWithinTheSameScrub() {
+        ChangingJid row = new ChangingJid();
+        List<Object> source = Collections.singletonList(row);
+        Object[] args = {source, source};
+
+        ContactListSanitizer.Result outcome =
+                ContactListSanitizer.scrub(args, LOCKED, ContactListSanitizerTest::ids);
+
+        assertSame(source, args[0]);
+        assertTrue(((List<?>) args[1]).isEmpty());
+        assertEquals(2, row.calls);
+        assertEquals(2, outcome.rowsSeen);
+        assertEquals(1, outcome.removedContacts);
+    }
+
+    @Test
+    public void identityGetterFailureDoesNotCacheUnknownAsClean() {
+        RecoveringJid row = new RecoveringJid();
+        List<Object> source = Collections.singletonList(row);
+        Object[] args = {source};
+        ContactListSanitizer.Result first =
+                ContactListSanitizer.scrub(args, LOCKED, ContactListSanitizerTest::ids);
+        assertSame(source, args[0]);
+        assertEquals(0, first.rowsIdentified);
+
+        ContactListSanitizer.Result second =
+                ContactListSanitizer.scrub(args, LOCKED, ContactListSanitizerTest::ids);
+
+        assertTrue(((List<?>) args[0]).isEmpty());
+        assertEquals(1, second.removedContacts);
+        assertEquals(2, row.calls);
+    }
+
+    @Test
+    public void holderCallbackFailureKeepsFieldAndContinuesWithLaterArgument() {
+        Object sentinel = new Object();
+        List<Object> original = Collections.singletonList(sentinel);
+        OneList holder = new OneList(original);
+        Object[] args = {holder, rows("locked@s.whatsapp.net")};
+        Function<Object, Collection<String>> extractor = row -> {
+            if (row == sentinel) throw new IllegalStateException("synthetic callback failure");
+            return ids(row);
+        };
+
+        ContactListSanitizer.Result outcome = ContactListSanitizer.scrub(args, LOCKED, extractor);
+
+        assertSame(original, holder.list);
+        assertTrue(((List<?>) args[1]).isEmpty());
+        assertEquals(1, outcome.removedContacts);
+        assertEquals(1, outcome.rowsSeen);
+    }
+
+    @Test
+    public void bareArgumentCallbackFailureStillPropagates() {
+        RuntimeException failure = new IllegalStateException("synthetic callback failure");
+        List<Object> original = Collections.singletonList(new Object());
+        Object[] args = {original};
+        try {
+            ContactListSanitizer.scrub(args, LOCKED, row -> { throw failure; });
+            fail("a bare-argument callback failure must propagate");
+        } catch (RuntimeException caught) {
+            assertSame(failure, caught);
+        }
+        assertSame(original, args[0]);
+    }
+
+    @Test(timeout = 10000)
+    public void rechecksAfterExplicitCrossThreadHandoff() throws Exception {
+        MutableRow row = new MutableRow("open@s.whatsapp.net");
+        List<Object> source = Collections.singletonList(row);
+        Object[] args = {source};
+        CountDownLatch firstFinished = new CountDownLatch(1);
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicReference<ContactListSanitizer.Result> second = new AtomicReference<>();
+        Thread first = new Thread(() -> {
+            try {
+                ContactListSanitizer.scrub(args, LOCKED, ContactListSanitizerTest::ids);
+            } catch (Throwable error) {
+                failure.set(error);
+            } finally {
+                firstFinished.countDown();
+            }
+        });
+        Thread next = new Thread(() -> {
+            try {
+                firstFinished.await();
+                row.identity = new Jid("locked@s.whatsapp.net");
+                second.set(ContactListSanitizer.scrub(args, LOCKED, ContactListSanitizerTest::ids));
+            } catch (Throwable error) {
+                failure.set(error);
+            }
+        });
+        first.start();
+        next.start();
+        first.join();
+        next.join();
+        assertNull(failure.get());
+        assertEquals(1, second.get().removedContacts);
+        assertTrue(((List<?>) args[0]).isEmpty());
+        assertSame(row, source.get(0));
+    }
+
+    @Test(timeout = 10000)
+    public void simultaneousIndependentScrubsKeepResultsLocal() throws Exception {
+        ExecutorService workers = Executors.newFixedThreadPool(4);
+        try {
+            List<Callable<Boolean>> tasks = new ArrayList<>();
+            for (int i = 0; i < 24; i++) {
+                tasks.add(() -> {
+                    Object[] args = {rows("open@s.whatsapp.net", "locked@s.whatsapp.net")};
+                    ContactListSanitizer.Result outcome =
+                            ContactListSanitizer.scrub(args, LOCKED, ContactListSanitizerTest::ids);
+                    return outcome.rowsSeen == 2 && outcome.rowsIdentified == 2
+                            && outcome.removedContacts == 1 && outcome.cleanedLists == 1
+                            && ((List<?>) args[0]).size() == 1;
+                });
+            }
+            for (Future<Boolean> result : workers.invokeAll(tasks)) assertTrue(result.get());
+        } finally {
+            workers.shutdownNow();
+        }
+    }
+
+    @Test
+    public void nullAndEmptyInputsDoNotInvokeIdentityExtraction() {
+        Function<Object, Collection<String>> forbidden = row -> {
+            throw new AssertionError("identity extraction should not run");
+        };
+        assertEquals(0, ContactListSanitizer.scrub(null, LOCKED, forbidden).rowsSeen);
+        assertEquals(0, ContactListSanitizer.scrub(new Object[]{rows("open@s.whatsapp.net")},
+                null, forbidden).rowsSeen);
+        assertEquals(0, ContactListSanitizer.scrub(new Object[]{Collections.emptyList()},
+                LOCKED, forbidden).rowsSeen);
     }
 }
