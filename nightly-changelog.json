@@ -5,7 +5,8 @@
     "bubble-color-preview-contrast.txt",
     "bubble-color-toggle-precedence.txt",
     "bubble-reflection-android24.txt",
+    "meta-ai-search-hierarchy.txt",
     "runtime-evidence-accuracy.txt"
   ],
-  "notes": "[Fixes]\n- Keep bubble color preview text and timestamps readable on mid-tone and transparent colors.\n- Respect an explicit Bubble Colors off setting even when an older enabled preference remains. Keep the legacy fallback when the current setting is absent.\n- Keep unavailable process evidence and custom version allowances distinct from verified runtime compatibility.\n\n[Improvements]\n- Use the older reflection API for custom chat-bubble color factory discovery, without depending on parameter-count backports.\n"
+  "notes": "[Fixes]\n- Keep bubble color preview text and timestamps readable on mid-tone and transparent colors.\n- Respect an explicit Bubble Colors off setting even when an older enabled preference remains. Keep the legacy fallback when the current setting is absent.\n- Keep host view parents and layout parameters intact when hiding Meta AI controls, so deferred search layouts can still inflate. Preserve shared search controls whose accessibility labels also mention Meta AI.\n- Keep unavailable process evidence and custom version allowances distinct from verified runtime compatibility.\n\n[Improvements]\n- Use the older reflection API for custom chat-bubble color factory discovery, without depending on parameter-count backports.\n"
 }
