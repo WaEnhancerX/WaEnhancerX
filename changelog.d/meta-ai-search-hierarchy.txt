@@ -1,4 +1,0 @@
-[Fixes]
-- Keep host view parents and layout parameters intact when hiding Meta AI controls,
-  so deferred search layouts can still inflate. Preserve shared search controls
-  whose accessibility labels also mention Meta AI.

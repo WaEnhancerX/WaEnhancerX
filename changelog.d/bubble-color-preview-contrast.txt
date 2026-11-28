@@ -1,2 +1,0 @@
-[Fixes]
-- Keep bubble color preview text and timestamps readable on mid-tone and transparent colors.

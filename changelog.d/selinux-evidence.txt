@@ -1,5 +1,0 @@
-[Fixes]
-- Report SELinux mode only when it can be read reliably, and show Unknown
-  when evidence is unavailable instead of assuming Enforcing or Permissive.
-- Recheck the mode during the background diagnostic collection when the fast
-  snapshot cannot establish it.

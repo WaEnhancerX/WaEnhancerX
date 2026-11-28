@@ -1,3 +1,0 @@
-[Improvements]
-- Keep exception messages and stack details out of swallowed-hook diagnostics
-  while preserving error categories, failure counts and rate limits.

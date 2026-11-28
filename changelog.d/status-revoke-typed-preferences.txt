@@ -1,2 +1,0 @@
-[Fixes]
-- Anti-Delete Status now honors its saved switch when deciding whether to install and run the protection.
