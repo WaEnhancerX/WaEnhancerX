@@ -31,7 +31,9 @@ for unsafe in ['putString("anti_revoke_indicator",', 'putString("deleted_message
 # Existing hooks read canonical INT values or legacy String values without loss.
 assert 'prefs.getInt("deleted_message_color",' in hook
 assert 'prefs.getInt("anti_revoke_indicator", 2)' in hook
-assert 'prefs.getAll().get("antirevokestatus")' in hook
+# The shared live reader preserves the STRING setting and current target scope;
+# the compiled bridge suite below checks the actual hook and registry decisions.
+assert 'return getPrivacy().flag("antirevokestatus");' in hook
 with tempfile.TemporaryDirectory(prefix='waex_deleted_indicator_') as output:
     subprocess.run(['javac', '--release', '17', '-d', output,
                     str(SRC/'ui/screens/privacy/DeletedIndicatorPreferencePolicy.java'),

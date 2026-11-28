@@ -2587,7 +2587,8 @@ public class AntiRevokeHook extends BaseFeature {
     }
 
     private boolean isAntiRevokeStatusEnabled() {
-        return isEnabled("antirevokestatus", false);
+        // The Privacy UI stores this setting as STRING "1" / "0".
+        return getPrivacy().flag("antirevokestatus");
     }
 
     private boolean isColorDeletedMessagesEnabled() {
