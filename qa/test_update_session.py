@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import Path
-import subprocess,tempfile,argparse
+import subprocess,tempfile,argparse,shutil
 ROOT=Path(__file__).resolve().parents[1]
 FILES={'Call.kt': 'package okhttp3\ninterface Call{fun cancel();fun isCanceled():Boolean}\nclass FakeCall:Call{var cancelled=false;override fun cancel(){cancelled=true};override fun isCanceled()=cancelled}', 'Toast.kt': 'package android.widget\nclass Toast {fun show(){shows++};companion object{const val LENGTH_LONG=1;var shows=0;fun makeText(c:checks.Context,t:String,d:Int)=Toast()}}', 'Downloader.kt': 'package com.waenhancer.update\nimport okhttp3.*\nimport java.io.File\nobject UpdateDownloader {\n interface DownloadCallback{fun onProgress(progress:Int,currentBytes:Long,totalBytes:Long);fun onSuccess(apkFile:File);fun onFailure(error:Exception)}\n lateinit var callback:DownloadCallback;var installs=0;var rootInstalls=0;lateinit var call:FakeCall\n fun downloadApk(c:checks.Context,u:String,v:String,b:DownloadCallback,h:String?,s:Long):Call {callback=b;call=FakeCall();return call}\n fun installApk(c:checks.Context,f:File,v:String){check(f.exists());installs++}\n fun installApkWithRoot(c:checks.Context,f:File,v:String){check(f.exists());rootInstalls++}\n}'}
 PROGRAM = ('package checks\n'
@@ -69,17 +69,28 @@ def block(s,m):
  raise ValueError(m)
 def main():
  p=argparse.ArgumentParser();p.add_argument('--root',type=Path,default=ROOT);a=p.parse_args();j=a.root/'app/src/main/java/com/waenhancer';s=(j/'ui/components/UpdateDownloadSheet.kt').read_text()
- effect=block(s,'DisposableEffect(session)');cancel=block(s,'OutlinedButton(onClick = ')[len('OutlinedButton(onClick = '):]
+ effect=block(s,'DisposableEffect(session)')
+ assert s.count('WaexSheetTextButton(')==1, 'Expected the unique production cancellation button'
+ button=s[s.index('WaexSheetTextButton('):]
+ cancel=block(button,'onClick = ')[len('onClick = '):]
  import re
  ids=sorted(set(re.findall(r'R\.string\.([A-Za-z_][A-Za-z_0-9]*)',effect+cancel)))
  r_stub='object R {object string {'+ ''.join(f'const val {name} = {0x7f060100+i};' for i,name in enumerate(ids))+'}}\n'
  ui_stub='object UiText {fun get(id:Int, fallback:String, vararg args:Any?):String = if(args.isEmpty()) fallback else String.format(java.util.Locale.US, fallback, *args)}\n'
  files=dict(FILES);files['Session.kt']=(j/'update/UpdateDownloadSession.kt').read_text()
+ # Network-error presentation is outside this cancellation fixture. A stale
+ # callback reaching it is a test failure, never a permissive replacement UI.
+ files['NetworkErrorBoundary.kt']='''package checks
+object NetworkErrorCenter {
+ fun isNetworkError(error:Throwable):Boolean=throw AssertionError("Cancelled failure reached network presentation")
+ fun show(error:Throwable):Nothing=throw AssertionError("Cancelled failure reached network presentation")
+}
+'''
  files['Checks.kt']=PROGRAM.replace('EFFECT',effect).replace('CANCEL',cancel).replace('class Context\n',r_stub+ui_stub+'class Context\n')
  with tempfile.TemporaryDirectory(prefix='waex-session-') as d:
   out=Path(d)
   for n,v in files.items():(out/n).write_text(v)
-  subprocess.run(['kotlinc','-nowarn','-language-version','2.0',*map(str,out.glob('*.kt')),'-include-runtime','-d',str(out/'test.jar')],check=True,timeout=90)
+  subprocess.run([shutil.which('kotlinc') or 'kotlinc','-nowarn','-language-version','2.0',*map(str,out.glob('*.kt')),'-include-runtime','-d',str(out/'test.jar')],check=True,timeout=90)
   print('COMPILE_OK',flush=True);subprocess.run(['java','-jar',str(out/'test.jar')],check=True,timeout=30)
  for n in ['ui/navigation/Navigation.kt','ui/screens/settings/ReleaseDetailsScreen.kt','ui/screens/settings/ChangelogScreen.kt']:
   code=(j/n).read_text();assert 'expectedSha256 =' in code and 'expectedSize =' in code,n
