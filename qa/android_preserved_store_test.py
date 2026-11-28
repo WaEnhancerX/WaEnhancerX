@@ -135,7 +135,18 @@ object VaultRowKey {
     # internals may use a newer Kotlin metadata version than the app compiler.
     production_cp = os.pathsep.join([str(classes), str(android), str(kotlin_runtime)])
     run(['javac', '--release', '17', '-cp', cp, '-d', str(classes), str(staged[0]), str(staged[2]), *map(str, support)], out / 'javac-production.log')
-    run([compiler, '-jvm-target', '17', '-classpath', production_cp, '-d', str(classes), str(staged[1]), str(row_key)], out / 'kotlinc-production.log')
+    kotlin_args = ['-jvm-target', '17', '-classpath', production_cp,
+                   '-d', str(classes), str(staged[1]), str(row_key)]
+    if os.name == 'nt':
+        # As in the presence fixture, keep semicolons out of the batch launcher.
+        # Kotlin reads the original classpath and source list from its argument file.
+        argfile = out / 'kotlinc.args'
+        def arg_token(value):
+            token = str(value).replace('\\', '/')
+            return '"' + token.replace('"', '\\"') + '"' if any(c.isspace() for c in token) else token
+        argfile.write_text('\n'.join(arg_token(value) for value in kotlin_args) + '\n', encoding='utf-8')
+        kotlin_args = ['@' + str(argfile)]
+    run([compiler, *kotlin_args], out / 'kotlinc-production.log')
     run(['javac', '--release', '17', '-cp', classpath, '-d', str(classes), str(test_dest)], out / 'javac-tests.log')
     opens = ['java.base/java.lang', 'java.base/java.util', 'java.base/java.io', 'java.base/java.net',
              'java.base/java.security', 'java.base/java.text', 'java.base/jdk.internal.access',
