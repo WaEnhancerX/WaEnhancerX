@@ -10,6 +10,7 @@ public final class TestStyleBooleanAliasPolicy {
     }
     public static void main(String[] args) {
         String[][] aliases = {
+                {"bubble_colors", "bubble_color"},
                 {"custom_time_format", "segundos"},
                 {"custom_toolbar", "novaconfig"},
                 {"instagram_status_layout", "igstatus"},
@@ -20,7 +21,7 @@ public final class TestStyleBooleanAliasPolicy {
             check(item[1].equals(StyleBooleanAliasPolicy.canonicalKey(item[1])), "canonical idempotence");
         }
         for (String key : new String[]{"custom_theme", "custom_view_dpi", "chat_filters",
-                "hide_ui_tabs", "quick_home_menu", "seen_tick_customization", "bubble_colors",
+                "hide_ui_tabs", "quick_home_menu", "seen_tick_customization",
                 "seentick", "disable_sensor_proximity", "separate_groups_tabs",
                 "send_audio_as_voice_status", "voice_status_enhancement", ""}) {
             check(key.equals(StyleBooleanAliasPolicy.canonicalKey(key)), "must not corrupt non-Boolean setting " + key);
