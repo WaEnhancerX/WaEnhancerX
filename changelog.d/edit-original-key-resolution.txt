@@ -1,0 +1,1 @@
+Reject ambiguous edited-message key lookups, retry when edit metadata appears later, and discard incomplete reads before caching an original key.

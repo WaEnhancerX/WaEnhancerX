@@ -49,6 +49,7 @@ object MessageStore {
     fun findMsgstoreDbFile(context: Context) = java.io.File("synthetic.db")
 }
 class Cursor(private val value: String?) : AutoCloseable {
+    val count: Int get() = if (value == null) 0 else 1
     fun moveToFirst() = value != null
     fun getString(index: Int): String? { check(index == 0); return value }
     override fun close() {}
@@ -186,8 +187,24 @@ fun main(args: Array<String>) {
         checkCase(callback.opened.single().key == "first-chat", "keyed history remains accessible without row lookup")
         row.visibleText = null
         callback.afterHookedMethod(MethodHookParam(first, arrayOf(0), row)); row.label.click()
-        checkCase(SQLiteDatabase.queries == 1 && callback.opened.last().key == "first-chat",
-                  "a definitive miss must reuse the input key without repeating the lookup")
+        checkCase(SQLiteDatabase.queries == 2 && callback.opened.last().key == "first-chat",
+                  "an unresolved explicit click must retry without changing the input-key fallback")
+        val retrying = Callback(first)
+        val late = Adapter(Message(93, "late-alias", "body"))
+        val lateRow = ViewGroup()
+        retrying.afterHookedMethod(MethodHookParam(late, arrayOf(0), lateRow)); lateRow.label.click()
+        checkCase(retrying.opened.single().key == "late-alias", "missing edit keeps the existing click fallback")
+        val afterMiss = SQLiteDatabase.queries
+        repeat(25) { retrying.afterHookedMethod(MethodHookParam(late, arrayOf(0), lateRow)) }
+        checkCase(SQLiteDatabase.queries == afterMiss && retrying.bindingOpens == 0, "an unresolved alias is retried only by an explicit click")
+        SQLiteDatabase.aliases["late-alias"] = "late-original"
+        lateRow.label.click()
+        checkCase(retrying.opened.last().key == "late-original" && SQLiteDatabase.queries == afterMiss + 1,
+                  "a later explicit click discovers newly committed edit metadata")
+        retrying.afterHookedMethod(MethodHookParam(late, arrayOf(0), lateRow)); lateRow.label.click()
+        checkCase(SQLiteDatabase.queries == afterMiss + 1 && retrying.opened.last().key == "late-original",
+                  "a confirmed later alias retains query-free warm binding and click")
+        checkCase(retrying.dbQueries == 0 && retrying.editStore.queued == 0, "retry path performs no storage IO in binding or persistence on click")
         println("PASS: $checks callback query checks; 10,000 cold getView calls, ${callback.dbQueries} DB queries")
         if (args.single() == "queries") return
         callback.opened.clear()

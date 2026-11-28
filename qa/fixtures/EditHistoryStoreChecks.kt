@@ -273,6 +273,94 @@ fun main(args: Array<String>) {
         store.recordTransition(0, "unresolved-key", null, "still-unresolved", 40001)
         checkCase(db.insertCalls == 4, "unresolved same-text retry remains idempotent")
     }
+    if (scenario == "original_key_duplicates" || scenario == "all") {
+        val positive = newStore()
+        var host = SQLiteDatabase()
+        SQLiteDatabase.host = host
+        host.rows("message").add(row(1, "edit-key", "edited"))
+        host.rows("message_edit_info").add(mutableMapOf("message_row_id" to 1L, "original_key_id" to "original-key"))
+        checkCase(positive.resolveOriginalKey("edit-key") == "original-key", "unique edit resolves its original key")
+        checkCase(positive.cachedOriginalKey("edit-key") == "original-key", "only a confirmed alias is cached")
+        checkCase(positive.resolveOriginalKey("edit-key") == "original-key" && host.originalKeyQueryCalls == 1,
+            "confirmed alias retains the existing query-free cache hit")
+        checkCase(host.openCount == 1 && host.closeCount == 1, "positive lookup closes its host DB")
+
+        for (kind in listOf("different-originals", "same-original", "one-unlinked", "both-unlinked", "duplicate-edit-rows")) {
+            for (reverse in listOf(false, true)) {
+                val store = newStore()
+                host = SQLiteDatabase()
+                SQLiteDatabase.host = host
+                host.rows("message").add(row(1, "collision", "first"))
+                if (kind != "duplicate-edit-rows") host.rows("message").add(row(2, "collision", "second"))
+                if (kind != "both-unlinked") {
+                    host.rows("message_edit_info").add(mutableMapOf("message_row_id" to 1L, "original_key_id" to "first-original"))
+                }
+                when (kind) {
+                    "different-originals", "same-original" -> host.rows("message_edit_info").add(mutableMapOf(
+                        "message_row_id" to 2L, "original_key_id" to if (kind == "same-original") "first-original" else "second-original"))
+                    "duplicate-edit-rows" -> host.rows("message_edit_info").add(mutableMapOf(
+                        "message_row_id" to 1L, "original_key_id" to "second-original"))
+                }
+                if (reverse) {
+                    host.rows("message").reverse()
+                    host.rows("message_edit_info").reverse()
+                }
+                checkCase(store.resolveOriginalKey("collision") == "collision", "$kind/$reverse must not choose a first alias")
+                checkCase(store.cachedOriginalKey("collision") == null, "$kind/$reverse ambiguity must not be memoized")
+                checkCase(host.openCount == 1 && host.closeCount == 1, "$kind/$reverse closes its host DB")
+                checkCase(host.insertCalls == 0 && SQLiteOpenHelper.nextDatabase.insertCalls == 0,
+                    "$kind/$reverse lookup performs no host or history writes")
+            }
+        }
+    }
+    if (scenario == "original_key_retry" || scenario == "all") {
+        for (kind in listOf("absent-message", "missing-info", "null-original", "empty-original", "blank-original")) {
+            val store = newStore()
+            val host = SQLiteDatabase()
+            SQLiteDatabase.host = host
+            if (kind != "absent-message") host.rows("message").add(row(1, "later-edit", "text"))
+            if (kind !in listOf("absent-message", "missing-info")) {
+                val original = when (kind) { "null-original" -> null; "empty-original" -> ""; else -> "   " }
+                host.rows("message_edit_info").add(mutableMapOf("message_row_id" to 1L, "original_key_id" to original))
+            }
+            checkCase(store.resolveOriginalKey("later-edit") == "later-edit", "$kind remains unresolved")
+            checkCase(store.cachedOriginalKey("later-edit") == null, "$kind cannot become a permanent miss")
+            if (kind == "absent-message") host.rows("message").add(row(1, "later-edit", "text"))
+            host.rows("message_edit_info").clear()
+            host.rows("message_edit_info").add(mutableMapOf("message_row_id" to 1L, "original_key_id" to "now-committed"))
+            checkCase(store.resolveOriginalKey("later-edit") == "now-committed", "$kind retries after the edit appears")
+            checkCase(store.cachedOriginalKey("later-edit") == "now-committed", "$kind publishes the later confirmed alias")
+            checkCase(host.originalKeyQueryCalls == 2 && host.openCount == host.closeCount,
+                "$kind retries exactly once and closes both DB handles")
+        }
+    }
+    if (scenario == "original_key_failures" || scenario == "all") {
+        for (failure in listOf("cursor-close", "db-close", "query", "open", "count", "first", "text")) {
+            val store = newStore()
+            val host = SQLiteDatabase()
+            SQLiteDatabase.host = host
+            host.rows("message").add(row(1, "fault-key", "text"))
+            host.rows("message_edit_info").add(mutableMapOf("message_row_id" to 1L, "original_key_id" to "confirmed-original"))
+            when (failure) {
+                "cursor-close" -> Cursor.failClose = true
+                "db-close" -> host.failClose = true
+                "query" -> host.rejectOriginalKeyQuery = true
+                "open" -> host.failOpen = true
+                "count" -> Cursor.failCount = true
+                "first" -> Cursor.failFirst = true
+                "text" -> Cursor.failString = true
+            }
+            val resolved = try { store.resolveOriginalKey("fault-key") } finally {
+                Cursor.failClose = false; Cursor.failCount = false; Cursor.failFirst = false; Cursor.failString = false
+                host.failClose = false; host.rejectOriginalKeyQuery = false; host.failOpen = false
+            }
+            checkCase(resolved == "fault-key", "$failure must not publish a candidate alias")
+            checkCase(store.cachedOriginalKey("fault-key") == null, "$failure must not poison the alias cache")
+            checkCase(host.openCount == host.closeCount, "$failure attempts closure for every opened DB")
+            checkCase(store.resolveOriginalKey("fault-key") == "confirmed-original", "$failure can recover on the next lookup")
+            checkCase(store.cachedOriginalKey("fault-key") == "confirmed-original", "$failure recovery caches only the confirmed value")
+        }
+    }
     if (scenario == "cache_budget" || scenario == "all") {
         val large = newStore()
         var db = SQLiteOpenHelper.nextDatabase
