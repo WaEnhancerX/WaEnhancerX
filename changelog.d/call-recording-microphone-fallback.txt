@@ -1,0 +1,15 @@
+[Added]
+- Add an explicit option to disable microphone fallback when call audio is
+  preferred for recording.
+
+[Fixes]
+- Keep app-owned recordings available without shared-audio permission and
+  refresh the recordings list when returning to the app.
+- Release playback resources after failures and keep recordings listed when
+  deletion fails, preserving their metadata and the current delete confirmation.
+
+[Improvements]
+- Report the selected recording source with bounded diagnostics, without
+  claiming that remote audio was captured.
+- Preserve scoped recording settings, caller metadata and pause/resume controls
+  when loading recordings in the background.

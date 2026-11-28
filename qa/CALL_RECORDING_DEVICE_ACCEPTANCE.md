@@ -1,5 +1,27 @@
 # Call recording: device acceptance
 
+## Current nightly reconciliation (2026-11-21)
+
+Reconciled PR head `e4f3a29a64e7f38f714264b3b01d06d009af9423` with nightly
+`9972e49fac9bfb650c25ee31fde0da9425b67175`. The tested staged tree was
+`bb7587021dfea5eb083742f66c9c3e4405098d16`; subsequent changes only update the
+acceptance documents and changelog fragment. Temurin 21.0.13.1+2, Kotlin 2.0.20,
+Robolectric 4.17 and verified instrumented API 24/28/34 JARs were used on Linux.
+The complete audio-source/preference suite passed 78/78 cases (17.19 seconds
+including compilation). The complete installed-hook lifecycle passed its 109
+checks; the separately extracted current recordings UI/storage suite passed
+93/93 cases. Those are separate contracts, not 280 real calls or audio captures.
+
+The reconciliation retains current peer/direction/start metadata, nonce-based
+output reservation, provider finish notifications, tracked hook registration,
+scoped preferences and the current backup codec. The fixture stages the actual
+new dependencies rather than replacing the provider metadata contract with an
+older shape. Xposed, private custom-property interface signatures, restart
+notification and diagnostics endpoints are explicit, checked boundaries;
+unexpected contact lookups fail. A shadow MediaRecorder still produces no audio.
+Android device, actual call, audio-route and private-module integration acceptance
+remain NOT_VERIFIED. The historical host APK observations below were not repeated.
+
 `python3 qa/test_call_recording_lifecycle.py` compiles the complete production hook
 and exercises its installed callbacks with explicit Android, Xposed, storage,
 host and scheduler doubles. It verifies call identity, event ordering,
@@ -13,6 +35,24 @@ in the supplied WhatsApp 2.26.40.76 APK. The optional `--dexkit-jar` and
 that check does not execute its native search. These checks establish the
 reviewed source contract, not compatibility with every host version or device.
 
+## Ending-event overload regression checks
+
+`python3 qa/test_call_recording_event_contract.py` compiles the complete production
+event contract and checks 23 declaration variants for each of the two supported
+callback packages in isolated class loaders (46 Java reflection cases). It checks
+the verified exact signature, a unique typed alternative, unrelated overloads,
+wrong return/static/native/abstract contracts, same-suffix classes from another
+package, and ambiguous typed alternatives. An exact, usable signature takes
+precedence; otherwise exactly one usable instance `void` method beginning with
+the expected `CallLogInfo` class is required. A first-match or suffix-only result
+does not establish the lifetime of a call.
+
+`python3 qa/test_call_recording_lifecycle.py --host-variant typed-ending` repeats
+the complete recorder lifecycle with a controlled alternate trailing-argument
+signature. The fixture dispatches the method actually registered by the hook and
+checks that its original arguments/result remain unchanged. This demonstrates
+source handling of that declaration shape; it does not identify another supported
+WhatsApp release. Run the on-device acceptance below for every actual host version.
 ## Isolated Android provider acceptance (real Binder, PFD, SQLite)
 
 `qa/android_call_recording_device_test.py` builds a **test-only** APK under a
@@ -104,6 +144,41 @@ The existing `call_recording_use_root` preference changes the order in which
 `MediaRecorder` audio sources are tried. It does not implement a separate root
 audio pipeline. This lifecycle correction preserves that order and does not
 claim to fix a missing remote participant's audio.
+
+The separate `call_recording_allow_mic_fallback` public Boolean defaults to `true`,
+so existing installations keep the same source order. In **Call audio** mode,
+turning **Allow microphone fallback** off limits the next recording attempt to
+`VOICE_CALL`. If Android rejects source setup, preparation or start, the attempt
+closes and removes its output instead of trying microphone sources. The switch
+acknowledges the preference write before changing its displayed state. It does
+not restart an active recorder, grant privileges or establish that the remote
+participant is present when `VOICE_CALL` starts successfully.
+
+Successful source selection reports `source`, `fallback` and
+`remote_audio=unverified` through the Xposed log. Source rejection reports the
+source and exception class only. Up to one success and one rejection per source,
+plus one start failure, are emitted per identified call session; repeated host
+callbacks cannot produce an unlimited stream of these messages. No call ID,
+contact, recording path, audio payload or exception message is logged.
+
+`python3 qa/android_call_recording_audio_test.py --out /tmp/waex-call-audio`
+executes 26 JUnit methods on Android API 24, 28 and 34 with Robolectric 4.17
+(78 cases). It compiles the complete recorder, event contract, BaseFeature,
+preference schema, stores, preference manager and backup codec. Android
+SharedPreferences, Bundle, ContentResolver and ParcelFileDescriptor are real
+framework objects. Host declarations, Xposed dispatch, scheduling, storage
+authorization and native audio operations are explicit fixtures. A recorder
+shadow checks source order, prepare/start failure, cleanup and configuration;
+it produces no sound or encoded recording. The full CallsHub Compose screen,
+real cross-process provider, audio policy and LSPosed are not exercised.
+
+For [issue #84](https://github.com/WaEnhancerX/WaEnhancerX/issues/84), the reporter
+uses WhatsApp **2.26.37.73** on Samsung S911B / Android 16. The supplied host APK
+used for event-contract inspection is **2.26.40.76**. Neither the version rule
+nor this fixture establishes Samsung audio-route support or validates the
+reporter's callback signatures. Reproduce that exact combination with both
+participants' consent and record the selected source diagnostics before
+classifying microphone-only output as a capture failure or a routing limitation.
 
 Android documents `VOICE_COMMUNICATION` as a microphone source tuned for voice
 communications and restricts `VOICE_CALL` capture to the system

@@ -154,6 +154,7 @@ public final class PreferenceSchema {
         add(entries, "call_recording_whitelist", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "call_recording_enabled", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "call_recording_use_root", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
+        add(entries, "call_recording_allow_mic_fallback", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "call_recording_format", Type.STRING, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         add(entries, "download_profile", Type.BOOLEAN, Sensitivity.PUBLIC_SETTING, Store.PUBLIC);
         // Preserve the existing save-every-time behaviour by default. The saved identity

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="call_recording_capture_limitations">"Call audio depends on Android and your device. Standard audio tries microphone sources first. Neither mode guarantees the other participant’s voice. Root access alone does not enable a separate capture engine. Changing AAC or Opus changes the file format, not the audio source."</string>
+    <string name="call_recording_allow_mic_fallback_title">"Allow microphone fallback"</string>
+    <string name="call_recording_allow_mic_fallback_description">"If Android rejects call audio, try microphone sources. Turn this off to stop the recording attempt instead. Applies to the next recording attempt."</string>
+    <string name="call_recording_setting_save_failed">"Could not save the recording setting"</string>
+    <string name="call_recording_delete_failed">"Couldn't delete this recording"</string>
+</resources>

@@ -233,6 +233,27 @@ jobs:
           python3 qa/test_es419_localization.py
           python3 qa/test_es419_runtime.py
 
+      - name: Verify exact and alternate call-ending event contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 qa/test_call_recording_event_contract.py --out "$RUNNER_TEMP/call-ending-contract-qa"
+          python3 qa/test_call_recording_lifecycle.py --host-variant typed-ending --out "$RUNNER_TEMP/call-recording-typed-qa"
+
+      - name: Upload call-ending contract evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: call-ending-contract-evidence
+          path: |
+            ${{ runner.temp }}/call-ending-contract-qa/result.json
+            ${{ runner.temp }}/call-ending-contract-qa/**/compile*.log
+            ${{ runner.temp }}/call-ending-contract-qa/**/behavior.log
+            ${{ runner.temp }}/call-recording-typed-qa/source-identity.json
+            ${{ runner.temp }}/call-recording-typed-qa/*.log
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Require tests for merged runtime and resource contracts
         shell: bash
         run: |
@@ -639,5 +660,43 @@ jobs:
           path: |
             ${{ runner.temp }}/waex-preserved-dispatch/*.json
             ${{ runner.temp }}/waex-preserved-dispatch/*.log
+          retention-days: 14
+          if-no-files-found: error
+
+  call-recording-audio-framework:
+    name: Call recording / explicit microphone fallback and source diagnostics
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Require complete recorder and preference regression fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          kotlinc -version
+          mvn -version
+          test -f qa/android_call_recording_audio_test.py
+          test -f qa/fixtures/CallRecordingAudioAndroidTest.java
+          test -f qa/maven_dependencies.py
+      - name: Exercise 78 call audio and persistence cases on Android API 24, 28 and 34
+        run: python3 qa/android_call_recording_audio_test.py --out "$RUNNER_TEMP/waex-call-recording-audio"
+      - name: Preserve source identities, dependency hashes and Android results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: call-recording-audio-framework-evidence
+          path: |
+            ${{ runner.temp }}/waex-call-recording-audio/*.json
+            ${{ runner.temp }}/waex-call-recording-audio/*.log
           retention-days: 14
           if-no-files-found: error

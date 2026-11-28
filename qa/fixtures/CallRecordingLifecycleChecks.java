@@ -13,6 +13,7 @@ import com.whatsapp.infra.core.jid.UserJid;
 import de.robv.android.xposed.XposedBridge;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -109,7 +110,23 @@ public class CallRecordingLifecycleChecks {
             XposedBridge.fire(host,"fieldstatsReady",new Class<?>[]{WamCall.class,UserJid.class,boolean.class,boolean.class},new WamCall(),new UserJid(),last,realtime);
         }
         void ending() throws Throwable {
-            XposedBridge.fire(host,"callEnding",new Class<?>[]{CallLogInfo.class,int.class,String.class,String.class},new CallLogInfo(),0,"private time-series path","private log path");
+            Class<?>[] types = "typed-ending".equals(System.getProperty("waex.fixture.ending"))
+                    ? new Class<?>[]{CallLogInfo.class,long.class,boolean.class}
+                    : new Class<?>[]{CallLogInfo.class,int.class,String.class,String.class};
+            Method event = VoiceServiceEventCallback.class.getDeclaredMethod("callEnding",types);
+            check(XposedBridge.hooks.getOrDefault(event,List.of()).size()==1,"Expected independently declared ending event not installed exactly once");
+            Method decoy=VoiceServiceEventCallback.class.getDeclaredMethod("callEnding",String.class);
+            check(XposedBridge.hooks.getOrDefault(decoy,List.of()).isEmpty(),"Unrelated ending overload was hooked");
+            Object[] arguments = new Object[types.length];
+            for (int index = 0; index < types.length; index++) {
+                if (types[index] == CallLogInfo.class) arguments[index] = new CallLogInfo();
+                else if (types[index] == int.class) arguments[index] = 0;
+                else if (types[index] == long.class) arguments[index] = 0L;
+                else if (types[index] == boolean.class) arguments[index] = true;
+                else if (types[index] == String.class) arguments[index] = "private event detail";
+                else throw new AssertionError("Ending fixture has an unspecified argument type");
+            }
+            XposedBridge.fire(host,"callEnding",types,arguments);
         }
         public void close() { scheduler.shutdownNow();MediaRecorder.prepareRelease=null;MediaRecorder.prepareEntered=null; }
     }
@@ -178,9 +195,15 @@ public class CallRecordingLifecycleChecks {
         }
         try(Fixture f=new Fixture()) {
             f.active("call-B");MediaRecorder active=MediaRecorder.instances.get(0);
+            XposedBridge.fire(f.host,"callEnding",new Class<?>[]{String.class},"decoy");f.scheduler.drain();
+            check(f.recording() && active.stops==0,"Decoy callEnding stopped the session");
             f.ending();f.scheduler.drain();
             check(f.host.current==null,"Ending fixture did not clear current host info");
             check(!f.recording() && active.stops==1,"callEnding lost the pre-return identity snapshot");
+            check(active.releases==1 && f.context.resolver.files.get(0).closes==1,"callEnding leaked recorder or descriptor");
+            check(f.context.resolver.finishes==1 && Boolean.TRUE.equals(f.context.resolver.finished.get(0).values.get("successful")),"successful callEnding not finalized once");
+            f.ending();f.scheduler.drain();
+            check(active.stops==1 && active.releases==1 && f.context.resolver.finishes==1,"duplicate callEnding finalized twice");
         }
     }
 
@@ -240,6 +263,19 @@ public class CallRecordingLifecycleChecks {
         try(Fixture f=new Fixture()) {
             f.context.resolver.fail=true;f.state(CallState.CALLING,CallState.ACTIVE,"A");f.sound();f.scheduler.drain();
             check(!f.recording() && MediaRecorder.instances.isEmpty(),"Missing storage bridge attempted media capture");
+        }
+    }
+
+    private static void terminalResourceFailures() throws Throwable {
+        for(boolean failStop:new boolean[]{false,true})try(Fixture f=new Fixture()) {
+            f.active("end-failure");MediaRecorder active=MediaRecorder.instances.get(0);
+            MediaRecorder.stopFailure=failStop;MediaRecorder.releaseFailure=true;
+            f.ending();f.scheduler.drain();
+            check(!f.recording() && active.stops==1 && active.releases==1,"failed terminal cleanup repeated or stayed active");
+            check(f.context.resolver.files.get(0).closes==1,"terminal failure leaked descriptor");
+            check(f.context.resolver.deletes==(failStop?1:0),"terminal cleanup removed a successful output or retained a failed output");
+            check(f.context.resolver.finishes==1 && Boolean.valueOf(!failStop).equals(f.context.resolver.finished.get(0).values.get("successful")),"terminal success metadata disagrees with stop outcome");
+            check(XposedBridge.logs.stream().noneMatch(v->v.contains("private")),"terminal exception leaked private details");
         }
     }
 
@@ -333,9 +369,10 @@ public class CallRecordingLifecycleChecks {
             case "blocked-prepare":blockedPreparation();break;
             case "bounds":boundedWork();break;
             case "installation":installation();break;
-            case "all":installation();intermediate();terminal();transitions();failures();cancellation();blockedPreparation();boundedWork();break;
+            case "all":installation();intermediate();terminal();transitions();failures();terminalResourceFailures();cancellation();blockedPreparation();boundedWork();break;
             default:throw new IllegalArgumentException(scenario);
         }
+        check(com.waenhancer.utils.ContactNameResolver.calls==0,"Out-of-scope contact resolution was invoked and swallowed");
         System.out.println("PASS: "+checks+" complete-hook checks; scenario="+scenario);
         System.out.println("Explicit host/media/IPC/Xposed/scheduler doubles; no Android audio, native DexKit, LSPosed, root or device performance claim.");
     }

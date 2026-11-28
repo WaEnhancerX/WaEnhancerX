@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="call_recording_capture_limitations">"El audio de llamada depende de Android y de tu dispositivo. El audio estándar prueba primero las fuentes de micrófono. Ningún modo garantiza grabar la voz de la otra persona. Tener root no activa por sí solo un motor de captura independiente. Cambiar entre AAC y Opus cambia el formato del archivo, no la fuente de audio."</string>
+    <string name="call_recording_allow_mic_fallback_title">"Permitir el micrófono como alternativa"</string>
+    <string name="call_recording_allow_mic_fallback_description">"Si Android rechaza el audio de llamada, prueba fuentes de micrófono. Desactiva esta opción para cancelar el intento de grabación. Se aplica al próximo intento de grabación."</string>
+    <string name="call_recording_setting_save_failed">"No se pudo guardar el ajuste de grabación"</string>
+    <string name="call_recording_delete_failed">"No se pudo eliminar esta grabación"</string>
+</resources>

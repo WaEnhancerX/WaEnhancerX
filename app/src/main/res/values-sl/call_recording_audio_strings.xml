@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="call_recording_capture_limitations">"Zvok klica je odvisen od sistema Android in tvoje naprave. Standardni zvok najprej poskusi z viri zvoka iz mikrofona. Noben način ne zagotavlja zajema glasu drugega udeleženca. Dostop root sam po sebi ne omogoča ločenega mehanizma za zajem zvoka. Preklop med AAC in Opus spremeni obliko datoteke, ne pa vira zvoka."</string>
+    <string name="call_recording_allow_mic_fallback_title">"Dovoli preklop na mikrofon"</string>
+    <string name="call_recording_allow_mic_fallback_description">"Če Android zavrne zajem zvoka klica, se poskusijo viri zvoka iz mikrofona. Če to možnost izklopiš, se poskus snemanja namesto tega ustavi. Velja za naslednji poskus snemanja."</string>
+    <string name="call_recording_setting_save_failed">"Nastavitve snemanja ni bilo mogoče shraniti"</string>
+    <string name="call_recording_delete_failed">"Posnetka ni bilo mogoče izbrisati"</string>
+</resources>
