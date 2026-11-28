@@ -85,7 +85,7 @@ object SystemDiagnosticsReader {
             device = "${Build.MANUFACTURER} ${Build.MODEL}".trim(),
             abis = Build.SUPPORTED_ABIS.joinToString(", "),
             kernel = System.getProperty("os.version").orEmpty().ifBlank { "Unknown" },
-            selinux = cachedSelinux ?: readFastSelinuxState().also { cachedSelinux = it },
+            selinux = cachedSelinux ?: readFastSelinuxState(),
             hookedTargets = runtimeStore.getStringSet("hooked_whatsapp_packages", emptySet())
                 ?.sorted()?.joinToString()?.ifBlank { "None reported" } ?: "None reported"
         )
@@ -107,7 +107,8 @@ object SystemDiagnosticsReader {
         val manager = findFrameworkManager(pm, runtimeFramework)
         val hooked = runtimeStore.getStringSet("hooked_whatsapp_packages", emptySet()).orEmpty()
         val rootAllowed = UpdateDownloader.hasRootAccess(forceRefresh)
-        val selinuxState = cachedSelinux?.takeIf { !forceRefresh } ?: readSelinuxState(rootAllowed).also { cachedSelinux = it }
+        val selinuxState = cachedSelinux?.takeIf { !forceRefresh }
+            ?: readSelinuxState(rootAllowed).also { cachedSelinux = it.takeUnless { state -> state == "Unknown" } }
 
         return SystemDiagnostics(
             moduleVersion = own?.versionName ?: BuildConfig.VERSION_NAME,
@@ -173,37 +174,23 @@ object SystemDiagnosticsReader {
         else -> "Xposed"
     }
 
-    private fun readFastSelinuxState(): String {
-        runCatching {
-            normalizeSelinuxState(File("/sys/fs/selinux/enforce").readText())
-        }.getOrNull()?.let { return it }
+    private fun readFastSelinuxState(): String =
+        resolveSelinuxState(kernel = { File("/sys/fs/selinux/enforce").readText() })
 
-        runCatching {
-            val selinux = Class.forName("android.os.SELinux")
-            val enforced = selinux.getMethod("isSELinuxEnforced").invoke(null) as Boolean
-            return if (enforced) "Enforcing" else "Permissive"
-        }.getOrNull()?.let { return it }
+    private fun readSelinuxState(rootAllowed: Boolean): String =
+        resolveSelinuxState(
+            kernel = { File("/sys/fs/selinux/enforce").readText() },
+            root = if (rootAllowed) ({ AppRestartHelper.runRootCommand("getenforce") }) else null
+        )
 
-        return "Enforcing"
-    }
-
-    private fun readSelinuxState(rootAllowed: Boolean): String {
-        runCatching {
-            normalizeSelinuxState(File("/sys/fs/selinux/enforce").readText())
-        }.getOrNull()?.let { return it }
-
-        runCatching {
-            val selinux = Class.forName("android.os.SELinux")
-            val enforced = selinux.getMethod("isSELinuxEnforced").invoke(null) as Boolean
-            return if (enforced) "Enforcing" else "Permissive"
-        }.getOrNull()?.let { return it }
-
-        if (rootAllowed) {
-            normalizeSelinuxState(AppRestartHelper.runRootCommand("getenforce"))
-                ?.let { return it }
+    // SELinux.isSELinuxEnforced() collapses a kernel query failure into false.
+    // Do not equate unreadable evidence with Permissive or guess Enforcing.
+    internal fun resolveSelinuxState(kernel: () -> String?, root: (() -> String?)? = null): String {
+        runCatching { normalizeSelinuxState(kernel()) }.getOrNull()?.let { return it }
+        if (root != null) {
+            runCatching { normalizeSelinuxState(root()) }.getOrNull()?.let { return it }
         }
-
-        return "Enforcing"
+        return "Unknown"
     }
 
     private fun normalizeSelinuxState(raw: String?): String? = when (raw?.trim()?.lowercase()) {
