@@ -83,10 +83,19 @@ with tempfile.TemporaryDirectory() as tmp:
     check(run(d).returncode == 2, "strict mode with no fragments still fails")
     check(run(d / "missing", "--lenient").returncode == 0, "lenient with a missing directory is fine")
 
-# The real directory changes with every PR that adds a fragment (rule R14), so only require that
-# it is handled cleanly: notes (exit 0) or "no fragments" (exit 2), never a crash.
-real = run(ROOT / "changelog.d")
-check(real.returncode in (0, 2) and "Traceback" not in real.stderr, "repo changelog.d is processed without a crash")
+# The real repository may have no pending fragments after a release. Only that
+# specific empty state permits strict assembly to exit 2; malformed notes must
+# fail source QA rather than be silently skipped by the lenient release job.
+real_dir = ROOT / "changelog.d"
+real = run(real_dir)
+has_fragments = any(p.is_file() and not p.name.startswith("_") for p in real_dir.glob("*.txt"))
+if has_fragments:
+    check(real.returncode == 0 and bool(real.stdout.strip()) and not real.stderr,
+          f"repo changelog.d contains invalid fragments: {real.stderr.strip()!r}")
+else:
+    check(real.returncode == 2 and not real.stdout
+          and real.stderr.strip() == "error: no changelog fragments found",
+          "repo changelog.d without pending fragments must report only the empty state")
 
 if failures:
     raise SystemExit("Changelog assembly violations:\n- " + "\n- ".join(failures))
