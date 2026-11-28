@@ -2,6 +2,7 @@
 """Production traversal/reload/scheduler with counted View/Handler substitutes. Not Android frames."""
 from pathlib import Path
 import argparse,subprocess,tempfile,re
+import shutil
 ROOT=Path(__file__).resolve().parents[1]
 def block(s,m):
  a=s.index(m);b=s.index('{',a);d=0
@@ -9,7 +10,8 @@ def block(s,m):
   d+=(s[i]=='{')-(s[i]=='}')
   if not d:return s[a:i+1]
  raise ValueError(m)
-PROGRAM=r'''import java.util.concurrent.atomic.AtomicInteger
+PROGRAM=r'''import java.util.Collections
+import java.util.concurrent.atomic.AtomicInteger
 object Stats{var ids=0L;var children=0L;var parsed=0}
 open class View(val raw:Int){val id:Int get(){Stats.ids++;return raw}}
 class ViewGroup(raw:Int,val nodes:List<View>):View(raw){val childCount:Int get()=nodes.size;fun getChildAt(i:Int):View{Stats.children++;return nodes[i]}}
@@ -60,6 +62,6 @@ def main():
  assert 'FilterItem.BEHAVIOR_GONE == item.behavior' in block(s,'private fun applyFilterToView(')
  with tempfile.TemporaryDirectory(prefix='waex-filter-') as d:
   out=Path(d);file=out/'Checks.kt';file.write_text(PROGRAM.replace('BODY','\n'.join(methods)))
-  subprocess.run(['kotlinc','-nowarn','-language-version','2.0',str(file),'-include-runtime','-d',str(out/'checks.jar')],check=True,timeout=90)
+  subprocess.run([shutil.which('kotlinc') or 'kotlinc','-nowarn','-language-version','2.0',str(file),'-include-runtime','-d',str(out/'checks.jar')],check=True,timeout=90)
   print('COMPILE_OK',flush=True);subprocess.run(['java','-jar',str(out/'checks.jar')],check=True,timeout=30)
 if __name__=='__main__':main()
