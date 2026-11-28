@@ -5,6 +5,8 @@ Android, preference storage, DexSearchEngine cache transport and Xposed dispatch
 explicit fixtures. The native DexKit bridge and WhatsApp/LSPosed are not executed.
 """
 import argparse
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 import hashlib
 import json
 import os
@@ -12,7 +14,10 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
+import time
+import urllib.error
 import urllib.request
 import zipfile
 import xml.etree.ElementTree as ET
@@ -25,6 +30,10 @@ DEXKIT_SHA256 = '195979d9576ba6d68a1c60bdd3e38cd3aed068d4e0c5c6c99caa50bc25fcb9f
 DEXKIT_AAR_SHA256 = 'cf4488da9f721750ce5ff4311e88356cbfcb1d4444c2b519b12d8bdb5f33f2c6'
 DEXKIT_URL = 'https://repo.maven.apache.org/maven2/org/luckypray/dexkit/2.2.0/dexkit-2.2.0.aar'
 EXPECTED_CHECKS = 83
+DEXKIT_ATTEMPTS = 3
+DEXKIT_ATTEMPT_SECONDS = 30
+DEXKIT_BUDGET_SECONDS = 90
+DEXKIT_TRANSIENT_HTTP = frozenset((408, 429, 500, 502, 503, 504))
 
 STUBS = {
  'androidx/annotation/NonNull.java': 'package androidx.annotation; public @interface NonNull {}',
@@ -99,18 +108,147 @@ public static void hookAllMethods(Class<?> c,String name,XC_MethodHook hook){} p
 
 def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
 
+def _dexkit_attempt(prefix):
+    """Internal child: one fixed public URL, bounded bytes, no compilation."""
+    result = {'url': DEXKIT_URL, 'retryable': False}
+    try:
+        with urllib.request.urlopen(DEXKIT_URL, timeout=DEXKIT_ATTEMPT_SECONDS) as response:
+            data = response.read(4 * 1024 * 1024 + 1)
+        with prefix.with_suffix('.payload').open('xb') as output:
+            output.write(data)
+        result.update(status='downloaded', bytes=len(data),
+                      sha256=hashlib.sha256(data).hexdigest())
+    except urllib.error.HTTPError as error:
+        result.update(status='http_error', error_type=type(error).__name__,
+                      detail=str(error), http_status=error.code,
+                      retry_after=error.headers.get('Retry-After') if error.headers else None,
+                      retryable=error.code in DEXKIT_TRANSIENT_HTTP)
+        error.close()
+    except Exception as error:
+        reason = error.reason if isinstance(error, urllib.error.URLError) else error
+        result.update(status='transport_error', error_type=type(error).__name__,
+                      detail=str(error),
+                      retryable=isinstance(reason, (TimeoutError, ConnectionResetError)))
+    with prefix.with_suffix('.json').open('x', encoding='utf-8') as output:
+        json.dump(result, output, indent=2)
+        output.write('\n')
+    return 0 if result['status'] == 'downloaded' else 1
+
+
+def _dexkit_retry_after(value):
+    if value is None:
+        return 0.0
+    try:
+        if re.fullmatch(r'[0-9]+', value.strip()):
+            # Any such value already exceeds this download's entire budget.
+            digits = value.strip().lstrip('0') or '0'
+            if len(digits) > 6:
+                return float('inf')
+            return float(int(digits))
+        parsed = parsedate_to_datetime(value)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        # HTTP's obsolete RFC 850 form uses a moving 50-year interpretation,
+        # unlike the email parser's fixed two-digit-year pivot.
+        old_date = re.fullmatch(r'[A-Za-z]+, [0-9]{2}-[A-Za-z]{3}-([0-9]{2}) '
+                               r'[0-9]{2}:[0-9]{2}:[0-9]{2} GMT', value.strip())
+        now = time.time()
+        if old_date:
+            current = datetime.fromtimestamp(now, timezone.utc)
+            latest_year = current.year + 50
+            year = latest_year - (latest_year - int(old_date[1])) % 100
+            if year == latest_year and parsed.timetuple()[1:6] > current.timetuple()[1:6]:
+                year -= 100
+            parsed = parsed.replace(year=year)
+        return max(0.0, parsed.timestamp() - now)
+    except (TypeError, ValueError, OverflowError):
+        pass
+    return 0.0
+
+
 def dexkit(out):
-    with urllib.request.urlopen(DEXKIT_URL, timeout=30) as response:
-        data = response.read(4 * 1024 * 1024 + 1)
-    if len(data) > 4 * 1024 * 1024 or hashlib.sha256(data).hexdigest() != DEXKIT_AAR_SHA256:
-        raise RuntimeError('DexKit AAR size or identity mismatch')
-    aar = out / 'dexkit-2.2.0.aar'; aar.write_bytes(data)
-    with zipfile.ZipFile(aar) as archive:
-        if archive.namelist().count('classes.jar') != 1 or archive.getinfo('classes.jar').file_size > 2 * 1024 * 1024:
-            raise RuntimeError('DexKit classes.jar missing, duplicated or oversized')
-        classes = archive.read('classes.jar')
-    jar = out / 'dexkit-2.2.0.jar'; jar.write_bytes(classes)
-    return jar
+    # A socket timeout alone does not bound a slow response body. The child has
+    # no descendants; subprocess.run kills and reaps it when its deadline expires.
+    receipt = out / 'dexkit-download.json'
+    if receipt.exists() or any(out.glob('dexkit-download-attempt-*')):
+        raise RuntimeError('DexKit download evidence already exists; use a fresh output directory')
+    started = time.monotonic()
+    deadline = started + DEXKIT_BUDGET_SECONDS
+    report = {'url': DEXKIT_URL, 'expected_aar_sha256': DEXKIT_AAR_SHA256,
+              'expected_jar_sha256': DEXKIT_SHA256, 'max_attempts': DEXKIT_ATTEMPTS,
+              'budget_seconds': DEXKIT_BUDGET_SECONDS, 'attempts': [], 'status': 'pending'}
+
+    def save(status, mode='w'):
+        report['status'] = status
+        report['elapsed_seconds'] = round(time.monotonic() - started, 6)
+        with receipt.open(mode, encoding='utf-8') as output:
+            output.write(json.dumps(report, indent=2) + '\n')
+
+    save('pending', 'x')
+    try:
+        data = None
+        for number in range(1, DEXKIT_ATTEMPTS + 1):
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError('DexKit download time budget exhausted')
+            prefix = out / ('dexkit-download-attempt-' + str(number))
+            attempt = {'number': number, 'timeout_seconds': min(DEXKIT_ATTEMPT_SECONDS, remaining),
+                       'evidence': prefix.with_suffix('.json').name,
+                       'log': prefix.with_suffix('.log').name}
+            report['attempts'].append(attempt)
+            save('running')
+            with prefix.with_suffix('.log').open('x', encoding='utf-8') as log:
+                try:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise TimeoutError('DexKit download time budget exhausted')
+                    attempt['timeout_seconds'] = min(DEXKIT_ATTEMPT_SECONDS, remaining)
+                    completed = subprocess.run(
+                        [sys.executable, str(Path(__file__).resolve()),
+                         '--dexkit-download-attempt', str(prefix)],
+                        stdout=log, stderr=subprocess.STDOUT,
+                        timeout=attempt['timeout_seconds'])
+                    attempt['exit_code'] = completed.returncode
+                except subprocess.TimeoutExpired:
+                    attempt.update(status='timeout', retryable=True, exit_code=None)
+                else:
+                    detail = json.loads(prefix.with_suffix('.json').read_text(encoding='utf-8'))
+                    attempt.update(detail)
+                    if completed.returncode == 0 and detail.get('status') == 'downloaded':
+                        with prefix.with_suffix('.payload').open('rb') as payload:
+                            data = payload.read(4 * 1024 * 1024 + 1)
+                        save('downloaded')
+                        break
+                    if completed.returncode != 1 or detail.get('status') == 'downloaded':
+                        raise RuntimeError('Unexpected DexKit download child result')
+            save('attempt_failed')
+            if not attempt.get('retryable') or number == DEXKIT_ATTEMPTS:
+                raise RuntimeError('DexKit download failed; see ' + str(receipt))
+            delay = max(float(number), _dexkit_retry_after(attempt.get('retry_after')))
+            if delay >= deadline - time.monotonic():
+                raise TimeoutError('DexKit retry delay exceeds the remaining time budget')
+            attempt['retry_delay_seconds'] = delay
+            save('retrying')
+            time.sleep(delay)
+        if data is None:
+            raise RuntimeError('DexKit download produced no artifact')
+        # Integrity failures are definitive, outside the transport retry loop.
+        if len(data) > 4 * 1024 * 1024 or hashlib.sha256(data).hexdigest() != DEXKIT_AAR_SHA256:
+            raise RuntimeError('DexKit AAR size or identity mismatch')
+        aar = out / 'dexkit-2.2.0.aar'; aar.write_bytes(data)
+        with zipfile.ZipFile(aar) as archive:
+            if archive.namelist().count('classes.jar') != 1 or archive.getinfo('classes.jar').file_size > 2 * 1024 * 1024:
+                raise RuntimeError('DexKit classes.jar missing, duplicated or oversized')
+            classes = archive.read('classes.jar')
+        if hashlib.sha256(classes).hexdigest() != DEXKIT_SHA256:
+            raise RuntimeError('Pinned real DexKit 2.2.0 classes.jar required')
+        jar = out / 'dexkit-2.2.0.jar'; jar.write_bytes(classes)
+        save('verified')
+        return jar
+    except Exception as error:
+        report.update(error_type=type(error).__name__, detail=str(error))
+        save('failed')
+        raise
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -182,4 +320,6 @@ def main():
         return 0
 
 if __name__ == '__main__':
+    if len(sys.argv) == 3 and sys.argv[1] == '--dexkit-download-attempt':
+        raise SystemExit(_dexkit_attempt(Path(sys.argv[2])))
     raise SystemExit(main())
