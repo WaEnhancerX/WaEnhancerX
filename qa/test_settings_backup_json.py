@@ -126,7 +126,8 @@ def main() -> int:
     for tool, executable in resolved.items():
         if not executable:
             raise FileNotFoundError(f'Required JVM tool unavailable: {tool}')
-    kotlin_stdlib = Path(resolved['kotlinc']).parent.parent / 'lib/kotlin-stdlib.jar'
+    compiler = Path(resolved['kotlinc']).resolve(strict=True)
+    kotlin_stdlib = compiler.parent.parent / 'lib/kotlin-stdlib.jar'
     if not kotlin_stdlib.is_file():
         raise FileNotFoundError(f'Compiler-matched Kotlin runtime unavailable: {kotlin_stdlib}')
     root = args.root.resolve()
@@ -149,7 +150,7 @@ def main() -> int:
             [resolved['javac'], '--release', '17', '-d', str(out_java),
              *map(str, java_files + aosp), str(source / 'config/PreferenceSchema.java'),
              str(source / 'config/PreferenceStores.java'), str(source / 'config/ExclusivePreferences.java')],
-            [resolved['kotlinc'], '-jvm-target', '17', '-cp', str(out_java), '-d', str(out_kotlin),
+            [str(compiler), '-jvm-target', '17', '-cp', str(out_java), '-d', str(out_kotlin),
              str(codec), str(ROOT / 'qa/kotlin/TestSettingsBackupJson.kt')],
             [resolved['java'], '-Xmx128m', '-Xss1m', '-cp',
              os.pathsep.join(map(str, (out_java, out_kotlin, kotlin_stdlib))),

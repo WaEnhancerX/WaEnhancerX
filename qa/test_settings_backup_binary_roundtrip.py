@@ -366,8 +366,8 @@ with tempfile.TemporaryDirectory(prefix='waex_backup_binary_') as workspace:
     commands = {tool: shutil.which(tool) for tool in ('javac', 'kotlinc', 'java')}
     if not all(commands.values()):
         raise FileNotFoundError(f'Missing JVM tools: {[k for k, v in commands.items() if not v]}')
-    kotlin_lib = Path(commands['kotlinc']).parent.parent / 'lib'
-    stdlib = kotlin_lib / 'kotlin-stdlib.jar'
+    compiler = Path(commands['kotlinc']).resolve(strict=True)
+    stdlib = compiler.parent.parent / 'lib/kotlin-stdlib.jar'
     if not stdlib.is_file():
         raise FileNotFoundError(f'Missing compiler-matched Kotlin standard library: {stdlib}')
     root = Path(workspace)
@@ -384,7 +384,7 @@ with tempfile.TemporaryDirectory(prefix='waex_backup_binary_') as workspace:
                     str(SRC/'config/ExclusivePreferences.java')],check=True)
     test_kotlin=root/'TestBinaryRoundTrip.kt'
     test_kotlin.write_text(KOTLIN_TEST,encoding='utf-8')
-    subprocess.run([commands['kotlinc'],'-jvm-target','17','-cp',str(out_java),'-d',str(out_kotlin),
+    subprocess.run([str(compiler),'-jvm-target','17','-cp',str(out_java),'-d',str(out_kotlin),
                     str(SRC/'core/preferences/SettingsBackupCodec.kt'),str(test_kotlin)],check=True)
     subprocess.run([commands['java'],'-cp',os.pathsep.join((str(out_java),str(out_kotlin),str(stdlib))),
                     'com.waenhancer.core.preferences.TestBinaryRoundTripKt'],check=True)
