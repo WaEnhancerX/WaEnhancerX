@@ -35,7 +35,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -242,12 +241,14 @@ private fun ChatPreview(incoming: Int, outgoing: Int) {
                 text = UiText.get(R.string.waex_ui_bubble_preview_incoming, "Hey! Did you try the new colors?"),
                 time = "10:41",
                 fill = incomingColor,
+                backdrop = colors.surfaceDim,
                 outgoing = false
             )
             PreviewBubble(
                 text = UiText.get(R.string.waex_ui_bubble_preview_outgoing, "Yes, looks great 😄"),
                 time = "10:42",
                 fill = outgoingColor,
+                backdrop = colors.surfaceDim,
                 outgoing = true
             )
         }
@@ -255,10 +256,9 @@ private fun ChatPreview(incoming: Int, outgoing: Int) {
 }
 
 @Composable
-private fun PreviewBubble(text: String, time: String, fill: Color, outgoing: Boolean) {
+private fun PreviewBubble(text: String, time: String, fill: Color, backdrop: Color, outgoing: Boolean) {
     val typography = WaexTheme.typography
-    // Pick readable text from the bubble's own brightness, like WhatsApp does on custom wallpapers.
-    val ink = if (fill.luminance() > 0.5f) Color(0xFF111B21) else Color(0xFFE9EDEF)
+    val ink = bubblePreviewColors(fill, backdrop)
     val shape = if (outgoing) {
         RoundedCornerShape(topStart = 12.dp, topEnd = 2.dp, bottomEnd = 12.dp, bottomStart = 12.dp)
     } else {
@@ -276,11 +276,11 @@ private fun PreviewBubble(text: String, time: String, fill: Color, outgoing: Boo
                 .padding(horizontal = 10.dp, vertical = 6.dp),
             horizontalAlignment = Alignment.End
         ) {
-            Text(text = text, style = typography.bodyMd, color = ink)
+            Text(text = text, style = typography.bodyMd, color = ink.body)
             Text(
                 text = if (outgoing) "$time ✓✓" else time,
                 style = typography.labelSm,
-                color = ink.copy(alpha = 0.6f),
+                color = ink.footer,
                 fontSize = 10.sp
             )
         }
