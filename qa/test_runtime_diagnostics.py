@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import shutil
+import shlex
 import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
@@ -141,9 +142,14 @@ object AppRestartHelper {var output:String?=null;var lastCommand="";var fail=fal
         # Only the synthetic ps and a known grep executable are reachable.
         bin_dir=out/'fake-bin';bin_dir.mkdir()
         ps=bin_dir/'ps'
-        ps.write_text('#!/bin/sh\nif [ "$#" -gt 0 ]; then printf "%s" "$PRIMARY_OUT"; exit "$PRIMARY_CODE"; else printf "%s" "$FALLBACK_OUT"; exit "$FALLBACK_CODE"; fi\n')
+        ps.write_text('#!/bin/sh\nif [ "$#" -gt 0 ]; then printf "%s" "$PRIMARY_OUT"; exit "$PRIMARY_CODE"; else printf "%s" "$FALLBACK_OUT"; exit "$FALLBACK_CODE"; fi\n', encoding='utf-8', newline='')
         ps.chmod(0o700)
-        (bin_dir/'grep').symlink_to(shutil.which('grep'))
+        # A symlinked Windows grep cannot locate its sibling runtime DLLs.
+        # Execute the resolved binary at its real path; PATH remains fixture-only.
+        grep = bin_dir/'grep'
+        grep.write_text('#!/bin/sh\nexec ' + shlex.quote(Path(shutil.which('grep')).as_posix()) + ' "$@"\n',
+                        encoding='utf-8', newline='')
+        grep.chmod(0o700)
         cases=(
             (0,"1 com.waenhancer\n123 com.whatsapp\n456 com.whatsapp.w4b\n999 com.example.other\n",9,"",True,["1 com.waenhancer","123 com.whatsapp","456 com.whatsapp.w4b"]),
             (2,"1 com.waenhancer\n123 com.whatsapp\n",0,"u0_a1 1 0 12 34 S com.waenhancer\nu0_a2 456 1 12 34 S com.whatsapp.w4b\n",True,["u0_a1 1 0 12 34 S com.waenhancer","u0_a2 456 1 12 34 S com.whatsapp.w4b"]),
@@ -158,7 +164,7 @@ object AppRestartHelper {var output:String?=null;var lastCommand="";var fail=fal
         )
         for pc,po,fc,fo,end,rows in cases:
             env={'PATH':str(bin_dir),'PRIMARY_CODE':str(pc),'PRIMARY_OUT':po,'FALLBACK_CODE':str(fc),'FALLBACK_OUT':fo,'LANG':'C'}
-            result=subprocess.run(['/bin/sh','-c',command],text=True,capture_output=True,env=env,timeout=5)
+            result=subprocess.run([shutil.which('sh'),'-c',command],text=True,capture_output=True,env=env,timeout=5)
             expected=['WAEX_PS_BEGIN']+rows+(['WAEX_PS_END'] if end else [])
             assert result.returncode==0 and result.stdout.splitlines()==expected,(pc,fc,result)
         print(f'PASS: {len(cases)} exact emitted-shell controls, synthetic ps only')
