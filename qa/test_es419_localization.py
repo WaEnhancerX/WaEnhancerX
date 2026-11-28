@@ -67,8 +67,53 @@ assert 'UiText' not in schema
 catalog=(ROOT/'app/src/main/assets/preference_catalog.json').read_text(encoding="utf-8")
 assert 'disable_sensor_proximity' in catalog
 dashboard=(SRC/'com/waenhancer/ui/screens/dashboard/MainDashboardScreen.kt').read_text(encoding="utf-8")
-assert 'text = InternalLabels.hmaReason(item.reason)' in dashboard
-assert 'text = item.reason,' not in dashboard, 'HMA reason must be localized at its display boundary'
+# Follow the HMA reason through the current shared card. Ignore comments and
+# string literals so an unused copy of the expected spelling cannot satisfy it.
+# These are source guards; test_es419_runtime.py exercises actual formatting.
+KOTLIN_TOKEN = re.compile(r'''//[^\n]*|/\*[\s\S]*?\*/|"""[\s\S]*?"""|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\w+|\S''')
+def code_tokens(source):
+    return [token for token in KOTLIN_TOKEN.findall(source)
+            if not token.startswith(('//', '/*', '"', "'"))]
+
+def function_parts(tokens, name):
+    heads = [i for i in range(len(tokens) - 2)
+             if tokens[i:i + 3] == ['fun', name, '(']]
+    assert len(heads) == 1, f'Missing or ambiguous Kotlin function: {name}'
+    # Keep nested function/default-expression tokens inside their parameter.
+    parameters, parameter = [], []
+    depth = 1
+    for end in range(heads[0] + 3, len(tokens)):
+        token = tokens[end]
+        depth += (token in ('(', '[', '{')) - (token in (')', ']', '}'))
+        if depth == 0:
+            if parameter:
+                parameters.append(parameter)
+            break
+        if token == ',' and depth == 1:
+            parameters.append(parameter)
+            parameter = []
+        else:
+            parameter.append(token)
+    else:
+        raise AssertionError(f'Unclosed Kotlin parameters: {name}')
+    start = tokens.index('{', end + 1) + 1
+    depth = 1
+    for end in range(start, len(tokens)):
+        depth += (tokens[end] == '{') - (tokens[end] == '}')
+        if depth == 0:
+            return parameters, ' '.join(tokens[start:end])
+    raise AssertionError(f'Unclosed Kotlin function: {name}')
+
+dashboard_code = code_tokens(dashboard)
+_, hma_sheet = function_parts(dashboard_code, 'HmaDetailsBottomSheet')
+target_parameters, target_card = function_parts(dashboard_code, 'DiagnosticsTargetCard')
+assert ['status', ':', 'String'] in target_parameters, \
+    'Shared target card must accept the status: String parameter'
+assert re.search(r'\bDiagnosticsTargetCard \([^)]*\bstatus = InternalLabels \. hmaReason \( item \. reason \)', hma_sheet), \
+    'HMA target card must receive the localized reason'
+assert 'status = item . reason' not in hma_sheet, 'Raw HMA reason must not reach the shared card'
+assert re.search(r'\bText \( text = status\b', target_card), \
+    'Shared target card must render its localized status'
 # Negative controls: a missing slot, malformed token and bidi marker must be recognized.
 for wrong in ['Sin variable', '%2$s', '%1$d']:
     assert slots('Count: %1$s') != slots(wrong)
