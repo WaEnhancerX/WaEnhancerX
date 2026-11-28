@@ -135,8 +135,13 @@ fun SystemHealthScreen() {
                 TextButton(onClick = {
                     confirmCaptureClear = false
                     scope.launch {
-                        withContext(Dispatchers.IO) { DiagnosticsRecorder.clear(context) }
-                        captureFeedback = context.getString(R.string.diag_capture_cleared)
+                        val cleared = withContext(Dispatchers.IO) {
+                            DiagnosticsRecorder.clearWithResult(context)
+                        }
+                        captureFeedback = context.getString(
+                            if (cleared) R.string.diag_capture_cleared
+                            else R.string.diag_capture_clear_failed
+                        )
                     }
                 }) { Text(stringResource(R.string.diag_capture_confirm)) }
             },

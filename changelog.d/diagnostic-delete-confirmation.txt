@@ -1,0 +1,3 @@
+[Fixes]
+- Confirm deletion of saved diagnostic data before showing success, and show a
+  retry message when deletion could not be confirmed.
