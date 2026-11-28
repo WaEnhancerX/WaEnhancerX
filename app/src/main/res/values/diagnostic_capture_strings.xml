@@ -17,5 +17,6 @@
     <string name="diag_capture_cancel">Cancel</string>
     <string name="diag_capture_confirm">Delete</string>
     <string name="diag_capture_cleared">Saved data deleted.</string>
+    <string name="diag_capture_clear_failed">Could not confirm deletion of all saved data. Try again.</string>
     <string name="diag_capture_share_chooser">Share WAEX report</string>
 </resources>

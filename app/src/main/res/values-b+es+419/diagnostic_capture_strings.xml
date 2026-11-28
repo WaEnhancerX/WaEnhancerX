@@ -17,5 +17,6 @@
     <string name="diag_capture_cancel">Cancelar</string>
     <string name="diag_capture_confirm">Eliminar</string>
     <string name="diag_capture_cleared">Datos guardados eliminados.</string>
+    <string name="diag_capture_clear_failed">No se pudo confirmar el borrado de todos los datos guardados. Inténtalo de nuevo.</string>
     <string name="diag_capture_share_chooser">Compartir informe de WAEX</string>
 </resources>

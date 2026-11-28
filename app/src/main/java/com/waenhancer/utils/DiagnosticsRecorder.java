@@ -289,6 +289,29 @@ public final class DiagnosticsRecorder {
         }
     }
 
+    /**
+     * Attempts both local locations and reports whether each is observed clear.
+     * Retains the legacy void API; this result does not revoke capture consent.
+     */
+    public static boolean clearWithResult(Context context) {
+        boolean journalCleared;
+        try {
+            journalCleared = journal(context).clearWithResult();
+        } catch (RuntimeException ignored) {
+            journalCleared = false;
+        }
+        HEALTH_GATE.clear();
+        boolean exportsCleared;
+        try {
+            File cache = context.getCacheDir();
+            exportsCleared = cache != null && DiagnosticsFileCleanup.clearKnownFiles(
+                    new File(cache, EXPORT_DIRECTORY), DiagnosticsRecorder::isExportName);
+        } catch (RuntimeException ignored) {
+            exportsCleared = false;
+        }
+        return journalCleared && exportsCleared;
+    }
+
     private static DiagnosticsJournal journal(Context context) {
         // noBackupFilesDir is private to this app and excludes diagnostics from cloud backups.
         File directory = new File(context.getNoBackupFilesDir(), DIRECTORY);
@@ -307,7 +330,11 @@ public final class DiagnosticsRecorder {
     }
 
     private static boolean isExport(File file) {
-        return file.isFile() && file.getName().matches("waex-diagnostics-[A-Za-z0-9-]+\\.zip");
+        return file.isFile() && isExportName(file.getName());
+    }
+
+    private static boolean isExportName(String name) {
+        return name.matches("waex-diagnostics-[A-Za-z0-9-]+\\.zip");
     }
 
 }

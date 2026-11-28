@@ -236,6 +236,11 @@ public final class DiagnosticsJournal {
         }
     }
 
+    /** True only when no journal filename remains in an observed listing. */
+    public synchronized boolean clearWithResult() {
+        return DiagnosticsFileCleanup.clearKnownFiles(directory, name -> parseDay(name) != null);
+    }
+
     private void append(long now, String event) throws IOException {
         if (now < 0) throw new IOException("Invalid clock");
         // Event text is only constructed from a fixed vocabulary and validated identifiers.

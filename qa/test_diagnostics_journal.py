@@ -16,6 +16,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 JOURNAL = ROOT / "app/src/main/java/com/waenhancer/utils/DiagnosticsJournal.java"
+CLEANUP = ROOT / "app/src/main/java/com/waenhancer/utils/DiagnosticsFileCleanup.java"
 CRASH_HANDLER = ROOT / "app/src/main/java/com/waenhancer/utils/DiagnosticsCrashHandler.java"
 SNAPSHOT = ROOT / "app/src/main/java/com/waenhancer/utils/DiagnosticsSnapshot.java"
 HEALTH_GATE = ROOT / "app/src/main/java/com/waenhancer/utils/DiagnosticsHealthGate.java"
@@ -23,6 +24,7 @@ TARGET_EXITS = ROOT / "app/src/main/java/com/waenhancer/utils/TargetExitContract
 TARGETS = ROOT / "app/src/main/java/com/waenhancer/utils/DeclaredWhatsAppTargets.java"
 SCHEMA = ROOT / "app/src/main/java/com/waenhancer/config/PreferenceSchema.java"
 HARNESS = ROOT / "qa/fixtures/DiagnosticsJournalSelfTest.java"
+CLEANUP_HARNESS = ROOT / "qa/fixtures/DiagnosticsCleanupSelfTest.java"
 
 
 def run_once(javac: str, java: str, work: Path, mutate: str) -> subprocess.CompletedProcess[str]:
@@ -37,6 +39,14 @@ def run_once(javac: str, java: str, work: Path, mutate: str) -> subprocess.Compl
         content = content.replace(needle, "false\n"
                                   "                || !RUNTIME_STATUSES.contains(runtime)")
     (source / "DiagnosticsJournal.java").write_text(content, encoding="utf-8")
+    cleanup_content = CLEANUP.read_text(encoding="utf-8")
+    if mutate == "cleanup":
+        needle = "if (ownedName.test(name)) return false;"
+        if cleanup_content.count(needle) != 1:
+            raise AssertionError("Cleanup postcondition negative control injection point changed")
+        cleanup_content = cleanup_content.replace(needle, "if (ownedName.test(name)) return true;")
+    cleanup_source = source / "DiagnosticsFileCleanup.java"
+    cleanup_source.write_text(cleanup_content, encoding="utf-8")
     target_source = TARGET_EXITS
     if mutate == "exit":
         target_content = TARGET_EXITS.read_text(encoding="utf-8")
@@ -48,18 +58,29 @@ def run_once(javac: str, java: str, work: Path, mutate: str) -> subprocess.Compl
     classes = work / "classes"
     classes.mkdir()
     build = subprocess.run(
-        [javac, "--release", "17", "-d", str(classes),
+        [javac, "--release", "17", "-encoding", "UTF-8", "-d", str(classes),
          str(source / "DiagnosticsJournal.java"), str(CRASH_HANDLER), str(SNAPSHOT),
          str(HEALTH_GATE), str(target_source),
-         str(TARGETS), str(SCHEMA), str(HARNESS)],
+         str(TARGETS), str(SCHEMA), str(HARNESS), str(cleanup_source), str(CLEANUP_HARNESS)],
         text=True, capture_output=True, timeout=90
     )
     if build.returncode:
         raise AssertionError("javac failed:\n" + build.stdout + build.stderr)
-    return subprocess.run(
-        [java, "-ea", "-cp", str(classes), "DiagnosticsJournalSelfTest"],
+    temporary = work / "owned-files"
+    temporary.mkdir()
+    command = [java, "-ea", "-Djava.io.tmpdir=" + str(temporary), "-cp", str(classes)]
+    result = subprocess.run(
+        command + ["DiagnosticsJournalSelfTest"],
         text=True, capture_output=True, timeout=120
     )
+    if result.returncode:
+        return result
+    cleanup = subprocess.run(
+        command + ["com.waenhancer.utils.DiagnosticsCleanupSelfTest"],
+        text=True, capture_output=True, timeout=120
+    )
+    return subprocess.CompletedProcess(cleanup.args, cleanup.returncode,
+                                       result.stdout + cleanup.stdout, result.stderr + cleanup.stderr)
 
 
 def main() -> int:
@@ -91,6 +112,13 @@ def main() -> int:
                       file=sys.stderr)
                 return 1
             print("PASS negative control: forged WhatsApp crash report was detected")
+            negative_cleanup = run_once(javac, java, Path(dirname) / "negative-cleanup", "cleanup")
+            if (negative_cleanup.returncode == 0 or
+                    "retained diagnostic prevents success" not in negative_cleanup.stderr):
+                print("FAIL: false cleanup confirmation escaped the negative control",
+                      file=sys.stderr)
+                return 1
+            print("PASS negative control: false cleanup confirmation was detected")
     return 0
 
 
