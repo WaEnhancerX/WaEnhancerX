@@ -1,0 +1,99 @@
+name: Reviewed Nightly - public QA and protected build request
+
+# Only a maintainer-merged nightly commit can request the private build.
+# Never run the private dispatch for pull_request or pull_request_target.
+on:
+  push:
+    branches: [nightly]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reviewed-nightly-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  source-qa:
+    name: Require the existing full public-source QA workflow
+    uses: ./.github/workflows/source-qa.yml
+
+  request-protected-build:
+    name: Request a release from the private, protected builder
+    needs: source-qa
+    if: >-
+      github.event_name == 'push' &&
+      github.repository == 'WaEnhancerX/WaEnhancerX' &&
+      github.ref == 'refs/heads/nightly'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: nightly-dispatch
+    permissions:
+      contents: read
+    steps:
+      - name: Require an explicitly enabled, separate private release destination
+        shell: bash
+        env:
+          ENABLED: ${{ vars.WAEX_NIGHTLY_RELEASE_ENABLED }}
+          PRIVATE_REPOSITORY: ${{ vars.WAEX_NIGHTLY_BUILDER_REPOSITORY }}
+          DISPATCH_TOKEN: ${{ secrets.WAEX_NIGHTLY_DISPATCH_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ "$ENABLED" != 'true' ]]; then
+            echo '::error::Nightly release is not enabled by the maintainer; no APK is built or published.'
+            exit 1
+          fi
+          if [[ ! "$PRIVATE_REPOSITORY" =~ ^[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$ ]] || \
+             [[ "${PRIVATE_REPOSITORY,,}" == "${GITHUB_REPOSITORY,,}" ]]; then
+            echo '::error::WAEX_NIGHTLY_BUILDER_REPOSITORY must name a separate private repository.'
+            exit 1
+          fi
+          if [[ -z "$DISPATCH_TOKEN" ]]; then
+            echo '::error::The scoped private-repository dispatch token is not configured.'
+            exit 1
+          fi
+          # A valid name does not prove that the destination is private.
+          # The token must be authorized to read its actual repository metadata.
+          destination="$(curl --fail-with-body --silent --show-error --retry 0 \
+            --connect-timeout 10 --max-time 30 \
+            --header 'Accept: application/vnd.github+json' \
+            --header "Authorization: Bearer ${DISPATCH_TOKEN}" \
+            "https://api.github.com/repos/${PRIVATE_REPOSITORY}" | \
+            jq -er 'select(.private == true) | .full_name')"
+          if [[ "$destination" != "$PRIVATE_REPOSITORY" ]]; then
+            echo '::error::The configured builder is not verified as the exact private repository.'
+            exit 1
+          fi
+
+      - name: Request the reviewed commit without sending licensing or signing material
+        shell: bash
+        env:
+          PRIVATE_REPOSITORY: ${{ vars.WAEX_NIGHTLY_BUILDER_REPOSITORY }}
+          DISPATCH_TOKEN: ${{ secrets.WAEX_NIGHTLY_DISPATCH_TOKEN }}
+        run: |
+          set -euo pipefail
+          payload="$(jq -cn \
+            --arg repo "$GITHUB_REPOSITORY" \
+            --arg ref "$GITHUB_REF" \
+            --arg sha "$GITHUB_SHA" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg run_attempt "$GITHUB_RUN_ATTEMPT" \
+            '{event_type:"waex-nightly-build",client_payload:{source_repository:$repo,source_ref:$ref,source_sha:$sha,source_run_id:$run_id,source_run_attempt:$run_attempt}}')"
+
+          # This token may dispatch only to the private builder repository.
+          # HTTP 204 acknowledges a request, NOT a completed build or release.
+          curl --fail-with-body --silent --show-error --retry 0 \
+            --connect-timeout 10 --max-time 45 \
+            --request POST \
+            --header 'Accept: application/vnd.github+json' \
+            --header "Authorization: Bearer ${DISPATCH_TOKEN}" \
+            --data "$payload" \
+            "https://api.github.com/repos/${PRIVATE_REPOSITORY}/dispatches"
+
+          {
+            echo '### Protected Nightly build requested'
+            echo "Reviewed source commit: ${GITHUB_SHA}"
+            echo 'The private builder must independently verify the current nightly HEAD, build and sign in its protected environment, and publish the pre-release.'
+            echo '**This request is not proof that an APK was produced or a release published.**'
+          } >> "$GITHUB_STEP_SUMMARY"

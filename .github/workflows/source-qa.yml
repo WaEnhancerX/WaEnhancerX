@@ -1,6 +1,7 @@
 name: Source and JVM regression checks
 
 on:
+  workflow_call:
   push:
     branches: [main, nightly, 'integration/preview-current-main-*', 'fix/qa-localized-catalog-*']
   pull_request:
@@ -36,6 +37,14 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: Install the pinned Nightly workflow parser
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check --no-deps \
+            --require-hashes --only-binary=:all: -r qa/requirements-nightly.txt
+          python3 -c 'import yaml; assert yaml.__version__ == "6.0.3"'
 
       - name: Verify release pipeline contracts
         shell: bash
@@ -198,6 +207,7 @@ jobs:
             qa/test_bridge_contract.py
             qa/test_bridge_ordering.py
             qa/test_media_preference_sync.py
+            qa/test_nightly_release_contract.py
             qa/mutate_media_preference_sync.py
             qa/test_parallel_download_stream_contract.py
             qa/test_dnd_preference_policy.py
