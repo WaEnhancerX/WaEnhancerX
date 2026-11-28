@@ -1,0 +1,3 @@
+[Improvements]
+- Move periodic WhatsApp health reports off the main thread to avoid blocking
+  message navigation while runtime diagnostics are collected.
