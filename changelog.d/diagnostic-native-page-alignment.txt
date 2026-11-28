@@ -1,0 +1,3 @@
+[Improvements]
+- Improve diagnostic native-library alignment for Android devices using 16 KiB
+  memory pages.
