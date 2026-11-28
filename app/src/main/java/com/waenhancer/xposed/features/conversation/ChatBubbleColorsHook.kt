@@ -60,7 +60,8 @@ class ChatBubbleColorsHook(
     }
 
     private fun isFeatureOn(): Boolean =
-        isEnabled(PREF_ENABLED, false) || isEnabled(LEGACY_PREF_ENABLED, false)
+        // An explicit modern OFF must override a retained legacy ON, as in the settings UI.
+        isEnabled(PREF_ENABLED, isEnabled(LEGACY_PREF_ENABLED, false))
 
     private fun readColor(key: String): Int = try {
         getIntPref(key, NO_COLOR)

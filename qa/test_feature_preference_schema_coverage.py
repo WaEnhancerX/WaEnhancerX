@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""JDK-only regression for public hook preference schema coverage."""
+"""Public preference schema regression plus the compiled Kotlin bubble-reader contract."""
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import re
 
@@ -39,3 +40,4 @@ with tempfile.TemporaryDirectory(prefix='waex_schema_coverage_') as out:
     subprocess.run(['java','-cp',out,
                     'com.waenhancer.config.TestFeaturePreferenceSchemaCoverage'],check=True)
 print('PASS: previously unknown hook/UI keys now included in exportable public schema')
+subprocess.run([sys.executable, str(root / 'qa/test_bubble_color_precedence.py')], check=True)

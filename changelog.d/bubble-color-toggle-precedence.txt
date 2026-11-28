@@ -1,0 +1,3 @@
+[Fixes]
+- Respect an explicit Bubble Colors off setting even when an older enabled
+  preference remains. Keep the legacy fallback when the current setting is absent.
