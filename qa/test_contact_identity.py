@@ -3,7 +3,7 @@
 The mocked provider is not Android Binder/ContactsProvider; the SQL runner is Python SQLite.
 """
 from pathlib import Path
-import re, sqlite3, subprocess, tempfile, json
+import re, sqlite3, subprocess, tempfile, json, os, shutil
 ROOT=Path(__file__).resolve().parents[1]; SRC=ROOT/'app/src/main/java/com/waenhancer'
 STUBS={
 'Cursor.kt':'''package android.database
@@ -28,6 +28,7 @@ class SQLiteDatabase(val path:String):java.io.Closeable {
  fun execSQL(sql:String){};fun insertWithOnConflict(t:String,n:String?,v:ContentValues,f:Int)=1L
  fun update(t:String,v:ContentValues,w:String,args:Array<String>)=1
  fun query(t:String,cols:Array<String>,s:String?,a:Array<String>?,g:String?,h:String?,o:String?):Cursor=Cursor(emptyList())
+ fun query(t:String,cols:Array<String>,s:String?,a:Array<String>?,g:String?,h:String?,o:String?,limit:String):Cursor{throw AssertionError("Limited row query is outside the name-lookup fixture")}
  override fun close(){} }
 abstract class SQLiteOpenHelper(c:Context,n:String,f:Any?,v:Int){val readableDatabase=SQLiteDatabase("preserved");val writableDatabase=readableDatabase
  abstract fun onCreate(db:SQLiteDatabase);abstract fun onUpgrade(db:SQLiteDatabase,oldVersion:Int,newVersion:Int)
@@ -135,7 +136,7 @@ fun main(){
  SQLiteDatabase.handler={p,_,_->if(p=="preserved")listOf(listOf("Name A"),listOf("Name B"))else emptyList()}
  ck("conflicting preserved cache",PreservedMessageStore.getInstance(ctx).getContactNameByJid(phone)==null)
  ck("cache no invented namespace",PreservedMessageStore.getInstance(ctx).getContactNameByJid("12345")==null)
- ck("databases confined to caller",SQLiteDatabase.reads.all{it.first=="preserved"||it.first.startsWith(ctx.dbRoot.absolutePath+"/")})
+ ck("databases confined to caller",SQLiteDatabase.reads.all{it.first=="preserved"||java.io.File(it.first).parentFile?.canonicalFile == ctx.dbRoot.canonicalFile})
  println("PASS: $checks whole-resolver/policy checks (explicit Android/database/provider doubles)")
 }
 '''
@@ -179,11 +180,24 @@ public int getColumnCount(){return rows.isEmpty()?0:rows.get(0).size();}
 public int getColumnIndex(String s){return 0;}
 public void close(){}
 }''')
-        subprocess.run(['javac','--release','17','-d',str(c),str(SRC/'utils/ContactIdentityPolicy.java'),str(cursor)],check=True,timeout=60)
+        # Compile the actual logger; only annotations and the Xposed sink are boundaries.
+        diagnostics = {
+            'androidx/annotation/NonNull.java': 'package androidx.annotation; public @interface NonNull {}',
+            'androidx/annotation/VisibleForTesting.java': 'package androidx.annotation; public @interface VisibleForTesting {}',
+            'de/robv/android/xposed/XposedBridge.java': 'package de.robv.android.xposed; public final class XposedBridge {public static void log(String message){System.err.println("[QA diagnostic sink] " + message);}}',
+        }
+        diagnostic_sources = []
+        for name, content in diagnostics.items():
+            path = d / 'diagnostics' / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding='utf-8')
+            diagnostic_sources.append(path)
+        subprocess.run(['javac','--release','17','-d',str(c),str(SRC/'utils/ContactIdentityPolicy.java'),
+                        str(SRC/'xposed/utils/HookErrors.java'),str(cursor),*map(str,diagnostic_sources)],check=True,timeout=60)
         for p,s in STUBS.items():
             if p != 'Cursor.kt': (d/p).write_text(s)
         (d/'Test.kt').write_text(TEST)
-        subprocess.run(['kotlinc','-jvm-target','17','-cp',str(c),*map(str,d.glob('*.kt')),str(SRC/'utils/ContactNameResolver.kt'),str(SRC/'xposed/core/db/PreservedMessageStore.kt'),'-include-runtime','-d',str(d/'test.jar')],check=True,timeout=90)
+        subprocess.run([shutil.which('kotlinc') or 'kotlinc','-jvm-target','17','-cp',str(c),*map(str,d.glob('*.kt')),str(SRC/'utils/ContactNameResolver.kt'),str(SRC/'xposed/core/db/PreservedMessageStore.kt'),'-include-runtime','-d',str(d/'test.jar')],check=True,timeout=90)
         print('COMPILE_OK: full Kotlin resolver/store and Java identity policy', flush=True)
-        subprocess.run(['java','-cp',str(d/'test.jar')+':'+str(c),'com.waenhancer.utils.TestKt'],check=True,timeout=60)
+        subprocess.run(['java','-cp',os.pathsep.join((str(d/'test.jar'),str(c))),'com.waenhancer.utils.TestKt'],check=True,timeout=60)
 if __name__=='__main__':main()
